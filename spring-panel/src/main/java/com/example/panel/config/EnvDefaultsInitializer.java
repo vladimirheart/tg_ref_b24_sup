@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -41,12 +44,15 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
         ConfigurableEnvironment environment = applicationContext.getEnvironment();
-        Path projectRoot = locateProjectRoot();
-        Map<String, String> dotEnv = loadDotEnv(projectRoot.resolve(".env"));
+        Path currentDirectory = Paths.get("").toAbsolutePath().normalize();
+        Path workspaceRoot = locateWorkspaceRoot(currentDirectory);
+        Path panelHome = locatePanelHome(currentDirectory, workspaceRoot);
+        Map<String, String> dotEnv = loadDotEnv(workspaceRoot.resolve(".env"));
         String panelRuntimePath = resolveCanonicalPath(
             environment,
             dotEnv,
-            projectRoot,
+            workspaceRoot,
+            panelHome,
             new String[]{APP_DB_PANEL_RUNTIME, APP_DB_TICKETS},
             null,
             new String[]{"panel_runtime.db", "tickets.db"},
@@ -55,7 +61,8 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         String panelIdentityPath = resolveCanonicalPath(
             environment,
             dotEnv,
-            projectRoot,
+            workspaceRoot,
+            panelHome,
             new String[]{APP_DB_PANEL_IDENTITY, APP_DB_USERS},
             panelRuntimePath,
             new String[]{"panel_identity.db", "users.db"},
@@ -64,7 +71,8 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         String botRuntimePath = resolveCanonicalPath(
             environment,
             dotEnv,
-            projectRoot,
+            workspaceRoot,
+            panelHome,
             new String[]{APP_DB_BOT_RUNTIME, APP_DB_BOT},
             panelRuntimePath,
             new String[]{"bot_runtime.db", "bot_database.db"},
@@ -73,7 +81,8 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         String monitoringPath = resolveCanonicalPath(
             environment,
             dotEnv,
-            projectRoot,
+            workspaceRoot,
+            panelHome,
             new String[]{APP_DB_MONITORING},
             panelRuntimePath,
             new String[]{"monitoring.db"},
@@ -82,7 +91,8 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         String objectPassportsPath = resolveCanonicalPath(
             environment,
             dotEnv,
-            projectRoot,
+            workspaceRoot,
+            panelHome,
             new String[]{APP_DB_OBJECT_PASSPORTS},
             panelRuntimePath,
             new String[]{"object_passports.db"},
@@ -91,7 +101,8 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         String clientsPath = resolveCanonicalPath(
             environment,
             dotEnv,
-            projectRoot,
+            workspaceRoot,
+            panelHome,
             new String[]{APP_DB_CLIENTS},
             panelRuntimePath,
             new String[]{"clients.db"},
@@ -100,7 +111,8 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         String knowledgePath = resolveCanonicalPath(
             environment,
             dotEnv,
-            projectRoot,
+            workspaceRoot,
+            panelHome,
             new String[]{APP_DB_KNOWLEDGE},
             panelRuntimePath,
             new String[]{"knowledge_base.db"},
@@ -109,7 +121,8 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         String objectsPath = resolveCanonicalPath(
             environment,
             dotEnv,
-            projectRoot,
+            workspaceRoot,
+            panelHome,
             new String[]{APP_DB_OBJECTS},
             panelRuntimePath,
             new String[]{"objects.db"},
@@ -118,7 +131,8 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         String settingsPath = resolveCanonicalPath(
             environment,
             dotEnv,
-            projectRoot,
+            workspaceRoot,
+            panelHome,
             new String[]{APP_DB_SETTINGS},
             panelRuntimePath,
             new String[]{"settings.db"},
@@ -126,18 +140,18 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         );
 
         Map<String, Object> defaults = new HashMap<>();
-        registerDefault(defaults, environment, APP_DB_PANEL_RUNTIME, panelRuntimePath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_TICKETS, panelRuntimePath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_PANEL_IDENTITY, panelIdentityPath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_USERS, panelIdentityPath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_BOT_RUNTIME, botRuntimePath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_BOT, botRuntimePath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_MONITORING, monitoringPath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_OBJECT_PASSPORTS, objectPassportsPath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_CLIENTS, clientsPath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_KNOWLEDGE, knowledgePath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_OBJECTS, objectsPath, projectRoot);
-        registerDefault(defaults, environment, APP_DB_SETTINGS, settingsPath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_PANEL_RUNTIME, panelRuntimePath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_TICKETS, panelRuntimePath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_PANEL_IDENTITY, panelIdentityPath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_USERS, panelIdentityPath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_BOT_RUNTIME, botRuntimePath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_BOT, botRuntimePath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_MONITORING, monitoringPath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_OBJECT_PASSPORTS, objectPassportsPath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_CLIENTS, clientsPath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_KNOWLEDGE, knowledgePath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_OBJECTS, objectsPath, workspaceRoot);
+        registerDefault(defaults, environment, APP_DB_SETTINGS, settingsPath, workspaceRoot);
 
         if (!defaults.isEmpty()) {
             MutablePropertySources sources = environment.getPropertySources();
@@ -146,17 +160,32 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         }
     }
 
-    private Path locateProjectRoot() {
-        Path current = Paths.get("").toAbsolutePath().normalize();
+    Path locateWorkspaceRoot(Path start) {
+        Path current = start;
         while (current != null) {
-            boolean hasRuntime = Files.exists(current.resolve("panel_runtime.db")) || Files.exists(current.resolve("tickets.db"));
-            boolean hasIdentity = Files.exists(current.resolve("panel_identity.db")) || Files.exists(current.resolve("users.db"));
-            if (hasRuntime && hasIdentity) {
+            if (Files.isDirectory(current.resolve("ai-context"))
+                || Files.isDirectory(current.resolve("spring-panel"))
+                || Files.isDirectory(current.resolve(".git"))) {
                 return current;
             }
             current = current.getParent();
         }
-        return Paths.get("").toAbsolutePath().normalize();
+        return start;
+    }
+
+    Path locatePanelHome(Path currentDirectory, Path workspaceRoot) {
+        if (currentDirectory != null && "spring-panel".equalsIgnoreCase(String.valueOf(currentDirectory.getFileName()))) {
+            return currentDirectory;
+        }
+        Path localPanelDir = currentDirectory.resolve("spring-panel").normalize();
+        if (Files.isDirectory(localPanelDir)) {
+            return localPanelDir;
+        }
+        Path workspacePanelDir = workspaceRoot.resolve("spring-panel").normalize();
+        if (Files.isDirectory(workspacePanelDir)) {
+            return workspacePanelDir;
+        }
+        return workspaceRoot;
     }
 
     private Map<String, String> loadDotEnv(Path dotEnvPath) {
@@ -186,30 +215,23 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
 
     private String resolveCanonicalPath(ConfigurableEnvironment environment,
                                         Map<String, String> dotEnv,
-                                        Path projectRoot,
+                                        Path workspaceRoot,
+                                        Path preferredBaseDir,
                                         String[] envKeys,
                                         String siblingBasePath,
                                         String[] candidateFileNames,
                                         String preferredFileName) {
-        String configured = resolveConfiguredPath(environment, dotEnv, projectRoot, envKeys);
+        String configured = resolveConfiguredPath(environment, dotEnv, workspaceRoot, envKeys);
         if (StringUtils.hasText(configured)) {
             return configured;
         }
-        if (StringUtils.hasText(siblingBasePath)) {
-            for (String candidateFileName : candidateFileNames) {
-                String sibling = resolveSiblingPath(siblingBasePath, candidateFileName);
-                if (StringUtils.hasText(sibling)) {
-                    return sibling;
-                }
-            }
+        Path bestExisting = chooseBestExistingCandidate(
+            collectCandidatePaths(workspaceRoot, preferredBaseDir, siblingBasePath, candidateFileNames)
+        );
+        if (bestExisting != null) {
+            return bestExisting.toString();
         }
-        for (String candidateFileName : candidateFileNames) {
-            Path candidate = projectRoot.resolve(candidateFileName).normalize();
-            if (Files.exists(candidate)) {
-                return candidate.toString();
-            }
-        }
-        return projectRoot.resolve(preferredFileName).toString();
+        return preferredBaseDir.resolve(preferredFileName).normalize().toString();
     }
 
     private String resolveConfiguredPath(ConfigurableEnvironment environment,
@@ -241,30 +263,68 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
                                  ConfigurableEnvironment environment,
                                  String key,
                                  String resolvedValue,
-                                 Path projectRoot) {
+                                 Path workspaceRoot) {
         if (!StringUtils.hasText(resolvedValue)) {
             return;
         }
         String envValue = environment.getProperty(key);
-        if (StringUtils.hasText(envValue) && pathExists(envValue, projectRoot)) {
+        if (StringUtils.hasText(envValue) && pathExists(envValue, workspaceRoot)) {
             return;
         }
         defaults.put(key, resolvedValue);
     }
 
-    private String resolveSiblingPath(String ticketsPath, String fileName) {
-        if (!StringUtils.hasText(ticketsPath)) {
-            return null;
+    List<Path> collectCandidatePaths(Path workspaceRoot,
+                                     Path preferredBaseDir,
+                                     String siblingBasePath,
+                                     String[] candidateFileNames) {
+        LinkedHashSet<Path> candidates = new LinkedHashSet<>();
+        if (StringUtils.hasText(siblingBasePath)) {
+            Path siblingDir = Paths.get(siblingBasePath).toAbsolutePath().normalize().getParent();
+            addCandidatePaths(candidates, siblingDir, candidateFileNames);
         }
-        Path base = Paths.get(ticketsPath).getParent();
-        if (base == null) {
-            return null;
+        addCandidatePaths(candidates, preferredBaseDir, candidateFileNames);
+        addCandidatePaths(candidates, workspaceRoot, candidateFileNames);
+        addCandidatePaths(candidates, workspaceRoot.resolve("spring-panel").normalize(), candidateFileNames);
+        return new ArrayList<>(candidates);
+    }
+
+    private void addCandidatePaths(LinkedHashSet<Path> candidates, Path baseDir, String[] candidateFileNames) {
+        if (baseDir == null || !Files.isDirectory(baseDir)) {
+            return;
         }
-        Path candidate = base.resolve(fileName).normalize();
-        if (Files.exists(candidate)) {
-            return candidate.toString();
+        for (String candidateFileName : candidateFileNames) {
+            candidates.add(baseDir.resolve(candidateFileName).normalize());
         }
-        return null;
+    }
+
+    Path chooseBestExistingCandidate(List<Path> candidates) {
+        Path best = null;
+        long bestSize = -1L;
+        boolean bestNonEmpty = false;
+        for (Path candidate : candidates) {
+            if (candidate == null || !Files.isRegularFile(candidate)) {
+                continue;
+            }
+            long size = fileSize(candidate);
+            boolean nonEmpty = size > 0L;
+            if (best == null
+                || (nonEmpty && !bestNonEmpty)
+                || (nonEmpty == bestNonEmpty && size > bestSize)) {
+                best = candidate;
+                bestSize = size;
+                bestNonEmpty = nonEmpty;
+            }
+        }
+        return best;
+    }
+
+    private long fileSize(Path path) {
+        try {
+            return Files.size(path);
+        } catch (IOException ex) {
+            return -1L;
+        }
     }
 
     private boolean pathExists(String raw, Path projectRoot) {
