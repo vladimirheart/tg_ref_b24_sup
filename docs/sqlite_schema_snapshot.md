@@ -2,7 +2,7 @@
 
 This document captures the structure of the legacy SQLite databases shipped with the monorepo. The dumps were produced with `sqlite3 .schema` on the reference data files committed to the repository.
 
-Important: this snapshot is historical and descriptive. Canonical runtime ownership for the current split SQLite topology is defined in `docs/database-paths.md` and `ai-context/rules/backend/04-sqlite-topology.md`.
+Important: this snapshot is historical and descriptive. Transitional runtime ownership is defined in `docs/database-paths.md` and `ai-context/rules/backend/04-sqlite-topology.md`, while the target-state architecture is defined in `docs/db/sqlite-target-topology.md`.
 
 ## `tickets.db`
 
