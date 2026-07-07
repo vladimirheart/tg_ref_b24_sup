@@ -15,7 +15,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.StringUtils;
-import org.sqlite.SQLiteDataSource;
 
 import jakarta.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
@@ -28,10 +27,6 @@ import java.util.Map;
 @Configuration
 @EnableConfigurationProperties({
     SqliteDataSourceProperties.class,
-    ClientsSqliteDataSourceProperties.class,
-    KnowledgeSqliteDataSourceProperties.class,
-    ObjectsSqliteDataSourceProperties.class,
-    SettingsSqliteDataSourceProperties.class,
     BotProcessProperties.class
 })
     public class SqliteDataSourceConfiguration {
@@ -59,13 +54,11 @@ import java.util.Map;
         String url = properties.buildJdbcUrl();
         log.info("Using SQLite database at {}", normalized);
 
-        var config = SqliteConnectionConfigSupport.buildConfig(
+        DataSource dataSource = SqliteConnectionConfigSupport.createDataSource(
+            url,
             properties.getJournalMode(),
             properties.getBusyTimeoutMs()
         );
-
-        SQLiteDataSource dataSource = new SQLiteDataSource(config);
-        dataSource.setUrl(url);
         registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
         registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
         return dataSource;

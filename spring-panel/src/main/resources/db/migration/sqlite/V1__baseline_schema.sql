@@ -104,6 +104,10 @@ CREATE INDEX IF NOT EXISTS idx_history_ticket_channel
     ON chat_history(ticket_id, channel_id);
 CREATE INDEX IF NOT EXISTS idx_history_channel_time
     ON chat_history(channel_id, timestamp);
+CREATE INDEX IF NOT EXISTS idx_history_ticket_order
+    ON chat_history(ticket_id, substr(COALESCE(timestamp, ''), 1, 19), COALESCE(tg_message_id, 0), id);
+CREATE INDEX IF NOT EXISTS idx_history_ticket_sender_order
+    ON chat_history(ticket_id, lower(COALESCE(sender, '')), substr(COALESCE(timestamp, ''), 1, 19), id);
 
 DROP VIEW IF EXISTS client_stats;
 CREATE VIEW client_stats AS
@@ -370,6 +374,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at    TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Legacy compatibility tables below preserve the historical mono-db layout.
+-- Runtime canonical split ownership is documented separately in docs/database-paths.md
+-- and ai-context/rules/backend/04-sqlite-topology.md.
 CREATE TABLE IF NOT EXISTS bot_users (
     user_id       BIGINT PRIMARY KEY,
     username      TEXT,

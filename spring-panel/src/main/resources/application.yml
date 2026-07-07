@@ -35,7 +35,7 @@ spring:
 app:
   datasource:
     sqlite:
-      path: ${APP_DB_TICKETS:${APP_DB_BOT:bot_database.db}}
+      path: ${APP_DB_TICKETS:tickets.db}
     monitoring-sqlite:
       path: ${APP_DB_MONITORING:monitoring.db}
     users-sqlite:

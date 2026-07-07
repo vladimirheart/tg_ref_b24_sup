@@ -1,13 +1,11 @@
 package com.example.panel.service;
 
-import com.example.panel.config.ObjectsSqliteDataSourceProperties;
 import com.example.panel.storage.ObjectPassportPhotoStorageService;
 import com.example.panel.storage.ObjectPassportPhotoStorageService.StoredPhoto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,6 +16,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,14 +31,14 @@ public class ObjectPassportService {
 
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
-    private final ObjectsSqliteDataSourceProperties objectsProperties;
     private final ObjectMapper objectMapper;
     private final ObjectPassportPhotoStorageService photoStorageService;
+    private final DataSource objectsDataSource;
 
-    public ObjectPassportService(ObjectsSqliteDataSourceProperties objectsProperties,
+    public ObjectPassportService(@Qualifier("objectsDataSource") DataSource objectsDataSource,
                                  ObjectMapper objectMapper,
                                  ObjectPassportPhotoStorageService photoStorageService) {
-        this.objectsProperties = objectsProperties;
+        this.objectsDataSource = objectsDataSource;
         this.objectMapper = objectMapper;
         this.photoStorageService = photoStorageService;
     }
@@ -275,7 +275,7 @@ public class ObjectPassportService {
     }
 
     private Connection openConnection() throws SQLException {
-        return DriverManager.getConnection(objectsProperties.buildJdbcUrl());
+        return objectsDataSource.getConnection();
     }
 
     private void validatePayload(Map<String, Object> payload) {

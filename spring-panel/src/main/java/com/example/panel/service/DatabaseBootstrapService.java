@@ -7,15 +7,15 @@ import com.example.panel.config.ObjectsSqliteDataSourceProperties;
 import com.example.panel.config.SettingsSqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.sqlite.SQLiteDataSource;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
 
 @Service
 public class DatabaseBootstrapService implements ApplicationRunner {
@@ -29,6 +29,10 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     private final ChannelRepository channelRepository;
     private final BotDatabaseRegistry botDatabaseRegistry;
     private final BotProcessProperties botProcessProperties;
+    private final DataSource clientsDataSource;
+    private final DataSource knowledgeDataSource;
+    private final DataSource objectsDataSource;
+    private final SqliteSchemaBootstrapSupport schemaBootstrapSupport;
 
     public DatabaseBootstrapService(ClientsSqliteDataSourceProperties clientsProperties,
                                     KnowledgeSqliteDataSourceProperties knowledgeProperties,
@@ -36,7 +40,11 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                                     SettingsSqliteDataSourceProperties settingsProperties,
                                     ChannelRepository channelRepository,
                                     BotDatabaseRegistry botDatabaseRegistry,
-                                    BotProcessProperties botProcessProperties) {
+                                    BotProcessProperties botProcessProperties,
+                                    @Qualifier("clientsDataSource") DataSource clientsDataSource,
+                                    @Qualifier("knowledgeDataSource") DataSource knowledgeDataSource,
+                                    @Qualifier("objectsDataSource") DataSource objectsDataSource,
+                                    SqliteSchemaBootstrapSupport schemaBootstrapSupport) {
         this.clientsProperties = clientsProperties;
         this.knowledgeProperties = knowledgeProperties;
         this.objectsProperties = objectsProperties;
@@ -44,6 +52,10 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         this.channelRepository = channelRepository;
         this.botDatabaseRegistry = botDatabaseRegistry;
         this.botProcessProperties = botProcessProperties;
+        this.clientsDataSource = clientsDataSource;
+        this.knowledgeDataSource = knowledgeDataSource;
+        this.objectsDataSource = objectsDataSource;
+        this.schemaBootstrapSupport = schemaBootstrapSupport;
     }
 
     @Override
@@ -57,7 +69,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     }
 
     private void initializeClientsDatabase() {
-        initializeSchema(clientsProperties.buildJdbcUrl(), List.of(
+        schemaBootstrapSupport.initializeSchema(clientsDataSource, List.of(
             "CREATE TABLE IF NOT EXISTS clients (" +
                 "id INTEGER PRIMARY KEY, " +
                 "platform TEXT, " +
@@ -106,12 +118,12 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                 "last_seen_at TEXT, " +
                 "FOREIGN KEY (client_id) REFERENCES clients(id)" +
                 ")"
-        ));
+        ), "clients.db");
         log.info("Clients database ensured at {}", clientsProperties.getNormalizedPath());
     }
 
     private void initializeKnowledgeDatabase() {
-        initializeSchema(knowledgeProperties.buildJdbcUrl(), List.of(
+        schemaBootstrapSupport.initializeSchema(knowledgeDataSource, List.of(
             "CREATE TABLE IF NOT EXISTS knowledge_articles (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "title TEXT NOT NULL, " +
@@ -133,12 +145,12 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                 "description TEXT, " +
                 "created_at TEXT" +
                 ")"
-        ));
+        ), "knowledge_base.db");
         log.info("Knowledge base database ensured at {}", knowledgeProperties.getNormalizedPath());
     }
 
     private void initializeObjectsDatabase() {
-        initializeSchema(objectsProperties.buildJdbcUrl(), List.of(
+        schemaBootstrapSupport.initializeSchema(objectsDataSource, List.of(
             "CREATE TABLE IF NOT EXISTS objects (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "name TEXT NOT NULL, " +
@@ -153,7 +165,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                 "created_at TEXT, " +
                 "FOREIGN KEY (object_id) REFERENCES objects(id)" +
                 ")"
-        ));
+        ), "objects.db");
         log.info("Objects database ensured at {}", objectsProperties.getNormalizedPath());
     }
 
@@ -174,24 +186,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         List<Channel> channels = channelRepository.findAll();
         for (Channel channel : channels) {
             botDatabaseRegistry.ensureBotDatabase(channel.getId(), channel.getPlatform());
-        }
-    }
-
-    private void initializeSchema(String jdbcUrl, List<String> statements) {
-        SQLiteDataSource dataSource = new SQLiteDataSource();
-        dataSource.setUrl(jdbcUrl);
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute("PRAGMA foreign_keys=ON");
-            for (String sql : statements) {
-                statement.execute(sql);
-            }
-            statement.execute("CREATE TABLE IF NOT EXISTS schema_audit (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "applied_at TEXT NOT NULL" +
-                ")");
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to initialize SQLite schema for " + jdbcUrl, ex);
         }
     }
 }
