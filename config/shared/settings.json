@@ -162,7 +162,7 @@
     "sla_critical_auto_assign_governance_review_ttl_hours" : 168,
     "sla_critical_auto_assign_governance_dry_run_ticket_required" : false,
     "sla_critical_auto_assign_governance_decision_required" : false,
-    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-07-08T05:45:25.199313500Z",
+    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-07-08T06:24:03.605710300Z",
     "sla_critical_operator_skills" : { },
     "sla_critical_operator_queues" : { },
     "sla_critical_escalation_webhook_enabled" : false,
@@ -512,6 +512,13 @@
     "id" : "iiko-source-mrbniy0y-josigm",
     "name" : "СушиВёсла",
     "base_url" : "https://gk-sv.iiko.it",
+    "api_login" : "SinicinVV",
+    "api_secret" : "0d3e58bb9e6b6af02f4689f843b936c8588b91f0",
+    "enabled" : true
+  }, {
+    "id" : "iiko-source-mrboyb0h-tifa77",
+    "name" : "БлинБери",
+    "base_url" : "https://bb-chain.iiko.it",
     "api_login" : "SinicinVV",
     "api_secret" : "0d3e58bb9e6b6af02f4689f843b936c8588b91f0",
     "enabled" : true
