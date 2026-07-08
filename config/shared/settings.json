@@ -511,7 +511,7 @@
   "locations_iiko_server_sources" : [ {
     "id" : "iiko-source-mrbniy0y-josigm",
     "name" : "СушиВёсла",
-    "base_url" : "https://gk-sv.iiko.it/resto",
+    "base_url" : "https://gk-sv.iiko.it",
     "api_login" : "SinicinVV",
     "api_secret" : "0d3e58bb9e6b6af02f4689f843b936c8588b91f0",
     "enabled" : true
@@ -551,5 +551,25 @@
       "text_color" : "#ff5d5d",
       "icon" : ""
     }
-  }
+  },
+  "integration_network_profiles" : [ {
+    "id" : "telegram-ftl-dev-ru-mirror",
+    "name" : "Telegram mirror telegram.ftl-dev.ru",
+    "mode" : "proxy",
+    "proxy" : {
+      "scheme" : "https",
+      "host" : "telegram.ftl-dev.ru",
+      "port" : 443,
+      "username" : "",
+      "password" : "",
+      "token" : ""
+    },
+    "vpn" : {
+      "name" : "",
+      "endpoint" : "",
+      "config_path" : "",
+      "notes" : "",
+      "env" : { }
+    }
+  } ]
 }

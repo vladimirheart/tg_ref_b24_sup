@@ -1,0 +1,575 @@
+{
+  "auto_close_hours" : 1,
+  "categories" : [ "Консультация", "Основной шаблон", "Не работает акция", "Ошибка отдела обращения", "Техническая проблема", "Другое" ],
+  "client_statuses" : [ ],
+  "client_status_colors" : {
+    "Сотрудник локации" : "#0d6efd",
+    "Менеджер" : "#6610f2",
+    "ТУ" : "#6f42c1",
+    "Сотрудник офиса" : "#198754",
+    "VIP" : "#fd7e14",
+    "Постоянный клиент" : "#20c997",
+    "Новый клиент" : "#0dcaf0",
+    "Проблемный клиент" : "#dc3545"
+  },
+  "dialog_config" : {
+    "category_templates" : [ {
+      "id" : "cat-default",
+      "name" : "Основной шаблон",
+      "categories" : [ "Консультация", "Основной шаблон", "Не работает акция", "Ошибка отдела обращения", "Техническая проблема", "Другое" ]
+    }, {
+      "id" : "cat-it",
+      "name" : "Обучение",
+      "categories" : [ "цукeee", "Техническая поддержка", "Сбой оборудования" ]
+    } ],
+    "question_templates" : [ {
+      "id" : "q-start",
+      "name" : "Проблема с интернетом",
+      "questions" : [ "Инцидент безопасности", "Базовые вопросы", "Подскажите, в какой локации возникла проблема?" ]
+    }, {
+      "id" : "q-ybsmly-mhczzwx2",
+      "name" : "ITS",
+      "questions" : [ "Наташа, ты всё проспала", "Как так-то?", "Валера, настало твоё время", "Жорик не виновен" ]
+    } ],
+    "completion_templates" : [ {
+      "id" : "act-pobzf1-ml84vl2q",
+      "name" : "Шаблон действий 1",
+      "items" : [ ]
+    } ],
+    "time_metrics" : {
+      "good_limit" : 30,
+      "warning_limit" : 60,
+      "colors" : {
+        "good" : "#d1f7d1",
+        "warning" : "#fff4d6",
+        "danger" : "#f8d7da"
+      }
+    },
+    "summary_badges" : {
+      "default" : {
+        "background" : "#f1f3f5",
+        "text" : "#1f2937"
+      },
+      "status" : {
+        "новый" : {
+          "background" : "#e7f1ff",
+          "text" : "#0d6efd"
+        },
+        "ожидает ответа оператора" : {
+          "background" : "#fff4d6",
+          "text" : "#b35c00"
+        },
+        "ожидает ответа клиента" : {
+          "background" : "#e0f4ff",
+          "text" : "#0b6fa3"
+        },
+        "закрыт" : {
+          "background" : "#e3f7e9",
+          "text" : "#13795b"
+        },
+        "закрыт автоматически" : {
+          "background" : "#f1f3f5",
+          "text" : "#6c757d"
+        }
+      },
+      "channel" : {
+        "telegram" : {
+          "background" : "#e0f4ff",
+          "text" : "#0b6fa3"
+        },
+        "vk" : {
+          "background" : "#e7f1ff",
+          "text" : "#0d6efd"
+        }
+      }
+    },
+    "workspace_guardrail_webhook_enabled" : false,
+    "workspace_guardrail_webhook_url" : "",
+    "workspace_guardrail_webhook_window_days" : 7,
+    "workspace_guardrail_webhook_min_alerts" : 2,
+    "workspace_guardrail_webhook_cooldown_minutes" : 30,
+    "workspace_guardrail_webhook_timeout_ms" : 4000,
+    "workspace_triage_preferences_by_operator" : {
+      "admin" : {
+        "view" : "all",
+        "sort_mode" : "default",
+        "page_size" : "all",
+        "updated_at_utc" : "2026-04-15T09:16:06.199599600Z"
+      }
+    },
+    "macro_templates" : [ ],
+    "macro_publish_allowed_roles" : [ ],
+    "macro_require_independent_review" : true,
+    "macro_governance_require_owner" : false,
+    "macro_governance_require_namespace" : false,
+    "macro_governance_require_review" : false,
+    "macro_governance_review_ttl_hours" : 168,
+    "macro_governance_deprecation_requires_reason" : false,
+    "macro_governance_unused_days" : 30,
+    "macro_governance_red_list_enabled" : false,
+    "macro_governance_red_list_usage_max" : 0,
+    "macro_governance_owner_action_required" : false,
+    "macro_governance_cleanup_cadence_days" : 0,
+    "macro_governance_alias_cleanup_required" : false,
+    "macro_governance_variable_cleanup_required" : false,
+    "macro_governance_usage_tier_sla_required" : false,
+    "macro_governance_usage_tier_low_max" : 0,
+    "macro_governance_usage_tier_medium_max" : 5,
+    "macro_governance_cleanup_sla_low_days" : 7,
+    "macro_governance_cleanup_sla_medium_days" : 30,
+    "macro_governance_cleanup_sla_high_days" : 90,
+    "macro_governance_deprecation_sla_low_days" : 14,
+    "macro_governance_deprecation_sla_medium_days" : 45,
+    "macro_governance_deprecation_sla_high_days" : 120,
+    "macro_variable_defaults" : { },
+    "macro_variable_catalog" : [ ],
+    "macro_variable_catalog_external_url" : "",
+    "macro_variable_catalog_external_timeout_ms" : 2000,
+    "macro_variable_catalog_external_cache_ttl_seconds" : 120,
+    "macro_variable_catalog_external_auth_header" : "Authorization",
+    "macro_variable_catalog_external_auth_token" : "",
+    "default_view" : "all",
+    "quick_snooze_minutes" : 60,
+    "overdue_threshold_hours" : 24,
+    "list_poll_interval_ms" : 8000,
+    "history_poll_interval_ms" : 8000,
+    "sla_target_minutes" : 30,
+    "sla_warning_minutes" : 15,
+    "sla_critical_minutes" : 25,
+    "sla_critical_orchestration_mode" : "autopilot",
+    "ai_agent_enabled" : true,
+    "ai_agent_mode" : "auto_reply",
+    "ai_agent_auto_reply_threshold" : 0.62,
+    "ai_agent_suggest_threshold" : 0.46,
+    "ai_agent_max_auto_replies_per_dialog" : 3,
+    "sla_critical_escalation_enabled" : true,
+    "sla_critical_auto_assign_enabled" : false,
+    "sla_critical_auto_assign_to" : "",
+    "sla_critical_auto_assign_max_per_run" : 5,
+    "sla_critical_auto_assign_actor" : "sla_orchestrator",
+    "sla_critical_auto_assign_rules" : [ ],
+    "sla_critical_auto_assign_max_open_per_operator" : 1,
+    "sla_critical_auto_assign_require_categories" : false,
+    "sla_critical_auto_assign_include_assigned" : false,
+    "sla_critical_auto_assign_audit_require_layers" : false,
+    "sla_critical_auto_assign_audit_require_owner" : false,
+    "sla_critical_auto_assign_audit_require_review" : false,
+    "sla_critical_auto_assign_audit_review_ttl_hours" : 168,
+    "sla_critical_auto_assign_audit_broad_rule_coverage_pct" : 60,
+    "sla_critical_auto_assign_audit_block_on_conflicts" : false,
+    "sla_critical_auto_assign_governance_review_required" : false,
+    "sla_critical_auto_assign_governance_review_path" : "custom",
+    "sla_critical_auto_assign_governance_review_ttl_hours" : 168,
+    "sla_critical_auto_assign_governance_dry_run_ticket_required" : false,
+    "sla_critical_auto_assign_governance_decision_required" : false,
+    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-07-08T05:45:25.199313500Z",
+    "sla_critical_operator_skills" : { },
+    "sla_critical_operator_queues" : { },
+    "sla_critical_escalation_webhook_enabled" : false,
+    "sla_critical_escalation_include_assigned" : false,
+    "sla_critical_escalation_webhook_urls" : [ ],
+    "sla_critical_escalation_webhook_cooldown_minutes" : 30,
+    "sla_critical_escalation_webhook_timeout_ms" : 4000,
+    "sla_critical_escalation_webhook_retry_attempts" : 1,
+    "sla_critical_escalation_webhook_retry_backoff_ms" : 250,
+    "sla_critical_escalation_webhook_event_name" : "sla_critical_escalation_required",
+    "sla_critical_escalation_webhook_severity" : "critical",
+    "sla_critical_escalation_webhook_max_tickets_per_run" : 50,
+    "sla_window_presets_minutes" : [ 15, 30, 60, 120 ],
+    "sla_window_default_minutes" : null,
+    "sla_critical_auto_sort" : true,
+    "sla_critical_pin_unassigned_only" : false,
+    "sla_critical_view_unassigned_only" : false,
+    "workspace_v1" : true,
+    "workspace_single_mode" : false,
+    "workspace_force_workspace" : false,
+    "workspace_decommission_legacy_modal" : false,
+    "workspace_inline_navigation" : true,
+    "workspace_ab_enabled" : false,
+    "workspace_ab_rollout_percent" : 100,
+    "workspace_ab_experiment_name" : "workspace_v1_rollout",
+    "workspace_ab_operator_segment" : "all_operators",
+    "workspace_ab_primary_kpis" : [ "frt", "ttr", "sla_breach" ],
+    "workspace_ab_secondary_kpis" : [ "dialogs_per_operator_shift", "csat", "ui_error_rate" ],
+    "workspace_ab_operator_overrides" : { },
+    "workspace_contract_timeout_ms" : 8000,
+    "workspace_contract_retry_attempts" : 1,
+    "workspace_contract_include" : "messages,context,sla,permissions",
+    "workspace_messages_page_limit" : 50,
+    "workspace_disable_legacy_fallback" : false,
+    "workspace_failure_streak_threshold" : 3,
+    "workspace_failure_cooldown_ms" : 30000,
+    "workspace_draft_autosave_delay_ms" : 900,
+    "workspace_draft_telemetry_interval_ms" : 30000,
+    "workspace_open_slo_ms" : 2000,
+    "guardrail_render_error_rate" : 0.01,
+    "guardrail_fallback_rate" : 0.03,
+    "guardrail_abandon_rate" : 0.1,
+    "guardrail_slow_open_rate" : 0.05,
+    "dimension_min_events" : 20,
+    "cohort_min_events" : 30,
+    "workspace_rollout_kpi_outcome_min_samples_per_cohort" : 5,
+    "workspace_rollout_kpi_outcome_frt_max_relative_regression" : 0.1,
+    "workspace_rollout_kpi_outcome_ttr_max_relative_regression" : 0.1,
+    "workspace_rollout_kpi_outcome_sla_breach_max_absolute_delta" : 0.02,
+    "workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier" : 1.2,
+    "workspace_rollout_required_outcome_kpis" : [ "frt", "ttr", "sla_breach" ],
+    "workspace_rollout_winner_min_open_improvement" : 0,
+    "workspace_rollout_governance_packet_required" : false,
+    "workspace_rollout_governance_owner_signoff_required" : false,
+    "workspace_rollout_governance_owner_signoff_by" : "",
+    "workspace_rollout_governance_owner_signoff_at" : "",
+    "workspace_rollout_governance_owner_signoff_ttl_hours" : 168,
+    "workspace_rollout_governance_review_cadence_days" : 0,
+    "workspace_rollout_governance_reviewed_by" : "",
+    "workspace_rollout_governance_reviewed_at" : "",
+    "workspace_rollout_governance_review_decision_required" : false,
+    "workspace_rollout_governance_incident_followup_required" : false,
+    "workspace_rollout_governance_followup_for_non_go_required" : false,
+    "workspace_rollout_governance_review_decision_action" : "",
+    "workspace_rollout_governance_review_incident_followup" : "",
+    "workspace_rollout_governance_parity_exit_days" : 0,
+    "workspace_rollout_governance_parity_critical_reasons" : [ ],
+    "workspace_rollout_governance_legacy_only_scenarios" : [ ],
+    "workspace_rollout_governance_legacy_usage_min_workspace_open_events" : "",
+    "workspace_rollout_governance_legacy_blocked_reasons_review_required" : false,
+    "workspace_rollout_governance_legacy_blocked_reasons_top_n" : 3,
+    "workspace_client_crm_profile_url_template" : "",
+    "workspace_client_crm_profile_label" : "",
+    "workspace_client_contract_profile_url_template" : "",
+    "workspace_client_contract_profile_label" : "",
+    "workspace_client_external_links" : [ ],
+    "workspace_client_external_profile_url" : "",
+    "workspace_client_external_profile_timeout_ms" : 2500,
+    "workspace_client_external_profile_cache_ttl_seconds" : 120,
+    "workspace_client_external_profile_auth_header" : "Authorization",
+    "workspace_client_external_profile_auth_token" : "",
+    "workspace_required_client_attributes" : [ ],
+    "workspace_required_client_attributes_by_segment" : { },
+    "workspace_client_context_required_sources" : [ ],
+    "workspace_client_context_source_priority" : [ "local", "crm", "contract", "external" ],
+    "workspace_client_context_source_stale_after_hours" : 0,
+    "workspace_client_context_source_labels" : { },
+    "workspace_client_context_source_updated_at_attributes" : { },
+    "workspace_client_context_source_stale_after_hours_by_source" : { },
+    "cross_product_omnichannel_dashboard_url" : "",
+    "cross_product_omnichannel_dashboard_label" : "Omni-channel KPI dashboard",
+    "cross_product_finance_dashboard_url" : "",
+    "cross_product_finance_dashboard_label" : "Финансовый KPI dashboard",
+    "workspace_rollout_external_kpi_gate_enabled" : false,
+    "workspace_rollout_external_kpi_omnichannel_ready" : false,
+    "workspace_rollout_external_kpi_finance_ready" : false,
+    "workspace_rollout_external_kpi_note" : "",
+    "workspace_rollout_external_kpi_datamart_owner" : "",
+    "workspace_rollout_external_kpi_datamart_runbook_url" : "",
+    "workspace_rollout_external_kpi_datamart_dependency_ticket_required" : false,
+    "workspace_rollout_external_kpi_datamart_dependency_ticket_url" : "",
+    "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_required" : false,
+    "workspace_rollout_external_kpi_datamart_dependency_ticket_owner" : "",
+    "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required" : false,
+    "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact" : "",
+    "workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required" : false,
+    "workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required" : false,
+    "workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at" : "",
+    "workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours" : 336,
+    "workspace_rollout_external_kpi_reviewed_by" : "",
+    "workspace_rollout_external_kpi_reviewed_at" : "",
+    "workspace_rollout_external_kpi_review_ttl_hours" : 168,
+    "workspace_rollout_external_kpi_data_freshness_required" : false,
+    "workspace_rollout_external_kpi_data_updated_at" : "",
+    "workspace_rollout_external_kpi_data_freshness_ttl_hours" : 48,
+    "workspace_rollout_external_kpi_dashboard_links_required" : false,
+    "workspace_rollout_external_kpi_dashboard_status_required" : false,
+    "workspace_rollout_external_kpi_dashboard_status" : "unknown",
+    "workspace_rollout_external_kpi_dashboard_status_note" : "",
+    "workspace_rollout_external_kpi_owner_runbook_required" : false,
+    "workspace_rollout_external_kpi_datamart_health_required" : false,
+    "workspace_rollout_external_kpi_datamart_health_status" : "unknown",
+    "workspace_rollout_external_kpi_datamart_health_note" : "",
+    "workspace_rollout_external_kpi_datamart_health_freshness_required" : false,
+    "workspace_rollout_external_kpi_datamart_health_updated_at" : "",
+    "workspace_rollout_external_kpi_datamart_health_ttl_hours" : 48,
+    "workspace_rollout_external_kpi_datamart_program_blocker_required" : false,
+    "workspace_rollout_external_kpi_datamart_program_status" : "unknown",
+    "workspace_rollout_external_kpi_datamart_program_note" : "",
+    "workspace_rollout_external_kpi_datamart_program_blocker_url" : "",
+    "workspace_rollout_external_kpi_datamart_program_freshness_required" : false,
+    "workspace_rollout_external_kpi_datamart_program_updated_at" : "",
+    "workspace_rollout_external_kpi_datamart_program_ttl_hours" : 336,
+    "workspace_rollout_external_kpi_datamart_timeline_required" : false,
+    "workspace_rollout_external_kpi_datamart_target_ready_at" : "",
+    "workspace_rollout_external_kpi_datamart_timeline_grace_hours" : 24,
+    "workspace_rollout_external_kpi_datamart_contract_required" : false,
+    "workspace_rollout_external_kpi_datamart_contract_version" : "v1",
+    "workspace_rollout_external_kpi_datamart_contract_mandatory_fields" : "frt,ttr,sla_breach,cost_per_contact",
+    "workspace_rollout_external_kpi_datamart_contract_optional_fields" : "",
+    "workspace_rollout_external_kpi_datamart_contract_available_fields" : "",
+    "workspace_rollout_external_kpi_datamart_contract_optional_coverage_required" : false,
+    "workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct" : 80,
+    "workspace_client_hidden_attributes" : [ ],
+    "workspace_client_attribute_labels" : { },
+    "workspace_client_attribute_order" : [ ],
+    "workspace_client_extra_attributes_max" : 20,
+    "workspace_client_extra_attributes_collapse_after" : 8,
+    "workspace_client_extra_attributes_hide_technical" : true,
+    "workspace_client_extra_attributes_technical_prefixes" : [ "_", "internal_" ],
+    "workspace_context_history_limit" : 5,
+    "workspace_context_related_events_limit" : 5,
+    "workspace_segment_high_lifetime_volume_min_dialogs" : 5,
+    "workspace_segment_multi_open_dialogs_min_open" : 2,
+    "workspace_segment_reactivation_risk_min_dialogs" : 3,
+    "workspace_segment_reactivation_risk_max_resolved_30d" : 0,
+    "workspace_segment_open_backlog_min_open" : 3,
+    "workspace_segment_open_backlog_min_share_percent" : 50,
+    "public_form_message_max_length" : 4000,
+    "public_form_answers_total_max_length" : 6000,
+    "public_form_session_ttl_hours" : 72,
+    "public_form_idempotency_ttl_seconds" : 300,
+    "public_form_rate_limit_enabled" : true,
+    "public_form_rate_limit_window_seconds" : 60,
+    "public_form_rate_limit_max_requests" : 5,
+    "public_form_rate_limit_use_fingerprint" : true,
+    "public_form_metrics_enabled" : true,
+    "public_form_alerts_enabled" : true,
+    "public_form_alert_min_views" : 20,
+    "public_form_alert_error_rate_threshold" : 0.35,
+    "public_form_alert_captcha_failure_rate_threshold" : 0.2,
+    "public_form_alert_rate_limit_rejection_rate_threshold" : 0.2,
+    "public_form_alert_session_lookup_miss_rate_threshold" : 0.3,
+    "public_form_strip_html_tags" : true,
+    "public_form_captcha_shared_secret" : "",
+    "public_form_captcha_mode" : "shared_secret",
+    "public_form_turnstile_secret_key" : "",
+    "public_form_turnstile_verify_url" : "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    "public_form_turnstile_timeout_ms" : 4000,
+    "public_form_session_polling_enabled" : true,
+    "public_form_session_polling_interval_seconds" : 15,
+    "public_form_session_token_rotate_on_read" : false,
+    "public_form_default_locale" : "auto"
+  },
+  "network_profiles" : [ ],
+  "it_connection_categories" : { },
+  "bot_settings" : {
+    "question_templates" : [ {
+      "id" : "tpl_mpnp8g3k1qcg",
+      "name" : "Базовый шаблон вопросов",
+      "description" : "",
+      "start_message" : "",
+      "question_flow" : [ {
+        "id" : "business",
+        "type" : "preset",
+        "text" : "Бизнес",
+        "order" : 1,
+        "preset" : {
+          "group" : "locations",
+          "field" : "business"
+        }
+      }, {
+        "id" : "location_type",
+        "type" : "preset",
+        "text" : "Тип бизнесаx",
+        "order" : 2,
+        "preset" : {
+          "group" : "locations",
+          "field" : "location_type"
+        }
+      }, {
+        "id" : "city",
+        "type" : "preset",
+        "text" : "Город",
+        "order" : 3,
+        "preset" : {
+          "group" : "locations",
+          "field" : "city"
+        }
+      }, {
+        "id" : "location_name",
+        "type" : "preset",
+        "text" : "Локация",
+        "order" : 4,
+        "preset" : {
+          "group" : "locations",
+          "field" : "location_name"
+        }
+      } ]
+    }, {
+      "id" : "tpl_mpnr09amrzh9",
+      "name" : "Вопросы для офиса",
+      "description" : "",
+      "start_message" : "Внимание! Бот для сотрудников офиса",
+      "question_flow" : [ {
+        "id" : "q_mpnrpxd1ixlzyl",
+        "type" : "custom",
+        "text" : "Выберете направление",
+        "order" : 1
+      }, {
+        "id" : "q_mpnrr3p0emvpw4",
+        "type" : "custom",
+        "text" : "Укажите вопрос",
+        "order" : 2
+      } ]
+    } ],
+    "active_template_id" : "tpl_mpnp8g3k1qcg",
+    "question_flow" : [ {
+      "id" : "business",
+      "type" : "preset",
+      "text" : "Бизнес",
+      "order" : 1,
+      "preset" : {
+        "group" : "locations",
+        "field" : "business"
+      }
+    }, {
+      "id" : "location_type",
+      "type" : "preset",
+      "text" : "Тип бизнесаx",
+      "order" : 2,
+      "preset" : {
+        "group" : "locations",
+        "field" : "location_type"
+      }
+    }, {
+      "id" : "city",
+      "type" : "preset",
+      "text" : "Город",
+      "order" : 3,
+      "preset" : {
+        "group" : "locations",
+        "field" : "city"
+      }
+    }, {
+      "id" : "location_name",
+      "type" : "preset",
+      "text" : "Локация",
+      "order" : 4,
+      "preset" : {
+        "group" : "locations",
+        "field" : "location_name"
+      }
+    } ],
+    "rating_templates" : [ {
+      "id" : "rating-template-default",
+      "name" : "Базовый сценарий оценок",
+      "description" : "",
+      "prompt_text" : "Пожалуйста, оцените качество ответа от 1 до 5.",
+      "scale_size" : 5,
+      "responses" : [ {
+        "value" : 1,
+        "text" : "Спасибо за вашу оценку 1! Нам важно ваше мнение."
+      }, {
+        "value" : 2,
+        "text" : "Спасибо за вашу оценку 2! Нам важно ваше мнение."
+      }, {
+        "value" : 3,
+        "text" : "Спасибо за вашу оценку 3! Нам важно ваше мнение."
+      }, {
+        "value" : 4,
+        "text" : "Спасибо за вашу оценку 4! Нам важно ваше мнение."
+      }, {
+        "value" : 5,
+        "text" : "Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение."
+      } ]
+    } ],
+    "active_rating_template_id" : "rating-template-default",
+    "rating_system" : {
+      "prompt_text" : "Пожалуйста, оцените качество ответа от 1 до 5.",
+      "scale_size" : 5,
+      "responses" : [ {
+        "value" : 1,
+        "text" : "Спасибо за вашу оценку 1! Нам важно ваше мнение."
+      }, {
+        "value" : 2,
+        "text" : "Спасибо за вашу оценку 2! Нам важно ваше мнение."
+      }, {
+        "value" : 3,
+        "text" : "Спасибо за вашу оценку 3! Нам важно ваше мнение."
+      }, {
+        "value" : 4,
+        "text" : "Спасибо за вашу оценку 4! Нам важно ваше мнение."
+      }, {
+        "value" : 5,
+        "text" : "Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение."
+      } ]
+    },
+    "unblock_request_cooldown_minutes" : 60
+  },
+  "unblock_request_cooldown_minutes" : 1,
+  "knowledge_base_config" : {
+    "enabled" : true,
+    "source_url" : "https://www.notion.so/blinberry-group",
+    "token" : "",
+    "authors" : [ "Синицын Владимир", "Лемешкин Андрей", "Egor", "Канделаки Данил", "Шумкова Дарья" ],
+    "title_property" : "Name",
+    "author_property" : "Автор",
+    "summary_property" : "Краткое описание",
+    "department_property" : "Подразделение",
+    "article_type_property" : "Тип статьи",
+    "direction_property" : "Направление",
+    "direction_subtype_property" : "Поднаправление",
+    "status_property" : "Статус"
+  },
+  "locations_iiko_server_sources" : [ {
+    "id" : "iiko-source-mrbniy0y-josigm",
+    "name" : "СушиВёсла",
+    "base_url" : "https://gk-sv.iiko.it",
+    "api_login" : "SinicinVV",
+    "api_secret" : "0d3e58bb9e6b6af02f4689f843b936c8588b91f0",
+    "enabled" : true
+  } ],
+  "locations_iiko_sync" : {
+    "enabled" : true,
+    "interval_minutes" : 5
+  },
+  "auto_close_config" : {
+    "templates" : [ {
+      "id" : "auto-u97pii-mowx65uu",
+      "name" : "Шаблон автозакрытия 1",
+      "hours" : 1,
+      "description" : "диалог закрыт по причине отсутствия активности"
+    } ],
+    "active_template_id" : "auto-u97pii-mowx65uu"
+  },
+  "reporting_config" : {
+    "enabled" : true,
+    "period_days" : 7,
+    "frequency" : "daily",
+    "send_at" : "09:00",
+    "channel_id" : null,
+    "recipient_user" : "-4961108450",
+    "include_appeals" : true,
+    "include_tasks" : true,
+    "include_changes" : true
+  },
+  "business_cell_styles" : {
+    "СушиВёсла" : {
+      "background_color" : "#f38d8d",
+      "text_color" : "#0c0909",
+      "icon" : ""
+    },
+    "БлинБери" : {
+      "background_color" : "#fff0c4",
+      "text_color" : "#ff5d5d",
+      "icon" : ""
+    }
+  },
+  "integration_network_profiles" : [ {
+    "id" : "telegram-ftl-dev-ru-mirror",
+    "name" : "Telegram mirror telegram.ftl-dev.ru",
+    "mode" : "proxy",
+    "proxy" : {
+      "scheme" : "https",
+      "host" : "telegram.ftl-dev.ru",
+      "port" : 443,
+      "username" : "",
+      "password" : "",
+      "token" : ""
+    },
+    "vpn" : {
+      "name" : "",
+      "endpoint" : "",
+      "config_path" : "",
+      "notes" : "",
+      "env" : { }
+    }
+  } ]
+}

@@ -83,6 +83,33 @@ class LocationsIikoServerSourceSettingsServiceTest {
     }
 
     @Test
+    void applyPayloadNormalizesLegacyRestoSuffixInBaseUrl() {
+        Map<String, Object> settings = new LinkedHashMap<>();
+
+        boolean modified = service.applyPayload(
+                Map.of(
+                        LocationsIikoServerSourceSettingsService.SETTINGS_KEY,
+                        List.of(
+                                Map.of(
+                                        "id", "source-1",
+                                        "name", "Chain server",
+                                        "base_url", "https://chain.example/resto/",
+                                        "api_login", "login-1",
+                                        "api_secret", "0123456789abcdef0123456789abcdef01234567",
+                                        "enabled", true
+                                )
+                        )
+                ),
+                settings
+        );
+
+        assertThat(modified).isTrue();
+        assertThat(service.loadForRuntime(settings))
+                .singleElement()
+                .satisfies(source -> assertThat(source.baseUrl()).isEqualTo("https://chain.example"));
+    }
+
+    @Test
     void applyPayloadRejectsNonSha1Secret() {
         Map<String, Object> settings = new LinkedHashMap<>();
 

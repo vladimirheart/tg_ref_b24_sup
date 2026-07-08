@@ -3,6 +3,7 @@ package com.example.panel.service;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -133,6 +134,12 @@ public class LocationsIikoServerSourceSettingsService {
         String normalized = value.trim();
         while (normalized.endsWith("/")) {
             normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        while (normalized.toLowerCase(Locale.ROOT).endsWith("/resto")) {
+            normalized = normalized.substring(0, normalized.length() - "/resto".length());
+            while (normalized.endsWith("/")) {
+                normalized = normalized.substring(0, normalized.length() - 1);
+            }
         }
         return normalized;
     }

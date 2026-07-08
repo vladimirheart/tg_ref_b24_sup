@@ -272,6 +272,38 @@ class IntegrationNetworkServiceTest {
     }
 
     @Test
+    void resolvesTelegramLegacyMirrorBaseUrlFromProfileRoute() {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+            "integration_network_profiles", java.util.List.of(
+                Map.of(
+                    "id", "telegram-ftl-dev-ru-mirror",
+                    "mode", "proxy",
+                    "proxy", Map.of(
+                        "scheme", "https",
+                        "host", "telegram.ftl-dev.ru",
+                        "port", 443
+                    )
+                )
+            )
+        ));
+
+        Channel channel = new Channel();
+        channel.setPlatform("telegram");
+        channel.setDeliverySettings("""
+            {
+              "network_route": {
+                "mode": "profile",
+                "profile_id": "telegram-ftl-dev-ru-mirror",
+                "profile_ids": ["telegram-ftl-dev-ru-mirror"]
+              }
+            }
+            """);
+
+        assertThat(service.resolveTelegramLegacyBotApiBaseUrl(channel))
+            .isEqualTo("https://telegram.ftl-dev.ru");
+    }
+
+    @Test
     void doesNotResolveTelegramLegacyMirrorBaseUrlForGenericProxyHost() {
         Channel channel = new Channel();
         channel.setPlatform("telegram");

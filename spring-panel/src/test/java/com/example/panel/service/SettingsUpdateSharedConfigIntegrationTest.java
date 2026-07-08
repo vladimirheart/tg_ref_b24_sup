@@ -148,4 +148,43 @@ class SettingsUpdateSharedConfigIntegrationTest {
         assertEquals(false, questionFlow.get(0).get("required"));
         assertEquals("Optional question", questionFlow.get(0).get("text"));
     }
+
+    @Test
+    void updateSettingsPersistsIikoServerSourcesAndSyncSettings() {
+        when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
+                .thenReturn(false);
+
+        Map<String, Object> payload = Map.of(
+                "locations_iiko_server_sources", List.of(
+                        Map.of(
+                                "id", "source-1",
+                                "name", "Chain server",
+                                "base_url", "https://chain.example/resto/",
+                                "api_login", "login-1",
+                                "api_secret", "0123456789abcdef0123456789abcdef01234567",
+                                "enabled", true
+                        )
+                ),
+                "locations_iiko_sync", Map.of(
+                        "enabled", false,
+                        "interval_minutes", 15
+                )
+        );
+
+        Map<String, Object> result = service.updateSettings(payload, mock(Authentication.class));
+
+        assertEquals(Map.of("success", true), result);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> sources = (List<Map<String, Object>>) sharedConfigService.loadSettings()
+                .get(LocationsIikoServerSourceSettingsService.SETTINGS_KEY);
+        assertEquals(1, sources.size());
+        assertEquals("https://chain.example", sources.get(0).get("base_url"));
+        assertEquals("login-1", sources.get(0).get("api_login"));
+        assertEquals("0123456789abcdef0123456789abcdef01234567", sources.get(0).get("api_secret"));
+        assertEquals(true, sources.get(0).get("enabled"));
+        assertEquals(
+                Map.of("enabled", false, "interval_minutes", 15),
+                sharedConfigService.loadSettings().get(LocationsIikoSyncSettingsService.SETTINGS_KEY)
+        );
+    }
 }

@@ -79,6 +79,21 @@
     return config && !Array.isArray(config) ? config : {};
   }
 
+  function hasInitialLocationsSettings(options, initialServerSources, initialSyncSettings) {
+    if (typeof options?.hasInitialData === 'boolean') {
+      return options.hasInitialData;
+    }
+    if (Array.isArray(initialServerSources) && initialServerSources.length > 0) {
+      return true;
+    }
+    return Boolean(
+      initialSyncSettings
+      && typeof initialSyncSettings === 'object'
+      && !Array.isArray(initialSyncSettings)
+      && Object.keys(initialSyncSettings).length > 0
+    );
+  }
+
   function readConfigObject(config, key) {
     const value = config && typeof config[key] === 'object' ? config[key] : null;
     return value && !Array.isArray(value) ? value : null;
@@ -101,7 +116,11 @@
     let locationsIikoServerSourcesState = sanitizeLocationsIikoServerSources(initialServerSources);
     let locationsIikoSyncSettingsState = sanitizeLocationsIikoSyncSettings(initialSyncSettings);
     let locationsSyncStatusPollTimer = null;
-    let locationsSettingsLoaded = Array.isArray(initialServerSources) || Boolean(initialSyncSettings);
+    let locationsSettingsLoaded = hasInitialLocationsSettings(
+      options,
+      initialServerSources,
+      initialSyncSettings,
+    );
     let locationsSettingsLoadingPromise = null;
 
     function applyPageData(section) {
