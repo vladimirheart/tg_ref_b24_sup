@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.slf4j.Logger;
@@ -60,6 +61,9 @@ public class IikoDepartmentLocationCatalogService {
             "DEPARTMENT",
             "MANUFACTURE",
             "CENTRALSTORE"
+    );
+    private static final Pattern LEGACY_GROUP_LOCATION_MARKER = Pattern.compile(
+            "(^|\\s)CD(?:\\s*\\d+|\\d+_WINDOW|\\d+)?($|\\s)|\\bCDDT\\d*\\b|\\bCDDP\\b"
     );
 
     private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
@@ -282,8 +286,20 @@ public class IikoDepartmentLocationCatalogService {
 
     private void mergeFallbackTree(Map<String, Map<String, Map<String, Set<String>>>> rawTree,
                                    Map<String, Object> fallbackTree) {
-        forEachLocation(fallbackTree, (business, locationType, city, locationName) ->
-                addLocation(rawTree, business, locationType, city, locationName));
+        forEachLocation(fallbackTree, (business, locationType, city, locationName) -> {
+            if (isLegacyFallbackGroupLocation(locationName)) {
+                return;
+            }
+            addLocation(rawTree, business, locationType, city, locationName);
+        });
+    }
+
+    private boolean isLegacyFallbackGroupLocation(String locationName) {
+        if (!StringUtils.hasText(locationName)) {
+            return false;
+        }
+        String normalized = locationName.trim().toUpperCase(Locale.ROOT);
+        return LEGACY_GROUP_LOCATION_MARKER.matcher(normalized).find();
     }
 
     private void addLocation(Map<String, Map<String, Map<String, Set<String>>>> rawTree,

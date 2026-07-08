@@ -137,6 +137,41 @@ class IikoDepartmentLocationCatalogServiceTest {
     }
 
     @Test
+    void buildCatalogFromDepartmentNamesDropsLegacyFallbackGroupLocations() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        IikoDepartmentLocationCatalogService service = new IikoDepartmentLocationCatalogService(
+                new LocationsIikoServerSourceSettingsService(),
+                new SharedConfigService(objectMapper, Files.createTempDirectory("shared-config").toString()),
+                objectMapper,
+                new UnsupportedGateway()
+        );
+
+        Map<String, Object> fallbackTree = Map.of(
+                "Р‘Р»РёРЅР‘РµСЂРё", Map.of(
+                        "РљРѕСЂРїРѕСЂР°С‚РёРІРЅР°СЏ СЃРµС‚СЊ", Map.of(
+                                "РњРѕСЃРєРІР°", List.of("РђСЂРјР°", "РђСЂРјР° CD2", "РђСЂС…РёРІ")
+                        )
+                )
+        );
+
+        IikoDepartmentLocationCatalogService.LocationCatalogSnapshot snapshot = service.buildCatalogFromDepartmentNames(
+                List.of("Р‘Р‘ РњРѕСЃРєРІР° РђСЂРјР°"),
+                fallbackTree
+        );
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> blinberi = (Map<String, Object>) snapshot.tree().get("Р‘Р»РёРЅР‘РµСЂРё");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> corporate = (Map<String, Object>) blinberi.get("РљРѕСЂРїРѕСЂР°С‚РёРІРЅР°СЏ СЃРµС‚СЊ");
+
+        assertThat((List<String>) corporate.get("РњРѕСЃРєРІР°")).containsExactlyInAnyOrder("РђСЂРјР°", "РђСЂС…РёРІ");
+        assertThat(snapshot.statuses())
+                .containsEntry("location::Р‘Р»РёРЅР‘РµСЂРё::РљРѕСЂРїРѕСЂР°С‚РёРІРЅР°СЏ СЃРµС‚СЊ::РњРѕСЃРєРІР°::РђСЂРјР°", "РђРєС‚РёРІРµРЅ")
+                .containsEntry("location::Р‘Р»РёРЅР‘РµСЂРё::РљРѕСЂРїРѕСЂР°С‚РёРІРЅР°СЏ СЃРµС‚СЊ::РњРѕСЃРєРІР°::РђСЂС…РёРІ", "Р—Р°РєСЂС‹С‚")
+                .doesNotContainKey("location::Р‘Р»РёРЅР‘РµСЂРё::РљРѕСЂРїРѕСЂР°С‚РёРІРЅР°СЏ СЃРµС‚СЊ::РњРѕСЃРєРІР°::РђСЂРјР° CD2");
+    }
+
+    @Test
     void loadCatalogUsesOnlyConfiguredEnabledIikoServerSources() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         SharedConfigService sharedConfigService = new SharedConfigService(
