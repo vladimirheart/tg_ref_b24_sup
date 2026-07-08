@@ -359,14 +359,144 @@
       return {};
     }
 
+    function getColumnKeys() {
+      return getColumnMeta()
+        .map((item) => String(item?.key || '').trim())
+        .filter(Boolean);
+    }
+
+    function getColumnOrder() {
+      if (typeof options.getColumnOrder === 'function') {
+        const order = options.getColumnOrder();
+        return Array.isArray(order)
+          ? order.map((item) => String(item || '').trim()).filter(Boolean)
+          : [];
+      }
+      return [];
+    }
+
+    function getDefaultColumnOrder() {
+      if (typeof options.getDefaultColumnOrder === 'function') {
+        const order = options.getDefaultColumnOrder();
+        return Array.isArray(order)
+          ? order.map((item) => String(item || '').trim()).filter(Boolean)
+          : [];
+      }
+      return getColumnKeys();
+    }
+
     function setColumnState(nextState) {
       if (typeof options.setColumnState === 'function') {
         options.setColumnState(nextState);
       }
     }
 
+    function setColumnOrder(nextOrder) {
+      if (typeof options.setColumnOrder === 'function') {
+        options.setColumnOrder(Array.isArray(nextOrder) ? nextOrder : getDefaultColumnOrder());
+      }
+    }
+
     function cloneColumnState(source) {
       return source && typeof source === 'object' ? { ...source } : {};
+    }
+
+    function normalizeColumnOrder(sourceOrder) {
+      const availableKeys = getColumnKeys();
+      const seen = new Set();
+      const normalized = [];
+      (Array.isArray(sourceOrder) ? sourceOrder : []).forEach((key) => {
+        const normalizedKey = String(key || '').trim();
+        if (!normalizedKey || seen.has(normalizedKey) || !availableKeys.includes(normalizedKey)) {
+          return;
+        }
+        seen.add(normalizedKey);
+        normalized.push(normalizedKey);
+      });
+      availableKeys.forEach((key) => {
+        if (seen.has(key)) return;
+        seen.add(key);
+        normalized.push(key);
+      });
+      return normalized;
+    }
+
+    function getColumnItemOrderFromList(columnsList) {
+      return Array.from(columnsList?.querySelectorAll('[data-column-item]') || [])
+        .map((item) => String(item.getAttribute('data-column-item') || '').trim())
+        .filter(Boolean);
+    }
+
+    function reorderRowByKeys(row, orderedKeys) {
+      if (!row || !Array.isArray(orderedKeys) || !orderedKeys.length) return;
+      const cells = Array.from(row.children || []);
+      if (!cells.length) return;
+      const byKey = new Map();
+      const fixedCells = [];
+      cells.forEach((cell) => {
+        const key = String(cell?.dataset?.columnKey || '').trim();
+        if (!key || !orderedKeys.includes(key)) {
+          fixedCells.push(cell);
+          return;
+        }
+        byKey.set(key, cell);
+      });
+      const fragment = document.createDocumentFragment();
+      fixedCells.forEach((cell) => {
+        fragment.appendChild(cell);
+      });
+      orderedKeys.forEach((key) => {
+        const cell = byKey.get(key);
+        if (cell) {
+          fragment.appendChild(cell);
+        }
+      });
+      row.appendChild(fragment);
+    }
+
+    function loadColumnOrder() {
+      const storageKey = resolveStorageKey(options.storage?.columnOrder);
+      if (!storageKey) {
+        setColumnOrder(normalizeColumnOrder(getDefaultColumnOrder()));
+        return;
+      }
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) {
+          setColumnOrder(normalizeColumnOrder(getDefaultColumnOrder()));
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        setColumnOrder(normalizeColumnOrder(parsed));
+      } catch (_error) {
+        setColumnOrder(normalizeColumnOrder(getDefaultColumnOrder()));
+      }
+    }
+
+    function persistColumnOrder() {
+      const storageKey = resolveStorageKey(options.storage?.columnOrder);
+      if (!storageKey) return;
+      const currentOrder = normalizeColumnOrder(getColumnOrder());
+      const defaultOrder = normalizeColumnOrder(getDefaultColumnOrder());
+      if (JSON.stringify(currentOrder) === JSON.stringify(defaultOrder)) {
+        localStorage.removeItem(storageKey);
+        return;
+      }
+      localStorage.setItem(storageKey, JSON.stringify(currentOrder));
+    }
+
+    function applyColumnOrder() {
+      const table = options.elements?.table;
+      if (!table) return;
+      const headerRow = table.tHead?.rows?.[0];
+      if (!headerRow) return;
+      const normalizedOrder = normalizeColumnOrder(getColumnOrder());
+      if (!normalizedOrder.length) return;
+      reorderRowByKeys(headerRow, normalizedOrder);
+      Array.from(table.tBodies || []).forEach((tbody) => {
+        Array.from(tbody.rows || []).forEach((row) => reorderRowByKeys(row, normalizedOrder));
+      });
+      Array.from(table.tFoot?.rows || []).forEach((row) => reorderRowByKeys(row, normalizedOrder));
     }
 
     function loadColumnState() {
@@ -398,6 +528,7 @@
     function applyColumnState() {
       const table = options.elements?.table;
       if (!table) return;
+      applyColumnOrder();
       const headerRow = table.tHead?.rows?.[0];
       if (!headerRow) return;
       const columnState = getColumnState();
@@ -426,19 +557,31 @@
         const key = checkbox.dataset.columnToggle;
         checkbox.checked = columnState[key] !== false;
       });
+      normalizeColumnOrder(getColumnOrder()).forEach((key) => {
+        const item = columnsList.querySelector(`[data-column-item="${key}"]`);
+        if (item) {
+          columnsList.appendChild(item);
+        }
+      });
     }
 
     function buildColumnsList() {
       const columnsList = options.elements?.columnsList;
       if (!columnsList) return;
       columnsList.innerHTML = '';
-      getColumnMeta().forEach(({ key, label }) => {
+      const metaByKey = new Map(getColumnMeta().map((item) => [item.key, item]));
+      normalizeColumnOrder(getColumnOrder()).forEach((key) => {
+        const meta = metaByKey.get(key);
+        if (!meta) return;
         const col = document.createElement('div');
         col.className = 'col-12 col-sm-6';
+        col.setAttribute('data-column-item', key);
+        col.setAttribute('draggable', 'true');
         col.innerHTML = `
         <label class="dialog-column-option">
+          <span class="dialog-column-option__drag" aria-hidden="true">⋮⋮</span>
           <input type="checkbox" class="form-check-input" data-column-toggle="${key}">
-          <span>${label}</span>
+          <span class="dialog-column-option__label">${meta.label}</span>
         </label>
       `;
         columnsList.appendChild(col);
@@ -446,8 +589,55 @@
       syncColumnsList();
     }
 
+    function bindColumnOrderEvents() {
+      const columnsList = options.elements?.columnsList;
+      if (!columnsList || columnsList.dataset.columnOrderBound === 'true') return;
+      let draggingItem = null;
+
+      columnsList.addEventListener('dragstart', (event) => {
+        const item = event.target.closest('[data-column-item]');
+        if (!item) {
+          event.preventDefault();
+          return;
+        }
+        draggingItem = item;
+        item.classList.add('is-dragging');
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', String(item.getAttribute('data-column-item') || ''));
+        }
+      });
+
+      columnsList.addEventListener('dragover', (event) => {
+        if (!draggingItem) return;
+        const target = event.target.closest('[data-column-item]');
+        if (!target || target === draggingItem) return;
+        event.preventDefault();
+        const targetRect = target.getBoundingClientRect();
+        const insertAfter = event.clientY > targetRect.top + (targetRect.height / 2);
+        const referenceNode = insertAfter ? target.nextElementSibling : target;
+        if (referenceNode === draggingItem) return;
+        columnsList.insertBefore(draggingItem, referenceNode);
+      });
+
+      columnsList.addEventListener('drop', (event) => {
+        if (!draggingItem) return;
+        event.preventDefault();
+      });
+
+      columnsList.addEventListener('dragend', () => {
+        if (!draggingItem) return;
+        draggingItem.classList.remove('is-dragging');
+        draggingItem = null;
+      });
+
+      columnsList.dataset.columnOrderBound = 'true';
+    }
+
     function resetColumnState() {
       setColumnState(cloneColumnState(getDefaultColumnState()));
+      setColumnOrder(normalizeColumnOrder(getDefaultColumnOrder()));
+      persistColumnOrder();
       persistColumnState();
       applyColumnState();
       syncColumnsList();
@@ -477,7 +667,9 @@
               nextState[key] = checkbox.checked;
             });
             setColumnState(nextState);
+            setColumnOrder(normalizeColumnOrder(getColumnItemOrderFromList(columnsList)));
             persistColumnState();
+            persistColumnOrder();
             applyColumnState();
           }
           hideModalSafe(columnsModalEl, columnsModal);
@@ -658,11 +850,15 @@
       applyListOnlyMode,
       loadListOnlyMode,
       toggleListOnlyMode,
+      loadColumnOrder,
+      persistColumnOrder,
+      applyColumnOrder,
       loadColumnState,
       persistColumnState,
       applyColumnState,
       buildColumnsList,
       syncColumnsList,
+      bindColumnOrderEvents,
       bindColumnStateEvents,
       saveColumnWidths,
       restoreColumnWidths,

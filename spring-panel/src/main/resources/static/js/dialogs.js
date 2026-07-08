@@ -400,12 +400,24 @@
     dialogsShellRuntime?.loadColumnState();
   }
 
+  function loadColumnOrder() {
+    dialogsShellRuntime?.loadColumnOrder();
+  }
+
   function persistColumnState() {
     dialogsShellRuntime?.persistColumnState();
   }
 
+  function persistColumnOrder() {
+    dialogsShellRuntime?.persistColumnOrder();
+  }
+
   function applyColumnState() {
     dialogsShellRuntime?.applyColumnState();
+  }
+
+  function applyColumnOrder() {
+    dialogsShellRuntime?.applyColumnOrder();
   }
 
   function buildColumnsList() {
@@ -417,6 +429,7 @@
   }
 
   const STORAGE_COLUMNS = 'iguana:dialogs:columns';
+  const STORAGE_COLUMN_ORDER = 'iguana:dialogs:column-order';
   const STORAGE_WIDTHS = 'iguana:dialogs:column-widths';
   const STORAGE_TASK = 'iguana:dialogs:create-task';
   const STORAGE_PAGE_SIZE = 'iguana:dialogs:page-size';
@@ -1051,6 +1064,7 @@
   }, {});
 
   let columnState = { ...defaultColumnState };
+  let columnOrder = columnMeta.map((item) => item.key);
   let myDialogsState = {
     new: Array.isArray(INITIAL_MY_DIALOGS.new)
       ? INITIAL_MY_DIALOGS.new.filter((item) => item && typeof item === 'object')
@@ -1288,6 +1302,7 @@
       compactMode: STORAGE_COMPACT_MODE,
       listOnlyMode: STORAGE_LIST_ONLY_MODE,
       columns: STORAGE_COLUMNS,
+      columnOrder: STORAGE_COLUMN_ORDER,
       widths: STORAGE_WIDTHS,
       task: STORAGE_TASK,
     },
@@ -1299,6 +1314,13 @@
         : { ...defaultColumnState };
     },
     getDefaultColumnState: () => defaultColumnState,
+    getColumnOrder: () => columnOrder,
+    setColumnOrder: (nextOrder) => {
+      columnOrder = Array.isArray(nextOrder) && nextOrder.length
+        ? nextOrder.map((item) => String(item || '').trim()).filter(Boolean)
+        : columnMeta.map((item) => item.key);
+    },
+    getDefaultColumnOrder: () => columnMeta.map((item) => item.key),
     getHeaderCells: () => headerCells,
     rowsList,
   }) || null;
@@ -2129,11 +2151,11 @@
           data-rating="${Number.isFinite(ratingValue) ? ratingValue : ''}"
           data-last-message-sender="${escapeHtml(item?.lastMessageSender || '')}"
           data-last-message-timestamp="${escapeHtml(item?.lastMessageTimestamp || '')}">
-        <td class="dialog-select-column">
+        <td class="dialog-select-column" data-column-key="select">
           <input class="form-check-input dialog-row-select" type="checkbox" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Выбрать диалог">
         </td>
-        <td>${escapeHtml(displayNumber)}</td>
-        <td>
+        <td data-column-key="ticket">${escapeHtml(displayNumber)}</td>
+        <td data-column-key="client">
           <div class="client-cell">
             <div class="dialog-avatar" data-avatar-user-id="${escapeHtml(userId)}"
                  data-avatar-name="${escapeHtml(clientName)}">
@@ -2146,34 +2168,34 @@
             </div>
           </div>
         </td>
-        <td>
+        <td data-column-key="status">
           <div class="d-flex align-items-center gap-2">
             <span class="badge rounded-pill ${statusClassByKey(statusKey)}">${escapeHtml(statusLabel)}</span>
             <span class="badge text-bg-danger dialog-unread-count ${unreadCount > 0 ? '' : 'd-none'}">${unreadCount}</span>
           </div>
           ${ratingStars ? `<div class="small text-warning">${escapeHtml(ratingStars)}</div>` : ''}
         </td>
-        <td>${renderChannelBadge(channelLabel)}</td>
-        <td class="dialog-business-cell" data-business="${escapeHtml(businessLabel)}">
+        <td data-column-key="channel">${renderChannelBadge(channelLabel)}</td>
+        <td class="dialog-business-cell" data-column-key="business" data-business="${escapeHtml(businessLabel)}">
           <div class="dialog-business-pill">
             <span class="dialog-business-icon d-none" aria-hidden="true"></span>
             <span class="dialog-business-text">${escapeHtml(businessLabel)}</span>
           </div>
         </td>
-        <td>
+        <td data-column-key="problem">
           <span class="text-truncate dialog-problem-cell d-block">${escapeHtml(problemLabel)}</span>
         </td>
-        <td>${escapeHtml(locationLabel)}</td>
-        <td>${escapeHtml(categories)}</td>
-        <td>${renderResponsibleCell(responsible, responsibleAvatarUrl)}</td>
-        <td>
+        <td data-column-key="location">${escapeHtml(locationLabel)}</td>
+        <td data-column-key="categories">${escapeHtml(categories)}</td>
+        <td data-column-key="responsible">${renderResponsibleCell(responsible, responsibleAvatarUrl)}</td>
+        <td data-column-key="created">
           <div class="small text-muted">${escapeHtml(createdDate)}</div>
           <div class="small">${escapeHtml(createdTime)}</div>
         </td>
-        <td class="dialog-sla-cell">
+        <td class="dialog-sla-cell" data-column-key="sla">
           <span class="badge rounded-pill dialog-sla-badge">—</span>
         </td>
-        <td class="dialog-actions">
+        <td class="dialog-actions" data-column-key="actions">
           <div class="dialog-actions-inline">
             <a href="${escapeHtml(openHref)}" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
             <div class="dialog-actions-dropdown" data-dialog-actions>
@@ -3679,6 +3701,7 @@
   }
 
   dialogsShellRuntime?.bindColumnStateEvents();
+  dialogsShellRuntime?.bindColumnOrderEvents();
 
   if (detailsModalEl) {
     bindFallbackModalDismiss(detailsModalEl, detailsModal);
@@ -4042,6 +4065,7 @@
   renderEmojiPanel();
   lastListMarker = buildDialogsMarkerFromRows(rowsList());
   startDialogsPolling();
+  loadColumnOrder();
   loadColumnState();
   restoreDialogPreferences();
   loadPageSize();
@@ -4054,6 +4078,7 @@
   }
   loadDialogFontSize();
   buildColumnsList();
+  applyColumnOrder();
   applyColumnState();
   applyBusinessCellStyles();
   hydrateAvatars(table);

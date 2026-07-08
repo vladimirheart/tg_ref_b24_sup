@@ -1998,7 +1998,31 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0.72rem 0.85rem;
+  border: 1px solid var(--ui-panel-border);
+  border-radius: calc(var(--ui-panel-radius) - 0.1rem);
+  background: color-mix(in srgb, var(--card) 97%, white);
+  cursor: grab;
   font-size: 0.95rem;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.dialog-column-option__drag {
+  color: var(--color-text-muted);
+  letter-spacing: -0.08em;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.dialog-column-option__label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+[data-column-item].is-dragging .dialog-column-option {
+  opacity: 0.62;
+  cursor: grabbing;
 }
 
 .client-avatar-ring {
@@ -2783,18 +2807,19 @@ body {
   overflow: hidden;
   border-radius: 0.75rem;
   border-color: var(--ui-border-soft) !important;
-  transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, color 0.16s ease;
 }
 
 .btn:hover {
-  border-color: var(--ui-border-soft) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px color-mix(in srgb, var(--color-shadow-color) 14%, transparent);
+  border-color: var(--ui-border-soft-strong) !important;
+  transform: none;
+  box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--primary) 10%, transparent);
+  background-color: color-mix(in srgb, var(--ui-primary) 8%, var(--ui-surface));
 }
 
 .btn:active {
-  transform: translateY(0);
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--color-shadow-color) 10%, transparent);
+  transform: none;
+  box-shadow: 0 0 0 0.12rem color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
 .btn.btn-outline-primary,
@@ -2929,7 +2954,7 @@ body {
 .dialog-column-option,
 .workspace-tab-btn,
 .dialog-business-pill {
-  transition: none !important;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, color 0.16s ease !important;
 }
 
 @media (hover: hover) {
@@ -2938,14 +2963,14 @@ body {
   .dialog-column-option:hover,
   .workspace-tab-btn:hover,
   .dialog-business-pill:hover {
-    background: inherit !important;
+    background: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
     color: inherit !important;
-    border-color: inherit !important;
-    box-shadow: none !important;
+    border-color: var(--ui-border-soft-strong) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent) !important;
     text-decoration: none !important;
   }
 }
-/* Global hard-disable for hover visual effects */
+/* Global hover polish: keep feedback without lift/jump */
 @media (hover: hover) {
   .btn:hover,
   .btn:active,
@@ -2963,21 +2988,19 @@ body {
   .workspace-tab-btn:hover,
   .dialog-business-pill:hover,
   .gradient-border-hover:hover,
-  .gradient-border-stop-hover:hover,
-  a:hover {
+  .gradient-border-stop-hover:hover {
     transform: none !important;
-    box-shadow: none !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent) !important;
     filter: none !important;
     text-decoration: none !important;
-    transition: none !important;
     animation: none !important;
-    background-color: inherit !important;
-    border-color: inherit !important;
+    background-color: color-mix(in srgb, var(--ui-primary) 4%, var(--ui-surface)) !important;
+    border-color: var(--ui-border-soft-strong) !important;
     color: inherit !important;
   }
   .table-hover > tbody > tr:hover > * {
-    --bs-table-accent-bg: transparent !important;
-    background-color: transparent !important;
+    --bs-table-accent-bg: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
+    background-color: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
     color: inherit !important;
   }
 }
@@ -3004,11 +3027,56 @@ body {
   align-items: center;
 }
 
+[data-ui-page=knowledge] .kb-notion-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
 [data-ui-page=knowledge] .kb-import-card,
 [data-ui-page=knowledge] .kb-index-card,
 [data-ui-page=knowledge] .kb-editor-main,
 [data-ui-page=knowledge] .kb-editor-side {
   box-shadow: none !important;
+}
+
+[data-ui-page=knowledge] .kb-notion-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+[data-ui-page=knowledge] .kb-notion-status-card {
+  min-width: 0;
+  padding: 0.9rem 0.95rem;
+  border: 1px solid var(--ui-panel-border);
+  border-radius: calc(var(--ui-panel-radius) - 0.1rem);
+  background: color-mix(in srgb, var(--card) 98%, white);
+}
+
+[data-ui-page=knowledge] .kb-notion-status-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+[data-ui-page=knowledge] .kb-notion-status-value {
+  margin-top: 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+[data-ui-page=knowledge] .kb-notion-status-meta {
+  margin-top: 0.28rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 [data-ui-page=knowledge] .kb-source-chip {

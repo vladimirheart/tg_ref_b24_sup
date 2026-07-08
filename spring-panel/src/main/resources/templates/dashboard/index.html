@@ -269,6 +269,52 @@
 
     .filter-block--restaurants {
       min-width: 0;
+      position: relative;
+      border: 1px solid color-mix(in srgb, var(--primary) 14%, var(--color-border));
+      border-radius: 1rem;
+      padding: 0.85rem 0.9rem 0.9rem;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--secondary) 10%, white), rgba(255, 255, 255, 0.88));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+    }
+
+    .filter-block--restaurants.is-focused,
+    .filter-block--restaurants.has-selection {
+      border-color: color-mix(in srgb, var(--primary) 34%, transparent);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.78),
+        0 0 0 0.18rem color-mix(in srgb, var(--primary) 10%, transparent);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--secondary) 16%, white), rgba(255, 255, 255, 0.94));
+    }
+
+    .filter-block__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.45rem;
+    }
+
+    .filter-block__hint {
+      margin: 0;
+      font-size: 0.76rem;
+      color: var(--color-text-muted);
+      line-height: 1.45;
+    }
+
+    .restaurant-filter-count {
+      display: inline-flex;
+      align-items: center;
+      min-height: 1.7rem;
+      padding: 0 0.62rem;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--color-border));
+      background: color-mix(in srgb, var(--card) 94%, white);
+      color: var(--color-accent);
+      font-size: 0.72rem;
+      font-weight: 800;
+      white-space: nowrap;
     }
 
     .filter-block label {
@@ -388,6 +434,11 @@
     .filter-panel .select2-container--default.select2-container--focus .select2-selection--multiple {
       border-color: color-mix(in srgb, var(--primary) 28%, transparent);
       box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--primary) 12%, transparent);
+    }
+
+    .filter-block--restaurants .select2-container--default .select2-selection--multiple {
+      border-color: color-mix(in srgb, var(--primary) 18%, var(--color-border));
+      background: rgba(255, 255, 255, 0.92);
     }
 
     .metrics-headline {
@@ -1293,7 +1344,13 @@
                 </div>
               </div>
               <div class="filter-block filter-block--restaurants">
-                <label for="restaurantFilter">Ресторан</label>
+                <div class="filter-block__header">
+                  <div>
+                    <label for="restaurantFilter">Ресторан</label>
+                    <p class="filter-block__hint">Выберите один или несколько ресторанов, чтобы быстро сузить весь дашборд.</p>
+                  </div>
+                  <span class="restaurant-filter-count" id="restaurantFilterCount">Все рестораны</span>
+                </div>
                 <select id="restaurantFilter" class="form-control" multiple="multiple">
                   <option th:each="restaurant : ${restaurants}" th:value="${restaurant}" th:text="${restaurant}"></option>
                 </select>
@@ -1898,6 +1955,22 @@
       });
       select.trigger('change.select2');
       currentFilters.restaurants = selected;
+      updateRestaurantFilterAffordance();
+    }
+
+    function updateRestaurantFilterAffordance() {
+      const block = document.querySelector('.filter-block--restaurants');
+      const counter = document.getElementById('restaurantFilterCount');
+      const selectedRestaurants = ($('#restaurantFilter').val() || []).filter(Boolean);
+      const hasSelection = selectedRestaurants.length > 0;
+      if (block) {
+        block.classList.toggle('has-selection', hasSelection);
+      }
+      if (counter) {
+        counter.textContent = hasSelection
+          ? `Выбрано: ${selectedRestaurants.length}`
+          : 'Все рестораны';
+      }
     }
 
     async function refreshRestaurantFilterOptions(preserveSelection = true) {
@@ -2364,10 +2437,18 @@
         closeOnSelect: false,
         width: '100%'
       });
+      $('#restaurantFilter').on('select2:open', function() {
+        document.querySelector('.filter-block--restaurants')?.classList.add('is-focused');
+      });
+      $('#restaurantFilter').on('select2:close', function() {
+        document.querySelector('.filter-block--restaurants')?.classList.remove('is-focused');
+      });
       $('#restaurantFilter').on('change', function() {
         const selectedRestaurants = $(this).val();
         currentFilters.restaurants = Array.isArray(selectedRestaurants) ? selectedRestaurants : [];
+        updateRestaurantFilterAffordance();
       });
+      updateRestaurantFilterAffordance();
 
       flatpickr("#managerDateRange", {
         mode: "range",

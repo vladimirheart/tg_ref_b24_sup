@@ -423,11 +423,11 @@
                         th:data-request-number="${dialog.requestNumber()}"
                         th:data-last-message-sender="${dialog.lastMessageSender()}"
                         th:data-last-message-timestamp="${dialog.lastMessageTimestamp()}">
-                        <td class="dialog-select-column">
+                        <td class="dialog-select-column" data-column-key="select">
                             <input class="form-check-input dialog-row-select" type="checkbox" th:data-ticket-id="${dialog.ticketId}" aria-label="Выбрать диалог">
                         </td>
-                        <td th:text="${dialog.displayTicketNumber()}">—</td>
-                        <td>
+                        <td data-column-key="ticket" th:text="${dialog.displayTicketNumber()}">—</td>
+                        <td data-column-key="client">
                             <div class="client-cell">
                                 <div class="dialog-avatar"
                                      th:attr="data-avatar-user-id=${dialog.userId}, data-avatar-name=${dialog.displayClientName()}">
@@ -440,7 +440,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td>
+                        <td data-column-key="status">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge rounded-pill" th:classappend="${dialog.statusClass()}" th:text="${dialog.statusLabel()}">Открыт</span>
                                 <span class="badge dialog-unread-count"
@@ -449,23 +449,23 @@
                             </div>
                             <div class="small text-warning" th:if="${dialog.ratingStars() != ''}" th:text="${dialog.ratingStars()}">★★★★★</div>
                         </td>
-                        <td>
+                        <td data-column-key="channel">
                             <span class="dialog-channel-pill"
                                   th:classappend="${dialog.channelToneClass()}"
                                   th:text="${dialog.channelLabel()}">—</span>
                         </td>
-                        <td class="dialog-business-cell" th:data-business="${dialog.businessLabel()}">
+                        <td class="dialog-business-cell" data-column-key="business" th:data-business="${dialog.businessLabel()}">
                             <div class="dialog-business-pill">
                                 <span class="dialog-business-icon d-none" aria-hidden="true"></span>
                                 <span class="dialog-business-text" th:text="${dialog.businessLabel()}">—</span>
                             </div>
                         </td>
-                        <td>
+                        <td data-column-key="problem">
                             <span class="text-truncate dialog-problem-cell d-block" th:text="${dialog.problemSafe()}">—</span>
                         </td>
-                        <td th:text="${dialog.location()} ?: '—'">—</td>
-                        <td th:text="${dialog.categoriesSafe()}">—</td>
-                        <td>
+                        <td data-column-key="location" th:text="${dialog.location()} ?: '—'">—</td>
+                        <td data-column-key="categories" th:text="${dialog.categoriesSafe()}">—</td>
+                        <td data-column-key="responsible">
                             <div class="dialog-responsible-cell" th:if="${dialog.responsible() != null and !#strings.isEmpty(dialog.responsible())}">
                                 <span class="dialog-responsible-avatar" th:classappend="${dialog.responsibleAvatarUrl() != null and !#strings.isEmpty(dialog.responsibleAvatarUrl())} ? ' has-image'">
                                     <img th:if="${dialog.responsibleAvatarUrl() != null and !#strings.isEmpty(dialog.responsibleAvatarUrl())}"
@@ -480,14 +480,14 @@
                             </div>
                             <span class="text-muted" th:if="${dialog.responsible() == null or #strings.isEmpty(dialog.responsible())}">—</span>
                         </td>
-                        <td>
+                        <td data-column-key="created">
                             <div class="small text-muted" th:text="${dialog.createdDateSafe()}">—</div>
                             <div class="small" th:text="${dialog.createdTimeSafe()}">—</div>
                         </td>
-                        <td class="dialog-sla-cell">
+                        <td class="dialog-sla-cell" data-column-key="sla">
                             <span class="badge rounded-pill dialog-sla-badge">—</span>
                         </td>
-                        <td class="dialog-actions">
+                        <td class="dialog-actions" data-column-key="actions">
                             <div class="dialog-actions-inline">
                                 <a th:href="@{/dialogs/{ticketId}(ticketId=${dialog.ticketId},channelId=${dialog.channelId()})}"
                                    class="btn btn-sm btn-primary dialog-open-btn"
@@ -585,6 +585,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
+                <p class="small text-muted mb-3">Перетаскивайте пункты, чтобы менять порядок столбцов, и снимайте галочки, чтобы скрывать лишнее.</p>
                 <div class="row g-2" id="dialogColumnsList"></div>
             </div>
             <div class="modal-footer">
@@ -1136,113 +1137,6 @@
 <script th:src="@{/js/dialogs-experiment-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs.js(v=${dialogsAssetVersion})}"></script>
 </th:block>
-<script>
-  (() => {
-    const STORAGE_COMPACT_MODE = 'iguana:dialogs:compact-mode';
-    const compactBtn = document.getElementById('dialogCompactToggle');
-    const columnsModal = document.getElementById('dialogColumnsModal');
-    const columnsList = document.getElementById('dialogColumnsList');
-    const columnsApply = document.getElementById('dialogColumnsApply');
-    const columnsReset = document.getElementById('dialogColumnsReset');
-    const table = document.getElementById('dialogsTable');
-
-    function applyCompact(enabled) {
-      document.body.classList.toggle('dialog-compact-mode', Boolean(enabled));
-      if (compactBtn) {
-        compactBtn.textContent = enabled ? 'Standard mode' : 'Compact mode';
-        compactBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
-      }
-    }
-
-    try {
-      const stored = String(localStorage.getItem(STORAGE_COMPACT_MODE) || '').trim().toLowerCase();
-      if (stored === '') {
-        localStorage.setItem(STORAGE_COMPACT_MODE, '1');
-        applyCompact(true);
-      } else {
-        applyCompact(stored === '1' || stored === 'true' || stored === 'on');
-      }
-    } catch (_e) {
-      applyCompact(true);
-    }
-
-    if (compactBtn) {
-      compactBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        const next = !document.body.classList.contains('dialog-compact-mode');
-        applyCompact(next);
-        try {
-          localStorage.setItem(STORAGE_COMPACT_MODE, next ? '1' : '0');
-        } catch (_e) {
-          // ignore
-        }
-      }, true);
-    }
-
-    function buildColumnsFallback() {
-      if (!columnsList || !table) return;
-      const headers = Array.from(table.querySelectorAll('thead th[data-column-key]'));
-      if (!headers.length) return;
-      if (columnsList.querySelector('[data-column-toggle]')) return;
-      columnsList.innerHTML = '';
-      headers.forEach((th) => {
-        const key = String(th.getAttribute('data-column-key') || '').trim();
-        if (!key) return;
-        const label = String((th.textContent || '').trim() || key);
-        const col = document.createElement('div');
-        col.className = 'col-12 col-sm-6';
-        col.innerHTML = '<label class="dialog-column-option">'
-          + `<input type="checkbox" class="form-check-input" data-column-toggle="${key}" checked>`
-          + `<span>${label}</span>`
-          + '</label>';
-        columnsList.appendChild(col);
-      });
-    }
-
-    function applyColumnsFallback() {
-      if (!columnsList || !table) return;
-      const head = table.tHead ? Array.from(table.tHead.rows[0].cells) : [];
-      const rows = table.tBodies.length ? Array.from(table.tBodies[0].rows) : [];
-      columnsList.querySelectorAll('[data-column-toggle]').forEach((checkbox) => {
-        const key = checkbox.getAttribute('data-column-toggle');
-        const header = table.querySelector(`th[data-column-key="${key}"]`);
-        if (!header) return;
-        const index = header.cellIndex;
-        const hide = !checkbox.checked;
-        header.classList.toggle('d-none', hide);
-        rows.forEach((row) => {
-          if (row.cells[index]) {
-            row.cells[index].classList.toggle('d-none', hide);
-          }
-        });
-      });
-    }
-
-    if (columnsModal) {
-      columnsModal.addEventListener('show.bs.modal', buildColumnsFallback);
-    }
-    if (columnsApply) {
-      columnsApply.addEventListener('click', () => {
-        if (!columnsList.querySelector('[data-column-toggle]')) {
-          buildColumnsFallback();
-        }
-        applyColumnsFallback();
-      }, true);
-    }
-    if (columnsReset) {
-      columnsReset.addEventListener('click', () => {
-        if (!columnsList.querySelector('[data-column-toggle]')) {
-          buildColumnsFallback();
-        }
-        columnsList.querySelectorAll('[data-column-toggle]').forEach((checkbox) => {
-          checkbox.checked = true;
-        });
-        applyColumnsFallback();
-      }, true);
-    }
-  })();
-</script>
 <script th:inline="javascript">
   (() => {
     const debugDialogs = (new URLSearchParams(window.location.search || '')).get('debugDialogs') === '1'

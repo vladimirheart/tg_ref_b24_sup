@@ -555,18 +555,19 @@ body {
     overflow: hidden;
     border-radius: 0.75rem;
     border-color: var(--ui-border-soft) !important;
-    transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, color 0.16s ease;
 }
 
 .btn:hover {
-    border-color: var(--ui-border-soft) !important;
-    transform: translateY(-1px);
-    box-shadow: 0 10px 20px color-mix(in srgb, var(--color-shadow-color) 14%, transparent);
+    border-color: var(--ui-border-soft-strong) !important;
+    transform: none;
+    box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--primary) 10%, transparent);
+    background-color: color-mix(in srgb, var(--ui-primary) 8%, var(--ui-surface));
 }
 
 .btn:active {
-    transform: translateY(0);
-    box-shadow: 0 4px 10px color-mix(in srgb, var(--color-shadow-color) 10%, transparent);
+    transform: none;
+    box-shadow: 0 0 0 0.12rem color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
 .btn.btn-outline-primary,
@@ -709,7 +710,7 @@ body {
 .dialog-column-option,
 .workspace-tab-btn,
 .dialog-business-pill {
-  transition: none !important;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, color 0.16s ease !important;
 }
 
 @media (hover: hover) {
@@ -718,15 +719,15 @@ body {
   .dialog-column-option:hover,
   .workspace-tab-btn:hover,
   .dialog-business-pill:hover {
-    background: inherit !important;
+    background: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
     color: inherit !important;
-    border-color: inherit !important;
-    box-shadow: none !important;
+    border-color: var(--ui-border-soft-strong) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent) !important;
     text-decoration: none !important;
   }
 }
 
-/* Global hard-disable for hover visual effects */
+/* Global hover polish: keep feedback without lift/jump */
 @media (hover: hover) {
   .btn:hover,
   .btn:active,
@@ -744,22 +745,20 @@ body {
   .workspace-tab-btn:hover,
   .dialog-business-pill:hover,
   .gradient-border-hover:hover,
-  .gradient-border-stop-hover:hover,
-  a:hover {
+  .gradient-border-stop-hover:hover {
     transform: none !important;
-    box-shadow: none !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent) !important;
     filter: none !important;
     text-decoration: none !important;
-    transition: none !important;
     animation: none !important;
-    background-color: inherit !important;
-    border-color: inherit !important;
+    background-color: color-mix(in srgb, var(--ui-primary) 4%, var(--ui-surface)) !important;
+    border-color: var(--ui-border-soft-strong) !important;
     color: inherit !important;
   }
 
   .table-hover > tbody > tr:hover > * {
-    --bs-table-accent-bg: transparent !important;
-    background-color: transparent !important;
+    --bs-table-accent-bg: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
+    background-color: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
     color: inherit !important;
   }
 }

@@ -21,11 +21,56 @@
   align-items: center;
 }
 
+[data-ui-page='knowledge'] .kb-notion-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
 [data-ui-page='knowledge'] .kb-import-card,
 [data-ui-page='knowledge'] .kb-index-card,
 [data-ui-page='knowledge'] .kb-editor-main,
 [data-ui-page='knowledge'] .kb-editor-side {
   box-shadow: none !important;
+}
+
+[data-ui-page='knowledge'] .kb-notion-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+[data-ui-page='knowledge'] .kb-notion-status-card {
+  min-width: 0;
+  padding: 0.9rem 0.95rem;
+  border: 1px solid var(--ui-panel-border);
+  border-radius: calc(var(--ui-panel-radius) - 0.1rem);
+  background: color-mix(in srgb, var(--card) 98%, white);
+}
+
+[data-ui-page='knowledge'] .kb-notion-status-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+[data-ui-page='knowledge'] .kb-notion-status-value {
+  margin-top: 0.35rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+[data-ui-page='knowledge'] .kb-notion-status-meta {
+  margin-top: 0.28rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 [data-ui-page='knowledge'] .kb-source-chip {

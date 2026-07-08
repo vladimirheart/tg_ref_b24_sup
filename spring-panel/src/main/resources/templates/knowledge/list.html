@@ -31,7 +31,10 @@
                     <h2 class="h5 mb-1">Интеграция Notion</h2>
                     <p class="text-muted mb-0">Подключение по internal integration token и импорт статей выбранных авторов в локальную базу знаний.</p>
                 </div>
-                <span class="badge text-bg-light border" th:text="${notionHasToken} ? 'Токен сохранён' : 'Токен не сохранён'"></span>
+                <div class="kb-notion-header-actions">
+                    <span class="badge text-bg-light border" th:text="${notionHasToken} ? 'Токен сохранён' : 'Токен не сохранён'"></span>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#notionSettingsModal">Настройки интеграции</button>
+                </div>
             </div>
 
             <div class="alert mb-3"
@@ -39,65 +42,23 @@
                  th:classappend="${notionMessageType} == 'success' ? ' alert-success' : ' alert-danger'"
                  th:text="${notionMessage}"></div>
 
-            <form th:action="@{/knowledge-base/notion/settings}" method="post" class="row g-3">
-                <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-                <div class="col-12">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="notionEnabled" name="enabled" th:checked="${notionConfig.enabled}">
-                        <label class="form-check-label" for="notionEnabled">Включить интеграцию Notion для базы знаний</label>
-                    </div>
+            <div class="kb-notion-status-grid mb-3">
+                <div class="kb-notion-status-card">
+                    <div class="kb-notion-status-label">Состояние</div>
+                    <div class="kb-notion-status-value" th:text="${notionConfig.enabled} ? 'Интеграция включена' : 'Интеграция выключена'"></div>
+                    <div class="kb-notion-status-meta" th:text="${notionHasToken} ? 'Токен сохранён и готов к проверке.' : 'Сначала добавьте токен в настройках интеграции.'"></div>
                 </div>
-                <div class="col-12 col-xl-7">
-                    <label class="form-label">Ссылка или ID базы / data source</label>
-                    <input class="form-control" type="text" name="sourceUrl" th:value="${notionConfig.sourceUrl}" placeholder="https://www.notion.so/... или UUID">
-                    <div class="form-text">Поддерживается ссылка на базу Notion или прямой UUID. Если передана ссылка базы, сервис сам попытается найти data source.</div>
+                <div class="kb-notion-status-card">
+                    <div class="kb-notion-status-label">Источник</div>
+                    <div class="kb-notion-status-value" th:text="${#strings.isEmpty(notionConfig.sourceUrl)} ? 'Не задан' : 'Подключён'"></div>
+                    <div class="kb-notion-status-meta" th:text="${#strings.isEmpty(notionConfig.sourceUrl)} ? 'URL или UUID базы Notion пока не указан.' : notionConfig.sourceUrl"></div>
                 </div>
-                <div class="col-12 col-xl-5">
-                    <label class="form-label">Integration token</label>
-                    <input class="form-control" type="password" name="token" value="" placeholder="secret_...">
-                    <div class="form-text" th:text="${notionHasToken} ? 'Оставьте поле пустым, чтобы сохранить текущий токен.' : 'Токен сохраняется внутри settings.json и не выводится обратно в UI.'"></div>
+                <div class="kb-notion-status-card">
+                    <div class="kb-notion-status-label">Фильтр авторов</div>
+                    <div class="kb-notion-status-value" th:text="${#strings.isEmpty(notionConfig.authors)} ? 'Без фильтра' : 'Выбранные авторы'"></div>
+                    <div class="kb-notion-status-meta" th:text="${#strings.isEmpty(notionConfig.authors)} ? 'Импорт может брать все подходящие статьи.' : 'Импорт ограничен списком авторов из настроек.'"></div>
                 </div>
-                <div class="col-12 col-xl-4">
-                    <label class="form-label">Поле заголовка</label>
-                    <input class="form-control" type="text" name="titleProperty" th:value="${notionConfig.titleProperty}">
-                </div>
-                <div class="col-12 col-xl-4">
-                    <label class="form-label">Поле автора</label>
-                    <input class="form-control" type="text" name="authorProperty" th:value="${notionConfig.authorProperty}">
-                </div>
-                <div class="col-12 col-xl-4">
-                    <label class="form-label">Поле краткого описания</label>
-                    <input class="form-control" type="text" name="summaryProperty" th:value="${notionConfig.summaryProperty}">
-                </div>
-                <div class="col-12 col-md-6 col-xl-3">
-                    <label class="form-label">Поле подразделения</label>
-                    <input class="form-control" type="text" name="departmentProperty" th:value="${notionConfig.departmentProperty}">
-                </div>
-                <div class="col-12 col-md-6 col-xl-3">
-                    <label class="form-label">Поле типа статьи</label>
-                    <input class="form-control" type="text" name="articleTypeProperty" th:value="${notionConfig.articleTypeProperty}">
-                </div>
-                <div class="col-12 col-md-6 col-xl-3">
-                    <label class="form-label">Поле направления</label>
-                    <input class="form-control" type="text" name="directionProperty" th:value="${notionConfig.directionProperty}">
-                </div>
-                <div class="col-12 col-md-6 col-xl-3">
-                    <label class="form-label">Поле поднаправления</label>
-                    <input class="form-control" type="text" name="directionSubtypeProperty" th:value="${notionConfig.directionSubtypeProperty}">
-                </div>
-                <div class="col-12 col-xl-4">
-                    <label class="form-label">Поле статуса</label>
-                    <input class="form-control" type="text" name="statusProperty" th:value="${notionConfig.statusProperty}">
-                </div>
-                <div class="col-12 col-xl-8">
-                    <label class="form-label">Авторы для импорта</label>
-                    <textarea class="form-control" name="authors" rows="4" th:text="${notionConfig.authors}"></textarea>
-                    <div class="form-text">По одному имени на строку. Импортируются только статьи, где поле автора содержит одно из этих значений.</div>
-                </div>
-                <div class="col-12 d-flex flex-wrap gap-2">
-                    <button class="btn btn-primary" type="submit">Сохранить подключение</button>
-                </div>
-            </form>
+            </div>
 
             <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
                 <form th:action="@{/knowledge-base/notion/test}" method="post" class="d-inline">
@@ -252,6 +213,82 @@
         </div>
     </div>
 
+    <div class="modal fade" id="notionSettingsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <form th:action="@{/knowledge-base/notion/settings}" method="post" class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title">Настройки интеграции Notion</h5>
+                        <div class="small text-muted">Параметры подключения и маппинга полей вынесены в отдельное окно, чтобы не шуметь в списке статей.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notionEnabled" name="enabled" th:checked="${notionConfig.enabled}">
+                                <label class="form-check-label" for="notionEnabled">Включить интеграцию Notion для базы знаний</label>
+                            </div>
+                        </div>
+                        <div class="col-12 col-xl-7">
+                            <label class="form-label">Ссылка или ID базы / data source</label>
+                            <input class="form-control" type="text" name="sourceUrl" th:value="${notionConfig.sourceUrl}" placeholder="https://www.notion.so/... или UUID">
+                            <div class="form-text">Поддерживается ссылка на базу Notion или прямой UUID. Если передана ссылка базы, сервис сам попытается найти data source.</div>
+                        </div>
+                        <div class="col-12 col-xl-5">
+                            <label class="form-label">Integration token</label>
+                            <input class="form-control" type="password" name="token" value="" placeholder="secret_...">
+                            <div class="form-text" th:text="${notionHasToken} ? 'Оставьте поле пустым, чтобы сохранить текущий токен.' : 'Токен сохраняется внутри settings.json и не выводится обратно в UI.'"></div>
+                        </div>
+                        <div class="col-12 col-xl-4">
+                            <label class="form-label">Поле заголовка</label>
+                            <input class="form-control" type="text" name="titleProperty" th:value="${notionConfig.titleProperty}">
+                        </div>
+                        <div class="col-12 col-xl-4">
+                            <label class="form-label">Поле автора</label>
+                            <input class="form-control" type="text" name="authorProperty" th:value="${notionConfig.authorProperty}">
+                        </div>
+                        <div class="col-12 col-xl-4">
+                            <label class="form-label">Поле краткого описания</label>
+                            <input class="form-control" type="text" name="summaryProperty" th:value="${notionConfig.summaryProperty}">
+                        </div>
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <label class="form-label">Поле подразделения</label>
+                            <input class="form-control" type="text" name="departmentProperty" th:value="${notionConfig.departmentProperty}">
+                        </div>
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <label class="form-label">Поле типа статьи</label>
+                            <input class="form-control" type="text" name="articleTypeProperty" th:value="${notionConfig.articleTypeProperty}">
+                        </div>
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <label class="form-label">Поле направления</label>
+                            <input class="form-control" type="text" name="directionProperty" th:value="${notionConfig.directionProperty}">
+                        </div>
+                        <div class="col-12 col-md-6 col-xl-3">
+                            <label class="form-label">Поле поднаправления</label>
+                            <input class="form-control" type="text" name="directionSubtypeProperty" th:value="${notionConfig.directionSubtypeProperty}">
+                        </div>
+                        <div class="col-12 col-xl-4">
+                            <label class="form-label">Поле статуса</label>
+                            <input class="form-control" type="text" name="statusProperty" th:value="${notionConfig.statusProperty}">
+                        </div>
+                        <div class="col-12 col-xl-8">
+                            <label class="form-label">Авторы для импорта</label>
+                            <textarea class="form-control" name="authors" rows="4" th:text="${notionConfig.authors}"></textarea>
+                            <div class="form-text">По одному имени на строку. Импортируются только статьи, где поле автора содержит одно из этих значений.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                    <button class="btn btn-primary" type="submit">Сохранить подключение</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="card shadow-sm kb-index-card">
         <div class="card-body">
             <div class="input-group mb-3">
@@ -293,7 +330,7 @@
     </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-<script>
+<script th:inline="javascript">
     (function () {
         const input = document.querySelector('[data-action="filter-articles"]');
         if (!input) return;
@@ -368,6 +405,13 @@
         });
 
         updateSelectedCount();
+    })();
+
+    (function () {
+        const shouldOpenSettings = [[${notionMessage != null and notionMessageType != 'success'}]];
+        const modalElement = document.getElementById('notionSettingsModal');
+        if (!shouldOpenSettings || !modalElement || typeof bootstrap === 'undefined') return;
+        bootstrap.Modal.getOrCreateInstance(modalElement).show();
     })();
 </script>
 </body>
