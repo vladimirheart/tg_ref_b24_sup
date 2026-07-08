@@ -294,7 +294,9 @@
         options.setActiveDialogResponsibleState?.('', '');
         options.setActiveDialogRow?.(null);
         if (elements.detailsReplyText) elements.detailsReplyText.value = '';
-        if (elements.detailsReplyMedia) elements.detailsReplyMedia.value = '';
+        if (elements.detailsReplyMedia) {
+          options.clearPendingMediaFiles?.(elements.detailsReplyMedia);
+        }
         options.resetReplyTarget?.();
         options.renderHistory?.([], { scrollToBottom: false });
         options.resetPreviousDialogHistoryState?.();

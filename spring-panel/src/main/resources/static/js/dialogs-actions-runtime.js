@@ -40,16 +40,16 @@
     function resolveSnoozeLabel(minutes) {
       return typeof options.formatSnoozeActionLabel === 'function'
         ? options.formatSnoozeActionLabel(minutes)
-        : `Отложить на ${minutes}м`;
+        : `Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Р…Р В° ${minutes}Р С`;
     }
 
     function resolveSnoozeSuccessSuffix(minutes) {
-      return resolveSnoozeLabel(minutes).replace('Отложить ', '');
+      return resolveSnoozeLabel(minutes).replace('Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ ', '');
     }
 
     function parseRowCategories(row) {
       const categoriesValue = String(row?.dataset?.categories || '').trim();
-      if (!categoriesValue || categoriesValue === '—') {
+      if (!categoriesValue || categoriesValue === 'РІР‚вЂќ') {
         return [];
       }
       return categoriesValue.split(',').map((item) => item.trim()).filter(Boolean);
@@ -100,14 +100,14 @@
         : -1;
       const rowCells = row.children;
       if (responsibleIndex >= 0 && rowCells[responsibleIndex]) {
-        rowCells[responsibleIndex].innerHTML = options.renderResponsibleCell?.(value || '—', avatarUrl) || (value || '—');
+        rowCells[responsibleIndex].innerHTML = options.renderResponsibleCell?.(value || 'РІР‚вЂќ', avatarUrl) || (value || 'РІР‚вЂќ');
       }
       const takeBtn = row.querySelector('.dialog-take-btn');
       if (takeBtn) {
         takeBtn.classList.toggle('d-none', !options.canTakeDialogOwnership?.(rawValue || value, options.isResolvedRow?.(row) === true));
       }
       if (row === activeDialogState.row || String(row.dataset.ticketId || '').trim() === String(activeDialogState.ticketId || '').trim()) {
-        options.updateDetailsResponsible?.(value || '—', { rawResponsible: rawValue || value, avatarUrl });
+        options.updateDetailsResponsible?.(value || 'РІР‚вЂќ', { rawResponsible: rawValue || value, avatarUrl });
       }
       options.syncMyDialogsStateFromTable?.();
       options.renderMyDialogsPanel?.();
@@ -151,7 +151,7 @@
         const ticketId = row.dataset.ticketId;
         const until = options.getSnoozeUntil?.(ticketId);
         snoozeBtn.textContent = until
-          ? `Отложен до ${options.formatUtcDate?.(new Date(until), { includeTime: true })}`
+          ? `Р С›РЎвЂљР В»Р С•Р В¶Р ВµР Р… Р Т‘Р С• ${options.formatUtcDate?.(new Date(until), { includeTime: true })}`
           : resolveSnoozeLabel(options.quickSnoozeMinutes);
       }
     }
@@ -179,7 +179,7 @@
       if (!ticketId) return;
       const categories = parseRowCategories(row);
       if (!categories.length) {
-        throw new Error('Для быстрого закрытия укажите категорию в карточке диалога.');
+        throw new Error('Р вЂќР В»РЎРЏ Р В±РЎвЂ№РЎРѓРЎвЂљРЎР‚Р С•Р С–Р С• Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С‘РЎРЏ РЎС“Р С”Р В°Р В¶Р С‘РЎвЂљР Вµ Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎР‹ Р Р† Р С”Р В°РЎР‚РЎвЂљР С•РЎвЂЎР С”Р Вµ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р В°.');
       }
       const btn = triggerButton || null;
       if (btn) btn.disabled = true;
@@ -190,9 +190,9 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
+        throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
       }
-      updateRowStatus(row, 'resolved', 'Закрыт', 'closed', 0);
+      updateRowStatus(row, 'resolved', 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ', 'closed', 0);
       options.emitWorkspaceTelemetry?.('triage_quick_close', { ticketId });
       options.updateRowSlaBadge?.(row);
       updateRowQuickActions(row);
@@ -208,7 +208,7 @@
           ? activeDialogState.row
           : null);
       if (targetRow && options.isResolvedRow?.(targetRow) === true) {
-        const error = new Error('Взять в работу можно только открытый диалог');
+        const error = new Error('Р вЂ™Р В·РЎРЏРЎвЂљРЎРЉ Р Р† РЎР‚Р В°Р В±Р С•РЎвЂљРЎС“ Р СР С•Р В¶Р Р…Р С• РЎвЂљР С•Р В»РЎРЉР С”Р С• Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎвЂ№Р в„– Р Т‘Р С‘Р В°Р В»Р С•Р С–');
         notify(error.message, 'error');
         throw error;
       }
@@ -221,7 +221,7 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
+          throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
         }
         updateRowResponsible(row || targetRow, data.responsible || '');
         if (String(activeDialogState.ticketId || '').trim() === String(ticketId || '').trim()
@@ -230,11 +230,11 @@
         }
         options.emitWorkspaceTelemetry?.('triage_quick_assign', { ticketId });
         options.applyFilters?.();
-        notify('Диалог назначен на вас', 'success');
+        notify('Р вЂќР С‘Р В°Р В»Р С•Р С– Р Р…Р В°Р В·Р Р…Р В°РЎвЂЎР ВµР Р… Р Р…Р В° Р Р†Р В°РЎРѓ', 'success');
         return data;
       } catch (error) {
         if (btn) btn.disabled = false;
-        notify(error.message || 'Не удалось взять диалог', 'error');
+        notify(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р Р†Р В·РЎРЏРЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
         throw error;
       }
     }
@@ -251,7 +251,7 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
+          throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
         }
         options.emitWorkspaceTelemetry?.('triage_quick_snooze', { ticketId, reason: `minutes:${minutes}` });
         return data;
@@ -288,7 +288,7 @@
         ticketId
       ) === true;
       elements.detailsResolve.disabled = !canResolve;
-      elements.detailsResolve.textContent = resolved ? 'Обращение закрыто' : 'Закрыть обращение';
+      elements.detailsResolve.textContent = resolved ? 'Р С›Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С•' : 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ';
       if (elements.detailsSpam) {
         const clientUserId = String(elements.detailsSpam.dataset.userId || '').trim();
         const canMarkSpam = options.isWorkspaceActionEnabled?.(
@@ -408,6 +408,7 @@
           setDialogActionsMenuOpen(menu, nextState);
           return;
         }
+        return;
 
         const takeBtn = target.closest('.dialog-take-btn');
         if (takeBtn) {
@@ -415,7 +416,7 @@
           const actionMenu = takeBtn.closest('.dialog-actions-dropdown');
           if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
           if (!options.canRunAction?.('can_assign')) {
-            options.notifyPermissionDenied?.('Назначить мне');
+            options.notifyPermissionDenied?.('Р СњР В°Р В·Р Р…Р В°РЎвЂЎР С‘РЎвЂљРЎРЉ Р СР Р…Р Вµ');
             return;
           }
           const ticketId = takeBtn.dataset.ticketId;
@@ -442,10 +443,10 @@
               options.setSnooze?.(ticketId, options.quickSnoozeMinutes);
               updateRowQuickActions(row);
               options.applyFilters?.();
-              notify(`Диалог отложен на ${resolveSnoozeSuccessSuffix(options.quickSnoozeMinutes)}`, 'success');
+              notify(`Р вЂќР С‘Р В°Р В»Р С•Р С– Р С•РЎвЂљР В»Р С•Р В¶Р ВµР Р… Р Р…Р В° ${resolveSnoozeSuccessSuffix(options.quickSnoozeMinutes)}`, 'success');
             })
             .catch((error) => {
-              notify(error.message || 'Не удалось отложить диалог', 'error');
+              notify(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
             });
           return;
         }
@@ -456,7 +457,7 @@
           const actionMenu = closeBtn.closest('.dialog-actions-dropdown');
           if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
           if (!options.canRunAction?.('can_close')) {
-            options.notifyPermissionDenied?.('Закрыть');
+            options.notifyPermissionDenied?.('Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ');
             return;
           }
           const ticketId = closeBtn.dataset.ticketId;
@@ -466,10 +467,10 @@
           closeDialogQuick(ticketId, row, closeBtn)
             .then(() => {
               options.clearSnooze?.(ticketId);
-              notify('Диалог закрыт', 'success');
+              notify('Р вЂќР С‘Р В°Р В»Р С•Р С– Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ', 'success');
             })
             .catch((error) => {
-              notify(error.message || 'Не удалось закрыть диалог', 'error');
+              notify(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
               closeBtn.disabled = false;
             });
         }
@@ -483,11 +484,11 @@
           const activeDialogState = getActiveDialogState();
           const userId = String(elements.detailsSpam.dataset.userId || '').trim();
           if (!ticketId || !userId) {
-            notify('Не удалось определить клиента для блокировки', 'error');
+            notify('Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•Р С—РЎР‚Р ВµР Т‘Р ВµР В»Р С‘РЎвЂљРЎРЉ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В° Р Т‘Р В»РЎРЏ Р В±Р В»Р С•Р С”Р С‘РЎР‚Р С•Р Р†Р С”Р С‘', 'error');
             return;
           }
-          const defaultReason = `Спам в диалоге ${ticketId}`;
-          const reasonInput = window.prompt('Причина блокировки клиента как спам:', defaultReason);
+          const defaultReason = `Р РЋР С—Р В°Р С Р Р† Р Т‘Р С‘Р В°Р В»Р С•Р С–Р Вµ ${ticketId}`;
+          const reasonInput = window.prompt('Р СџРЎР‚Р С‘РЎвЂЎР С‘Р Р…Р В° Р В±Р В»Р С•Р С”Р С‘РЎР‚Р С•Р Р†Р С”Р С‘ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В° Р С”Р В°Р С” РЎРѓР С—Р В°Р С:', defaultReason);
           if (reasonInput === null) {
             return;
           }
@@ -501,12 +502,12 @@
             });
             const data = await resp.json();
             if (!resp.ok || !data?.success) {
-              throw new Error(data?.error || `Ошибка ${resp.status}`);
+              throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
             }
             await options.openDialogDetails?.(ticketId, activeDialogState.row);
-            notify('Клиент заблокирован как спам', 'success');
+            notify('Р С™Р В»Р С‘Р ВµР Р…РЎвЂљ Р В·Р В°Р В±Р В»Р С•Р С”Р С‘РЎР‚Р С•Р Р†Р В°Р Р… Р С”Р В°Р С” РЎРѓР С—Р В°Р С', 'success');
           } catch (error) {
-            notify(error.message || 'Не удалось заблокировать клиента', 'error');
+            notify(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р В±Р В»Р С•Р С”Р С‘РЎР‚Р С•Р Р†Р В°РЎвЂљРЎРЉ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°', 'error');
           } finally {
             updateResolveButton(String(activeDialogState.row?.dataset?.statusRaw || activeDialogState.row?.dataset?.status || ''));
           }
@@ -536,7 +537,7 @@
             const categories = Array.from(getSelectedCategories());
             if (!categories.length) {
               options.openCategoryPanel?.();
-              throw new Error('Укажите хотя бы одну категорию обращения перед закрытием.');
+              throw new Error('Р Р€Р С”Р В°Р В¶Р С‘РЎвЂљР Вµ РЎвЂ¦Р С•РЎвЂљРЎРЏ Р В±РЎвЂ№ Р С•Р Т‘Р Р…РЎС“ Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎР‹ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎРЏ Р С—Р ВµРЎР‚Р ВµР Т‘ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С‘Р ВµР С.');
             }
             const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/resolve`, {
               method: 'POST',
@@ -545,12 +546,12 @@
             });
             const data = await resp.json();
             if (!resp.ok || !data?.success) {
-              throw new Error(data?.error || `Ошибка ${resp.status}`);
+              throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
             }
             await options.openDialogDetails?.(ticketId, activeDialogState.row);
-            notify('Диалог закрыт', 'success');
+            notify('Р вЂќР С‘Р В°Р В»Р С•Р С– Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ', 'success');
           } catch (error) {
-            notify(error.message || 'Не удалось закрыть диалог', 'error');
+            notify(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
             elements.detailsResolve.disabled = false;
           }
         });
@@ -561,7 +562,7 @@
           const ticketId = resolveDetailsTicketId();
           const activeDialogState = getActiveDialogState();
           if (!ticketId) return;
-          if (!window.confirm('Переоткрыть закрытое обращение?')) {
+          if (!window.confirm('Р СџР ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С•Р Вµ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ?')) {
             return;
           }
           elements.detailsReopen.disabled = true;
@@ -572,12 +573,12 @@
             });
             const data = await resp.json();
             if (!resp.ok || !data?.success) {
-              throw new Error(data?.error || `Ошибка ${resp.status}`);
+              throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
             }
             await options.openDialogDetails?.(ticketId, activeDialogState.row);
-            notify('Диалог переоткрыт', 'success');
+            notify('Р вЂќР С‘Р В°Р В»Р С•Р С– Р С—Р ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ', 'success');
           } catch (error) {
-            notify(error.message || 'Не удалось переоткрыть диалог', 'error');
+            notify(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
           } finally {
             elements.detailsReopen.disabled = false;
           }
@@ -610,10 +611,10 @@
           }
           let legacyOpenReason = 'manual_rollback';
           if (policy.enabled && policy.reasonRequired) {
-            const answer = window.prompt('Укажите причину manual legacy-open (UTC policy checkpoint):', 'manual_rollback');
+            const answer = window.prompt('Р Р€Р С”Р В°Р В¶Р С‘РЎвЂљР Вµ Р С—РЎР‚Р С‘РЎвЂЎР С‘Р Р…РЎС“ manual legacy-open (UTC policy checkpoint):', 'manual_rollback');
             legacyOpenReason = String(answer || '').trim();
             if (!legacyOpenReason) {
-              notify('Legacy modal не открыт: требуется причина manual open.', 'warning');
+              notify('Legacy modal Р Р…Р Вµ Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ: РЎвЂљРЎР‚Р ВµР В±РЎС“Р ВµРЎвЂљРЎРѓРЎРЏ Р С—РЎР‚Р С‘РЎвЂЎР С‘Р Р…Р В° manual open.', 'warning');
               return;
             }
           }
@@ -633,7 +634,7 @@
           if (!activeWorkspaceState.ticketId || !activeDialogState.row) return;
           try {
             await takeDialog(activeWorkspaceState.ticketId, activeDialogState.row, elements.workspaceAssignBtn);
-            await options.refreshActiveWorkspaceContract?.({ successMessage: 'Диалог назначен на вас.' });
+            await options.refreshActiveWorkspaceContract?.({ successMessage: 'Р вЂќР С‘Р В°Р В»Р С•Р С– Р Р…Р В°Р В·Р Р…Р В°РЎвЂЎР ВµР Р… Р Р…Р В° Р Р†Р В°РЎРѓ.' });
           } catch (_error) {
             // Notification is already shown inside takeDialog.
           }
@@ -651,9 +652,9 @@
             if (activeDialogState.row) {
               updateRowQuickActions(activeDialogState.row);
             }
-            notify(`Диалог отложен на ${options.formatSnoozeDurationLabel?.(options.quickSnoozeMinutes)}.`, 'success');
+            notify(`Р вЂќР С‘Р В°Р В»Р С•Р С– Р С•РЎвЂљР В»Р С•Р В¶Р ВµР Р… Р Р…Р В° ${options.formatSnoozeDurationLabel?.(options.quickSnoozeMinutes)}.`, 'success');
           } catch (error) {
-            notify(error.message || 'Не удалось отложить диалог', 'error');
+            notify(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
           }
         });
       }
@@ -667,7 +668,7 @@
             const categories = Array.from(getSelectedCategories());
             if (!categories.length) {
               options.renderWorkspaceCategories?.();
-              throw new Error('Выберите хотя бы одну категорию перед закрытием диалога.');
+              throw new Error('Р вЂ™РЎвЂ№Р В±Р ВµРЎР‚Р С‘РЎвЂљР Вµ РЎвЂ¦Р С•РЎвЂљРЎРЏ Р В±РЎвЂ№ Р С•Р Т‘Р Р…РЎС“ Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎР‹ Р С—Р ВµРЎР‚Р ВµР Т‘ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С‘Р ВµР С Р Т‘Р С‘Р В°Р В»Р С•Р С–Р В°.');
             }
             const response = await fetch(`/api/dialogs/${encodeURIComponent(activeWorkspaceState.ticketId)}/resolve`, {
               method: 'POST',
@@ -676,12 +677,12 @@
             });
             const payload = await response.json();
             if (!response.ok || !payload?.success) {
-              throw new Error(payload?.error || `Ошибка ${response.status}`);
+              throw new Error(payload?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${response.status}`);
             }
-            await options.refreshActiveWorkspaceContract?.({ successMessage: 'Диалог закрыт.' });
+            await options.refreshActiveWorkspaceContract?.({ successMessage: 'Р вЂќР С‘Р В°Р В»Р С•Р С– Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ.' });
           } catch (error) {
             elements.workspaceResolveBtn.disabled = false;
-            notify(error.message || 'Не удалось закрыть диалог', 'error');
+            notify(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
           }
         });
       }
@@ -690,7 +691,7 @@
         elements.workspaceReopenBtn.addEventListener('click', async () => {
           const activeWorkspaceState = getActiveWorkspaceState();
           if (!activeWorkspaceState.ticketId) return;
-          if (!window.confirm('Переоткрыть закрытое обращение?')) {
+          if (!window.confirm('Р СџР ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С•Р Вµ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ?')) {
             return;
           }
           elements.workspaceReopenBtn.disabled = true;
@@ -701,11 +702,11 @@
             });
             const payload = await response.json();
             if (!response.ok || !payload?.success) {
-              throw new Error(payload?.error || `Ошибка ${response.status}`);
+              throw new Error(payload?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${response.status}`);
             }
-            await options.refreshActiveWorkspaceContract?.({ successMessage: 'Диалог переоткрыт.' });
+            await options.refreshActiveWorkspaceContract?.({ successMessage: 'Р вЂќР С‘Р В°Р В»Р С•Р С– Р С—Р ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ.' });
           } catch (error) {
-            notify(error.message || 'Не удалось переоткрыть диалог', 'error');
+            notify(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
           } finally {
             elements.workspaceReopenBtn.disabled = false;
           }
@@ -748,25 +749,25 @@
           });
           const payload = await response.json();
           if (!response.ok || !payload?.success) {
-            throw new Error(payload?.error || `Ошибка ${response.status}`);
+            throw new Error(payload?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${response.status}`);
           }
           elements.detailsReplyText.value = '';
           options.resetReplyTarget?.();
           options.updateDetailsResponsible?.(payload.responsible || options.getActiveDialogContext?.().operatorName);
           options.appendHistoryMessage?.({
-            sender: options.operatorDisplayName || payload.responsible || 'Оператор',
+            sender: options.operatorDisplayName || payload.responsible || 'Р С›Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚',
             message,
             timestamp: payload.timestamp || new Date().toISOString(),
             messageType: 'operator_message',
           });
           if (activeDialogState.row) {
-            updateRowStatus(activeDialogState.row, 'pending', 'ожидает ответа клиента', 'waiting_client', 0);
+            updateRowStatus(activeDialogState.row, 'pending', 'Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°', 'waiting_client', 0);
             updateRowResponsible(activeDialogState.row, payload.responsible || activeDialogState.row.dataset.responsible || '');
             options.applyFilters?.();
           }
-          options.updateDetailsStatusSummary?.('ожидает ответа клиента', 'waiting_client');
+          options.updateDetailsStatusSummary?.('Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°', 'waiting_client');
         } catch (error) {
-          notify(error?.message || 'Не удалось отправить сообщение', 'error');
+          notify(error?.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р С‘РЎвЂљРЎРЉ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ', 'error');
         } finally {
           elements.detailsReplySend.disabled = false;
         }
@@ -784,10 +785,9 @@
         event.preventDefault();
         const totalFiles = options.stageMediaFilesInInput?.(elements.detailsReplyMedia, files) || 0;
         if (!totalFiles) {
-          notify('Не удалось прикрепить скриншот автоматически. Используйте кнопку прикрепления медиа.', 'warning');
+          notify('Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—РЎР‚Р С‘Р С”РЎР‚Р ВµР С—Р С‘РЎвЂљРЎРЉ РЎРѓР С”РЎР‚Р С‘Р Р…РЎв‚¬Р С•РЎвЂљ Р В°Р Р†РЎвЂљР С•Р СР В°РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р С‘. Р ВРЎРѓР С—Р С•Р В»РЎРЉР В·РЎС“Р в„–РЎвЂљР Вµ Р С”Р Р…Р С•Р С—Р С”РЎС“ Р С—РЎР‚Р С‘Р С”РЎР‚Р ВµР С—Р В»Р ВµР Р…Р С‘РЎРЏ Р СР ВµР Т‘Р С‘Р В°.', 'warning');
           return;
         }
-        notify(`Скриншот прикреплён. Всего вложений: ${totalFiles}. Нажмите "Отправить", чтобы отправить их клиенту.`, 'info');
       });
     }
 
