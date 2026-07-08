@@ -741,6 +741,13 @@
   const NOTIFICATION_ITEM_FALLBACK = '\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435';
   const NOTIFICATION_TOAST_ONE = '\u041d\u043e\u0432\u043e\u0435 \u043e\u043f\u043e\u0432\u0435\u0449\u0435\u043d\u0438\u0435';
   const NOTIFICATION_TOAST_MANY_PREFIX = '\u041d\u043e\u0432\u044b\u0445 \u043e\u043f\u043e\u0432\u0435\u0449\u0435\u043d\u0438\u0439: ';
+  const NOTIFICATION_READ_ALL_LABEL = '\u041f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c \u0432\u0441\u0435';
+  const NOTIFICATION_VISIBLE_READ_DELAY_MS = 2000;
+  const NOTIFICATION_VISIBLE_READ_THRESHOLD = 0.6;
+  let notificationListReloadTimer = 0;
+  let notificationVisibilityObserver = null;
+  const notificationVisibleReadTimers = new Map();
+  const notificationVisibleReadPending = new Set();
 
   moveDropdownToBody(bellDropdown);
 
@@ -914,6 +921,172 @@
     }
   }
 
+  function clearNotificationListReloadTimer() {
+    if (!notificationListReloadTimer) return;
+    window.clearTimeout(notificationListReloadTimer);
+    notificationListReloadTimer = 0;
+  }
+
+  function clearNotificationVisibleReadTimers() {
+    notificationVisibleReadTimers.forEach((timerId) => {
+      window.clearTimeout(timerId);
+    });
+    notificationVisibleReadTimers.clear();
+  }
+
+  function disconnectNotificationVisibilityObserver() {
+    if (!notificationVisibilityObserver) return;
+    notificationVisibilityObserver.disconnect();
+    notificationVisibilityObserver = null;
+  }
+
+  function resetNotificationVisibilityTracking() {
+    clearNotificationVisibleReadTimers();
+    disconnectNotificationVisibilityObserver();
+  }
+
+  function decrementUnreadCount(value = 1) {
+    const nextCount = Math.max(0, Number(lastUnreadCount || 0) - Math.max(0, Number(value) || 0));
+    lastUnreadCount = nextCount;
+    setBellCount(nextCount);
+    hasInitialUnread = true;
+  }
+
+  function renderNotificationToolbar(unreadCount) {
+    if (!unreadCount) {
+      return '';
+    }
+    return `
+      <div class="notif-toolbar">
+        <div class="notif-toolbar-title">Оповещения</div>
+        <button type="button" class="notif-read-all-btn" data-notifications-read-all>
+          ${NOTIFICATION_READ_ALL_LABEL}
+        </button>
+      </div>
+    `;
+  }
+
+  function isNotificationItemVisibleInDropdown(itemEl) {
+    if (!(itemEl instanceof HTMLElement) || !(bellDropdown instanceof HTMLElement) || bellDropdown.hidden) {
+      return false;
+    }
+    const dropdownRect = bellDropdown.getBoundingClientRect();
+    const itemRect = itemEl.getBoundingClientRect();
+    const visibleHeight = Math.min(itemRect.bottom, dropdownRect.bottom) - Math.max(itemRect.top, dropdownRect.top);
+    if (visibleHeight <= 0) {
+      return false;
+    }
+    const visibleRatio = visibleHeight / Math.max(1, Math.min(itemRect.height || 0, dropdownRect.height || 0) || 1);
+    return visibleRatio >= NOTIFICATION_VISIBLE_READ_THRESHOLD;
+  }
+
+  function cancelVisibleNotificationRead(itemEl) {
+    const notificationId = itemEl?.dataset?.id;
+    if (!notificationId || !notificationVisibleReadTimers.has(notificationId)) {
+      return;
+    }
+    window.clearTimeout(notificationVisibleReadTimers.get(notificationId));
+    notificationVisibleReadTimers.delete(notificationId);
+  }
+
+  function scheduleNotificationListReload() {
+    if (!notificationsOpen) {
+      return;
+    }
+    if (notificationListReloadTimer) {
+      return;
+    }
+    notificationListReloadTimer = window.setTimeout(async () => {
+      notificationListReloadTimer = 0;
+      if (!notificationsOpen) {
+        return;
+      }
+      await loadNotificationsSafe();
+    }, 180);
+  }
+
+  function applyNotificationReadState(itemEl, options = {}) {
+    if (!(itemEl instanceof HTMLElement)) return;
+    const wasUnread = itemEl.classList.contains('notif-item-unread');
+    itemEl.classList.remove('notif-item-unread');
+    itemEl.classList.add('notif-item-read');
+    itemEl.dataset.read = 'true';
+    cancelVisibleNotificationRead(itemEl);
+    if (wasUnread && options.decrementCount !== false) {
+      decrementUnreadCount(1);
+    }
+  }
+
+  function scheduleVisibleNotificationRead(itemEl) {
+    if (!(itemEl instanceof HTMLElement) || !notificationsOpen || !itemEl.classList.contains('notif-item-unread')) {
+      return;
+    }
+    const notificationId = itemEl.dataset.id;
+    if (!notificationId || notificationVisibleReadTimers.has(notificationId) || notificationVisibleReadPending.has(notificationId)) {
+      return;
+    }
+    const timerId = window.setTimeout(async () => {
+      notificationVisibleReadTimers.delete(notificationId);
+      if (!notificationsOpen || !itemEl.classList.contains('notif-item-unread') || !isNotificationItemVisibleInDropdown(itemEl)) {
+        return;
+      }
+      notificationVisibleReadPending.add(notificationId);
+      try {
+        const marked = await markNotificationAsRead(notificationId);
+        if (marked) {
+          applyNotificationReadState(itemEl);
+          scheduleNotificationListReload();
+        }
+      } catch (_error) {
+        // ignore read marker errors
+      } finally {
+        notificationVisibleReadPending.delete(notificationId);
+      }
+    }, NOTIFICATION_VISIBLE_READ_DELAY_MS);
+    notificationVisibleReadTimers.set(notificationId, timerId);
+  }
+
+  function initNotificationVisibilityTracking() {
+    resetNotificationVisibilityTracking();
+    if (!(bellDropdown instanceof HTMLElement) || bellDropdown.hidden || !notificationsOpen) {
+      return;
+    }
+    const unreadItems = Array.from(bellDropdown.querySelectorAll('.notif-item-unread[data-id]'));
+    if (!unreadItems.length) {
+      return;
+    }
+    if (typeof IntersectionObserver !== 'function') {
+      unreadItems.forEach((itemEl) => {
+        if (isNotificationItemVisibleInDropdown(itemEl)) {
+          scheduleVisibleNotificationRead(itemEl);
+        }
+      });
+      return;
+    }
+    notificationVisibilityObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const itemEl = entry.target instanceof HTMLElement ? entry.target : null;
+        if (!itemEl) {
+          return;
+        }
+        if (entry.isIntersecting && entry.intersectionRatio >= NOTIFICATION_VISIBLE_READ_THRESHOLD) {
+          scheduleVisibleNotificationRead(itemEl);
+        } else {
+          cancelVisibleNotificationRead(itemEl);
+        }
+      });
+    }, {
+      root: bellDropdown,
+      threshold: [NOTIFICATION_VISIBLE_READ_THRESHOLD],
+    });
+    unreadItems.forEach((itemEl) => {
+      notificationVisibilityObserver.observe(itemEl);
+      if (isNotificationItemVisibleInDropdown(itemEl)) {
+        scheduleVisibleNotificationRead(itemEl);
+      }
+    });
+  }
+
   function renderNotifications(unreadItems, readItems) {
     if (!bellDropdown) return;
     const unread = Array.isArray(unreadItems) ? unreadItems.filter(Boolean) : [];
@@ -1004,6 +1177,7 @@
     };
 
     const parts = [];
+    parts.push(renderNotificationToolbar(unread.length));
     parts.push(renderSection(unread, NOTIFICATION_UNREAD_LABEL, true));
     parts.push(renderSection(read, NOTIFICATION_READ_LABEL, false));
     bellDropdown.innerHTML = parts.filter(Boolean).join('');
@@ -1011,6 +1185,7 @@
 
   async function loadNotificationsSafe() {
     if (!bellDropdown) return;
+    resetNotificationVisibilityTracking();
     bellDropdown.hidden = false;
     bellDropdown.innerHTML = `<div class="notif-item text-muted">${NOTIFICATION_LOADING_LABEL}</div>`;
     notificationsOpen = true;
@@ -1028,6 +1203,7 @@
       hasInitialUnread = true;
       setBellCount(payload.unread.length);
       lastUnreadCount = payload.unread.length;
+      initNotificationVisibilityTracking();
       requestNotificationsDropdownPosition();
     } catch (_error) {
       bellDropdown.innerHTML = `<div class="notif-item text-danger">${NOTIFICATION_LOAD_ERROR_LABEL}</div>`;
@@ -1050,14 +1226,47 @@
     return response.ok;
   }
 
-  function applyNotificationReadState(itemEl) {
-    if (!(itemEl instanceof HTMLElement)) return;
-    itemEl.classList.remove('notif-item-unread');
-    itemEl.classList.add('notif-item-read');
+  async function markAllNotificationsAsRead() {
+    const headers = {};
+    if (csrfToken) {
+      headers[csrfHeaderName] = csrfToken;
+    }
+    const response = await fetch('/api/notifications/read-all', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers,
+      keepalive: true,
+    });
+    if (!response.ok) {
+      return null;
+    }
+    return response.json().catch(() => null);
   }
 
   if (bellDropdown) {
     bellDropdown.addEventListener('click', async (event) => {
+      const readAllButton = event.target.closest('[data-notifications-read-all]');
+      if (readAllButton) {
+        event.preventDefault();
+        if (readAllButton.disabled) {
+          return;
+        }
+        readAllButton.disabled = true;
+        try {
+          const result = await markAllNotificationsAsRead();
+          if (result && result.success) {
+            resetNotificationVisibilityTracking();
+            lastUnreadCount = 0;
+            setBellCount(0);
+            await loadNotificationsSafe();
+            return;
+          }
+        } catch (_error) {
+          // ignore bulk read errors
+        }
+        readAllButton.disabled = false;
+        return;
+      }
       const link = event.target.closest('a[data-notification-link]');
       if (!link) return;
       if (event.defaultPrevented) return;
@@ -1085,6 +1294,8 @@
 
   function closeNotifications() {
     if (!bellDropdown) return;
+    clearNotificationListReloadTimer();
+    resetNotificationVisibilityTracking();
     bellDropdown.hidden = true;
     notificationsOpen = false;
     if (bellBtn) bellBtn.setAttribute('aria-expanded', 'false');

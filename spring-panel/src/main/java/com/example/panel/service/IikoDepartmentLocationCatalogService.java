@@ -56,6 +56,11 @@ public class IikoDepartmentLocationCatalogService {
     );
     private static final List<String> BUSINESS_ORDER = List.of(BUSINESS_BLINBERI, BUSINESS_SUSHIVESLA);
     private static final List<String> LOCATION_TYPE_ORDER = List.of(TYPE_CORPORATE, TYPE_FRANCHISE);
+    private static final Set<String> SUPPORTED_DEPARTMENT_ITEM_TYPES = Set.of(
+            "DEPARTMENT",
+            "MANUFACTURE",
+            "CENTRALSTORE"
+    );
 
     private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
     private final SharedConfigService sharedConfigService;
@@ -777,7 +782,7 @@ public class IikoDepartmentLocationCatalogService {
                     continue;
                 }
                 String type = firstNonBlank(childText(element, "type"), element.getAttribute("type"));
-                if ("DEPARTMENT".equalsIgnoreCase(type)) {
+                if (StringUtils.hasText(type) && SUPPORTED_DEPARTMENT_ITEM_TYPES.contains(type.trim().toUpperCase(Locale.ROOT))) {
                     departments.add(element);
                 }
             }

@@ -15,6 +15,43 @@
   z-index: calc(var(--sidebar-z) + 40);
 }
 
+.notify-dropdown .notif-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 4px 10px;
+}
+
+.notify-dropdown .notif-toolbar-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.notify-dropdown .notif-read-all-btn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.notify-dropdown .notif-read-all-btn:hover,
+.notify-dropdown .notif-read-all-btn:focus-visible {
+  color: color-mix(in srgb, var(--color-accent) 76%, black);
+  text-decoration: underline;
+}
+
+.notify-dropdown .notif-read-all-btn:disabled {
+  opacity: 0.5;
+  text-decoration: none;
+}
+
 .notify-dropdown .notif-item {
   padding: 12px 14px;
   border-radius: 16px;

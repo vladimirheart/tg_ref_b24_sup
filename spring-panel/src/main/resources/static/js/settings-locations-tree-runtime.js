@@ -208,8 +208,8 @@
       state.locationsLoaded = true;
     }
 
-    function ensureLocationsLoaded() {
-      if (state.locationsLoaded) {
+    function ensureLocationsLoaded(forceReload = false) {
+      if (!forceReload && state.locationsLoaded) {
         return Promise.resolve(state);
       }
       if (state.locationsLoadingPromise) {
@@ -220,7 +220,7 @@
         state.locationsLoaded = true;
         return Promise.resolve(state);
       }
-      state.locationsLoadingPromise = fetchPageDataSection('locations')
+      state.locationsLoadingPromise = fetchPageDataSection('locations', forceReload ? { force: true } : {})
         .then((section) => {
           applyLocationsPayload(section?.tree);
           return state;
@@ -948,14 +948,15 @@
       container.appendChild(list);
     }
 
-    function buildLocationsTree() {
+    function buildLocationsTree(runtimeOptions = {}) {
       const container = document.getElementById('locationsEditor');
       if (!(container instanceof HTMLElement)) {
         return;
       }
-      if (!state.locationsLoaded) {
+      const forceReload = Boolean(runtimeOptions && runtimeOptions.forceReload);
+      if (forceReload || !state.locationsLoaded) {
         container.innerHTML = '<div class="alert alert-light small mb-0">Загружаем структуру локаций...</div>';
-        return ensureLocationsLoaded()
+        return ensureLocationsLoaded(forceReload)
           .then(() => {
             renderLocationsTree();
             return state;
@@ -1351,8 +1352,8 @@
       window.__settingsLocationsTreeRuntime = runtime;
       return runtime;
     },
-    buildLocationsTree() {
-      return window.__settingsLocationsTreeRuntime?.buildLocationsTree();
+    buildLocationsTree(...args) {
+      return window.__settingsLocationsTreeRuntime?.buildLocationsTree?.(...args);
     },
   };
 

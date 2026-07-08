@@ -248,6 +248,56 @@ class IikoDepartmentLocationCatalogServiceTest {
         }
     }
 
+    @Test
+    void httpGatewayLoadsOnlySupportedDepartmentTypes() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/resto/api/corporation/departments/", exchange -> {
+            assertThat(exchange.getRequestURI().getRawQuery()).contains("key=token-123");
+            byte[] body = """
+                    <root>
+                      <corporateItemDto>
+                        <type>DEPARTMENT</type>
+                        <isActive>true</isActive>
+                        <name>BB Smolensk Department</name>
+                      </corporateItemDto>
+                      <corporateItemDto>
+                        <type>GROUP</type>
+                        <isActive>true</isActive>
+                        <name>BB Smolensk Group</name>
+                      </corporateItemDto>
+                      <corporateItemDto>
+                        <type>MANUFACTURE</type>
+                        <isActive>true</isActive>
+                        <name>BB Smolensk Manufacture</name>
+                      </corporateItemDto>
+                      <corporateItemDto>
+                        <type>CENTRALSTORE</type>
+                        <isActive>true</isActive>
+                        <name>BB Smolensk Central Store</name>
+                      </corporateItemDto>
+                    </root>
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/xml");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            IikoDepartmentLocationCatalogService.HttpIikoDepartmentGateway gateway =
+                    new IikoDepartmentLocationCatalogService.HttpIikoDepartmentGateway(new ObjectMapper());
+
+            String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+
+            assertThat(gateway.loadActiveDepartmentNames(baseUrl, "token-123")).containsExactly(
+                    "BB Smolensk Department",
+                    "BB Smolensk Manufacture",
+                    "BB Smolensk Central Store");
+        } finally {
+            server.stop(0);
+        }
+    }
+
     private static final class UnsupportedGateway implements IikoDepartmentLocationCatalogService.IikoDepartmentGateway {
 
         @Override

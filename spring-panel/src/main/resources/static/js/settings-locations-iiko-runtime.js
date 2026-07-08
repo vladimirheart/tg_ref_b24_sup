@@ -129,8 +129,8 @@
       locationsSettingsLoaded = true;
     }
 
-    function ensureLocationsSettingsLoaded() {
-      if (locationsSettingsLoaded) {
+    function ensureLocationsSettingsLoaded(forceReload = false) {
+      if (!forceReload && locationsSettingsLoaded) {
         return Promise.resolve({
           iikoServerSources: locationsIikoServerSourcesState,
           iikoSyncSettings: locationsIikoSyncSettingsState,
@@ -147,7 +147,7 @@
           iikoSyncSettings: locationsIikoSyncSettingsState,
         });
       }
-      locationsSettingsLoadingPromise = fetchPageDataSection('locations')
+      locationsSettingsLoadingPromise = fetchPageDataSection('locations', forceReload ? { force: true } : {})
         .then((section) => {
           applyPageData(section);
           return {
@@ -408,6 +408,14 @@
       }
     }
 
+    function refreshLocationsTree(forceReload = true) {
+      const buildLocationsTree = window.SettingsRuntimeAccess?.resolveRuntimeMethod?.('SettingsLocationsTreeRuntime', 'buildLocationsTree');
+      if (typeof buildLocationsTree !== 'function') {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve(buildLocationsTree({ forceReload: Boolean(forceReload) }));
+    }
+
     async function loadLocationsSyncStatus() {
       try {
         const response = await fetch('/api/settings/locations-sync/status');
@@ -419,6 +427,7 @@
         const running = Boolean(status && (status.running || String(status.state || '').toLowerCase() === 'running'));
         if (!running) {
           stopLocationsSyncStatusPolling();
+          await refreshLocationsTree(true);
         }
         return status;
       } catch (error) {
@@ -452,9 +461,10 @@
     }
 
     async function prepareLocationsSettingsModal() {
-      await ensureLocationsSettingsLoaded();
+      await ensureLocationsSettingsLoaded(true);
       await renderLocationsIikoServerSourcesEditor();
       await renderLocationsIikoSyncSettings();
+      await refreshLocationsTree(true);
       loadLocationsSyncStatus().then((status) => {
         const running = Boolean(status && (status.running || String(status.state || '').toLowerCase() === 'running'));
         if (running) {
