@@ -169,6 +169,7 @@
         .map((input) => input.value.trim())
         .filter(Boolean),
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
+      areLocationsLoaded: () => settingsLocationsTreeRuntime?.isLoaded?.() || false,
       serializeLocationsIikoServerSources: () => settingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [],
       serializeLocationsIikoSyncSettings: () => settingsLocationsIikoRuntime?.serializeLocationsIikoSyncSettings?.() || {},
       markLocationsIikoServerSourcesSaved: () => settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(),

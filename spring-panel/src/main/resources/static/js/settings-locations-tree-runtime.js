@@ -126,6 +126,16 @@
     return value && !Array.isArray(value) ? value : null;
   }
 
+  function serializeLocationsState(state) {
+    const source = state && typeof state === 'object' ? state : {};
+    return {
+      tree: normalizeLocationTree(source.tree),
+      statuses: sanitizeStatusesMap(source.statuses),
+      city_meta: sanitizeMetaMap(source.city_meta),
+      location_meta: sanitizeMetaMap(source.location_meta),
+    };
+  }
+
   function createRuntime(options = {}) {
     const collapsedLocationNodes = new Set();
     const config = resolveConfig(options);
@@ -222,7 +232,11 @@
     }
 
     function getState() {
-      return state;
+      return state.locationsLoaded ? serializeLocationsState(state) : null;
+    }
+
+    function isLoaded() {
+      return Boolean(state.locationsLoaded);
     }
 
     function makeStatusKey(level, ...parts) {
@@ -1282,7 +1296,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          locations: state,
+          locations: serializeLocationsState(state),
           locations_iiko_server_sources: typeof options.serializeLocationsIikoServerSources === 'function'
             ? options.serializeLocationsIikoServerSources()
             : [],
@@ -1310,6 +1324,7 @@
 
     return {
       getState,
+      isLoaded,
       buildLocationsTree,
       addBusiness,
       saveLocationsChanges,

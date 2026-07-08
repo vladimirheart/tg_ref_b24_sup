@@ -17,15 +17,21 @@
     return Array.isArray(config && config[key]) ? config[key] : null;
   }
 
+  function hasInitialIntegrationNetworkData(config, integrationNetworkProfilesInitial) {
+    const integrationNetwork = readConfigObject(config, 'integrationNetwork');
+    if (integrationNetwork && Object.keys(integrationNetwork).length > 0) {
+      return true;
+    }
+    return Array.isArray(integrationNetworkProfilesInitial) && integrationNetworkProfilesInitial.length > 0;
+  }
+
   function createRuntime(options = {}) {
     const config = resolveConfig(options);
     const botSettingsInitial = readConfigObject(config, 'botSettings') || options.botSettingsInitial || {};
     const autoCloseConfig = readConfigObject(config, 'autoCloseConfig') || options.autoCloseConfig || {};
     const integrationNetworkInitial = readConfigObject(config, 'integrationNetwork') || options.integrationNetworkInitial || {};
     const integrationNetworkProfilesInitial = readConfigArray(config, 'integrationNetworkProfiles') || options.integrationNetworkProfilesInitial || [];
-    const hasInitialIntegrationNetworkData = Boolean(
-      readConfigObject(config, 'integrationNetwork') || readConfigArray(config, 'integrationNetworkProfiles'),
-    );
+    const hasInitialIntegrationNetworkState = hasInitialIntegrationNetworkData(config, integrationNetworkProfilesInitial);
     const state = {
       channelsInitialized: false,
       channelsRegistry: new Map(),
@@ -132,7 +138,7 @@
     const settingsChannelConfig = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelConfigRuntime');
     const settingsIntegrationNetwork = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsIntegrationNetworkRuntime', {
       initialIntegrationNetwork: integrationNetworkInitial,
-      hasInitialData: hasInitialIntegrationNetworkData,
+      hasInitialData: hasInitialIntegrationNetworkState,
       getProfilesData: () => state.integrationNetworkProfilesData,
       setProfilesData: (nextProfiles) => {
         state.integrationNetworkProfilesData = Array.isArray(nextProfiles) ? nextProfiles : [];

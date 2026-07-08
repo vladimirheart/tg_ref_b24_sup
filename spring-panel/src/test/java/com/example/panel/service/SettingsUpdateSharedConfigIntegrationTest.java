@@ -78,8 +78,39 @@ class SettingsUpdateSharedConfigIntegrationTest {
         verify(settingsParameterService).syncParametersFromLocationsPayload(Map.of(
                 "tree", Map.of(
                         "Retail", Map.of("shop", Map.of("Moscow", List.of("Store 1")))
-                )
+                ),
+                "statuses", Map.of(),
+                "city_meta", Map.of(),
+                "location_meta", Map.of()
         ));
+    }
+
+    @Test
+    void updateSettingsSanitizesLocationsRuntimeStateBeforeSavingSharedConfig() {
+        when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
+                .thenReturn(false);
+
+        Map<String, Object> result = service.updateSettings(Map.of(
+                "locations", Map.of(
+                        "tree", Map.of(
+                                "Retail", Map.of("shop", Map.of("Moscow", List.of("Store 1")))
+                        ),
+                        "statuses", Map.of("location::Retail::shop::Moscow::Store 1", "Активен"),
+                        "city_meta", Map.of("Retail::shop::Moscow", Map.of("country", "Россия", "partner_type", "shop")),
+                        "location_meta", Map.of("Retail::shop::Moscow::Store 1", Map.of("country", "Россия", "partner_type", "shop")),
+                        "locationsLoaded", false,
+                        "locationsLoadingPromise", "should-not-be-saved"
+                )
+        ), mock(Authentication.class));
+
+        assertEquals(Map.of("success", true), result);
+        JsonNode locations = sharedConfigService.loadLocations();
+        assertEquals("Store 1", locations.path("tree").path("Retail").path("shop").path("Moscow").get(0).asText());
+        assertEquals("Активен", locations.path("statuses").path("location::Retail::shop::Moscow::Store 1").asText());
+        assertEquals("Россия", locations.path("city_meta").path("Retail::shop::Moscow").path("country").asText());
+        assertEquals("shop", locations.path("location_meta").path("Retail::shop::Moscow::Store 1").path("partner_type").asText());
+        assertTrue(locations.path("locationsLoaded").isMissingNode());
+        assertTrue(locations.path("locationsLoadingPromise").isMissingNode());
     }
 
     @Test

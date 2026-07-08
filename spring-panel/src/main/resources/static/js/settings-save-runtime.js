@@ -117,10 +117,15 @@
         );
 
         const networkProfilesPayload = options.networkProfilesRuntime?.collectNetworkProfilesPayload?.() || [];
+        const locationsLoaded = typeof options.areLocationsLoaded === 'function'
+          ? Boolean(options.areLocationsLoaded())
+          : true;
+        const locationsState = typeof options.getLocationsState === 'function'
+          ? options.getLocationsState()
+          : null;
         const payload = {
           categories: dialogTemplatesState.fallbackCategories || [],
           client_statuses: collectStatuses(),
-          locations: typeof options.getLocationsState === 'function' ? options.getLocationsState() : {},
           locations_iiko_server_sources: typeof options.serializeLocationsIikoServerSources === 'function'
             ? options.serializeLocationsIikoServerSources()
             : [],
@@ -138,6 +143,10 @@
           auto_close_config: autoClosePayload,
           auto_close_hours: autoCloseHours,
         };
+
+        if (locationsLoaded && locationsState && typeof locationsState === 'object') {
+          payload.locations = locationsState;
+        }
 
         const saveUrl = typeof options.getSaveUrl === 'function' ? options.getSaveUrl() : '/settings';
         const response = await fetch(saveUrl, {
