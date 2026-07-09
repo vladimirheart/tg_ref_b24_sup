@@ -863,8 +863,15 @@
       }
     }
 
+    function isMediaInputElement(mediaInput) {
+      return Boolean(mediaInput)
+        && typeof mediaInput === 'object'
+        && String(mediaInput.type || '').toLowerCase() === 'file'
+        && 'files' in mediaInput;
+    }
+
     function getSelectedMediaFiles(mediaInput) {
-      return mediaInput instanceof HTMLInputElement ? Array.from(mediaInput.files || []) : [];
+      return isMediaInputElement(mediaInput) ? Array.from(mediaInput.files || []) : [];
     }
 
     function isUploadableMediaFile(file) {
@@ -904,7 +911,7 @@
     }
 
     function getStagedMediaFiles(mediaInput) {
-      if (!(mediaInput instanceof HTMLInputElement) || !Array.isArray(mediaInput.__stagedMediaFiles)) {
+      if (!isMediaInputElement(mediaInput) || !Array.isArray(mediaInput.__stagedMediaFiles)) {
         return [];
       }
       return mediaInput.__stagedMediaFiles.filter((file) => isUploadableMediaFile(file));
@@ -915,7 +922,7 @@
     }
 
     function stageMediaFilesInInput(mediaInput, files) {
-      if (!(mediaInput instanceof HTMLInputElement) || !files?.length) {
+      if (!isMediaInputElement(mediaInput) || !files?.length) {
         return 0;
       }
       const stagedFiles = getStagedMediaFiles(mediaInput);
@@ -931,7 +938,7 @@
     }
 
     function clearPendingMediaFiles(mediaInput) {
-      if (!(mediaInput instanceof HTMLInputElement)) {
+      if (!isMediaInputElement(mediaInput)) {
         return;
       }
       mediaInput.value = '';
