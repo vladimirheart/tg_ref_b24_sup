@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   if (window.DialogsDetailsHistoryRuntime) {
     return;
   }
@@ -96,7 +96,7 @@
       elements.detailsReplyMediaTrigger.textContent = formatPendingMediaTriggerLabel(
         elements.detailsReplyMediaTrigger,
         Number.isFinite(Number(count)) ? Number(count) : 0,
-        'Р СџРЎР‚Р С‘Р С”РЎР‚Р ВµР С—Р С‘РЎвЂљРЎРЉ Р СР ВµР Т‘Р С‘Р В°'
+        'Прикрепить медиа'
       );
     }
 
@@ -109,7 +109,7 @@
         elements.replyTargetText.textContent = '';
       }
       if (elements.detailsReplyText) {
-        elements.detailsReplyText.placeholder = 'Р вЂ™Р Р†Р ВµР Т‘Р С‘РЎвЂљР Вµ Р С•РЎвЂљР Р†Р ВµРЎвЂљ...';
+        elements.detailsReplyText.placeholder = 'Введите ответ...';
       }
     }
 
@@ -121,14 +121,14 @@
       }
       state.activeReplyToTelegramId = normalizedMessageId;
       if (elements.detailsReplyText) {
-        elements.detailsReplyText.placeholder = `Р С›РЎвЂљР Р†Р ВµРЎвЂљ Р Р…Р В° РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ #${normalizedMessageId}`;
+        elements.detailsReplyText.placeholder = `Ответ на сообщение #${normalizedMessageId}`;
       }
       if (elements.replyTarget) {
         elements.replyTarget.classList.remove('d-none');
       }
       if (elements.replyTargetText) {
         const safePreview = String(preview || '').trim();
-        elements.replyTargetText.textContent = safePreview || `Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ #${normalizedMessageId}`;
+        elements.replyTargetText.textContent = safePreview || `Сообщение #${normalizedMessageId}`;
       }
     }
 
@@ -166,7 +166,7 @@
       }
       resetMediaPreview();
       elements.mediaPreviewImage.src = src;
-      elements.mediaPreviewImage.alt = name || 'Р ВР В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘Р Вµ';
+      elements.mediaPreviewImage.alt = name || 'Изображение';
       elements.mediaPreviewImage.classList.remove('d-none');
       if (elements.mediaPreviewImageControls) {
         elements.mediaPreviewImageControls.classList.remove('d-none');
@@ -265,31 +265,31 @@
         const hasPath = /[\\/]/.test(message) || /^https?:\/\//i.test(message);
         if (!hasPath) return message;
         const extension = extractExtension(message);
-        return extension ? `Р В¤Р В°Р в„–Р В» ${extension}` : 'Р В¤Р В°Р в„–Р В»';
+        return extension ? `Файл ${extension}` : 'Файл';
       }
 
-      if (!attachment) return 'Р В¤Р В°Р в„–Р В»';
+      if (!attachment) return 'Файл';
       const extension = extractExtension(attachment);
-      return extension ? `Р В¤Р В°Р в„–Р В» ${extension}` : 'Р В¤Р В°Р в„–Р В»';
+      return extension ? `Файл ${extension}` : 'Файл';
     }
 
     function resolveAttachmentTypeLabel(message, kind = '') {
       const normalizedKind = String(kind || '').trim()
         || resolveAttachmentKind(message?.messageType, message?.attachment);
       const normalizedType = String(message?.messageType || '').toLowerCase();
-      if (normalizedType.includes('video_note') || normalizedType.includes('videonote')) return 'Р вЂ™Р С‘Р Т‘Р ВµР С•РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ';
-      if (normalizedType.includes('voice')) return 'Р вЂњР С•Р В»Р С•РЎРѓР С•Р Р†Р С•Р Вµ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ';
-      if (normalizedType.includes('audio')) return 'Р С’РЎС“Р Т‘Р С‘Р С•';
-      if (normalizedType.includes('video')) return 'Р вЂ™Р С‘Р Т‘Р ВµР С•';
-      if (normalizedType.includes('animation')) return 'Р С’Р Р…Р С‘Р СР В°РЎвЂ Р С‘РЎРЏ';
-      if (normalizedType.includes('sticker')) return 'Р РЋРЎвЂљР С‘Р С”Р ВµРЎР‚';
-      if (normalizedType.includes('photo') || normalizedType.includes('image')) return 'Р ВР В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘Р Вµ';
-      if (normalizedKind === 'audio') return 'Р С’РЎС“Р Т‘Р С‘Р С•';
-      if (normalizedKind === 'video') return 'Р вЂ™Р С‘Р Т‘Р ВµР С•';
-      if (normalizedKind === 'animation') return 'Р С’Р Р…Р С‘Р СР В°РЎвЂ Р С‘РЎРЏ';
-      if (normalizedKind === 'sticker') return 'Р РЋРЎвЂљР С‘Р С”Р ВµРЎР‚';
-      if (normalizedKind === 'image') return 'Р ВР В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘Р Вµ';
-      return 'Р В¤Р В°Р в„–Р В»';
+      if (normalizedType.includes('video_note') || normalizedType.includes('videonote')) return 'Видеосообщение';
+      if (normalizedType.includes('voice')) return 'Голосовое сообщение';
+      if (normalizedType.includes('audio')) return 'Аудио';
+      if (normalizedType.includes('video')) return 'Видео';
+      if (normalizedType.includes('animation')) return 'Анимация';
+      if (normalizedType.includes('sticker')) return 'Стикер';
+      if (normalizedType.includes('photo') || normalizedType.includes('image')) return 'Изображение';
+      if (normalizedKind === 'audio') return 'Аудио';
+      if (normalizedKind === 'video') return 'Видео';
+      if (normalizedKind === 'animation') return 'Анимация';
+      if (normalizedKind === 'sticker') return 'Стикер';
+      if (normalizedKind === 'image') return 'Изображение';
+      return 'Файл';
     }
 
     function buildMediaInfoMarkup(message, name, kind) {
@@ -300,12 +300,12 @@
       const shouldShowFileName = normalizedName && normalizedName !== typeLabel;
       return `
         <div class="chat-media-info">
-          <button class="chat-media-info-toggle" type="button" aria-label="Р ВР Р…РЎвЂћР С•РЎР‚Р СР В°РЎвЂ Р С‘РЎРЏ Р С• Р Р†Р В»Р С•Р В¶Р ВµР Р…Р С‘Р С‘">i</button>
+          <button class="chat-media-info-toggle" type="button" aria-label="Информация о вложении">i</button>
           <div class="chat-media-info-panel">
             <div class="chat-media-info-label">${escapeHtml(typeLabel)}</div>
             ${shouldShowFileName ? `<div class="chat-media-info-value">${escapeHtml(normalizedName)}</div>` : ''}
             <a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" download target="_blank" rel="noopener">
-              Р РЋР С”Р В°РЎвЂЎР В°РЎвЂљРЎРЉ
+              Скачать
             </a>
           </div>
         </div>
@@ -349,13 +349,13 @@
       if (kind === 'sticker') {
         let preview = `
           <div class="chat-media-preview chat-media-sticker">
-            <div class="chat-media-sticker-status text-muted">Р СџРЎР‚Р ВµР Т‘Р С—РЎР‚Р С•РЎРѓР СР С•РЎвЂљРЎР‚ РЎРѓРЎвЂљР С‘Р С”Р ВµРЎР‚Р В° Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р….</div>
+            <div class="chat-media-sticker-status text-muted">Предпросмотр стикера недоступен.</div>
           </div>
         `;
         if (isTgsStickerAttachment(message.attachment)) {
           preview = `
             <div class="chat-media-preview chat-media-sticker" data-sticker-src="${attachmentUrl}" data-media-name="${escapeAttribute(name)}">
-              <div class="chat-media-sticker-status text-muted">Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° РЎРѓРЎвЂљР С‘Р С”Р ВµРЎР‚Р В°РІР‚В¦</div>
+              <div class="chat-media-sticker-status text-muted">Загрузка стикера…</div>
             </div>
           `;
         } else if (isVideoStickerAttachment(message.attachment)) {
@@ -380,7 +380,7 @@
       }
       return `
         <div class="chat-media chat-media--file">
-          <div class="chat-media-file-tile">Р вЂ™Р В»Р С•Р В¶Р ВµР Р…Р С‘Р Вµ</div>
+          <div class="chat-media-file-tile">Вложение</div>
           ${mediaInfo}
         </div>
       `;
@@ -426,12 +426,12 @@
       const statusNode = container.querySelector('.chat-media-sticker-status');
       container.dataset.stickerState = 'loading';
       if (statusNode) {
-        statusNode.textContent = 'Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° РЎРѓРЎвЂљР С‘Р С”Р ВµРЎР‚Р В°РІР‚В¦';
+        statusNode.textContent = 'Загрузка стикера…';
       }
       if (!window.lottie || typeof window.lottie.loadAnimation !== 'function') {
         container.dataset.stickerState = 'error';
         if (statusNode) {
-          statusNode.textContent = 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ Р С—РЎР‚Р С•Р С‘Р С–РЎР‚РЎвЂ№Р Р†Р В°РЎвЂљР ВµР В»РЎРЉ РЎРѓРЎвЂљР С‘Р С”Р ВµРЎР‚Р С•Р Р†.';
+          statusNode.textContent = 'Не удалось загрузить проигрыватель стикеров.';
         }
         return;
       }
@@ -452,9 +452,9 @@
       } catch (_error) {
         container.dataset.stickerState = 'error';
         if (statusNode) {
-          statusNode.textContent = 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р С•Р С”Р В°Р В·Р В°РЎвЂљРЎРЉ РЎРѓРЎвЂљР С‘Р С”Р ВµРЎР‚.';
+          statusNode.textContent = 'Не удалось показать стикер.';
         } else {
-          container.innerHTML = '<div class="chat-media-sticker-status text-muted">Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р С•Р С”Р В°Р В·Р В°РЎвЂљРЎРЉ РЎРѓРЎвЂљР С‘Р С”Р ВµРЎР‚.</div>';
+          container.innerHTML = '<div class="chat-media-sticker-status text-muted">Не удалось показать стикер.</div>';
         }
       }
     }
@@ -480,10 +480,10 @@
         ? resolveAttachmentKind(message.messageType, message.attachment)
         : '';
       const replyPreview = message?.replyPreview
-        ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">РІвЂ Р„ ${escapeHtml(message.replyPreview)}</div>`
+        ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
         : '';
       const forwardedBadge = message?.forwardedFrom
-        ? `<div class="small text-muted mb-1">Р СџР ВµРЎР‚Р ВµРЎРѓР В»Р В°Р Р…Р С• Р С•РЎвЂљ ${escapeHtml(message.forwardedFrom)}</div>`
+        ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
         : '';
       const bodyText = message?.message ? escapeHtml(message.message).replace(/\n/g, '<br>') : '';
       const fallbackType = !message?.attachment && message?.messageType && !bodyText
@@ -491,33 +491,33 @@
         : '';
       let body = '';
       if (isDeleted) {
-        body = '<span class="text-muted">Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ РЎС“Р Т‘Р В°Р В»Р ВµР Р…Р С•</span>';
+        body = '<span class="text-muted">Сообщение удалено</span>';
       } else if (bodyText) {
         body = bodyText;
       } else if (fallbackType) {
         body = fallbackType;
       } else if (!message?.attachment) {
-        body = 'РІР‚вЂќ';
+        body = '—';
       }
       const originalBlock = isEdited && message?.originalMessage && message.originalMessage !== message.message
-        ? `<div class="small text-muted mt-1"><div>Р вЂРЎвЂ№Р В»Р С•: ${escapeHtml(message.originalMessage)}</div><div>Р РЋРЎвЂљР В°Р В»Р С•: ${escapeHtml(message.message || '')}</div></div>`
+        ? `<div class="small text-muted mt-1"><div>Было: ${escapeHtml(message.originalMessage)}</div><div>Стало: ${escapeHtml(message.message || '')}</div></div>`
         : '';
       const statusBadges = [
-        isEdited ? '<span class="chat-message-meta-badge">РІСљРЏРїС‘РЏ Р ВР В·Р СР ВµР Р…Р ВµР Р…Р С•</span>' : '',
-        isDeleted ? '<span class="chat-message-meta-badge">СЂСџвЂ”вЂ Р Р€Р Т‘Р В°Р В»Р ВµР Р…Р С•</span>' : '',
-        archivedHistory ? '<span class="chat-message-meta-badge">Р С’РЎР‚РЎвЂ¦Р С‘Р Р†</span>' : '',
+        isEdited ? '<span class="chat-message-meta-badge">✏️ Изменено</span>' : '',
+        isDeleted ? '<span class="chat-message-meta-badge">🗑 Удалено</span>' : '',
+        archivedHistory ? '<span class="chat-message-meta-badge">Архив</span>' : '',
       ].join(' ');
       const media = isDeleted ? '' : buildMediaMarkup(message);
       const messagePreviewText = String(message?.replyPreview || message?.message || '').trim()
-        || (message?.attachment ? resolveAttachmentTypeLabel(message, mediaKind) : 'Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ');
+        || (message?.attachment ? resolveAttachmentTypeLabel(message, mediaKind) : 'Сообщение');
       const canReply = !archivedHistory && senderType !== 'system' && message?.telegramMessageId;
       const actionButtons = canReply
         ? `<div class="chat-message-menu">
-            <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Р вЂќР ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ РЎРѓ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р ВµР С">РІвЂ№Р‡</button>
+            <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Действия с сообщением">⋯</button>
             <div class="chat-message-menu-list">
-              <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Р С›РЎвЂљР Р†Р ВµРЎвЂљР С‘РЎвЂљРЎРЉ</button>
-              ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Р В Р ВµР Т‘Р В°Р С”РЎвЂљР С‘РЎР‚Р С•Р Р†Р В°РЎвЂљРЎРЉ</button>` : ''}
-              ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ</button>` : ''}
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
+              ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>` : ''}
+              ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
             </div>
           </div>`
         : '';
@@ -551,7 +551,7 @@
       const senderType = options.normalizeMessageSenderByType?.(message?.messageType, message?.sender) || '';
       const text = String(message?.message || '').toLowerCase();
       if (type.includes('feedback') || type.includes('rating')) return true;
-      if (senderType === 'system' && (text.includes('Р С—Р С•РЎРѓРЎвЂљР В°Р Р†РЎРЉРЎвЂљР Вµ Р С•РЎвЂ Р ВµР Р…Р С”РЎС“') || text.includes('Р С•РЎвЂ Р ВµР Р…Р С‘РЎвЂљР Вµ') || text.includes('Р С•РЎвЂ Р ВµР Р…Р С”'))) {
+      if (senderType === 'system' && (text.includes('поставьте оценку') || text.includes('оцените') || text.includes('оценк'))) {
         return true;
       }
       return false;
@@ -648,11 +648,11 @@
       const activeDialogState = getActiveDialogState();
       const disabled = state.previousLoading || !activeDialogState.ticketId || !state.previousHasMore;
       const buttonLabel = state.previousLoading
-        ? 'Р вЂ”Р В°Р С–РЎР‚РЎС“Р В¶Р В°Р ВµР С Р С—РЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р С‘Р Вµ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎРЏРІР‚В¦'
-        : (state.previousHasMore ? 'Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ Р С—РЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р С‘Р Вµ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘РЎРЏ' : 'Р СџРЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р С‘РЎвЂ¦ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р в„– Р В±Р С•Р В»РЎРЉРЎв‚¬Р Вµ Р Р…Р ВµРЎвЂљ');
+        ? 'Загружаем предыдущие обращения…'
+        : (state.previousHasMore ? 'Загрузить предыдущие сообщения' : 'Предыдущих обращений больше нет');
       const helperText = state.previousBatches.length > 0
-        ? `Р СџР С•Р Т‘Р С–РЎР‚РЎС“Р В¶Р ВµР Р…Р С• Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р в„–: ${state.previousBatches.length}. Р С’РЎР‚РЎвЂ¦Р С‘Р Р† Р С—Р С•Р С”Р В°Р В·Р В°Р Р… Р С•РЎвЂљР Т‘Р ВµР В»РЎРЉР Р…РЎвЂ№Р С РЎвЂ Р Р†Р ВµРЎвЂљР С•Р С.`
-        : 'Р СљР С•Р В¶Р Р…Р С• Р С—Р С•Р Т‘Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ Р С—Р ВµРЎР‚Р ВµР С—Р С‘РЎРѓР С”РЎС“ Р С‘Р В· Р С—РЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р С‘РЎвЂ¦ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р в„– РЎРЊРЎвЂљР С•Р С–Р С• Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°.';
+        ? `Подгружено обращений: ${state.previousBatches.length}. Архив показан отдельным цветом.`
+        : 'Можно подгрузить переписку из предыдущих обращений этого клиента.';
       return `
         <div class="dialog-history-controls">
           <button class="btn btn-sm btn-outline-secondary" type="button" data-action="load-previous-history" ${disabled ? 'disabled' : ''}>${escapeHtml(buttonLabel)}</button>
@@ -663,22 +663,22 @@
 
     function renderArchivedHistoryBatch(batch) {
       const messages = filterDialogHistoryMessages(batch?.messages || []);
-      const ticketId = String(batch?.ticketId || 'РІР‚вЂќ').trim() || 'РІР‚вЂќ';
-      const createdAt = formatTimestamp(batch?.createdAt || batch?.created_at, { includeTime: true, fallback: 'РІР‚вЂќ' });
-      const status = String(batch?.status || 'РІР‚вЂќ').trim() || 'РІР‚вЂќ';
-      const problem = String(batch?.problem || 'Р вЂР ВµР В· Р С•Р С—Р С‘РЎРѓР В°Р Р…Р С‘РЎРЏ').trim() || 'Р вЂР ВµР В· Р С•Р С—Р С‘РЎРѓР В°Р Р…Р С‘РЎРЏ';
+      const ticketId = String(batch?.ticketId || '—').trim() || '—';
+      const createdAt = formatTimestamp(batch?.createdAt || batch?.created_at, { includeTime: true, fallback: '—' });
+      const status = String(batch?.status || '—').trim() || '—';
+      const problem = String(batch?.problem || 'Без описания').trim() || 'Без описания';
       const sourceLabel = String(batch?.sourceLabel || batch?.source_label || '').trim();
       const channelName = String(batch?.channelName || batch?.channel_name || '').trim();
-      const meta = [sourceLabel, channelName, createdAt].filter(Boolean).join(' Р’В· ');
+      const meta = [sourceLabel, channelName, createdAt].filter(Boolean).join(' · ');
       const body = messages.length
         ? messages.map((message) => messageToHtml(message, { archivedHistory: true })).join('')
-        : '<div class="small text-muted">Р вЂ™ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р С‘ Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…Р С• РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р в„–.</div>';
+        : '<div class="small text-muted">В обращении не найдено сообщений.</div>';
       return `
         <section class="chat-history-archive-section">
           <div class="chat-history-archive-head">
-            <div class="fw-semibold">Р СџРЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р ВµР Вµ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ #${escapeHtml(ticketId)}</div>
-            <div class="small text-muted">${escapeHtml(meta || 'Р С’РЎР‚РЎвЂ¦Р С‘Р Р†Р Р…Р В°РЎРЏ Р С—Р ВµРЎР‚Р ВµР С—Р С‘РЎРѓР С”Р В°')}</div>
-            <div class="small text-muted">Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ: ${escapeHtml(status)}</div>
+            <div class="fw-semibold">Предыдущее обращение #${escapeHtml(ticketId)}</div>
+            <div class="small text-muted">${escapeHtml(meta || 'Архивная переписка')}</div>
+            <div class="small text-muted">Статус: ${escapeHtml(status)}</div>
             <div class="small mt-1">${escapeHtml(problem)}</div>
           </div>
           <div class="d-flex flex-column gap-2 mt-3">
@@ -734,7 +734,7 @@
       const archivedMarkup = state.previousBatches.map(renderArchivedHistoryBatch).join('');
       const currentMarkup = currentMessages.length
         ? currentMessages.map((message) => messageToHtml(message)).join('')
-        : '<div class="text-muted">Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘РЎРЏ Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…РЎвЂ№.</div>';
+        : '<div class="text-muted">Сообщения не найдены.</div>';
       elements.detailsHistory.innerHTML = `${controlsMarkup}${archivedMarkup}${currentMarkup}`;
       hydrateMediaRoot(elements.detailsHistory);
       if (viewportSnapshot) {
@@ -787,7 +787,7 @@
         });
         const data = await resp.json();
         if (!resp.ok || data?.success === false) {
-          throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         if (data?.batch) {
           state.previousBatches = [data.batch, ...state.previousBatches];
@@ -807,7 +807,7 @@
       } catch (error) {
         state.previousHasMore = state.previousHasMore || state.previousBatches.length === 0;
         renderDialogHistory({ scrollToBottom: false });
-        notify(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ Р С—РЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р С‘Р Вµ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘РЎРЏ', 'warning');
+        notify(error.message || 'Не удалось загрузить предыдущие сообщения', 'warning');
       } finally {
         state.previousLoading = false;
         renderDialogHistory({ scrollToBottom: false });
@@ -826,7 +826,7 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         const messages = data.messages || [];
         const marker = historyMarker(filterDialogHistoryMessages(messages));
@@ -952,6 +952,7 @@
       const sendButton = sendOptions.sendButton || elements.detailsReplySend;
       const mediaInput = sendOptions.mediaInput || elements.detailsReplyMedia;
       const appendHistoryFlag = sendOptions.appendHistory !== false;
+      let sentSuccessfully = false;
       if (sendButton) sendButton.disabled = true;
       try {
         for (const file of Array.from(files)) {
@@ -969,12 +970,12 @@
           });
           const data = await resp.json();
           if (!resp.ok || !data?.success) {
-            throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+            throw new Error(data?.error || `Ошибка ${resp.status}`);
           }
           options.updateDetailsResponsible?.(data.responsible || activeDialogState.context?.operatorName || '');
           if (appendHistoryFlag) {
             appendHistoryMessage({
-              sender: options.operatorDisplayName || data.responsible || 'Р С›Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚',
+              sender: options.operatorDisplayName || data.responsible || 'Оператор',
               message: data.message || '',
               timestamp: data.timestamp || new Date().toISOString(),
               messageType: data.messageType || 'operator_media',
@@ -982,9 +983,9 @@
             });
           }
           if (activeDialogState.row) {
-            options.updateRowStatus?.(activeDialogState.row, 'pending', 'Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°', 'waiting_client', 0);
+            options.updateRowStatus?.(activeDialogState.row, 'pending', 'ожидает ответа клиента', 'waiting_client', 0);
           }
-          options.updateDetailsStatusSummary?.('Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°', 'waiting_client');
+          options.updateDetailsStatusSummary?.('ожидает ответа клиента', 'waiting_client');
           if (ticketId === activeWorkspaceState.ticketId) {
             options.emitWorkspaceTelemetry?.('workspace_media_sent', {
               ticketId,
@@ -993,17 +994,19 @@
             });
           }
         }
+        sentSuccessfully = true;
         if (typeof sendOptions.afterSuccess === 'function') {
           sendOptions.afterSuccess();
         } else if (elements.detailsReplyText) {
           elements.detailsReplyText.value = '';
         }
-        return;
+        return true;
       } catch (error) {
-        notify(error.message || sendOptions.errorMessage || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р С‘РЎвЂљРЎРЉ Р СР ВµР Т‘Р С‘Р В°', 'error');
+        notify(error.message || sendOptions.errorMessage || 'Не удалось отправить медиа', 'error');
+        return false;
       } finally {
         if (sendButton) sendButton.disabled = false;
-        if (mediaInput) {
+        if (mediaInput && sentSuccessfully) {
           clearPendingMediaFiles(mediaInput);
         }
       }
@@ -1075,8 +1078,8 @@
           options.reloadWorkspaceSection?.('messages', {
             stateElement: activeWorkspaceState.messagesState,
             errorElement: activeWorkspaceState.messagesError,
-            statusText: 'Р С›Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р С‘Р Вµ Р В»Р ВµР Р…РЎвЂљРЎвЂ№ Р С—Р С•РЎРѓР В»Р Вµ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р С”Р С‘ Р СР ВµР Т‘Р С‘Р В°РІР‚В¦',
-            failMessage: 'Р СљР ВµР Т‘Р С‘Р В° Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р В»Р ВµР Р…Р С•, Р Р…Р С• Р В»Р ВµР Р…РЎвЂљР В° workspace Р Р…Р Вµ Р С•Р В±Р Р…Р С•Р Р†Р С‘Р В»Р В°РЎРѓРЎРЉ Р В°Р Р†РЎвЂљР С•Р СР В°РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р С‘.',
+            statusText: 'Обновление ленты после отправки медиа…',
+            failMessage: 'Медиа отправлено, но лента workspace не обновилась автоматически.',
           });
         },
       });
@@ -1089,7 +1092,7 @@
         if (!src) return true;
         if (state.activeAudioPlayer && state.activeAudioSource === src && !state.activeAudioPlayer.paused) {
           state.activeAudioPlayer.pause();
-          playButton.textContent = 'Р вЂ™Р С•РЎРѓР С—РЎР‚Р С•Р С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР С‘';
+          playButton.textContent = 'Воспроизвести';
           return true;
         }
         if (state.activeAudioPlayer) {
@@ -1097,12 +1100,12 @@
         }
         state.activeAudioPlayer = new Audio(src);
         state.activeAudioSource = src;
-        playButton.textContent = 'Р СџР В°РЎС“Р В·Р В°';
+        playButton.textContent = 'Пауза';
         state.activeAudioPlayer.addEventListener('ended', () => {
-          playButton.textContent = 'Р вЂ™Р С•РЎРѓР С—РЎР‚Р С•Р С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР С‘';
+          playButton.textContent = 'Воспроизвести';
         });
         state.activeAudioPlayer.play().catch(() => {
-          playButton.textContent = 'Р вЂ™Р С•РЎРѓР С—РЎР‚Р С•Р С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР С‘';
+          playButton.textContent = 'Воспроизвести';
         });
         return true;
       }
@@ -1173,7 +1176,7 @@
           }
           if (action === 'edit') {
             const current = button.closest('.chat-message')?.querySelector('.chat-message-body')?.textContent || '';
-            const nextText = window.prompt('Р вЂ™Р Р†Р ВµР Т‘Р С‘РЎвЂљР Вµ Р Р…Р С•Р Р†РЎвЂ№Р в„– РЎвЂљР ВµР С”РЎРѓРЎвЂљ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘РЎРЏ:', current.trim());
+            const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
             if (!nextText || !nextText.trim()) return;
             const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/edit`, {
               method: 'POST',
@@ -1182,13 +1185,13 @@
             });
             const payload = await response.json();
             if (!response.ok || !payload?.success) {
-              throw new Error(payload?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${response.status}`);
+              throw new Error(payload?.error || `Ошибка ${response.status}`);
             }
             await refreshHistory();
             return;
           }
           if (action === 'delete') {
-            if (!window.confirm('Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ РЎС“ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°?')) return;
+            if (!window.confirm('Удалить сообщение у клиента?')) return;
             const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/delete`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1196,7 +1199,7 @@
             });
             const payload = await response.json();
             if (!response.ok || !payload?.success) {
-              throw new Error(payload?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${response.status}`);
+              throw new Error(payload?.error || `Ошибка ${response.status}`);
             }
             await refreshHistory();
           }
