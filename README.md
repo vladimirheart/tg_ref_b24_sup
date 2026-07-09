@@ -170,6 +170,7 @@ export SPRING_OPTS="--server.port=8080"
 ### Запуск и конфиг
 
 - [docs/configuration.md](docs/configuration.md)
+- [docs/database_distribution.md](docs/database_distribution.md)
 - [docs/environment_variables.md](docs/environment_variables.md)
 - [docs/windows_setup.md](docs/windows_setup.md)
 - [docs/database-paths.md](docs/database-paths.md)
