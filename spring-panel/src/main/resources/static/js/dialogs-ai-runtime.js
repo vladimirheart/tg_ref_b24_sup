@@ -349,7 +349,7 @@
         return;
       }
       if (!Array.isArray(items) || !items.length) {
-        elements.aiMonitoringEvents.innerHTML = '<div class="text-muted">Событий нет.</div>';
+        elements.aiMonitoringEvents.innerHTML = '<div class="text-muted">������� ���.</div>';
         return;
       }
       elements.aiMonitoringEvents.innerHTML = items.slice(0, 12).map((item) => {
@@ -454,7 +454,7 @@
       if (timestamp && shortText) return `${timestamp} · ${shortText}`;
       if (shortText) return shortText;
       if (timestamp) return timestamp;
-      return 'Сообщение без текста';
+      return '��������� ��� ������';
     }
 
     function renderAiReviewMessageSelect(selectEl, candidates, selectedId, emptyLabel) {

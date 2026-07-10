@@ -61,14 +61,14 @@ class DialogReplyServiceTest {
         when(targetService.loadReplyTarget("T-901")).thenReturn(Optional.of(new DialogReplyTarget(200L, 15L)));
         when(transportService.loadChannel(15L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-901")).thenReturn(false);
-        when(transportService.sendMedia(channel, 200L, file, "caption", "image.png"))
+        when(transportService.sendMedia(channel, 200L, file, "caption", "image.png", null))
                 .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 88L));
-        when(targetService.logOutgoingMediaMessage(any(), eq("T-901"), eq("caption"), eq("stored.bin"), eq("image"), eq(88L)))
+        when(targetService.logOutgoingMediaMessage(any(), eq("T-901"), eq("caption"), eq("stored.bin"), eq("image"), eq(88L), eq(null)))
                 .thenReturn("2026-04-30T12:05:00Z");
         when(responsibilityService.assignResponsibleIfMissing("T-901", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogMediaReplyResult result =
-                dialogReplyService.sendMediaReply("T-901", file, "caption", "operator", "stored.bin", "image.png");
+                dialogReplyService.sendMediaReply("T-901", file, "caption", null, "operator", "stored.bin", "image.png");
 
         assertThat(result.success()).isTrue();
         assertThat(result.telegramMessageId()).isEqualTo(88L);

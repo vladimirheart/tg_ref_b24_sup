@@ -401,7 +401,7 @@ class DialogQuickActionsControllerWebMvcTest {
     void mediaReplyReturnsBadRequestWhenPayloadSignalsFailure() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("reply_media"), eq("T-606")))
             .thenReturn(null);
-        when(dialogQuickActionService.sendMediaReply(eq("T-606"), org.mockito.ArgumentMatchers.any(), eq("caption"), eq("operator"), org.mockito.ArgumentMatchers.any()))
+        when(dialogQuickActionService.sendMediaReply(eq("T-606"), org.mockito.ArgumentMatchers.any(), eq("caption"), eq(null), eq("operator"), org.mockito.ArgumentMatchers.any()))
             .thenReturn(Map.of("success", false, "error", "file_too_large"));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/dialogs/T-606/media")
@@ -420,7 +420,7 @@ class DialogQuickActionsControllerWebMvcTest {
     void mediaReplyReturnsPayloadAndAuditOnSuccess() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("reply_media"), eq("T-606OK")))
             .thenReturn(null);
-        when(dialogQuickActionService.sendMediaReply(eq("T-606OK"), org.mockito.ArgumentMatchers.any(), eq("caption"), eq("operator"), org.mockito.ArgumentMatchers.any()))
+        when(dialogQuickActionService.sendMediaReply(eq("T-606OK"), org.mockito.ArgumentMatchers.any(), eq("caption"), eq(null), eq("operator"), org.mockito.ArgumentMatchers.any()))
             .thenReturn(Map.of(
                     "success", true,
                     "timestamp", "2026-05-21T18:09:00Z",

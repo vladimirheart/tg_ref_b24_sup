@@ -1,4 +1,4 @@
-﻿// panel/static/dialogs.js
+// panel/static/dialogs.js
 (function () {
   const table = document.getElementById('dialogsTable');
   if (!table) return;
@@ -809,7 +809,7 @@
       case 'no_reassign_candidates':
         return 'Подходящих пользователей для передачи сейчас нет.';
       case 'no_participant_candidates':
-        return 'Свободных пользователей для добавления сейчас нет.';
+        return '��������� ������������� ��� ���������� ������ ���.';
       case 'no_participants':
         return 'В диалоге нет участников для удаления.';
       default:
@@ -2297,7 +2297,7 @@
   function exportWorkspaceIncidentCsv() {
     if (!activeWorkspaceTicketId) {
       if (typeof showNotification === 'function') {
-        showNotification('Сначала откройте диалог, чтобы экспортировать инцидент.', 'warning');
+        showNotification('������� �������� ������, ����� �������������� ��������.', 'warning');
       }
       return;
     }
@@ -2875,7 +2875,7 @@
   }
 
   function formatAiReviewMessageOption(item) {
-    return dialogsAiRuntime?.formatAiReviewMessageOption(item) || 'Сообщение без текста';
+    return dialogsAiRuntime?.formatAiReviewMessageOption(item) || '��������� ��� ������';
   }
 
   function renderAiReviewMessageSelect(selectEl, candidates, selectedId, emptyLabel) {

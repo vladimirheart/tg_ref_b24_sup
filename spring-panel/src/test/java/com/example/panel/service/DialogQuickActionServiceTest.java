@@ -7,12 +7,17 @@ import com.example.panel.storage.AttachmentService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -448,9 +453,9 @@ class DialogQuickActionServiceTest {
                 java.time.OffsetDateTime.parse("2026-05-21T12:10:00Z")
         );
 
-        when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-707"), eq(file)))
+        when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-707"), any(MultipartFile.class)))
                 .thenReturn(metadata);
-        when(dialogReplyService.sendMediaReply("T-707", file, "caption", "operator", "stored-screen.png", "screen.png"))
+        when(dialogReplyService.sendMediaReply(eq("T-707"), any(MultipartFile.class), eq("caption"), eq(null), eq("operator"), eq("stored-screen.png"), eq("screen.png")))
                 .thenReturn(new DialogReplyService.DialogMediaReplyResult(
                         true,
                         null,
@@ -467,6 +472,7 @@ class DialogQuickActionServiceTest {
                 "T-707",
                 file,
                 "caption",
+                null,
                 "operator",
                 mock(Authentication.class)
         );
@@ -517,9 +523,9 @@ class DialogQuickActionServiceTest {
                 java.time.OffsetDateTime.parse("2026-05-21T12:10:00Z")
         );
 
-        when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-708"), eq(file)))
+        when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-708"), any(MultipartFile.class)))
                 .thenReturn(metadata);
-        when(dialogReplyService.sendMediaReply("T-708", file, "caption", "operator", "stored-screen.png", "screen.png"))
+        when(dialogReplyService.sendMediaReply(eq("T-708"), any(MultipartFile.class), eq("caption"), eq(null), eq("operator"), eq("stored-screen.png"), eq("screen.png")))
                 .thenReturn(new DialogReplyService.DialogMediaReplyResult(
                         false,
                         "transport_error",
@@ -535,6 +541,7 @@ class DialogQuickActionServiceTest {
                 "T-708",
                 file,
                 "caption",
+                null,
                 "operator",
                 mock(Authentication.class)
         );
@@ -545,6 +552,122 @@ class DialogQuickActionServiceTest {
         verify(dialogAiAssistantService).clearProcessing("T-708", "operator_reply_media", null);
         verify(dialogAiAssistantService, never()).registerOperatorReply("T-708", "caption", "operator");
         verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void sendMediaReplyCachesMultipartFileBeforeStorageAndTransport() throws Exception {
+        DialogReplyService dialogReplyService = mock(DialogReplyService.class);
+        DialogAiAssistantService dialogAiAssistantService = mock(DialogAiAssistantService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+        AttachmentService attachmentService = mock(AttachmentService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                mock(DialogLookupReadService.class),
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                dialogReplyService,
+                mock(DialogNotificationService.class),
+                dialogAiAssistantService,
+                notificationService,
+                attachmentService
+        );
+
+        MultipartFile file = new OneShotMultipartFile("file", "proof.png", "image/png", "hello".getBytes());
+        AttachmentService.AttachmentUploadMetadata metadata = new AttachmentService.AttachmentUploadMetadata(
+                "proof.png",
+                "stored-proof.png",
+                "image/png",
+                5L,
+                java.time.OffsetDateTime.parse("2026-05-21T12:10:00Z")
+        );
+
+        when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-709"), any(MultipartFile.class)))
+                .thenReturn(metadata);
+        when(dialogReplyService.sendMediaReply(eq("T-709"), any(MultipartFile.class), eq("caption"), eq(null), eq("operator"), eq("stored-proof.png"), eq("proof.png")))
+                .thenReturn(new DialogReplyService.DialogMediaReplyResult(
+                        true,
+                        null,
+                        "2026-05-21T12:11:00Z",
+                        9002L,
+                        "stored-proof.png",
+                        "image",
+                        "caption",
+                        "operator"
+                ));
+        when(notificationService.buildDialogUrl("T-709")).thenReturn("/dialogs/T-709");
+
+        Map<String, Object> response = service.sendMediaReply(
+                "T-709",
+                file,
+                "caption",
+                null,
+                "operator",
+                mock(Authentication.class)
+        );
+
+        assertThat(response)
+                .containsEntry("success", true)
+                .containsEntry("attachment", "/api/attachments/tickets/T-709/stored-proof.png");
+    }
+
+    private static final class OneShotMultipartFile implements MultipartFile {
+        private final String name;
+        private final String originalFilename;
+        private final String contentType;
+        private final byte[] bytes;
+        private boolean streamOpened;
+
+        private OneShotMultipartFile(String name, String originalFilename, String contentType, byte[] bytes) {
+            this.name = name;
+            this.originalFilename = originalFilename;
+            this.contentType = contentType;
+            this.bytes = bytes;
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public String getOriginalFilename() {
+            return originalFilename;
+        }
+
+        @Override
+        public String getContentType() {
+            return contentType;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return bytes.length == 0;
+        }
+
+        @Override
+        public long getSize() {
+            return bytes.length;
+        }
+
+        @Override
+        public byte[] getBytes() {
+            return bytes.clone();
+        }
+
+        @Override
+        public InputStream getInputStream() throws IOException {
+            if (streamOpened) {
+                throw new IOException("stream already consumed");
+            }
+            streamOpened = true;
+            return new ByteArrayInputStream(bytes);
+        }
+
+        @Override
+        public void transferTo(java.io.File dest) throws IOException, IllegalStateException {
+            java.nio.file.Files.write(dest.toPath(), bytes);
+        }
     }
 
     @Test

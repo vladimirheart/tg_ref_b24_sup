@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -147,8 +149,9 @@ public class DialogQuickActionService {
                                               String operator,
                                               Authentication authentication) throws IOException {
         dialogAiAssistantService.clearProcessing(ticketId, "operator_reply_media", null);
-        var metadata = attachmentService.storeTicketAttachment(authentication, ticketId, file);
-        var result = dialogReplyService.sendMediaReply(ticketId, file, message, replyToTelegramId, operator, metadata.storedName(), metadata.originalName());
+        CachedMultipartFile cachedFile = CachedMultipartFile.from(file);
+        var metadata = attachmentService.storeTicketAttachment(authentication, ticketId, cachedFile);
+        var result = dialogReplyService.sendMediaReply(ticketId, cachedFile, message, replyToTelegramId, operator, metadata.storedName(), metadata.originalName());
         if (!result.success()) {
             return Map.of(
                     "success", false,
@@ -412,6 +415,72 @@ public class DialogQuickActionService {
             notificationService.notifyDialogParticipants(ticketId, text, url, excludedIdentity);
         } catch (RuntimeException ex) {
             log.warn("Unable to create dialog notifications for ticket {}: {}", ticketId, ex.getMessage());
+        }
+    }
+
+    private static final class CachedMultipartFile implements MultipartFile {
+        private final String name;
+        private final String originalFilename;
+        private final String contentType;
+        private final byte[] bytes;
+
+        private CachedMultipartFile(String name, String originalFilename, String contentType, byte[] bytes) {
+            this.name = name;
+            this.originalFilename = originalFilename;
+            this.contentType = contentType;
+            this.bytes = bytes;
+        }
+
+        private static CachedMultipartFile from(MultipartFile source) throws IOException {
+            if (source == null) {
+                throw new IllegalArgumentException("File is required");
+            }
+            return new CachedMultipartFile(
+                    source.getName(),
+                    source.getOriginalFilename(),
+                    source.getContentType(),
+                    source.getBytes()
+            );
+        }
+
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public String getOriginalFilename() {
+            return originalFilename;
+        }
+
+        @Override
+        public String getContentType() {
+            return contentType;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return bytes.length == 0;
+        }
+
+        @Override
+        public long getSize() {
+            return bytes.length;
+        }
+
+        @Override
+        public byte[] getBytes() {
+            return bytes.clone();
+        }
+
+        @Override
+        public InputStream getInputStream() {
+            return new ByteArrayInputStream(bytes);
+        }
+
+        @Override
+        public void transferTo(java.io.File dest) throws IOException, IllegalStateException {
+            java.nio.file.Files.write(dest.toPath(), bytes);
         }
     }
 

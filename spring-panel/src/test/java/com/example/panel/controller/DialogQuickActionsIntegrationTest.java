@@ -914,7 +914,7 @@ class DialogQuickActionsIntegrationTest {
 
         doReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 1702L))
                 .when(dialogReplyTransportService)
-                .sendMedia(any(Channel.class), eq(920107L), any(MockMultipartFile.class), eq("Смотрите вложение"), eq("proof.png"));
+                .sendMedia(any(Channel.class), eq(920107L), any(MockMultipartFile.class), eq("Смотрите вложение"), eq("proof.png"), eq(null));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/dialogs/T-QA-MEDIA/media")
                         .file(new MockMultipartFile("file", "proof.png", "image/png", "png".getBytes()))
@@ -1136,7 +1136,7 @@ class DialogQuickActionsIntegrationTest {
 
         doReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 2002L))
                 .when(dialogReplyTransportService)
-                .sendMedia(any(Channel.class), eq(920110L), any(MockMultipartFile.class), eq("Файл для peer"), eq("proof.png"));
+                .sendMedia(any(Channel.class), eq(920110L), any(MockMultipartFile.class), eq("Файл для peer"), eq("proof.png"), eq(null));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/dialogs/T-QA-MEDIA-NOTIFY/media")
                         .file(new MockMultipartFile("file", "proof.png", "image/png", "png".getBytes()))

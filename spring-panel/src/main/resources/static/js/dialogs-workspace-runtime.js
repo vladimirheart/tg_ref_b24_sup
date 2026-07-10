@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   if (window.DialogsWorkspaceRuntime) {
     return;
   }
@@ -63,7 +63,7 @@
         return;
       }
       const totalFiles = Number.isFinite(Number(count)) ? Number(count) : 0;
-      const baseLabel = resolveMediaTriggerBaseLabel(elements.workspaceComposerMediaTrigger, 'Р В РЎСџР РЋР вЂљР В РЎвЂР В РЎвЂќР РЋР вЂљР В Р’ВµР В РЎвЂ”Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р В РЎВР В Р’ВµР В РўвЂР В РЎвЂР В Р’В°');
+      const baseLabel = resolveMediaTriggerBaseLabel(elements.workspaceComposerMediaTrigger, 'Прикрепить медиа');
       elements.workspaceComposerMediaTrigger.textContent = totalFiles > 0
         ? `${baseLabel} (${totalFiles})`
         : baseLabel;
@@ -90,7 +90,7 @@
     function renderWorkspaceSimpleList(items, formatter) {
       const list = Array.isArray(items) ? items : [];
       if (list.length === 0) {
-        return '<div class="small text-muted">Р В РЎСџР В РЎвЂўР В РЎвЂќР В Р’В° Р В Р вЂ¦Р В Р’ВµР РЋРІР‚С™ Р В РўвЂР В Р’В°Р В Р вЂ¦Р В Р вЂ¦Р РЋРІР‚в„–Р РЋРІР‚В¦.</div>';
+        return '<div class="small text-muted">РџРѕРєР° РЅРµС‚ РґР°РЅРЅС‹С….</div>';
       }
       return `<ul class="list-unstyled small mb-0">${list.map((item) => `<li class="mb-2">${formatter(item)}</li>`).join('')}</ul>`;
     }
@@ -324,16 +324,16 @@
 
     function formatWorkspaceSlaRemaining(minutesLeft) {
       const value = Number(minutesLeft);
-      if (!Number.isFinite(value)) return 'Р Р†Р вЂљРІР‚Сњ';
-      if (value === 0) return '0Р В РЎВ';
+      if (!Number.isFinite(value)) return '—';
+      if (value === 0) return '0Рј';
       const absValue = Math.abs(Math.round(value));
       const hours = Math.floor(absValue / 60);
       const minutes = absValue % 60;
-      const suffix = value < 0 ? 'Р В Р вЂ¦Р В Р’В°Р В Р’В·Р В Р’В°Р В РўвЂ' : 'Р В РЎвЂўР РЋР С“Р РЋРІР‚С™Р В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰';
+      const suffix = value < 0 ? 'назад' : 'осталось';
       if (hours > 0) {
-        return `${hours}Р РЋРІР‚РЋ ${minutes}Р В РЎВ ${suffix}`;
+        return `${hours}С‡ ${minutes}Рј ${suffix}`;
       }
-      return `${minutes}Р В РЎВ ${suffix}`;
+      return `${minutes}Рј ${suffix}`;
     }
 
     function resolveWorkspaceRolloutBannerClass(tone) {
@@ -361,15 +361,15 @@
       if (Number.isFinite(Number(rollout?.rollout_percent)) && Number(rollout?.rollout_percent) > 0) {
         metaParts.push(`rollout: ${Math.max(0, Math.min(100, Number(rollout.rollout_percent)))}%`);
       }
-      if (reviewedAt && reviewedAt !== 'Р Р†Р вЂљРІР‚Сњ') {
+      if (reviewedAt && reviewedAt !== '—') {
         metaParts.push(`reviewed UTC: ${reviewedAt}`);
       }
-      if (dataUpdatedAt && dataUpdatedAt !== 'Р Р†Р вЂљРІР‚Сњ') {
+      if (dataUpdatedAt && dataUpdatedAt !== '—') {
         metaParts.push(`data updated UTC: ${dataUpdatedAt}`);
       }
       elements.workspaceRolloutBanner.className = resolveWorkspaceRolloutBannerClass(rollout?.banner_tone);
       elements.workspaceRolloutBanner.classList.remove('d-none');
-      elements.workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' Р вЂ™Р’В· ')].filter(Boolean).join(' ');
+      elements.workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' · ')].filter(Boolean).join(' ');
     }
 
     function resolveWorkspaceParityBannerClass(status) {
@@ -401,7 +401,7 @@
       if (Number.isFinite(Number(safeParity?.score_pct))) {
         metaParts.push(`parity score: ${Math.max(0, Math.min(100, Number(safeParity.score_pct)))}%`);
       }
-      if (checkedAtUtc && checkedAtUtc !== 'Р Р†Р вЂљРІР‚Сњ') {
+      if (checkedAtUtc && checkedAtUtc !== '—') {
         metaParts.push(`checked UTC: ${checkedAtUtc}`);
       }
       if (missingLabels.length > 0) {
@@ -409,7 +409,7 @@
       }
       elements.workspaceParityBanner.className = resolveWorkspaceParityBannerClass(status);
       elements.workspaceParityBanner.classList.remove('d-none');
-      elements.workspaceParityBanner.textContent = [summary, metaParts.join(' Р вЂ™Р’В· ')].filter(Boolean).join(' ');
+      elements.workspaceParityBanner.textContent = [summary, metaParts.join(' · ')].filter(Boolean).join(' ');
     }
 
     function setWorkspaceReadonlyMode(isReadonly, reasonText) {
@@ -431,7 +431,7 @@
 
     function resolveWorkspaceReadonlyReason(permissions) {
       if (!permissions || typeof permissions !== 'object') {
-        return 'Workspace Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™ Р В Р вЂ  Р РЋР вЂљР В Р’ВµР В Р’В¶Р В РЎвЂР В РЎВР В Р’Вµ Р РЋРІР‚С™Р В РЎвЂўР В Р’В»Р РЋР Р‰Р В РЎвЂќР В РЎвЂў Р РЋРІР‚РЋР РЋРІР‚С™Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ: Р В Р вЂ¦Р В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В РЎвЂ”Р В РЎвЂўР В Р’В»Р РЋРЎвЂњР РЋРІР‚РЋР В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р В РЎвЂ”Р РЋР вЂљР В Р’В°Р В Р вЂ Р В Р’В° Р В РЎвЂўР В РЎвЂ”Р В Р’ВµР РЋР вЂљР В Р’В°Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В Р’В°.';
+        return 'Workspace открыт в режиме только чтения: не удалось получить права оператора.';
       }
       const mutatingPermissionKeys = Array.isArray(options.workspaceMutatingPermissionKeys)
         ? options.workspaceMutatingPermissionKeys
@@ -439,11 +439,11 @@
       const requiredFlags = ['can_reply', ...mutatingPermissionKeys];
       const hasInvalidFlag = requiredFlags.some((flag) => typeof permissions[flag] !== 'boolean');
       if (hasInvalidFlag) {
-        return 'Workspace Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™ Р В Р вЂ  Р РЋР вЂљР В Р’ВµР В Р’В¶Р В РЎвЂР В РЎВР В Р’Вµ Р РЋРІР‚С™Р В РЎвЂўР В Р’В»Р РЋР Р‰Р В РЎвЂќР В РЎвЂў Р РЋРІР‚РЋР РЋРІР‚С™Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ: Р В РЎвЂ”Р РЋР вЂљР В Р’В°Р В Р вЂ Р В Р’В° Р В РЎвЂўР В РЎвЂ”Р В Р’ВµР РЋР вЂљР В Р’В°Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В Р’В° Р В Р’В·Р В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В¶Р В Р’ВµР В Р вЂ¦Р РЋРІР‚в„– Р В Р вЂ¦Р В Р’ВµР В РЎвЂќР В РЎвЂўР РЋР вЂљР РЋР вЂљР В Р’ВµР В РЎвЂќР РЋРІР‚С™Р В Р вЂ¦Р В РЎвЂў.';
+        return 'Workspace открыт в режиме только чтения: права оператора загружены некорректно.';
       }
       const hasMutatingPermission = mutatingPermissionKeys.some((flag) => permissions[flag] === true);
       if (!hasMutatingPermission) {
-        return 'Workspace Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™ Р В Р вЂ  Р РЋР вЂљР В Р’ВµР В Р’В¶Р В РЎвЂР В РЎВР В Р’Вµ Р РЋРІР‚С™Р В РЎвЂўР В Р’В»Р РЋР Р‰Р В РЎвЂќР В РЎвЂў Р РЋРІР‚РЋР РЋРІР‚С™Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ: Р В РўвЂР В Р’ВµР В РІвЂћвЂ“Р РЋР С“Р РЋРІР‚С™Р В Р вЂ Р В РЎвЂР РЋР РЏ Р В РЎвЂР В Р’В·Р В РЎВР В Р’ВµР В Р вЂ¦Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂќР В Р’В»Р РЋР вЂ№Р РЋРІР‚РЋР В Р’ВµР В Р вЂ¦Р РЋРІР‚в„– Р В РЎвЂ”Р В РЎвЂўР В Р’В»Р В РЎвЂР РЋРІР‚С™Р В РЎвЂР В РЎвЂќР В РЎвЂўР В РІвЂћвЂ“ Р В РўвЂР В РЎвЂўР РЋР С“Р РЋРІР‚С™Р РЋРЎвЂњР В РЎвЂ”Р В Р’В°.';
+        return 'Workspace открыт в режиме только чтения: действия изменения отключены политикой доступа.';
       }
       return null;
     }
@@ -472,7 +472,7 @@
         elements.workspaceReplyTargetText.textContent = '';
       }
       if (elements.workspaceComposerText) {
-        elements.workspaceComposerText.placeholder = 'Р В РІР‚в„ўР В Р вЂ Р В Р’ВµР В РўвЂР В РЎвЂР РЋРІР‚С™Р В Р’Вµ Р В РЎвЂўР РЋРІР‚С™Р В Р вЂ Р В Р’ВµР РЋРІР‚С™ Р В РЎвЂќР В Р’В»Р В РЎвЂР В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р РЋРЎвЂњР Р†Р вЂљР’В¦';
+        elements.workspaceComposerText.placeholder = 'Введите ответ клиенту…';
       }
       if (hadActiveTarget && replyOptions.emitTelemetry !== false) {
         emitWorkspaceTelemetry('workspace_reply_target_cleared', {
@@ -492,14 +492,14 @@
       const activeState = getActiveWorkspaceState();
       state.activeReplyToTelegramId = normalizedMessageId;
       if (elements.workspaceComposerText) {
-        elements.workspaceComposerText.placeholder = `Р В РЎвЂєР РЋРІР‚С™Р В Р вЂ Р В Р’ВµР РЋРІР‚С™ Р В Р вЂ¦Р В Р’В° Р РЋР С“Р В РЎвЂўР В РЎвЂўР В Р’В±Р РЋРІР‚В°Р В Р’ВµР В Р вЂ¦Р В РЎвЂР В Р’Вµ #${normalizedMessageId}`;
+        elements.workspaceComposerText.placeholder = `Ответ на сообщение #${normalizedMessageId}`;
       }
       if (elements.workspaceReplyTarget) {
         elements.workspaceReplyTarget.classList.remove('d-none');
       }
       if (elements.workspaceReplyTargetText) {
         const safePreview = String(preview || '').trim();
-        elements.workspaceReplyTargetText.textContent = safePreview || `Р В Р Р‹Р В РЎвЂўР В РЎвЂўР В Р’В±Р РЋРІР‚В°Р В Р’ВµР В Р вЂ¦Р В РЎвЂР В Р’Вµ #${normalizedMessageId}`;
+        elements.workspaceReplyTargetText.textContent = safePreview || `????????? #${normalizedMessageId}`;
       }
       emitWorkspaceTelemetry('workspace_reply_target_selected', {
         ticketId: activeState.ticketId,
@@ -520,7 +520,7 @@
     function confirmWorkspaceTicketSwitch(nextTicketId) {
       if (!hasUnsavedWorkspaceComposerChanges(nextTicketId)) return true;
       const activeState = getActiveWorkspaceState();
-      const accepted = window.confirm('Р В РІР‚СћР РЋР С“Р РЋРІР‚С™Р РЋР Р‰ Р В Р вЂ¦Р В Р’ВµР РЋР С“Р В РЎвЂўР РЋРІР‚В¦Р РЋР вЂљР В Р’В°Р В Р вЂ¦Р РЋРІР‚ВР В Р вЂ¦Р В Р вЂ¦Р РЋРІР‚в„–Р В Р’Вµ Р В РЎвЂР В Р’В·Р В РЎВР В Р’ВµР В Р вЂ¦Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ Р В Р вЂ  Р РЋРІР‚РЋР В Р’ВµР РЋР вЂљР В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР В РЎвЂќР В Р’Вµ. Р В Р Р‹Р В РЎвЂўР РЋРІР‚В¦Р РЋР вЂљР В Р’В°Р В Р вЂ¦Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р РЋРІР‚С™Р В Р’ВµР В РЎвЂќР РЋРЎвЂњР РЋРІР‚В°Р В РЎвЂР В РІвЂћвЂ“ Р РЋРІР‚РЋР В Р’ВµР РЋР вЂљР В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР В РЎвЂќ Р В РЎвЂ”Р В Р’ВµР РЋР вЂљР В Р’ВµР В РўвЂ Р В РЎвЂ”Р В Р’ВµР РЋР вЂљР В Р’ВµР В РЎвЂќР В Р’В»Р РЋР вЂ№Р РЋРІР‚РЋР В Р’ВµР В Р вЂ¦Р В РЎвЂР В Р’ВµР В РЎВ Р В РўвЂР В РЎвЂР В Р’В°Р В Р’В»Р В РЎвЂўР В РЎвЂ“Р В Р’В°?');
+      const accepted = window.confirm('???? ???????????? ????????? ? ?????????. ????????? ??????? ???????? ????? ????????????? ????????');
       if (accepted) {
         saveWorkspaceDraft(activeState.composerTicketId, elements.workspaceComposerText?.value || '', { reason: 'manual' });
       }
@@ -529,7 +529,7 @@
 
     function updateWorkspaceDraftState(text) {
       if (!elements.workspaceComposerDraftState) return;
-      elements.workspaceComposerDraftState.textContent = text || 'Р В Р’В§Р В Р’ВµР РЋР вЂљР В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР В РЎвЂќ Р В Р вЂ¦Р В Р’Вµ Р РЋР С“Р В РЎвЂўР РЋРІР‚В¦Р РЋР вЂљР В Р’В°Р В Р вЂ¦Р РЋРІР‚ВР В Р вЂ¦';
+      elements.workspaceComposerDraftState.textContent = text || 'Черновик не сохранён';
     }
 
     function saveWorkspaceDraft(ticketId, message, saveOptions = {}) {
@@ -539,12 +539,12 @@
       try {
         if (!value) {
           localStorage.removeItem(storageKey);
-          updateWorkspaceDraftState('Р В Р’В§Р В Р’ВµР РЋР вЂљР В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР В РЎвЂќ Р В РЎвЂўР РЋРІР‚РЋР В РЎвЂР РЋРІР‚В°Р В Р’ВµР В Р вЂ¦');
+          updateWorkspaceDraftState('Черновик очищен');
         } else {
           localStorage.setItem(storageKey, value);
           state.draftLastSavedValue = value;
           if (!saveOptions.silent) {
-            updateWorkspaceDraftState(`Р В Р’В§Р В Р’ВµР РЋР вЂљР В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР В РЎвЂќ Р РЋР С“Р В РЎвЂўР РЋРІР‚В¦Р РЋР вЂљР В Р’В°Р В Р вЂ¦Р РЋРІР‚ВР В Р вЂ¦ Р вЂ™Р’В· ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
+            updateWorkspaceDraftState(`Черновик сохранён · ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
           }
           const now = Date.now();
           const minInterval = Number(options.draftTelemetryMinInterval) || 30000;
@@ -560,7 +560,7 @@
           }
         }
       } catch (_error) {
-        updateWorkspaceDraftState('Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р РЋР С“Р В РЎвЂўР РЋРІР‚В¦Р РЋР вЂљР В Р’В°Р В Р вЂ¦Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р РЋРІР‚РЋР В Р’ВµР РЋР вЂљР В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР В РЎвЂќ');
+        updateWorkspaceDraftState('Не удалось сохранить черновик');
       }
     }
 
@@ -572,18 +572,18 @@
         elements.workspaceComposerText.value = stored || '';
         state.draftLastSavedValue = elements.workspaceComposerText.value.trim();
         if (stored) {
-          updateWorkspaceDraftState('Р В Р’В§Р В Р’ВµР РЋР вЂљР В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР В РЎвЂќ Р В Р вЂ Р В РЎвЂўР РЋР С“Р РЋР С“Р РЋРІР‚С™Р В Р’В°Р В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В Р’В»Р В Р’ВµР В Р вЂ¦');
+          updateWorkspaceDraftState('Черновик восстановлен');
           emitWorkspaceTelemetry('workspace_draft_restored', {
             ticketId,
             length: stored.length,
           });
         } else {
-          updateWorkspaceDraftState('Р В Р’В§Р В Р’ВµР РЋР вЂљР В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР В РЎвЂќ Р В Р вЂ¦Р В Р’Вµ Р РЋР С“Р В РЎвЂўР РЋРІР‚В¦Р РЋР вЂљР В Р’В°Р В Р вЂ¦Р РЋРІР‚ВР В Р вЂ¦');
+          updateWorkspaceDraftState('Черновик не сохранён');
         }
       } catch (_error) {
         elements.workspaceComposerText.value = '';
         state.draftLastSavedValue = '';
-        updateWorkspaceDraftState('Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В Р’В·Р В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р РЋРІР‚РЋР В Р’ВµР РЋР вЂљР В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР В РЎвЂќ');
+        updateWorkspaceDraftState('Не удалось загрузить черновик');
       }
     }
 
@@ -621,7 +621,7 @@
       const canLoadMore = Boolean(activeState.ticketId) && state.messagesHasMore;
       elements.workspaceMessagesLoadMoreWrap.classList.toggle('d-none', !canLoadMore);
       elements.workspaceMessagesLoadMore.disabled = state.messagesLoadingMore || !canLoadMore;
-      elements.workspaceMessagesLoadMore.textContent = state.messagesLoadingMore ? 'Р В РІР‚вЂќР В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂќР В Р’В°Р Р†Р вЂљР’В¦' : 'Р В РІР‚вЂќР В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р В Р’ВµР РЋРІР‚В°Р РЋРІР‚В';
+      elements.workspaceMessagesLoadMore.textContent = state.messagesLoadingMore ? 'Загрузка…' : 'Загрузить ещё';
     }
 
     function syncWorkspaceMessagesPagination(messages) {
@@ -643,7 +643,7 @@
       const replyPreview = elements.workspaceReplyTargetText ? elements.workspaceReplyTargetText.textContent.trim() : '';
       if (!message && !pendingMediaFiles.length) return;
       if (activeState.readonlyMode || elements.workspaceComposerText.disabled) {
-        options.notifyPermissionDenied?.('Р В РЎвЂєР РЋРІР‚С™Р В РЎвЂ”Р РЋР вЂљР В Р’В°Р В Р вЂ Р В РЎвЂќР В Р’В° Р В РЎвЂўР РЋРІР‚С™Р В Р вЂ Р В Р’ВµР РЋРІР‚С™Р В Р’В°');
+        options.notifyPermissionDenied?.('Отправка ответа');
         return;
       }
       if (pendingMediaFiles.length) {
@@ -670,25 +670,25 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Р В РЎвЂєР РЋРІвЂљВ¬Р В РЎвЂР В Р’В±Р В РЎвЂќР В Р’В° ${resp.status}`);
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         elements.workspaceComposerText.value = '';
         saveWorkspaceDraft(activeState.composerTicketId, '');
         resetWorkspaceReplyTarget({ reason: 'message_sent' });
         appendWorkspaceMessage({
-          senderName: data.responsible || 'Р В РЎвЂєР В РЎвЂ”Р В Р’ВµР РЋР вЂљР В Р’В°Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљ',
+          senderName: data.responsible || 'РћРїРµСЂР°С‚РѕСЂ',
           messageText: message,
           sentAt: data.timestamp || new Date().toISOString(),
           telegramMessageId: data.telegramMessageId || null,
           replyPreview,
         });
         if (activeState.row) {
-          options.updateRowStatus?.(activeState.row, activeState.row.dataset.statusRaw || '', 'Р В РЎвЂўР В Р’В¶Р В РЎвЂР В РўвЂР В Р’В°Р В Р’ВµР РЋРІР‚С™ Р В РЎвЂўР РЋРІР‚С™Р В Р вЂ Р В Р’ВµР РЋРІР‚С™Р В Р’В° Р В РЎвЂќР В Р’В»Р В РЎвЂР В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р В Р’В°', 'waiting_client', 0);
+          options.updateRowStatus?.(activeState.row, activeState.row.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
           options.updateRowResponsible?.(activeState.row, data.responsible || activeState.row.dataset.responsible || '');
           options.applyFilters?.();
         }
       } catch (error) {
-        notify(error.message || 'Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂ”Р РЋР вЂљР В Р’В°Р В Р вЂ Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р РЋР С“Р В РЎвЂўР В РЎвЂўР В Р’В±Р РЋРІР‚В°Р В Р’ВµР В Р вЂ¦Р В РЎвЂР В Р’Вµ', 'error');
+        notify(error.message || 'Не удалось отправить сообщение', 'error');
       } finally {
         elements.workspaceComposerSend.disabled = false;
         if (elements.workspaceComposerSaveDraft) {
@@ -738,7 +738,7 @@
     async function reloadWorkspaceSection(include, reloadOptions = {}) {
       const activeState = getActiveWorkspaceState();
       if (!options.workspaceEnabled || !activeState.ticketId) return;
-      setWorkspaceSectionLoading(reloadOptions.stateElement, reloadOptions.errorElement, reloadOptions.statusText || 'Р В РЎСџР В РЎвЂўР В Р вЂ Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В Р вЂ¦Р В Р’В°Р РЋР РЏ Р В Р’В·Р В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂќР В Р’В°...');
+      setWorkspaceSectionLoading(reloadOptions.stateElement, reloadOptions.errorElement, reloadOptions.statusText || 'Повторная загрузка...');
       try {
         const partialPayload = await preloadWorkspaceContract(activeState.ticketId, activeState.channelId, { include });
         const mergedPayload = mergeWorkspacePayload(activeState.payload, partialPayload, include);
@@ -748,7 +748,7 @@
         if (reloadOptions.errorElement) {
           reloadOptions.errorElement.classList.remove('d-none');
         }
-        notify(reloadOptions.failMessage || 'Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В РЎвЂўР В Р’В±Р В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р РЋР С“Р В Р’ВµР В РЎвЂќР РЋРІР‚В Р В РЎвЂР РЋР вЂ№ workspace.', 'warning');
+        notify(reloadOptions.failMessage || 'Не удалось обновить секцию workspace.', 'warning');
       }
     }
 
@@ -775,10 +775,10 @@
         state.messagesHasMore = messages.has_more === true;
         if (elements.workspaceMessagesState && !state.messagesHasMore) {
           elements.workspaceMessagesState.classList.remove('d-none');
-          elements.workspaceMessagesState.textContent = 'Р В РЎСџР В РЎвЂўР В РЎвЂќР В Р’В°Р В Р’В·Р В Р’В°Р В Р вЂ¦Р РЋРІР‚в„– Р В Р вЂ Р РЋР С“Р В Р’Вµ Р РЋР С“Р В РЎвЂўР В РЎвЂўР В Р’В±Р РЋРІР‚В°Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ Р В РЎвЂ”Р В РЎвЂў Р В РўвЂР В РЎвЂР В Р’В°Р В Р’В»Р В РЎвЂўР В РЎвЂ“Р РЋРЎвЂњ.';
+          elements.workspaceMessagesState.textContent = 'Показаны все сообщения по диалогу.';
         }
       } catch (_error) {
-        notify('Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В РўвЂР В РЎвЂўР В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р РЋР С“Р В РЎвЂўР В РЎвЂўР В Р’В±Р РЋРІР‚В°Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ workspace.', 'warning');
+        notify('Не удалось догрузить сообщения workspace.', 'warning');
       } finally {
         state.messagesLoadingMore = false;
         updateWorkspaceMessagesLoadMoreState();
@@ -788,7 +788,7 @@
     function buildWorkspaceNavigationStateText(navigation) {
       const safeNavigation = navigation && typeof navigation === 'object' ? navigation : null;
       if (!safeNavigation) {
-        return 'Р В РЎвЂєР РЋРІР‚РЋР В Р’ВµР РЋР вЂљР В Р’ВµР В РўвЂР РЋР Р‰ Р В Р вЂ¦Р В Р’Вµ Р В РЎвЂўР В РЎвЂ”Р РЋР вЂљР В Р’ВµР В РўвЂР В Р’ВµР В Р’В»Р В Р’ВµР В Р вЂ¦Р В Р’В°';
+        return 'РћС‡РµСЂРµРґСЊ РЅРµ РѕРїСЂРµРґРµР»РµРЅР°';
       }
       if (typeof safeNavigation.summary === 'string' && safeNavigation.summary.trim()) {
         return safeNavigation.summary.trim();
@@ -796,11 +796,11 @@
       const position = Number(safeNavigation.position || 0);
       const total = Number(safeNavigation.total || 0);
       if (position > 0 && total > 0) {
-        return `Р В РЎСџР В РЎвЂўР В Р’В·Р В РЎвЂР РЋРІР‚В Р В РЎвЂР РЋР РЏ ${position} Р В РЎвЂР В Р’В· ${total}.`;
+        return `Позиция ${position} из ${total}.`;
       }
       return safeNavigation.enabled === false
-        ? 'Inline navigation Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂќР В Р’В»Р РЋР вЂ№Р РЋРІР‚РЋР В Р’ВµР В Р вЂ¦Р В Р’В°.'
-        : 'Р В РЎС›Р В Р’ВµР В РЎвЂќР РЋРЎвЂњР РЋРІР‚В°Р В РЎвЂР В РІвЂћвЂ“ Р В РўвЂР В РЎвЂР В Р’В°Р В Р’В»Р В РЎвЂўР В РЎвЂ“ Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™ Р В Р вЂ Р В Р вЂ¦Р В Р’Вµ Р В Р’В°Р В РЎвЂќР РЋРІР‚С™Р В РЎвЂР В Р вЂ Р В Р вЂ¦Р В РЎвЂўР В РІвЂћвЂ“ Р В РЎвЂўР РЋРІР‚РЋР В Р’ВµР РЋР вЂљР В Р’ВµР В РўвЂР В РЎвЂ.';
+        ? 'Inline navigation РѕС‚РєР»СЋС‡РµРЅР°.'
+        : 'Текущий диалог открыт вне активной очереди.';
     }
 
     function getWorkspaceNavigationTarget(direction, navigation) {
@@ -826,14 +826,14 @@
       if (elements.workspaceNavPrevBtn) {
         elements.workspaceNavPrevBtn.disabled = !navigationEnabled || !previous;
         elements.workspaceNavPrevBtn.title = previous
-          ? `${previous.ticketId}${previous.clientName ? ` Р вЂ™Р’В· ${previous.clientName}` : ''}${previous.status ? ` Р вЂ™Р’В· ${previous.status}` : ''}`
-          : 'Р В РЎСџР РЋР вЂљР В Р’ВµР В РўвЂР РЋРІР‚в„–Р В РўвЂР РЋРЎвЂњР РЋРІР‚В°Р В РЎвЂР В РІвЂћвЂ“ Р В РўвЂР В РЎвЂР В Р’В°Р В Р’В»Р В РЎвЂўР В РЎвЂ“ Р В Р вЂ¦Р В Р’ВµР В РўвЂР В РЎвЂўР РЋР С“Р РЋРІР‚С™Р РЋРЎвЂњР В РЎвЂ”Р В Р’ВµР В Р вЂ¦';
+          ? `${previous.ticketId}${previous.clientName ? ` · ${previous.clientName}` : ''}${previous.status ? ` · ${previous.status}` : ''}`
+          : 'Предыдущий диалог недоступен';
       }
       if (elements.workspaceNavNextBtn) {
         elements.workspaceNavNextBtn.disabled = !navigationEnabled || !next;
         elements.workspaceNavNextBtn.title = next
-          ? `${next.ticketId}${next.clientName ? ` Р вЂ™Р’В· ${next.clientName}` : ''}${next.status ? ` Р вЂ™Р’В· ${next.status}` : ''}`
-          : 'Р В Р Р‹Р В Р’В»Р В Р’ВµР В РўвЂР РЋРЎвЂњР РЋР вЂ№Р РЋРІР‚В°Р В РЎвЂР В РІвЂћвЂ“ Р В РўвЂР В РЎвЂР В Р’В°Р В Р’В»Р В РЎвЂўР В РЎвЂ“ Р В Р вЂ¦Р В Р’ВµР В РўвЂР В РЎвЂўР РЋР С“Р РЋРІР‚С™Р РЋРЎвЂњР В РЎвЂ”Р В Р’ВµР В Р вЂ¦';
+          ? `${next.ticketId}${next.clientName ? ` · ${next.clientName}` : ''}${next.status ? ` · ${next.status}` : ''}`
+          : '????????? ?????? ??????????';
       }
       if (elements.workspaceNavState) {
         elements.workspaceNavState.textContent = buildWorkspaceNavigationStateText(navigation);
@@ -894,8 +894,8 @@
           reloadWorkspaceSection('messages', {
             stateElement: elements.workspaceMessagesState,
             errorElement: elements.workspaceMessagesError,
-            statusText: 'Р В РЎСџР В РЎвЂўР В Р вЂ Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В Р вЂ¦Р В Р’В°Р РЋР РЏ Р В Р’В·Р В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂќР В Р’В° Р В Р’В»Р В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р РЋРІР‚в„–Р Р†Р вЂљР’В¦',
-            failMessage: 'Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В РЎвЂўР В Р’В±Р В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р В Р’В»Р В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р РЋРЎвЂњ workspace.',
+            statusText: 'Повторная загрузка ленты…',
+            failMessage: 'Не удалось обновить ленту workspace.',
           });
         });
       }
@@ -932,8 +932,8 @@
           reloadWorkspaceSection('context', {
             stateElement: elements.workspaceClientState,
             errorElement: elements.workspaceClientError,
-            statusText: 'Р В РЎСџР В РЎвЂўР В Р вЂ Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В Р вЂ¦Р В Р’В°Р РЋР РЏ Р В Р’В·Р В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂќР В Р’В° Р В РЎвЂ”Р РЋР вЂљР В РЎвЂўР РЋРІР‚С›Р В РЎвЂР В Р’В»Р РЋР РЏ Р В РЎвЂќР В Р’В»Р В РЎвЂР В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р В Р’В°Р Р†Р вЂљР’В¦',
-            failMessage: 'Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В РЎвЂўР В Р’В±Р В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р В РЎвЂ”Р РЋР вЂљР В РЎвЂўР РЋРІР‚С›Р В РЎвЂР В Р’В»Р РЋР Р‰ Р В РЎвЂќР В Р’В»Р В РЎвЂР В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р В Р’В°.',
+            statusText: 'Повторная загрузка профиля клиента…',
+            failMessage: 'Не удалось обновить профиль клиента.',
           });
         });
       }
@@ -943,8 +943,8 @@
           reloadWorkspaceSection('context', {
             stateElement: elements.workspaceHistoryState,
             errorElement: elements.workspaceHistoryError,
-            statusText: 'Р В РЎСџР В РЎвЂўР В Р вЂ Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В Р вЂ¦Р В Р’В°Р РЋР РЏ Р В Р’В·Р В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂќР В Р’В° Р В РЎвЂР РЋР С“Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В РЎвЂР В РЎвЂ Р В РЎвЂќР В Р’В»Р В РЎвЂР В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р В Р’В°Р Р†Р вЂљР’В¦',
-            failMessage: 'Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В РЎвЂўР В Р’В±Р В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р В РЎвЂР РЋР С“Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В РЎвЂР РЋР вЂ№ Р В РЎвЂќР В Р’В»Р В РЎвЂР В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р В Р’В°.',
+            statusText: 'Повторная загрузка истории клиента…',
+            failMessage: 'Не удалось обновить историю клиента.',
           });
         });
       }
@@ -954,8 +954,8 @@
           reloadWorkspaceSection('context', {
             stateElement: elements.workspaceRelatedEventsState,
             errorElement: elements.workspaceRelatedEventsError,
-            statusText: 'Р В РЎСџР В РЎвЂўР В Р вЂ Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В Р вЂ¦Р В Р’В°Р РЋР РЏ Р В Р’В·Р В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂќР В Р’В° Р РЋР С“Р В Р вЂ Р РЋР РЏР В Р’В·Р В Р’В°Р В Р вЂ¦Р В Р вЂ¦Р РЋРІР‚в„–Р РЋРІР‚В¦ Р РЋР С“Р В РЎвЂўР В Р’В±Р РЋРІР‚в„–Р РЋРІР‚С™Р В РЎвЂР В РІвЂћвЂ“Р Р†Р вЂљР’В¦',
-            failMessage: 'Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В РЎвЂўР В Р’В±Р В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р РЋР С“Р В Р вЂ Р РЋР РЏР В Р’В·Р В Р’В°Р В Р вЂ¦Р В Р вЂ¦Р РЋРІР‚в„–Р В Р’Вµ Р РЋР С“Р В РЎвЂўР В Р’В±Р РЋРІР‚в„–Р РЋРІР‚С™Р В РЎвЂР РЋР РЏ.',
+            statusText: 'Повторная загрузка связанных событий…',
+            failMessage: 'Не удалось обновить связанные события.',
           });
         });
       }
@@ -965,8 +965,8 @@
           reloadWorkspaceSection('sla', {
             stateElement: elements.workspaceSlaState,
             errorElement: elements.workspaceSlaError,
-            statusText: 'Р В РЎСџР В РЎвЂўР В Р вЂ Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В Р вЂ¦Р В Р’В°Р РЋР РЏ Р В Р’В·Р В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂќР В Р’В° SLA-Р В РЎвЂќР В РЎвЂўР В Р вЂ¦Р РЋРІР‚С™Р В Р’ВµР В РЎвЂќР РЋР С“Р РЋРІР‚С™Р В Р’В°Р Р†Р вЂљР’В¦',
-            failMessage: 'Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В РЎвЂўР В Р’В±Р В Р вЂ¦Р В РЎвЂўР В Р вЂ Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ SLA-Р В РЎвЂќР В РЎвЂўР В Р вЂ¦Р РЋРІР‚С™Р В Р’ВµР В РЎвЂќР РЋР С“Р РЋРІР‚С™.',
+            statusText: 'Повторная загрузка SLA-контекста…',
+            failMessage: 'Не удалось обновить SLA-контекст.',
           });
         });
       }
@@ -1009,7 +1009,7 @@
           event.preventDefault();
           const totalFiles = options.stageMediaFilesInInput?.(elements.workspaceComposerMedia, files) || 0;
           if (!totalFiles) {
-            notify('Р В РЎСљР В Р’Вµ Р РЋРЎвЂњР В РўвЂР В Р’В°Р В Р’В»Р В РЎвЂўР РЋР С“Р РЋР Р‰ Р В РЎвЂ”Р РЋР вЂљР В РЎвЂР В РЎвЂќР РЋР вЂљР В Р’ВµР В РЎвЂ”Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р РЋР С“Р В РЎвЂќР РЋР вЂљР В РЎвЂР В Р вЂ¦Р РЋРІвЂљВ¬Р В РЎвЂўР РЋРІР‚С™ Р В Р’В°Р В Р вЂ Р РЋРІР‚С™Р В РЎвЂўР В РЎВР В Р’В°Р РЋРІР‚С™Р В РЎвЂР РЋРІР‚РЋР В Р’ВµР РЋР С“Р В РЎвЂќР В РЎвЂ. Р В Р’ВР РЋР С“Р В РЎвЂ”Р В РЎвЂўР В Р’В»Р РЋР Р‰Р В Р’В·Р РЋРЎвЂњР В РІвЂћвЂ“Р РЋРІР‚С™Р В Р’Вµ Р В РЎвЂќР В Р вЂ¦Р В РЎвЂўР В РЎвЂ”Р В РЎвЂќР РЋРЎвЂњ Р В РЎвЂ”Р РЋР вЂљР В РЎвЂР В РЎвЂќР РЋР вЂљР В Р’ВµР В РЎвЂ”Р В Р’В»Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ Р В РЎВР В Р’ВµР В РўвЂР В РЎвЂР В Р’В°.', 'warning');
+            notify('Не удалось прикрепить скриншот автоматически. Используйте кнопку прикрепления медиа.', 'warning');
             return;
           }
         });
@@ -1050,7 +1050,7 @@
       }
     }
 
-    async function reloadWorkspaceForInitialRoute(statusText = 'Р В РЎСџР В РЎвЂўР В Р вЂ Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В Р вЂ¦Р В Р’В°Р РЋР РЏ Р В Р’В·Р В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В·Р В РЎвЂќР В Р’В° Р В Р’В»Р В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р РЋРІР‚в„–Р Р†Р вЂљР’В¦') {
+    async function reloadWorkspaceForInitialRoute(statusText = 'Повторная загрузка ленты…') {
       const activeState = getActiveWorkspaceState();
       if (!options.workspaceEnabled || !activeState.ticketId) return;
       const initialRow = (options.rowsList?.() || []).find((row) => String(row.dataset.ticketId || '') === activeState.ticketId) || null;
@@ -1073,10 +1073,10 @@
       const activeState = getActiveWorkspaceState();
       if (isWorkspaceTemporarilyDisabled()) {
         if (!options.workspaceDisableLegacyFallback) {
-          notify('Workspace Р В Р вЂ Р РЋР вЂљР В Р’ВµР В РЎВР В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р В РЎвЂў Р В Р вЂ  cooldown Р Р†Р вЂљРІР‚Сњ Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™ legacy modal Р В РЎвЂќР В Р’В°Р В РЎвЂќ rollback.', 'warning');
+          notify('Workspace временно в cooldown — открыт legacy modal как rollback.', 'warning');
           await options.openDialogDetails?.(ticketId, row || activeState.row);
         } else {
-          notify('Legacy modal Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂќР В Р’В»Р РЋР вЂ№Р РЋРІР‚РЋР РЋРІР‚ВР В Р вЂ¦: Р В РўвЂР В РЎвЂўР В Р’В¶Р В РўвЂР В РЎвЂР РЋРІР‚С™Р В Р’ВµР РЋР С“Р РЋР Р‰ Р В Р’В·Р В Р’В°Р В Р вЂ Р В Р’ВµР РЋР вЂљР РЋРІвЂљВ¬Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ workspace cooldown Р В РЎвЂР В Р’В»Р В РЎвЂ Р В РЎвЂР РЋР С“Р В РЎвЂ”Р РЋР вЂљР В Р’В°Р В Р вЂ Р РЋР Р‰Р РЋРІР‚С™Р В Р’Вµ Р В РЎвЂ”Р РЋР вЂљР В РЎвЂР РЋРІР‚РЋР В РЎвЂР В Р вЂ¦Р РЋРЎвЂњ Р В РўвЂР В Р’ВµР В РЎвЂ“Р РЋР вЂљР В Р’В°Р В РўвЂР В Р’В°Р РЋРІР‚В Р В РЎвЂР В РЎвЂ workspace.', 'warning');
+          notify('Legacy modal отключён: дождитесь завершения workspace cooldown или исправьте причину деградации workspace.', 'warning');
         }
         return;
       }
@@ -1164,11 +1164,11 @@
             cooldownMs: options.workspaceFailureCooldownMs,
             source,
           });
-          notify('Workspace Р В Р вЂ Р РЋР вЂљР В Р’ВµР В РЎВР В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р В РЎвЂў Р В РЎвЂ”Р В Р’ВµР РЋР вЂљР В Р’ВµР В Р вЂ Р В Р’ВµР В РўвЂР РЋРІР‚ВР В Р вЂ¦ Р В Р вЂ  cooldown Р В РЎвЂР В Р’В·-Р В Р’В·Р В Р’В° Р РЋР С“Р В Р’ВµР РЋР вЂљР В РЎвЂР В РЎвЂ Р В РЎвЂўР РЋРІвЂљВ¬Р В РЎвЂР В Р’В±Р В РЎвЂўР В РЎвЂќ. Р В Р’ВР РЋР С“Р В РЎвЂ”Р В РЎвЂўР В Р’В»Р РЋР Р‰Р В Р’В·Р РЋРЎвЂњР В Р’ВµР РЋРІР‚С™Р РЋР С“Р РЋР РЏ legacy-Р РЋР вЂљР В Р’ВµР В Р’В¶Р В РЎвЂР В РЎВ.', 'warning');
+          notify('Workspace временно переведён в cooldown из-за серии ошибок. Используется legacy-режим.', 'warning');
         }
         const fallbackAllowed = options.workspaceDisableLegacyFallback !== true;
         if (fallbackAllowed) {
-          notify('Workspace Р В Р вЂ Р РЋР вЂљР В Р’ВµР В РЎВР В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р В РЎвЂў Р В Р вЂ¦Р В Р’ВµР В РўвЂР В РЎвЂўР РЋР С“Р РЋРІР‚С™Р РЋРЎвЂњР В РЎвЂ”Р В Р’ВµР В Р вЂ¦ Р Р†Р вЂљРІР‚Сњ Р В Р вЂ Р РЋРІР‚в„–Р В РЎвЂ”Р В РЎвЂўР В Р’В»Р В Р вЂ¦Р В Р’ВµР В Р вЂ¦ rollback Р В Р вЂ  legacy modal.', 'warning');
+          notify('Workspace временно недоступен — выполнен rollback в legacy modal.', 'warning');
           await options.openDialogDetails?.(ticketId, row || activeState.row);
           return;
         }
@@ -1176,13 +1176,13 @@
           elements.workspaceShell.classList.remove('d-none');
           if (elements.workspaceMessagesState) {
             elements.workspaceMessagesState.classList.remove('d-none');
-            elements.workspaceMessagesState.textContent = 'Workspace Р В Р вЂ Р РЋР вЂљР В Р’ВµР В РЎВР В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р В РЎвЂў Р В Р вЂ¦Р В Р’ВµР В РўвЂР В РЎвЂўР РЋР С“Р РЋРІР‚С™Р РЋРЎвЂњР В РЎвЂ”Р В Р’ВµР В Р вЂ¦. Auto-fallback Р В Р вЂ  legacy Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂќР В Р’В»Р РЋР вЂ№Р РЋРІР‚РЋР РЋРІР‚ВР В Р вЂ¦ Р РЋРІР‚С™Р В Р’ВµР В РЎвЂќР РЋРЎвЂњР РЋРІР‚В°Р В РЎвЂР В РЎВ Р РЋР вЂљР В Р’ВµР В Р’В¶Р В РЎвЂР В РЎВР В РЎвЂўР В РЎВ rollout.';
+            elements.workspaceMessagesState.textContent = 'Workspace временно недоступен. Auto-fallback в legacy отключён текущим режимом rollout.';
           }
           if (elements.workspaceMessagesError) {
             elements.workspaceMessagesError.classList.remove('d-none');
           }
         }
-        notify('Legacy modal Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂќР В Р’В»Р РЋР вЂ№Р РЋРІР‚РЋР РЋРІР‚ВР В Р вЂ¦: auto-fallback Р В Р вЂ¦Р В Р’ВµР В РўвЂР В РЎвЂўР РЋР С“Р РЋРІР‚С™Р РЋРЎвЂњР В РЎвЂ”Р В Р’ВµР В Р вЂ¦. Р В РЎСџР РЋР вЂљР В РЎвЂўР В Р вЂ Р В Р’ВµР РЋР вЂљР РЋР Р‰Р РЋРІР‚С™Р В Р’Вµ telemetry workspace Р В РЎвЂ Р В РЎвЂР РЋР С“Р В РЎвЂ”Р РЋР вЂљР В Р’В°Р В Р вЂ Р РЋР Р‰Р РЋРІР‚С™Р В Р’Вµ Р В РЎвЂўР РЋРІвЂљВ¬Р В РЎвЂР В Р’В±Р В РЎвЂќР РЋРЎвЂњ Р В РЎвЂќР В РЎвЂўР В Р вЂ¦Р РЋРІР‚С™Р РЋР вЂљР В Р’В°Р В РЎвЂќР РЋРІР‚С™Р В Р’В°.', 'warning');
+        notify('Legacy modal отключён: auto-fallback недоступен. Проверьте telemetry workspace и исправьте ошибку контракта.', 'warning');
       }
     }
 
@@ -1206,17 +1206,17 @@
       const ordered = Array.from(new Set([...templateCategories, ...Array.from(selectedCategories)]));
       if (ordered.length === 0) {
         elements.workspaceCategoriesState.classList.remove('d-none');
-        elements.workspaceCategoriesState.textContent = 'Р В РЎв„ўР В Р’В°Р РЋРІР‚С™Р В Р’ВµР В РЎвЂ“Р В РЎвЂўР РЋР вЂљР В РЎвЂР В РЎвЂ Р В Р вЂ¦Р В Р’Вµ Р В Р вЂ¦Р В Р’В°Р РЋР С“Р РЋРІР‚С™Р РЋР вЂљР В РЎвЂўР В Р’ВµР В Р вЂ¦Р РЋРІР‚в„–.';
+        elements.workspaceCategoriesState.textContent = 'Категории не настроены.';
         elements.workspaceCategoriesList.classList.add('d-none');
         elements.workspaceCategoriesList.innerHTML = '';
         return;
       }
       elements.workspaceCategoriesState.classList.remove('d-none');
       elements.workspaceCategoriesState.textContent = !categoriesEnabled
-        ? 'Р В Р’ВР В Р’В·Р В РЎВР В Р’ВµР В Р вЂ¦Р В Р’ВµР В Р вЂ¦Р В РЎвЂР В Р’Вµ Р В РЎвЂќР В Р’В°Р РЋРІР‚С™Р В Р’ВµР В РЎвЂ“Р В РЎвЂўР РЋР вЂљР В РЎвЂР В РІвЂћвЂ“ Р В Р вЂ¦Р В Р’ВµР В РўвЂР В РЎвЂўР РЋР С“Р РЋРІР‚С™Р РЋРЎвЂњР В РЎвЂ”Р В Р вЂ¦Р В РЎвЂў Р В РўвЂР В Р’В»Р РЋР РЏ Р РЋРІР‚С™Р В Р’ВµР В РЎвЂќР РЋРЎвЂњР РЋРІР‚В°Р В Р’ВµР В РЎвЂ“Р В РЎвЂў Р В РўвЂР В РЎвЂР В Р’В°Р В Р’В»Р В РЎвЂўР В РЎвЂ“Р В Р’В°.'
+        ? 'Изменение категорий недоступно для текущего диалога.'
         : (selectedCategories.size > 0
-          ? `Р В РІР‚в„ўР РЋРІР‚в„–Р В Р’В±Р РЋР вЂљР В Р’В°Р В Р вЂ¦Р В РЎвЂў: ${selectedCategories.size}. Р В Р’ВР В Р’В·Р В РЎВР В Р’ВµР В Р вЂ¦Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ Р РЋР С“Р В РЎвЂўР РЋРІР‚В¦Р РЋР вЂљР В Р’В°Р В Р вЂ¦Р РЋР РЏР РЋР вЂ№Р РЋРІР‚С™Р РЋР С“Р РЋР РЏ Р В Р’В°Р В Р вЂ Р РЋРІР‚С™Р В РЎвЂўР В РЎВР В Р’В°Р РЋРІР‚С™Р В РЎвЂР РЋРІР‚РЋР В Р’ВµР РЋР С“Р В РЎвЂќР В РЎвЂ.`
-          : 'Р В РІР‚в„ўР РЋРІР‚в„–Р В Р’В±Р В Р’ВµР РЋР вЂљР В РЎвЂР РЋРІР‚С™Р В Р’Вµ Р РЋРІР‚В¦Р В РЎвЂўР РЋРІР‚С™Р РЋР РЏ Р В Р’В±Р РЋРІР‚в„– Р В РЎвЂўР В РўвЂР В Р вЂ¦Р РЋРЎвЂњ Р В РЎвЂќР В Р’В°Р РЋРІР‚С™Р В Р’ВµР В РЎвЂ“Р В РЎвЂўР РЋР вЂљР В РЎвЂР РЋР вЂ№ Р В РўвЂР В Р’В»Р РЋР РЏ Р В Р’В·Р В Р’В°Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™Р В РЎвЂР РЋР РЏ Р В РўвЂР В РЎвЂР В Р’В°Р В Р’В»Р В РЎвЂўР В РЎвЂ“Р В Р’В°.');
+          ? `Выбрано: ${selectedCategories.size}. Изменения сохраняются автоматически.`
+          : 'Выберите хотя бы одну категорию для закрытия диалога.');
       elements.workspaceCategoriesList.classList.remove('d-none');
       elements.workspaceCategoriesList.innerHTML = ordered.map((category) => {
         const selected = selectedCategories.has(category);
@@ -1456,7 +1456,7 @@
             <span class="badge ${policyBadgeClass}">${escapeHtml(String(safePolicy.status || 'unknown'))}</span>
             ${safePolicy.action ? `<span class="badge text-bg-light border">${escapeHtml(String(safePolicy.action))}</span>` : ''}
           </div>
-          ${policyMeta.length ? `<div class="small text-muted mt-1">${escapeHtml(policyMeta.join(' Р вЂ™Р’В· '))}</div>` : ''}
+          ${policyMeta.length ? `<div class="small text-muted mt-1">${escapeHtml(policyMeta.join(' · '))}</div>` : ''}
           ${safePolicy.summary ? `<div class="small text-muted mt-1">${escapeHtml(String(safePolicy.summary))}</div>` : ''}
           ${policyIssues.length ? `<div class="small text-warning mt-1">Issues: ${escapeHtml(policyIssues.join(', '))}</div>` : ''}
         </div>`;
@@ -1512,11 +1512,11 @@
     function workspaceContextViolationSeverityLabel(severity) {
       switch (String(severity || '').trim().toLowerCase()) {
         case 'high':
-          return 'Р В Р Р‹Р РЋР вЂљР В РЎвЂўР РЋРІР‚РЋР В Р вЂ¦Р В РЎвЂў';
+          return '??????';
         case 'medium':
-          return 'Р В РЎСљР РЋРЎвЂњР В Р’В¶Р В Р вЂ¦Р В РЎвЂў Р В РўвЂР В Р’ВµР В РІвЂћвЂ“Р РЋР С“Р РЋРІР‚С™Р В Р вЂ Р В РЎвЂР В Р’Вµ';
+          return 'Нужно действие';
         default:
-          return 'Р В РЎв„ў Р РЋР С“Р В Р вЂ Р В Р’ВµР В РўвЂР В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР вЂ№';
+          return 'К сведению';
       }
     }
 
@@ -1555,7 +1555,7 @@
         .replace(/[_-]+/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
-        .replace(/^./, (char) => char.toUpperCase()) || 'Р В РЎвЂ™Р РЋРІР‚С™Р РЋР вЂљР В РЎвЂР В Р’В±Р РЋРЎвЂњР РЋРІР‚С™';
+        .replace(/^./, (char) => char.toUpperCase()) || 'Атрибут';
     }
 
     function normalizeWorkspaceClientAttributeKey(key) {
@@ -1615,25 +1615,25 @@
 
     function renderWorkspaceClientProfile(client, context = {}) {
       if (!client || typeof client !== 'object') {
-        return '<div class="small text-muted">Р В РЎСџР РЋР вЂљР В РЎвЂўР РЋРІР‚С›Р В РЎвЂР В Р’В»Р РЋР Р‰ Р В РЎвЂќР В Р’В»Р В РЎвЂР В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р В Р’В° Р В Р вЂ¦Р В Р’ВµР В РўвЂР В РЎвЂўР РЋР С“Р РЋРІР‚С™Р РЋРЎвЂњР В РЎвЂ”Р В Р’ВµР В Р вЂ¦.</div>';
+        return '<div class="small text-muted">Профиль клиента недоступен.</div>';
       }
       const fields = [
         ['ID', client.id],
         ['Username', client.username],
-        ['Р В Р Р‹Р РЋРІР‚С™Р В Р’В°Р РЋРІР‚С™Р РЋРЎвЂњР РЋР С“', client.status],
-        ['Р В РЎв„ўР В Р’В°Р В Р вЂ¦Р В Р’В°Р В Р’В»', client.channel],
-        ['Р В РІР‚ВР В РЎвЂР В Р’В·Р В Р вЂ¦Р В Р’ВµР РЋР С“', client.business],
-        ['Р В РІР‚С”Р В РЎвЂўР В РЎвЂќР В Р’В°Р РЋРІР‚В Р В РЎвЂР РЋР РЏ', client.location],
-        ['Р В РЎвЂєР РЋРІР‚С™Р В Р вЂ Р В Р’ВµР РЋРІР‚С™Р РЋР С“Р РЋРІР‚С™Р В Р вЂ Р В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р РЋРІР‚в„–Р В РІвЂћвЂ“', client.responsible],
-        ['Р В РЎСљР В Р’ВµР В РЎвЂ”Р РЋР вЂљР В РЎвЂўР РЋРІР‚РЋР В РЎвЂР РЋРІР‚С™Р В Р’В°Р В Р вЂ¦Р В Р вЂ¦Р РЋРІР‚в„–Р В Р’Вµ', client.unread_count],
-        ['Р В РЎвЂєР РЋРІР‚В Р В Р’ВµР В Р вЂ¦Р В РЎвЂќР В Р’В°', client.rating],
-        ['Р В РЎСџР В РЎвЂўР РЋР С“Р В Р’В»Р В Р’ВµР В РўвЂР В Р вЂ¦Р В Р’ВµР В Р’Вµ Р РЋР С“Р В РЎвЂўР В РЎвЂўР В Р’В±Р РЋРІР‚В°Р В Р’ВµР В Р вЂ¦Р В РЎвЂР В Р’Вµ', formatWorkspaceDateTime(client.last_message_at)],
-        ['Р В РІР‚в„ўР РЋР С“Р В Р’ВµР В РЎвЂ“Р В РЎвЂў Р В РўвЂР В РЎвЂР В Р’В°Р В Р’В»Р В РЎвЂўР В РЎвЂ“Р В РЎвЂўР В Р вЂ ', client.total_dialogs],
-        ['Р В РЎвЂєР РЋРІР‚С™Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™Р РЋРІР‚в„–Р РЋРІР‚В¦ Р В РўвЂР В РЎвЂР В Р’В°Р В Р’В»Р В РЎвЂўР В РЎвЂ“Р В РЎвЂўР В Р вЂ ', client.open_dialogs],
-        ['Р В РІР‚вЂќР В Р’В°Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™Р В РЎвЂў Р В Р’В·Р В Р’В° 30 Р В РўвЂР В Р вЂ¦Р В Р’ВµР В РІвЂћвЂ“', client.resolved_30d],
-        ['Р В РЎСџР В Р’ВµР РЋР вЂљР В Р вЂ Р В РЎвЂўР В Р’Вµ Р В РЎвЂўР В Р’В±Р РЋР вЂљР В Р’В°Р РЋРІР‚В°Р В Р’ВµР В Р вЂ¦Р В РЎвЂР В Р’Вµ', formatWorkspaceDateTime(client.first_seen_at)],
-        ['Р В РЎСџР В РЎвЂўР РЋР С“Р В Р’В»Р В Р’ВµР В РўвЂР В Р вЂ¦Р РЋР РЏР РЋР РЏ Р В Р’В°Р В РЎвЂќР РЋРІР‚С™Р В РЎвЂР В Р вЂ Р В Р вЂ¦Р В РЎвЂўР РЋР С“Р РЋРІР‚С™Р РЋР Р‰ Р РЋРІР‚С™Р В РЎвЂР В РЎвЂќР В Р’ВµР РЋРІР‚С™Р В Р’В°', formatWorkspaceDateTime(client.last_ticket_activity_at)],
-        ['Р В Р вЂЎР В Р’В·Р РЋРІР‚в„–Р В РЎвЂќ', client.language],
+        ['РЎС‚Р°С‚СѓСЃ', client.status],
+        ['РљР°РЅР°Р»', client.channel],
+        ['Бизнес', client.business],
+        ['Локация', client.location],
+        ['Ответственный', client.responsible],
+        ['Непрочитанные', client.unread_count],
+        ['РћС†РµРЅРєР°', client.rating],
+        ['Последнее сообщение', formatWorkspaceDateTime(client.last_message_at)],
+        ['Всего диалогов', client.total_dialogs],
+        ['Открытых диалогов', client.open_dialogs],
+        ['Р—Р°РєСЂС‹С‚Рѕ Р·Р° 30 РґРЅРµР№', client.resolved_30d],
+        ['Первое обращение', formatWorkspaceDateTime(client.first_seen_at)],
+        ['Последняя активность тикета', formatWorkspaceDateTime(client.last_ticket_activity_at)],
+        ['РЇР·С‹Рє', client.language],
       ];
       const reservedClientKeys = new Set([
         'id',
@@ -1677,13 +1677,13 @@
         : 0;
       const profileRuleSummary = [];
       if (totalRequiredProfileFields > 0) {
-        profileRuleSummary.push(`Р В РЎвЂєР В Р’В±Р РЋР РЏР В Р’В·Р В Р’В°Р РЋРІР‚С™Р В Р’ВµР В Р’В»Р РЋР Р‰Р В Р вЂ¦Р РЋРІР‚в„–Р РЋРІР‚В¦ Р В РЎвЂ”Р В РЎвЂўР В Р’В»Р В Р’ВµР В РІвЂћвЂ“: ${totalRequiredProfileFields}`);
+        profileRuleSummary.push(`Обязательных полей: ${totalRequiredProfileFields}`);
       }
       if (activeProfileSegments.length) {
-        profileRuleSummary.push(`Р В Р Р‹Р В Р’ВµР В РЎвЂ“Р В РЎВР В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р РЋРІР‚в„–: ${activeProfileSegments.join(', ')}`);
+        profileRuleSummary.push(`РЎРµРіРјРµРЅС‚С‹: ${activeProfileSegments.join(', ')}`);
       }
       const healthBanner = profileHealth && profileHealth.enabled === true
-        ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Р В РЎв„ўР В РЎвЂўР В Р вЂ¦Р РЋРІР‚С™Р В Р’ВµР В РЎвЂќР РЋР С“Р РЋРІР‚С™ Р В РЎвЂќР В Р’В»Р В РЎвЂР В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р В Р’В° Р В РЎвЂ“Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂўР В Р вЂ  (${Number(profileHealth.coverage_pct || 100)}%).` : `Р В РЎСљР РЋРЎвЂњР В Р’В¶Р В Р вЂ¦Р В РЎвЂў Р В РўвЂР В РЎвЂўР В Р’В·Р В Р’В°Р В РЎвЂ”Р В РЎвЂўР В Р’В»Р В Р вЂ¦Р В РЎвЂР РЋРІР‚С™Р РЋР Р‰ Р В РЎвЂќР В РЎвЂўР В Р вЂ¦Р РЋРІР‚С™Р В Р’ВµР В РЎвЂќР РЋР С“Р РЋРІР‚С™ (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'Р В Р вЂ¦Р В Р’ВµР РЋРІР‚С™ Р В РЎвЂўР В Р’В±Р РЋР РЏР В Р’В·Р В Р’В°Р РЋРІР‚С™Р В Р’ВµР В Р’В»Р РЋР Р‰Р В Р вЂ¦Р РЋРІР‚в„–Р РЋРІР‚В¦ Р В РЎвЂ”Р В РЎвЂўР В Р’В»Р В Р’ВµР В РІвЂћвЂ“')}.`}${profileRuleSummary.length ? `<div class="text-muted mt-1">${escapeHtml(profileRuleSummary.join(' Р вЂ™Р’В· '))}</div>` : ''}<div class="text-muted mt-1">Р В РЎСџР РЋР вЂљР В РЎвЂўР В Р вЂ Р В Р’ВµР РЋР вЂљР В Р’ВµР В Р вЂ¦Р В РЎвЂў: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at_utc || profileHealth.checked_at))}</div></div>`
+        ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Контекст клиента готов (${Number(profileHealth.coverage_pct || 100)}%).` : `Нужно дозаполнить контекст (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'нет обязательных полей')}.`}${profileRuleSummary.length ? `<div class="text-muted mt-1">${escapeHtml(profileRuleSummary.join(' · '))}</div>` : ''}<div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at_utc || profileHealth.checked_at))}</div></div>`
         : '';
       const profileMatchCandidates = context?.profile_match_candidates && typeof context.profile_match_candidates === 'object'
         ? context.profile_match_candidates
@@ -1697,8 +1697,8 @@
       const clientCardUrl = Number.isFinite(Number(client?.id)) ? `/client/${Number(client.id)}` : null;
       const profileMatchSection = profileMatchCandidates && profileMatchFields.length
         ? `<details class="mt-2"${profileMatchReviewFields.length ? ' open' : ''}>
-            <summary class="small fw-semibold">Р В Р Р‹Р В РЎвЂўР В РЎвЂ”Р В РЎвЂўР РЋР С“Р РЋРІР‚С™Р В Р’В°Р В Р вЂ Р В Р’В»Р В Р’ВµР В Р вЂ¦Р В РЎвЂР В Р’Вµ Р В РўвЂР В Р’В°Р В Р вЂ¦Р В Р вЂ¦Р РЋРІР‚в„–Р РЋРІР‚В¦ <span class="text-muted fw-normal">(${profileMatchReviewFields.length}/${profileMatchFields.length})</span></summary>
-            <div class="small text-muted mt-1">Р В РЎСџР РЋР вЂљР В РЎвЂўР В Р вЂ Р В Р’ВµР РЋР вЂљР РЋР Р‰Р РЋРІР‚С™Р В Р’Вµ Р В РЎвЂ”Р РЋР вЂљР В Р’ВµР В РўвЂР В Р’В»Р В РЎвЂўР В Р’В¶Р В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р РЋРІР‚в„–Р В Р’Вµ Р РЋР С“Р В РЎвЂўР В Р вЂ Р В РЎвЂ”Р В Р’В°Р В РўвЂР В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ Р В РЎвЂ”Р В РЎвЂў Р В Р’В±Р В РЎвЂР В Р’В·Р В Р вЂ¦Р В Р’ВµР РЋР С“Р РЋРЎвЂњ, Р В Р’В»Р В РЎвЂўР В РЎвЂќР В Р’В°Р РЋРІР‚В Р В РЎвЂР В РЎвЂ, Р В РЎвЂ“Р В РЎвЂўР РЋР вЂљР В РЎвЂўР В РўвЂР РЋРЎвЂњ Р В РЎвЂ Р РЋР С“Р РЋРІР‚С™Р РЋР вЂљР В Р’В°Р В Р вЂ¦Р В Р’Вµ.</div>
+            <summary class="small fw-semibold">????????????? ?????? <span class="text-muted fw-normal">(${profileMatchReviewFields.length}/${profileMatchFields.length})</span></summary>
+            <div class="small text-muted mt-1">Проверьте предложенные совпадения по бизнесу, локации, городу и стране.</div>
             <div class="d-flex flex-column gap-2 mt-2">
               ${profileMatchFields.map((field) => {
                 const incomingValue = String(field?.incoming_value || '').trim();
@@ -1710,16 +1710,16 @@
                     const matchType = String(candidate?.match_type || '').trim();
                     const confidence = Number(candidate?.confidence || 0);
                     const confidenceLabel = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : '';
-                    return `${escapeHtml(value)}${matchType ? ` (${escapeHtml(matchType)})` : ''}${confidenceLabel ? ` Р вЂ™Р’В· ${escapeHtml(confidenceLabel)}` : ''}`;
+                    return `${escapeHtml(value)}${matchType ? ` (${escapeHtml(matchType)})` : ''}${confidenceLabel ? ` · ${escapeHtml(confidenceLabel)}` : ''}`;
                   }).join('; ')
-                  : 'Р В Р вЂ¦Р В Р’ВµР РЋРІР‚С™ Р РЋР С“Р В РЎвЂўР В Р вЂ Р В РЎвЂ”Р В Р’В°Р В РўвЂР В Р’ВµР В Р вЂ¦Р В РЎвЂР В РІвЂћвЂ“';
+                  : 'нет совпадений';
                 return `<div class="border rounded px-2 py-1 bg-white">
-                    <div class="small"><span class="fw-semibold">${escapeHtml(label)}:</span> <span class="text-body">${escapeHtml(incomingValue || 'Р Р†Р вЂљРІР‚Сњ')}</span></div>
-                    <div class="small text-muted">Р В РЎв„ўР В Р’В°Р В Р вЂ¦Р В РўвЂР В РЎвЂР В РўвЂР В Р’В°Р РЋРІР‚С™Р РЋРІР‚в„–: ${candidateLine}</div>
+                    <div class="small"><span class="fw-semibold">${escapeHtml(label)}:</span> <span class="text-body">${escapeHtml(incomingValue || '—')}</span></div>
+                    <div class="small text-muted">Кандидаты: ${candidateLine}</div>
                   </div>`;
               }).join('')}
             </div>
-            ${clientCardUrl ? `<a class="btn btn-sm btn-outline-primary mt-2" href="${clientCardUrl}" target="_blank" rel="noopener noreferrer">Р В РЎвЂєР РЋРІР‚С™Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™Р РЋР Р‰ Р В РЎвЂќР В Р’В°Р РЋР вЂљР РЋРІР‚С™Р В РЎвЂўР РЋРІР‚РЋР В РЎвЂќР РЋРЎвЂњ Р В РЎвЂќР В Р’В»Р В РЎвЂР В Р’ВµР В Р вЂ¦Р РЋРІР‚С™Р В Р’В° Р В РўвЂР В Р’В»Р РЋР РЏ Р В РЎвЂ”Р РЋР вЂљР В Р’В°Р В Р вЂ Р В РЎвЂўР В РЎвЂќ</a>` : ''}
+            ${clientCardUrl ? `<a class="btn btn-sm btn-outline-primary mt-2" href="${clientCardUrl}" target="_blank" rel="noopener noreferrer">Открыть карточку клиента для правок</a>` : ''}
           </details>`
         : '';
 
@@ -1746,10 +1746,10 @@
       };
       const contextBlocksSection = contextBlocksHealth && contextBlocksHealth.enabled === true && contextBlocks.length
         ? `<div class="alert ${contextBlocksHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">
-            <div class="fw-semibold mb-1">Р В РЎСџР РЋР вЂљР В РЎвЂР В РЎвЂўР РЋР вЂљР В РЎвЂР РЋРІР‚С™Р В Р’ВµР РЋРІР‚С™ customer context</div>
+            <div class="fw-semibold mb-1">Приоритет customer context</div>
             <div>${contextBlocksHealth.ready
-              ? `Р В РІР‚в„ўР РЋР С“Р В Р’Вµ Р В РЎвЂўР В Р’В±Р РЋР РЏР В Р’В·Р В Р’В°Р РЋРІР‚С™Р В Р’ВµР В Р’В»Р РЋР Р‰Р В Р вЂ¦Р РЋРІР‚в„–Р В Р’Вµ Р В Р’В±Р В Р’В»Р В РЎвЂўР В РЎвЂќР В РЎвЂ Р В РЎвЂ“Р В РЎвЂўР РЋРІР‚С™Р В РЎвЂўР В Р вЂ Р РЋРІР‚в„– (${Number(contextBlocksHealth.coverage_pct || 100)}%).`
-              : `Р В РЎСџР В РЎвЂўР В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™Р В РЎвЂР В Р’Вµ Р В РЎвЂўР В Р’В±Р РЋР РЏР В Р’В·Р В Р’В°Р РЋРІР‚С™Р В Р’ВµР В Р’В»Р РЋР Р‰Р В Р вЂ¦Р РЋРІР‚в„–Р РЋРІР‚В¦ Р В Р’В±Р В Р’В»Р В РЎвЂўР В РЎвЂќР В РЎвЂўР В Р вЂ : ${Number(contextBlocksHealth.coverage_pct || 0)}%. Р В РЎСљР В Р’Вµ Р РЋРІР‚В¦Р В Р вЂ Р В Р’В°Р РЋРІР‚С™Р В Р’В°Р В Р’ВµР РЋРІР‚С™: ${escapeHtml((Array.isArray(contextBlocksHealth.missing_required_labels) ? contextBlocksHealth.missing_required_labels : []).join(', ') || 'Р Р†Р вЂљРІР‚Сњ')}.`}</div>
+              ? `Все обязательные блоки готовы (${Number(contextBlocksHealth.coverage_pct || 100)}%).`
+              : `Покрытие обязательных блоков: ${Number(contextBlocksHealth.coverage_pct || 0)}%. Не хватает: ${escapeHtml((Array.isArray(contextBlocksHealth.missing_required_labels) ? contextBlocksHealth.missing_required_labels : []).join(', ') || '—')}.`}</div>
             <div class="d-flex flex-column gap-2 mt-2">
               ${contextBlocks.map((block) => {
                 const meta = [];
@@ -1764,10 +1764,10 @@
                 }
                 return `<div class="border rounded px-2 py-1 bg-white">
                   <div class="d-flex flex-wrap align-items-center gap-2">
-                    <span class="fw-semibold">${escapeHtml(block.label || block.key || 'Р В РІР‚ВР В Р’В»Р В РЎвЂўР В РЎвЂќ')}</span>
+                    <span class="fw-semibold">${escapeHtml(block.label || block.key || 'Р‘Р»РѕРє')}</span>
                     <span class="badge ${contextBlockBadgeClass(block.status)}">${escapeHtml(String(block.status || 'unavailable'))}</span>
                   </div>
-                  ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' Р вЂ™Р’В· '))}</div>` : ''}
+                  ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
                   ${block.summary ? `<div class="small text-muted">${escapeHtml(String(block.summary))}</div>` : ''}
                 </div>`;
               }).join('')}
@@ -1858,13 +1858,13 @@
       const contextSourceRequiredCount = contextSources.filter((source) => source?.required === true).length;
       const contextSourcesSection = contextSources.length
         ? `<details class="mt-2" data-workspace-telemetry-section="context_sources" data-workspace-telemetry-items="${contextSources.length}" data-workspace-telemetry-required="${contextSourceRequiredCount}" data-workspace-telemetry-gaps="${contextSourceIssueCount}" data-workspace-telemetry-hidden="0"${contextSourceIssueCount > 0 ? ' open' : ''}>
-            <summary class="small fw-semibold">Р В Р’ВР РЋР С“Р РЋРІР‚С™Р В РЎвЂўР РЋРІР‚РЋР В Р вЂ¦Р В РЎвЂР В РЎвЂќР В РЎвЂ Р В РЎвЂќР В РЎвЂўР В Р вЂ¦Р РЋРІР‚С™Р В Р’ВµР В РЎвЂќР РЋР С“Р РЋРІР‚С™Р В Р’В° <span class="text-muted fw-normal">(${contextSources.length}; required ${contextSourceRequiredCount}; gaps ${contextSourceIssueCount})</span></summary>
-            <div class="small text-muted mt-1">Р В Р Р‹Р В Р вЂ Р В Р’ВµР РЋР вЂљР В Р вЂ¦Р РЋРЎвЂњР РЋРІР‚С™Р В РЎвЂў Р В РЎвЂ”Р В РЎвЂў Р РЋРЎвЂњР В РЎВР В РЎвЂўР В Р’В»Р РЋРІР‚РЋР В Р’В°Р В Р вЂ¦Р В РЎвЂР РЋР вЂ№, Р РЋРІР‚РЋР РЋРІР‚С™Р В РЎвЂўР В Р’В±Р РЋРІР‚в„– primary customer-context Р В РЎвЂўР РЋР С“Р РЋРІР‚С™Р В Р’В°Р В Р вЂ Р В Р’В°Р В Р’В»Р РЋР С“Р РЋР РЏ Р В Р вЂ Р РЋРІР‚в„–Р РЋРІвЂљВ¬Р В Р’Вµ policy-Р РЋРІвЂљВ¬Р РЋРЎвЂњР В РЎВР В Р’В°.</div>
+            <summary class="small fw-semibold">Источники контекста <span class="text-muted fw-normal">(${contextSources.length}; required ${contextSourceRequiredCount}; gaps ${contextSourceIssueCount})</span></summary>
+            <div class="small text-muted mt-1">???????? ?? ?????????, ????? primary customer-context ????????? ???? policy-????.</div>
             <div class="d-flex flex-column gap-2 mt-2">
               ${contextSources.map((source) => {
                 const meta = [];
                 if (Number.isFinite(Number(source.matched_attribute_count)) && Number(source.matched_attribute_count) > 0) {
-                  meta.push(`${Number(source.matched_attribute_count)} Р В Р’В°Р РЋРІР‚С™Р РЋР вЂљ.`);
+                  meta.push(`${Number(source.matched_attribute_count)} Р°С‚СЂ.`);
                 }
                 if (source.updated_at_utc) {
                   meta.push(`UTC ${formatWorkspaceDateTime(source.updated_at_utc)}`);
@@ -1872,15 +1872,15 @@
                   meta.push(`invalid: ${String(source.updated_at_raw).trim()}`);
                 }
                 if (source.linked === true) {
-                  meta.push('Р В Р’ВµР РЋР С“Р РЋРІР‚С™Р РЋР Р‰ Р РЋР С“Р РЋР С“Р РЋРІР‚в„–Р В Р’В»Р В РЎвЂќР В Р’В°');
+                  meta.push('РµСЃС‚СЊ СЃСЃС‹Р»РєР°');
                 }
                 return `<div class="border rounded px-2 py-1">
                   <div class="d-flex flex-wrap align-items-center gap-2">
-                    <span class="fw-semibold">${escapeHtml(source.label || source.key || 'Р В Р’ВР РЋР С“Р РЋРІР‚С™Р В РЎвЂўР РЋРІР‚РЋР В Р вЂ¦Р В РЎвЂР В РЎвЂќ')}</span>
+                    <span class="fw-semibold">${escapeHtml(source.label || source.key || 'Источник')}</span>
                     <span class="badge ${sourceBadgeClass(source.status)}">${escapeHtml(sourceStatusLabel(source.status))}</span>
                     ${source.required === true ? '<span class="badge text-bg-light border">required</span>' : ''}
                   </div>
-                  ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' Р вЂ™Р’В· '))}</div>` : ''}
+                  ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
                   ${source.summary ? `<div class="small text-muted">${escapeHtml(String(source.summary))}</div>` : ''}
                 </div>`;
               }).join('')}
@@ -1928,7 +1928,7 @@
       const attributePoliciesSection = attributePolicies.length
         ? `<details class="mt-2" data-workspace-telemetry-section="attribute_policy" data-workspace-telemetry-items="${attributePolicies.length}" data-workspace-telemetry-required="${attributePolicyRequiredCount}" data-workspace-telemetry-gaps="${attributePolicyIssueCount}" data-workspace-telemetry-hidden="0"${attributePolicyIssueCount > 0 ? ' open' : ''}>
             <summary class="small fw-semibold">Source / freshness policy <span class="text-muted fw-normal">(${attributePolicies.length}; required ${attributePolicyRequiredCount}; gaps ${attributePolicyIssueCount})</span></summary>
-            <div class="small text-muted mt-1">Р В РІР‚в„ўР РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В РЎвЂР РЋРІР‚РЋР В Р вЂ¦Р РЋРІР‚в„–Р В Р’Вµ policy-Р В РўвЂР В Р’ВµР РЋРІР‚С™Р В Р’В°Р В Р’В»Р В РЎвЂ Р РЋР вЂљР В Р’В°Р РЋР С“Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р В Р вЂ Р В Р’В°Р РЋР вЂ№Р РЋРІР‚С™Р РЋР С“Р РЋР РЏ Р В РЎвЂўР РЋРІР‚С™Р В РўвЂР В Р’ВµР В Р’В»Р РЋР Р‰Р В Р вЂ¦Р В РЎвЂў, Р РЋРІР‚РЋР РЋРІР‚С™Р В РЎвЂўР В Р’В±Р РЋРІР‚в„– Р В Р вЂ¦Р В Р’Вµ Р В РЎвЂќР В РЎвЂўР В Р вЂ¦Р В РЎвЂќР РЋРЎвЂњР РЋР вЂљР В РЎвЂР РЋР вЂљР В РЎвЂўР В Р вЂ Р В Р’В°Р РЋРІР‚С™Р РЋР Р‰ Р РЋР С“ action-oriented contract summary.</div>
+            <div class="small text-muted mt-1">Вторичные policy-детали раскрываются отдельно, чтобы не конкурировать с action-oriented contract summary.</div>
             <div class="d-flex flex-column gap-2 mt-2">
               ${attributePolicies.map((policy) => {
                 const meta = [];
@@ -1951,7 +1951,7 @@
                     <span class="badge ${attributePolicyBadgeClass(policy.status)}">${escapeHtml(attributePolicyStatusLabel(policy.status))}</span>
                     ${policy.required === true ? '<span class="badge text-bg-light border">required</span>' : ''}
                   </div>
-                  ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' Р вЂ™Р’В· '))}</div>` : ''}
+                  ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
                   ${policy.summary ? `<div class="small text-muted">${escapeHtml(String(policy.summary))}</div>` : ''}
                 </div>`;
               }).join('')}
@@ -1983,9 +1983,9 @@
           </div>
           <div class="mt-1 fw-semibold">${escapeHtml(detail.shortLabel || detail.operatorMessage)}</div>
           <div class="small text-muted mt-1">${escapeHtml(detail.operatorMessage)}</div>
-          ${detail.nextStep ? `<div class="small mt-1"><span class="text-muted">Р В Р Р‹Р В Р’В»Р В Р’ВµР В РўвЂР РЋРЎвЂњР РЋР вЂ№Р РЋРІР‚В°Р В РЎвЂР В РІвЂћвЂ“ Р РЋРІвЂљВ¬Р В Р’В°Р В РЎвЂ“:</span> ${escapeHtml(detail.nextStep)}</div>` : ''}
+          ${detail.nextStep ? `<div class="small mt-1"><span class="text-muted">????????? ???:</span> ${escapeHtml(detail.nextStep)}</div>` : ''}
           ${detail.playbookUrl
-            ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.actionLabel || detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">Р вЂ™Р’В· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
+            ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.actionLabel || detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
             : ''}
         </div>`;
       const violationActionsSection = contract.ready === true || contractViolationDetails.length === 0
@@ -1993,7 +1993,7 @@
         : `<div class="d-flex flex-column gap-2 mt-2">
             ${primaryViolationCards.map((detail) => renderViolationCard(detail)).join('')}
             ${extraViolationCards.length
-              ? `<details${progressiveDisclosureReady ? '' : ' open'}><summary class="small text-muted">Р В РЎСџР В РЎвЂўР В РЎвЂќР В Р’В°Р В Р’В·Р В Р’В°Р РЋРІР‚С™Р РЋР Р‰ Р В Р’ВµР РЋРІР‚В°Р РЋРІР‚В ${deferredViolationCount}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
+              ? `<details${progressiveDisclosureReady ? '' : ' open'}><summary class="small text-muted">РџРѕРєР°Р·Р°С‚СЊ РµС‰С‘ ${deferredViolationCount}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
               : ''}
           </div>`;
       const contextContractSection = contract && contract.enabled === true
@@ -2008,25 +2008,25 @@
               ? `<div class="mt-1"><span class="text-muted">Operator first:</span> ${escapeHtml(focusBlocks.join(', '))}</div>`
               : ''}
             ${contractNextStepSummary
-              ? `<div class="mt-1"><span class="text-muted">Р В Р’В§Р РЋРІР‚С™Р В РЎвЂў Р РЋР С“Р В РўвЂР В Р’ВµР В Р’В»Р В Р’В°Р РЋРІР‚С™Р РЋР Р‰:</span> ${escapeHtml(contractNextStepSummary)}</div>`
+              ? `<div class="mt-1"><span class="text-muted">Р§С‚Рѕ СЃРґРµР»Р°С‚СЊ:</span> ${escapeHtml(contractNextStepSummary)}</div>`
               : (Array.isArray(contract.action_items) && contract.action_items.length
-                ? `<div class="mt-1"><span class="text-muted">Р В Р’В§Р РЋРІР‚С™Р В РЎвЂў Р РЋР С“Р В РўвЂР В Р’ВµР В Р’В»Р В Р’В°Р РЋРІР‚С™Р РЋР Р‰:</span> ${escapeHtml(contract.action_items[0])}</div>`
+                ? `<div class="mt-1"><span class="text-muted">Р§С‚Рѕ СЃРґРµР»Р°С‚СЊ:</span> ${escapeHtml(contract.action_items[0])}</div>`
                 : '')}
             ${deferredViolationCount > 0
-              ? `<div class="mt-1 text-muted">Р В РЎвЂєР РЋР С“Р РЋРІР‚С™Р В Р’В°Р В Р’В»Р РЋР Р‰Р В Р вЂ¦Р РЋРІР‚в„–Р В Р’Вµ Р В РўвЂР В Р’ВµР РЋРІР‚С™Р В Р’В°Р В Р’В»Р В РЎвЂ Р РЋР С“Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™Р РЋРІР‚в„– Р В РўвЂР В РЎвЂў Р РЋР вЂљР В Р’В°Р РЋР С“Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™Р В РЎвЂР РЋР РЏ: ${deferredViolationCount}.</div>`
+              ? `<div class="mt-1 text-muted">Остальные детали скрыты до раскрытия: ${deferredViolationCount}.</div>`
               : ''}
             ${violationActionsSection}
-            <div class="text-muted mt-1">Р В РЎСџР РЋР вЂљР В РЎвЂўР В Р вЂ Р В Р’ВµР РЋР вЂљР В Р’ВµР В Р вЂ¦Р В РЎвЂў: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
+            <div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
           </div>`
         : '';
 
       const extraSection = expandedRows || collapsedRows
         ? `<details class="mt-2" data-workspace-telemetry-section="extra_attributes" data-workspace-telemetry-items="${limitedExtraEntries.length}" data-workspace-telemetry-required="0" data-workspace-telemetry-gaps="0" data-workspace-telemetry-hidden="${hiddenByLimitCount}">
-            <summary class="small fw-semibold">Р В РІР‚СњР В РЎвЂўР В РЎвЂ”. Р В Р’В°Р РЋРІР‚С™Р РЋР вЂљР В РЎвЂР В Р’В±Р РЋРЎвЂњР РЋРІР‚С™Р РЋРІР‚в„– <span class="text-muted fw-normal">(${extraAttributeTotalCount}; visible ${limitedExtraEntries.length}${hiddenByLimitCount > 0 ? `; hidden ${hiddenByLimitCount}` : ''})</span></summary>
-            <div class="small text-muted mt-1">Р В РІР‚в„ўР РЋРІР‚С™Р В РЎвЂўР РЋР вЂљР В РЎвЂўР РЋР С“Р РЋРІР‚С™Р В Р’ВµР В РЎвЂ”Р В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р РЋРІР‚в„–Р В Р’Вµ Р В РЎвЂ”Р В РЎвЂўР В Р’В»Р РЋР РЏ Р РЋР С“Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™Р РЋРІР‚в„– Р В РўвЂР В РЎвЂў Р РЋР вЂљР В Р’В°Р РЋР С“Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™Р В РЎвЂР РЋР РЏ, Р РЋРІР‚РЋР РЋРІР‚С™Р В РЎвЂўР В Р’В±Р РЋРІР‚в„– Р В Р вЂ¦Р В Р’Вµ Р В РЎвЂќР В РЎвЂўР В Р вЂ¦Р В РЎвЂќР РЋРЎвЂњР РЋР вЂљР В РЎвЂР РЋР вЂљР В РЎвЂўР В Р вЂ Р В Р’В°Р РЋРІР‚С™Р РЋР Р‰ Р РЋР С“ customer-context contract.</div>
+            <summary class="small fw-semibold">Доп. атрибуты <span class="text-muted fw-normal">(${extraAttributeTotalCount}; visible ${limitedExtraEntries.length}${hiddenByLimitCount > 0 ? `; hidden ${hiddenByLimitCount}` : ''})</span></summary>
+            <div class="small text-muted mt-1">Второстепенные поля скрыты до раскрытия, чтобы не конкурировать с customer-context contract.</div>
             <div class="mt-2">${expandedRows}</div>
-            ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">Р В РЎСџР В РЎвЂўР В РЎвЂќР В Р’В°Р В Р’В·Р В Р’В°Р РЋРІР‚С™Р РЋР Р‰ Р В Р’ВµР РЋРІР‚В°Р РЋРІР‚В ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
-            ${hiddenByLimitCount > 0 ? `<div class="small text-muted mt-1">Р В Р Р‹Р В РЎвЂќР РЋР вЂљР РЋРІР‚в„–Р РЋРІР‚С™Р В РЎвЂў Р В РЎвЂ”Р В РЎвЂў Р В Р’В»Р В РЎвЂР В РЎВР В РЎвЂР РЋРІР‚С™Р РЋРЎвЂњ: ${hiddenByLimitCount}.</div>` : ''}
+            ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">РџРѕРєР°Р·Р°С‚СЊ РµС‰С‘ ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
+            ${hiddenByLimitCount > 0 ? `<div class="small text-muted mt-1">?????? ?? ??????: ${hiddenByLimitCount}.</div>` : ''}
           </details>`
         : '';
 
@@ -2038,7 +2038,7 @@
             if (!url || !(url.startsWith('http://') || url.startsWith('https://'))) {
               return '';
             }
-            const label = String(item.label || 'Р В РЎСџР РЋР вЂљР В РЎвЂўР РЋРІР‚С›Р В РЎвЂР В Р’В»Р РЋР Р‰').trim() || 'Р В РЎСџР РЋР вЂљР В РЎвЂўР РЋРІР‚С›Р В РЎвЂР В Р’В»Р РЋР Р‰';
+            const label = String(item.label || 'Профиль').trim() || 'Профиль';
             return `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
           })
           .filter(Boolean)
@@ -2047,7 +2047,7 @@
         ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
         : '';
 
-      return `<div class="small"><strong>${escapeHtml(client.name || 'Р Р†Р вЂљРІР‚Сњ')}</strong></div>${profileMatchSection}${healthBanner}${contextBlocksSection}${contextContractSection}${rows || '<div class="small text-muted">Р В РІР‚СњР В РЎвЂўР В РЎвЂ”Р В РЎвЂўР В Р’В»Р В Р вЂ¦Р В РЎвЂР РЋРІР‚С™Р В Р’ВµР В Р’В»Р РЋР Р‰Р В Р вЂ¦Р РЋРІР‚в„–Р В Р’Вµ Р В Р’В°Р РЋРІР‚С™Р РЋР вЂљР В РЎвЂР В Р’В±Р РЋРЎвЂњР РЋРІР‚С™Р РЋРІР‚в„– Р В РЎвЂўР РЋРІР‚С™Р РЋР С“Р РЋРЎвЂњР РЋРІР‚С™Р РЋР С“Р РЋРІР‚С™Р В Р вЂ Р РЋРЎвЂњР РЋР вЂ№Р РЋРІР‚С™.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
+      return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${profileMatchSection}${healthBanner}${contextBlocksSection}${contextContractSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
     }
 
     function renderWorkspaceClientSection(context) {
@@ -2075,11 +2075,11 @@
         if (elements.workspaceHistoryContent) {
           elements.workspaceHistoryContent.classList.remove('d-none');
           elements.workspaceHistoryContent.innerHTML = renderWorkspaceSimpleList(contextHistory, (item) => {
-            const ticketId = escapeHtml(item.ticket_id || item.ticketId || 'Р Р†Р вЂљРІР‚Сњ');
-            const status = escapeHtml(item.status || 'Р Р†Р вЂљРІР‚Сњ');
+            const ticketId = escapeHtml(item.ticket_id || item.ticketId || '—');
+            const status = escapeHtml(item.status || '—');
             const createdAt = escapeHtml(formatWorkspaceDateTime(item.created_at || item.createdAt));
-            const problem = escapeHtml(item.problem || 'Р В РІР‚ВР В Р’ВµР В Р’В· Р В РЎвЂўР В РЎвЂ”Р В РЎвЂР РЋР С“Р В Р’В°Р В Р вЂ¦Р В РЎвЂР РЋР РЏ');
-            return `<div><strong>#${ticketId}</strong> Р вЂ™Р’В· <span class="text-muted">${status}</span></div><div class="text-muted">${createdAt}</div><div>${problem}</div>`;
+            const problem = escapeHtml(item.problem || 'Без описания');
+            return `<div><strong>#${ticketId}</strong> · <span class="text-muted">${status}</span></div><div class="text-muted">${createdAt}</div><div>${problem}</div>`;
           });
         }
       } else {
@@ -2097,11 +2097,11 @@
         if (elements.workspaceRelatedEventsContent) {
           elements.workspaceRelatedEventsContent.classList.remove('d-none');
           elements.workspaceRelatedEventsContent.innerHTML = renderWorkspaceSimpleList(relatedEvents, (item) => {
-            const actor = escapeHtml(item.actor || 'Р В Р Р‹Р В РЎвЂР РЋР С“Р РЋРІР‚С™Р В Р’ВµР В РЎВР В Р’В°');
+            const actor = escapeHtml(item.actor || 'Система');
             const type = escapeHtml(item.type || 'event');
             const timestamp = escapeHtml(formatWorkspaceDateTime(item.timestamp));
-            const detail = escapeHtml(item.detail || 'Р Р†Р вЂљРІР‚Сњ');
-            return `<div><strong>${actor}</strong> Р вЂ™Р’В· <span class="text-muted">${type}</span></div><div class="text-muted">${timestamp}</div><div>${detail}</div>`;
+            const detail = escapeHtml(item.detail || '—');
+            return `<div><strong>${actor}</strong> · <span class="text-muted">${type}</span></div><div class="text-muted">${timestamp}</div><div>${detail}</div>`;
           });
         }
       } else {
@@ -2120,10 +2120,10 @@
           const remaining = formatWorkspaceSlaRemaining(sla.minutes_left);
           const policyMarkup = renderWorkspaceSlaPolicyMarkup(sla.policy);
           const escalationHint = sla.escalation_required === true
-            ? '<div class="small text-danger mt-1">Р В РЎС›Р РЋР вЂљР В Р’ВµР В Р’В±Р РЋРЎвЂњР В Р’ВµР РЋРІР‚С™Р РЋР С“Р РЋР РЏ Р РЋР РЉР РЋР С“Р В РЎвЂќР В Р’В°Р В Р’В»Р В Р’В°Р РЋРІР‚В Р В РЎвЂР РЋР РЏ: Р В РЎвЂўР В РЎвЂќР В Р вЂ¦Р В РЎвЂў SLA Р В РЎвЂќР РЋР вЂљР В РЎвЂР РЋРІР‚С™Р В РЎвЂР РЋРІР‚РЋР В Р вЂ¦Р В РЎвЂўР В Р’Вµ.</div>'
+            ? '<div class="small text-danger mt-1">Требуется эскалация: окно SLA критичное.</div>'
             : '';
           elements.workspaceSlaContent.classList.remove('d-none');
-          elements.workspaceSlaContent.innerHTML = `<div class="small">Р В Р Р‹Р В РЎвЂўР РЋР С“Р РЋРІР‚С™Р В РЎвЂўР РЋР РЏР В Р вЂ¦Р В РЎвЂР В Р’Вµ: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">Р В РІР‚СњР В РЎвЂў Р В РўвЂР В Р’ВµР В РўвЂР В Р’В»Р В Р’В°Р В РІвЂћвЂ“Р В Р вЂ¦Р В Р’В°: ${escapeHtml(remaining)}</div><div class="small text-muted">Р В РІР‚СњР В Р’ВµР В РўвЂР В Р’В»Р В Р’В°Р В РІвЂћвЂ“Р В Р вЂ¦: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}${policyMarkup}`;
+          elements.workspaceSlaContent.innerHTML = `<div class="small">?????????: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">?? ????????: ${escapeHtml(remaining)}</div><div class="small text-muted">???????: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}${policyMarkup}`;
         }
       } else {
         if (elements.workspaceSlaState) elements.workspaceSlaState.classList.add('d-none');
@@ -2151,14 +2151,14 @@
       const workspaceClient = context?.client && typeof context.client === 'object' ? context.client : {};
 
       options.setActiveDialogContext?.({
-        clientName: String(workspaceClient?.name || conversation?.clientName || conversation?.username || currentDialogContext.clientName || 'Р Р†Р вЂљРІР‚Сњ').trim() || 'Р Р†Р вЂљРІР‚Сњ',
+        clientName: String(workspaceClient?.name || conversation?.clientName || conversation?.username || currentDialogContext.clientName || '—').trim() || '—',
         clientUserId: String(workspaceClient?.id || options.getDialogUserId?.(conversation) || currentDialogContext.clientUserId || '').trim(),
-        operatorName: String(conversation?.responsible || options.operatorDisplayName || currentDialogContext.operatorName || 'Р В РЎвЂєР В РЎвЂ”Р В Р’ВµР РЋР вЂљР В Р’В°Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљ').trim() || 'Р В РЎвЂєР В РЎвЂ”Р В Р’ВµР РЋР вЂљР В Р’В°Р РЋРІР‚С™Р В РЎвЂўР РЋР вЂљ',
-        channelName: String(conversation?.channelName || workspaceClient?.channel || currentDialogContext.channelName || 'Р Р†Р вЂљРІР‚Сњ').trim() || 'Р Р†Р вЂљРІР‚Сњ',
-        business: String(conversation?.business || workspaceClient?.business || currentDialogContext.business || 'Р Р†Р вЂљРІР‚Сњ').trim() || 'Р Р†Р вЂљРІР‚Сњ',
-        location: String(workspaceClient?.location || conversation?.locationName || conversation?.city || currentDialogContext.location || 'Р Р†Р вЂљРІР‚Сњ').trim() || 'Р Р†Р вЂљРІР‚Сњ',
-        status: String(conversation?.statusLabel || conversation?.status || currentDialogContext.status || 'Р Р†Р вЂљРІР‚Сњ').trim() || 'Р Р†Р вЂљРІР‚Сњ',
-        createdAt: formatWorkspaceDateTime(conversation?.createdAt || conversation?.created_at || currentDialogContext.createdAt || 'Р Р†Р вЂљРІР‚Сњ'),
+        operatorName: String(conversation?.responsible || options.operatorDisplayName || currentDialogContext.operatorName || 'РћРїРµСЂР°С‚РѕСЂ').trim() || 'РћРїРµСЂР°С‚РѕСЂ',
+        channelName: String(conversation?.channelName || workspaceClient?.channel || currentDialogContext.channelName || '—').trim() || '—',
+        business: String(conversation?.business || workspaceClient?.business || currentDialogContext.business || '—').trim() || '—',
+        location: String(workspaceClient?.location || conversation?.locationName || conversation?.city || currentDialogContext.location || '—').trim() || '—',
+        status: String(conversation?.statusLabel || conversation?.status || currentDialogContext.status || '—').trim() || '—',
+        createdAt: formatWorkspaceDateTime(conversation?.createdAt || conversation?.created_at || currentDialogContext.createdAt || '—'),
       });
 
       const readonlyReason = options.resolveWorkspaceReadonlyReason?.(permissions);
@@ -2191,13 +2191,13 @@
       if (elements.workspaceReplyTargetClear) elements.workspaceReplyTargetClear.disabled = !canReplyInWorkspace || composer.reply_target_supported === false;
 
       if (elements.workspaceConversationTitle) {
-        elements.workspaceConversationTitle.textContent = `Р В РІР‚СњР В РЎвЂР В Р’В°Р В Р’В»Р В РЎвЂўР В РЎвЂ“ #${conversation.ticketId || 'Р Р†Р вЂљРІР‚Сњ'}`;
+        elements.workspaceConversationTitle.textContent = `Диалог #${conversation.ticketId || '—'}`;
       }
       if (elements.workspaceConversationMeta) {
-        const status = conversation.statusLabel || conversation.status || 'Р Р†Р вЂљРІР‚Сњ';
-        const assignee = conversation.responsible || 'Р В Р’В±Р В Р’ВµР В Р’В· Р В РЎвЂўР РЋРІР‚С™Р В Р вЂ Р В Р’ВµР РЋРІР‚С™Р РЋР С“Р РЋРІР‚С™Р В Р вЂ Р В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р В РЎвЂўР В РЎвЂ“Р В РЎвЂў';
+        const status = conversation.statusLabel || conversation.status || '—';
+        const assignee = conversation.responsible || 'без ответственного';
         const createdAt = formatWorkspaceDateTime(conversation.createdAt || conversation.created_at);
-        elements.workspaceConversationMeta.textContent = `Р В Р Р‹Р РЋРІР‚С™Р В Р’В°Р РЋРІР‚С™Р РЋРЎвЂњР РЋР С“: ${status} Р вЂ™Р’В· Р В РЎвЂєР РЋРІР‚С™Р В Р вЂ Р В Р’ВµР РЋРІР‚С™Р РЋР С“Р РЋРІР‚С™Р В Р вЂ Р В Р’ВµР В Р вЂ¦Р В Р вЂ¦Р РЋРІР‚в„–Р В РІвЂћвЂ“: ${assignee} Р вЂ™Р’В· Р В Р Р‹Р В РЎвЂўР В Р’В·Р В РўвЂР В Р’В°Р В Р вЂ¦: ${createdAt}`;
+        elements.workspaceConversationMeta.textContent = `??????: ${status} ? ?????????????: ${assignee} ? ??????: ${createdAt}`;
       }
 
       renderWorkspaceNavigation(navigation);
@@ -2208,7 +2208,7 @@
         elements.workspaceMessagesState.classList.toggle('d-none', Array.isArray(messages.items) && messages.items.length > 0);
         elements.workspaceMessagesState.textContent = Array.isArray(messages.items) && messages.items.length > 0
           ? ''
-          : 'Р В Р Р‹Р В РЎвЂўР В РЎвЂўР В Р’В±Р РЋРІР‚В°Р В Р’ВµР В Р вЂ¦Р В РЎвЂР РЋР РЏ Р В РЎвЂўР РЋРІР‚С™Р РЋР С“Р РЋРЎвЂњР РЋРІР‚С™Р РЋР С“Р РЋРІР‚С™Р В Р вЂ Р РЋРЎвЂњР РЋР вЂ№Р РЋРІР‚С™ Р В РЎвЂР В Р’В»Р В РЎвЂ Р В Р’ВµР РЋРІР‚В°Р РЋРІР‚В Р В Р вЂ¦Р В Р’Вµ Р В Р’В·Р В Р’В°Р В РЎвЂ“Р РЋР вЂљР РЋРЎвЂњР В Р’В¶Р В Р’ВµР В Р вЂ¦Р РЋРІР‚в„–.';
+          : '????????? ??????????? ??? ??? ?? ?????????.';
       }
       if (elements.workspaceMessagesList) {
         const items = Array.isArray(messages.items) ? messages.items : [];

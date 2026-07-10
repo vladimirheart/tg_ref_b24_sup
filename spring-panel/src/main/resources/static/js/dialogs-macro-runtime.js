@@ -197,7 +197,7 @@
         { key: 'channel_name', label: 'Канал обращения' },
         { key: 'business', label: 'Бизнес-направление' },
         { key: 'location', label: 'Локация клиента' },
-        { key: 'dialog_status', label: 'Статус диалога' },
+        { key: 'dialog_status', label: '������ �������' },
         { key: 'created_at', label: 'Дата создания' },
         { key: 'current_date', label: 'Текущая дата' },
         { key: 'current_time', label: 'Текущее время' },

@@ -1947,7 +1947,7 @@ class DialogApiControllerWebMvcTest {
                         128L,
                         OffsetDateTime.parse("2026-01-01T10:00:00Z")
                 ));
-        when(dialogReplyService.sendMediaReply(eq("T-1"), org.mockito.ArgumentMatchers.any(), eq(null), eq("operator"), eq("stored-fun.gif"), eq("fun.gif")))
+        when(dialogReplyService.sendMediaReply(eq("T-1"), org.mockito.ArgumentMatchers.any(), eq(null), eq(null), eq("operator"), eq("stored-fun.gif"), eq("fun.gif")))
                 .thenReturn(new DialogReplyService.DialogMediaReplyResult(
                         true,
                         null,

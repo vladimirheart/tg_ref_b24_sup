@@ -128,7 +128,7 @@
       }
       if (elements.replyTargetText) {
         const safePreview = String(preview || '').trim();
-        elements.replyTargetText.textContent = safePreview || `Сообщение #${normalizedMessageId}`;
+        elements.replyTargetText.textContent = safePreview || `��������� #${normalizedMessageId}`;
       }
     }
 
@@ -282,12 +282,12 @@
       if (normalizedType.includes('audio')) return 'Аудио';
       if (normalizedType.includes('video')) return 'Видео';
       if (normalizedType.includes('animation')) return 'Анимация';
-      if (normalizedType.includes('sticker')) return 'Стикер';
+      if (normalizedType.includes('sticker')) return '������';
       if (normalizedType.includes('photo') || normalizedType.includes('image')) return 'Изображение';
       if (normalizedKind === 'audio') return 'Аудио';
       if (normalizedKind === 'video') return 'Видео';
       if (normalizedKind === 'animation') return 'Анимация';
-      if (normalizedKind === 'sticker') return 'Стикер';
+      if (normalizedKind === 'sticker') return '������';
       if (normalizedKind === 'image') return 'Изображение';
       return 'Файл';
     }
@@ -305,7 +305,7 @@
             <div class="chat-media-info-label">${escapeHtml(typeLabel)}</div>
             ${shouldShowFileName ? `<div class="chat-media-info-value">${escapeHtml(normalizedName)}</div>` : ''}
             <a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" download target="_blank" rel="noopener">
-              Скачать
+              �������
             </a>
           </div>
         </div>
@@ -491,7 +491,7 @@
         : '';
       let body = '';
       if (isDeleted) {
-        body = '<span class="text-muted">Сообщение удалено</span>';
+        body = '<span class="text-muted">��������� �������</span>';
       } else if (bodyText) {
         body = bodyText;
       } else if (fallbackType) {
@@ -500,7 +500,7 @@
         body = '—';
       }
       const originalBlock = isEdited && message?.originalMessage && message.originalMessage !== message.message
-        ? `<div class="small text-muted mt-1"><div>Было: ${escapeHtml(message.originalMessage)}</div><div>Стало: ${escapeHtml(message.message || '')}</div></div>`
+        ? `<div class="small text-muted mt-1"><div>����: ${escapeHtml(message.originalMessage)}</div><div>�����: ${escapeHtml(message.message || '')}</div></div>`
         : '';
       const statusBadges = [
         isEdited ? '<span class="chat-message-meta-badge">✏️ Изменено</span>' : '',
@@ -509,14 +509,14 @@
       ].join(' ');
       const media = isDeleted ? '' : buildMediaMarkup(message);
       const messagePreviewText = String(message?.replyPreview || message?.message || '').trim()
-        || (message?.attachment ? resolveAttachmentTypeLabel(message, mediaKind) : 'Сообщение');
+        || (message?.attachment ? resolveAttachmentTypeLabel(message, mediaKind) : '���������');
       const canReply = !archivedHistory && senderType !== 'system' && message?.telegramMessageId;
       const actionButtons = canReply
         ? `<div class="chat-message-menu">
             <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Действия с сообщением">⋯</button>
             <div class="chat-message-menu-list">
               <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
-              ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>` : ''}
+              ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>�������������</button>` : ''}
               ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
             </div>
           </div>`
@@ -678,7 +678,7 @@
           <div class="chat-history-archive-head">
             <div class="fw-semibold">Предыдущее обращение #${escapeHtml(ticketId)}</div>
             <div class="small text-muted">${escapeHtml(meta || 'Архивная переписка')}</div>
-            <div class="small text-muted">Статус: ${escapeHtml(status)}</div>
+            <div class="small text-muted">������: ${escapeHtml(status)}</div>
             <div class="small mt-1">${escapeHtml(problem)}</div>
           </div>
           <div class="d-flex flex-column gap-2 mt-3">
@@ -734,7 +734,7 @@
       const archivedMarkup = state.previousBatches.map(renderArchivedHistoryBatch).join('');
       const currentMarkup = currentMessages.length
         ? currentMessages.map((message) => messageToHtml(message)).join('')
-        : '<div class="text-muted">Сообщения не найдены.</div>';
+        : '<div class="text-muted">��������� �� �������.</div>';
       elements.detailsHistory.innerHTML = `${controlsMarkup}${archivedMarkup}${currentMarkup}`;
       hydrateMediaRoot(elements.detailsHistory);
       if (viewportSnapshot) {

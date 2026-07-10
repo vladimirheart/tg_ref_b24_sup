@@ -486,7 +486,7 @@
             notify('Не удалось определить клиента для блокировки', 'error');
             return;
           }
-          const defaultReason = `Спам в диалоге ${ticketId}`;
+          const defaultReason = `���� � ������� ${ticketId}`;
           const reasonInput = window.prompt('Причина блокировки клиента как спам:', defaultReason);
           if (reasonInput === null) {
             return;
