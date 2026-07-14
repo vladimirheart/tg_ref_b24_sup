@@ -45,7 +45,7 @@ public class RestExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex,
                                                                 HttpServletRequest request) {
         return build(HttpStatus.PAYLOAD_TOO_LARGE,
-                "Файл превышает допустимый размер загрузки (до 64 МБ)",
+                "Файл превышает допустимый размер загрузки (до 50 МБ)",
                 "FILE_TOO_LARGE",
                 request);
     }

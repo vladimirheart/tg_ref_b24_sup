@@ -5,28 +5,36 @@ import com.example.panel.repository.ChannelRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class DialogReplyTransportService {
+
+    private static final Logger log = LoggerFactory.getLogger(DialogReplyTransportService.class);
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
@@ -37,6 +45,12 @@ public class DialogReplyTransportService {
     private static final int MAX_ATTACHMENT_READY_RETRY_ATTEMPTS = 5;
     private static final long MAX_ATTACHMENT_READY_RETRY_DELAY_MILLIS = 500L;
     private static final Duration TELEGRAM_REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration TELEGRAM_MEDIA_REQUEST_TIMEOUT = Duration.ofSeconds(120);
+    private static final long TELEGRAM_MAX_DOCUMENT_BYTES = 50L * 1024L * 1024L;
+    private static final int TELEGRAM_MAX_CAPTION_LENGTH = 1024;
+    private static final int RESPONSE_BODY_LOG_LIMIT = 1000;
+    private static final String MULTIPART_BOUNDARY = "----BENDER-DIALOGS-BOUNDARY";
+    private static final String TELEGRAM_MEDIA_METHOD = "sendDocument";
 
     private final ChannelRepository channelRepository;
     private final IntegrationNetworkService integrationNetworkService;
@@ -61,14 +75,14 @@ public class DialogReplyTransportService {
                                                Long userId,
                                                String message,
                                                Long replyToTelegramId) {
-        String platform = channel.getPlatform() != null ? channel.getPlatform().trim().toLowerCase() : "telegram";
+        String platform = normalizePlatform(channel.getPlatform());
         return switch (platform) {
             case "vk" -> sendVkText(channel, userId, message)
                     ? DialogReplyTransportResult.success(null)
-                    : DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ VK.");
+                    : DialogReplyTransportResult.error("Не удалось отправить сообщение в VK.");
             case "max" -> sendMaxText(channel, userId, message)
                     ? DialogReplyTransportResult.success(null)
-                    : DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ MAX.");
+                    : DialogReplyTransportResult.error("Не удалось отправить сообщение в MAX.");
             default -> sendTelegramText(channel, userId, message, replyToTelegramId);
         };
     }
@@ -88,14 +102,14 @@ public class DialogReplyTransportService {
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
-                return "РћС€РёР±РєР° СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ СЃРѕРѕР±С‰РµРЅРёСЏ РІ Telegram.";
+                return "Ошибка редактирования сообщения в Telegram.";
             }
             return null;
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚СЂРµРґР°РєС‚РёСЂРѕРІР°С‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.";
+            return "Не удалось отредактировать сообщение в Telegram.";
         } catch (IOException ex) {
-            return "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚СЂРµРґР°РєС‚РёСЂРѕРІР°С‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.";
+            return "Не удалось отредактировать сообщение в Telegram.";
         }
     }
 
@@ -113,14 +127,14 @@ public class DialogReplyTransportService {
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
-                return "РћС€РёР±РєР° СѓРґР°Р»РµРЅРёСЏ СЃРѕРѕР±С‰РµРЅРёСЏ РІ Telegram.";
+                return "Ошибка удаления сообщения в Telegram.";
             }
             return null;
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return "РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.";
+            return "Не удалось удалить сообщение в Telegram.";
         } catch (IOException ex) {
-            return "РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.";
+            return "Не удалось удалить сообщение в Telegram.";
         }
     }
 
@@ -138,7 +152,7 @@ public class DialogReplyTransportService {
         if ("telegram".equals(platform)) {
             return sendTelegramMediaSafely(channel, userId, file, caption, originalName, replyToTelegramId);
         }
-        return DialogReplyTransportResult.error("РћС‚РїСЂР°РІРєР° РјРµРґРёР° РїРѕРєР° РїРѕРґРґРµСЂР¶РёРІР°РµС‚СЃСЏ С‚РѕР»СЊРєРѕ РґР»СЏ Telegram Рё MAX.");
+        return DialogReplyTransportResult.error("Отправка медиа пока поддерживается только для Telegram и MAX.");
     }
 
     private DialogReplyTransportResult sendTelegramText(Channel channel,
@@ -160,12 +174,12 @@ public class DialogReplyTransportService {
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            return resolveTelegramTransportResult(response, "РћС€РёР±РєР° РѕС‚РїСЂР°РІРєРё СЃРѕРѕР±С‰РµРЅРёСЏ РІ Telegram.");
+            return resolveTelegramTransportResult(response, "Ошибка отправки сообщения в Telegram.");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.");
+            return DialogReplyTransportResult.error("Не удалось отправить сообщение в Telegram.");
         } catch (IOException ex) {
-            return DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.");
+            return DialogReplyTransportResult.error("Не удалось отправить сообщение в Telegram.");
         }
     }
 
@@ -218,23 +232,43 @@ public class DialogReplyTransportService {
         if (userId == null) {
             return DialogReplyTransportResult.error("Не удалось определить получателя в Telegram.");
         }
-        String telegramSendError = "Не удалось отправить файл в Telegram.";
+        String normalizedCaption = normalizeCaption(caption);
+        String validationError = validateTelegramMedia(file, normalizedCaption);
+        if (validationError != null) {
+            return DialogReplyTransportResult.error(validationError);
+        }
+
+        String resolvedOriginalName = resolveOriginalFilename(file, originalName);
+        String sanitizedFilename = sanitizeMultipartFilename(resolvedOriginalName, file.getContentType());
+        String contentType = normalizeContentType(file.getContentType());
+        long fileSize = safeSize(file);
+
         try {
             return sendTelegramMediaDirect(
                     channel,
                     userId,
                     file,
-                    caption,
-                    originalName,
-                    replyToTelegramId
+                    normalizedCaption,
+                    replyToTelegramId,
+                    TELEGRAM_MEDIA_METHOD,
+                    resolvedOriginalName,
+                    sanitizedFilename,
+                    contentType,
+                    fileSize
             );
+        } catch (HttpTimeoutException ex) {
+            logTelegramMediaException(TELEGRAM_MEDIA_METHOD, userId, resolvedOriginalName, sanitizedFilename, contentType, fileSize, ex);
+            return DialogReplyTransportResult.error("Не удалось отправить файл в Telegram: превышено время ожидания загрузки.");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return DialogReplyTransportResult.error(telegramSendError);
+            logTelegramMediaException(TELEGRAM_MEDIA_METHOD, userId, resolvedOriginalName, sanitizedFilename, contentType, fileSize, ex);
+            return DialogReplyTransportResult.error("Не удалось отправить файл в Telegram. Проверьте сеть и повторите попытку.");
         } catch (IOException ex) {
-            return DialogReplyTransportResult.error(telegramSendError);
+            logTelegramMediaException(TELEGRAM_MEDIA_METHOD, userId, resolvedOriginalName, sanitizedFilename, contentType, fileSize, ex);
+            return DialogReplyTransportResult.error("Не удалось отправить файл в Telegram. Проверьте сеть и повторите попытку.");
         } catch (RuntimeException ex) {
-            return DialogReplyTransportResult.error(telegramSendError);
+            logTelegramMediaException(TELEGRAM_MEDIA_METHOD, userId, resolvedOriginalName, sanitizedFilename, contentType, fileSize, ex);
+            return DialogReplyTransportResult.error("Не удалось отправить файл в Telegram. Проверьте сеть и повторите попытку.");
         }
     }
 
@@ -242,91 +276,40 @@ public class DialogReplyTransportService {
                                                                Long userId,
                                                                MultipartFile file,
                                                                String caption,
+                                                               Long replyToTelegramId,
+                                                               String method,
                                                                String originalName,
-                                                               Long replyToTelegramId) throws IOException, InterruptedException {
-        HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
-        return sendTelegramMediaRequest(
-                client,
-                channel,
-                userId,
-                forceTelegramDocument(file, originalName),
-                caption,
-                replyToTelegramId,
-                "sendDocument"
-        );
-    }
-
-    private DialogReplyTransportResult sendTelegramMediaRequest(HttpClient client,
-                                                                Channel channel,
-                                                                Long userId,
-                                                                MultipartFile file,
-                                                                String caption,
-                                                                Long replyToTelegramId,
-                                                                String method) throws IOException, InterruptedException {
+                                                               String sanitizedFilename,
+                                                               String contentType,
+                                                               long fileSize) throws IOException, InterruptedException {
+        HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_MEDIA_REQUEST_TIMEOUT);
         String fieldName = resolveTelegramField(method);
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(buildTelegramMethodUrl(channel, method)))
-                .timeout(TELEGRAM_REQUEST_TIMEOUT)
-                .header("Content-Type", "multipart/form-data; boundary=" + MultipartPayload.BOUNDARY)
-                .POST(HttpRequest.BodyPublishers.ofByteArray(buildTelegramMultipartBody(
-                        userId,
-                        caption,
-                        fieldName,
-                        file,
-                        replyToTelegramId
-                )))
-                .build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        return resolveTelegramTransportResult(response, "Ошибка отправки файла в Telegram.");
-    }
-
-    private MultipartFile forceTelegramDocument(MultipartFile file, String originalName) {
-        return new MultipartFile() {
-            @Override
-            public String getName() {
-                return file.getName();
+        Path multipartFile = createMultipartTempFile(
+                List.of(
+                        new MultipartField("chat_id", String.valueOf(userId)),
+                        new MultipartField("caption", caption),
+                        new MultipartField("reply_to_message_id", replyToTelegramId != null ? String.valueOf(replyToTelegramId) : null)
+                ),
+                fieldName,
+                file,
+                sanitizedFilename,
+                contentType
+        );
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(buildTelegramMethodUrl(channel, method)))
+                    .timeout(TELEGRAM_MEDIA_REQUEST_TIMEOUT)
+                    .header("Content-Type", "multipart/form-data; boundary=" + MULTIPART_BOUNDARY)
+                    .POST(HttpRequest.BodyPublishers.ofFile(multipartFile))
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2 || isTelegramApiFailure(response.body())) {
+                logTelegramMediaApiError(method, response.statusCode(), userId, originalName, sanitizedFilename, contentType, fileSize, response.body());
             }
-
-            @Override
-            public String getOriginalFilename() {
-                return StringUtils.hasText(originalName) ? originalName : file.getOriginalFilename();
-            }
-
-            @Override
-            public String getContentType() {
-                return "application/octet-stream";
-            }
-
-            @Override
-            public boolean isEmpty() {
-                return file.isEmpty();
-            }
-
-            @Override
-            public long getSize() {
-                return file.getSize();
-            }
-
-            @Override
-            public byte[] getBytes() throws IOException {
-                return file.getBytes();
-            }
-
-            @Override
-            public InputStream getInputStream() throws IOException {
-                return file.getInputStream();
-            }
-
-            @Override
-            public void transferTo(java.io.File dest) throws IOException, IllegalStateException {
-                file.transferTo(dest);
-            }
-
-            @Override
-            public void transferTo(java.nio.file.Path dest) throws IOException, IllegalStateException {
-                file.transferTo(dest);
-            }
-        };
+            return resolveTelegramTransportResult(response, "Не удалось отправить файл в Telegram.");
+        } finally {
+            deleteTempFileQuietly(multipartFile);
+        }
     }
 
     private String sendMaxMedia(Channel channel,
@@ -335,24 +318,24 @@ public class DialogReplyTransportService {
                                 String caption,
                                 String originalName) {
         if (userId == null) {
-            return "РќРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ РїРѕР»СѓС‡Р°С‚РµР»СЏ РІ MAX.";
+            return "Не удалось определить получателя в MAX.";
         }
         String uploadType = resolveMaxUploadType(file.getContentType(), originalName);
         String attachmentType = resolveMaxAttachmentType(uploadType);
         Map<String, Object> uploadInit = createMaxUpload(channel.getToken(), uploadType);
         if (uploadInit == null) {
-            return "РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ upload-СЃРµСЃСЃРёСЋ РІ MAX.";
+            return "Не удалось создать upload-сессию в MAX.";
         }
         String uploadUrl = firstNonBlank(
                 stringValue(uploadInit.get("url")),
                 stringValue(uploadInit.get("upload_url"))
         );
         if (!StringUtils.hasText(uploadUrl)) {
-            return "MAX РЅРµ РІРµСЂРЅСѓР» URL Р·Р°РіСЂСѓР·РєРё С„Р°Р№Р»Р°.";
+            return "MAX не вернул URL загрузки файла.";
         }
-        Map<String, Object> uploadedPayload = uploadMaxBinary(channel.getToken(), uploadUrl, file);
+        Map<String, Object> uploadedPayload = uploadMaxBinary(channel.getToken(), uploadUrl, file, originalName);
         if (uploadedPayload == null || uploadedPayload.isEmpty()) {
-            return "РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ С„Р°Р№Р» РІ MAX.";
+            return "Не удалось загрузить файл в MAX.";
         }
         if (!uploadedPayload.containsKey("token") && uploadInit.containsKey("token")) {
             uploadedPayload.put("token", uploadInit.get("token"));
@@ -369,9 +352,9 @@ public class DialogReplyTransportService {
             return sendMaxMediaMessage(channel.getToken(), userId, requestBody);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ С„Р°Р№Р» РІ MAX.";
+            return "Не удалось отправить файл в MAX.";
         } catch (Exception ex) {
-            return "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ С„Р°Р№Р» РІ MAX.";
+            return "Не удалось отправить файл в MAX.";
         }
     }
 
@@ -395,13 +378,20 @@ public class DialogReplyTransportService {
         return null;
     }
 
-    private Map<String, Object> uploadMaxBinary(String token, String uploadUrl, MultipartFile file) {
+    private Map<String, Object> uploadMaxBinary(String token,
+                                                String uploadUrl,
+                                                MultipartFile file,
+                                                String originalName) {
+        String sanitizedFilename = sanitizeMultipartFilename(resolveOriginalFilename(file, originalName), file.getContentType());
+        String contentType = normalizeContentType(file.getContentType());
+        Path multipartFile = null;
         try {
+            multipartFile = createMultipartTempFile(List.of(), "data", file, sanitizedFilename, contentType);
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(uploadUrl))
                     .header("Authorization", token)
-                    .header("Content-Type", "multipart/form-data; boundary=" + MultipartPayload.BOUNDARY)
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(buildSingleFileMultipartBody("data", file)))
+                    .header("Content-Type", "multipart/form-data; boundary=" + MULTIPART_BOUNDARY)
+                    .POST(HttpRequest.BodyPublishers.ofFile(multipartFile))
                     .build();
             HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() / 100 != 2) {
@@ -410,6 +400,8 @@ public class DialogReplyTransportService {
             return readJsonObject(response.body());
         } catch (Exception ex) {
             return null;
+        } finally {
+            deleteTempFileQuietly(multipartFile);
         }
     }
 
@@ -508,7 +500,7 @@ public class DialogReplyTransportService {
     }
 
     private String normalizePlatform(String platform) {
-        return platform != null ? platform.trim().toLowerCase() : "telegram";
+        return platform != null ? platform.trim().toLowerCase(Locale.ROOT) : "telegram";
     }
 
     private String resolveMaxUploadType(String contentType, String originalName) {
@@ -624,30 +616,19 @@ public class DialogReplyTransportService {
     }
 
     static String resolveMessageType(String contentType, String filename) {
-        String lower = contentType != null ? contentType.toLowerCase() : "";
+        String lower = contentType != null ? contentType.toLowerCase(Locale.ROOT) : "";
         if (lower.startsWith("audio/")) return "audio";
         if (lower.startsWith("video/")) return "video";
         if (lower.startsWith("image/")) {
-            if (filename != null && filename.toLowerCase().endsWith(".gif")) {
+            if (filename != null && filename.toLowerCase(Locale.ROOT).endsWith(".gif")) {
                 return "animation";
             }
             return "image";
         }
-        if (filename != null && filename.toLowerCase().endsWith(".gif")) {
+        if (filename != null && filename.toLowerCase(Locale.ROOT).endsWith(".gif")) {
             return "animation";
         }
         return "document";
-    }
-
-    private static String resolveTelegramMethod(String contentType, String filename) {
-        String messageType = resolveMessageType(contentType, filename);
-        return switch (messageType) {
-            case "audio" -> "sendAudio";
-            case "video" -> "sendVideo";
-            case "animation" -> "sendAnimation";
-            case "image" -> "sendPhoto";
-            default -> "sendDocument";
-        };
     }
 
     private static String resolveTelegramField(String method) {
@@ -694,54 +675,43 @@ public class DialogReplyTransportService {
         };
     }
 
-    private static byte[] buildTelegramMultipartBody(Long chatId,
-                                                     String caption,
-                                                     String fieldName,
-                                                     MultipartFile file,
-                                                     Long replyToTelegramId) {
-        try {
-            List<byte[]> parts = new ArrayList<>();
-            parts.add(MultipartPayload.field("chat_id", String.valueOf(chatId)));
-            if (StringUtils.hasText(caption)) {
-                parts.add(MultipartPayload.field("caption", caption));
-            }
-            if (replyToTelegramId != null) {
-                parts.add(MultipartPayload.field("reply_to_message_id", String.valueOf(replyToTelegramId)));
-            }
-            parts.add(MultipartPayload.file(fieldName, file));
-            parts.add(MultipartPayload.finish());
-            return MultipartPayload.combine(parts);
-        } catch (IOException ex) {
-            throw new UncheckedIOException("Failed to build multipart body", ex);
-        }
-    }
-
     private DialogReplyTransportResult resolveTelegramTransportResult(HttpResponse<String> response, String fallbackError) {
         if (response == null) {
             return DialogReplyTransportResult.error(fallbackError);
         }
         String responseBody = response.body();
         if (response.statusCode() / 100 != 2) {
-            return DialogReplyTransportResult.error(resolveTelegramError(responseBody, fallbackError));
+            return DialogReplyTransportResult.error(resolveTelegramError(response.statusCode(), responseBody, fallbackError));
         }
         if (isTelegramApiFailure(responseBody)) {
-            return DialogReplyTransportResult.error(resolveTelegramError(responseBody, fallbackError));
+            return DialogReplyTransportResult.error(resolveTelegramError(response.statusCode(), responseBody, fallbackError));
         }
         return DialogReplyTransportResult.success(extractTelegramMessageId(responseBody));
     }
 
-    private String resolveTelegramError(String responseBody, String fallbackError) {
+    private String resolveTelegramError(int statusCode, String responseBody, String fallbackError) {
+        if (statusCode == 413) {
+            return telegramTooLargeError();
+        }
         if (!StringUtils.hasText(responseBody)) {
             return fallbackError;
         }
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            String description = root.path("description").asText("");
+            String description = firstNonBlank(
+                    root.path("description").asText(""),
+                    root.path("error").asText(""),
+                    root.path("message").asText("")
+            );
             if (StringUtils.hasText(description)) {
+                String normalized = description.toLowerCase(Locale.ROOT);
+                if (normalized.contains("too big") || normalized.contains("entity too large")) {
+                    return telegramTooLargeError();
+                }
                 return "Telegram: " + description.trim();
             }
         } catch (IOException ignored) {
-            // ignore parse errors and return fallback below
+            // Ignore parse issues and fallback below.
         }
         return fallbackError;
     }
@@ -758,15 +728,152 @@ public class DialogReplyTransportService {
         }
     }
 
-    private static byte[] buildSingleFileMultipartBody(String fieldName, MultipartFile file) {
-        try {
-            List<byte[]> parts = new ArrayList<>();
-            parts.add(MultipartPayload.file(fieldName, file));
-            parts.add(MultipartPayload.finish());
-            return MultipartPayload.combine(parts);
-        } catch (IOException ex) {
-            throw new UncheckedIOException("Failed to build multipart body", ex);
+    private String validateTelegramMedia(MultipartFile file, String caption) {
+        if (file == null || file.isEmpty()) {
+            return "Файл не выбран.";
         }
+        if (safeSize(file) > TELEGRAM_MAX_DOCUMENT_BYTES) {
+            return telegramTooLargeError();
+        }
+        if (caption != null && caption.length() > TELEGRAM_MAX_CAPTION_LENGTH) {
+            return "Подпись к файлу слишком длинная. Максимум — 1024 символа.";
+        }
+        return null;
+    }
+
+    private String telegramTooLargeError() {
+        return "Файл слишком большой для Telegram. Максимальный размер — 50 МБ.";
+    }
+
+    private String normalizeCaption(String caption) {
+        if (!StringUtils.hasText(caption)) {
+            return null;
+        }
+        return caption.trim();
+    }
+
+    private String resolveOriginalFilename(MultipartFile file, String originalName) {
+        String preferred = StringUtils.hasText(originalName) ? originalName : (file != null ? file.getOriginalFilename() : null);
+        return StringUtils.hasText(preferred) ? preferred.trim() : "file.bin";
+    }
+
+    private long safeSize(MultipartFile file) {
+        return file != null ? Math.max(file.getSize(), 0L) : 0L;
+    }
+
+    private String normalizeContentType(String contentType) {
+        return StringUtils.hasText(contentType) ? contentType.trim() : "application/octet-stream";
+    }
+
+    private Path createMultipartTempFile(List<MultipartField> fields,
+                                         String fileFieldName,
+                                         MultipartFile file,
+                                         String filename,
+                                         String contentType) throws IOException {
+        Path tempFile = Files.createTempFile("panel-multipart-", ".tmp");
+        boolean success = false;
+        try (OutputStream output = Files.newOutputStream(tempFile)) {
+            for (MultipartField field : fields) {
+                if (field != null && StringUtils.hasText(field.value())) {
+                    writeMultipartField(output, field.name(), field.value());
+                }
+            }
+            writeMultipartFilePart(output, fileFieldName, filename, contentType, file);
+            writeMultipartFinish(output);
+            success = true;
+            return tempFile;
+        } finally {
+            if (!success) {
+                deleteTempFileQuietly(tempFile);
+            }
+        }
+    }
+
+    private void writeMultipartField(OutputStream output, String name, String value) throws IOException {
+        String part = "--" + MULTIPART_BOUNDARY + "\r\n"
+                + "Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n"
+                + value + "\r\n";
+        output.write(part.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void writeMultipartFilePart(OutputStream output,
+                                        String fieldName,
+                                        String filename,
+                                        String contentType,
+                                        MultipartFile file) throws IOException {
+        String header = "--" + MULTIPART_BOUNDARY + "\r\n"
+                + "Content-Disposition: form-data; name=\"" + fieldName + "\"; filename=\"" + filename + "\"\r\n"
+                + "Content-Type: " + contentType + "\r\n\r\n";
+        output.write(header.getBytes(StandardCharsets.UTF_8));
+        try (InputStream input = file.getInputStream()) {
+            input.transferTo(output);
+        }
+        output.write("\r\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void writeMultipartFinish(OutputStream output) throws IOException {
+        String end = "--" + MULTIPART_BOUNDARY + "--\r\n";
+        output.write(end.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void deleteTempFileQuietly(Path path) {
+        if (path == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ex) {
+            log.debug("Unable to delete temp multipart file {}: {}", path, ex.getMessage());
+        }
+    }
+
+    private void logTelegramMediaException(String method,
+                                           Long userId,
+                                           String originalName,
+                                           String sanitizedFilename,
+                                           String contentType,
+                                           long fileSize,
+                                           Exception ex) {
+        log.warn(
+                "Telegram media send failed: method={}, userId={}, originalName={}, sanitizedFilename={}, contentType={}, size={}, errorClass={}, error={}",
+                method,
+                userId,
+                originalName,
+                sanitizedFilename,
+                contentType,
+                fileSize,
+                ex.getClass().getSimpleName(),
+                ex.getMessage(),
+                ex
+        );
+    }
+
+    private void logTelegramMediaApiError(String method,
+                                          int statusCode,
+                                          Long userId,
+                                          String originalName,
+                                          String sanitizedFilename,
+                                          String contentType,
+                                          long fileSize,
+                                          String responseBody) {
+        log.warn(
+                "Telegram media API returned error: method={}, status={}, userId={}, originalName={}, sanitizedFilename={}, contentType={}, size={}, body={}",
+                method,
+                statusCode,
+                userId,
+                originalName,
+                sanitizedFilename,
+                contentType,
+                fileSize,
+                truncateForLog(responseBody, RESPONSE_BODY_LOG_LIMIT)
+        );
+    }
+
+    private String truncateForLog(String value, int maxLength) {
+        if (!StringUtils.hasText(value) || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength) + "...";
     }
 
     public record DialogReplyTransportResult(String error, Long telegramMessageId) {
@@ -779,44 +886,6 @@ public class DialogReplyTransportService {
         }
     }
 
-    private static final class MultipartPayload {
-        private static final String BOUNDARY = "----BENDER-DIALOGS-BOUNDARY";
-
-        private static byte[] field(String name, String value) {
-            String part = "--" + BOUNDARY + "\r\n"
-                    + "Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n"
-                    + value + "\r\n";
-            return part.getBytes(StandardCharsets.UTF_8);
-        }
-
-        private static byte[] file(String name, MultipartFile file) throws IOException {
-            String filename = sanitizeMultipartFilename(file.getOriginalFilename(), file.getContentType());
-            String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
-            String header = "--" + BOUNDARY + "\r\n"
-                    + "Content-Disposition: form-data; name=\"" + name + "\"; filename=\"" + filename + "\"\r\n"
-                    + "Content-Type: " + contentType + "\r\n\r\n";
-            try (InputStream input = file.getInputStream()) {
-                byte[] fileBytes = input.readAllBytes();
-                byte[] headerBytes = header.getBytes(StandardCharsets.UTF_8);
-                byte[] footerBytes = "\r\n".getBytes(StandardCharsets.UTF_8);
-                return combine(List.of(headerBytes, fileBytes, footerBytes));
-            }
-        }
-
-        private static byte[] finish() {
-            String end = "--" + BOUNDARY + "--\r\n";
-            return end.getBytes(StandardCharsets.UTF_8);
-        }
-
-        private static byte[] combine(List<byte[]> parts) {
-            int length = parts.stream().mapToInt(part -> part.length).sum();
-            byte[] all = new byte[length];
-            int position = 0;
-            for (byte[] part : parts) {
-                System.arraycopy(part, 0, all, position, part.length);
-                position += part.length;
-            }
-            return all;
-        }
+    private record MultipartField(String name, String value) {
     }
 }

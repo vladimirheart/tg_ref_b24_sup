@@ -37,8 +37,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: ${APP_MULTIPART_MAX_FILE_SIZE:64MB}
-      max-request-size: ${APP_MULTIPART_MAX_REQUEST_SIZE:64MB}
+      max-file-size: ${APP_MULTIPART_MAX_FILE_SIZE:50MB}
+      max-request-size: ${APP_MULTIPART_MAX_REQUEST_SIZE:60MB}
 
 app:
   datasource:
@@ -73,6 +73,8 @@ app:
 
 server:
   port: ${APP_HTTP_PORT:8080}
+  tomcat:
+    max-swallow-size: ${APP_TOMCAT_MAX_SWALLOW_SIZE:60MB}
   servlet:
     encoding:
       charset: UTF-8

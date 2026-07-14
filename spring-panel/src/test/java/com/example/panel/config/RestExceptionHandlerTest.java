@@ -14,14 +14,14 @@ class RestExceptionHandlerTest {
         RestExceptionHandler handler = new RestExceptionHandler();
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/dialogs/test/media");
 
-        var response = handler.handleMaxUploadSize(new MaxUploadSizeExceededException(64L * 1024L * 1024L), request);
+        var response = handler.handleMaxUploadSize(new MaxUploadSizeExceededException(50L * 1024L * 1024L), request);
 
         assertThat(response.getStatusCode().value()).isEqualTo(413);
         ApiErrorResponse body = response.getBody();
         assertThat(body).isNotNull();
         assertThat(body.success()).isFalse();
         assertThat(body.errorCode()).isEqualTo("FILE_TOO_LARGE");
-        assertThat(body.error()).contains("64");
+        assertThat(body.error()).contains("50");
         assertThat(body.path()).isEqualTo("/api/dialogs/test/media");
     }
 }

@@ -471,6 +471,32 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void mediaReplyAcceptsEightMegabytesFile() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("reply_media"), eq("T-606BIG")))
+            .thenReturn(null);
+        when(dialogQuickActionService.sendMediaReply(eq("T-606BIG"), org.mockito.ArgumentMatchers.any(), eq("caption"), eq(null), eq("operator"), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(Map.of(
+                    "success", true,
+                    "timestamp", "2026-05-21T18:09:00Z",
+                    "telegramMessageId", 913L,
+                    "responsible", "operator"
+            ));
+
+        MockMultipartFile file = new MockMultipartFile("file", "clip.mp4", "video/mp4", new byte[8 * 1024 * 1024]);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/dialogs/T-606BIG/media")
+                .file(file)
+                .param("message", "caption")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.telegramMessageId").value(913));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-606BIG", "reply_media", "success", "media_sent");
+    }
+
+    @Test
     void editReturnsTimestampOnSuccess() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("edit"), eq("T-607")))
             .thenReturn(null);

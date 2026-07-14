@@ -12,13 +12,20 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DialogReplyTransportServiceTest {
@@ -85,6 +92,129 @@ class DialogReplyTransportServiceTest {
         assertThat(result.error()).isNull();
         assertThat(result.telegramMessageId()).isEqualTo(91L);
         assertThat(methodCalls).containsExactly("sendDocument");
+        verify(integrationNetworkService).createChannelHttpClient(any(), eq(Duration.ofSeconds(120)));
+    }
+
+    @Test
+    void sendMediaAllowsEightMegabytesMp4Preflight() throws Exception {
+        HttpClient httpClient = mock(HttpClient.class);
+        IntegrationNetworkService integrationNetworkService = mock(IntegrationNetworkService.class);
+        when(integrationNetworkService.createChannelHttpClient(any(), any(Duration.class))).thenReturn(httpClient);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenAnswer(invocation -> responseFor(invocation.getArgument(0), new ArrayList<>(),
+                        "{\"ok\":true,\"result\":{\"message_id\":108}}",
+                        200));
+
+        DialogReplyTransportService service = new DialogReplyTransportService(
+                mock(com.example.panel.repository.ChannelRepository.class),
+                integrationNetworkService,
+                new ObjectMapper()
+        );
+
+        byte[] bytes = new byte[8 * 1024 * 1024];
+        DialogReplyTransportService.DialogReplyTransportResult result = service.sendMedia(
+                telegramChannel(),
+                42L,
+                new MockMultipartFile("file", "clip.mp4", "video/mp4", bytes),
+                "video",
+                "clip.mp4",
+                null
+        );
+
+        assertThat(result.error()).isNull();
+        assertThat(result.telegramMessageId()).isEqualTo(108L);
+    }
+
+    @Test
+    void sendMediaRejectsFileLargerThanFiftyMegabytes() {
+        IntegrationNetworkService integrationNetworkService = mock(IntegrationNetworkService.class);
+        DialogReplyTransportService service = new DialogReplyTransportService(
+                mock(com.example.panel.repository.ChannelRepository.class),
+                integrationNetworkService,
+                new ObjectMapper()
+        );
+
+        MultipartFile oversizedFile = new MultipartFile() {
+            @Override
+            public String getName() {
+                return "file";
+            }
+
+            @Override
+            public String getOriginalFilename() {
+                return "oversized.mp4";
+            }
+
+            @Override
+            public String getContentType() {
+                return "video/mp4";
+            }
+
+            @Override
+            public boolean isEmpty() {
+                return false;
+            }
+
+            @Override
+            public long getSize() {
+                return 50L * 1024L * 1024L + 1L;
+            }
+
+            @Override
+            public byte[] getBytes() {
+                return new byte[0];
+            }
+
+            @Override
+            public InputStream getInputStream() {
+                return InputStream.nullInputStream();
+            }
+
+            @Override
+            public void transferTo(java.io.File dest) {
+                throw new UnsupportedOperationException();
+            }
+        };
+
+        DialogReplyTransportService.DialogReplyTransportResult result = service.sendMedia(
+                telegramChannel(),
+                42L,
+                oversizedFile,
+                "video",
+                "oversized.mp4",
+                null
+        );
+
+        assertThat(result.error()).isEqualTo("Файл слишком большой для Telegram. Максимальный размер — 50 МБ.");
+        assertThat(result.telegramMessageId()).isNull();
+        verify(integrationNetworkService, never()).createChannelHttpClient(any(), any(Duration.class));
+    }
+
+    @Test
+    void sendMediaReturnsReadableTimeoutError() throws Exception {
+        HttpClient httpClient = mock(HttpClient.class);
+        IntegrationNetworkService integrationNetworkService = mock(IntegrationNetworkService.class);
+        when(integrationNetworkService.createChannelHttpClient(any(), any(Duration.class))).thenReturn(httpClient);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenThrow(new HttpTimeoutException("timeout"));
+
+        DialogReplyTransportService service = new DialogReplyTransportService(
+                mock(com.example.panel.repository.ChannelRepository.class),
+                integrationNetworkService,
+                new ObjectMapper()
+        );
+
+        DialogReplyTransportService.DialogReplyTransportResult result = service.sendMedia(
+                telegramChannel(),
+                42L,
+                new MockMultipartFile("file", "clip.mp4", "video/mp4", new byte[]{1, 2, 3}),
+                "video",
+                "clip.mp4",
+                null
+        );
+
+        assertThat(result.error()).isEqualTo("Не удалось отправить файл в Telegram: превышено время ожидания загрузки.");
+        assertThat(result.telegramMessageId()).isNull();
     }
 
     @Test
@@ -96,6 +226,38 @@ class DialogReplyTransportServiceTest {
         List<String> methodCalls = new ArrayList<>();
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenAnswer(invocation -> responseFor(invocation.getArgument(0), methodCalls,
+                        "{\"ok\":false,\"description\":\"Bad Request: wrong file identifier/HTTP URL specified\"}",
+                        400));
+
+        DialogReplyTransportService service = new DialogReplyTransportService(
+                mock(com.example.panel.repository.ChannelRepository.class),
+                integrationNetworkService,
+                new ObjectMapper()
+        );
+
+        DialogReplyTransportService.DialogReplyTransportResult result = service.sendMedia(
+                telegramChannel(),
+                42L,
+                new MockMultipartFile("file", "sample.mp4", "video/mp4", new byte[]{4, 5, 6}),
+                "",
+                "sample.mp4",
+                null
+        );
+
+        assertThat(result.error()).isEqualTo("Telegram: Bad Request: wrong file identifier/HTTP URL specified");
+        assertThat(result.error()).doesNotContain("Р");
+        assertThat(result.telegramMessageId()).isNull();
+        assertThat(methodCalls).containsExactly("sendDocument");
+    }
+
+    @Test
+    void sendMediaMapsTooLargeTelegramDescriptionToReadableSizeError() throws Exception {
+        HttpClient httpClient = mock(HttpClient.class);
+        IntegrationNetworkService integrationNetworkService = mock(IntegrationNetworkService.class);
+        when(integrationNetworkService.createChannelHttpClient(any(), any(Duration.class))).thenReturn(httpClient);
+
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenAnswer(invocation -> responseFor(invocation.getArgument(0), new ArrayList<>(),
                         "{\"ok\":false,\"description\":\"Bad Request: file is too big\"}",
                         400));
 
@@ -114,10 +276,8 @@ class DialogReplyTransportServiceTest {
                 null
         );
 
-        assertThat(result.error()).isEqualTo("Telegram: Bad Request: file is too big");
-        assertThat(result.error()).doesNotContain("Р");
+        assertThat(result.error()).isEqualTo("Файл слишком большой для Telegram. Максимальный размер — 50 МБ.");
         assertThat(result.telegramMessageId()).isNull();
-        assertThat(methodCalls).containsExactly("sendDocument");
     }
 
     @Test
@@ -183,9 +343,20 @@ class DialogReplyTransportServiceTest {
                 null
         );
 
-        assertThat(result.error()).isEqualTo("\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0444\u0430\u0439\u043b \u0432 Telegram.");
+        assertThat(result.error()).isEqualTo("Не удалось отправить файл в Telegram. Проверьте сеть и повторите попытку.");
         assertThat(result.error()).doesNotContain("Р");
         assertThat(result.telegramMessageId()).isNull();
+    }
+
+    @Test
+    void sourceDoesNotContainReadAllBytesOrMojibakeMarkers() throws Exception {
+        Path source = Path.of("src/main/java/com/example/panel/service/DialogReplyTransportService.java");
+        String content = Files.readString(source, StandardCharsets.UTF_8);
+
+        assertThat(content).doesNotContain("readAllBytes(");
+        assertThat(content).doesNotContain("РќРµ");
+        assertThat(content).doesNotContain("Р¤Р°Р№Р»");
+        assertThat(content).doesNotContain("вЂ");
     }
 
     private static HttpResponse<String> responseFor(HttpRequest request,
