@@ -100,6 +100,12 @@
       );
     }
 
+    function updateDetailsPendingMediaPreview() {
+      renderPendingMediaPreview(elements.detailsReplyMedia, elements.detailsReplyMediaPreview, {
+        title: 'Вложения к сообщению',
+      });
+    }
+
     function resetReplyTarget() {
       state.activeReplyToTelegramId = null;
       if (elements.replyTarget) {
@@ -921,6 +927,159 @@
       return getSelectedMediaFiles(mediaInput).concat(getStagedMediaFiles(mediaInput));
     }
 
+    function formatPendingMediaSize(bytes) {
+      const numeric = Number(bytes);
+      if (!Number.isFinite(numeric) || numeric <= 0) {
+        return 'размер неизвестен';
+      }
+      if (numeric < 1024) {
+        return `${numeric} Б`;
+      }
+      if (numeric < 1024 * 1024) {
+        return `${(numeric / 1024).toFixed(numeric < 10 * 1024 ? 1 : 0)} КБ`;
+      }
+      return `${(numeric / (1024 * 1024)).toFixed(numeric < 10 * 1024 * 1024 ? 1 : 0)} МБ`;
+    }
+
+    function resolvePendingMediaKind(file) {
+      const type = String(file?.type || '').toLowerCase();
+      if (type.startsWith('image/')) return 'image';
+      if (type.startsWith('video/')) return 'video';
+      if (type.startsWith('audio/')) return 'audio';
+      if (type.includes('pdf')) return 'pdf';
+      return 'file';
+    }
+
+    function resolvePendingMediaKindLabel(file) {
+      switch (resolvePendingMediaKind(file)) {
+        case 'image':
+          return 'Изображение';
+        case 'video':
+          return 'Видео';
+        case 'audio':
+          return 'Аудио';
+        case 'pdf':
+          return 'PDF';
+        default:
+          return 'Файл';
+      }
+    }
+
+    function releasePendingMediaPreviewUrls(container) {
+      if (!(container instanceof HTMLElement) || !Array.isArray(container.__dialogsPendingPreviewUrls)) {
+        return;
+      }
+      container.__dialogsPendingPreviewUrls.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (_error) {
+          // ignore cleanup issues for object URLs
+        }
+      });
+      container.__dialogsPendingPreviewUrls = [];
+    }
+
+    function buildPendingMediaThumb(file, previewUrls) {
+      const kind = resolvePendingMediaKind(file);
+      if (kind === 'image' && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+        try {
+          const objectUrl = URL.createObjectURL(file);
+          previewUrls.push(objectUrl);
+          return `<div class="dialog-pending-media-thumb"><img src="${escapeAttribute(objectUrl)}" alt="${escapeAttribute(resolvePendingMediaFileName(file, 'image'))}"></div>`;
+        } catch (_error) {
+          // Fall through to text icon below.
+        }
+      }
+      const fallbackIcon = kind === 'video'
+        ? '🎬'
+        : (kind === 'audio'
+          ? '🎧'
+          : (kind === 'pdf' ? '📄' : '📎'));
+      return `<div class="dialog-pending-media-thumb" aria-hidden="true">${fallbackIcon}</div>`;
+    }
+
+    function setSelectedMediaFiles(mediaInput, files) {
+      if (!isMediaInputElement(mediaInput)) {
+        return;
+      }
+      if (typeof DataTransfer === 'function') {
+        const transfer = new DataTransfer();
+        files.forEach((file) => {
+          try {
+            transfer.items.add(file);
+          } catch (_error) {
+            // Ignore individual add failures and fall back below if needed.
+          }
+        });
+        mediaInput.files = transfer.files;
+        return;
+      }
+      mediaInput.value = '';
+      mediaInput.__stagedMediaFiles = files.concat(getStagedMediaFiles(mediaInput));
+    }
+
+    function removePendingMediaFile(mediaInput, fileIndex) {
+      if (!isMediaInputElement(mediaInput)) {
+        return 0;
+      }
+      const normalizedIndex = Number.parseInt(fileIndex, 10);
+      if (!Number.isFinite(normalizedIndex) || normalizedIndex < 0) {
+        return getPendingMediaFiles(mediaInput).length;
+      }
+      const selectedFiles = getSelectedMediaFiles(mediaInput);
+      const stagedFiles = getStagedMediaFiles(mediaInput);
+      if (normalizedIndex < selectedFiles.length) {
+        const nextSelectedFiles = selectedFiles.filter((_, index) => index !== normalizedIndex);
+        setSelectedMediaFiles(mediaInput, nextSelectedFiles);
+      } else {
+        const stagedIndex = normalizedIndex - selectedFiles.length;
+        mediaInput.__stagedMediaFiles = stagedFiles.filter((_, index) => index !== stagedIndex);
+      }
+      const totalFiles = getPendingMediaFiles(mediaInput).length;
+      mediaInput.dispatchEvent(new CustomEvent(PENDING_MEDIA_CHANGED_EVENT, { detail: { count: totalFiles } }));
+      return totalFiles;
+    }
+
+    function renderPendingMediaPreview(mediaInput, container, config = {}) {
+      if (!(container instanceof HTMLElement)) {
+        return;
+      }
+      releasePendingMediaPreviewUrls(container);
+      const pendingFiles = getPendingMediaFiles(mediaInput);
+      if (!pendingFiles.length) {
+        container.classList.add('d-none');
+        container.innerHTML = '';
+        return;
+      }
+      const previewUrls = [];
+      const title = String(config.title || 'Вложения к сообщению').trim() || 'Вложения к сообщению';
+      container.innerHTML = `
+        <div class="dialog-pending-media-preview">
+          <div class="small text-muted">${escapeHtml(title)}</div>
+          <div class="dialog-pending-media-preview-grid">
+            ${pendingFiles.map((file, index) => {
+              const fileName = resolvePendingMediaFileName(file);
+              const details = `${resolvePendingMediaKindLabel(file)} · ${formatPendingMediaSize(file?.size)}`;
+              return `
+                <div class="dialog-pending-media-card">
+                  ${buildPendingMediaThumb(file, previewUrls)}
+                  <div class="dialog-pending-media-meta">
+                    <div class="dialog-pending-media-name">${escapeHtml(fileName)}</div>
+                    <div class="dialog-pending-media-details">${escapeHtml(details)}</div>
+                  </div>
+                  <button class="btn btn-sm btn-link text-danger p-0 dialog-pending-media-remove" type="button" data-pending-media-remove="${index}">
+                    Убрать
+                  </button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+      container.__dialogsPendingPreviewUrls = previewUrls;
+      container.classList.remove('d-none');
+    }
+
     function stageMediaFilesInInput(mediaInput, files) {
       if (!isMediaInputElement(mediaInput) || !files?.length) {
         return 0;
@@ -1213,8 +1372,10 @@
         });
         elements.detailsReplyMedia.addEventListener(PENDING_MEDIA_CHANGED_EVENT, (event) => {
           updateDetailsPendingMediaTrigger(event?.detail?.count);
+          updateDetailsPendingMediaPreview();
         });
         updateDetailsPendingMediaTrigger();
+        updateDetailsPendingMediaPreview();
       }
 
       document.addEventListener('click', (event) => {
@@ -1230,6 +1391,19 @@
         elements.detailsReplyMedia.addEventListener('change', () => {
           const totalFiles = getPendingMediaFiles(elements.detailsReplyMedia).length;
           updateDetailsPendingMediaTrigger(totalFiles);
+          updateDetailsPendingMediaPreview();
+        });
+      }
+
+      if (elements.detailsReplyMediaPreview && elements.detailsReplyMedia) {
+        elements.detailsReplyMediaPreview.addEventListener('click', (event) => {
+          const removeButton = event.target.closest('[data-pending-media-remove]');
+          if (!removeButton) {
+            return;
+          }
+          const totalFiles = removePendingMediaFile(elements.detailsReplyMedia, removeButton.dataset.pendingMediaRemove);
+          updateDetailsPendingMediaTrigger(totalFiles);
+          updateDetailsPendingMediaPreview();
         });
       }
 
@@ -1276,6 +1450,8 @@
       stageMediaFilesInInput,
       getPendingMediaFiles,
       clearPendingMediaFiles,
+      renderPendingMediaPreview,
+      removePendingMediaFile,
       extractClipboardImageFiles,
       sendWorkspaceMediaFiles,
       hydrateMediaRoot,

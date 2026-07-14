@@ -69,6 +69,12 @@
         : baseLabel;
     }
 
+    function updateWorkspacePendingMediaPreview() {
+      options.renderPendingMediaPreview?.(elements.workspaceComposerMedia, elements.workspaceComposerMediaPreview, {
+        title: 'Вложения к сообщению',
+      });
+    }
+
     function escapeHtml(value) {
       return typeof options.escapeHtml === 'function'
         ? options.escapeHtml(value)
@@ -984,11 +990,29 @@
         elements.workspaceComposerMedia.addEventListener('change', () => {
           const totalFiles = options.getPendingMediaFiles?.(elements.workspaceComposerMedia)?.length || 0;
           updateWorkspacePendingMediaTrigger(totalFiles);
+          updateWorkspacePendingMediaPreview();
         });
         elements.workspaceComposerMedia.addEventListener('dialogs:pending-media-files-changed', (event) => {
           updateWorkspacePendingMediaTrigger(event?.detail?.count);
+          updateWorkspacePendingMediaPreview();
         });
         updateWorkspacePendingMediaTrigger();
+        updateWorkspacePendingMediaPreview();
+      }
+
+      if (elements.workspaceComposerMediaPreview && elements.workspaceComposerMedia) {
+        elements.workspaceComposerMediaPreview.addEventListener('click', (event) => {
+          const removeButton = event.target.closest('[data-pending-media-remove]');
+          if (!removeButton) {
+            return;
+          }
+          const totalFiles = options.removePendingMediaFile?.(
+            elements.workspaceComposerMedia,
+            removeButton.dataset.pendingMediaRemove
+          ) || 0;
+          updateWorkspacePendingMediaTrigger(totalFiles);
+          updateWorkspacePendingMediaPreview();
+        });
       }
 
       if (elements.workspaceComposerSaveDraft) {

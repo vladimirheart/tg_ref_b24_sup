@@ -79,6 +79,63 @@
         .dialog-summary-item .h5 {
             font-family: var(--font-serif);
         }
+        .dialog-pending-media-preview {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .dialog-pending-media-preview-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .dialog-pending-media-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            min-width: min(18rem, 100%);
+            max-width: 100%;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+            border-radius: 0.9rem;
+            background: color-mix(in srgb, var(--card) 95%, white);
+        }
+        .dialog-pending-media-thumb {
+            flex: 0 0 auto;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: color-mix(in srgb, var(--color-surface-soft) 80%, white);
+            color: var(--foreground);
+            font-size: 1.25rem;
+            line-height: 1;
+        }
+        .dialog-pending-media-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .dialog-pending-media-meta {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+        .dialog-pending-media-name {
+            font-weight: 600;
+            word-break: break-word;
+        }
+        .dialog-pending-media-details {
+            color: var(--muted-foreground);
+            font-size: 0.8rem;
+            word-break: break-word;
+        }
+        .dialog-pending-media-remove {
+            flex: 0 0 auto;
+        }
         body.dialog-compact-mode .dialogs-hero {
             display: none;
         }
@@ -292,6 +349,7 @@
                                 <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerSaveDraft" type="button">Сохранить черновик (Ctrl/Cmd/Alt+S)</button>
                                 <span class="small text-muted" id="workspaceComposerDraftState">Черновик не сохранён</span>
                             </div>
+                            <div class="d-none mt-2" id="workspaceComposerMediaPreview" aria-live="polite"></div>
                             <input class="d-none" type="file" id="workspaceComposerMedia" multiple>
                         </div>
                     </div>
@@ -761,6 +819,7 @@
     <button class="btn btn-primary" type="button" id="dialogReplySend">Отправить</button>
     <input class="d-none" type="file" id="dialogReplyMedia" multiple>
 </div>
+<div class="d-none mt-2" id="dialogReplyMediaPreview" aria-live="polite"></div>
 <div class="dialog-reply-target d-none" id="dialogReplyTarget">
     <div class="small text-muted">Ответ на сообщение:</div>
     <div class="dialog-reply-target-text" id="dialogReplyTargetText"></div>

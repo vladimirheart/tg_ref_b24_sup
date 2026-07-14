@@ -139,6 +139,7 @@
   const workspaceComposerSend = document.getElementById('workspaceComposerSend');
   const workspaceComposerMediaTrigger = document.getElementById('workspaceComposerMediaTrigger');
   const workspaceComposerMedia = document.getElementById('workspaceComposerMedia');
+  const workspaceComposerMediaPreview = document.getElementById('workspaceComposerMediaPreview');
   const workspaceComposerSaveDraft = document.getElementById('workspaceComposerSaveDraft');
   const workspaceComposerDraftState = document.getElementById('workspaceComposerDraftState');
   const workspaceComposerMacroSection = document.getElementById('workspaceComposerMacroSection');
@@ -244,6 +245,7 @@
   const detailsReplySend = document.getElementById('dialogReplySend');
   const detailsReplyMedia = document.getElementById('dialogReplyMedia');
   const detailsReplyMediaTrigger = document.getElementById('dialogReplyMediaTrigger');
+  const detailsReplyMediaPreview = document.getElementById('dialogReplyMediaPreview');
   const detailsReplyEmojiTrigger = document.getElementById('dialogReplyEmojiTrigger');
   const dialogFontSizeRange = document.getElementById('dialogFontSizeRange');
   const emojiPanel = document.getElementById('dialogEmojiPanel');
@@ -1565,6 +1567,7 @@
       workspaceComposerSend,
       workspaceComposerMediaTrigger,
       workspaceComposerMedia,
+      workspaceComposerMediaPreview,
       workspaceComposerSaveDraft,
       workspaceComposerDraftState,
       workspaceComposerMacroApply,
@@ -1679,6 +1682,8 @@
     stageMediaFilesInInput,
     getPendingMediaFiles,
     clearPendingMediaFiles,
+    renderPendingMediaPreview: (mediaInput, container, config) => dialogsDetailsHistoryRuntime?.renderPendingMediaPreview?.(mediaInput, container, config),
+    removePendingMediaFile: (mediaInput, fileIndex) => dialogsDetailsHistoryRuntime?.removePendingMediaFile?.(mediaInput, fileIndex),
     hydrateMediaRoot: (root) => dialogsDetailsHistoryRuntime?.hydrateMediaRoot?.(root),
     sendWorkspaceMediaFiles,
     withChannelParam,
@@ -1705,6 +1710,7 @@
       detailsReplySend,
       detailsReplyMediaTrigger,
       detailsReplyMedia,
+      detailsReplyMediaPreview,
       replyTarget,
       replyTargetText,
       replyTargetClear,
