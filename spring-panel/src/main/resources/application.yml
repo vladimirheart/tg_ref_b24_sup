@@ -35,6 +35,11 @@ spring:
     jdbc:
       table-name: SPRING_SESSION   # только имя таблицы, без initialize-schema / schema
 
+  servlet:
+    multipart:
+      max-file-size: ${APP_MULTIPART_MAX_FILE_SIZE:64MB}
+      max-request-size: ${APP_MULTIPART_MAX_REQUEST_SIZE:64MB}
+
 app:
   datasource:
     sqlite:

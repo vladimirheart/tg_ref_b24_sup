@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
@@ -38,6 +39,15 @@ public class RestExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleIo(IOException ex, HttpServletRequest request) {
         log.warn("I/O exception: {}", ex.getMessage());
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Не удалось обработать файл", "FILE_IO_ERROR", request);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex,
+                                                                HttpServletRequest request) {
+        return build(HttpStatus.PAYLOAD_TOO_LARGE,
+                "Файл превышает допустимый размер загрузки (до 64 МБ)",
+                "FILE_TOO_LARGE",
+                request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
