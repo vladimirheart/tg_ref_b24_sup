@@ -37,6 +37,7 @@ public class DialogReplyTransportService {
     private static final int MAX_ATTACHMENT_READY_RETRY_ATTEMPTS = 5;
     private static final long MAX_ATTACHMENT_READY_RETRY_DELAY_MILLIS = 500L;
     private static final Duration TELEGRAM_REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    private static final String method = "sendDocument";
 
     private final ChannelRepository channelRepository;
     private final IntegrationNetworkService integrationNetworkService;
@@ -218,8 +219,6 @@ public class DialogReplyTransportService {
         if (userId == null) {
             return DialogReplyTransportResult.error("Не удалось определить получателя в Telegram.");
         }
-        String method = resolveTelegramMethod(file.getContentType(), originalName);
-        String fieldName = resolveTelegramField(method);
         try {
             HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
             DialogReplyTransportResult initialResult = sendTelegramMediaRequest(
@@ -253,24 +252,12 @@ public class DialogReplyTransportService {
         if (userId == null) {
             return DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ РїРѕР»СѓС‡Р°С‚РµР»СЏ РІ Telegram.");
         }
-        String method = resolveTelegramMethod(file.getContentType(), originalName);
-        String telegramSendError = "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0444\u0430\u0439\u043b \u0432 Telegram.";
+        String telegramSendError = "Не удалось отправить файл в Telegram.";
         try {
-            DialogReplyTransportResult initialResult = sendTelegramMediaDirect(
-                    channel,
-                    userId,
-                    file,
-                    caption,
-                    originalName,
-                    replyToTelegramId
-            );
-            if (initialResult.error() == null || "sendDocument".equals(method)) {
-                return initialResult;
-            }
             return sendTelegramMediaDirect(
                     channel,
                     userId,
-                    forceTelegramDocument(file, originalName),
+                    file,
                     caption,
                     originalName,
                     replyToTelegramId
@@ -291,16 +278,15 @@ public class DialogReplyTransportService {
                                                                String caption,
                                                                String originalName,
                                                                Long replyToTelegramId) throws IOException, InterruptedException {
-        String method = resolveTelegramMethod(file.getContentType(), originalName);
         HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
         return sendTelegramMediaRequest(
                 client,
                 channel,
                 userId,
-                file,
+                forceTelegramDocument(file, originalName),
                 caption,
                 replyToTelegramId,
-                method
+                "sendDocument"
         );
     }
 

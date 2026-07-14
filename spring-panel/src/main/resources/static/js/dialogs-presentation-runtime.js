@@ -145,6 +145,9 @@
       const replyPreviewMarkup = replyPreviewText
         ? `<div class="small text-muted border-start ps-2 mb-1 workspace-message-reply-source">↪ ${escapeHtml(replyPreviewText)}</div>`
         : '';
+      const deliveryStatus = senderType === 'support' && Number.isFinite(telegramMessageId)
+        ? ' · Отправлено'
+        : '';
       const activeWorkspacePayload = options.getActiveWorkspacePayload?.() || null;
       const replyTargetSupported = activeWorkspacePayload?.composer?.reply_target_supported !== false;
       const canReply = replyTargetSupported && Number.isFinite(telegramMessageId) && senderType !== 'system';

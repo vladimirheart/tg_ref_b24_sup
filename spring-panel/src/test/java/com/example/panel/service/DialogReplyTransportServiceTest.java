@@ -24,16 +24,13 @@ import static org.mockito.Mockito.when;
 class DialogReplyTransportServiceTest {
 
     @Test
-    void sendMediaFallsBackToDocumentWhenTelegramRejectsPhoto() throws Exception {
+    void sendMediaSendsJpgAsTelegramDocument() throws Exception {
         HttpClient httpClient = mock(HttpClient.class);
         IntegrationNetworkService integrationNetworkService = mock(IntegrationNetworkService.class);
         when(integrationNetworkService.createChannelHttpClient(any(), any(Duration.class))).thenReturn(httpClient);
 
         List<String> methodCalls = new ArrayList<>();
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenAnswer(invocation -> responseFor(invocation.getArgument(0), methodCalls,
-                        "{\"ok\":false,\"description\":\"Bad Request: PHOTO_INVALID_DIMENSIONS\"}",
-                        400))
                 .thenAnswer(invocation -> responseFor(invocation.getArgument(0), methodCalls,
                         "{\"ok\":true,\"result\":{\"message_id\":77}}",
                         200));
@@ -55,20 +52,17 @@ class DialogReplyTransportServiceTest {
 
         assertThat(result.error()).isNull();
         assertThat(result.telegramMessageId()).isEqualTo(77L);
-        assertThat(methodCalls).containsExactly("sendPhoto", "sendDocument");
+        assertThat(methodCalls).containsExactly("sendDocument");
     }
 
     @Test
-    void sendMediaFallsBackToDocumentWhenTelegramRejectsVideo() throws Exception {
+    void sendMediaSendsMp4AsTelegramDocument() throws Exception {
         HttpClient httpClient = mock(HttpClient.class);
         IntegrationNetworkService integrationNetworkService = mock(IntegrationNetworkService.class);
         when(integrationNetworkService.createChannelHttpClient(any(), any(Duration.class))).thenReturn(httpClient);
 
         List<String> methodCalls = new ArrayList<>();
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-                .thenAnswer(invocation -> responseFor(invocation.getArgument(0), methodCalls,
-                        "{\"ok\":false,\"description\":\"Bad Request: wrong video\"}",
-                        400))
                 .thenAnswer(invocation -> responseFor(invocation.getArgument(0), methodCalls,
                         "{\"ok\":true,\"result\":{\"message_id\":91}}",
                         200));
@@ -90,7 +84,7 @@ class DialogReplyTransportServiceTest {
 
         assertThat(result.error()).isNull();
         assertThat(result.telegramMessageId()).isEqualTo(91L);
-        assertThat(methodCalls).containsExactly("sendVideo", "sendDocument");
+        assertThat(methodCalls).containsExactly("sendDocument");
     }
 
     @Test

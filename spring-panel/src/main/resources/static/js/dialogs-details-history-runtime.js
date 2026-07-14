@@ -510,6 +510,9 @@
         ? `<div class="small text-muted mt-1"><div>Было: ${escapeHtml(message.originalMessage)}</div><div>Стало: ${escapeHtml(message.message || '')}</div></div>`
         : '';
       const statusBadges = [
+        isSupport && !isDeleted && Number.isFinite(Number(message?.telegramMessageId))
+          ? '<span class="chat-message-meta-badge">Отправлено</span>'
+          : '',
         isEdited ? '<span class="chat-message-meta-badge">✏️ Изменено</span>' : '',
         isDeleted ? '<span class="chat-message-meta-badge">🗑 Удалено</span>' : '',
         archivedHistory ? '<span class="chat-message-meta-badge">Архив</span>' : '',
@@ -1148,8 +1151,20 @@
             method: 'POST',
             body: formData,
           });
-          const data = await resp.json();
+          const rawBody = await resp.text();
+          let data = null;
+          if (rawBody) {
+            try {
+              data = JSON.parse(rawBody);
+            } catch (_error) {
+              data = null;
+            }
+          }
           if (!resp.ok || !data?.success) {
+            const fallbackError = rawBody && !rawBody.trim().startsWith('<')
+              ? rawBody.trim()
+              : `Ошибка ${resp.status}`;
+            throw new Error(data?.error || fallbackError);
             throw new Error(data?.error || `Ошибка ${resp.status}`);
           }
           options.updateDetailsResponsible?.(data.responsible || activeDialogState.context?.operatorName || '');
