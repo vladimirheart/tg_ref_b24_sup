@@ -37,6 +37,17 @@
       }
     }
 
+    function updateDetailsReplySendLabel() {
+      if (!elements.detailsReplySend) {
+        return;
+      }
+      const message = String(elements.detailsReplyText?.value || '').trim();
+      const pendingCount = options.getPendingMediaFiles?.(elements.detailsReplyMedia)?.length || 0;
+      elements.detailsReplySend.textContent = pendingCount > 0
+        ? (message ? `Отправить сообщение и вложения (${pendingCount})` : `Отправить вложения (${pendingCount})`)
+        : 'Отправить';
+    }
+
     function resolveSnoozeLabel(minutes) {
       return typeof options.formatSnoozeActionLabel === 'function'
         ? options.formatSnoozeActionLabel(minutes)
@@ -773,6 +784,9 @@
       };
 
       elements.detailsReplySend.addEventListener('click', sendReply);
+      elements.detailsReplyText.addEventListener('input', () => {
+        updateDetailsReplySendLabel();
+      });
       elements.detailsReplyText.addEventListener('keydown', (event) => {
         if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
           sendReply();
@@ -787,7 +801,12 @@
           notify('Не удалось прикрепить скриншот автоматически. Используйте кнопку прикрепления медиа.', 'warning');
           return;
         }
+        updateDetailsReplySendLabel();
       });
+      elements.detailsReplyMedia?.addEventListener('dialogs:pending-media-files-changed', () => {
+        updateDetailsReplySendLabel();
+      });
+      updateDetailsReplySendLabel();
     }
 
     return {

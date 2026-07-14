@@ -103,6 +103,7 @@
     function updateDetailsPendingMediaPreview() {
       renderPendingMediaPreview(elements.detailsReplyMedia, elements.detailsReplyMediaPreview, {
         title: 'Вложения к сообщению',
+        hint: 'Нажмите «Отправить», чтобы отправить вложения клиенту.',
       });
     }
 
@@ -882,8 +883,10 @@
 
     function isUploadableMediaFile(file) {
       if (!file || typeof file !== 'object') return false;
+      if (typeof File === 'function' && file instanceof File) return true;
       if (typeof Blob === 'function' && file instanceof Blob) return true;
-      return typeof file.size === 'number' && typeof file.type === 'string';
+      return typeof file.size === 'number'
+        && (typeof file.type === 'string' || typeof file.arrayBuffer === 'function');
     }
 
     function resolvePendingMediaFileName(file, fallbackName = '') {
@@ -1012,6 +1015,7 @@
           }
         });
         mediaInput.files = transfer.files;
+        mediaInput.__stagedMediaFiles = [];
         return;
       }
       mediaInput.value = '';
@@ -1053,9 +1057,11 @@
       }
       const previewUrls = [];
       const title = String(config.title || 'Вложения к сообщению').trim() || 'Вложения к сообщению';
+      const hint = String(config.hint || 'Нажмите «Отправить», чтобы отправить вложения клиенту.').trim();
       container.innerHTML = `
         <div class="dialog-pending-media-preview">
           <div class="small text-muted">${escapeHtml(title)}</div>
+          ${hint ? `<div class="small text-muted">${escapeHtml(hint)}</div>` : ''}
           <div class="dialog-pending-media-preview-grid">
             ${pendingFiles.map((file, index) => {
               const fileName = resolvePendingMediaFileName(file);
@@ -1084,13 +1090,21 @@
       if (!isMediaInputElement(mediaInput) || !files?.length) {
         return 0;
       }
+      const acceptedFiles = Array.from(files).filter((file) => isUploadableMediaFile(file));
+      if (!acceptedFiles.length) {
+        return getPendingMediaFiles(mediaInput).length;
+      }
+      const selectedFiles = getSelectedMediaFiles(mediaInput);
       const stagedFiles = getStagedMediaFiles(mediaInput);
-      Array.from(files).forEach((file) => {
-        if (isUploadableMediaFile(file)) {
-          stagedFiles.push(file);
+      if (typeof DataTransfer === 'function') {
+        try {
+          setSelectedMediaFiles(mediaInput, selectedFiles.concat(stagedFiles, acceptedFiles));
+        } catch (_error) {
+          mediaInput.__stagedMediaFiles = stagedFiles.concat(acceptedFiles);
         }
-      });
-      mediaInput.__stagedMediaFiles = stagedFiles;
+      } else {
+        mediaInput.__stagedMediaFiles = stagedFiles.concat(acceptedFiles);
+      }
       const totalFiles = getPendingMediaFiles(mediaInput).length;
       mediaInput.dispatchEvent(new CustomEvent(PENDING_MEDIA_CHANGED_EVENT, { detail: { count: totalFiles } }));
       return totalFiles;

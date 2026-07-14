@@ -72,7 +72,19 @@
     function updateWorkspacePendingMediaPreview() {
       options.renderPendingMediaPreview?.(elements.workspaceComposerMedia, elements.workspaceComposerMediaPreview, {
         title: 'Вложения к сообщению',
+        hint: 'Нажмите «Отправить», чтобы отправить вложения клиенту.',
       });
+    }
+
+    function updateWorkspaceComposerSendLabel() {
+      if (!elements.workspaceComposerSend) {
+        return;
+      }
+      const message = String(elements.workspaceComposerText?.value || '').trim();
+      const pendingCount = options.getPendingMediaFiles?.(elements.workspaceComposerMedia)?.length || 0;
+      elements.workspaceComposerSend.textContent = pendingCount > 0
+        ? (message ? `Отправить сообщение и вложения (${pendingCount})` : `Отправить вложения (${pendingCount})`)
+        : 'Отправить (Ctrl/Cmd/Alt+Enter)';
     }
 
     function escapeHtml(value) {
@@ -991,13 +1003,16 @@
           const totalFiles = options.getPendingMediaFiles?.(elements.workspaceComposerMedia)?.length || 0;
           updateWorkspacePendingMediaTrigger(totalFiles);
           updateWorkspacePendingMediaPreview();
+          updateWorkspaceComposerSendLabel();
         });
         elements.workspaceComposerMedia.addEventListener('dialogs:pending-media-files-changed', (event) => {
           updateWorkspacePendingMediaTrigger(event?.detail?.count);
           updateWorkspacePendingMediaPreview();
+          updateWorkspaceComposerSendLabel();
         });
         updateWorkspacePendingMediaTrigger();
         updateWorkspacePendingMediaPreview();
+        updateWorkspaceComposerSendLabel();
       }
 
       if (elements.workspaceComposerMediaPreview && elements.workspaceComposerMedia) {
@@ -1012,6 +1027,7 @@
           ) || 0;
           updateWorkspacePendingMediaTrigger(totalFiles);
           updateWorkspacePendingMediaPreview();
+          updateWorkspaceComposerSendLabel();
         });
       }
 
@@ -1025,6 +1041,7 @@
       if (elements.workspaceComposerText) {
         elements.workspaceComposerText.addEventListener('input', () => {
           scheduleWorkspaceDraftAutosave();
+          updateWorkspaceComposerSendLabel();
         });
         elements.workspaceComposerText.addEventListener('paste', (event) => {
           const files = options.extractClipboardImageFiles?.(event) || [];
@@ -1036,6 +1053,7 @@
             notify('Не удалось прикрепить скриншот автоматически. Используйте кнопку прикрепления медиа.', 'warning');
             return;
           }
+          updateWorkspaceComposerSendLabel();
         });
         elements.workspaceComposerText.addEventListener('keydown', (event) => {
           if ((event.ctrlKey || event.metaKey || event.altKey) && event.key === 'Enter') {
@@ -1048,6 +1066,7 @@
             saveWorkspaceDraft(activeState.composerTicketId, elements.workspaceComposerText.value, { reason: 'manual' });
           }
         });
+        updateWorkspaceComposerSendLabel();
       }
 
       if (elements.workspaceReplyTargetClear) {
