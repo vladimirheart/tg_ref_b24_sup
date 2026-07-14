@@ -19,6 +19,9 @@
       historyPollTimer: null,
       activeReplyToTelegramId: null,
       stickerPreviewCache: new Map(),
+      historyPinnedIntent: false,
+      historyScrollTimeouts: [],
+      historyInteractionsBound: false,
     };
     const PENDING_MEDIA_CHANGED_EVENT = 'dialogs:pending-media-files-changed';
 
@@ -70,6 +73,52 @@
     function notify(message, type = 'info') {
       if (typeof options.showNotification === 'function') {
         options.showNotification(message, type);
+      }
+    }
+
+    function clearScheduledHistoryScrolls() {
+      if (!state.historyScrollTimeouts.length) {
+        return;
+      }
+      state.historyScrollTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      state.historyScrollTimeouts = [];
+    }
+
+    function isHistoryPinnedToBottom(threshold = 48) {
+      const container = elements.detailsHistory;
+      if (!container) return false;
+      return Math.abs((container.scrollHeight - container.clientHeight) - container.scrollTop) <= threshold;
+    }
+
+    function syncHistoryPinnedIntent(threshold = 48) {
+      state.historyPinnedIntent = isHistoryPinnedToBottom(threshold);
+      return state.historyPinnedIntent;
+    }
+
+    function scrollHistoryToBottom(scrollOptions = {}) {
+      const container = elements.detailsHistory;
+      if (!container) return;
+      const apply = () => {
+        const activeContainer = elements.detailsHistory;
+        if (!activeContainer) return;
+        activeContainer.scrollTop = activeContainer.scrollHeight;
+      };
+      state.historyPinnedIntent = scrollOptions.pinnedIntent !== false;
+      clearScheduledHistoryScrolls();
+      apply();
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(() => {
+          apply();
+          window.requestAnimationFrame(apply);
+        });
+      } else {
+        apply();
+      }
+      if (scrollOptions.afterDelay !== false) {
+        [50, 150, 300].forEach((delay) => {
+          const timeoutId = window.setTimeout(apply, delay);
+          state.historyScrollTimeouts.push(timeoutId);
+        });
       }
     }
 
@@ -425,11 +474,16 @@
       }
     }
 
-    async function hydrateStickerPreview(container) {
+    async function hydrateStickerPreview(container, runtimeOptions = {}) {
       if (!(container instanceof HTMLElement)) return;
       const src = String(container.dataset.stickerSrc || '').trim();
       if (!src) return;
       if (container.dataset.stickerState === 'loading' || container.dataset.stickerState === 'ready') return;
+      const notifyLayoutChange = () => {
+        if (typeof runtimeOptions.onLayoutChange === 'function') {
+          runtimeOptions.onLayoutChange();
+        }
+      };
       const statusNode = container.querySelector('.chat-media-sticker-status');
       container.dataset.stickerState = 'loading';
       if (statusNode) {
@@ -456,6 +510,7 @@
           },
         });
         container.dataset.stickerState = 'ready';
+        notifyLayoutChange();
       } catch (_error) {
         container.dataset.stickerState = 'error';
         if (statusNode) {
@@ -463,14 +518,45 @@
         } else {
           container.innerHTML = '<div class="chat-media-sticker-status text-muted">Не удалось показать стикер.</div>';
         }
+        notifyLayoutChange();
       }
     }
 
-    function hydrateMediaRoot(root) {
+    function hydrateMediaRoot(root, runtimeOptions = {}) {
       if (!(root instanceof Element || root instanceof Document)) return;
       const stickerContainers = root.querySelectorAll('[data-sticker-src]');
       stickerContainers.forEach((container) => {
-        hydrateStickerPreview(container);
+        hydrateStickerPreview(container, runtimeOptions);
+      });
+    }
+
+    function bindHistoryMediaAutoScroll(root, bindOptions = {}) {
+      if (!(root instanceof HTMLElement)) {
+        return;
+      }
+      const shouldStickToBottom = bindOptions.stickToBottom === true;
+      const requestBottomSync = () => {
+        if (!shouldStickToBottom || state.historyPinnedIntent !== true) {
+          return;
+        }
+        scrollHistoryToBottom({ afterDelay: true });
+      };
+      root.querySelectorAll('img').forEach((image) => {
+        if (image.complete) {
+          requestBottomSync();
+          return;
+        }
+        image.addEventListener('load', requestBottomSync, { once: true });
+        image.addEventListener('error', requestBottomSync, { once: true });
+      });
+      root.querySelectorAll('video, audio').forEach((media) => {
+        const isReady = typeof media.readyState === 'number' && media.readyState >= 1;
+        if (isReady) {
+          requestBottomSync();
+          return;
+        }
+        media.addEventListener('loadedmetadata', requestBottomSync, { once: true });
+        media.addEventListener('error', requestBottomSync, { once: true });
       });
     }
 
@@ -709,7 +795,7 @@
         });
       return {
         scrollTop: container.scrollTop,
-        pinnedToBottom: Math.abs((container.scrollHeight - container.clientHeight) - container.scrollTop) <= 24,
+        pinnedToBottom: isHistoryPinnedToBottom(),
         anchorMessageId: String(anchor?.dataset?.telegramMessageId || '').trim(),
         anchorOffset: anchor ? anchor.getBoundingClientRect().top - containerTop : 0,
       };
@@ -719,26 +805,31 @@
       if (!elements.detailsHistory || !snapshot) return;
       const container = elements.detailsHistory;
       if (renderOptions.scrollToBottom !== false) {
-        container.scrollTop = container.scrollHeight;
+        scrollHistoryToBottom({ afterDelay: true });
         return;
       }
       if (snapshot.pinnedToBottom && renderOptions.stickToBottom !== false) {
-        container.scrollTop = container.scrollHeight;
+        scrollHistoryToBottom({ afterDelay: true });
         return;
       }
       if (snapshot.anchorMessageId) {
         const anchor = container.querySelector(`.chat-message-row[data-telegram-message-id="${CSS.escape(snapshot.anchorMessageId)}"]`);
         if (anchor instanceof HTMLElement) {
           container.scrollTop = Math.max(0, anchor.offsetTop - snapshot.anchorOffset);
+          syncHistoryPinnedIntent();
           return;
         }
       }
       container.scrollTop = Math.max(0, snapshot.scrollTop);
+      syncHistoryPinnedIntent();
     }
 
     function renderDialogHistory(renderOptions = {}) {
       if (!elements.detailsHistory) return;
       const viewportSnapshot = renderOptions.preserveViewport ? captureHistoryViewport() : null;
+      const shouldScrollToBottom = renderOptions.scrollToBottom !== false;
+      const shouldStickToBottom = shouldScrollToBottom
+        || (viewportSnapshot?.pinnedToBottom === true && renderOptions.stickToBottom !== false);
       const currentMessages = filterDialogHistoryMessages(state.currentMessages);
       const controlsMarkup = renderPreviousDialogHistoryControls();
       const archivedMarkup = state.previousBatches.map(renderArchivedHistoryBatch).join('');
@@ -746,11 +837,20 @@
         ? currentMessages.map((message) => messageToHtml(message)).join('')
         : '<div class="text-muted">Сообщения не найдены.</div>';
       elements.detailsHistory.innerHTML = `${controlsMarkup}${archivedMarkup}${currentMarkup}`;
-      hydrateMediaRoot(elements.detailsHistory);
+      hydrateMediaRoot(elements.detailsHistory, {
+        onLayoutChange: () => {
+          if (shouldStickToBottom && state.historyPinnedIntent === true) {
+            scrollHistoryToBottom({ afterDelay: true });
+          }
+        },
+      });
+      bindHistoryMediaAutoScroll(elements.detailsHistory, { stickToBottom: shouldStickToBottom });
       if (viewportSnapshot) {
         restoreHistoryViewport(viewportSnapshot, renderOptions);
-      } else if (renderOptions.scrollToBottom !== false) {
-        elements.detailsHistory.scrollTop = elements.detailsHistory.scrollHeight;
+      } else if (shouldScrollToBottom) {
+        scrollHistoryToBottom({ afterDelay: true });
+      } else {
+        syncHistoryPinnedIntent();
       }
     }
 
@@ -768,6 +868,7 @@
         ? [...state.currentMessages, message]
         : [message];
       renderDialogHistory({ scrollToBottom: true });
+      scrollHistoryToBottom({ afterDelay: true });
       state.lastHistoryMarker = `local:${Date.now()}`;
     }
 
@@ -809,6 +910,7 @@
           if (elements.detailsHistory) {
             const nextHeight = elements.detailsHistory.scrollHeight;
             elements.detailsHistory.scrollTop = previousScrollTop + Math.max(0, nextHeight - previousHeight);
+            syncHistoryPinnedIntent();
           }
         } else {
           state.previousHasMore = false;
@@ -1331,7 +1433,14 @@
     }
 
     function bindHistoryInteractionEvents() {
+      if (state.historyInteractionsBound) {
+        return;
+      }
+      state.historyInteractionsBound = true;
       if (elements.detailsHistory) {
+        elements.detailsHistory.addEventListener('scroll', () => {
+          syncHistoryPinnedIntent();
+        }, { passive: true });
         elements.detailsHistory.addEventListener('click', async (event) => {
           const loadPreviousButton = event.target.closest('button[data-action="load-previous-history"]');
           if (loadPreviousButton) {
@@ -1470,6 +1579,8 @@
       renderDialogHistory,
       renderHistory,
       appendHistoryMessage,
+      isHistoryPinnedToBottom,
+      scrollHistoryToBottom,
       historyMarker,
       loadPreviousDialogHistory,
       refreshHistory,

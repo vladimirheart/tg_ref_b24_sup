@@ -10,6 +10,8 @@
       shortcutEventsBound: false,
       detailsLifecycleBound: false,
       workspaceTelemetryBound: false,
+      modalNavigationBound: false,
+      modalReturnUrl: '',
     };
 
     function isTypingTarget(target) {
@@ -17,6 +19,58 @@
       const tagName = String(target.tagName || '').toLowerCase();
       if (target.isContentEditable) return true;
       return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+    }
+
+    function getCurrentUrl() {
+      return `${window.location.pathname || ''}${window.location.search || ''}${window.location.hash || ''}`;
+    }
+
+    function isDialogDetailsPath(pathname) {
+      if (typeof options.isDialogDetailsPath === 'function') {
+        return options.isDialogDetailsPath(pathname) === true;
+      }
+      return /^\/dialogs\/[^/]+\/?$/.test(String(pathname || ''));
+    }
+
+    function buildDialogDetailsUrl(ticketId, channelId) {
+      return options.buildDialogDetailsUrl?.(ticketId, channelId)
+        || options.buildWorkspaceDialogUrl?.(ticketId, channelId)
+        || `/dialogs/${encodeURIComponent(ticketId)}`;
+    }
+
+    function parseDialogRouteTicketId(pathname = window.location.pathname || '') {
+      if (!isDialogDetailsPath(pathname)) {
+        return '';
+      }
+      const match = String(pathname || '').match(/^\/dialogs\/([^/]+)\/?$/);
+      return match?.[1] ? decodeURIComponent(match[1]) : '';
+    }
+
+    function rememberModalReturnUrl(candidateUrl = getCurrentUrl()) {
+      const safeCandidateUrl = String(candidateUrl || '').trim();
+      if (!isDialogDetailsPath(window.location.pathname) && safeCandidateUrl) {
+        state.modalReturnUrl = safeCandidateUrl;
+      }
+      return state.modalReturnUrl || safeCandidateUrl;
+    }
+
+    function resolveModalReturnUrl() {
+      const stateReturnUrl = typeof window.history.state?.returnUrl === 'string'
+        ? window.history.state.returnUrl.trim()
+        : '';
+      return stateReturnUrl
+        || state.modalReturnUrl
+        || options.buildDialogsListUrl?.()
+        || '/dialogs';
+    }
+
+    function restoreModalReturnUrl() {
+      if (!isDialogDetailsPath(window.location.pathname)) {
+        return false;
+      }
+      const nextUrl = resolveModalReturnUrl();
+      window.history.replaceState(null, '', nextUrl);
+      return true;
     }
 
     function openDialogEntry(ticketId, row) {
@@ -44,11 +98,16 @@
       }
       options.setWorkspaceReadonlyMode?.(false);
       const channelId = row?.dataset?.channelId ?? null;
-      const nextUrl = options.buildWorkspaceDialogUrl?.(ticketId, channelId) || `/dialogs/${encodeURIComponent(ticketId)}`;
-      const currentPath = `${window.location.pathname || ''}${window.location.search || ''}`;
-      if (currentPath !== nextUrl) {
-        window.history.pushState({ ticketId: String(ticketId || '').trim() }, '', nextUrl);
-        options.debugLog?.('openDialogEntry.pushState', { currentPath, nextUrl });
+      const returnUrl = rememberModalReturnUrl(getCurrentUrl());
+      const nextUrl = buildDialogDetailsUrl(ticketId, channelId);
+      const currentUrl = getCurrentUrl();
+      if (currentUrl !== nextUrl) {
+        window.history.pushState({
+          surface: 'dialog-modal',
+          ticketId: String(ticketId || '').trim(),
+          returnUrl,
+        }, '', nextUrl);
+        options.debugLog?.('openDialogEntry.pushState', { currentUrl, nextUrl, returnUrl });
       }
       if (!elements.detailsModalEl) {
         options.debugLog?.('openDialogEntry.redirect.noDetailsModal', { ticketId });
@@ -270,11 +329,48 @@
       document.addEventListener('keydown', handleGlobalShortcuts);
     }
 
+    function handleDialogModalPopstate() {
+      if (!elements.detailsModalEl || options.workspaceEnabled === true) {
+        return;
+      }
+      const nextTicketId = parseDialogRouteTicketId();
+      const modalVisible = elements.detailsModalEl.classList.contains('show');
+      if (!nextTicketId) {
+        if (modalVisible) {
+          options.hideModalSafe?.(elements.detailsModalEl, elements.detailsModal);
+        }
+        return;
+      }
+      const channelId = options.getRouteChannelId?.(window.location.search || '') ?? null;
+      const normalizedTicketId = String(nextTicketId || '').trim();
+      const activeTicketId = String(options.getActiveDialogTicketId?.() || '').trim();
+      const activeChannelId = options.getActiveDialogChannelId?.() ?? null;
+      if (modalVisible && activeTicketId === normalizedTicketId && String(activeChannelId || '') === String(channelId || '')) {
+        return;
+      }
+      const row = options.findDialogRowByTicketId?.(normalizedTicketId, channelId) || null;
+      options.setActiveDialogRow?.(row, { ensureVisible: true });
+      Promise.resolve(options.openDialogDetails?.(normalizedTicketId, row)).catch((error) => {
+        options.debugLog?.('dialogModal.popstate.open.catch', {
+          ticketId: normalizedTicketId,
+          message: error?.message || String(error || ''),
+        });
+        console.error('Failed to sync dialog details modal with browser navigation', error);
+      });
+    }
+
+    function bindModalNavigationEvents() {
+      if (state.modalNavigationBound) return;
+      state.modalNavigationBound = true;
+      window.addEventListener('popstate', handleDialogModalPopstate);
+    }
+
     function bindDetailsModalLifecycle() {
       if (state.detailsLifecycleBound || !elements.detailsModalEl) return;
       state.detailsLifecycleBound = true;
       elements.detailsModalEl.addEventListener('shown.bs.modal', () => {
         options.startHistoryPolling?.();
+        options.scrollActiveHistoryToBottom?.({ afterDelay: true });
       });
       elements.detailsModalEl.addEventListener('hidden.bs.modal', () => {
         const panelState = typeof options.getCategoryPanelState === 'function'
@@ -320,6 +416,8 @@
         if (options.workspaceEnabled === true && options.isWorkspaceDialogPath?.(window.location.pathname)) {
           const nextPath = window.location.pathname === '/' ? '/' : '/dialogs';
           window.history.replaceState(null, '', nextPath);
+        } else {
+          restoreModalReturnUrl();
         }
       });
     }
@@ -364,6 +462,7 @@
       openDialogEntry,
       handleGlobalShortcuts,
       bindGlobalShortcutEvents,
+      bindModalNavigationEvents,
       bindDetailsModalLifecycle,
       bindWorkspaceAbandonTelemetry,
     };

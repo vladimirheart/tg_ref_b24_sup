@@ -1461,6 +1461,8 @@
     getCategoryPanelState: () => detailsCategoryModalState,
     confirmWorkspaceTicketSwitch,
     setWorkspaceReadonlyMode,
+    buildDialogDetailsUrl: buildWorkspaceDialogUrl,
+    buildDialogsListUrl,
     buildWorkspaceDialogUrl,
     openDialogWithWorkspaceFallback,
     openDialogDetails,
@@ -1511,6 +1513,12 @@
     syncReassignSelectOptions,
     updateDetailsTakeButton,
     stopHistoryPolling,
+    scrollActiveHistoryToBottom: (runtimeOptions = {}) => dialogsDetailsHistoryRuntime?.scrollHistoryToBottom?.(runtimeOptions),
+    getRouteChannelId,
+    findDialogRowByTicketId,
+    getActiveDialogTicketId: () => activeDialogTicketId,
+    getActiveDialogChannelId: () => activeDialogChannelId,
+    isDialogDetailsPath: isWorkspaceDialogPath,
     isWorkspaceDialogPath,
     getActiveWorkspaceTicketId: () => activeWorkspaceTicketId,
   }) || null;
@@ -2615,6 +2623,14 @@
 
   function isWorkspaceDialogPath(pathname) {
     return /^\/dialogs\/[^/]+/.test(String(pathname || ''));
+  }
+
+  function buildDialogsListUrl() {
+    const pathname = String(window.location.pathname || '').trim();
+    if (/^\/dialogs\/?$/.test(pathname)) {
+      return `${pathname || '/dialogs'}${window.location.search || ''}${window.location.hash || ''}`;
+    }
+    return '/dialogs';
   }
 
   async function emitWorkspaceTelemetry(eventType, payload = {}) {
@@ -4059,6 +4075,7 @@
 
   document.addEventListener('keydown', handleMediaPreviewEscape, true);
   dialogsFlowRuntime?.bindGlobalShortcutEvents();
+  dialogsFlowRuntime?.bindModalNavigationEvents();
   dialogsFlowRuntime?.bindDetailsModalLifecycle();
 
 
