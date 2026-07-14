@@ -151,8 +151,15 @@ public class DialogQuickActionService {
         dialogAiAssistantService.clearProcessing(ticketId, "operator_reply_media", null);
         CachedMultipartFile cachedFile = CachedMultipartFile.from(file);
         var metadata = attachmentService.storeTicketAttachment(authentication, ticketId, cachedFile);
-        var result = dialogReplyService.sendMediaReply(ticketId, cachedFile, message, replyToTelegramId, operator, metadata.storedName(), metadata.originalName());
+        DialogReplyService.DialogMediaReplyResult result;
+        try {
+            result = dialogReplyService.sendMediaReply(ticketId, cachedFile, message, replyToTelegramId, operator, metadata.storedName(), metadata.originalName());
+        } catch (RuntimeException ex) {
+            cleanupStoredTicketAttachment(ticketId, metadata.storedName());
+            throw ex;
+        }
         if (!result.success()) {
+            cleanupStoredTicketAttachment(ticketId, metadata.storedName());
             return Map.of(
                     "success", false,
                     "error", result.error()
@@ -175,6 +182,14 @@ public class DialogQuickActionService {
                 operator
         );
         return response;
+    }
+
+    private void cleanupStoredTicketAttachment(String ticketId, String storedName) {
+        try {
+            attachmentService.deleteTicketAttachment(ticketId, storedName);
+        } catch (IOException ex) {
+            log.warn("Unable to delete failed media attachment for ticket {} and storedName {}: {}", ticketId, storedName, ex.getMessage());
+        }
     }
 
     public DialogResolveResult resolveTicket(String ticketId,

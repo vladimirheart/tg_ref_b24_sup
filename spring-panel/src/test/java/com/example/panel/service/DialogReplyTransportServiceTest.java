@@ -88,6 +88,39 @@ class DialogReplyTransportServiceTest {
     }
 
     @Test
+    void sendMediaReturnsTelegramErrorDescriptionWithoutMojibake() throws Exception {
+        HttpClient httpClient = mock(HttpClient.class);
+        IntegrationNetworkService integrationNetworkService = mock(IntegrationNetworkService.class);
+        when(integrationNetworkService.createChannelHttpClient(any(), any(Duration.class))).thenReturn(httpClient);
+
+        List<String> methodCalls = new ArrayList<>();
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenAnswer(invocation -> responseFor(invocation.getArgument(0), methodCalls,
+                        "{\"ok\":false,\"description\":\"Bad Request: file is too big\"}",
+                        400));
+
+        DialogReplyTransportService service = new DialogReplyTransportService(
+                mock(com.example.panel.repository.ChannelRepository.class),
+                integrationNetworkService,
+                new ObjectMapper()
+        );
+
+        DialogReplyTransportService.DialogReplyTransportResult result = service.sendMedia(
+                telegramChannel(),
+                42L,
+                new MockMultipartFile("file", "sample.mp4", "video/mp4", new byte[]{4, 5, 6}),
+                "",
+                "sample.mp4",
+                null
+        );
+
+        assertThat(result.error()).isEqualTo("Telegram: Bad Request: file is too big");
+        assertThat(result.error()).doesNotContain("Р");
+        assertThat(result.telegramMessageId()).isNull();
+        assertThat(methodCalls).containsExactly("sendDocument");
+    }
+
+    @Test
     void sendMediaReturnsGracefulErrorWhenMultipartBuildFails() {
         HttpClient httpClient = mock(HttpClient.class);
         IntegrationNetworkService integrationNetworkService = mock(IntegrationNetworkService.class);
@@ -151,6 +184,7 @@ class DialogReplyTransportServiceTest {
         );
 
         assertThat(result.error()).isEqualTo("\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0444\u0430\u0439\u043b \u0432 Telegram.");
+        assertThat(result.error()).doesNotContain("Р");
         assertThat(result.telegramMessageId()).isNull();
     }
 

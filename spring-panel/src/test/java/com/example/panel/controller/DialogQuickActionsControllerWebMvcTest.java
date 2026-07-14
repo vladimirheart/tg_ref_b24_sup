@@ -16,6 +16,7 @@ import com.example.panel.service.DialogAuthorizationService;
 import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.DialogResolveResult;
 import com.example.panel.service.DialogReplyService;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -417,6 +419,27 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void mediaReplyReturnsJsonWhenServiceThrowsIOException() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("reply_media"), eq("T-606IO")))
+            .thenReturn(null);
+        when(dialogQuickActionService.sendMediaReply(eq("T-606IO"), org.mockito.ArgumentMatchers.any(), eq("caption"), eq(null), eq("operator"), org.mockito.ArgumentMatchers.any()))
+            .thenThrow(new IOException("disk failed"));
+
+        MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", "hello".getBytes());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/dialogs/T-606IO/media")
+                .file(file)
+                .param("message", "caption")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Не удалось обработать файл перед отправкой."));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-606IO", "reply_media", "error", "Не удалось обработать файл перед отправкой.");
+    }
+
+    @Test
     void mediaReplyReturnsPayloadAndAuditOnSuccess() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("reply_media"), eq("T-606OK")))
             .thenReturn(null);
@@ -431,8 +454,10 @@ class DialogQuickActionsControllerWebMvcTest {
                     "message", "caption"
             ));
 
+        MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", "hello".getBytes());
+
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/dialogs/T-606OK/media")
-                .file("file", "hello".getBytes())
+                .file(file)
                 .param("message", "caption")
                 .with(user("operator"))
                 .with(csrf()))

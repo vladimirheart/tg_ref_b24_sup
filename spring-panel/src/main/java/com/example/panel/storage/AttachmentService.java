@@ -111,6 +111,14 @@ public class AttachmentService {
         );
     }
 
+    public void deleteTicketAttachment(String ticketId, String storedName) throws IOException {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(storedName)) {
+            return;
+        }
+        Path target = resolveTicketAttachmentPath(ticketId, storedName);
+        Files.deleteIfExists(target);
+    }
+
     public void deleteKnowledgeBaseFile(Authentication authentication, String storedName) throws IOException {
         requireAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
         deleteKnowledgeBaseFileInternal(storedName);
@@ -211,6 +219,15 @@ public class AttachmentService {
         }
         if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) {
             throw new IllegalArgumentException("File not found");
+        }
+        return resolved;
+    }
+
+    private Path resolveTicketAttachmentPath(String ticketId, String filename) {
+        Path ticketDir = attachmentsRoot.resolve(ticketId).normalize();
+        Path resolved = ticketDir.resolve(filename).normalize();
+        if (!resolved.startsWith(attachmentsRoot)) {
+            throw new IllegalArgumentException("Invalid path");
         }
         return resolved;
     }

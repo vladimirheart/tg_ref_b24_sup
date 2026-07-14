@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -130,14 +129,23 @@ public class DialogQuickActionsController {
                                             @RequestParam("file") MultipartFile file,
                                             @RequestParam(value = "message", required = false) String message,
                                             @RequestParam(value = "replyToTelegramId", required = false) Long replyToTelegramId,
-                                            Authentication authentication) throws IOException {
-        return withQuickActionTimingIo("reply_media", ticketId, () -> {
+                                            Authentication authentication) {
+        return withQuickActionTiming("reply_media", ticketId, () -> {
             ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "reply_media", ticketId);
             if (permissionDenied != null) {
                 return permissionDenied;
             }
             String operator = authentication != null ? authentication.getName() : null;
-            Map<String, Object> payload = dialogQuickActionService.sendMediaReply(ticketId, file, message, replyToTelegramId, operator, authentication);
+            Map<String, Object> payload;
+            try {
+                payload = dialogQuickActionService.sendMediaReply(ticketId, file, message, replyToTelegramId, operator, authentication);
+            } catch (java.io.IOException ex) {
+                String error = "Не удалось обработать файл перед отправкой.";
+                logMediaReplyException(ticketId, file, ex);
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "reply_media", "error", error);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", error));
+            }
             if (!Boolean.TRUE.equals(payload.get("success"))) {
                 String error = payload.get("error") instanceof String value && StringUtils.hasText(value)
                         ? value
@@ -470,25 +478,19 @@ public class DialogQuickActionsController {
         }
     }
 
-    private <T> T withQuickActionTimingIo(String action,
-                                          String ticketId,
-                                          QuickActionIoSupplier<T> supplier) throws IOException {
-        long startedAtMs = System.currentTimeMillis();
-        try {
-            return supplier.get();
-        } finally {
-            long elapsedMs = System.currentTimeMillis() - startedAtMs;
-            if (elapsedMs > QUICK_ACTION_TARGET_MS) {
-                log.warn("Quick action '{}' for ticket '{}' exceeded target: {}ms > {}ms", action, ticketId, elapsedMs, QUICK_ACTION_TARGET_MS);
-            } else {
-                log.debug("Quick action '{}' for ticket '{}' completed in {}ms", action, ticketId, elapsedMs);
-            }
-        }
-    }
-
-    @FunctionalInterface
-    private interface QuickActionIoSupplier<T> {
-        T get() throws IOException;
+    private void logMediaReplyException(String ticketId, MultipartFile file, Exception ex) {
+        String originalFilename = file != null ? org.springframework.util.StringUtils.getFilename(file.getOriginalFilename()) : null;
+        String contentType = file != null ? file.getContentType() : null;
+        long fileSize = file != null ? file.getSize() : -1L;
+        log.warn(
+                "Media reply failed for ticket {} [originalFilename='{}', contentType='{}', fileSize={}]: {}",
+                ticketId,
+                originalFilename,
+                contentType,
+                fileSize,
+                ex.getMessage(),
+                ex
+        );
     }
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}

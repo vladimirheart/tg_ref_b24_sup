@@ -550,6 +550,7 @@ class DialogQuickActionServiceTest {
                 .containsEntry("success", false)
                 .containsEntry("error", "transport_error");
         verify(dialogAiAssistantService).clearProcessing("T-708", "operator_reply_media", null);
+        verify(attachmentService).deleteTicketAttachment("T-708", "stored-screen.png");
         verify(dialogAiAssistantService, never()).registerOperatorReply("T-708", "caption", "operator");
         verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
@@ -609,6 +610,7 @@ class DialogQuickActionServiceTest {
         assertThat(response)
                 .containsEntry("success", true)
                 .containsEntry("attachment", "/api/attachments/tickets/T-709/stored-proof.png");
+        verify(attachmentService, never()).deleteTicketAttachment("T-709", "stored-proof.png");
     }
 
     private static final class OneShotMultipartFile implements MultipartFile {

@@ -37,7 +37,6 @@ public class DialogReplyTransportService {
     private static final int MAX_ATTACHMENT_READY_RETRY_ATTEMPTS = 5;
     private static final long MAX_ATTACHMENT_READY_RETRY_DELAY_MILLIS = 500L;
     private static final Duration TELEGRAM_REQUEST_TIMEOUT = Duration.ofSeconds(15);
-    private static final String method = "sendDocument";
 
     private final ChannelRepository channelRepository;
     private final IntegrationNetworkService integrationNetworkService;
@@ -66,10 +65,10 @@ public class DialogReplyTransportService {
         return switch (platform) {
             case "vk" -> sendVkText(channel, userId, message)
                     ? DialogReplyTransportResult.success(null)
-                    : DialogReplyTransportResult.error("Не удалось отправить сообщение в VK.");
+                    : DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ VK.");
             case "max" -> sendMaxText(channel, userId, message)
                     ? DialogReplyTransportResult.success(null)
-                    : DialogReplyTransportResult.error("Не удалось отправить сообщение в MAX.");
+                    : DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ MAX.");
             default -> sendTelegramText(channel, userId, message, replyToTelegramId);
         };
     }
@@ -89,14 +88,14 @@ public class DialogReplyTransportService {
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
-                return "Ошибка редактирования сообщения в Telegram.";
+                return "РћС€РёР±РєР° СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ СЃРѕРѕР±С‰РµРЅРёСЏ РІ Telegram.";
             }
             return null;
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return "Не удалось отредактировать сообщение в Telegram.";
+            return "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚СЂРµРґР°РєС‚РёСЂРѕРІР°С‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.";
         } catch (IOException ex) {
-            return "Не удалось отредактировать сообщение в Telegram.";
+            return "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚СЂРµРґР°РєС‚РёСЂРѕРІР°С‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.";
         }
     }
 
@@ -114,14 +113,14 @@ public class DialogReplyTransportService {
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
-                return "Ошибка удаления сообщения в Telegram.";
+                return "РћС€РёР±РєР° СѓРґР°Р»РµРЅРёСЏ СЃРѕРѕР±С‰РµРЅРёСЏ РІ Telegram.";
             }
             return null;
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return "Не удалось удалить сообщение в Telegram.";
+            return "РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.";
         } catch (IOException ex) {
-            return "Не удалось удалить сообщение в Telegram.";
+            return "РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.";
         }
     }
 
@@ -139,7 +138,7 @@ public class DialogReplyTransportService {
         if ("telegram".equals(platform)) {
             return sendTelegramMediaSafely(channel, userId, file, caption, originalName, replyToTelegramId);
         }
-        return DialogReplyTransportResult.error("Отправка медиа пока поддерживается только для Telegram и MAX.");
+        return DialogReplyTransportResult.error("РћС‚РїСЂР°РІРєР° РјРµРґРёР° РїРѕРєР° РїРѕРґРґРµСЂР¶РёРІР°РµС‚СЃСЏ С‚РѕР»СЊРєРѕ РґР»СЏ Telegram Рё MAX.");
     }
 
     private DialogReplyTransportResult sendTelegramText(Channel channel,
@@ -161,12 +160,12 @@ public class DialogReplyTransportService {
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            return resolveTelegramTransportResult(response, "Ошибка отправки сообщения в Telegram.");
+            return resolveTelegramTransportResult(response, "РћС€РёР±РєР° РѕС‚РїСЂР°РІРєРё СЃРѕРѕР±С‰РµРЅРёСЏ РІ Telegram.");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return DialogReplyTransportResult.error("Не удалось отправить сообщение в Telegram.");
+            return DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.");
         } catch (IOException ex) {
-            return DialogReplyTransportResult.error("Не удалось отправить сообщение в Telegram.");
+            return DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РІ Telegram.");
         }
     }
 
@@ -210,39 +209,6 @@ public class DialogReplyTransportService {
         }
     }
 
-    private DialogReplyTransportResult sendTelegramMedia(Channel channel,
-                                                         Long userId,
-                                                         MultipartFile file,
-                                                         String caption,
-                                                         String originalName,
-                                                         Long replyToTelegramId) {
-        if (userId == null) {
-            return DialogReplyTransportResult.error("Не удалось определить получателя в Telegram.");
-        }
-        try {
-            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
-            DialogReplyTransportResult initialResult = sendTelegramMediaRequest(
-                    client,
-                    channel,
-                    userId,
-                    file,
-                    caption,
-                    replyToTelegramId,
-                    method
-            );
-            if (initialResult != null) {
-                return initialResult;
-            }
-            HttpResponse<String> response = null;
-            return resolveTelegramTransportResult(response, "Ошибка отправки файла в Telegram.");
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            return DialogReplyTransportResult.error("Не удалось отправить файл в Telegram.");
-        } catch (IOException ex) {
-            return DialogReplyTransportResult.error("Не удалось отправить файл в Telegram.");
-        }
-    }
-
     private DialogReplyTransportResult sendTelegramMediaSafely(Channel channel,
                                                                Long userId,
                                                                MultipartFile file,
@@ -250,7 +216,7 @@ public class DialogReplyTransportService {
                                                                String originalName,
                                                                Long replyToTelegramId) {
         if (userId == null) {
-            return DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ РїРѕР»СѓС‡Р°С‚РµР»СЏ РІ Telegram.");
+            return DialogReplyTransportResult.error("Не удалось определить получателя в Telegram.");
         }
         String telegramSendError = "Не удалось отправить файл в Telegram.";
         try {
@@ -311,7 +277,7 @@ public class DialogReplyTransportService {
                 )))
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        return resolveTelegramTransportResult(response, "РћС€РёР±РєР° РѕС‚РїСЂР°РІРєРё С„Р°Р№Р»Р° РІ Telegram.");
+        return resolveTelegramTransportResult(response, "Ошибка отправки файла в Telegram.");
     }
 
     private MultipartFile forceTelegramDocument(MultipartFile file, String originalName) {
@@ -369,24 +335,24 @@ public class DialogReplyTransportService {
                                 String caption,
                                 String originalName) {
         if (userId == null) {
-            return "Не удалось определить получателя в MAX.";
+            return "РќРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ РїРѕР»СѓС‡Р°С‚РµР»СЏ РІ MAX.";
         }
         String uploadType = resolveMaxUploadType(file.getContentType(), originalName);
         String attachmentType = resolveMaxAttachmentType(uploadType);
         Map<String, Object> uploadInit = createMaxUpload(channel.getToken(), uploadType);
         if (uploadInit == null) {
-            return "Не удалось создать upload-сессию в MAX.";
+            return "РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ upload-СЃРµСЃСЃРёСЋ РІ MAX.";
         }
         String uploadUrl = firstNonBlank(
                 stringValue(uploadInit.get("url")),
                 stringValue(uploadInit.get("upload_url"))
         );
         if (!StringUtils.hasText(uploadUrl)) {
-            return "MAX не вернул URL загрузки файла.";
+            return "MAX РЅРµ РІРµСЂРЅСѓР» URL Р·Р°РіСЂСѓР·РєРё С„Р°Р№Р»Р°.";
         }
         Map<String, Object> uploadedPayload = uploadMaxBinary(channel.getToken(), uploadUrl, file);
         if (uploadedPayload == null || uploadedPayload.isEmpty()) {
-            return "Не удалось загрузить файл в MAX.";
+            return "РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ С„Р°Р№Р» РІ MAX.";
         }
         if (!uploadedPayload.containsKey("token") && uploadInit.containsKey("token")) {
             uploadedPayload.put("token", uploadInit.get("token"));
@@ -403,9 +369,9 @@ public class DialogReplyTransportService {
             return sendMaxMediaMessage(channel.getToken(), userId, requestBody);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return "Не удалось отправить файл в MAX.";
+            return "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ С„Р°Р№Р» РІ MAX.";
         } catch (Exception ex) {
-            return "Не удалось отправить файл в MAX.";
+            return "РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ С„Р°Р№Р» РІ MAX.";
         }
     }
 
