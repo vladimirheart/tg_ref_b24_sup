@@ -1770,6 +1770,7 @@
       detailsTakeBtn,
       detailsReplyText,
       detailsReplySend,
+      detailsReplyMedia,
       workspaceAssignBtn,
       workspaceSnoozeBtn,
       workspaceResolveBtn,

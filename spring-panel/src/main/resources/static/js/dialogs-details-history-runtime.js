@@ -1176,7 +1176,7 @@
         }
         sentSuccessfully = true;
         if (typeof sendOptions.afterSuccess === 'function') {
-          sendOptions.afterSuccess();
+          await sendOptions.afterSuccess();
         } else if (elements.detailsReplyText) {
           elements.detailsReplyText.value = '';
         }
@@ -1247,15 +1247,15 @@
         appendHistory: false,
         successMessage: sendOptions.successMessage,
         errorMessage: sendOptions.errorMessage,
-        afterSuccess: () => {
+        afterSuccess: async () => {
           if (activeWorkspaceState.composerText) {
             activeWorkspaceState.composerText.value = '';
           }
           options.saveWorkspaceDraft?.(activeWorkspaceState.composerTicketId, '');
           if (afterSuccess) {
-            afterSuccess();
+            await afterSuccess();
           }
-          options.reloadWorkspaceSection?.('messages', {
+          await options.reloadWorkspaceSection?.('messages', {
             stateElement: activeWorkspaceState.messagesState,
             errorElement: activeWorkspaceState.messagesError,
             statusText: 'Обновление ленты после отправки медиа…',

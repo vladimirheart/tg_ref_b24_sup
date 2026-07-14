@@ -136,7 +136,7 @@ public class DialogReplyTransportService {
             return error == null ? DialogReplyTransportResult.success(null) : DialogReplyTransportResult.error(error);
         }
         if ("telegram".equals(platform)) {
-            return sendTelegramMedia(channel, userId, file, caption, originalName, replyToTelegramId);
+            return sendTelegramMediaSafely(channel, userId, file, caption, originalName, replyToTelegramId);
         }
         return DialogReplyTransportResult.error("Отправка медиа пока поддерживается только для Telegram и MAX.");
     }
@@ -222,19 +222,19 @@ public class DialogReplyTransportService {
         String fieldName = resolveTelegramField(method);
         try {
             HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(buildTelegramMethodUrl(channel, method)))
-                    .timeout(TELEGRAM_REQUEST_TIMEOUT)
-                    .header("Content-Type", "multipart/form-data; boundary=" + MultipartPayload.BOUNDARY)
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(buildTelegramMultipartBody(
-                            userId,
-                            caption,
-                            fieldName,
-                            file,
-                            replyToTelegramId
-                    )))
-                    .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            DialogReplyTransportResult initialResult = sendTelegramMediaRequest(
+                    client,
+                    channel,
+                    userId,
+                    file,
+                    caption,
+                    replyToTelegramId,
+                    method
+            );
+            if (initialResult != null) {
+                return initialResult;
+            }
+            HttpResponse<String> response = null;
             return resolveTelegramTransportResult(response, "Ошибка отправки файла в Telegram.");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
@@ -242,6 +242,139 @@ public class DialogReplyTransportService {
         } catch (IOException ex) {
             return DialogReplyTransportResult.error("Не удалось отправить файл в Telegram.");
         }
+    }
+
+    private DialogReplyTransportResult sendTelegramMediaSafely(Channel channel,
+                                                               Long userId,
+                                                               MultipartFile file,
+                                                               String caption,
+                                                               String originalName,
+                                                               Long replyToTelegramId) {
+        if (userId == null) {
+            return DialogReplyTransportResult.error("РќРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ РїРѕР»СѓС‡Р°С‚РµР»СЏ РІ Telegram.");
+        }
+        String method = resolveTelegramMethod(file.getContentType(), originalName);
+        String telegramSendError = "\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0444\u0430\u0439\u043b \u0432 Telegram.";
+        try {
+            DialogReplyTransportResult initialResult = sendTelegramMediaDirect(
+                    channel,
+                    userId,
+                    file,
+                    caption,
+                    originalName,
+                    replyToTelegramId
+            );
+            if (initialResult.error() == null || "sendDocument".equals(method)) {
+                return initialResult;
+            }
+            return sendTelegramMediaDirect(
+                    channel,
+                    userId,
+                    forceTelegramDocument(file, originalName),
+                    caption,
+                    originalName,
+                    replyToTelegramId
+            );
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return DialogReplyTransportResult.error(telegramSendError);
+        } catch (IOException ex) {
+            return DialogReplyTransportResult.error(telegramSendError);
+        } catch (RuntimeException ex) {
+            return DialogReplyTransportResult.error(telegramSendError);
+        }
+    }
+
+    private DialogReplyTransportResult sendTelegramMediaDirect(Channel channel,
+                                                               Long userId,
+                                                               MultipartFile file,
+                                                               String caption,
+                                                               String originalName,
+                                                               Long replyToTelegramId) throws IOException, InterruptedException {
+        String method = resolveTelegramMethod(file.getContentType(), originalName);
+        HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
+        return sendTelegramMediaRequest(
+                client,
+                channel,
+                userId,
+                file,
+                caption,
+                replyToTelegramId,
+                method
+        );
+    }
+
+    private DialogReplyTransportResult sendTelegramMediaRequest(HttpClient client,
+                                                                Channel channel,
+                                                                Long userId,
+                                                                MultipartFile file,
+                                                                String caption,
+                                                                Long replyToTelegramId,
+                                                                String method) throws IOException, InterruptedException {
+        String fieldName = resolveTelegramField(method);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(buildTelegramMethodUrl(channel, method)))
+                .timeout(TELEGRAM_REQUEST_TIMEOUT)
+                .header("Content-Type", "multipart/form-data; boundary=" + MultipartPayload.BOUNDARY)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(buildTelegramMultipartBody(
+                        userId,
+                        caption,
+                        fieldName,
+                        file,
+                        replyToTelegramId
+                )))
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        return resolveTelegramTransportResult(response, "РћС€РёР±РєР° РѕС‚РїСЂР°РІРєРё С„Р°Р№Р»Р° РІ Telegram.");
+    }
+
+    private MultipartFile forceTelegramDocument(MultipartFile file, String originalName) {
+        return new MultipartFile() {
+            @Override
+            public String getName() {
+                return file.getName();
+            }
+
+            @Override
+            public String getOriginalFilename() {
+                return StringUtils.hasText(originalName) ? originalName : file.getOriginalFilename();
+            }
+
+            @Override
+            public String getContentType() {
+                return "application/octet-stream";
+            }
+
+            @Override
+            public boolean isEmpty() {
+                return file.isEmpty();
+            }
+
+            @Override
+            public long getSize() {
+                return file.getSize();
+            }
+
+            @Override
+            public byte[] getBytes() throws IOException {
+                return file.getBytes();
+            }
+
+            @Override
+            public InputStream getInputStream() throws IOException {
+                return file.getInputStream();
+            }
+
+            @Override
+            public void transferTo(java.io.File dest) throws IOException, IllegalStateException {
+                file.transferTo(dest);
+            }
+
+            @Override
+            public void transferTo(java.nio.file.Path dest) throws IOException, IllegalStateException {
+                file.transferTo(dest);
+            }
+        };
     }
 
     private String sendMaxMedia(Channel channel,

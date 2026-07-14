@@ -627,10 +627,23 @@
         options.renderWorkspaceMessageItem?.(message) || '',
       );
       options.hydrateMediaRoot?.(elements.workspaceMessagesList);
+      scrollWorkspaceMessagesToBottom();
       if (elements.workspaceMessagesState) {
         elements.workspaceMessagesState.classList.add('d-none');
         elements.workspaceMessagesState.textContent = '';
       }
+    }
+
+    function scrollWorkspaceMessagesToBottom() {
+      if (!(elements.workspaceMessagesList instanceof HTMLElement)) {
+        return;
+      }
+      const lastMessage = elements.workspaceMessagesList.lastElementChild;
+      if (lastMessage instanceof HTMLElement && typeof lastMessage.scrollIntoView === 'function') {
+        lastMessage.scrollIntoView({ block: 'end', behavior: 'smooth' });
+        return;
+      }
+      elements.workspaceMessagesList.scrollTop = elements.workspaceMessagesList.scrollHeight;
     }
 
     function updateWorkspaceMessagesLoadMoreState() {
@@ -2281,6 +2294,9 @@
       emitWorkspaceParityGapTelemetry(parity, conversation);
 
       renderWorkspaceSlaSection(sla);
+      if (Array.isArray(messages.items) && messages.items.length > 0) {
+        scrollWorkspaceMessagesToBottom();
+      }
     }
 
     return {
@@ -2293,6 +2309,7 @@
       restoreWorkspaceDraft,
       scheduleWorkspaceDraftAutosave,
       appendWorkspaceMessage,
+      scrollWorkspaceMessagesToBottom,
       updateWorkspaceMessagesLoadMoreState,
       syncWorkspaceMessagesPagination,
       sendWorkspaceReply,
