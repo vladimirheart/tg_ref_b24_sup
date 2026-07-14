@@ -486,7 +486,7 @@
             notify('Не удалось определить клиента для блокировки', 'error');
             return;
           }
-          const defaultReason = `���� � ������� ${ticketId}`;
+          const defaultReason = `Спам в диалоге ${ticketId}`;
           const reasonInput = window.prompt('Причина блокировки клиента как спам:', defaultReason);
           if (reasonInput === null) {
             return;
@@ -597,7 +597,7 @@
             const blockReason = policy.blockReason || 'policy_blocked';
             const humanReason = formatLegacyOpenBlockReason(blockReason);
             const reviewMeta = [policy.reviewedBy, policy.reviewedAtUtc].filter(Boolean).join(' @ ');
-            notify(`Legacy modal blocked: ${humanReason}${reviewMeta ? ` (${reviewMeta})` : ''}.`, 'warning');
+            notify(`Открытие старой карточки заблокировано: ${humanReason}${reviewMeta ? ` (${reviewMeta})` : ''}.`, 'warning');
             await options.emitWorkspaceTelemetry?.('workspace_open_legacy_blocked', {
               ticketId: activeWorkspaceState.ticketId,
               reason: blockReason,
@@ -610,10 +610,10 @@
           }
           let legacyOpenReason = 'manual_rollback';
           if (policy.enabled && policy.reasonRequired) {
-            const answer = window.prompt('Укажите причину manual legacy-open (UTC policy checkpoint):', 'manual_rollback');
+            const answer = window.prompt('Укажите причину ручного открытия старой карточки (UTC policy checkpoint):', 'manual_rollback');
             legacyOpenReason = String(answer || '').trim();
             if (!legacyOpenReason) {
-              notify('Legacy modal не открыт: требуется причина manual open.', 'warning');
+              notify('Старая карточка не открыта: требуется указать причину ручного открытия.', 'warning');
               return;
             }
           }

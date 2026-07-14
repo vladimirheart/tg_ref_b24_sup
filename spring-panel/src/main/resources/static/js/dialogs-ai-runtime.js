@@ -56,12 +56,12 @@
         return;
       }
       if (!normalizedTicketId) {
-        elements.workspaceAiSuggestionsState.textContent = 'Open a dialog to load AI suggestions.';
+        elements.workspaceAiSuggestionsState.textContent = 'Откройте диалог, чтобы загрузить AI-подсказки.';
         elements.workspaceAiSuggestionsList.classList.add('d-none');
         elements.workspaceAiSuggestionsList.innerHTML = '';
         return;
       }
-      elements.workspaceAiSuggestionsState.textContent = 'Loading AI suggestions...';
+      elements.workspaceAiSuggestionsState.textContent = 'Загрузка AI-подсказок...';
       elements.workspaceAiSuggestionsList.classList.add('d-none');
       elements.workspaceAiSuggestionsList.innerHTML = '';
       try {
@@ -101,12 +101,12 @@
                 <span class="badge text-bg-light border">${sourceBadge}</span>
               </div>
               ${snippet ? `<div class="small text-muted mt-1">${snippet}</div>` : ''}
-              ${explain ? `<div class="small mt-1"><strong>Why selected:</strong> ${explain}</div>` : ''}
+              ${explain ? `<div class="small mt-1"><strong>Почему выбрано:</strong> ${explain}</div>` : ''}
               <div class="mt-2">
                 <div class="btn-group btn-group-sm" role="group">
-                  <button type="button" class="btn btn-outline-primary" data-ai-suggestion-apply="${index}" data-ai-suggestion-reply="${reply}">Insert as-is</button>
-                  <button type="button" class="btn btn-outline-secondary" data-ai-suggestion-apply-edit="${index}" data-ai-suggestion-reply="${reply}">Insert and edit</button>
-                  <button type="button" class="btn btn-outline-danger" data-ai-suggestion-reject="${index}" data-ai-suggestion-source="${rawSource}" data-ai-suggestion-title="${rawTitle}" data-ai-suggestion-snippet="${rawSnippet}" data-ai-suggestion-reply="${reply}">Reject</button>
+                  <button type="button" class="btn btn-outline-primary" data-ai-suggestion-apply="${index}" data-ai-suggestion-reply="${reply}">Вставить как есть</button>
+                  <button type="button" class="btn btn-outline-secondary" data-ai-suggestion-apply-edit="${index}" data-ai-suggestion-reply="${reply}">Вставить и отредактировать</button>
+                  <button type="button" class="btn btn-outline-danger" data-ai-suggestion-reject="${index}" data-ai-suggestion-source="${rawSource}" data-ai-suggestion-title="${rawTitle}" data-ai-suggestion-snippet="${rawSnippet}" data-ai-suggestion-reply="${reply}">Отклонить</button>
                 </div>
               </div>
             </article>
@@ -195,12 +195,12 @@
         return;
       }
       if (!normalizedTicketId) {
-        elements.workspaceAiControlState.textContent = 'Open a dialog to manage AI.';
+        elements.workspaceAiControlState.textContent = 'Откройте диалог, чтобы управлять AI.';
         elements.workspaceAiDisableForDialog.disabled = true;
         elements.workspaceAiHandoffNoAutoReply.disabled = true;
         return;
       }
-      elements.workspaceAiControlState.textContent = 'Loading AI dialog controls...';
+      elements.workspaceAiControlState.textContent = 'Загрузка настроек AI для диалога...';
       elements.workspaceAiDisableForDialog.disabled = true;
       elements.workspaceAiHandoffNoAutoReply.disabled = true;
       try {
@@ -215,7 +215,7 @@
         const control = payload.control || {};
         const disabled = control.ai_disabled === true;
         const blocked = control.auto_reply_blocked === true;
-        elements.workspaceAiDisableForDialog.textContent = disabled ? 'Enable AI for dialog' : 'Disable AI for dialog';
+        elements.workspaceAiDisableForDialog.textContent = disabled ? 'Включить AI для диалога' : 'Отключить AI для диалога';
         elements.workspaceAiControlState.textContent = disabled
           ? 'AI is fully disabled for this dialog.'
           : (blocked ? 'AI auto-reply is disabled for this dialog. Suggestions remain available.' : 'AI runs in standard mode.');
@@ -349,7 +349,7 @@
         return;
       }
       if (!Array.isArray(items) || !items.length) {
-        elements.aiMonitoringEvents.innerHTML = '<div class="text-muted">������� ���.</div>';
+        elements.aiMonitoringEvents.innerHTML = '<div class="text-muted">Событий нет.</div>';
         return;
       }
       elements.aiMonitoringEvents.innerHTML = items.slice(0, 12).map((item) => {
@@ -454,7 +454,7 @@
       if (timestamp && shortText) return `${timestamp} · ${shortText}`;
       if (shortText) return shortText;
       if (timestamp) return timestamp;
-      return '��������� ��� ������';
+      return 'Сообщение без текста';
     }
 
     function renderAiReviewMessageSelect(selectEl, candidates, selectedId, emptyLabel) {

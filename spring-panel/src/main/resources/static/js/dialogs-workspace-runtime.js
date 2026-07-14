@@ -90,7 +90,7 @@
     function renderWorkspaceSimpleList(items, formatter) {
       const list = Array.isArray(items) ? items : [];
       if (list.length === 0) {
-        return '<div class="small text-muted">РџРѕРєР° РЅРµС‚ РґР°РЅРЅС‹С….</div>';
+        return '<div class="small text-muted">Пока нет данных.</div>';
       }
       return `<ul class="list-unstyled small mb-0">${list.map((item) => `<li class="mb-2">${formatter(item)}</li>`).join('')}</ul>`;
     }
@@ -325,15 +325,15 @@
     function formatWorkspaceSlaRemaining(minutesLeft) {
       const value = Number(minutesLeft);
       if (!Number.isFinite(value)) return '—';
-      if (value === 0) return '0Рј';
+      if (value === 0) return '0м';
       const absValue = Math.abs(Math.round(value));
       const hours = Math.floor(absValue / 60);
       const minutes = absValue % 60;
       const suffix = value < 0 ? 'назад' : 'осталось';
       if (hours > 0) {
-        return `${hours}С‡ ${minutes}Рј ${suffix}`;
+        return `${hours}ч ${minutes}м ${suffix}`;
       }
-      return `${minutes}Рј ${suffix}`;
+      return `${minutes}м ${suffix}`;
     }
 
     function resolveWorkspaceRolloutBannerClass(tone) {
@@ -499,7 +499,7 @@
       }
       if (elements.workspaceReplyTargetText) {
         const safePreview = String(preview || '').trim();
-        elements.workspaceReplyTargetText.textContent = safePreview || `????????? #${normalizedMessageId}`;
+        elements.workspaceReplyTargetText.textContent = safePreview || `Сообщение #${normalizedMessageId}`;
       }
       emitWorkspaceTelemetry('workspace_reply_target_selected', {
         ticketId: activeState.ticketId,
@@ -520,7 +520,7 @@
     function confirmWorkspaceTicketSwitch(nextTicketId) {
       if (!hasUnsavedWorkspaceComposerChanges(nextTicketId)) return true;
       const activeState = getActiveWorkspaceState();
-      const accepted = window.confirm('???? ???????????? ????????? ? ?????????. ????????? ??????? ???????? ????? ????????????? ????????');
+      const accepted = window.confirm('Есть несохранённый черновик в диалоге. Сохранить его перед переключением на другой диалог?');
       if (accepted) {
         saveWorkspaceDraft(activeState.composerTicketId, elements.workspaceComposerText?.value || '', { reason: 'manual' });
       }
@@ -676,7 +676,7 @@
         saveWorkspaceDraft(activeState.composerTicketId, '');
         resetWorkspaceReplyTarget({ reason: 'message_sent' });
         appendWorkspaceMessage({
-          senderName: data.responsible || 'РћРїРµСЂР°С‚РѕСЂ',
+          senderName: data.responsible || 'Оператор',
           messageText: message,
           sentAt: data.timestamp || new Date().toISOString(),
           telegramMessageId: data.telegramMessageId || null,
@@ -788,7 +788,7 @@
     function buildWorkspaceNavigationStateText(navigation) {
       const safeNavigation = navigation && typeof navigation === 'object' ? navigation : null;
       if (!safeNavigation) {
-        return 'РћС‡РµСЂРµРґСЊ РЅРµ РѕРїСЂРµРґРµР»РµРЅР°';
+        return 'Очередь не определена';
       }
       if (typeof safeNavigation.summary === 'string' && safeNavigation.summary.trim()) {
         return safeNavigation.summary.trim();
@@ -799,7 +799,7 @@
         return `Позиция ${position} из ${total}.`;
       }
       return safeNavigation.enabled === false
-        ? 'Inline navigation РѕС‚РєР»СЋС‡РµРЅР°.'
+        ? 'Inline navigation отключена.'
         : 'Текущий диалог открыт вне активной очереди.';
     }
 
@@ -833,7 +833,7 @@
         elements.workspaceNavNextBtn.disabled = !navigationEnabled || !next;
         elements.workspaceNavNextBtn.title = next
           ? `${next.ticketId}${next.clientName ? ` · ${next.clientName}` : ''}${next.status ? ` · ${next.status}` : ''}`
-          : '????????? ?????? ??????????';
+          : 'Следующий диалог недоступен';
       }
       if (elements.workspaceNavState) {
         elements.workspaceNavState.textContent = buildWorkspaceNavigationStateText(navigation);
@@ -1076,7 +1076,7 @@
           notify('Workspace временно в cooldown — открыт legacy modal как rollback.', 'warning');
           await options.openDialogDetails?.(ticketId, row || activeState.row);
         } else {
-          notify('Legacy modal отключён: дождитесь завершения workspace cooldown или исправьте причину деградации workspace.', 'warning');
+          notify('Старая карточка отключена: дождитесь завершения cooldown рабочей области или исправьте причину деградации.', 'warning');
         }
         return;
       }
@@ -1182,7 +1182,7 @@
             elements.workspaceMessagesError.classList.remove('d-none');
           }
         }
-        notify('Legacy modal отключён: auto-fallback недоступен. Проверьте telemetry workspace и исправьте ошибку контракта.', 'warning');
+        notify('Старая карточка отключена: auto-fallback недоступен. Проверьте telemetry рабочей области и исправьте ошибку контракта.', 'warning');
       }
     }
 
@@ -1512,7 +1512,7 @@
     function workspaceContextViolationSeverityLabel(severity) {
       switch (String(severity || '').trim().toLowerCase()) {
         case 'high':
-          return '??????';
+          return 'Критично';
         case 'medium':
           return 'Нужно действие';
         default:
@@ -1620,20 +1620,20 @@
       const fields = [
         ['ID', client.id],
         ['Username', client.username],
-        ['РЎС‚Р°С‚СѓСЃ', client.status],
-        ['РљР°РЅР°Р»', client.channel],
+        ['Статус', client.status],
+        ['Канал', client.channel],
         ['Бизнес', client.business],
         ['Локация', client.location],
         ['Ответственный', client.responsible],
         ['Непрочитанные', client.unread_count],
-        ['РћС†РµРЅРєР°', client.rating],
+        ['Оценка', client.rating],
         ['Последнее сообщение', formatWorkspaceDateTime(client.last_message_at)],
         ['Всего диалогов', client.total_dialogs],
         ['Открытых диалогов', client.open_dialogs],
-        ['Р—Р°РєСЂС‹С‚Рѕ Р·Р° 30 РґРЅРµР№', client.resolved_30d],
+        ['Закрыто за 30 дней', client.resolved_30d],
         ['Первое обращение', formatWorkspaceDateTime(client.first_seen_at)],
         ['Последняя активность тикета', formatWorkspaceDateTime(client.last_ticket_activity_at)],
-        ['РЇР·С‹Рє', client.language],
+        ['Язык', client.language],
       ];
       const reservedClientKeys = new Set([
         'id',
@@ -1680,7 +1680,7 @@
         profileRuleSummary.push(`Обязательных полей: ${totalRequiredProfileFields}`);
       }
       if (activeProfileSegments.length) {
-        profileRuleSummary.push(`РЎРµРіРјРµРЅС‚С‹: ${activeProfileSegments.join(', ')}`);
+        profileRuleSummary.push(`Сегменты: ${activeProfileSegments.join(', ')}`);
       }
       const healthBanner = profileHealth && profileHealth.enabled === true
         ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Контекст клиента готов (${Number(profileHealth.coverage_pct || 100)}%).` : `Нужно дозаполнить контекст (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'нет обязательных полей')}.`}${profileRuleSummary.length ? `<div class="text-muted mt-1">${escapeHtml(profileRuleSummary.join(' · '))}</div>` : ''}<div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at_utc || profileHealth.checked_at))}</div></div>`
@@ -1697,7 +1697,7 @@
       const clientCardUrl = Number.isFinite(Number(client?.id)) ? `/client/${Number(client.id)}` : null;
       const profileMatchSection = profileMatchCandidates && profileMatchFields.length
         ? `<details class="mt-2"${profileMatchReviewFields.length ? ' open' : ''}>
-            <summary class="small fw-semibold">????????????? ?????? <span class="text-muted fw-normal">(${profileMatchReviewFields.length}/${profileMatchFields.length})</span></summary>
+            <summary class="small fw-semibold">Проверка совпадений <span class="text-muted fw-normal">(${profileMatchReviewFields.length}/${profileMatchFields.length})</span></summary>
             <div class="small text-muted mt-1">Проверьте предложенные совпадения по бизнесу, локации, городу и стране.</div>
             <div class="d-flex flex-column gap-2 mt-2">
               ${profileMatchFields.map((field) => {
@@ -1764,7 +1764,7 @@
                 }
                 return `<div class="border rounded px-2 py-1 bg-white">
                   <div class="d-flex flex-wrap align-items-center gap-2">
-                    <span class="fw-semibold">${escapeHtml(block.label || block.key || 'Р‘Р»РѕРє')}</span>
+                    <span class="fw-semibold">${escapeHtml(block.label || block.key || 'Блок')}</span>
                     <span class="badge ${contextBlockBadgeClass(block.status)}">${escapeHtml(String(block.status || 'unavailable'))}</span>
                   </div>
                   ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
@@ -1859,12 +1859,12 @@
       const contextSourcesSection = contextSources.length
         ? `<details class="mt-2" data-workspace-telemetry-section="context_sources" data-workspace-telemetry-items="${contextSources.length}" data-workspace-telemetry-required="${contextSourceRequiredCount}" data-workspace-telemetry-gaps="${contextSourceIssueCount}" data-workspace-telemetry-hidden="0"${contextSourceIssueCount > 0 ? ' open' : ''}>
             <summary class="small fw-semibold">Источники контекста <span class="text-muted fw-normal">(${contextSources.length}; required ${contextSourceRequiredCount}; gaps ${contextSourceIssueCount})</span></summary>
-            <div class="small text-muted mt-1">???????? ?? ?????????, ????? primary customer-context ????????? ???? policy-????.</div>
+            <div class="small text-muted mt-1">Поля не скрыты, чтобы primary customer-context опирался только на policy-поля.</div>
             <div class="d-flex flex-column gap-2 mt-2">
               ${contextSources.map((source) => {
                 const meta = [];
                 if (Number.isFinite(Number(source.matched_attribute_count)) && Number(source.matched_attribute_count) > 0) {
-                  meta.push(`${Number(source.matched_attribute_count)} Р°С‚СЂ.`);
+                  meta.push(`${Number(source.matched_attribute_count)} атр.`);
                 }
                 if (source.updated_at_utc) {
                   meta.push(`UTC ${formatWorkspaceDateTime(source.updated_at_utc)}`);
@@ -1872,7 +1872,7 @@
                   meta.push(`invalid: ${String(source.updated_at_raw).trim()}`);
                 }
                 if (source.linked === true) {
-                  meta.push('РµСЃС‚СЊ СЃСЃС‹Р»РєР°');
+                  meta.push('есть ссылка');
                 }
                 return `<div class="border rounded px-2 py-1">
                   <div class="d-flex flex-wrap align-items-center gap-2">
@@ -1983,7 +1983,7 @@
           </div>
           <div class="mt-1 fw-semibold">${escapeHtml(detail.shortLabel || detail.operatorMessage)}</div>
           <div class="small text-muted mt-1">${escapeHtml(detail.operatorMessage)}</div>
-          ${detail.nextStep ? `<div class="small mt-1"><span class="text-muted">????????? ???:</span> ${escapeHtml(detail.nextStep)}</div>` : ''}
+          ${detail.nextStep ? `<div class="small mt-1"><span class="text-muted">Следующий шаг:</span> ${escapeHtml(detail.nextStep)}</div>` : ''}
           ${detail.playbookUrl
             ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.actionLabel || detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
             : ''}
@@ -1993,7 +1993,7 @@
         : `<div class="d-flex flex-column gap-2 mt-2">
             ${primaryViolationCards.map((detail) => renderViolationCard(detail)).join('')}
             ${extraViolationCards.length
-              ? `<details${progressiveDisclosureReady ? '' : ' open'}><summary class="small text-muted">РџРѕРєР°Р·Р°С‚СЊ РµС‰С‘ ${deferredViolationCount}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
+              ? `<details${progressiveDisclosureReady ? '' : ' open'}><summary class="small text-muted">Показать ещё ${deferredViolationCount}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
               : ''}
           </div>`;
       const contextContractSection = contract && contract.enabled === true
@@ -2008,9 +2008,9 @@
               ? `<div class="mt-1"><span class="text-muted">Operator first:</span> ${escapeHtml(focusBlocks.join(', '))}</div>`
               : ''}
             ${contractNextStepSummary
-              ? `<div class="mt-1"><span class="text-muted">Р§С‚Рѕ СЃРґРµР»Р°С‚СЊ:</span> ${escapeHtml(contractNextStepSummary)}</div>`
+              ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contractNextStepSummary)}</div>`
               : (Array.isArray(contract.action_items) && contract.action_items.length
-                ? `<div class="mt-1"><span class="text-muted">Р§С‚Рѕ СЃРґРµР»Р°С‚СЊ:</span> ${escapeHtml(contract.action_items[0])}</div>`
+                ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contract.action_items[0])}</div>`
                 : '')}
             ${deferredViolationCount > 0
               ? `<div class="mt-1 text-muted">Остальные детали скрыты до раскрытия: ${deferredViolationCount}.</div>`
@@ -2025,8 +2025,8 @@
             <summary class="small fw-semibold">Доп. атрибуты <span class="text-muted fw-normal">(${extraAttributeTotalCount}; visible ${limitedExtraEntries.length}${hiddenByLimitCount > 0 ? `; hidden ${hiddenByLimitCount}` : ''})</span></summary>
             <div class="small text-muted mt-1">Второстепенные поля скрыты до раскрытия, чтобы не конкурировать с customer-context contract.</div>
             <div class="mt-2">${expandedRows}</div>
-            ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">РџРѕРєР°Р·Р°С‚СЊ РµС‰С‘ ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
-            ${hiddenByLimitCount > 0 ? `<div class="small text-muted mt-1">?????? ?? ??????: ${hiddenByLimitCount}.</div>` : ''}
+            ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">Показать ещё ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
+            ${hiddenByLimitCount > 0 ? `<div class="small text-muted mt-1">Скрыто по лимиту: ${hiddenByLimitCount}.</div>` : ''}
           </details>`
         : '';
 
@@ -2123,7 +2123,7 @@
             ? '<div class="small text-danger mt-1">Требуется эскалация: окно SLA критичное.</div>'
             : '';
           elements.workspaceSlaContent.classList.remove('d-none');
-          elements.workspaceSlaContent.innerHTML = `<div class="small">?????????: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">?? ????????: ${escapeHtml(remaining)}</div><div class="small text-muted">???????: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}${policyMarkup}`;
+          elements.workspaceSlaContent.innerHTML = `<div class="small">Статус: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">До дедлайна: ${escapeHtml(remaining)}</div><div class="small text-muted">Дедлайн: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}${policyMarkup}`;
         }
       } else {
         if (elements.workspaceSlaState) elements.workspaceSlaState.classList.add('d-none');
@@ -2153,7 +2153,7 @@
       options.setActiveDialogContext?.({
         clientName: String(workspaceClient?.name || conversation?.clientName || conversation?.username || currentDialogContext.clientName || '—').trim() || '—',
         clientUserId: String(workspaceClient?.id || options.getDialogUserId?.(conversation) || currentDialogContext.clientUserId || '').trim(),
-        operatorName: String(conversation?.responsible || options.operatorDisplayName || currentDialogContext.operatorName || 'РћРїРµСЂР°С‚РѕСЂ').trim() || 'РћРїРµСЂР°С‚РѕСЂ',
+        operatorName: String(conversation?.responsible || options.operatorDisplayName || currentDialogContext.operatorName || 'Оператор').trim() || 'Оператор',
         channelName: String(conversation?.channelName || workspaceClient?.channel || currentDialogContext.channelName || '—').trim() || '—',
         business: String(conversation?.business || workspaceClient?.business || currentDialogContext.business || '—').trim() || '—',
         location: String(workspaceClient?.location || conversation?.locationName || conversation?.city || currentDialogContext.location || '—').trim() || '—',
@@ -2197,7 +2197,7 @@
         const status = conversation.statusLabel || conversation.status || '—';
         const assignee = conversation.responsible || 'без ответственного';
         const createdAt = formatWorkspaceDateTime(conversation.createdAt || conversation.created_at);
-        elements.workspaceConversationMeta.textContent = `??????: ${status} ? ?????????????: ${assignee} ? ??????: ${createdAt}`;
+        elements.workspaceConversationMeta.textContent = `Статус: ${status} · Ответственный: ${assignee} · Создан: ${createdAt}`;
       }
 
       renderWorkspaceNavigation(navigation);
@@ -2208,7 +2208,7 @@
         elements.workspaceMessagesState.classList.toggle('d-none', Array.isArray(messages.items) && messages.items.length > 0);
         elements.workspaceMessagesState.textContent = Array.isArray(messages.items) && messages.items.length > 0
           ? ''
-          : '????????? ??????????? ??? ??? ?? ?????????.';
+          : 'Сообщения для этого окна не найдены.';
       }
       if (elements.workspaceMessagesList) {
         const items = Array.isArray(messages.items) ? messages.items : [];

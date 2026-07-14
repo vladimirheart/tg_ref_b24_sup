@@ -157,7 +157,7 @@
       });
       const statusRow = elements.detailsSummary
         ? Array.from(elements.detailsSummary.querySelectorAll('.d-flex.justify-content-between.gap-2'))
-          .find((row) => row.firstElementChild?.textContent?.trim() === '������')
+          .find((row) => row.firstElementChild?.textContent?.trim() === 'Статус')
         : null;
       const statusValue = statusRow?.lastElementChild || null;
       if (statusValue) {
@@ -371,14 +371,14 @@
         }
         const summaryItems = [
           ['Клиент', summary.clientName || summary.username || fallbackRow?.dataset?.client || '—'],
-          ['������ �������', summary.clientStatus || fallbackRow?.dataset?.clientStatus || '�'],
-          ['������', statusLabel || '�'],
+          ['Статус клиента', summary.clientStatus || fallbackRow?.dataset?.clientStatus || '?'],
+          ['Статус', statusLabel || '?'],
           ['Канал', summary.channelName || fallbackRow?.dataset?.channel || '—'],
           ['Бизнес', businessLabel],
           ['Проблема', summary.problem || fallbackRow?.dataset?.problem || '—'],
           ['Категории', categoriesLabel || '—'],
           ['Ответственный', responsibleLabel],
-          ['������', createdDisplay || createdLabel],
+          ['Создан', createdDisplay || createdLabel],
         ];
         options.setActiveDialogContext?.({
           ...getActiveDialogState().context,
@@ -395,7 +395,7 @@
           elements.detailsSummary.innerHTML = summaryItems.map(([label, value]) => {
             const safeValue = value || '—';
             let renderedValue = `<span class="text-dark">${escapeHtml(safeValue)}</span>`;
-            if (label === '������') {
+            if (label === 'Статус') {
               renderedValue = options.renderSummaryBadge?.(safeValue, options.resolveSummaryBadgeStyle?.('status', safeValue)) || renderedValue;
             }
             if (label === 'Канал') {
@@ -441,7 +441,7 @@
           const timeLabel = totalMinutes === null ? '—' : formatDuration(totalMinutes);
           const timeColor = totalMinutes === null ? null : resolveTimeMetricColor(totalMinutes, timeMetricsConfig);
           const metrics = [
-            { label: '�������', value: createdDisplay },
+            { label: 'Создано', value: createdDisplay },
             { label: 'Время обращения', value: timeLabel, color: timeColor },
             { label: 'Закрыто', value: resolvedDisplay || '—' },
             { label: 'Канал', value: channelLabel },

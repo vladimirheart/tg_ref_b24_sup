@@ -30,6 +30,12 @@ public class DialogReplyTransportService {
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
+    private static final List<String> DEFAULT_MAX_API_ROOT_URLS = List.of(
+            "https://platform-api2.max.ru",
+            "https://platform-api.max.ru"
+    );
+    private static final int MAX_ATTACHMENT_READY_RETRY_ATTEMPTS = 5;
+    private static final long MAX_ATTACHMENT_READY_RETRY_DELAY_MILLIS = 500L;
     private static final Duration TELEGRAM_REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
     private final ChannelRepository channelRepository;
@@ -275,17 +281,7 @@ public class DialogReplyTransportService {
                 "payload", uploadedPayload
         )));
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://platform-api.max.ru/messages?user_id=" + userId))
-                    .header("Authorization", channel.getToken())
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody), StandardCharsets.UTF_8))
-                    .build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() / 100 == 2) {
-                return null;
-            }
-            return "Ошибка отправки файла в MAX.";
+            return sendMaxMediaMessage(channel.getToken(), userId, requestBody);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             return "Не удалось отправить файл в MAX.";
@@ -295,20 +291,23 @@ public class DialogReplyTransportService {
     }
 
     private Map<String, Object> createMaxUpload(String token, String uploadType) {
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://platform-api.max.ru/uploads?type=" + URLEncoder.encode(uploadType, StandardCharsets.UTF_8)))
-                    .header("Authorization", token)
-                    .POST(HttpRequest.BodyPublishers.noBody())
-                    .build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() / 100 != 2) {
-                return null;
+        for (String apiRoot : DEFAULT_MAX_API_ROOT_URLS) {
+            try {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(apiRoot + "/uploads?type=" + URLEncoder.encode(uploadType, StandardCharsets.UTF_8)))
+                        .header("Authorization", token)
+                        .POST(HttpRequest.BodyPublishers.noBody())
+                        .build();
+                HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                if (response.statusCode() / 100 != 2) {
+                    continue;
+                }
+                return readJsonObject(response.body());
+            } catch (Exception ignored) {
+                // Try the next known MAX API root.
             }
-            return readJsonObject(response.body());
-        } catch (Exception ex) {
-            return null;
         }
+        return null;
     }
 
     private Map<String, Object> uploadMaxBinary(String token, String uploadUrl, MultipartFile file) {
@@ -464,6 +463,79 @@ public class DialogReplyTransportService {
         }
         String normalized = String.valueOf(value).trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String sendMaxMediaMessage(String token,
+                                       Long userId,
+                                       Map<String, Object> requestBody) throws IOException, InterruptedException {
+        String fallbackError = "MAX media send failed.";
+        String lastError = fallbackError;
+        for (String apiRoot : DEFAULT_MAX_API_ROOT_URLS) {
+            for (int attempt = 0; attempt < MAX_ATTACHMENT_READY_RETRY_ATTEMPTS; attempt++) {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(apiRoot + "/messages?user_id=" + userId))
+                        .header("Authorization", token)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody), StandardCharsets.UTF_8))
+                        .build();
+                HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                if (response.statusCode() / 100 == 2) {
+                    return null;
+                }
+                String responseBody = response.body();
+                lastError = resolveMaxApiError(responseBody, fallbackError);
+                if (!"attachment.not.ready".equalsIgnoreCase(resolveMaxApiErrorCode(responseBody))) {
+                    break;
+                }
+                if (attempt + 1 >= MAX_ATTACHMENT_READY_RETRY_ATTEMPTS) {
+                    break;
+                }
+                Thread.sleep(MAX_ATTACHMENT_READY_RETRY_DELAY_MILLIS * (attempt + 1L));
+            }
+        }
+        return lastError;
+    }
+
+    private String resolveMaxApiErrorCode(String responseBody) {
+        if (!StringUtils.hasText(responseBody)) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            return firstNonBlank(
+                    root.path("code").asText(""),
+                    root.path("error_code").asText(""),
+                    root.path("errorCode").asText("")
+            );
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+
+    private String resolveMaxApiError(String responseBody, String fallbackError) {
+        if (!StringUtils.hasText(responseBody)) {
+            return fallbackError;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            String errorCode = resolveMaxApiErrorCode(responseBody);
+            String message = firstNonBlank(
+                    root.path("message").asText(""),
+                    root.path("error").asText(""),
+                    root.path("description").asText("")
+            );
+            if (StringUtils.hasText(message) && StringUtils.hasText(errorCode)) {
+                return "MAX: " + errorCode + " - " + message;
+            }
+            if (StringUtils.hasText(message)) {
+                return "MAX: " + message;
+            }
+            if (StringUtils.hasText(errorCode)) {
+                return "MAX: " + errorCode;
+            }
+        } catch (IOException ignored) {
+        }
+        return fallbackError;
     }
 
     static String resolveMessageType(String contentType, String filename) {

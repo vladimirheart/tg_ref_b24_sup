@@ -71,7 +71,7 @@
         return context?.operatorName || message?.sender || options.operatorDisplayName || 'Оператор';
       }
       if (senderType === 'system') {
-        return message?.sender || '�������';
+        return message?.sender || 'Система';
       }
       return context?.clientName || message?.sender || 'Клиент';
     }

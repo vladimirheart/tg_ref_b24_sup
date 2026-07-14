@@ -36,7 +36,7 @@
       }
       if (minutesLeft <= Number(options.slaWarningMinutes)) {
         return {
-          label: `���� ${formatDurationMinutes(minutesLeft)}`,
+          label: `через ${formatDurationMinutes(minutesLeft)}`,
           className: 'dialog-sla-risk',
           title: `До дедлайна SLA: ${formatDurationMinutes(minutesLeft)} (дедлайн: ${deadlineLabel})`,
         };

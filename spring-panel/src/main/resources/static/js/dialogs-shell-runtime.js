@@ -247,7 +247,7 @@
       document.body.classList.toggle('dialog-compact-mode', active);
       const toggle = options.elements?.dialogCompactToggle;
       if (toggle) {
-        toggle.textContent = active ? 'Standard mode' : 'Compact mode';
+        toggle.textContent = active ? 'Обычный режим' : 'Компактный режим';
         toggle.setAttribute('aria-pressed', active ? 'true' : 'false');
       }
     }

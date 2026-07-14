@@ -234,11 +234,11 @@
         if (!canAddParticipants && guard?.disabled_reason === 'closed_dialog') {
           elements.participantsSelectHint.textContent = 'К закрытому диалогу нельзя добавлять новых участников.';
         } else if (!canAddParticipants && guard?.disabled_reason === 'no_participant_candidates') {
-          elements.participantsSelectHint.textContent = '��������� ������������� ��� ���������� ������ ���.';
+          elements.participantsSelectHint.textContent = 'Доступных пользователей для подключения больше нет.';
         } else {
           elements.participantsSelectHint.textContent = availableOperators.length
             ? 'Ответственный не отображается в списке: он уже подключён к диалогу автоматически.'
-            : '��������� ������������� ��� ���������� ������ ���.';
+            : 'Доступных пользователей для подключения больше нет.';
         }
       }
     }

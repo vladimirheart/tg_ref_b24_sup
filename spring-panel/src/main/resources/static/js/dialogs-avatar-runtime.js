@@ -68,7 +68,7 @@
         return {
           src: '',
           initial: 'S',
-          label: '�������',
+          label: 'Система',
         };
       }
       return {
@@ -91,7 +91,7 @@
         return {
           src: '',
           initial: 'S',
-          label: '�������',
+          label: 'Система',
         };
       }
       const activeDialogContext = options.getActiveDialogContext?.() || {};

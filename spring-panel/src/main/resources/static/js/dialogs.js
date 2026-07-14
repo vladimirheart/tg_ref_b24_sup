@@ -809,7 +809,7 @@
       case 'no_reassign_candidates':
         return 'Подходящих пользователей для передачи сейчас нет.';
       case 'no_participant_candidates':
-        return '��������� ������������� ��� ���������� ������ ���.';
+        return 'Доступных пользователей для подключения больше нет.';
       case 'no_participants':
         return 'В диалоге нет участников для удаления.';
       default:
@@ -2297,7 +2297,7 @@
   function exportWorkspaceIncidentCsv() {
     if (!activeWorkspaceTicketId) {
       if (typeof showNotification === 'function') {
-        showNotification('������� �������� ������, ����� �������������� ��������.', 'warning');
+        showNotification('Сначала откройте диалог, чтобы экспортировать события.', 'warning');
       }
       return;
     }
@@ -2875,7 +2875,7 @@
   }
 
   function formatAiReviewMessageOption(item) {
-    return dialogsAiRuntime?.formatAiReviewMessageOption(item) || '��������� ��� ������';
+    return dialogsAiRuntime?.formatAiReviewMessageOption(item) || 'Сообщение без текста';
   }
 
   function renderAiReviewMessageSelect(selectEl, candidates, selectedId, emptyLabel) {

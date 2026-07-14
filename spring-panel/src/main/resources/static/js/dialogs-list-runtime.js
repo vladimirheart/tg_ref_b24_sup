@@ -125,7 +125,7 @@
         return;
       }
       const optionsMarkup = ['<option value="">SLA: все</option>']
-        .concat(getSlaWindowPresets().map((minutes) => `<option value="${minutes}">������� ? ${minutes}�</option>`))
+        .concat(getSlaWindowPresets().map((minutes) => `<option value="${minutes}">до ${minutes}м</option>`))
         .join('');
       elements.slaWindowSelect.innerHTML = optionsMarkup;
       const filterState = getFilterState();
@@ -1143,7 +1143,7 @@
         button.type = 'button';
         button.className = page === safeCurrentPage ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm';
         button.textContent = String(page);
-        button.setAttribute('aria-label', `�������� ${page}`);
+        button.setAttribute('aria-label', `Страница ${page}`);
         if (page === safeCurrentPage) {
           button.setAttribute('aria-current', 'page');
           button.disabled = true;
