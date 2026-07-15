@@ -139,6 +139,7 @@
         message: text,
         attachment: message?.attachment || message?.attachmentUrl || null,
         attachmentName: message?.attachmentName || message?.fileName || null,
+        attachmentSize: message?.attachmentSize || message?.fileSize || null,
       };
       const mediaMarkup = normalizedMessage.attachment ? (options.buildMediaMarkup?.(normalizedMessage) || '') : '';
       const textMarkup = text ? `<div class="workspace-message-body">${escapeHtml(text)}</div>` : '';

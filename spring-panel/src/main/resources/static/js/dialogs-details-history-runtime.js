@@ -326,8 +326,7 @@
 
       const explicitName = String(message?.attachmentName || message?.fileName || '').trim();
       if (explicitName) {
-        if (!hasPath) return message;
-        const extension = extractExtension(message);
+        return explicitName;
         return extension ? `Файл ${extension}` : 'Файл';
       }
 
@@ -355,6 +354,65 @@
       return 'Файл';
     }
 
+    function resolveAttachmentDisplayName(message, fallbackKind = '') {
+      const explicitName = String(message?.attachmentName || message?.fileName || '').trim();
+      if (explicitName) {
+        return explicitName;
+      }
+      const attachment = String(message?.attachment || '').trim();
+      if (attachment) {
+        let clean = attachment.split('?')[0].split('#')[0];
+        const lastSegmentIndex = Math.max(clean.lastIndexOf('/'), clean.lastIndexOf('\\'));
+        if (lastSegmentIndex >= 0) {
+          clean = clean.slice(lastSegmentIndex + 1);
+        }
+        if (clean) {
+          try {
+            return decodeURIComponent(clean);
+          } catch (_error) {
+            return clean;
+          }
+        }
+      }
+      return resolveAttachmentTypeLabel(message, fallbackKind);
+    }
+
+    function formatAttachmentSize(bytes) {
+      const size = Number(bytes);
+      if (!Number.isFinite(size) || size <= 0) {
+        return '';
+      }
+      const units = ['Б', 'КБ', 'МБ', 'ГБ'];
+      let value = size;
+      let unitIndex = 0;
+      while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+      }
+      const fractionDigits = value >= 10 || unitIndex === 0 ? 0 : 1;
+      return `${value.toFixed(fractionDigits)} ${units[unitIndex]}`;
+    }
+
+    function buildMediaInlineMetaMarkup(message, name, kind) {
+      if (!message?.attachment) return '';
+      const attachmentUrl = escapeAttribute(message.attachment);
+      const typeLabel = resolveAttachmentTypeLabel(message, kind);
+      const normalizedName = String(name || '').trim() || typeLabel;
+      const sizeLabel = formatAttachmentSize(message?.attachmentSize);
+      const metaLine = [typeLabel, sizeLabel].filter(Boolean).join(' · ');
+      return `
+        <div class="chat-media-meta">
+          <div class="chat-media-meta-title">${escapeHtml(normalizedName)}</div>
+          ${metaLine ? `<div class="chat-media-meta-details">${escapeHtml(metaLine)}</div>` : ''}
+          <div class="chat-media-actions">
+            <a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" download target="_blank" rel="noopener">
+              Скачать
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
     function buildMediaInfoMarkup(message, name, kind) {
       if (!message?.attachment) return '';
       const attachmentUrl = escapeAttribute(message.attachment);
@@ -378,9 +436,9 @@
     function buildMediaMarkup(message) {
       if (!message?.attachment) return '';
       const kind = resolveAttachmentKind(message.messageType, message.attachment);
-      const name = resolveAttachmentName(message.message, message.attachment);
+      const name = resolveAttachmentDisplayName(message, kind);
       const attachmentUrl = escapeAttribute(message.attachment);
-      const mediaInfo = buildMediaInfoMarkup(message, name, kind);
+      const mediaInfo = buildMediaInlineMetaMarkup(message, name, kind);
       if (kind === 'audio') {
         return `
           <div class="chat-media chat-media--audio">

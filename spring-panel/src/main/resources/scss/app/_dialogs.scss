@@ -84,6 +84,29 @@
     font-weight: 600;
 }
 
+.chat-media-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.1rem 0 0;
+    max-width: min(100%, 20rem);
+}
+
+.chat-media-meta-title {
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: #1f2937;
+    overflow-wrap: anywhere;
+}
+
+.chat-media-meta-details {
+    font-size: 0.76rem;
+    line-height: 1.35;
+    color: #64748b;
+    overflow-wrap: anywhere;
+}
+
 .chat-media-info {
     position: absolute;
     top: 0.4rem;
