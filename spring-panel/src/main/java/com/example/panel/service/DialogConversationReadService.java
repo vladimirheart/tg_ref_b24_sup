@@ -3,6 +3,7 @@ package com.example.panel.service;
 import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogPreviousHistoryBatch;
 import com.example.panel.model.dialog.DialogPreviousHistoryPage;
+import com.example.panel.storage.AttachmentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -28,9 +29,11 @@ public class DialogConversationReadService {
     private static final Logger log = LoggerFactory.getLogger(DialogConversationReadService.class);
 
     private final JdbcTemplate jdbcTemplate;
+    private final AttachmentService attachmentService;
 
-    public DialogConversationReadService(JdbcTemplate jdbcTemplate) {
+    public DialogConversationReadService(JdbcTemplate jdbcTemplate, AttachmentService attachmentService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.attachmentService = attachmentService;
     }
 
     public List<ChatMessageDto> loadHistory(String ticketId, Long channelId) {
@@ -88,7 +91,9 @@ public class DialogConversationReadService {
                     String key = previewKey(parseLong(row.get("channel_id")), replyTo);
                     replyPreview = previewByMessage.get(key);
                 }
-                String attachment = toAttachmentUrl(ticketId, value(row.get("attachment")));
+                String rawAttachment = value(row.get("attachment"));
+                String attachment = toAttachmentUrl(ticketId, rawAttachment);
+                AttachmentMeta attachmentMeta = resolveAttachmentMeta(ticketId, rawAttachment, attachment);
                 String message = value(row.get("message"));
                 String originalMessage = value(row.get("original_message"));
                 String deletedAt = value(row.get("deleted_at"));
@@ -99,6 +104,8 @@ public class DialogConversationReadService {
                         value(row.get("timestamp")),
                         value(row.get("message_type")),
                         attachment,
+                        attachmentMeta.name(),
+                        attachmentMeta.size(),
                         parseLong(row.get("tg_message_id")),
                         replyTo,
                         replyPreview,
@@ -262,6 +269,54 @@ public class DialogConversationReadService {
                 + UriUtils.encodePathSegment(trimmed, StandardCharsets.UTF_8);
     }
 
+    private AttachmentMeta resolveAttachmentMeta(String ticketId, String rawAttachment, String attachmentUrl) {
+        if (!StringUtils.hasText(rawAttachment)) {
+            return new AttachmentMeta(resolveAttachmentName(rawAttachment, attachmentUrl), null);
+        }
+        try {
+            AttachmentService.AttachmentDescriptor descriptor;
+            String normalized = rawAttachment.trim().replace('\\', '/');
+            if (normalized.startsWith("attachments/") || normalized.contains("/attachments/")) {
+                descriptor = attachmentService.describeTicketAttachmentByPath(rawAttachment);
+            } else if (StringUtils.hasText(ticketId)) {
+                descriptor = attachmentService.describeTicketAttachment(ticketId.trim(), rawAttachment.trim());
+            } else {
+                descriptor = null;
+            }
+            if (descriptor != null) {
+                return new AttachmentMeta(
+                        StringUtils.hasText(descriptor.originalName()) ? descriptor.originalName() : resolveAttachmentName(rawAttachment, attachmentUrl),
+                        descriptor.size() >= 0 ? descriptor.size() : null
+                );
+            }
+        } catch (Exception ex) {
+            log.debug("Unable to resolve attachment meta for ticket {} and attachment {}: {}", ticketId, rawAttachment, ex.getMessage());
+        }
+        return new AttachmentMeta(resolveAttachmentName(rawAttachment, attachmentUrl), null);
+    }
+
+    private String resolveAttachmentName(String rawAttachment, String attachmentUrl) {
+        String candidate = StringUtils.hasText(rawAttachment) ? rawAttachment.trim() : "";
+        if (!StringUtils.hasText(candidate)) {
+            candidate = StringUtils.hasText(attachmentUrl) ? attachmentUrl.trim() : "";
+        }
+        if (!StringUtils.hasText(candidate)) {
+            return null;
+        }
+        String normalized = candidate.replace('\\', '/');
+        int queryIndex = normalized.indexOf('?');
+        if (queryIndex >= 0) {
+            normalized = normalized.substring(0, queryIndex);
+        }
+        int hashIndex = normalized.indexOf('#');
+        if (hashIndex >= 0) {
+            normalized = normalized.substring(0, hashIndex);
+        }
+        int slashIndex = normalized.lastIndexOf('/');
+        String filename = slashIndex >= 0 ? normalized.substring(slashIndex + 1) : normalized;
+        return StringUtils.hasText(filename) ? filename : null;
+    }
+
     private static Long parseLong(Object value) {
         if (value == null) {
             return null;
@@ -309,4 +364,6 @@ public class DialogConversationReadService {
             return Set.of();
         }
     }
+
+    private record AttachmentMeta(String name, Long size) {}
 }

@@ -124,6 +124,22 @@ public class AttachmentService {
         deleteKnowledgeBaseFileInternal(storedName);
     }
 
+    public AttachmentDescriptor describeTicketAttachment(String ticketId, String storedName) throws IOException {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(storedName)) {
+            throw new IllegalArgumentException("File not found");
+        }
+        Path resolved = resolveTicketAttachmentPath(ticketId, storedName);
+        if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) {
+            throw new IllegalArgumentException("File not found");
+        }
+        return describeResolvedAttachment(resolved);
+    }
+
+    public AttachmentDescriptor describeTicketAttachmentByPath(String rawPath) throws IOException {
+        Path resolved = resolveByStoredPath(attachmentsRoot, rawPath);
+        return describeResolvedAttachment(resolved);
+    }
+
     private AttachmentUploadMetadata storeKnowledgeBaseFileInternal(String preferredStoredName,
                                                                     String originalName,
                                                                     String mimeType,
@@ -232,6 +248,26 @@ public class AttachmentService {
         return resolved;
     }
 
+    private AttachmentDescriptor describeResolvedAttachment(Path resolved) throws IOException {
+        String filename = resolved.getFileName() != null ? resolved.getFileName().toString() : "file";
+        return new AttachmentDescriptor(extractOriginalAttachmentName(filename), Files.size(resolved));
+    }
+
+    private String extractOriginalAttachmentName(String filename) {
+        if (!StringUtils.hasText(filename)) {
+            return "file";
+        }
+        String normalized = filename.trim();
+        int separatorIndex = normalized.indexOf('_');
+        if (separatorIndex > 0) {
+            String prefix = normalized.substring(0, separatorIndex);
+            if (prefix.matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
+                return normalized.substring(separatorIndex + 1);
+            }
+        }
+        return normalized;
+    }
+
 
 
     private Path resolveByStoredPath(Path root, String rawPath) {
@@ -303,4 +339,6 @@ public class AttachmentService {
                                            String mimeType,
                                            long size,
                                            OffsetDateTime uploadedAt) {}
+
+    public record AttachmentDescriptor(String originalName, long size) {}
 }

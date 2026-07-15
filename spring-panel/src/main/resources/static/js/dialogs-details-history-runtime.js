@@ -308,17 +308,24 @@
       return escapeHtml(value).replace(/"/g, '&quot;');
     }
 
-    function resolveAttachmentName(message, attachment) {
-      const extractExtension = (value) => {
+    function resolveAttachmentName(message) {
+      const extractFilename = (value) => {
         if (!value) return '';
-        const clean = String(value).split('?')[0].split('#')[0];
-        const lastSegment = clean.split('/').pop()?.split('\\').pop() || clean;
-        const dotIndex = lastSegment.lastIndexOf('.');
-        return dotIndex > 0 ? lastSegment.slice(dotIndex) : '';
+        let clean = String(value).trim().split('?')[0].split('#')[0];
+        const lastSegmentIndex = Math.max(clean.lastIndexOf('/'), clean.lastIndexOf('\\'));
+        if (lastSegmentIndex >= 0) {
+          clean = clean.slice(lastSegmentIndex + 1);
+        }
+        if (!clean) return '';
+        try {
+          return decodeURIComponent(clean);
+        } catch (_error) {
+          return clean;
+        }
       };
 
-      if (message) {
-        const hasPath = /[\\/]/.test(message) || /^https?:\/\//i.test(message);
+      const explicitName = String(message?.attachmentName || message?.fileName || '').trim();
+      if (explicitName) {
         if (!hasPath) return message;
         const extension = extractExtension(message);
         return extension ? `Файл ${extension}` : 'Файл';
