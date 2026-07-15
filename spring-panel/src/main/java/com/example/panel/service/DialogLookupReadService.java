@@ -13,7 +13,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -28,6 +33,9 @@ import java.util.stream.Collectors;
 public class DialogLookupReadService {
 
     private static final Logger log = LoggerFactory.getLogger(DialogLookupReadService.class);
+    private static final DateTimeFormatter REQUEST_NUMBER_ISO_DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final DateTimeFormatter REQUEST_NUMBER_DISPLAY_DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
+    private static final DateTimeFormatter REQUEST_NUMBER_LEGACY_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
@@ -204,7 +212,7 @@ public class DialogLookupReadService {
                     """.formatted(ratingSelect);
             List<DialogListItem> items = jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(
                     rs.getString("ticket_id"),
-                    rs.getObject("request_number") != null ? rs.getLong("request_number") : null,
+                    rs.getString("request_number"),
                     rs.getObject("user_id") != null ? rs.getLong("user_id") : null,
                     rs.getString("username"),
                     rs.getString("client_name"),
@@ -231,7 +239,7 @@ public class DialogLookupReadService {
                     null,
                     null
             ), currentOperator);
-            return enrichResponsibleProfiles(items);
+            return assignDailyRequestNumbers(enrichResponsibleProfiles(items));
         } catch (DataAccessException ex) {
             log.warn("Unable to load dialogs, returning empty list: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
@@ -403,7 +411,7 @@ public class DialogLookupReadService {
                     """.formatted(ratingSelect);
             List<DialogListItem> items = jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(
                     rs.getString("ticket_id"),
-                    rs.getObject("request_number") != null ? rs.getLong("request_number") : null,
+                    rs.getString("request_number"),
                     rs.getObject("user_id") != null ? rs.getLong("user_id") : null,
                     rs.getString("username"),
                     rs.getString("client_name"),
@@ -431,7 +439,7 @@ public class DialogLookupReadService {
                     null
             ), operator, ticketId);
             List<DialogListItem> enriched = enrichResponsibleProfiles(items);
-            return enriched.isEmpty() ? Optional.empty() : Optional.of(enriched.get(0));
+            return enriched.isEmpty() ? Optional.empty() : Optional.of(assignDailyRequestNumber(enriched.get(0)));
         } catch (DataAccessException ex) {
             log.warn("Unable to load dialog {} details: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Optional.empty();
@@ -485,6 +493,159 @@ public class DialogLookupReadService {
             ));
         }
         return enriched;
+    }
+
+    private List<DialogListItem> assignDailyRequestNumbers(List<DialogListItem> items) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        List<DialogListItem> ordered = new ArrayList<>(items);
+        ordered.sort(Comparator
+                .comparing(this::requestNumberSortKey, Comparator.nullsLast(String::compareTo))
+                .thenComparing(item -> trimToNull(item.ticketId()), Comparator.nullsLast(String::compareTo)));
+        Map<String, Integer> sequenceByDay = new HashMap<>();
+        Map<String, String> requestNumberByTicketId = new HashMap<>();
+        for (DialogListItem item : ordered) {
+            RequestNumberSeed seed = buildRequestNumberSeed(item);
+            if (seed == null || !StringUtils.hasText(item.ticketId())) {
+                continue;
+            }
+            int sequence = sequenceByDay.merge(seed.isoDate(), 1, Integer::sum);
+            requestNumberByTicketId.put(item.ticketId(), formatRequestNumber(seed.displayDate(), sequence));
+        }
+        List<DialogListItem> numbered = new ArrayList<>(items.size());
+        for (DialogListItem item : items) {
+            String requestNumber = requestNumberByTicketId.get(item.ticketId());
+            numbered.add(requestNumber != null ? item.withRequestNumber(requestNumber) : item);
+        }
+        return numbered;
+    }
+
+    private DialogListItem assignDailyRequestNumber(DialogListItem item) {
+        if (item == null) {
+            return null;
+        }
+        RequestNumberSeed seed = buildRequestNumberSeed(item);
+        String ticketId = trimToNull(item.ticketId());
+        if (seed == null || ticketId == null) {
+            return item;
+        }
+        String comparableCreatedAt = normalizeComparableTimestamp(seed.sortKey());
+        if (comparableCreatedAt == null) {
+            return item;
+        }
+        String createdAtExpr = normalizedTicketCreatedAtSql("t");
+        String sql = """
+                SELECT COUNT(*)
+                  FROM tickets t
+                 WHERE substr(%1$s, 1, 10) = ?
+                   AND (
+                        %1$s < ?
+                        OR (%1$s = ? AND t.ticket_id <= ?)
+                   )
+                """.formatted(createdAtExpr);
+        Long count = jdbcTemplate.queryForObject(sql, Long.class, seed.isoDate(), comparableCreatedAt, comparableCreatedAt, ticketId);
+        int sequence = count != null && count > 0 ? count.intValue() : 1;
+        return item.withRequestNumber(formatRequestNumber(seed.displayDate(), sequence));
+    }
+
+    private RequestNumberSeed buildRequestNumberSeed(DialogListItem item) {
+        if (item == null) {
+            return null;
+        }
+        LocalDate date = parseRequestDate(item.createdDate(), item.createdAt());
+        String sortKey = requestNumberSortKey(item);
+        if (date == null || !StringUtils.hasText(sortKey)) {
+            return null;
+        }
+        return new RequestNumberSeed(
+                date.format(REQUEST_NUMBER_ISO_DATE_FORMAT),
+                date.format(REQUEST_NUMBER_DISPLAY_DATE_FORMAT),
+                sortKey
+        );
+    }
+
+    private LocalDate parseRequestDate(String createdDate, String createdAt) {
+        String normalizedCreatedDate = trimToNull(createdDate);
+        if (normalizedCreatedDate != null) {
+            LocalDate parsed = parseLocalDate(normalizedCreatedDate);
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+        String normalizedCreatedAt = trimToNull(createdAt);
+        if (normalizedCreatedAt != null && normalizedCreatedAt.length() >= 10) {
+            return parseLocalDate(normalizedCreatedAt.substring(0, 10));
+        }
+        return null;
+    }
+
+    private LocalDate parseLocalDate(String value) {
+        try {
+            return LocalDate.parse(value, REQUEST_NUMBER_ISO_DATE_FORMAT);
+        } catch (DateTimeParseException ignored) {
+            // fall through
+        }
+        try {
+            return LocalDate.parse(value, REQUEST_NUMBER_LEGACY_DATE_FORMAT);
+        } catch (DateTimeParseException ignored) {
+            // fall through
+        }
+        try {
+            return LocalDate.parse(value, REQUEST_NUMBER_DISPLAY_DATE_FORMAT);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
+    }
+
+    private String requestNumberSortKey(DialogListItem item) {
+        if (item == null) {
+            return null;
+        }
+        String createdAt = normalizeComparableTimestamp(item.createdAt());
+        if (createdAt != null) {
+            return createdAt.length() > 19 ? createdAt.substring(0, 19) : createdAt;
+        }
+        LocalDate date = parseRequestDate(item.createdDate(), item.createdAt());
+        if (date == null) {
+            return null;
+        }
+        String time = trimToNull(item.createdTime());
+        String timePart = time != null
+                ? (time.length() > 8 ? time.substring(0, 8) : time)
+                : "00:00:00";
+        return date.format(REQUEST_NUMBER_ISO_DATE_FORMAT) + "T" + timePart;
+    }
+
+    private String normalizedTicketCreatedAtSql(String ticketAlias) {
+        return "replace(" + ticketCreatedAtSql(ticketAlias) + ", ' ', 'T')";
+    }
+
+    private String ticketCreatedAtSql(String ticketAlias) {
+        return """
+                COALESCE(
+                    (
+                        SELECT MIN(substr(m0.created_at, 1, 19))
+                          FROM messages m0
+                         WHERE m0.ticket_id = %1$s.ticket_id
+                           AND m0.created_at IS NOT NULL
+                    ),
+                    substr(%1$s.created_at, 1, 19)
+                )
+                """.formatted(ticketAlias);
+    }
+
+    private String normalizeComparableTimestamp(String value) {
+        String normalized = trimToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+        normalized = normalized.replace(' ', 'T');
+        return normalized.length() > 19 ? normalized.substring(0, 19) : normalized;
+    }
+
+    private String formatRequestNumber(String displayDate, int sequence) {
+        return displayDate + "-" + String.format("%03d", sequence);
     }
 
     private Map<String, ResponsibleProfile> loadResponsibleProfiles(List<DialogListItem> items) {
@@ -634,6 +795,10 @@ public class DialogLookupReadService {
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
     }
+
+    private record RequestNumberSeed(String isoDate, String displayDate, String sortKey) {
+    }
+
     private record ResponsibleProfile(String displayName, String avatarUrl) {
     }
 }

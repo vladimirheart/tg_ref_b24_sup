@@ -8,7 +8,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 public record DialogListItem(String ticketId,
-                             Long requestNumber,
+                             String requestNumber,
                              Long userId,
                              String username,
                              String clientName,
@@ -39,7 +39,7 @@ public record DialogListItem(String ticketId,
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     public DialogListItem(String ticketId,
-                          Long requestNumber,
+                          String requestNumber,
                           Long userId,
                           String username,
                           String clientName,
@@ -91,6 +91,112 @@ public record DialogListItem(String ticketId,
                 null);
     }
 
+    public DialogListItem(String ticketId,
+                          Long requestNumber,
+                          Long userId,
+                          String username,
+                          String clientName,
+                          String business,
+                          Long channelId,
+                          String channelName,
+                          String city,
+                          String locationName,
+                          String problem,
+                          String createdAt,
+                          String status,
+                          Boolean aiProcessing,
+                          String resolvedBy,
+                          String responsible,
+                          String createdDate,
+                          String createdTime,
+                          String clientStatus,
+                          String lastMessageSender,
+                          String lastMessageTimestamp,
+                          Integer unreadCount,
+                          Integer rating,
+                          String categories) {
+        this(ticketId,
+                requestNumber != null ? requestNumber.toString() : null,
+                userId,
+                username,
+                clientName,
+                business,
+                channelId,
+                channelName,
+                city,
+                locationName,
+                problem,
+                createdAt,
+                status,
+                aiProcessing,
+                resolvedBy,
+                responsible,
+                createdDate,
+                createdTime,
+                clientStatus,
+                lastMessageSender,
+                lastMessageTimestamp,
+                unreadCount,
+                rating,
+                categories);
+    }
+
+    public DialogListItem(String ticketId,
+                          Long requestNumber,
+                          Long userId,
+                          String username,
+                          String clientName,
+                          String business,
+                          Long channelId,
+                          String channelName,
+                          String city,
+                          String locationName,
+                          String problem,
+                          String createdAt,
+                          String status,
+                          Boolean aiProcessing,
+                          String resolvedBy,
+                          String resolvedAt,
+                          String responsible,
+                          String createdDate,
+                          String createdTime,
+                          String clientStatus,
+                          String lastMessageSender,
+                          String lastMessageTimestamp,
+                          Integer unreadCount,
+                          Integer rating,
+                          String categories,
+                          String responsibleDisplayName,
+                          String responsibleAvatarUrl) {
+        this(ticketId,
+                requestNumber != null ? requestNumber.toString() : null,
+                userId,
+                username,
+                clientName,
+                business,
+                channelId,
+                channelName,
+                city,
+                locationName,
+                problem,
+                createdAt,
+                status,
+                aiProcessing,
+                resolvedBy,
+                resolvedAt,
+                responsible,
+                createdDate,
+                createdTime,
+                clientStatus,
+                lastMessageSender,
+                lastMessageTimestamp,
+                unreadCount,
+                rating,
+                categories,
+                responsibleDisplayName,
+                responsibleAvatarUrl);
+    }
+
     public String avatarInitial() {
         String source = displayClientName();
         if (source != null && !source.isBlank()) {
@@ -110,10 +216,42 @@ public record DialogListItem(String ticketId,
     }
 
     public String displayTicketNumber() {
-        if (requestNumber != null) {
-            return requestNumber.toString();
+        if (requestNumber != null && !requestNumber.isBlank()) {
+            return requestNumber;
         }
         return ticketId;
+    }
+
+    public DialogListItem withRequestNumber(String requestNumber) {
+        return new DialogListItem(
+                ticketId,
+                requestNumber,
+                userId,
+                username,
+                clientName,
+                business,
+                channelId,
+                channelName,
+                city,
+                locationName,
+                problem,
+                createdAt,
+                status,
+                aiProcessing,
+                resolvedBy,
+                resolvedAt,
+                responsible,
+                createdDate,
+                createdTime,
+                clientStatus,
+                lastMessageSender,
+                lastMessageTimestamp,
+                unreadCount,
+                rating,
+                categories,
+                responsibleDisplayName,
+                responsibleAvatarUrl
+        );
     }
 
     public String ratingStars() {
@@ -272,7 +410,7 @@ public record DialogListItem(String ticketId,
     public String dialogMarker() {
         return String.join("|",
                 safe(ticketId),
-                requestNumber != null ? requestNumber.toString() : "",
+                safe(requestNumber),
                 safe(clientName != null && !clientName.isBlank() ? clientName : username),
                 safe(clientStatus),
                 channelId != null ? channelId.toString() : "",

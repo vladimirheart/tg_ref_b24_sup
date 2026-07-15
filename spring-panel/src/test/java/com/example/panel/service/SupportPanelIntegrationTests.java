@@ -355,13 +355,13 @@ class SupportPanelIntegrationTests {
                 .singleElement()
                 .satisfies(dialog -> {
                     assertThat(dialog.ticketId()).isEqualTo("T-1");
-                    assertThat(dialog.requestNumber()).isEqualTo(7001L);
+                    assertThat(dialog.requestNumber()).isEqualTo("20260319-001");
                     assertThat(dialog.clientName()).isEqualTo("Иван");
                 });
 
         assertThat(dialogService.findDialog("T-1", null))
                 .get()
-                .satisfies(dialog -> assertThat(dialog.requestNumber()).isEqualTo(7001L));
+                .satisfies(dialog -> assertThat(dialog.requestNumber()).isEqualTo("20260319-001"));
 
         DialogDetails details = dialogService.loadDialogDetails("T-1", 1L, null).orElseThrow();
         assertThat(details.summary().clientName()).isEqualTo("Иван");

@@ -81,11 +81,49 @@ class DialogLookupReadServiceTest {
         assertThat(summary.channelStats()).hasSize(1);
         assertThat(dialogs).hasSize(1);
         assertThat(dialogs.get(0).ticketId()).isEqualTo("T-100");
+        assertThat(dialogs.get(0).requestNumber()).isEqualTo("20260421-001");
         assertThat(dialogs.get(0).rawResponsible()).isEqualTo("operator");
         assertThat(dialogs.get(0).rating()).isEqualTo(5);
         assertThat(dialog).isPresent();
         assertThat(dialog.orElseThrow().ticketId()).isEqualTo("T-100");
+        assertThat(dialog.orElseThrow().requestNumber()).isEqualTo("20260421-001");
         assertThat(dialog.orElseThrow().categories()).isEqualTo("billing");
+    }
+
+    @Test
+    void loadDialogsBuildsDailyRequestNumbersByCreationOrder() {
+        jdbcTemplate.update("INSERT INTO tickets(ticket_id, status, user_id, created_at) VALUES (?, ?, ?, ?)",
+                "T-201", "pending", 77L, "2026-04-22T09:00:00Z");
+        jdbcTemplate.update("INSERT INTO tickets(ticket_id, status, user_id, created_at) VALUES (?, ?, ?, ?)",
+                "T-202", "pending", 78L, "2026-04-22T09:15:00Z");
+        jdbcTemplate.update("INSERT INTO tickets(ticket_id, status, user_id, created_at) VALUES (?, ?, ?, ?)",
+                "T-203", "pending", 79L, "2026-04-23T10:00:00Z");
+
+        jdbcTemplate.update("""
+                INSERT INTO messages(group_msg_id, ticket_id, user_id, username, client_name, business, city, location_name, problem, created_at, created_date, created_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                601L, "T-201", 77L, "client77", "Клиент 77", "first", "Москва", "Точка 1", "Проблема 1", "2026-04-22T09:00:00Z", "2026-04-22", "09:00:00");
+        jdbcTemplate.update("""
+                INSERT INTO messages(group_msg_id, ticket_id, user_id, username, client_name, business, city, location_name, problem, created_at, created_date, created_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                602L, "T-202", 78L, "client78", "Клиент 78", "second", "Москва", "Точка 2", "Проблема 2", "2026-04-22T09:15:00Z", "2026-04-22", "09:15:00");
+        jdbcTemplate.update("""
+                INSERT INTO messages(group_msg_id, ticket_id, user_id, username, client_name, business, city, location_name, problem, created_at, created_date, created_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                603L, "T-203", 79L, "client79", "Клиент 79", "third", "Москва", "Точка 3", "Проблема 3", "2026-04-23T10:00:00Z", "2026-04-23", "10:00:00");
+
+        List<DialogListItem> dialogs = service.loadDialogs(null);
+
+        assertThat(dialogs)
+                .extracting(DialogListItem::ticketId, DialogListItem::requestNumber)
+                .contains(
+                        org.assertj.core.groups.Tuple.tuple("T-201", "20260422-001"),
+                        org.assertj.core.groups.Tuple.tuple("T-202", "20260422-002"),
+                        org.assertj.core.groups.Tuple.tuple("T-203", "20260423-001")
+                );
     }
 
     @Test
