@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS chat_history (
     ticket_id TEXT,
     message_type TEXT DEFAULT 'text',
     attachment TEXT,
+    file_name TEXT,
     channel_id INTEGER REFERENCES channels(id),
     tg_message_id INTEGER,
     reply_to_tg_id INTEGER,

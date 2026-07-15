@@ -308,31 +308,70 @@
       return escapeHtml(value).replace(/"/g, '&quot;');
     }
 
-    function resolveAttachmentName(message) {
-      const extractFilename = (value) => {
-        if (!value) return '';
-        let clean = String(value).trim().split('?')[0].split('#')[0];
-        const lastSegmentIndex = Math.max(clean.lastIndexOf('/'), clean.lastIndexOf('\\'));
-        if (lastSegmentIndex >= 0) {
-          clean = clean.slice(lastSegmentIndex + 1);
-        }
-        if (!clean) return '';
-        try {
-          return decodeURIComponent(clean);
-        } catch (_error) {
-          return clean;
-        }
-      };
+    function extractAttachmentFilename(value) {
+      if (!value) return '';
+      let clean = String(value).trim().split('?')[0].split('#')[0];
+      const lastSegmentIndex = Math.max(clean.lastIndexOf('/'), clean.lastIndexOf('\\'));
+      if (lastSegmentIndex >= 0) {
+        clean = clean.slice(lastSegmentIndex + 1);
+      }
+      if (!clean) return '';
+      try {
+        return decodeURIComponent(clean);
+      } catch (_error) {
+        return clean;
+      }
+    }
 
-      const explicitName = String(message?.attachmentName || message?.fileName || '').trim();
+    function stripStoredAttachmentPrefix(filename) {
+      const normalized = String(filename || '').trim();
+      if (!normalized) {
+        return '';
+      }
+      const separatorIndex = normalized.indexOf('_');
+      if (separatorIndex > 0) {
+        const prefix = normalized.slice(0, separatorIndex);
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(prefix)) {
+          return normalized.slice(separatorIndex + 1).trim();
+        }
+      }
+      return normalized;
+    }
+
+    function extractAttachmentExtension(value) {
+      const filename = stripStoredAttachmentPrefix(extractAttachmentFilename(value) || value);
+      const dotIndex = filename.lastIndexOf('.');
+      if (dotIndex <= 0 || dotIndex === filename.length - 1) {
+        return '';
+      }
+      return filename.slice(dotIndex + 1).trim();
+    }
+
+    function isOpaqueAttachmentFilename(filename) {
+      const normalized = stripStoredAttachmentPrefix(filename);
+      if (!normalized) {
+        return true;
+      }
+      const dotIndex = normalized.lastIndexOf('.');
+      const stem = dotIndex > 0 ? normalized.slice(0, dotIndex) : normalized;
+      return /^[0-9a-f]{16,}$/i.test(stem);
+    }
+
+    function formatAttachmentFallbackName(value) {
+      const extension = extractAttachmentExtension(value);
+      return extension ? `Файл ${extension.toUpperCase()}` : 'Файл';
+    }
+
+    function resolveAttachmentName(message) {
+      const explicitName = stripStoredAttachmentPrefix(message?.attachmentName || message?.fileName || '');
       if (explicitName) {
         return explicitName;
-        return extension ? `Файл ${extension}` : 'Файл';
       }
-
-      if (!attachment) return 'Файл';
-      const extension = extractExtension(attachment);
-      return extension ? `Файл ${extension}` : 'Файл';
+      const extractedName = stripStoredAttachmentPrefix(extractAttachmentFilename(message?.attachment));
+      if (extractedName && !isOpaqueAttachmentFilename(extractedName)) {
+        return extractedName;
+      }
+      return formatAttachmentFallbackName(message?.attachment);
     }
 
     function resolveAttachmentTypeLabel(message, kind = '') {
@@ -355,26 +394,8 @@
     }
 
     function resolveAttachmentDisplayName(message, fallbackKind = '') {
-      const explicitName = String(message?.attachmentName || message?.fileName || '').trim();
-      if (explicitName) {
-        return explicitName;
-      }
-      const attachment = String(message?.attachment || '').trim();
-      if (attachment) {
-        let clean = attachment.split('?')[0].split('#')[0];
-        const lastSegmentIndex = Math.max(clean.lastIndexOf('/'), clean.lastIndexOf('\\'));
-        if (lastSegmentIndex >= 0) {
-          clean = clean.slice(lastSegmentIndex + 1);
-        }
-        if (clean) {
-          try {
-            return decodeURIComponent(clean);
-          } catch (_error) {
-            return clean;
-          }
-        }
-      }
-      return resolveAttachmentTypeLabel(message, fallbackKind);
+      const resolvedName = resolveAttachmentName(message);
+      return String(resolvedName || '').trim() || resolveAttachmentTypeLabel(message, fallbackKind);
     }
 
     function formatAttachmentSize(bytes) {
@@ -405,26 +426,6 @@
           <div class="chat-media-meta-title">${escapeHtml(normalizedName)}</div>
           ${metaLine ? `<div class="chat-media-meta-details">${escapeHtml(metaLine)}</div>` : ''}
           <div class="chat-media-actions">
-            <a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" download target="_blank" rel="noopener">
-              Скачать
-            </a>
-          </div>
-        </div>
-      `;
-    }
-
-    function buildMediaInfoMarkup(message, name, kind) {
-      if (!message?.attachment) return '';
-      const attachmentUrl = escapeAttribute(message.attachment);
-      const typeLabel = resolveAttachmentTypeLabel(message, kind);
-      const normalizedName = String(name || '').trim();
-      const shouldShowFileName = normalizedName && normalizedName !== typeLabel;
-      return `
-        <div class="chat-media-info">
-          <button class="chat-media-info-toggle" type="button" aria-label="Информация о вложении">i</button>
-          <div class="chat-media-info-panel">
-            <div class="chat-media-info-label">${escapeHtml(typeLabel)}</div>
-            ${shouldShowFileName ? `<div class="chat-media-info-value">${escapeHtml(normalizedName)}</div>` : ''}
             <a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" download target="_blank" rel="noopener">
               Скачать
             </a>
@@ -623,48 +624,6 @@
         media.addEventListener('loadedmetadata', requestBottomSync, { once: true });
         media.addEventListener('error', requestBottomSync, { once: true });
       });
-    }
-
-    function resetHistoryMediaInfoPanelPlacement(panel) {
-      if (!(panel instanceof HTMLElement)) {
-        return;
-      }
-      panel.classList.remove('chat-media-info-panel--align-start', 'chat-media-info-panel--above');
-      panel.style.removeProperty('max-width');
-    }
-
-    function positionHistoryMediaInfoPanel(infoRoot) {
-      if (!(infoRoot instanceof HTMLElement) || !(elements.detailsHistory instanceof HTMLElement)) {
-        return;
-      }
-      const panel = infoRoot.querySelector('.chat-media-info-panel');
-      if (!(panel instanceof HTMLElement)) {
-        return;
-      }
-      resetHistoryMediaInfoPanelPlacement(panel);
-      const historyRect = elements.detailsHistory.getBoundingClientRect();
-      if (!historyRect.width || !historyRect.height) {
-        return;
-      }
-      const maxPanelWidth = Math.max(176, Math.min(320, Math.floor(historyRect.width - 24)));
-      panel.style.maxWidth = `${maxPanelWidth}px`;
-
-      let panelRect = panel.getBoundingClientRect();
-      if (panelRect.left < historyRect.left + 8) {
-        panel.classList.add('chat-media-info-panel--align-start');
-        panelRect = panel.getBoundingClientRect();
-      }
-      if (panelRect.right > historyRect.right - 8 && !panel.classList.contains('chat-media-info-panel--align-start')) {
-        panel.style.maxWidth = `${Math.max(176, Math.floor(historyRect.right - panelRect.left - 12))}px`;
-        panelRect = panel.getBoundingClientRect();
-      }
-      if (panelRect.bottom > historyRect.bottom - 8) {
-        panel.classList.add('chat-media-info-panel--above');
-        panelRect = panel.getBoundingClientRect();
-      }
-      if (panelRect.top < historyRect.top + 8 && panel.classList.contains('chat-media-info-panel--above')) {
-        panel.classList.remove('chat-media-info-panel--above');
-      }
     }
 
     function messageToHtml(message, renderOptions = {}) {
@@ -1548,15 +1507,6 @@
         elements.detailsHistory.addEventListener('scroll', () => {
           syncHistoryPinnedIntent();
         }, { passive: true });
-        ['mouseover', 'focusin', 'click'].forEach((eventName) => {
-          elements.detailsHistory.addEventListener(eventName, (event) => {
-            const infoRoot = event.target.closest('.chat-media-info');
-            if (!infoRoot) {
-              return;
-            }
-            positionHistoryMediaInfoPanel(infoRoot);
-          });
-        });
         elements.detailsHistory.addEventListener('click', async (event) => {
           const loadPreviousButton = event.target.closest('button[data-action="load-previous-history"]');
           if (loadPreviousButton) {

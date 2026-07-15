@@ -29,6 +29,10 @@ public class ChatHistoryService {
             jdbcTemplate.execute("ALTER TABLE chat_history ADD COLUMN forwarded_from TEXT");
         } catch (Exception ignored) {
         }
+        try {
+            jdbcTemplate.execute("ALTER TABLE chat_history ADD COLUMN file_name TEXT");
+        } catch (Exception ignored) {
+        }
     }
 
     @Transactional
@@ -41,7 +45,21 @@ public class ChatHistoryService {
                                         String attachmentPath,
                                         Long replyToTelegramId,
                                         String forwardedFrom) {
-        return storeEntry(userId, telegramMessageId, channel, ticketId, text, messageType, attachmentPath, replyToTelegramId, forwardedFrom);
+        return storeUserMessage(userId, telegramMessageId, text, channel, ticketId, messageType, attachmentPath, null, replyToTelegramId, forwardedFrom);
+    }
+
+    @Transactional
+    public ChatHistory storeUserMessage(Long userId,
+                                        Long telegramMessageId,
+                                        String text,
+                                        Channel channel,
+                                        String ticketId,
+                                        String messageType,
+                                        String attachmentPath,
+                                        String attachmentName,
+                                        Long replyToTelegramId,
+                                        String forwardedFrom) {
+        return storeEntry(userId, telegramMessageId, channel, ticketId, text, messageType, attachmentPath, attachmentName, replyToTelegramId, forwardedFrom);
     }
 
     @Transactional
@@ -54,6 +72,20 @@ public class ChatHistoryService {
                                   String attachmentPath,
                                   Long replyToTelegramId,
                                   String forwardedFrom) {
+        return storeEntry(userId, telegramMessageId, channel, ticketId, text, messageType, attachmentPath, null, replyToTelegramId, forwardedFrom);
+    }
+
+    @Transactional
+    public ChatHistory storeEntry(Long userId,
+                                  Long telegramMessageId,
+                                  Channel channel,
+                                  String ticketId,
+                                  String text,
+                                  String messageType,
+                                  String attachmentPath,
+                                  String attachmentName,
+                                  Long replyToTelegramId,
+                                  String forwardedFrom) {
         ChatHistory history = new ChatHistory();
         history.setUserId(userId);
         history.setSender("client");
@@ -62,6 +94,7 @@ public class ChatHistoryService {
         history.setTicketId(ticketId);
         history.setMessageType(messageType);
         history.setAttachment(attachmentPath);
+        history.setFileName(attachmentName);
         history.setChannel(channel);
         history.setTelegramMessageId(telegramMessageId);
         history.setReplyToTelegramId(replyToTelegramId);

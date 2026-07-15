@@ -54,13 +54,16 @@ public class DialogConversationReadService {
             String deletedAtColumn = columns.contains("deleted_at")
                     ? "deleted_at"
                     : "NULL AS deleted_at";
+            String fileNameColumn = columns.contains("file_name")
+                    ? "file_name"
+                    : "NULL AS file_name";
             String baseSql = """
                     SELECT sender, message, timestamp, message_type, attachment,
                            tg_message_id, reply_to_tg_id, channel_id,
-                           %s, %s, %s, %s
+                           %s, %s, %s, %s, %s
                       FROM chat_history
                      WHERE ticket_id = ?
-                    """.formatted(originalMessageColumn, editedAtColumn, deletedAtColumn, forwardedFromColumn);
+                    """.formatted(originalMessageColumn, editedAtColumn, deletedAtColumn, forwardedFromColumn, fileNameColumn);
             List<Object> args = new ArrayList<>();
             args.add(ticketId);
             if (channelId != null) {
@@ -104,7 +107,7 @@ public class DialogConversationReadService {
                         value(row.get("timestamp")),
                         value(row.get("message_type")),
                         attachment,
-                        attachmentMeta.name(),
+                        firstNonBlank(value(row.get("file_name")), attachmentMeta.name()),
                         attachmentMeta.size(),
                         parseLong(row.get("tg_message_id")),
                         replyTo,
@@ -314,7 +317,79 @@ public class DialogConversationReadService {
         }
         int slashIndex = normalized.lastIndexOf('/');
         String filename = slashIndex >= 0 ? normalized.substring(slashIndex + 1) : normalized;
-        return StringUtils.hasText(filename) ? filename : null;
+        if (!StringUtils.hasText(filename)) {
+            return null;
+        }
+        String resolved = decodeFileName(filename);
+        resolved = stripStoredAttachmentPrefix(resolved);
+        if (!StringUtils.hasText(resolved)) {
+            return null;
+        }
+        if (isOpaqueAttachmentName(resolved)) {
+            String extension = extractExtension(resolved);
+            return StringUtils.hasText(extension) ? "Файл " + extension.toUpperCase() : null;
+        }
+        return resolved;
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private static String decodeFileName(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return UriUtils.decode(value.trim(), StandardCharsets.UTF_8);
+        } catch (Exception ex) {
+            return value.trim();
+        }
+    }
+
+    private static String stripStoredAttachmentPrefix(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim();
+        int separatorIndex = normalized.indexOf('_');
+        if (separatorIndex > 0) {
+            String prefix = normalized.substring(0, separatorIndex);
+            if (prefix.matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
+                return normalized.substring(separatorIndex + 1).trim();
+            }
+        }
+        return normalized;
+    }
+
+    private static boolean isOpaqueAttachmentName(String value) {
+        if (!StringUtils.hasText(value)) {
+            return true;
+        }
+        String normalized = value.trim();
+        int dotIndex = normalized.lastIndexOf('.');
+        String stem = dotIndex > 0 ? normalized.substring(0, dotIndex) : normalized;
+        return stem.matches("(?i)[0-9a-f]{16,}");
+    }
+
+    private static String extractExtension(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim();
+        int dotIndex = normalized.lastIndexOf('.');
+        if (dotIndex <= 0 || dotIndex == normalized.length() - 1) {
+            return null;
+        }
+        return normalized.substring(dotIndex + 1).trim();
     }
 
     private static Long parseLong(Object value) {

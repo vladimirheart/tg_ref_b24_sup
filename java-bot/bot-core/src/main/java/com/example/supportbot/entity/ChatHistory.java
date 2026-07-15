@@ -28,6 +28,9 @@ public class ChatHistory {
 
     private String attachment;
 
+    @Column(name = "file_name")
+    private String fileName;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "channel_id")
     private Channel channel;
@@ -112,6 +115,14 @@ public class ChatHistory {
 
     public void setAttachment(String attachment) {
         this.attachment = attachment;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 
     public Channel getChannel() {
