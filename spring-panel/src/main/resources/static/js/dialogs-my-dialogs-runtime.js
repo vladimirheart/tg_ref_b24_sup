@@ -78,7 +78,7 @@
         ticketId: String(row.dataset.ticketId || '').trim(),
         requestNumber: String(row.dataset.requestNumber || '').trim(),
         clientName: String(row.dataset.client || '').trim(),
-        business: String(row.dataset.business || '').trim(),
+        location: String(row.dataset.location || '').trim(),
         channelName: String(row.dataset.channel || '').trim(),
         problem: String(row.dataset.problem || '').trim(),
         statusKey: String(row.dataset.statusKey || '').trim(),
@@ -123,7 +123,7 @@
           ticketId: String(row.dataset.ticketId || '').trim(),
           requestNumber: String(row.dataset.requestNumber || '').trim(),
           clientName: String(row.dataset.client || '').trim(),
-          business: String(row.dataset.business || '').trim(),
+          location: String(row.dataset.location || '').trim(),
           channelName: String(row.dataset.channel || '').trim(),
           problem: String(row.dataset.problem || '').trim(),
           statusKey,
@@ -159,7 +159,7 @@
       const requestNumber = String(dialog?.requestNumber || '').trim();
       const title = requestNumber || ticketId;
       const clientName = String(dialog?.clientName || dialog?.username || 'Клиент').trim();
-      const businessName = String(dialog?.business || '').trim();
+      const locationName = String(dialog?.location || '').trim();
       const channelName = String(dialog?.channelName || dialog?.channel || 'Без канала').trim();
       const unreadCount = Number(dialog?.unreadCount ?? dialog?.unread_count ?? 0) || 0;
       const isActive = String(options.getActiveDialogTicketId?.() || '').trim() === ticketId;
@@ -175,7 +175,7 @@
           <span class="badge dialog-unread-count ${unreadCount > 0 ? '' : 'd-none'}">${unreadCount}</span>
         </div>
         <div class="dialog-my-dialog-item-meta">${metaParts.map((part) => `<span>${escapeHtml(part)}</span>`).join('')}</div>
-        ${businessName ? `<div class="dialog-my-dialog-item-last">Ресторан: ${escapeHtml(businessName)}</div>` : ''}
+        ${locationName ? `<div class="dialog-my-dialog-item-last">Ресторан: ${escapeHtml(locationName)}</div>` : ''}
         <div class="dialog-my-dialog-item-last">${escapeHtml(problem || lastActivity)}</div>
         ${problem ? `<div class="dialog-my-dialog-item-last">${escapeHtml(lastActivity)}</div>` : ''}
       </button>

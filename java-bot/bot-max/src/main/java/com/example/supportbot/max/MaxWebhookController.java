@@ -44,6 +44,7 @@ public class MaxWebhookController {
     private static final List<String> CORE_LOCATION_FIELDS = List.of("business", "location_type", "city", "location_name");
     private static final Duration LOCATION_CACHE_TTL = Duration.ofMinutes(5);
     private static final String SKIP_BUTTON = "Пропустить";
+    private static final String BACK_BUTTON = "Назад";
     private static final String BLACKLISTED_TEXT =
             "Ваш аккаунт заблокирован. Отправьте /unblock, чтобы подать запрос на разблокировку.";
     private static final String BLACKLISTED_PENDING_TEXT =
@@ -190,6 +191,15 @@ public class MaxWebhookController {
             }
             promptCurrentQuestion(channel, session);
             return ResponseEntity.ok(Map.of("ok", true, "question_prompted", true));
+        }
+
+        if (BACK_BUTTON.equalsIgnoreCase(Optional.ofNullable(text).orElse("").trim())) {
+            if (session.stepBack()) {
+                promptCurrentQuestion(channel, session);
+                return ResponseEntity.ok(Map.of("ok", true, "stepped_back", true));
+            }
+            promptCurrentQuestion(channel, session);
+            return ResponseEntity.ok(Map.of("ok", true, "already_at_first_question", true));
         }
 
         QuestionFlowItemDto current = session.currentQuestion();
@@ -437,7 +447,7 @@ public class MaxWebhookController {
             return;
         }
         List<String> options = isPresetQuestion(current) ? resolvePresetOptions(current, session.answers()) : List.of();
-        messagingService.sendToUser(channel, session.userId(), buildQuestionPromptText(current, options));
+        messagingService.sendToUser(channel, session.userId(), buildQuestionPromptText(current, options, session.canGoBack()));
     }
 
     private TicketService.TicketCreationResult finalizeConversation(Channel channel, ConversationSession session) {
@@ -452,7 +462,9 @@ public class MaxWebhookController {
         for (HistoryEvent event : session.history()) {
             chatHistoryService.storeEntry(event.userId(), null, channel, created.ticketId(), event.text(), event.messageType(), null, null, null);
         }
-        messagingService.sendToUser(channel, session.userId(), "Заявка создана. Номер: " + created.ticketId());
+        String requestNumber = Optional.ofNullable(ticketService.resolveClientTicketNumber(created))
+                .orElse(Optional.ofNullable(created.ticketId()).orElse("—"));
+        messagingService.sendToUser(channel, session.userId(), "Заявка создана. Номер: " + requestNumber);
         messagingService.sendToSupportChat(channel, session.buildSummary(created.ticketId()));
         return created;
     }
@@ -471,7 +483,7 @@ public class MaxWebhookController {
         return current != null && !isPresetQuestion(current) && !current.isRequiredAnswer();
     }
 
-    private String buildQuestionPromptText(QuestionFlowItemDto current, List<String> options) {
+    private String buildQuestionPromptText(QuestionFlowItemDto current, List<String> options, boolean includeBack) {
         StringBuilder text = new StringBuilder(Optional.ofNullable(current.getText()).orElse(""));
         if (options != null && !options.isEmpty()) {
             text.append("\n\nВарианты:");
@@ -482,6 +494,9 @@ public class MaxWebhookController {
         }
         if (isOptionalFreeQuestion(current)) {
             text.append("\n\nМожно пропустить вопрос: отправьте \"").append(SKIP_BUTTON).append("\".");
+        }
+        if (includeBack) {
+            text.append("\n\nЧтобы вернуться к предыдущему вопросу, отправьте \"").append(BACK_BUTTON).append("\".");
         }
         return text.toString();
     }
@@ -959,6 +974,10 @@ public class MaxWebhookController {
             return currentIndex >= flow.size();
         }
 
+        boolean canGoBack() {
+            return currentIndex > 0;
+        }
+
         Map<String, String> answers() {
             return answers;
         }
@@ -1017,6 +1036,19 @@ public class MaxWebhookController {
                 return true;
             }
             return false;
+        }
+
+        boolean stepBack() {
+            if (currentIndex <= 0) {
+                return false;
+            }
+            currentIndex -= 1;
+            QuestionFlowItemDto previous = flow.get(currentIndex);
+            String answerKey = answerKeyFor(previous);
+            if (answerKey != null) {
+                answers.remove(answerKey);
+            }
+            return true;
         }
 
         private void applyCachedAnswers() {

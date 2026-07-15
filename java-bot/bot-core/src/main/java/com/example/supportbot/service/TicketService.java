@@ -36,6 +36,7 @@ import org.springframework.util.StringUtils;
 public class TicketService {
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter CLIENT_TICKET_NUMBER_DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
     private static final String AUTO_CLOSE_RESOLVED_BY = "auto_close";
     private static final List<String> ACTIVITY_SENDERS = Arrays.asList("client", "operator", "support", "admin", "ai_agent");
 
@@ -161,6 +162,7 @@ public class TicketService {
         return messages.stream()
                 .map(message -> new TicketSummary(
                         message.getTicketId(),
+                        resolveClientTicketNumber(message),
                         message.getProblem(),
                         message.getBusiness(),
                         message.getLocationType(),
@@ -171,6 +173,24 @@ public class TicketService {
                                 .orElse(null),
                         message.getCreatedAt()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public String resolveClientTicketNumber(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) {
+            return null;
+        }
+        return messageRepository.findByTicketId(ticketId)
+                .map(this::resolveClientTicketNumber)
+                .orElse(ticketId);
+    }
+
+    @Transactional(readOnly = true)
+    public String resolveClientTicketNumber(TicketCreationResult ticket) {
+        if (ticket == null) {
+            return null;
+        }
+        return resolveClientTicketNumber(ticket.ticketId());
     }
 
     @Transactional(readOnly = true)
@@ -452,6 +472,7 @@ public class TicketService {
     }
 
     public record TicketSummary(String ticketId,
+                                String requestNumber,
                                 String problem,
                                 String business,
                                 String locationType,
@@ -459,6 +480,26 @@ public class TicketService {
                                 String locationName,
                                 Integer rating,
                                 OffsetDateTime createdAt) {
+    }
+
+    private String resolveClientTicketNumber(TicketMessage message) {
+        if (message == null) {
+            return null;
+        }
+        LocalDate createdDate = message.getCreatedDate();
+        OffsetDateTime createdAt = message.getCreatedAt();
+        Long messageId = message.getId();
+        if (createdDate == null && createdAt != null) {
+            createdDate = createdAt.toLocalDate();
+        }
+        if (createdDate == null || createdAt == null || messageId == null) {
+            return message.getTicketId();
+        }
+        long sequence = messageRepository.countClientSequenceForDay(createdDate, createdAt, messageId);
+        if (sequence <= 0) {
+            return message.getTicketId();
+        }
+        return createdDate.format(CLIENT_TICKET_NUMBER_DATE_FORMAT) + "-" + String.format("%03d", sequence);
     }
 
     private static Feedback pickLatestFeedback(Feedback left, Feedback right) {

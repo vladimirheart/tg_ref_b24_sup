@@ -1663,7 +1663,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         StringBuilder builder = new StringBuilder("Ваши заявки:\n\n");
         for (TicketService.TicketSummary ticket : tickets) {
-            builder.append("#").append(Optional.ofNullable(ticket.ticketId()).orElse("—")).append("\n");
+            builder.append("#").append(Optional.ofNullable(ticket.requestNumber()).orElse(Optional.ofNullable(ticket.ticketId()).orElse("—"))).append("\n");
             builder.append("Ресторан: ").append(formatRestaurant(ticket)).append("\n");
             builder.append("Проблема: ").append(Optional.ofNullable(ticket.problem()).filter(s -> !s.isBlank()).orElse("—"))
                     .append("\n");
@@ -1892,7 +1892,8 @@ public class SupportBot extends TelegramLongPollingBot {
             }
         }
 
-        String requestNumber = ticket.groupMessageId() != null ? ticket.groupMessageId().toString() : ticket.ticketId();
+        String requestNumber = Optional.ofNullable(ticketService.resolveClientTicketNumber(ticket))
+                .orElse(Optional.ofNullable(ticket.ticketId()).orElse("—"));
         SendMessage confirmation = SendMessage.builder()
                 .chatId(session.chatId())
                 .text("Спасибо! Ваше обращение №" + requestNumber + " отправлено оператору. Мы свяжемся с вами после обработки.")

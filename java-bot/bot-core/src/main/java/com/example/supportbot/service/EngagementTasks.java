@@ -27,17 +27,20 @@ public class EngagementTasks {
     private final ChannelRepository channelRepository;
     private final BotSettingsService botSettingsService;
     private final MessagingService messagingService;
+    private final TicketService ticketService;
 
     public EngagementTasks(PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
                            NotificationRepository notificationRepository,
                            ChannelRepository channelRepository,
                            BotSettingsService botSettingsService,
-                           MessagingService messagingService) {
+                           MessagingService messagingService,
+                           TicketService ticketService) {
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.notificationRepository = notificationRepository;
         this.channelRepository = channelRepository;
         this.botSettingsService = botSettingsService;
         this.messagingService = messagingService;
+        this.ticketService = ticketService;
     }
 
     @Scheduled(cron = "0 */2 * * * *")
@@ -67,8 +70,10 @@ public class EngagementTasks {
         BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
         int scale = botSettingsService.ratingScale(settings, 5);
         String template = botSettingsService.ratingPrompt(settings, "Оцените заявку {ticket_id} по шкале 1-{scale}");
+        String requestNumber = Optional.ofNullable(ticketService.resolveClientTicketNumber(request.getTicketId()))
+                .orElse(Optional.ofNullable(request.getTicketId()).orElse("заявку"));
         return template
-                .replace("{ticket_id}", Optional.ofNullable(request.getTicketId()).orElse("заявку"))
+                .replace("{ticket_id}", requestNumber)
                 .replace("{scale}", Integer.toString(scale));
     }
 
