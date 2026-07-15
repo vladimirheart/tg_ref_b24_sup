@@ -560,6 +560,48 @@
       });
     }
 
+    function resetHistoryMediaInfoPanelPlacement(panel) {
+      if (!(panel instanceof HTMLElement)) {
+        return;
+      }
+      panel.classList.remove('chat-media-info-panel--align-start', 'chat-media-info-panel--above');
+      panel.style.removeProperty('max-width');
+    }
+
+    function positionHistoryMediaInfoPanel(infoRoot) {
+      if (!(infoRoot instanceof HTMLElement) || !(elements.detailsHistory instanceof HTMLElement)) {
+        return;
+      }
+      const panel = infoRoot.querySelector('.chat-media-info-panel');
+      if (!(panel instanceof HTMLElement)) {
+        return;
+      }
+      resetHistoryMediaInfoPanelPlacement(panel);
+      const historyRect = elements.detailsHistory.getBoundingClientRect();
+      if (!historyRect.width || !historyRect.height) {
+        return;
+      }
+      const maxPanelWidth = Math.max(176, Math.min(320, Math.floor(historyRect.width - 24)));
+      panel.style.maxWidth = `${maxPanelWidth}px`;
+
+      let panelRect = panel.getBoundingClientRect();
+      if (panelRect.left < historyRect.left + 8) {
+        panel.classList.add('chat-media-info-panel--align-start');
+        panelRect = panel.getBoundingClientRect();
+      }
+      if (panelRect.right > historyRect.right - 8 && !panel.classList.contains('chat-media-info-panel--align-start')) {
+        panel.style.maxWidth = `${Math.max(176, Math.floor(historyRect.right - panelRect.left - 12))}px`;
+        panelRect = panel.getBoundingClientRect();
+      }
+      if (panelRect.bottom > historyRect.bottom - 8) {
+        panel.classList.add('chat-media-info-panel--above');
+        panelRect = panel.getBoundingClientRect();
+      }
+      if (panelRect.top < historyRect.top + 8 && panel.classList.contains('chat-media-info-panel--above')) {
+        panel.classList.remove('chat-media-info-panel--above');
+      }
+    }
+
     function messageToHtml(message, renderOptions = {}) {
       const activeDialogState = getActiveDialogState();
       const senderType = options.normalizeMessageSenderByType?.(message?.messageType, message?.sender) || '';
@@ -1441,6 +1483,15 @@
         elements.detailsHistory.addEventListener('scroll', () => {
           syncHistoryPinnedIntent();
         }, { passive: true });
+        ['mouseover', 'focusin', 'click'].forEach((eventName) => {
+          elements.detailsHistory.addEventListener(eventName, (event) => {
+            const infoRoot = event.target.closest('.chat-media-info');
+            if (!infoRoot) {
+              return;
+            }
+            positionHistoryMediaInfoPanel(infoRoot);
+          });
+        });
         elements.detailsHistory.addEventListener('click', async (event) => {
           const loadPreviousButton = event.target.closest('button[data-action="load-previous-history"]');
           if (loadPreviousButton) {
