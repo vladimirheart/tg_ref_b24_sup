@@ -17,15 +17,18 @@ public class UnblockRequestService {
     private final JdbcTemplate jdbcTemplate;
     private final BlacklistHistoryService blacklistHistoryService;
     private final DialogNotificationService dialogNotificationService;
+    private final UiEventStreamService uiEventStreamService;
 
     public UnblockRequestService(@Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate,
                                  JdbcTemplate jdbcTemplate,
                                  BlacklistHistoryService blacklistHistoryService,
-                                 DialogNotificationService dialogNotificationService) {
+                                 DialogNotificationService dialogNotificationService,
+                                 UiEventStreamService uiEventStreamService) {
         this.botJdbcTemplate = botJdbcTemplate;
         this.jdbcTemplate = jdbcTemplate;
         this.blacklistHistoryService = blacklistHistoryService;
         this.dialogNotificationService = dialogNotificationService;
+        this.uiEventStreamService = uiEventStreamService;
     }
 
     public long countPendingRequests() {
@@ -111,6 +114,7 @@ public class UnblockRequestService {
 
         String notification = buildNotificationMessage(context.userId(), approve, normalizedComment, now);
         dialogNotificationService.notifyUserByLastChannel(parseUserId(context.userId()), notification, true);
+        uiEventStreamService.publishSidebarUnblockChanged("unblock_request_decided");
 
         return DecisionOutcome.success(approve ? "Запрос одобрен" : "Запрос отклонен");
     }

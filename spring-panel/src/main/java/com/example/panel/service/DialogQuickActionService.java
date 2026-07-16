@@ -35,6 +35,7 @@ public class DialogQuickActionService {
     private final DialogNotificationService dialogNotificationService;
     private final DialogAiAssistantService dialogAiAssistantService;
     private final NotificationService notificationService;
+    private final UiEventStreamService uiEventStreamService;
     private final AttachmentService attachmentService;
     private final ClientBlacklistService clientBlacklistService;
 
@@ -47,6 +48,7 @@ public class DialogQuickActionService {
                                     DialogNotificationService dialogNotificationService,
                                     DialogAiAssistantService dialogAiAssistantService,
                                     NotificationService notificationService,
+                                    UiEventStreamService uiEventStreamService,
                                     AttachmentService attachmentService,
                                     ClientBlacklistService clientBlacklistService) {
         this.dialogTicketLifecycleService = dialogTicketLifecycleService;
@@ -57,6 +59,7 @@ public class DialogQuickActionService {
         this.dialogNotificationService = dialogNotificationService;
         this.dialogAiAssistantService = dialogAiAssistantService;
         this.notificationService = notificationService;
+        this.uiEventStreamService = uiEventStreamService;
         this.attachmentService = attachmentService;
         this.clientBlacklistService = clientBlacklistService;
     }
@@ -69,6 +72,7 @@ public class DialogQuickActionService {
                              DialogNotificationService dialogNotificationService,
                              DialogAiAssistantService dialogAiAssistantService,
                              NotificationService notificationService,
+                             UiEventStreamService uiEventStreamService,
                              AttachmentService attachmentService) {
         this(
                 dialogTicketLifecycleService,
@@ -79,6 +83,7 @@ public class DialogQuickActionService {
                 dialogNotificationService,
                 dialogAiAssistantService,
                 notificationService,
+                uiEventStreamService,
                 attachmentService,
                 null
         );
@@ -98,6 +103,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
+            publishDialogRefresh(ticketId, "operator_reply");
         }
         return result;
     }
@@ -119,6 +125,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
+            publishDialogRefresh(ticketId, "operator_reply_edited");
         }
         return result;
     }
@@ -138,6 +145,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
+            publishDialogRefresh(ticketId, "operator_reply_deleted");
         }
         return result;
     }
@@ -181,6 +189,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
+        publishDialogRefresh(ticketId, "operator_reply_media");
         return response;
     }
 
@@ -205,6 +214,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
+            uiEventStreamService.publishDialogsChanged("dialog_resolved", ticketId);
         }
         return result;
     }
@@ -220,6 +230,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
+            uiEventStreamService.publishDialogsChanged("dialog_reopened", ticketId);
         }
         return result;
     }
@@ -239,6 +250,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
+        uiEventStreamService.publishDialogsChanged("dialog_categories_updated", ticketId);
         return new DialogCategoryUpdateResult(true, normalizedCategories);
     }
 
@@ -278,6 +290,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
+        uiEventStreamService.publishDialogsChanged("dialog_marked_spam", ticketId);
         return new DialogSpamResult(true, true, null, userId, categories);
     }
 
@@ -328,6 +341,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
+        uiEventStreamService.publishDialogsChanged("dialog_taken", ticketId);
         return new DialogTakeResult(true, true, responsible != null && !responsible.isBlank() ? responsible : operator, null);
     }
 
@@ -358,6 +372,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
+            uiEventStreamService.publishDialogsChanged("dialog_participant_added", ticketId);
         }
         return new DialogParticipantMutationResult(true, changed, null, participants);
     }
@@ -380,6 +395,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
+            uiEventStreamService.publishDialogsChanged("dialog_participant_removed", ticketId);
         }
         return new DialogParticipantMutationResult(true, changed, null, participants);
     }
@@ -412,6 +428,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
+        uiEventStreamService.publishDialogsChanged("dialog_reassigned", ticketId);
         return new DialogReassignResult(
                 true,
                 null,
@@ -431,6 +448,11 @@ public class DialogQuickActionService {
         } catch (RuntimeException ex) {
             log.warn("Unable to create dialog notifications for ticket {}: {}", ticketId, ex.getMessage());
         }
+    }
+
+    private void publishDialogRefresh(String ticketId, String reason) {
+        uiEventStreamService.publishDialogsChanged(reason, ticketId);
+        uiEventStreamService.publishDialogHistoryChanged(ticketId, null, reason);
     }
 
     private static final class CachedMultipartFile implements MultipartFile {

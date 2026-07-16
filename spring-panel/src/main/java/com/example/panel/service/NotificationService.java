@@ -53,13 +53,16 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
+    private final UiEventStreamService uiEventStreamService;
 
     public NotificationService(NotificationRepository notificationRepository,
                                JdbcTemplate jdbcTemplate,
-                               @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate) {
+                               @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
+                               UiEventStreamService uiEventStreamService) {
         this.notificationRepository = notificationRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
+        this.uiEventStreamService = uiEventStreamService;
     }
 
     @Transactional(readOnly = true)
@@ -82,6 +85,7 @@ public class NotificationService {
         notificationRepository.findByIdAndUserIdentity(id, identity).ifPresent(notification -> {
             notification.setIsRead(Boolean.TRUE);
             notificationRepository.save(notification);
+            uiEventStreamService.publishNotificationsChanged(identity, "notification_marked_read");
         });
     }
 
@@ -93,6 +97,7 @@ public class NotificationService {
         }
         unread.forEach(notification -> notification.setIsRead(Boolean.TRUE));
         notificationRepository.saveAll(unread);
+        uiEventStreamService.publishNotificationsChanged(identity, "notifications_marked_read");
         return unread.size();
     }
 
@@ -316,6 +321,7 @@ public class NotificationService {
         notification.setIsRead(Boolean.FALSE);
         notification.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         notificationRepository.save(notification);
+        uiEventStreamService.publishNotificationsChanged(identity, "notification_created");
     }
 
     private String normalizeNotificationText(String text) {

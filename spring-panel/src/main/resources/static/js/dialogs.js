@@ -948,6 +948,9 @@
   let listPollTimer = null;
   let lastListMarker = null;
   let listLoading = false;
+  let dialogsSseRefreshTimer = null;
+  let historySseRefreshTimer = null;
+  let dialogsSseConnected = false;
   let activeDialogContext = {
     clientName: '—',
     clientUserId: '',
@@ -2357,11 +2360,25 @@
   }
 
   function startDialogsPolling() {
+    if (dialogsSseConnected) {
+      return;
+    }
     return dialogsListRuntime?.startDialogsPolling();
   }
 
   function stopDialogsPolling() {
     return dialogsListRuntime?.stopDialogsPolling();
+  }
+
+  function scheduleDialogsListRefresh(reason = 'sse') {
+    if (dialogsSseRefreshTimer) {
+      window.clearTimeout(dialogsSseRefreshTimer);
+    }
+    dialogsSseRefreshTimer = window.setTimeout(() => {
+      dialogsSseRefreshTimer = null;
+      void refreshDialogsList();
+      debugLog('dialogs.sse.listRefresh', { reason });
+    }, 120);
   }
 
   const emptyRow = document.createElement('tr');
@@ -3451,11 +3468,63 @@
   }
 
   function startHistoryPolling() {
+    if (dialogsSseConnected) {
+      return;
+    }
     dialogsDetailsHistoryRuntime?.startHistoryPolling();
   }
 
   function stopHistoryPolling() {
     dialogsDetailsHistoryRuntime?.stopHistoryPolling();
+  }
+
+  function scheduleHistoryRefresh(reason = 'sse') {
+    if (historySseRefreshTimer) {
+      window.clearTimeout(historySseRefreshTimer);
+    }
+    historySseRefreshTimer = window.setTimeout(() => {
+      historySseRefreshTimer = null;
+      void refreshHistory();
+      debugLog('dialogs.sse.historyRefresh', {
+        reason,
+        ticketId: activeDialogTicketId,
+      });
+    }, 120);
+  }
+
+  function handleDialogsSseStatus(event) {
+    const connected = event?.detail?.connected === true;
+    dialogsSseConnected = connected;
+    if (connected) {
+      stopDialogsPolling();
+      stopHistoryPolling();
+      return;
+    }
+    startDialogsPolling();
+    if (activeDialogTicketId) {
+      startHistoryPolling();
+    }
+  }
+
+  function handleDialogsChangedEvent(event) {
+    const ticketId = String(event?.detail?.ticketId || '').trim();
+    const reason = String(event?.detail?.reason || 'dialogs_changed').trim();
+    scheduleDialogsListRefresh(reason);
+    if (ticketId && activeDialogTicketId && ticketId === String(activeDialogTicketId || '').trim()) {
+      scheduleHistoryRefresh(reason);
+    }
+  }
+
+  function handleDialogHistoryChangedEvent(event) {
+    const ticketId = String(event?.detail?.ticketId || '').trim();
+    const reason = String(event?.detail?.reason || 'dialog_history_changed').trim();
+    if (!activeDialogTicketId) {
+      return;
+    }
+    if (!ticketId || ticketId === String(activeDialogTicketId || '').trim()) {
+      scheduleHistoryRefresh(reason);
+    }
+    scheduleDialogsListRefresh(reason);
   }
 
   function updateResolveButton(statusRaw) {
@@ -4077,6 +4146,9 @@
   dialogsFlowRuntime?.bindGlobalShortcutEvents();
   dialogsFlowRuntime?.bindModalNavigationEvents();
   dialogsFlowRuntime?.bindDetailsModalLifecycle();
+  window.addEventListener('panel:sse-status', handleDialogsSseStatus);
+  window.addEventListener('panel:sse:dialogs_changed', handleDialogsChangedEvent);
+  window.addEventListener('panel:sse:dialog_history_changed', handleDialogHistoryChangedEvent);
 
 
   function applyOperatorPermissionGuards() {

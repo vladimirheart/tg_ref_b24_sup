@@ -4,6 +4,7 @@ import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.service.BotProcessService;
 import com.example.panel.service.BotProcessService.BotProcessStatus;
+import com.example.panel.service.UiEventStreamService;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,11 +20,14 @@ public class BotProcessApiController {
 
     private final BotProcessService botProcessService;
     private final ChannelRepository channelRepository;
+    private final UiEventStreamService uiEventStreamService;
 
     public BotProcessApiController(BotProcessService botProcessService,
-                                   ChannelRepository channelRepository) {
+                                   ChannelRepository channelRepository,
+                                   UiEventStreamService uiEventStreamService) {
         this.botProcessService = botProcessService;
         this.channelRepository = channelRepository;
+        this.uiEventStreamService = uiEventStreamService;
     }
 
     @PostMapping("/{channelId}/start")
@@ -36,6 +40,7 @@ public class BotProcessApiController {
             return ResponseEntity.status(404).body(response);
         }
         BotProcessStatus status = botProcessService.start(channel);
+        uiEventStreamService.publishSidebarBotsChanged("bot_started", channelId);
         return ResponseEntity.ok(buildStatusResponse(
             isSuccessfulStatus(status),
             statusMessage(status),
@@ -46,6 +51,7 @@ public class BotProcessApiController {
     @PostMapping("/{channelId}/stop")
     public ResponseEntity<Map<String, Object>> stop(@PathVariable Long channelId) {
         BotProcessStatus status = botProcessService.stop(channelId);
+        uiEventStreamService.publishSidebarBotsChanged("bot_stopped", channelId);
         return ResponseEntity.ok(buildStatusResponse(isSuccessfulStatus(status), statusMessage(status), null));
     }
 

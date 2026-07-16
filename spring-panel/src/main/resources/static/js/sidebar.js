@@ -28,11 +28,57 @@
   const PREF_KEY_NAV_ORDER = 'sidebarNavOrder';
   const PREF_KEY_NAV_SCROLL = 'sidebarNavScrollTop';
   const NOTIFICATIONS_POLL_INTERVAL_MS = 5000;
+  const UNBLOCK_POLL_INTERVAL_MS = 30000;
+  const PANEL_SSE_URL = '/api/events/stream';
+  const PANEL_SSE_STATUS_EVENT = 'panel:sse-status';
+  const PANEL_SSE_EVENT_PREFIX = 'panel:sse:';
   let pinned = (prefApi ? prefApi.get(PREF_KEY_PIN) : localStorage.getItem(PREF_KEY_PIN)) === '1';
   const HOVER_LEAVE_DELAY_MS = 1000;
   let hoverLeaveTimer = null;
   const MOBILE_BREAKPOINT = 991.98;
   let actionMenuOpen = false;
+  let panelEventsSource = null;
+  let panelEventsReconnectTimer = null;
+  let panelEventsConnected = false;
+  let notificationsPollTimer = null;
+  let unblockPollTimer = null;
+
+  function parseSsePayload(event) {
+    if (!event || typeof event.data !== 'string' || !event.data.trim()) {
+      return {};
+    }
+    try {
+      return JSON.parse(event.data);
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  function dispatchPanelSseEvent(eventName, detail = {}) {
+    window.dispatchEvent(new CustomEvent(`${PANEL_SSE_EVENT_PREFIX}${eventName}`, {
+      detail,
+    }));
+  }
+
+  function dispatchPanelSseStatus(connected) {
+    window.dispatchEvent(new CustomEvent(PANEL_SSE_STATUS_EVENT, {
+      detail: { connected: connected === true },
+    }));
+  }
+
+  function stopNotificationPolling() {
+    if (notificationsPollTimer) {
+      clearInterval(notificationsPollTimer);
+      notificationsPollTimer = null;
+    }
+  }
+
+  function stopUnblockPolling() {
+    if (unblockPollTimer) {
+      clearInterval(unblockPollTimer);
+      unblockPollTimer = null;
+    }
+  }
 
   function moveModalToBody(modalEl) {
     if (!(modalEl instanceof HTMLElement) || !document.body) return;
@@ -1361,6 +1407,13 @@
     return updateNotificationCountSafe();
   }
 
+  function startNotificationPolling() {
+    if (panelEventsConnected || notificationsPollTimer) {
+      return;
+    }
+    notificationsPollTimer = setInterval(updateNotificationCountSafe, NOTIFICATIONS_POLL_INTERVAL_MS);
+  }
+
   if (bellBtn) {
     bellBtn.addEventListener('click', async (event) => {
       event.preventDefault();
@@ -1390,7 +1443,7 @@
   });
 
   updateNotificationCountSafe();
-  setInterval(updateNotificationCountSafe, NOTIFICATIONS_POLL_INTERVAL_MS);
+  startNotificationPolling();
   window.refreshSidebarNotifications = requestNotificationRefresh;
   window.addEventListener('iguana:notifications-refresh', requestNotificationRefresh);
   window.addEventListener('focus', requestNotificationRefresh);
@@ -1428,8 +1481,15 @@
     }
   }
 
+  function startUnblockPolling() {
+    if (panelEventsConnected || unblockPollTimer || !unblockBadge) {
+      return;
+    }
+    unblockPollTimer = setInterval(updateUnblockRequestCount, UNBLOCK_POLL_INTERVAL_MS);
+  }
+
   updateUnblockRequestCount();
-  setInterval(updateUnblockRequestCount, 30000);
+  startUnblockPolling();
 
   const botMiniIndicatorsEl = sidebar.querySelector('[data-sidebar-bot-mini-indicators]');
   const MAX_SIDEBAR_BOT_DOTS = 8;
@@ -1532,8 +1592,96 @@
     }
   }
 
+  function setPanelEventsConnected(connected) {
+    const nextState = connected === true;
+    if (panelEventsConnected === nextState) {
+      return;
+    }
+    panelEventsConnected = nextState;
+    if (panelEventsConnected) {
+      stopNotificationPolling();
+      stopUnblockPolling();
+    } else {
+      startNotificationPolling();
+      startUnblockPolling();
+    }
+    dispatchPanelSseStatus(panelEventsConnected);
+  }
+
+  function schedulePanelEventsReconnect() {
+    if (panelEventsReconnectTimer) {
+      return;
+    }
+    panelEventsReconnectTimer = window.setTimeout(() => {
+      panelEventsReconnectTimer = null;
+      connectPanelEvents();
+    }, 3000);
+  }
+
+  function connectPanelEvents() {
+    if (panelEventsSource || typeof window.EventSource !== 'function') {
+      return;
+    }
+    try {
+      const source = new window.EventSource(PANEL_SSE_URL);
+      panelEventsSource = source;
+      source.addEventListener('open', () => {
+        setPanelEventsConnected(true);
+      });
+      source.addEventListener('connected', (event) => {
+        setPanelEventsConnected(true);
+        dispatchPanelSseEvent('connected', parseSsePayload(event));
+      });
+      source.addEventListener('notifications_changed', (event) => {
+        const detail = parseSsePayload(event);
+        setPanelEventsConnected(true);
+        requestNotificationRefresh();
+        dispatchPanelSseEvent('notifications_changed', detail);
+      });
+      source.addEventListener('sidebar_unblock_changed', (event) => {
+        const detail = parseSsePayload(event);
+        setPanelEventsConnected(true);
+        void updateUnblockRequestCount();
+        dispatchPanelSseEvent('sidebar_unblock_changed', detail);
+      });
+      source.addEventListener('sidebar_bots_changed', (event) => {
+        const detail = parseSsePayload(event);
+        setPanelEventsConnected(true);
+        void refreshSidebarBotMiniIndicators();
+        dispatchPanelSseEvent('sidebar_bots_changed', detail);
+      });
+      source.addEventListener('dialogs_changed', (event) => {
+        setPanelEventsConnected(true);
+        dispatchPanelSseEvent('dialogs_changed', parseSsePayload(event));
+      });
+      source.addEventListener('dialog_history_changed', (event) => {
+        setPanelEventsConnected(true);
+        dispatchPanelSseEvent('dialog_history_changed', parseSsePayload(event));
+      });
+      source.addEventListener('ping', () => {
+        setPanelEventsConnected(true);
+      });
+      source.onerror = () => {
+        setPanelEventsConnected(false);
+        if (source.readyState === window.EventSource.CLOSED) {
+          panelEventsSource = null;
+          try {
+            source.close();
+          } catch (_error) {
+            // ignore close errors
+          }
+          schedulePanelEventsReconnect();
+        }
+      };
+    } catch (_error) {
+      setPanelEventsConnected(false);
+      schedulePanelEventsReconnect();
+    }
+  }
+
   refreshSidebarBotMiniIndicators();
   setInterval(refreshSidebarBotMiniIndicators, 30000);
+  connectPanelEvents();
 })();
 
 // Авто-активация пункта меню по текущему пути
