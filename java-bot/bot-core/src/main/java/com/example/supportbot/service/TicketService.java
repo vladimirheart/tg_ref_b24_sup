@@ -49,6 +49,7 @@ public class TicketService {
     private final ChatHistoryService chatHistoryService;
     private final FeedbackRepository feedbackRepository;
     private final AutoCloseFollowUpTaskService autoCloseFollowUpTaskService;
+    private final UiEventOutboxService uiEventOutboxService;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketMessageRepository messageRepository,
@@ -58,7 +59,8 @@ public class TicketService {
                          ChatHistoryRepository chatHistoryRepository,
                          ChatHistoryService chatHistoryService,
                          FeedbackRepository feedbackRepository,
-                         AutoCloseFollowUpTaskService autoCloseFollowUpTaskService) {
+                         AutoCloseFollowUpTaskService autoCloseFollowUpTaskService,
+                         UiEventOutboxService uiEventOutboxService) {
         this.ticketRepository = ticketRepository;
         this.messageRepository = messageRepository;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
@@ -68,6 +70,7 @@ public class TicketService {
         this.chatHistoryService = chatHistoryService;
         this.feedbackRepository = feedbackRepository;
         this.autoCloseFollowUpTaskService = autoCloseFollowUpTaskService;
+        this.uiEventOutboxService = uiEventOutboxService;
     }
 
     @Transactional
@@ -128,6 +131,7 @@ public class TicketService {
         active.setUser(normalizedUsername != null ? normalizedUsername : Long.toString(userId));
         active.setLastSeen(now);
         ticketActiveRepository.save(active);
+        uiEventOutboxService.publishTicketCreated(ticketId, channel, message.getProblem());
 
         return new TicketCreationResult(ticketId, message.getId(), "open");
     }
@@ -245,6 +249,7 @@ public class TicketService {
 
         chatHistoryService.storeSystemEvent(ticket.getUserId(), ticketId, ticket.getChannel(),
                 "Заявка переоткрыта оператором.");
+        uiEventOutboxService.publishTicketReopened(ticketId, ticket.getChannel(), "Заявка переоткрыта оператором.");
 
         return Optional.of(ticket);
     }
@@ -274,6 +279,12 @@ public class TicketService {
                 ticketId,
                 ticket.getChannel(),
                 resolveCloseEventText(source)
+        );
+        uiEventOutboxService.publishTicketClosed(
+                ticketId,
+                ticket.getChannel(),
+                resolveCloseEventText(source),
+                "inactivity".equalsIgnoreCase(source)
         );
 
         pendingFeedbackRequestRepository.findFirstByTicketIdOrderByCreatedAtDesc(ticketId)

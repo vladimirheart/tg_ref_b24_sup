@@ -13,10 +13,14 @@ public class ChatHistoryService {
 
     private final ChatHistoryRepository historyRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final UiEventOutboxService uiEventOutboxService;
 
-    public ChatHistoryService(ChatHistoryRepository historyRepository, JdbcTemplate jdbcTemplate) {
+    public ChatHistoryService(ChatHistoryRepository historyRepository,
+                              JdbcTemplate jdbcTemplate,
+                              UiEventOutboxService uiEventOutboxService) {
         this.historyRepository = historyRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.uiEventOutboxService = uiEventOutboxService;
         ensureColumns();
     }
 
@@ -99,7 +103,9 @@ public class ChatHistoryService {
         history.setTelegramMessageId(telegramMessageId);
         history.setReplyToTelegramId(replyToTelegramId);
         history.setForwardedFrom(forwardedFrom);
-        return historyRepository.save(history);
+        ChatHistory saved = historyRepository.save(history);
+        uiEventOutboxService.publishClientMessage(ticketId, channel, text, messageType, attachmentPath);
+        return saved;
     }
 
     @Transactional
@@ -133,6 +139,9 @@ public class ChatHistoryService {
                    AND tg_message_id = ?
                    AND sender = 'client'
                 """, newText, channelId, telegramMessageId);
+        if (updated > 0) {
+            uiEventOutboxService.publishClientMessageEdited(resolveTicketId(channelId, telegramMessageId), channelId, newText);
+        }
         return updated > 0;
     }
 
@@ -147,5 +156,19 @@ public class ChatHistoryService {
         history.setMessageType("system_event");
         history.setChannel(channel);
         return historyRepository.save(history);
+    }
+
+    private String resolveTicketId(Long channelId, Long telegramMessageId) {
+        if (channelId == null || telegramMessageId == null) {
+            return null;
+        }
+        return jdbcTemplate.query("""
+                SELECT ticket_id
+                  FROM chat_history
+                 WHERE channel_id = ?
+                   AND tg_message_id = ?
+                 ORDER BY id DESC
+                 LIMIT 1
+                """, rs -> rs.next() ? rs.getString("ticket_id") : null, channelId, telegramMessageId);
     }
 }

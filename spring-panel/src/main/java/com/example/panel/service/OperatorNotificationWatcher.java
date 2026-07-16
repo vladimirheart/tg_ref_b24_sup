@@ -51,6 +51,25 @@ public class OperatorNotificationWatcher {
                                        AlertQueueService alertQueueService,
                                        ChannelRepository channelRepository,
                                        DialogAuditService dialogAuditService,
+                                       SharedConfigService sharedConfigService) {
+        this(
+                jdbcTemplate,
+                notificationService,
+                dialogAiAssistantService,
+                alertQueueService,
+                channelRepository,
+                dialogAuditService,
+                sharedConfigService,
+                null
+        );
+    }
+
+    public OperatorNotificationWatcher(JdbcTemplate jdbcTemplate,
+                                       NotificationService notificationService,
+                                       DialogAiAssistantService dialogAiAssistantService,
+                                       AlertQueueService alertQueueService,
+                                       ChannelRepository channelRepository,
+                                       DialogAuditService dialogAuditService,
                                        SharedConfigService sharedConfigService,
                                        UiEventStreamService uiEventStreamService) {
         this.jdbcTemplate = jdbcTemplate;
@@ -73,8 +92,6 @@ public class OperatorNotificationWatcher {
 
     @Scheduled(fixedDelayString = "${panel.notifications.watch-interval-ms:12000}")
     void watch() {
-        watchChatHistoryMessages();
-        watchFeedbacks();
         watchFirstResponseOverdue();
     }
 
@@ -115,7 +132,7 @@ public class OperatorNotificationWatcher {
                                 notificationService.notifyUsers(recipients, text, notificationService.buildDialogUrl(ticketId));
                             }
                             notifySupportChat(channel, text);
-                            uiEventStreamService.publishDialogsChanged("dialog_auto_closed", ticketId);
+                            publishDialogsChanged("dialog_auto_closed", ticketId);
                             continue;
                         }
                         if (!shouldReplayAsLiveMessage(timestampRaw)) {
@@ -143,8 +160,8 @@ public class OperatorNotificationWatcher {
         boolean handledByQueue = channel != null
                 && alertQueueService.notifyIncomingClientMessage(channel, ticketId, message);
         if (handledByQueue) {
-            uiEventStreamService.publishDialogsChanged("incoming_client_message", ticketId);
-            uiEventStreamService.publishDialogHistoryChanged(ticketId, channel.getId(), "incoming_client_message");
+            publishDialogsChanged("incoming_client_message", ticketId);
+            publishDialogHistoryChanged(ticketId, channel.getId(), "incoming_client_message");
             return;
         }
         String text = "Новое сообщение в обращении " + ticketId;
@@ -156,8 +173,8 @@ public class OperatorNotificationWatcher {
                 notificationService.buildDialogUrl(ticketId),
                 null
         );
-        uiEventStreamService.publishDialogsChanged("incoming_client_message", ticketId);
-        uiEventStreamService.publishDialogHistoryChanged(ticketId, channel == null ? null : channel.getId(), "incoming_client_message");
+        publishDialogsChanged("incoming_client_message", ticketId);
+        publishDialogHistoryChanged(ticketId, channel == null ? null : channel.getId(), "incoming_client_message");
     }
 
     private void watchFeedbacks() {
@@ -201,7 +218,7 @@ public class OperatorNotificationWatcher {
                                 notificationService.buildDialogUrl(ticketId),
                                 null
                         );
-                        uiEventStreamService.publishDialogsChanged("dialog_feedback_created", ticketId);
+                        publishDialogsChanged("dialog_feedback_created", ticketId);
                     }
                     if (maxSeen > afterId) {
                         lastFeedbackId.set(maxSeen);
@@ -292,7 +309,7 @@ public class OperatorNotificationWatcher {
                                     "success",
                                     auditDetail
                             );
-                            uiEventStreamService.publishDialogsChanged("first_response_overdue", ticketId);
+                            publishDialogsChanged("first_response_overdue", ticketId);
                         }
                     }
                     return null;
@@ -474,5 +491,19 @@ public class OperatorNotificationWatcher {
                 ? " Просрочка: " + overdueMinutes + " мин."
                 : "";
         return "Первая реакция просрочена (" + channelLabel + ") в обращении " + ticketId + "." + overdueLabel;
+    }
+
+    private void publishDialogsChanged(String reason, String ticketId) {
+        if (uiEventStreamService == null) {
+            return;
+        }
+        uiEventStreamService.publishDialogsChanged(reason, ticketId);
+    }
+
+    private void publishDialogHistoryChanged(String ticketId, Long channelId, String reason) {
+        if (uiEventStreamService == null) {
+            return;
+        }
+        uiEventStreamService.publishDialogHistoryChanged(ticketId, channelId, reason);
     }
 }

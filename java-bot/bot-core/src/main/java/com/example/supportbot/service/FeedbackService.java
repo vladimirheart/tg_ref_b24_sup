@@ -15,11 +15,14 @@ public class FeedbackService {
 
     private final PendingFeedbackRequestRepository pendingFeedbackRequestRepository;
     private final FeedbackRepository feedbackRepository;
+    private final UiEventOutboxService uiEventOutboxService;
 
     public FeedbackService(PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
-                           FeedbackRepository feedbackRepository) {
+                           FeedbackRepository feedbackRepository,
+                           UiEventOutboxService uiEventOutboxService) {
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.feedbackRepository = feedbackRepository;
+        this.uiEventOutboxService = uiEventOutboxService;
     }
 
     @Transactional(readOnly = true)
@@ -48,6 +51,7 @@ public class FeedbackService {
         feedback.setRating(rating);
         feedback.setTimestamp(OffsetDateTime.now());
         feedbackRepository.save(feedback);
+        uiEventOutboxService.publishFeedbackCreated(request.getTicketId(), channel, rating);
 
         request.setExpiresAt(OffsetDateTime.now());
         pendingFeedbackRequestRepository.save(request);

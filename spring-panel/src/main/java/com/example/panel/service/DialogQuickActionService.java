@@ -72,6 +72,55 @@ public class DialogQuickActionService {
                              DialogNotificationService dialogNotificationService,
                              DialogAiAssistantService dialogAiAssistantService,
                              NotificationService notificationService,
+                             AttachmentService attachmentService,
+                             ClientBlacklistService clientBlacklistService) {
+        this(
+                dialogTicketLifecycleService,
+                dialogLookupReadService,
+                dialogResponsibilityService,
+                dialogParticipantService,
+                dialogReplyService,
+                dialogNotificationService,
+                dialogAiAssistantService,
+                notificationService,
+                null,
+                attachmentService,
+                clientBlacklistService
+        );
+    }
+
+    DialogQuickActionService(DialogTicketLifecycleService dialogTicketLifecycleService,
+                             DialogLookupReadService dialogLookupReadService,
+                             DialogResponsibilityService dialogResponsibilityService,
+                             DialogParticipantService dialogParticipantService,
+                             DialogReplyService dialogReplyService,
+                             DialogNotificationService dialogNotificationService,
+                             DialogAiAssistantService dialogAiAssistantService,
+                             NotificationService notificationService,
+                             AttachmentService attachmentService) {
+        this(
+                dialogTicketLifecycleService,
+                dialogLookupReadService,
+                dialogResponsibilityService,
+                dialogParticipantService,
+                dialogReplyService,
+                dialogNotificationService,
+                dialogAiAssistantService,
+                notificationService,
+                null,
+                attachmentService,
+                null
+        );
+    }
+
+    DialogQuickActionService(DialogTicketLifecycleService dialogTicketLifecycleService,
+                             DialogLookupReadService dialogLookupReadService,
+                             DialogResponsibilityService dialogResponsibilityService,
+                             DialogParticipantService dialogParticipantService,
+                             DialogReplyService dialogReplyService,
+                             DialogNotificationService dialogNotificationService,
+                             DialogAiAssistantService dialogAiAssistantService,
+                             NotificationService notificationService,
                              UiEventStreamService uiEventStreamService,
                              AttachmentService attachmentService) {
         this(
@@ -451,6 +500,9 @@ public class DialogQuickActionService {
     }
 
     private void publishDialogRefresh(String ticketId, String reason) {
+        if (uiEventStreamService == null) {
+            return;
+        }
         uiEventStreamService.publishDialogsChanged(reason, ticketId);
         uiEventStreamService.publishDialogHistoryChanged(ticketId, null, reason);
     }
