@@ -45,13 +45,13 @@ public class OperatorNotificationWatcher {
     private final AtomicLong lastChatHistoryId = new AtomicLong(0);
     private final AtomicLong lastFeedbackId = new AtomicLong(0);
 
-    public OperatorNotificationWatcher(JdbcTemplate jdbcTemplate,
-                                       NotificationService notificationService,
-                                       DialogAiAssistantService dialogAiAssistantService,
-                                       AlertQueueService alertQueueService,
-                                       ChannelRepository channelRepository,
-                                       DialogAuditService dialogAuditService,
-                                       SharedConfigService sharedConfigService) {
+    OperatorNotificationWatcher(JdbcTemplate jdbcTemplate,
+                                NotificationService notificationService,
+                                DialogAiAssistantService dialogAiAssistantService,
+                                AlertQueueService alertQueueService,
+                                ChannelRepository channelRepository,
+                                DialogAuditService dialogAuditService,
+                                SharedConfigService sharedConfigService) {
         this(
                 jdbcTemplate,
                 notificationService,
@@ -64,6 +64,7 @@ public class OperatorNotificationWatcher {
         );
     }
 
+    @Autowired
     public OperatorNotificationWatcher(JdbcTemplate jdbcTemplate,
                                        NotificationService notificationService,
                                        DialogAiAssistantService dialogAiAssistantService,
