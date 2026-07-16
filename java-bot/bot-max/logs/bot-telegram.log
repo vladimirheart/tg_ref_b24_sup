@@ -1,29 +1,30 @@
-2026-07-15 12:45:59.985+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-07-15 12:46:00.041+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 25904 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-07-15 12:46:00.042+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-07-15 12:46:00.517+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-07-15 12:46:00.627+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 101 ms. Found 29 JPA repository interfaces.
-2026-07-15 12:46:01.239+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-07-15 12:46:01.252+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-07-15 12:46:01.254+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-07-15 12:46:01.254+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-07-15 12:46:01.320+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-07-15 12:46:01.320+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1233 ms
-2026-07-15 12:46:01.560+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-07-15 12:46:01.599+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-07-15 12:46:01.623+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-07-15 12:46:01.827+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-07-15 12:46:04.338+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-07-15 12:46:04.344+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-07-15 12:46:06.450+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-07-15 12:46:07.031+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-07-15 12:46:07.032+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-07-15 12:46:07.048+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-07-15 12:46:07.067+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 7.48 seconds (process running for 7.757)
-2026-07-15 12:50:00.197+03:00 WARN  [scheduling-1] o.h.e.jdbc.spi.SqlExceptionHelper - SQL Error: 5, SQLState: null
-2026-07-15 12:50:00.197+03:00 ERROR [scheduling-1] o.h.e.jdbc.spi.SqlExceptionHelper - [SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)
-2026-07-15 12:50:00.211+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
-org.springframework.dao.CannotAcquireLockException: could not execute statement [[SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)] [insert into chat_history (attachment,channel_id,deleted_at,edited_at,forwarded_from,message,message_type,original_message,reply_to_tg_id,sender,tg_message_id,ticket_id,timestamp,user_id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)]; SQL [insert into chat_history (attachment,channel_id,deleted_at,edited_at,forwarded_from,message,message_type,original_message,reply_to_tg_id,sender,tg_message_id,ticket_id,timestamp,user_id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)]
+2026-07-16 13:25:36.168+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-07-16 13:25:36.249+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 13292 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
+2026-07-16 13:25:36.250+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
+2026-07-16 13:25:37.074+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-07-16 13:25:37.257+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 173 ms. Found 29 JPA repository interfaces.
+2026-07-16 13:25:38.213+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
+2026-07-16 13:25:38.226+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
+2026-07-16 13:25:38.228+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-07-16 13:25:38.229+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-07-16 13:25:38.360+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-07-16 13:25:38.361+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 2023 ms
+2026-07-16 13:25:39.051+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-07-16 13:25:39.185+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-07-16 13:25:39.250+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-07-16 13:25:39.868+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-07-16 13:25:42.955+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-07-16 13:25:42.961+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-07-16 13:25:43.973+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-07-16 13:25:45.503+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-07-16 13:25:46.120+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
+2026-07-16 13:25:46.121+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
+2026-07-16 13:25:46.154+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
+2026-07-16 13:25:46.184+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 10.621 seconds (process running for 10.918)
+2026-07-16 13:30:00.200+03:00 WARN  [scheduling-1] o.h.e.jdbc.spi.SqlExceptionHelper - SQL Error: 5, SQLState: null
+2026-07-16 13:30:00.202+03:00 ERROR [scheduling-1] o.h.e.jdbc.spi.SqlExceptionHelper - [SQLITE_BUSY] The database file is locked (database is locked)
+2026-07-16 13:30:00.215+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.springframework.dao.CannotAcquireLockException: could not execute statement [[SQLITE_BUSY] The database file is locked (database is locked)] [insert into chat_history (attachment,channel_id,deleted_at,edited_at,file_name,forwarded_from,message,message_type,original_message,reply_to_tg_id,sender,tg_message_id,ticket_id,timestamp,user_id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]; SQL [insert into chat_history (attachment,channel_id,deleted_at,edited_at,file_name,forwarded_from,message,message_type,original_message,reply_to_tg_id,sender,tg_message_id,ticket_id,timestamp,user_id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]
 	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.convertHibernateAccessException(HibernateJpaDialect.java:283)
 	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.translateExceptionIfPossible(HibernateJpaDialect.java:244)
 	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.translateExceptionIfPossible(AbstractEntityManagerFactoryBean.java:550)
@@ -36,8 +37,8 @@ org.springframework.dao.CannotAcquireLockException: could not execute statement 
 	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
 	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
 	at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223)
-	at jdk.proxy2/jdk.proxy2.$Proxy130.save(Unknown Source)
-	at com.example.supportbot.service.ChatHistoryService.storeSystemEvent(ChatHistoryService.java:116)
+	at jdk.proxy2/jdk.proxy2.$Proxy132.save(Unknown Source)
+	at com.example.supportbot.service.ChatHistoryService.storeSystemEvent(ChatHistoryService.java:149)
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
 	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
 	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
@@ -51,8 +52,8 @@ org.springframework.dao.CannotAcquireLockException: could not execute statement 
 	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
 	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
 	at com.example.supportbot.service.ChatHistoryService$$SpringCGLIB$$0.storeSystemEvent(<generated>)
-	at com.example.supportbot.service.TicketService.closeTicket(TicketService.java:252)
-	at com.example.supportbot.service.TicketService.closeInactiveTickets(TicketService.java:287)
+	at com.example.supportbot.service.TicketService.closeTicket(TicketService.java:272)
+	at com.example.supportbot.service.TicketService.closeInactiveTickets(TicketService.java:307)
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
 	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
 	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
@@ -94,7 +95,7 @@ org.springframework.dao.CannotAcquireLockException: could not execute statement 
 	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
 	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
 	at java.base/java.lang.Thread.run(Thread.java:1474)
-Caused by: org.hibernate.exception.LockAcquisitionException: could not execute statement [[SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)] [insert into chat_history (attachment,channel_id,deleted_at,edited_at,forwarded_from,message,message_type,original_message,reply_to_tg_id,sender,tg_message_id,ticket_id,timestamp,user_id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)]
+Caused by: org.hibernate.exception.LockAcquisitionException: could not execute statement [[SQLITE_BUSY] The database file is locked (database is locked)] [insert into chat_history (attachment,channel_id,deleted_at,edited_at,file_name,forwarded_from,message,message_type,original_message,reply_to_tg_id,sender,tg_message_id,ticket_id,timestamp,user_id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)]
 	at org.hibernate.community.dialect.SQLiteDialect.lambda$buildSQLExceptionConversionDelegate$1(SQLiteDialect.java:477)
 	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:58)
 	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:108)
@@ -123,7 +124,7 @@ Caused by: org.hibernate.exception.LockAcquisitionException: could not execute s
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
 	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
 	at org.springframework.orm.jpa.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler.invoke(SharedEntityManagerCreator.java:319)
-	at jdk.proxy2/jdk.proxy2.$Proxy117.persist(Unknown Source)
+	at jdk.proxy2/jdk.proxy2.$Proxy118.persist(Unknown Source)
 	at org.springframework.data.jpa.repository.support.SimpleJpaRepository.save(SimpleJpaRepository.java:618)
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
 	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
@@ -146,7 +147,7 @@ Caused by: org.hibernate.exception.LockAcquisitionException: could not execute s
 	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
 	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:137)
 	... 64 common frames omitted
-Caused by: org.sqlite.SQLiteException: [SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)
+Caused by: org.sqlite.SQLiteException: [SQLITE_BUSY] The database file is locked (database is locked)
 	at org.sqlite.core.DB.newSQLException(DB.java:1179)
 	at org.sqlite.core.DB.newSQLException(DB.java:1190)
 	at org.sqlite.core.DB.execute(DB.java:985)
@@ -157,47 +158,3 @@ Caused by: org.sqlite.SQLiteException: [SQLITE_BUSY_SNAPSHOT] Another database c
 	at org.sqlite.jdbc3.JDBC3PreparedStatement.executeUpdate(JDBC3PreparedStatement.java:105)
 	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:194)
 	... 110 common frames omitted
-2026-07-15 13:20:12.548+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-07-15 13:20:12.612+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 37680 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-07-15 13:20:12.613+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-07-15 13:20:13.280+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-07-15 13:20:13.431+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 143 ms. Found 29 JPA repository interfaces.
-2026-07-15 13:20:14.185+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-07-15 13:20:14.198+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-07-15 13:20:14.201+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-07-15 13:20:14.201+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-07-15 13:20:14.266+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-07-15 13:20:14.267+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1593 ms
-2026-07-15 13:20:14.572+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-07-15 13:20:14.631+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-07-15 13:20:14.671+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-07-15 13:20:15.166+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-07-15 13:20:17.732+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-07-15 13:20:17.738+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-07-15 13:20:19.439+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-07-15 13:20:20.005+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-07-15 13:20:20.006+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-07-15 13:20:20.025+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-07-15 13:20:20.044+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 8.003 seconds (process running for 8.33)
-2026-07-15 13:37:09.305+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-07-15 13:37:09.379+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 11296 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-07-15 13:37:09.379+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-07-15 13:37:09.972+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-07-15 13:37:10.111+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 130 ms. Found 29 JPA repository interfaces.
-2026-07-15 13:37:10.802+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-07-15 13:37:10.813+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-07-15 13:37:10.815+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-07-15 13:37:10.815+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-07-15 13:37:10.865+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-07-15 13:37:10.865+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1430 ms
-2026-07-15 13:37:11.124+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-07-15 13:37:11.169+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-07-15 13:37:11.198+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-07-15 13:37:11.450+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-07-15 13:37:14.011+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-07-15 13:37:14.017+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-07-15 13:37:15.650+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-07-15 13:37:16.168+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-07-15 13:37:16.169+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-07-15 13:37:16.192+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-07-15 13:37:16.213+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 7.433 seconds (process running for 7.776)
