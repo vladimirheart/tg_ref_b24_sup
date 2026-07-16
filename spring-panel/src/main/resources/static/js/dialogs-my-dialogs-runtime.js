@@ -26,7 +26,36 @@
     }
 
     function normalizeMyDialogsCollection(items) {
-      return Array.isArray(items) ? items.filter((item) => item && typeof item === 'object') : [];
+      return Array.isArray(items)
+        ? items
+          .filter((item) => item && typeof item === 'object')
+          .map(normalizeMyDialogItem)
+        : [];
+    }
+
+    function normalizeMyDialogItem(item) {
+      const source = item && typeof item === 'object' ? item : {};
+      const location = String(
+        source.location
+        || [source.city, source.locationName || source.location_name].filter(Boolean).join(', ')
+        || ''
+      ).trim();
+      return {
+        ...source,
+        ticketId: String(source.ticketId || source.ticket_id || '').trim(),
+        requestNumber: String(source.requestNumber || source.request_number || source.displayTicketNumber || '').trim(),
+        clientName: String(source.clientName || source.client_name || source.displayClientName || source.username || '').trim(),
+        location,
+        channelName: String(source.channelName || source.channel_name || source.channelLabel || source.channel || '').trim(),
+        problem: String(source.problem || source.problemSafe || '').trim(),
+        statusKey: String(source.statusKey || source.status_key || '').trim(),
+        unreadCount: Number(source.unreadCount ?? source.unread_count ?? 0) || 0,
+        rawResponsible: resolveResponsibleRawFromItem(source),
+        responsible: String(source.responsible || '').trim(),
+        lastMessageSender: String(source.lastMessageSender || source.last_message_sender || '').trim(),
+        lastMessageTimestamp: String(source.lastMessageTimestamp || source.last_message_timestamp || '').trim(),
+        userId: String(source.userId || source.user_id || '').trim(),
+      };
     }
 
     function resolveResponsibleRawFromItem(item) {
