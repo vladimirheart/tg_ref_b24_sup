@@ -62,6 +62,8 @@
   const questionsContainer = templateModalEl ? templateModalEl.querySelector('[data-bot-questions-container]') : null;
   const addQuestionButtons = templateModalEl ? templateModalEl.querySelectorAll('[data-bot-question-add]') : [];
   const presetHintsEl = templateModalEl ? templateModalEl.querySelector('[data-bot-preset-hints]') : null;
+  const presetEmptyAlertEl = templateModalEl ? templateModalEl.querySelector('[data-bot-preset-empty-alert]') : null;
+  const presetSummaryCardEl = templateModalEl ? templateModalEl.querySelector('[data-bot-presets-summary]') : null;
   const templateStatusEl = templateModalEl ? templateModalEl.querySelector('[data-bot-template-status]') : null;
   const templateSaveButton = templateModalEl ? templateModalEl.querySelector('[data-bot-template-save]') : null;
   const templateCancelButton = templateModalEl ? templateModalEl.querySelector('[data-bot-template-cancel]') : null;
@@ -75,6 +77,7 @@
   const ratingStatusEl = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-status]') : null;
   const ratingSaveButton = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-save]') : null;
   const ratingCancelButton = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-cancel]') : null;
+  const ratingDiagnosticEl = mainModal.querySelector('[data-bot-rating-active-diagnostic]');
 
   function setParentModalSuspended(suspended) {
     if (!(parentModalEl instanceof HTMLElement)) {
@@ -143,6 +146,14 @@
     });
     PRESET_GROUPS[groupKey] = { label: label || groupKey, fields };
   });
+
+  function hasPresetDefinitions() {
+    return Object.values(PRESET_GROUPS).some((groupValue) => Object.keys(groupValue.fields || {}).length);
+  }
+
+  function presetUnavailableMessage() {
+    return 'Готовые поля недоступны. Добавьте структуру локаций / готовые поля в разделе "Структура локаций".';
+  }
 
   const generatedQuestionIds = new Set();
   const generatedTemplateIds = new Set();
@@ -438,6 +449,7 @@
       text: question && typeof question.text === 'string' ? question.text : '',
       order: Number.isFinite(question && question.order) ? Number(question.order) : 0,
       preset,
+      presetUnavailable: Boolean(question && question.presetUnavailable),
       excludedOptions: excluded,
       filterState,
       required: question && question.type === 'preset'
@@ -550,15 +562,11 @@
     let type = source.type === 'preset' ? 'preset' : 'custom';
     let text = typeof source.text === 'string' ? source.text.trim() : '';
     let preset = null;
+    let presetUnavailable = false;
     if (type === 'preset') {
       const presetSource = source.preset && typeof source.preset === 'object' ? source.preset : source;
       let group = typeof presetSource.group === 'string' ? presetSource.group.trim() : '';
       let field = typeof presetSource.field === 'string' ? presetSource.field.trim() : '';
-      if (!presetExists(group, field)) {
-        const [fallbackGroup, fallbackField] = firstPreset();
-        group = fallbackGroup || '';
-        field = fallbackField || '';
-      }
       if (presetExists(group, field)) {
         preset = { group, field };
         const meta = getPresetMeta(group, field);
@@ -566,7 +574,8 @@
           text = meta.label;
         }
       } else {
-        type = 'custom';
+        preset = group && field ? { group, field } : null;
+        presetUnavailable = true;
       }
     }
     if (type === 'custom' && !text) {
@@ -587,6 +596,7 @@
       text,
       order,
       preset,
+      presetUnavailable,
       excludedOptions: Array.from(new Set(excludedOptions)),
       required: type === 'preset' ? true : normalizeQuestionRequired(source.required, true),
     };
@@ -1003,6 +1013,7 @@
   }
 
   function renderRatingTemplates() {
+    renderActiveRatingDiagnostic();
     if (!ratingTemplatesContainer) {
       return;
     }
@@ -1173,6 +1184,22 @@
   }
 
   function renderPresetHints() {
+    const presetsAvailable = hasPresetDefinitions();
+    addQuestionButtons.forEach((button) => {
+      if (!(button instanceof HTMLButtonElement) || button.dataset.type !== 'preset') {
+        return;
+      }
+      button.disabled = !presetsAvailable;
+      button.title = presetsAvailable ? '' : presetUnavailableMessage();
+    });
+    if (presetEmptyAlertEl) {
+      presetEmptyAlertEl.classList.toggle('d-none', presetsAvailable);
+    }
+    if (presetSummaryCardEl) {
+      presetSummaryCardEl.classList.toggle('border', !presetsAvailable);
+      presetSummaryCardEl.classList.toggle('border-warning', !presetsAvailable);
+      presetSummaryCardEl.classList.toggle('bg-warning-subtle', !presetsAvailable);
+    }
     if (!presetHintsEl) {
       return;
     }
@@ -1194,7 +1221,39 @@
     });
     presetHintsEl.textContent = rows.length
       ? rows.join('  ||  ')
-      : 'Нет доступных полей. Добавьте данные в разделе "Структура локаций".';
+      : presetUnavailableMessage();
+  }
+
+  function renderActiveRatingDiagnostic() {
+    if (!ratingDiagnosticEl) {
+      return;
+    }
+    const activeTemplate = state.ratingTemplates.find((template) => template.id === state.activeRatingTemplateId) || null;
+    if (!activeTemplate) {
+      ratingDiagnosticEl.textContent = 'Активный шаблон оценок не выбран.';
+      return;
+    }
+    const scale = normalizeScale(activeTemplate.scaleSize || activeTemplate.scale_size || 5);
+    const responseValues = [];
+    for (let value = 1; value <= scale; value += 1) {
+      if (activeTemplate.responses && activeTemplate.responses[String(value)]) {
+        responseValues.push(String(value));
+      }
+    }
+    const maxValue = String(scale);
+    const maxResponse = activeTemplate.responses && activeTemplate.responses[maxValue]
+      ? activeTemplate.responses[maxValue].trim()
+      : '';
+    const diagnosticParts = [
+      `Активный шаблон: ${activeTemplate.name || 'Шаблон оценок'}`,
+      `id: ${activeTemplate.id}`,
+      `шкала 1-${scale}`,
+      `ответы: ${responseValues.join(', ') || 'не заданы'}`,
+    ];
+    if (maxResponse) {
+      diagnosticParts.push(`оценка ${maxValue}: ${maxResponse}`);
+    }
+    ratingDiagnosticEl.textContent = diagnosticParts.join(' | ');
   }
 
   function renderHiddenSummary(card, question, meta) {
@@ -1430,11 +1489,12 @@
       card.dataset.index = String(index);
       const preset = question.preset && question.preset.group && question.preset.field ? question.preset : null;
       const presetValue = preset ? encodePresetValue(preset.group, preset.field) : '';
-      const isPreset = question.type === 'preset' && preset;
+      const isPreset = question.type === 'preset';
+      const presetsAvailable = hasPresetDefinitions();
       const presetOptions = (() => {
         const groups = Object.entries(PRESET_GROUPS);
         if (!groups.length) {
-          return '<option value="" disabled>Нет доступных полей</option>';
+          return `<option value="" selected disabled>${html(presetUnavailableMessage())}</option>`;
         }
         const pieces = ['<option value="">Выберите поле</option>'];
         groups.forEach(([groupKey, groupValue]) => {
@@ -1453,7 +1513,7 @@
         });
         return pieces.join('');
       })();
-      const meta = preset ? getPresetMeta(preset.group, preset.field) : null;
+      const meta = preset && presetExists(preset.group, preset.field) ? getPresetMeta(preset.group, preset.field) : null;
       const options = meta && Array.isArray(meta.options) ? meta.options : [];
       const optionDependencies = meta && typeof meta.optionDependencies === 'object' ? meta.optionDependencies : {};
       const excluded = new Set(Array.isArray(question.excludedOptions) ? question.excludedOptions : []);
@@ -1506,9 +1566,16 @@
       } else {
         optionsHtml = '<div class="text-muted small">Нет готовых значений для скрытия.</div>';
       }
-      const hintText = meta && meta.options && meta.options.length
+      const hintText = !presetsAvailable
+        ? presetUnavailableMessage()
+        : meta && meta.options && meta.options.length
         ? `Варианты: ${meta.options.slice(0, 5).join(', ')}${meta.options.length > 5 ? ' ...' : ''}`
         : 'Значения берутся из выбранного справочника.';
+      const presetAlertText = !presetsAvailable
+        ? presetUnavailableMessage()
+        : (isPreset && !meta)
+          ? 'Выбранное готовое поле недоступно в текущих preset definitions. Проверьте структуру локаций и конфиг готовых полей.'
+          : '';
       const filtersHtml = isPreset ? buildFilterControls(meta) : '';
       const filterState = question.filterState && typeof question.filterState === 'object'
         ? question.filterState
@@ -1538,15 +1605,16 @@
               <label class="form-label">Тип вопроса</label>
               <select class="form-select" data-bot-question-type>
                 <option value="custom"${isPreset ? '' : ' selected'}>Свободный текст</option>
-                <option value="preset"${isPreset ? ' selected' : ''}>Готовое поле</option>
+                <option value="preset"${isPreset ? ' selected' : ''}${!presetsAvailable && !isPreset ? ' disabled' : ''}>Готовое поле</option>
               </select>
             </div>
             <div class="col-lg-3${isPreset ? '' : ' d-none'}" data-bot-question-preset-wrapper>
               <label class="form-label">Готовое поле</label>
-              <select class="form-select" data-bot-question-preset>
+              <select class="form-select" data-bot-question-preset${presetsAvailable ? '' : ' disabled'}>
                 ${presetOptions}
               </select>
               <div class="form-text small text-muted" data-bot-question-preset-hint>${html(hintText)}</div>
+              <div class="alert alert-warning small py-2 px-3 mt-2 mb-0${presetAlertText ? '' : ' d-none'}" data-bot-question-preset-alert>${html(presetAlertText)}</div>
             </div>
           </div>
           <div class="row g-3 mt-1${isPreset ? ' d-none' : ''}" data-bot-question-answer-wrapper>
@@ -1790,12 +1858,18 @@
   }
 
   function addQuestion(type) {
+    if (type === 'preset' && !hasPresetDefinitions()) {
+      setTemplateStatus(presetUnavailableMessage(), true);
+      renderPresetHints();
+      return;
+    }
     const question = {
       id: generateQuestionId(),
       type: type === 'preset' ? 'preset' : 'custom',
       text: '',
       order: editorState.questionFlow.length + 1,
       preset: null,
+      presetUnavailable: false,
       excludedOptions: [],
       filterState: {},
       required: true,
@@ -1810,7 +1884,7 @@
         }
         question.required = true;
       } else {
-        question.type = 'custom';
+        question.presetUnavailable = true;
       }
     }
     editorState.questionFlow.push(question);
@@ -1851,6 +1925,15 @@
       return;
     }
     if (type === 'preset') {
+      if (!hasPresetDefinitions()) {
+        question.type = 'preset';
+        question.presetUnavailable = true;
+        question.required = true;
+        question.filterState = {};
+        setTemplateStatus(presetUnavailableMessage(), true);
+        renderQuestions();
+        return;
+      }
       let group = question.preset && question.preset.group;
       let field = question.preset && question.preset.field;
       if (!presetExists(group, field)) {
@@ -1866,18 +1949,19 @@
         if (!question.text || (previousMeta && question.text === previousMeta.label)) {
           question.text = meta ? meta.label : question.text;
         }
+        question.presetUnavailable = false;
         question.excludedOptions = Array.isArray(question.excludedOptions) ? question.excludedOptions : [];
         question.required = true;
       } else {
-        setTemplateStatus('Нет доступных готовых полей. Добавьте данные в структуре локаций.', true);
-        question.type = 'custom';
-        question.preset = null;
-        question.excludedOptions = [];
+        question.type = 'preset';
+        question.presetUnavailable = true;
         question.required = true;
+        setTemplateStatus(presetUnavailableMessage(), true);
       }
     } else {
       question.type = 'custom';
       question.preset = null;
+      question.presetUnavailable = false;
       question.excludedOptions = [];
       question.required = normalizeQuestionRequired(question.required, true);
     }
@@ -1892,12 +1976,15 @@
     }
     if (!presetExists(group, field)) {
       setTemplateStatus('Выберите поле из списка готовых вариантов.', true);
+      question.type = 'preset';
+      question.presetUnavailable = true;
       renderQuestions();
       return;
     }
     const previousMeta = question.preset ? getPresetMeta(question.preset.group, question.preset.field) : null;
     question.preset = { group, field };
     question.type = 'preset';
+    question.presetUnavailable = false;
     const meta = getPresetMeta(group, field);
     if (!question.text || (previousMeta && meta && question.text === previousMeta.label)) {
       question.text = meta ? meta.label : question.text;

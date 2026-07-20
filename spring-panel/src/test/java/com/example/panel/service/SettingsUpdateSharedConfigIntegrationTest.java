@@ -181,6 +181,45 @@ class SettingsUpdateSharedConfigIntegrationTest {
     }
 
     @Test
+    void updateSettingsPersistsDerivedRatingSystemFromActiveTemplate() {
+        when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
+                .thenReturn(false);
+
+        Map<String, Object> payload = Map.of(
+                "bot_settings", Map.of(
+                        "rating_templates", List.of(
+                                Map.of(
+                                        "id", "rating-template-default",
+                                        "name", "Базовый сценарий оценок",
+                                        "prompt_text", "Пожалуйста, оцените качество ответа от 1 до 5.",
+                                        "scale_size", 5,
+                                        "responses", List.of(
+                                                Map.of("value", 1, "text", "Спасибо за вашу оценку 1! Нам важно ваше мнение."),
+                                                Map.of("value", 5, "text", "Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.")
+                                        )
+                                )
+                        ),
+                        "active_rating_template_id", "rating-template-default"
+                )
+        );
+
+        Map<String, Object> result = service.updateSettings(payload, mock(Authentication.class));
+
+        assertEquals(Map.of("success", true), result);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> botSettings = (Map<String, Object>) sharedConfigService.loadSettings().get("bot_settings");
+        assertEquals("rating-template-default", botSettings.get("active_rating_template_id"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ratingSystem = (Map<String, Object>) botSettings.get("rating_system");
+        assertEquals("Пожалуйста, оцените качество ответа от 1 до 5.", ratingSystem.get("prompt_text"));
+        assertEquals(5, ratingSystem.get("scale_size"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> responses = (List<Map<String, Object>>) ratingSystem.get("responses");
+        assertEquals("Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.", responses.get(1).get("text"));
+    }
+
+    @Test
     void updateSettingsPersistsIikoServerSourcesAndSyncSettings() {
         when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
                 .thenReturn(false);

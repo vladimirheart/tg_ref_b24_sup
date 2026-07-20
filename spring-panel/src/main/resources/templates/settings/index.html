@@ -3258,6 +3258,10 @@
                     <h6 class="mb-0">Шаблоны типовых вопросов</h6>
                     <button class="btn btn-sm btn-outline-success" type="button" data-question-template-add>+ Шаблон</button>
                   </div>
+                  <div class="alert alert-warning small py-2 px-3 mb-3" role="alert">
+                    Это legacy-секция для `dialog_config.question_templates` и шаблонов операторского workspace.
+                    Вопросы бота настраиваются отдельно в разделе «Каналы» → «Шаблоны».
+                  </div>
                   <p class="small text-muted">Создайте наборы вопросов, которые можно использовать при общении с клиентом. Они будут доступны в окне диалога.</p>
                   <div id="questionTemplatesList" class="d-flex flex-column gap-3"></div>
                 </section>
@@ -5604,6 +5608,9 @@
                   <button class="btn btn-outline-secondary" type="button" data-bot-question-add data-type="preset">+ Готовое поле</button>
                 </div>
               </div>
+              <div class="alert alert-warning small py-2 px-3 mb-3 d-none" data-bot-preset-empty-alert role="alert">
+                Готовые поля сейчас недоступны. Добавьте структуру локаций / готовые поля в разделе «Структура локаций», чтобы использовать этот тип вопроса.
+              </div>
               <div class="d-flex flex-column gap-3" data-bot-questions-container></div>
               <div class="card border-0 bg-light mt-3" data-bot-presets-summary>
                 <div class="card-body py-3">
@@ -6218,6 +6225,9 @@
                         <p class="small text-muted mb-0">Создайте несколько сценариев оценок для ботов и выберите активный шаблон.</p>
                       </div>
                       <button class="btn btn-sm btn-outline-success" type="button" data-bot-rating-template-create>+ Шаблон</button>
+                    </div>
+                    <div class="alert alert-light border small mb-3" data-bot-rating-active-diagnostic>
+                      Активный шаблон оценок будет показан здесь после загрузки настроек.
                     </div>
                     <div class="d-flex flex-column gap-3" data-bot-rating-templates-container></div>
                   </section>

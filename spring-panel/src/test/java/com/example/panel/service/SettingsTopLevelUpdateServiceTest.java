@@ -50,4 +50,57 @@ class SettingsTopLevelUpdateServiceTest {
 
         assertFalse(service.applyTopLevelUpdates(Map.of("unknown_key", "value"), new LinkedHashMap<>()));
     }
+
+    @Test
+    void applyTopLevelUpdatesDerivesActiveBotFlowsAndRatingSystem() {
+        SettingsTopLevelUpdateService service =
+                new SettingsTopLevelUpdateService(
+                        new LocationsIikoServerSourceSettingsService(),
+                        new LocationsIikoSyncSettingsService(),
+                        mock(NotificationRoutingService.class)
+                );
+        Map<String, Object> settings = new LinkedHashMap<>();
+
+        boolean modified = service.applyTopLevelUpdates(Map.of(
+                "bot_settings", Map.of(
+                        "question_templates", List.of(
+                                Map.of(
+                                        "id", "bot-template-1",
+                                        "question_flow", List.of(Map.of("id", "q1", "type", "custom", "text", "Как вас зовут?"))
+                                )
+                        ),
+                        "active_template_id", "bot-template-1",
+                        "rating_templates", List.of(
+                                Map.of(
+                                        "id", "rating-template-1",
+                                        "prompt_text", "Оцените диалог",
+                                        "scale_size", 5,
+                                        "responses", List.of(
+                                                Map.of("value", 5, "text", "Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.")
+                                        )
+                                )
+                        ),
+                        "active_rating_template_id", "rating-template-1"
+                )
+        ), settings);
+
+        assertTrue(modified);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> botSettings = (Map<String, Object>) settings.get("bot_settings");
+        assertEquals("bot-template-1", botSettings.get("active_template_id"));
+        assertEquals("rating-template-1", botSettings.get("active_rating_template_id"));
+        assertEquals(
+                List.of(Map.of("id", "q1", "type", "custom", "text", "Как вас зовут?")),
+                botSettings.get("question_flow")
+        );
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ratingSystem = (Map<String, Object>) botSettings.get("rating_system");
+        assertEquals("Оцените диалог", ratingSystem.get("prompt_text"));
+        assertEquals(5, ratingSystem.get("scale_size"));
+        assertEquals(
+                List.of(Map.of("value", 5, "text", "Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.")),
+                ratingSystem.get("responses")
+        );
+    }
 }

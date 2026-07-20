@@ -97,7 +97,32 @@ class ManagementControllerWebMvcTest {
         stubNavigationDefaults();
         when(appSettingRepository.findAll()).thenReturn(List.of());
         when(settingsParameterRepository.findAll()).thenReturn(List.of());
-        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "bot_settings", Map.of(
+                        "question_templates", List.of(
+                                Map.of(
+                                        "id", "template-1",
+                                        "name", "Новый бот",
+                                        "question_flow", List.of(
+                                                Map.of("id", "question-1", "type", "custom", "text", "Как вас зовут?")
+                                        )
+                                )
+                        ),
+                        "rating_templates", List.of(
+                                Map.of(
+                                        "id", "rating-template-default",
+                                        "name", "Базовый сценарий оценок",
+                                        "prompt_text", "Пожалуйста, оцените качество ответа от 1 до 5.",
+                                        "scale_size", 5,
+                                        "responses", List.of(
+                                                Map.of("value", 5, "text", "Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.")
+                                        )
+                                )
+                        ),
+                        "active_template_id", "template-1",
+                        "active_rating_template_id", "rating-template-default"
+                )
+        ));
         when(locationsIikoServerSourceSettingsService.loadForClient(Map.of())).thenReturn(List.of());
         when(locationsIikoSyncSettingsService.loadForClient(Map.of())).thenReturn(Map.of("enabled", true, "interval_minutes", 5));
         IikoDepartmentLocationCatalogService.LocationCatalogSnapshot liveCatalog =
@@ -131,7 +156,10 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"settings\"")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Смоленск")));
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Смоленск")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Как вас зовут?")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Это legacy-секция для `dialog_config.question_templates`")));
     }
 
     @Test

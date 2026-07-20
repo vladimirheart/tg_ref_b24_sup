@@ -28,6 +28,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -35,6 +37,7 @@ import org.springframework.util.StringUtils;
 @Service
 public class TicketService {
 
+    private static final Logger log = LoggerFactory.getLogger(TicketService.class);
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final DateTimeFormatter CLIENT_TICKET_NUMBER_DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
     private static final String AUTO_CLOSE_RESOLVED_BY = "auto_close";
@@ -300,28 +303,74 @@ public class TicketService {
 
     @Transactional
     public int closeInactiveTickets(Duration inactivityLimit) {
-        OffsetDateTime threshold = OffsetDateTime.now().minus(inactivityLimit);
+        AutoCloseRunResult result = closeInactiveTickets(ticket ->
+                AutoClosePolicy.enabled(inactivityLimit, "legacy-auto_close_hours", null, toHours(inactivityLimit)));
+        return result.closedTickets();
+    }
+
+    @Transactional
+    public AutoCloseRunResult closeInactiveTickets(Function<Ticket, AutoClosePolicy> policyResolver) {
+        OffsetDateTime now = OffsetDateTime.now();
+        List<TicketActive> activeTickets = ticketActiveRepository.findAll();
+        int checked = 0;
         int closed = 0;
-        for (TicketActive active : ticketActiveRepository.findAll()) {
+
+        for (TicketActive active : activeTickets) {
+            checked++;
+            if (active == null || !StringUtils.hasText(active.getTicketId())) {
+                log.debug("Skipping auto-close candidate because there is no active ticket id in ticket_active");
+                continue;
+            }
+
+            Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(active.getTicketId());
+            if (ticketOpt.isEmpty()) {
+                log.debug("Skipping auto-close for ticket {} because active state has no matching ticket",
+                        active.getTicketId());
+                ticketActiveRepository.delete(active);
+                continue;
+            }
+
+            Ticket ticket = ticketOpt.get();
+            AutoClosePolicy policy = policyResolver != null ? policyResolver.apply(ticket) : null;
+            if (policy == null || !policy.enabled() || policy.inactivityLimit() == null
+                    || policy.inactivityLimit().isZero() || policy.inactivityLimit().isNegative()) {
+                log.debug("Skipping auto-close for ticket {} because config is disabled (source={}, templateId={}, hours={})",
+                        active.getTicketId(),
+                        policy != null ? policy.source() : "unknown",
+                        policy != null ? policy.templateId() : null,
+                        policy != null ? policy.hours() : null);
+                continue;
+            }
+
+            if (isResolvedStatus(ticket.getStatus())) {
+                log.debug("Skipping auto-close for ticket {} because it is already {}",
+                        active.getTicketId(), ticket.getStatus());
+                ticketActiveRepository.delete(active);
+                continue;
+            }
+
+            OffsetDateTime threshold = now.minus(policy.inactivityLimit());
             OffsetDateTime lastActivity = resolveLastActivityAt(active);
-            if (lastActivity != null && lastActivity.isBefore(threshold)) {
-                Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(active.getTicketId());
-                if (ticketOpt.isEmpty()) {
-                    ticketActiveRepository.delete(active);
-                    continue;
-                }
-                Ticket ticket = ticketOpt.get();
-                if (isResolvedStatus(ticket.getStatus())) {
-                    ticketActiveRepository.delete(active);
-                    continue;
-                }
-                if (closeTicket(active.getTicketId(), AUTO_CLOSE_RESOLVED_BY, "inactivity")) {
-                    autoCloseFollowUpTaskService.createTaskForAutoClosedDialog(active.getTicketId());
-                    closed++;
-                }
+            if (lastActivity == null) {
+                log.debug("Skipping auto-close for ticket {} because last activity is unknown (threshold={}, source={}, templateId={})",
+                        active.getTicketId(), threshold, policy.source(), policy.templateId());
+                continue;
+            }
+            if (!lastActivity.isBefore(threshold)) {
+                log.debug("Skipping auto-close for ticket {} because lastActivity {} is newer than threshold {} (source={}, templateId={})",
+                        active.getTicketId(), lastActivity, threshold, policy.source(), policy.templateId());
+                continue;
+            }
+
+            if (closeTicket(active.getTicketId(), AUTO_CLOSE_RESOLVED_BY, "inactivity")) {
+                autoCloseFollowUpTaskService.createTaskForAutoClosedDialog(active.getTicketId());
+                log.info("Auto-closed ticket {} using source={}, templateId={}, hours={}, threshold={}",
+                        active.getTicketId(), policy.source(), policy.templateId(), policy.hours(), threshold);
+                closed++;
             }
         }
-        return closed;
+
+        return new AutoCloseRunResult(checked, closed);
     }
 
     @Transactional
@@ -474,6 +523,35 @@ public class TicketService {
             return "Диалог автоматически закрыт из-за отсутствия активности.";
         }
         return "Заявка закрыта. Причина: " + Optional.ofNullable(source).orElse("оператор");
+    }
+
+    private Integer toHours(Duration inactivityLimit) {
+        if (inactivityLimit == null) {
+            return null;
+        }
+        return Math.toIntExact(inactivityLimit.toHours());
+    }
+
+    public record AutoClosePolicy(Duration inactivityLimit,
+                                  boolean enabled,
+                                  String source,
+                                  String templateId,
+                                  Integer hours) {
+        public static AutoClosePolicy enabled(Duration inactivityLimit,
+                                              String source,
+                                              String templateId,
+                                              Integer hours) {
+            return new AutoClosePolicy(inactivityLimit, true, source, templateId, hours);
+        }
+
+        public static AutoClosePolicy disabled(String source,
+                                               String templateId,
+                                               Integer hours) {
+            return new AutoClosePolicy(null, false, source, templateId, hours);
+        }
+    }
+
+    public record AutoCloseRunResult(int checkedTickets, int closedTickets) {
     }
 
     public record TicketCreationResult(String ticketId, Long groupMessageId, String status) {
