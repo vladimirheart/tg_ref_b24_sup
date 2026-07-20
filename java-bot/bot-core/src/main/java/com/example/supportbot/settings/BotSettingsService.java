@@ -19,6 +19,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -28,6 +30,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class BotSettingsService {
+
+    private static final Logger logger = LoggerFactory.getLogger(BotSettingsService.class);
 
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
@@ -72,6 +76,7 @@ public class BotSettingsService {
         Object sharedBotSettingsRaw = sharedSettings.get("bot_settings");
         Map<String, Object> raw = convertToMap(sharedBotSettingsRaw);
         if (raw.isEmpty() && channel != null && channel.getQuestionsCfg() != null) {
+            logger.info("Loading bot settings from deprecated channel.questions_cfg because shared bot_settings is empty");
             raw = convertToMap(channel.getQuestionsCfg());
         }
         Map<String, Object> sanitized = sanitizeBotSettingsInternal(raw,
@@ -187,11 +192,18 @@ public class BotSettingsService {
 
         List<Map<String, Object>> questionTemplates = castList(result.get("question_templates"));
         String requestedQuestionTemplateId = optionalString(channel.getQuestionTemplateId());
+        String questionTemplateSelectionSource = "channel.question_template_id";
         if (requestedQuestionTemplateId.isBlank()) {
             requestedQuestionTemplateId = optionalString(channelConfig.get("active_template_id"));
+            if (!requestedQuestionTemplateId.isBlank()) {
+                questionTemplateSelectionSource = "questions_cfg.active_template_id";
+            }
         }
         if (requestedQuestionTemplateId.isBlank()) {
             requestedQuestionTemplateId = optionalString(channelConfig.get("question_template_id"));
+            if (!requestedQuestionTemplateId.isBlank()) {
+                questionTemplateSelectionSource = "questions_cfg.question_template_id";
+            }
         }
         if (!requestedQuestionTemplateId.isBlank()) {
             String selectedQuestionTemplateId = requestedQuestionTemplateId;
@@ -200,6 +212,13 @@ public class BotSettingsService {
                     .findFirst()
                     .orElse(null);
             if (selectedQuestionTemplate != null) {
+                if (questionTemplateSelectionSource.startsWith("questions_cfg.")) {
+                    logger.info(
+                            "Channel {} uses deprecated {} override for bot question template selection",
+                            channel.getId(),
+                            questionTemplateSelectionSource
+                    );
+                }
                 result.put("active_template_id", selectedQuestionTemplateId);
                 result.put("question_flow", castList(selectedQuestionTemplate.get("question_flow")));
             }
@@ -207,11 +226,18 @@ public class BotSettingsService {
 
         List<Map<String, Object>> ratingTemplates = castList(result.get("rating_templates"));
         String requestedRatingTemplateId = optionalString(channel.getRatingTemplateId());
+        String ratingTemplateSelectionSource = "channel.rating_template_id";
         if (requestedRatingTemplateId.isBlank()) {
             requestedRatingTemplateId = optionalString(channelConfig.get("active_rating_template_id"));
+            if (!requestedRatingTemplateId.isBlank()) {
+                ratingTemplateSelectionSource = "questions_cfg.active_rating_template_id";
+            }
         }
         if (requestedRatingTemplateId.isBlank()) {
             requestedRatingTemplateId = optionalString(channelConfig.get("rating_template_id"));
+            if (!requestedRatingTemplateId.isBlank()) {
+                ratingTemplateSelectionSource = "questions_cfg.rating_template_id";
+            }
         }
         if (!requestedRatingTemplateId.isBlank()) {
             String selectedRatingTemplateId = requestedRatingTemplateId;
@@ -220,6 +246,13 @@ public class BotSettingsService {
                     .findFirst()
                     .orElse(null);
             if (selectedRatingTemplate != null) {
+                if (ratingTemplateSelectionSource.startsWith("questions_cfg.")) {
+                    logger.info(
+                            "Channel {} uses deprecated {} override for bot rating template selection",
+                            channel.getId(),
+                            ratingTemplateSelectionSource
+                    );
+                }
                 result.put("active_rating_template_id", selectedRatingTemplateId);
                 Map<String, Object> currentRating = result.get("rating_system") instanceof Map<?, ?> map
                         ? convertToMap(map)
@@ -490,6 +523,7 @@ public class BotSettingsService {
                 lookup
         );
         if (!fallbackFlow.isEmpty() && templates.isEmpty()) {
+            logger.info("Importing deprecated bot_settings.question_flow into canonical question_templates");
             Map<String, Object> imported = new LinkedHashMap<>();
             imported.put("id", defaultsValue(defaults, "question_templates", 0, "id"));
             imported.put("start_message", defaultsValue(defaults, "question_templates", 0, "start_message"));
@@ -565,6 +599,7 @@ public class BotSettingsService {
         Object rawRatingSystem = raw.get("rating_system");
         Map<String, Object> ratingSystem = rawRatingSystem instanceof Map<?, ?> ? convertToMap(rawRatingSystem) : new LinkedHashMap<>();
         if (ratingTemplates.isEmpty() && !ratingSystem.isEmpty()) {
+            logger.info("Importing deprecated bot_settings.rating_system into canonical rating_templates");
             Map<String, Object> entry = new LinkedHashMap<>();
             String templateId = ensureUuid(ratingSystem.get("id"));
             entry.put("id", templateId);

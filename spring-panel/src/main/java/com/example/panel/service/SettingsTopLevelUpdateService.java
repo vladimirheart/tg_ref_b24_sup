@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -7,9 +9,12 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class SettingsTopLevelUpdateService {
+
+    private static final Logger logger = LoggerFactory.getLogger(SettingsTopLevelUpdateService.class);
 
     private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
     private final LocationsIikoSyncSettingsService locationsIikoSyncSettingsService;
@@ -27,13 +32,26 @@ public class SettingsTopLevelUpdateService {
                                         Map<String, Object> settings) {
         boolean modified = false;
 
-        if (payload.containsKey("auto_close_hours")) {
-            settings.put("auto_close_hours", payload.get("auto_close_hours"));
-            modified = true;
-        }
-
         if (payload.containsKey("auto_close_config")) {
             settings.put("auto_close_config", payload.get("auto_close_config"));
+            Integer derivedAutoCloseHours = deriveAutoCloseHours(payload.get("auto_close_config"));
+            Integer legacyAutoCloseHours = parseInteger(payload.get("auto_close_hours"));
+            if (derivedAutoCloseHours != null) {
+                settings.put("auto_close_hours", derivedAutoCloseHours);
+                if (legacyAutoCloseHours != null && !Objects.equals(legacyAutoCloseHours, derivedAutoCloseHours)) {
+                    logger.warn(
+                            "Ignoring mismatched legacy auto_close_hours={} and deriving auto_close_hours={} from active auto-close template",
+                            legacyAutoCloseHours,
+                            derivedAutoCloseHours
+                    );
+                }
+            } else if (payload.containsKey("auto_close_hours")) {
+                settings.put("auto_close_hours", payload.get("auto_close_hours"));
+                logger.debug("Persisting legacy auto_close_hours because active auto-close template hours could not be derived");
+            }
+            modified = true;
+        } else if (payload.containsKey("auto_close_hours")) {
+            settings.put("auto_close_hours", payload.get("auto_close_hours"));
             modified = true;
         }
 
@@ -137,7 +155,15 @@ public class SettingsTopLevelUpdateService {
         if (activeQuestionTemplate != null) {
             botSettings.put("active_template_id", stringValue(activeQuestionTemplate.get("id")));
             if (activeQuestionTemplate.containsKey("question_flow")) {
-                botSettings.put("question_flow", activeQuestionTemplate.get("question_flow"));
+                Object derivedQuestionFlow = activeQuestionTemplate.get("question_flow");
+                if (botSettings.containsKey("question_flow")
+                        && !Objects.equals(botSettings.get("question_flow"), derivedQuestionFlow)) {
+                    logger.warn(
+                            "Deprecated bot_settings.question_flow payload differs from active template {}; deriving question_flow from question_templates",
+                            botSettings.get("active_template_id")
+                    );
+                }
+                botSettings.put("question_flow", derivedQuestionFlow);
             }
         }
 
@@ -153,6 +179,13 @@ public class SettingsTopLevelUpdateService {
             copyFieldIfPresent(activeRatingTemplate, derivedRatingSystem, "scale_size");
             copyFieldIfPresent(activeRatingTemplate, derivedRatingSystem, "responses");
             if (!derivedRatingSystem.isEmpty()) {
+                if (botSettings.containsKey("rating_system")
+                        && !Objects.equals(botSettings.get("rating_system"), derivedRatingSystem)) {
+                    logger.warn(
+                            "Deprecated bot_settings.rating_system payload differs from active rating template {}; deriving rating_system from rating_templates",
+                            botSettings.get("active_rating_template_id")
+                    );
+                }
                 botSettings.put("rating_system", derivedRatingSystem);
             }
         }
@@ -205,5 +238,52 @@ public class SettingsTopLevelUpdateService {
 
     private String stringValue(Object rawValue) {
         return rawValue != null ? rawValue.toString().trim() : "";
+    }
+
+    private Integer deriveAutoCloseHours(Object rawAutoCloseConfig) {
+        if (!(rawAutoCloseConfig instanceof Map<?, ?> map)) {
+            return null;
+        }
+        Map<String, Object> config = new LinkedHashMap<>();
+        map.forEach((key, value) -> {
+            if (key != null) {
+                config.put(key.toString(), value);
+            }
+        });
+        Map<String, Object> activeTemplate = resolveActiveTemplate(
+                normalizeTemplateList(config.get("templates")),
+                stringValue(config.get("active_template_id"))
+        );
+        return activeTemplate != null ? extractAutoCloseHours(activeTemplate) : null;
+    }
+
+    private Integer extractAutoCloseHours(Map<String, Object> template) {
+        if (template == null || template.isEmpty()) {
+            return null;
+        }
+        Integer hours = parseInteger(template.get("hours"));
+        if (hours != null) {
+            return hours;
+        }
+        hours = parseInteger(template.get("timeout_hours"));
+        if (hours != null) {
+            return hours;
+        }
+        return parseInteger(template.get("auto_close_hours"));
+    }
+
+    private Integer parseInteger(Object rawValue) {
+        if (rawValue instanceof Number number) {
+            return number.intValue();
+        }
+        String value = stringValue(rawValue);
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 }

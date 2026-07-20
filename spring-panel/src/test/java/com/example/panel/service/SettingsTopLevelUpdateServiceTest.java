@@ -103,4 +103,39 @@ class SettingsTopLevelUpdateServiceTest {
                 ratingSystem.get("responses")
         );
     }
+
+    @Test
+    void applyTopLevelUpdatesDerivesLegacyAutoCloseHoursFromActiveTemplate() {
+        SettingsTopLevelUpdateService service =
+                new SettingsTopLevelUpdateService(
+                        new LocationsIikoServerSourceSettingsService(),
+                        new LocationsIikoSyncSettingsService(),
+                        mock(NotificationRoutingService.class)
+                );
+        Map<String, Object> settings = new LinkedHashMap<>();
+
+        boolean modified = service.applyTopLevelUpdates(Map.of(
+                "auto_close_config", Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-1", "hours", 1),
+                                Map.of("id", "auto-2", "hours", 72)
+                        ),
+                        "active_template_id", "auto-1"
+                ),
+                "auto_close_hours", 48
+        ), settings);
+
+        assertTrue(modified);
+        assertEquals(1, settings.get("auto_close_hours"));
+        assertEquals(
+                Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-1", "hours", 1),
+                                Map.of("id", "auto-2", "hours", 72)
+                        ),
+                        "active_template_id", "auto-1"
+                ),
+                settings.get("auto_close_config")
+        );
+    }
 }

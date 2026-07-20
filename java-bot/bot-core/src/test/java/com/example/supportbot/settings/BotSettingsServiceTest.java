@@ -179,6 +179,42 @@ class BotSettingsServiceTest {
     }
 
     @Test
+    void sanitizeShouldImportLegacyQuestionFlowAndRatingSystemIntoCanonicalTemplates() throws IOException {
+        Map<String, Object> raw = objectMapper.readValue(
+                """
+                        {
+                          "question_flow": [
+                            {"type": "custom", "text": "Как вас зовут?"},
+                            {"type": "preset", "group": "locations", "field": "city"}
+                          ],
+                          "rating_system": {
+                            "scale_size": 5,
+                            "prompt_text": "Оцените консультацию",
+                            "responses": {
+                              "1": "Плохо",
+                              "5": "Отлично"
+                            }
+                          }
+                        }
+                        """,
+                new TypeReference<>() {
+                });
+
+        BotSettingsDto sanitized = service.sanitizeFromJson(raw);
+
+        assertThat(sanitized.getQuestionTemplates()).hasSize(1);
+        assertThat(sanitized.getQuestionTemplates().get(0).getQuestionFlow()).hasSize(2);
+        assertThat(sanitized.getQuestionFlow()).extracting(QuestionFlowItemDto::getText)
+                .containsExactly("Как вас зовут?", "Город");
+
+        assertThat(sanitized.getRatingTemplates()).hasSize(1);
+        assertThat(sanitized.getRatingSystem().getPromptText()).isEqualTo("Оцените консультацию");
+        assertThat(sanitized.getRatingSystem().getResponses())
+                .extracting(com.example.supportbot.settings.dto.RatingResponseDto::getText)
+                .contains("Плохо", "Отлично");
+    }
+
+    @Test
     void buildLocationPresetsShouldMatchExpectedOutput() throws IOException {
         Map<String, Object> locationTree = objectMapper.readValue(
                 """
