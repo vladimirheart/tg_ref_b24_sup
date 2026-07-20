@@ -9,6 +9,7 @@
       return {
         initial: pageConfigRuntime.getBotSettingsInitial(),
         presets: pageConfigRuntime.getBotPresetDefinitions(),
+        source: 'page-config-runtime',
       };
     }
 
@@ -16,6 +17,7 @@
       return {
         initial: BOT_SETTINGS_INITIAL,
         presets: BOT_PRESET_DEFINITIONS,
+        source: 'legacy-globals',
       };
     }
 
@@ -28,6 +30,7 @@
   }
   const BOT_SETTINGS_INITIAL = legacyBotConfig.initial;
   const BOT_PRESET_DEFINITIONS = legacyBotConfig.presets;
+  const BOT_SETTINGS_SOURCE = legacyBotConfig.source;
 
   const mainModal = document.querySelector('[data-bot-settings-modal]');
   if (!mainModal) {
@@ -78,6 +81,7 @@
   const ratingSaveButton = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-save]') : null;
   const ratingCancelButton = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-cancel]') : null;
   const ratingDiagnosticEl = mainModal.querySelector('[data-bot-rating-active-diagnostic]');
+  const legacyDiagnosticEl = mainModal.querySelector('[data-bot-legacy-diagnostic]');
 
   function setParentModalSuspended(suspended) {
     if (!(parentModalEl instanceof HTMLElement)) {
@@ -602,7 +606,7 @@
     };
   }
 
-  function normalizeTemplate(raw, index) {
+  function normalizeTemplate(raw, index, legacyDiagnostics = null) {
     if (!raw || typeof raw !== 'object') {
       return null;
     }
@@ -618,6 +622,9 @@
     if (!Array.isArray(flowSource)) {
       const legacy = raw.questions;
       if (Array.isArray(legacy)) {
+        if (legacyDiagnostics && typeof legacyDiagnostics === 'object') {
+          legacyDiagnostics.usesLegacyTemplateQuestions = true;
+        }
         flowSource = legacy
           .map((entry) => (typeof entry === 'string' && entry.trim() ? { text: entry.trim(), type: 'custom' } : null))
           .filter(Boolean);
@@ -678,14 +685,24 @@
     return 60;
   }
 
+  function createLegacyDiagnostics() {
+    return {
+      usesLegacyBootstrapGlobals: BOT_SETTINGS_SOURCE === 'legacy-globals',
+      usesLegacyTemplateQuestions: false,
+      usesRootQuestionFlow: false,
+      usesRootRatingSystem: false,
+    };
+  }
+
   function normalizeSettings(raw) {
     generatedQuestionIds.clear();
     generatedTemplateIds.clear();
     generatedRatingTemplateIds.clear();
     const source = raw && typeof raw === 'object' ? raw : {};
+    const legacyDiagnostics = createLegacyDiagnostics();
     const templateSource = Array.isArray(source.question_templates) ? source.question_templates : [];
     const templates = templateSource
-      .map((item, index) => normalizeTemplate(item, index))
+      .map((item, index) => normalizeTemplate(item, index, legacyDiagnostics))
       .filter((template) => template && template.questionFlow.length);
 
     if (!templates.length) {
@@ -698,8 +715,10 @@
           question_flow: fallbackFlow,
         },
         0,
+        legacyDiagnostics,
       );
       if (fallbackTemplate && fallbackTemplate.questionFlow.length) {
+        legacyDiagnostics.usesRootQuestionFlow = true;
         templates.push(fallbackTemplate);
       }
     }
@@ -713,6 +732,7 @@
           question_flow: BOT_SETTINGS_INITIAL.question_flow,
         },
         0,
+        legacyDiagnostics,
       );
       if (defaultTemplate && defaultTemplate.questionFlow.length) {
         templates.push(defaultTemplate);
@@ -754,6 +774,7 @@
     if (!ratingTemplates.length) {
       const ratingSystemSource = source.rating_system || source.ratingSystem;
       if (ratingSystemSource && typeof ratingSystemSource === 'object') {
+        legacyDiagnostics.usesRootRatingSystem = true;
         const fallback = normalizeRatingTemplate(
           {
             id: ratingSystemSource.id,
@@ -816,6 +837,7 @@
       ratingTemplates,
       activeRatingTemplateId,
       unblockCooldownMinutes: normalizeCooldownMinutes(source),
+      legacyDiagnostics,
     };
   }
 
@@ -825,6 +847,7 @@
     ratingTemplates: [],
     activeRatingTemplateId: null,
     unblockCooldownMinutes: 60,
+    legacyDiagnostics: createLegacyDiagnostics(),
   };
 
   const editorState = {
@@ -855,7 +878,9 @@
     state.ratingTemplates = normalized.ratingTemplates.map((template) => cloneRatingTemplate(template));
     state.activeRatingTemplateId = normalized.activeRatingTemplateId;
     state.unblockCooldownMinutes = normalized.unblockCooldownMinutes;
+    state.legacyDiagnostics = normalized.legacyDiagnostics || createLegacyDiagnostics();
     renderCooldownSettings();
+    renderLegacyDiagnostics();
   }
 
   hydrateStateFrom(initialState);
@@ -1254,6 +1279,34 @@
       diagnosticParts.push(`оценка ${maxValue}: ${maxResponse}`);
     }
     ratingDiagnosticEl.textContent = diagnosticParts.join(' | ');
+  }
+
+  function renderLegacyDiagnostics() {
+    if (!legacyDiagnosticEl) {
+      return;
+    }
+    const diagnostics = state.legacyDiagnostics || createLegacyDiagnostics();
+    const parts = [];
+    if (diagnostics.usesLegacyBootstrapGlobals) {
+      parts.push('Загрузка bot settings выполнена через legacy BOT_* globals, а не через SettingsPageConfigRuntime.');
+    }
+    if (diagnostics.usesLegacyTemplateQuestions) {
+      parts.push('Внутри question_templates найден deprecated ключ questions; UI нормализовал его в question_flow.');
+    }
+    if (diagnostics.usesRootQuestionFlow) {
+      parts.push('Вопросы импортированы из deprecated bot_settings.question_flow, потому что question_templates отсутствовал.');
+    }
+    if (diagnostics.usesRootRatingSystem) {
+      parts.push('Оценки импортированы из deprecated bot_settings.rating_system, потому что rating_templates отсутствовал.');
+    }
+    legacyDiagnosticEl.classList.remove('alert-light', 'alert-warning', 'alert-success');
+    if (parts.length) {
+      legacyDiagnosticEl.classList.add('alert-warning');
+      legacyDiagnosticEl.textContent = `Legacy-аудит: ${parts.join(' | ')}`;
+      return;
+    }
+    legacyDiagnosticEl.classList.add('alert-success');
+    legacyDiagnosticEl.textContent = 'Legacy-аудит: bot settings загружены по канонической схеме question_templates / rating_templates без deprecated fallback.';
   }
 
   function renderHiddenSummary(card, question, meta) {

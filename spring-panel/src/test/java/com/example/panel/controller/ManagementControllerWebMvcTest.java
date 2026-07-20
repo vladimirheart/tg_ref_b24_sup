@@ -159,6 +159,7 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Смоленск")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Как вас зовут?")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Legacy-аудит bot settings будет показан здесь после загрузки настроек.")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Это legacy-секция для `dialog_config.question_templates`")));
     }
 
