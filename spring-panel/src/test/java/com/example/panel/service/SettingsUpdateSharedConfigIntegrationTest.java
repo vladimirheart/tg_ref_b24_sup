@@ -178,6 +178,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
         assertEquals(1, questionFlow.size());
         assertEquals(false, questionFlow.get(0).get("required"));
         assertEquals("Optional question", questionFlow.get(0).get("text"));
+        assertEquals(questionFlow, botSettings.get("question_flow"));
     }
 
     @Test
@@ -217,6 +218,37 @@ class SettingsUpdateSharedConfigIntegrationTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> responses = (List<Map<String, Object>>) ratingSystem.get("responses");
         assertEquals("Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.", responses.get(1).get("text"));
+    }
+
+    @Test
+    void updateSettingsDerivesLegacyAutoCloseHoursFromCanonicalAutoCloseConfigPayload() {
+        when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
+                .thenReturn(false);
+
+        Map<String, Object> payload = Map.of(
+                "auto_close_config", Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-template-1", "hours", 1),
+                                Map.of("id", "auto-template-2", "hours", 24)
+                        ),
+                        "active_template_id", "auto-template-1"
+                )
+        );
+
+        Map<String, Object> result = service.updateSettings(payload, mock(Authentication.class));
+
+        assertEquals(Map.of("success", true), result);
+        assertEquals(
+                Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-template-1", "hours", 1),
+                                Map.of("id", "auto-template-2", "hours", 24)
+                        ),
+                        "active_template_id", "auto-template-1"
+                ),
+                sharedConfigService.loadSettings().get("auto_close_config")
+        );
+        assertEquals(1, sharedConfigService.loadSettings().get("auto_close_hours"));
     }
 
     @Test

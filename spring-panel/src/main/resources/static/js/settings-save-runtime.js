@@ -54,15 +54,11 @@
           return;
         }
 
-        const autoCloseFallbackHours = typeof options.getAutoCloseFallbackHours === 'function'
-          ? options.getAutoCloseFallbackHours()
-          : 24;
         const activeTemplate = autoCloseState.templates.find((template) => template.id === autoCloseState.active_template_id)
           || autoCloseState.templates[0];
-        const autoCloseHours = activeTemplate?.hours || autoCloseFallbackHours;
         const autoClosePayload = {
           templates: autoCloseState.templates,
-          active_template_id: autoCloseState.active_template_id,
+          active_template_id: autoCloseState.active_template_id || activeTemplate?.id || null,
         };
 
         const timeMetricsState = collectState(
@@ -141,7 +137,6 @@
           ...((dialogSlaState.config && typeof dialogSlaState.config === 'object') ? dialogSlaState.config : {}),
           dialog_summary_badges: { status: summaryBadgesState.status || {} },
           auto_close_config: autoClosePayload,
-          auto_close_hours: autoCloseHours,
         };
 
         if (locationsLoaded && locationsState && typeof locationsState === 'object') {

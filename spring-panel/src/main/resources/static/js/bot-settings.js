@@ -2142,16 +2142,8 @@
     return {
       question_templates: templatesPayload,
       active_template_id: activeTemplateId,
-      question_flow: activeTemplate ? activeTemplate.question_flow : [],
       rating_templates: ratingTemplatesPayload,
       active_rating_template_id: activeRatingTemplateId,
-      rating_system: activeRatingTemplate
-        ? {
-            prompt_text: activeRatingTemplate.prompt_text,
-            scale_size: activeRatingTemplate.scale_size,
-            responses: activeRatingTemplate.responses,
-          }
-        : { prompt_text: '', scale_size: 1, responses: [] },
       unblock_request_cooldown_minutes: state.unblockCooldownMinutes,
     };
   }
