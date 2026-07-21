@@ -409,43 +409,6 @@
       } ]
     } ],
     "active_template_id" : "tpl_mpnp8g3k1qcg",
-    "question_flow" : [ {
-      "id" : "business",
-      "type" : "preset",
-      "text" : "Бизнес",
-      "order" : 1,
-      "preset" : {
-        "group" : "locations",
-        "field" : "business"
-      }
-    }, {
-      "id" : "location_type",
-      "type" : "preset",
-      "text" : "Тип бизнесаx",
-      "order" : 2,
-      "preset" : {
-        "group" : "locations",
-        "field" : "location_type"
-      }
-    }, {
-      "id" : "city",
-      "type" : "preset",
-      "text" : "Город",
-      "order" : 3,
-      "preset" : {
-        "group" : "locations",
-        "field" : "city"
-      }
-    }, {
-      "id" : "location_name",
-      "type" : "preset",
-      "text" : "Локация",
-      "order" : 4,
-      "preset" : {
-        "group" : "locations",
-        "field" : "location_name"
-      }
-    } ],
     "rating_templates" : [ {
       "id" : "rating-template-default",
       "name" : "Базовый сценарий оценок",
@@ -470,26 +433,6 @@
       } ]
     } ],
     "active_rating_template_id" : "rating-template-default",
-    "rating_system" : {
-      "prompt_text" : "Пожалуйста, оцените качество ответа от 1 до 5.",
-      "scale_size" : 5,
-      "responses" : [ {
-        "value" : 1,
-        "text" : "Спасибо за вашу оценку 1! Нам важно ваше мнение."
-      }, {
-        "value" : 2,
-        "text" : "Спасибо за вашу оценку 2! Нам важно ваше мнение."
-      }, {
-        "value" : 3,
-        "text" : "Спасибо за вашу оценку 3! Нам важно ваше мнение."
-      }, {
-        "value" : 4,
-        "text" : "Спасибо за вашу оценку 4! Нам важно ваше мнение."
-      }, {
-        "value" : 5,
-        "text" : "Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение."
-      } ]
-    },
     "unblock_request_cooldown_minutes" : 60
   },
   "unblock_request_cooldown_minutes" : 1,

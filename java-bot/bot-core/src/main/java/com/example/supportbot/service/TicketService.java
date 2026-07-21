@@ -304,7 +304,7 @@ public class TicketService {
     @Transactional
     public int closeInactiveTickets(Duration inactivityLimit) {
         AutoCloseRunResult result = closeInactiveTickets(ticket ->
-                AutoClosePolicy.enabled(inactivityLimit, "legacy-auto_close_hours", null, toHours(inactivityLimit)));
+                AutoClosePolicy.enabled(inactivityLimit, "legacy:auto_close_duration_api", null, toHours(inactivityLimit)));
         return result.closedTickets();
     }
 
@@ -519,10 +519,20 @@ public class TicketService {
     }
 
     private String resolveCloseEventText(String source) {
-        if ("inactivity".equalsIgnoreCase(source)) {
+        if (isAutoCloseSource(source)) {
             return "Диалог автоматически закрыт из-за отсутствия активности.";
         }
         return "Заявка закрыта. Причина: " + Optional.ofNullable(source).orElse("оператор");
+    }
+
+    private boolean isAutoCloseSource(String source) {
+        if (!StringUtils.hasText(source)) {
+            return false;
+        }
+        String normalized = source.trim().toLowerCase();
+        return "inactivity".equals(normalized)
+                || normalized.contains("auto_close")
+                || "channel:auto_action_template_id".equals(normalized);
     }
 
     private Integer toHours(Duration inactivityLimit) {

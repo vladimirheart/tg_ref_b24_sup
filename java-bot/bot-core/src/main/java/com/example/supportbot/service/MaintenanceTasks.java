@@ -234,9 +234,16 @@ public class MaintenanceTasks {
         }
         hours = parsePositiveInteger(template.get("timeout_hours"));
         if (hours >= 0) {
+            log.warn("Using deprecated auto-close template.timeout_hours at bot runtime for template {}. Canonical key is hours.",
+                    trimToNull(template.get("id")));
             return hours;
         }
-        return parsePositiveInteger(template.get("auto_close_hours"));
+        hours = parsePositiveInteger(template.get("auto_close_hours"));
+        if (hours >= 0) {
+            log.warn("Using deprecated auto-close template.auto_close_hours at bot runtime for template {}. Canonical key is hours.",
+                    trimToNull(template.get("id")));
+        }
+        return hours;
     }
 
     private Map<String, Object> asMap(Object rawValue) {
