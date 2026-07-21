@@ -168,6 +168,17 @@ public class BotSettingsService {
         return defaultPrompt;
     }
 
+    public List<com.example.supportbot.settings.dto.QuestionFlowItemDto> questionFlow(BotSettingsDto settings) {
+        com.example.supportbot.settings.dto.QuestionTemplateDto template = activeQuestionTemplate(settings);
+        if (template != null && template.getQuestionFlow() != null && !template.getQuestionFlow().isEmpty()) {
+            return template.getQuestionFlow();
+        }
+        if (settings == null || settings.getQuestionFlow() == null) {
+            return List.of();
+        }
+        return settings.getQuestionFlow();
+    }
+
     public Map<String, List<String>> businessAliases(BotSettingsDto settings) {
         if (settings == null || settings.getBusinessAliases() == null) {
             return Collections.emptyMap();
@@ -211,7 +222,6 @@ public class BotSettingsService {
             }
         }
 
-        applyDerivedCompatibilityMirrors(result);
         return result;
     }
 
@@ -367,7 +377,6 @@ public class BotSettingsService {
         settings.put("business_aliases", Map.of(
                 "Р‘Р»РёРЅР±РµСЂРё", List.of("Р±Р±", "bb")
         ));
-        applyDerivedCompatibilityMirrors(settings);
         return settings;
     }
 
@@ -607,7 +616,6 @@ public class BotSettingsService {
         result.put("active_rating_template_id", activeRatingTemplateId);
         result.put("unblock_request_cooldown_minutes", cooldownMinutes);
         result.put("business_aliases", businessAliases);
-        applyDerivedCompatibilityMirrors(result);
         return result;
     }
 
@@ -657,37 +665,6 @@ public class BotSettingsService {
             );
         }
         return settings != null ? settings.getRatingSystem() : null;
-    }
-
-    private void applyDerivedCompatibilityMirrors(Map<String, Object> settings) {
-        Map<String, Object> activeQuestionTemplate = resolveTemplateById(
-                castList(settings.get("question_templates")),
-                optionalString(settings.get("active_template_id"))
-        );
-        if (activeQuestionTemplate != null) {
-            settings.put("question_flow", castList(activeQuestionTemplate.get("question_flow")));
-        } else {
-            settings.remove("question_flow");
-        }
-
-        Map<String, Object> activeRatingTemplate = resolveTemplateById(
-                castList(settings.get("rating_templates")),
-                optionalString(settings.get("active_rating_template_id"))
-        );
-        if (activeRatingTemplate != null) {
-            Map<String, Object> rating = new LinkedHashMap<>();
-            rating.put("prompt_text", optionalString(activeRatingTemplate.get("prompt_text")));
-            Integer scale = tryParseInt(activeRatingTemplate.get("scale_size"));
-            if (scale == null || scale < 1) {
-                scale = 5;
-            }
-            rating.put("scale_size", scale);
-            List<Map<String, Object>> responses = castList(activeRatingTemplate.get("responses"));
-            rating.put("responses", responses.isEmpty() ? buildDefaultResponses(scale) : responses);
-            settings.put("rating_system", rating);
-        } else {
-            settings.remove("rating_system");
-        }
     }
 
     public int unblockRequestCooldownMinutes(BotSettingsDto settings, int defaultValue) {

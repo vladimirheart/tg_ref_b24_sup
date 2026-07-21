@@ -253,6 +253,76 @@ class BotSettingsServiceTest {
     }
 
     @Test
+    void questionFlowHelperShouldPreferActiveQuestionTemplateOverLegacyRootMirror() {
+        BotSettingsDto settings = new BotSettingsDto();
+        settings.setQuestionTemplates(List.of(
+                new com.example.supportbot.settings.dto.QuestionTemplateDto(
+                        "question-template-active",
+                        "Active template",
+                        null,
+                        null,
+                        List.of(
+                                new QuestionFlowItemDto("q-template", "custom", "Template question", 1, null, List.of())
+                        )
+                )
+        ));
+        settings.setActiveTemplateId("question-template-active");
+        settings.setQuestionFlow(List.of(
+                new QuestionFlowItemDto("q-legacy", "custom", "Legacy question", 1, null, List.of())
+        ));
+
+        assertThat(service.questionFlow(settings))
+                .extracting(QuestionFlowItemDto::getText)
+                .containsExactly("Template question");
+    }
+
+    @Test
+    void dtoShouldSerializeDerivedCompatibilityMirrorsFromActiveTemplates() throws IOException {
+        Map<String, Object> raw = objectMapper.readValue(
+                """
+                        {
+                          "question_templates": [
+                            {
+                              "id": "q-active",
+                              "name": "Active",
+                              "question_flow": [
+                                {"type": "custom", "text": "Derived question"}
+                              ]
+                            }
+                          ],
+                          "active_template_id": "q-active",
+                          "rating_templates": [
+                            {
+                              "id": "r-active",
+                              "name": "Active rating",
+                              "scale_size": 3,
+                              "prompt_text": "Derived prompt",
+                              "responses": {
+                                "1": "Bad",
+                                "3": "Great"
+                              }
+                            }
+                          ],
+                          "active_rating_template_id": "r-active"
+                        }
+                        """,
+                new TypeReference<>() {
+                });
+
+        BotSettingsDto sanitized = service.sanitizeFromJson(raw);
+        Map<String, Object> serialized = objectMapper.convertValue(sanitized, new TypeReference<>() {
+        });
+
+        assertThat(((List<?>) serialized.get("question_flow"))).hasSize(1);
+        assertThat(((Map<?, ?>) ((List<?>) serialized.get("question_flow")).get(0)).get("text"))
+                .isEqualTo("Derived question");
+        assertThat(((Map<?, ?>) serialized.get("rating_system")).get("prompt_text"))
+                .isEqualTo("Derived prompt");
+        assertThat(((Map<?, ?>) serialized.get("rating_system")).get("scale_size"))
+                .isEqualTo(3);
+    }
+
+    @Test
     void loadFromChannelShouldApplyTypedTemplateOverridesOnly() throws IOException {
         writeSharedSettings("""
                 {

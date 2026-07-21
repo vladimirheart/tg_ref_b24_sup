@@ -1386,7 +1386,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         BotSettingsDto settings = loadSettings();
-        List<QuestionFlowItemDto> flow = new ArrayList<>(Optional.ofNullable(settings.getQuestionFlow()).orElseGet(List::of));
+        List<QuestionFlowItemDto> flow = new ArrayList<>(botSettingsService.questionFlow(settings));
         flow.sort(Comparator.comparingInt(QuestionFlowItemDto::getOrder));
         flow.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", flow.size() + 1, null, List.of()));
 

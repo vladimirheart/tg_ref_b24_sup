@@ -387,7 +387,7 @@ public class MaxWebhookController {
     }
 
     private List<QuestionFlowItemDto> buildIncidentFlow(BotSettingsDto settings) {
-        List<QuestionFlowItemDto> source = new ArrayList<>(Optional.ofNullable(settings.getQuestionFlow()).orElseGet(List::of));
+        List<QuestionFlowItemDto> source = new ArrayList<>(botSettingsService.questionFlow(settings));
         source.sort(Comparator.comparingInt(QuestionFlowItemDto::getOrder));
 
         Map<String, QuestionFlowItemDto> byField = new LinkedHashMap<>();

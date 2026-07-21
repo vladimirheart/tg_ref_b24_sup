@@ -403,7 +403,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private ConversationSession startSession(GroupActor actor, Message message, Channel channel, VkClientProfile clientProfile) {
         BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
-        List<QuestionFlowItemDto> flow = new ArrayList<>(Optional.ofNullable(settings.getQuestionFlow()).orElseGet(List::of));
+        List<QuestionFlowItemDto> flow = new ArrayList<>(botSettingsService.questionFlow(settings));
         flow.sort(Comparator.comparingInt(QuestionFlowItemDto::getOrder));
         flow.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", flow.size() + 1, null, List.of()));
 
