@@ -39,6 +39,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
         sharedConfigService.saveSettings(new java.util.LinkedHashMap<>());
         settingsDialogConfigUpdateService = mock(SettingsDialogConfigUpdateService.class);
         settingsTopLevelUpdateService = new SettingsTopLevelUpdateService(
+                new AutoCloseConfigNormalizer(),
                 new BotSettingsPayloadNormalizer(),
                 new LocationsIikoServerSourceSettingsService(),
                 new LocationsIikoSyncSettingsService(),
@@ -249,6 +250,36 @@ class SettingsUpdateSharedConfigIntegrationTest {
                 sharedConfigService.loadSettings().get("auto_close_config")
         );
         assertTrue(!sharedConfigService.loadSettings().containsKey("auto_close_hours"));
+    }
+
+    @Test
+    void updateSettingsPersistsCanonicalAutoCloseConfigHoursWhenLegacyTemplateKeysWereSubmitted() {
+        when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
+                .thenReturn(false);
+
+        Map<String, Object> payload = Map.of(
+                "auto_close_config", Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-template-1", "timeout_hours", 1),
+                                Map.of("id", "auto-template-2", "auto_close_hours", 24)
+                        ),
+                        "active_template_id", "auto-template-1"
+                )
+        );
+
+        Map<String, Object> result = service.updateSettings(payload, mock(Authentication.class));
+
+        assertEquals(Map.of("success", true), result);
+        assertEquals(
+                Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-template-1", "hours", 1),
+                                Map.of("id", "auto-template-2", "hours", 24)
+                        ),
+                        "active_template_id", "auto-template-1"
+                ),
+                sharedConfigService.loadSettings().get("auto_close_config")
+        );
     }
 
     @Test

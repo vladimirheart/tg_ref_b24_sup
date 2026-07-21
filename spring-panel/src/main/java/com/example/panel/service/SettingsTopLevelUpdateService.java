@@ -15,15 +15,18 @@ public class SettingsTopLevelUpdateService {
 
     private static final Logger logger = LoggerFactory.getLogger(SettingsTopLevelUpdateService.class);
 
+    private final AutoCloseConfigNormalizer autoCloseConfigNormalizer;
     private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
     private final LocationsIikoSyncSettingsService locationsIikoSyncSettingsService;
     private final NotificationRoutingService notificationRoutingService;
 
-    public SettingsTopLevelUpdateService(BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
+    public SettingsTopLevelUpdateService(AutoCloseConfigNormalizer autoCloseConfigNormalizer,
+                                         BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
                                          LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
                                          LocationsIikoSyncSettingsService locationsIikoSyncSettingsService,
                                          NotificationRoutingService notificationRoutingService) {
+        this.autoCloseConfigNormalizer = autoCloseConfigNormalizer;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
         this.locationsIikoSyncSettingsService = locationsIikoSyncSettingsService;
@@ -35,7 +38,7 @@ public class SettingsTopLevelUpdateService {
         boolean modified = false;
 
         if (payload.containsKey("auto_close_config")) {
-            settings.put("auto_close_config", payload.get("auto_close_config"));
+            settings.put("auto_close_config", autoCloseConfigNormalizer.normalize(payload.get("auto_close_config")));
             if (payload.containsKey("auto_close_hours")) {
                 logger.info("Ignoring deprecated auto_close_hours payload because auto_close_config is canonical source of truth");
             }

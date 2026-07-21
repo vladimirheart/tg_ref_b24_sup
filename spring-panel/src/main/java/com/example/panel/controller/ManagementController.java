@@ -12,6 +12,7 @@ import com.example.panel.repository.ItEquipmentCatalogRepository;
 import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.repository.TaskRepository;
+import com.example.panel.service.AutoCloseConfigNormalizer;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
@@ -55,6 +56,7 @@ public class ManagementController {
     private final SettingsParameterService settingsParameterService;
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final PermissionService permissionService;
+    private final AutoCloseConfigNormalizer autoCloseConfigNormalizer;
     private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final ObjectMapper objectMapper;
 
@@ -71,6 +73,7 @@ public class ManagementController {
                                 SettingsParameterService settingsParameterService,
                                 IikoDepartmentLocationCatalogService locationCatalogService,
                                 PermissionService permissionService,
+                                AutoCloseConfigNormalizer autoCloseConfigNormalizer,
                                 BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
                                 ObjectMapper objectMapper) {
         this.navigationService = navigationService;
@@ -86,6 +89,7 @@ public class ManagementController {
         this.settingsParameterService = settingsParameterService;
         this.locationCatalogService = locationCatalogService;
         this.permissionService = permissionService;
+        this.autoCloseConfigNormalizer = autoCloseConfigNormalizer;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.objectMapper = objectMapper;
     }
@@ -163,8 +167,13 @@ public class ManagementController {
             model.addAttribute("appSettings", appSettings);
             model.addAttribute("systemParameters", systemParameters);
             Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+            settings.put("auto_close_config", autoCloseConfigNormalizer.normalize(settings.get("auto_close_config")));
             settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(settings.get("bot_settings")));
             model.addAttribute("settingsPayload", settings);
+            model.addAttribute("autoCloseFallbackHours",
+                    autoCloseConfigNormalizer.resolveFallbackHours(
+                            settings.get("auto_close_config"),
+                            settings.get("auto_close_hours")));
             IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
             Map<String, Object> effectiveLocationsPayload = locationCatalogService.buildEffectiveLocationsPayload(effectiveCatalog);
             Map<String, Object> effectiveLocationTree = Map.of();

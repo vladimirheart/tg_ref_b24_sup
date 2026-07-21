@@ -116,11 +116,7 @@
       if (!template) {
         return 'Шаблон не выбран';
       }
-      const flow = Array.isArray(template.question_flow)
-        ? template.question_flow
-        : Array.isArray(template.questions)
-          ? template.questions
-          : [];
+      const flow = Array.isArray(template.question_flow) ? template.question_flow : [];
       const count = flow.length;
       const base = count
         ? `${count} ${pluralize(count, ['вопрос', 'вопроса', 'вопросов'])}`

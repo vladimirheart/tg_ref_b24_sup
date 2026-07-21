@@ -17,6 +17,7 @@ class SettingsTopLevelUpdateServiceTest {
     void applyTopLevelUpdatesNormalizesListsAndMaps() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
+                        new AutoCloseConfigNormalizer(),
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
@@ -44,6 +45,7 @@ class SettingsTopLevelUpdateServiceTest {
     void applyTopLevelUpdatesReturnsFalseWhenPayloadDoesNotContainKnownKeys() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
+                        new AutoCloseConfigNormalizer(),
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
@@ -57,6 +59,7 @@ class SettingsTopLevelUpdateServiceTest {
     void applyTopLevelUpdatesPersistsCanonicalBotTemplatesWithoutDerivedMirrors() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
+                        new AutoCloseConfigNormalizer(),
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
@@ -100,6 +103,7 @@ class SettingsTopLevelUpdateServiceTest {
     void applyTopLevelUpdatesPersistsCanonicalAutoCloseConfigWithoutLegacyMirror() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
+                        new AutoCloseConfigNormalizer(),
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
@@ -136,6 +140,7 @@ class SettingsTopLevelUpdateServiceTest {
     void applyTopLevelUpdatesImportsLegacyBotSettingsIntoCanonicalTemplates() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
+                        new AutoCloseConfigNormalizer(),
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
@@ -170,5 +175,40 @@ class SettingsTopLevelUpdateServiceTest {
         assertEquals("Импортированный шаблон оценок", ratingTemplates.get(0).get("name"));
         assertFalse(botSettings.containsKey("question_flow"));
         assertFalse(botSettings.containsKey("rating_system"));
+    }
+
+    @Test
+    void applyTopLevelUpdatesNormalizesLegacyAutoCloseTemplateHourKeysIntoCanonicalHours() {
+        SettingsTopLevelUpdateService service =
+                new SettingsTopLevelUpdateService(
+                        new AutoCloseConfigNormalizer(),
+                        new BotSettingsPayloadNormalizer(),
+                        new LocationsIikoServerSourceSettingsService(),
+                        new LocationsIikoSyncSettingsService(),
+                        mock(NotificationRoutingService.class)
+                );
+        Map<String, Object> settings = new LinkedHashMap<>();
+
+        boolean modified = service.applyTopLevelUpdates(Map.of(
+                "auto_close_config", Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-1", "timeout_hours", 12),
+                                Map.of("id", "auto-2", "auto_close_hours", 24)
+                        ),
+                        "active_template_id", "auto-1"
+                )
+        ), settings);
+
+        assertTrue(modified);
+        assertEquals(
+                Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-1", "hours", 12),
+                                Map.of("id", "auto-2", "hours", 24)
+                        ),
+                        "active_template_id", "auto-1"
+                ),
+                settings.get("auto_close_config")
+        );
     }
 }

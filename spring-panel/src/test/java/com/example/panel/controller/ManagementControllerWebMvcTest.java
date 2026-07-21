@@ -17,6 +17,7 @@ import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.entity.PanelUser;
+import com.example.panel.service.AutoCloseConfigNormalizer;
 import com.example.panel.service.BotSettingsPayloadNormalizer;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.ObjectPassportService;
@@ -43,7 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ManagementController.class)
 @AutoConfigureMockMvc
-@Import({NavigationService.class, BotSettingsPayloadNormalizer.class})
+@Import({NavigationService.class, BotSettingsPayloadNormalizer.class, AutoCloseConfigNormalizer.class})
 class ManagementControllerWebMvcTest {
 
     @Autowired
@@ -103,6 +104,12 @@ class ManagementControllerWebMvcTest {
         when(appSettingRepository.findAll()).thenReturn(List.of());
         when(settingsParameterRepository.findAll()).thenReturn(List.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "auto_close_config", Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-template-1", "timeout_hours", 1, "description", "legacy")
+                        ),
+                        "active_template_id", "auto-template-1"
+                ),
                 "bot_settings", Map.of(
                         "question_templates", List.of(
                                 Map.of(
@@ -163,12 +170,15 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"settings\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"channels\": {")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"botSettings\":")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"autoCloseConfig\":")))
             .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"botSettingsInitial\""))))
             .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"reportingConfigInitial\""))))
             .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"locationsInitial\""))))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Смоленск")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"question_templates\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"rating_templates\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"hours\":1")))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"timeout_hours\":1"))))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"template-1\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"rating-template-default\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Legacy-аудит bot settings будет показан здесь после загрузки настроек.")))

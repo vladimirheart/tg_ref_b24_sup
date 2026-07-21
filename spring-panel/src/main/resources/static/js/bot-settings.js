@@ -599,7 +599,7 @@
     };
   }
 
-  function normalizeTemplate(raw, index, legacyDiagnostics = null) {
+  function normalizeTemplate(raw, index) {
     if (!raw || typeof raw !== 'object') {
       return null;
     }
@@ -608,16 +608,11 @@
     const description = typeof raw.description === 'string' ? raw.description.trim() : '';
     const startMessageRaw = raw.start_message ?? raw.startMessage;
     const startMessage = typeof startMessageRaw === 'string' ? startMessageRaw.trim() : '';
-    let flowSource = raw.question_flow;
-    if (!Array.isArray(flowSource)) {
-      flowSource = raw.questionFlow;
-    }
-    if (!Array.isArray(flowSource)) {
-      if (legacyDiagnostics && typeof legacyDiagnostics === 'object' && Array.isArray(raw.questions)) {
-        legacyDiagnostics.usesLegacyTemplateQuestions = true;
-      }
-      flowSource = [];
-    }
+    const flowSource = Array.isArray(raw.question_flow)
+      ? raw.question_flow
+      : Array.isArray(raw.questionFlow)
+        ? raw.questionFlow
+        : [];
     const questionFlow = flowSource
       .map((item, order) => normalizeQuestion(item, order + 1))
       .filter((question) => question.type !== 'custom' || question.text);
@@ -672,11 +667,7 @@
   }
 
   function createLegacyDiagnostics() {
-    return {
-      usesLegacyTemplateQuestions: false,
-      usesRootQuestionFlow: false,
-      usesRootRatingSystem: false,
-    };
+    return {};
   }
 
   function normalizeSettings(raw) {
@@ -687,12 +678,8 @@
     const legacyDiagnostics = createLegacyDiagnostics();
     const templateSource = Array.isArray(source.question_templates) ? source.question_templates : [];
     const templates = templateSource
-      .map((item, index) => normalizeTemplate(item, index, legacyDiagnostics))
+      .map((item, index) => normalizeTemplate(item, index))
       .filter((template) => template && template.questionFlow.length);
-
-    if (!templates.length && Array.isArray(source.question_flow)) {
-      legacyDiagnostics.usesRootQuestionFlow = true;
-    }
 
     if (!templates.length) {
       const [group, field] = firstPreset();
@@ -725,10 +712,6 @@
     const ratingTemplates = ratingTemplateSource
       .map((item, index) => normalizeRatingTemplate(item, index))
       .filter((template) => template && template.promptText);
-
-    if (!ratingTemplates.length && source.rating_system && typeof source.rating_system === 'object') {
-      legacyDiagnostics.usesRootRatingSystem = true;
-    }
 
     if (!ratingTemplates.length) {
       const scale = 5;
@@ -1203,23 +1186,7 @@
     if (!legacyDiagnosticEl) {
       return;
     }
-    const diagnostics = state.legacyDiagnostics || createLegacyDiagnostics();
-    const parts = [];
-    if (diagnostics.usesLegacyTemplateQuestions) {
-      parts.push('Внутри question_templates найден deprecated ключ questions; UI нормализовал его в question_flow.');
-    }
-    if (diagnostics.usesRootQuestionFlow) {
-      parts.push('Вопросы импортированы из deprecated bot_settings.question_flow, потому что question_templates отсутствовал.');
-    }
-    if (diagnostics.usesRootRatingSystem) {
-      parts.push('Оценки импортированы из deprecated bot_settings.rating_system, потому что rating_templates отсутствовал.');
-    }
     legacyDiagnosticEl.classList.remove('alert-light', 'alert-warning', 'alert-success');
-    if (parts.length) {
-      legacyDiagnosticEl.classList.add('alert-warning');
-      legacyDiagnosticEl.textContent = `Legacy-аудит: ${parts.join(' | ')}`;
-      return;
-    }
     legacyDiagnosticEl.classList.add('alert-success');
     legacyDiagnosticEl.textContent = 'Legacy-аудит: bot settings загружены через SettingsPageConfigRuntime по канонической схеме question_templates / rating_templates без deprecated fallback.';
   }

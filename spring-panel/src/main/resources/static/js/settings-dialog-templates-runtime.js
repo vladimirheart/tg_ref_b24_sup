@@ -737,18 +737,7 @@
       const templateId = data.id || generateDialogTemplateId('auto');
       const name = typeof data.name === 'string' ? data.name : '';
       const description = typeof data.description === 'string' ? data.description : '';
-      let hoursCandidate = null;
-      ['hours', 'timeout_hours', 'auto_close_hours'].some((key) => {
-        const value = data && typeof data === 'object' ? Number(data[key]) : Number.NaN;
-        if (Number.isFinite(value) && value > 0) {
-          hoursCandidate = value;
-          return true;
-        }
-        return false;
-      });
-      const rawHours = Number.isFinite(hoursCandidate) && hoursCandidate > 0
-        ? hoursCandidate
-        : getAutoCloseFallbackHours();
+      const rawHours = Number(data.hours);
       const hours = Math.min(Math.max(Math.round(rawHours || getAutoCloseFallbackHours()), 1), 720);
       const safeIdAttr = escapeHtml(templateId);
       const safeName = escapeHtml(name);
