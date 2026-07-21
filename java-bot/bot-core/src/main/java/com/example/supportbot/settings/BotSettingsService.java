@@ -189,22 +189,10 @@ public class BotSettingsService {
 
         Map<String, Object> result = new LinkedHashMap<>(sanitized);
         Map<String, Object> channelConfig = convertToMap(channel.getQuestionsCfg());
+        logDeprecatedChannelTemplateSelection(channel, channelConfig);
 
         List<Map<String, Object>> questionTemplates = castList(result.get("question_templates"));
         String requestedQuestionTemplateId = optionalString(channel.getQuestionTemplateId());
-        String questionTemplateSelectionSource = "channel.question_template_id";
-        if (requestedQuestionTemplateId.isBlank()) {
-            requestedQuestionTemplateId = optionalString(channelConfig.get("active_template_id"));
-            if (!requestedQuestionTemplateId.isBlank()) {
-                questionTemplateSelectionSource = "questions_cfg.active_template_id";
-            }
-        }
-        if (requestedQuestionTemplateId.isBlank()) {
-            requestedQuestionTemplateId = optionalString(channelConfig.get("question_template_id"));
-            if (!requestedQuestionTemplateId.isBlank()) {
-                questionTemplateSelectionSource = "questions_cfg.question_template_id";
-            }
-        }
         if (!requestedQuestionTemplateId.isBlank()) {
             String selectedQuestionTemplateId = requestedQuestionTemplateId;
             Map<String, Object> selectedQuestionTemplate = questionTemplates.stream()
@@ -212,13 +200,6 @@ public class BotSettingsService {
                     .findFirst()
                     .orElse(null);
             if (selectedQuestionTemplate != null) {
-                if (questionTemplateSelectionSource.startsWith("questions_cfg.")) {
-                    logger.info(
-                            "Channel {} uses deprecated {} override for bot question template selection",
-                            channel.getId(),
-                            questionTemplateSelectionSource
-                    );
-                }
                 result.put("active_template_id", selectedQuestionTemplateId);
                 result.put("question_flow", castList(selectedQuestionTemplate.get("question_flow")));
             }
@@ -226,19 +207,6 @@ public class BotSettingsService {
 
         List<Map<String, Object>> ratingTemplates = castList(result.get("rating_templates"));
         String requestedRatingTemplateId = optionalString(channel.getRatingTemplateId());
-        String ratingTemplateSelectionSource = "channel.rating_template_id";
-        if (requestedRatingTemplateId.isBlank()) {
-            requestedRatingTemplateId = optionalString(channelConfig.get("active_rating_template_id"));
-            if (!requestedRatingTemplateId.isBlank()) {
-                ratingTemplateSelectionSource = "questions_cfg.active_rating_template_id";
-            }
-        }
-        if (requestedRatingTemplateId.isBlank()) {
-            requestedRatingTemplateId = optionalString(channelConfig.get("rating_template_id"));
-            if (!requestedRatingTemplateId.isBlank()) {
-                ratingTemplateSelectionSource = "questions_cfg.rating_template_id";
-            }
-        }
         if (!requestedRatingTemplateId.isBlank()) {
             String selectedRatingTemplateId = requestedRatingTemplateId;
             Map<String, Object> selectedRatingTemplate = ratingTemplates.stream()
@@ -246,13 +214,6 @@ public class BotSettingsService {
                     .findFirst()
                     .orElse(null);
             if (selectedRatingTemplate != null) {
-                if (ratingTemplateSelectionSource.startsWith("questions_cfg.")) {
-                    logger.info(
-                            "Channel {} uses deprecated {} override for bot rating template selection",
-                            channel.getId(),
-                            ratingTemplateSelectionSource
-                    );
-                }
                 result.put("active_rating_template_id", selectedRatingTemplateId);
                 Map<String, Object> currentRating = result.get("rating_system") instanceof Map<?, ?> map
                         ? convertToMap(map)
@@ -287,6 +248,38 @@ public class BotSettingsService {
         }
 
         return result;
+    }
+
+    private void logDeprecatedChannelTemplateSelection(Channel channel, Map<String, Object> channelConfig) {
+        if (channel == null || channelConfig == null || channelConfig.isEmpty()) {
+            return;
+        }
+        List<String> deprecatedQuestionKeys = collectPresentKeys(channelConfig, List.of("active_template_id", "question_template_id"));
+        if (!deprecatedQuestionKeys.isEmpty()) {
+            logger.info(
+                    "Channel {} still contains deprecated question template selection keys in questions_cfg {}. Runtime ignores them and uses channel.question_template_id only.",
+                    channel.getId(),
+                    deprecatedQuestionKeys
+            );
+        }
+        List<String> deprecatedRatingKeys = collectPresentKeys(channelConfig, List.of("active_rating_template_id", "rating_template_id"));
+        if (!deprecatedRatingKeys.isEmpty()) {
+            logger.info(
+                    "Channel {} still contains deprecated rating template selection keys in questions_cfg {}. Runtime ignores them and uses channel.rating_template_id only.",
+                    channel.getId(),
+                    deprecatedRatingKeys
+            );
+        }
+    }
+
+    private List<String> collectPresentKeys(Map<String, Object> source, List<String> keys) {
+        List<String> present = new ArrayList<>();
+        for (String key : keys) {
+            if (!optionalString(source.get(key)).isBlank()) {
+                present.add(key);
+            }
+        }
+        return present;
     }
 
     private Map<String, List<String>> sanitizeBusinessAliases(Object rawAliases) {

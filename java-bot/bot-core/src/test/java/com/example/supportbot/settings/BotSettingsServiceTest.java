@@ -1,5 +1,6 @@
 package com.example.supportbot.settings;
 
+import com.example.supportbot.entity.Channel;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.example.supportbot.settings.dto.RatingTemplateDto;
@@ -7,6 +8,7 @@ import com.example.supportbot.service.SharedConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -215,6 +217,134 @@ class BotSettingsServiceTest {
     }
 
     @Test
+    void loadFromChannelShouldApplyTypedTemplateOverridesOnly() throws IOException {
+        writeSharedSettings("""
+                {
+                  "bot_settings": {
+                    "question_templates": [
+                      {
+                        "id": "q-default",
+                        "name": "Default",
+                        "question_flow": [{"type": "custom", "text": "Default question"}]
+                      },
+                      {
+                        "id": "q-channel",
+                        "name": "Channel",
+                        "question_flow": [{"type": "custom", "text": "Channel question"}]
+                      }
+                    ],
+                    "active_template_id": "q-default",
+                    "rating_templates": [
+                      {
+                        "id": "rate-default",
+                        "name": "Default rating",
+                        "scale_size": 5,
+                        "prompt_text": "Default prompt",
+                        "responses": {
+                          "1": "Default bad",
+                          "5": "Default good"
+                        }
+                      },
+                      {
+                        "id": "rate-channel",
+                        "name": "Channel rating",
+                        "scale_size": 3,
+                        "prompt_text": "Channel prompt",
+                        "responses": {
+                          "1": "Channel bad",
+                          "3": "Channel great"
+                        }
+                      }
+                    ],
+                    "active_rating_template_id": "rate-default"
+                  }
+                }
+                """);
+        Channel channel = new Channel();
+        channel.setId(77L);
+        channel.setQuestionTemplateId("q-channel");
+        channel.setRatingTemplateId("rate-channel");
+        channel.setQuestionsCfg("""
+                {
+                  "active_template_id": "q-default",
+                  "active_rating_template_id": "rate-default"
+                }
+                """);
+
+        BotSettingsDto settings = service.loadFromChannel(channel);
+
+        assertThat(settings.getActiveTemplateId()).isEqualTo("q-channel");
+        assertThat(settings.getQuestionFlow()).extracting(QuestionFlowItemDto::getText)
+                .containsExactly("Channel question");
+        assertThat(settings.getActiveRatingTemplateId()).isEqualTo("rate-channel");
+        assertThat(settings.getRatingSystem().getPromptText()).isEqualTo("Channel prompt");
+        assertThat(settings.getRatingSystem().getScaleSize()).isEqualTo(3);
+    }
+
+    @Test
+    void loadFromChannelShouldIgnoreLegacyQuestionsCfgTemplateSelectionWhenTypedOverridesAreBlank() throws IOException {
+        writeSharedSettings("""
+                {
+                  "bot_settings": {
+                    "question_templates": [
+                      {
+                        "id": "q-default",
+                        "name": "Default",
+                        "question_flow": [{"type": "custom", "text": "Default question"}]
+                      },
+                      {
+                        "id": "q-legacy",
+                        "name": "Legacy",
+                        "question_flow": [{"type": "custom", "text": "Legacy question"}]
+                      }
+                    ],
+                    "active_template_id": "q-default",
+                    "rating_templates": [
+                      {
+                        "id": "rate-default",
+                        "name": "Default rating",
+                        "scale_size": 5,
+                        "prompt_text": "Default prompt",
+                        "responses": {
+                          "1": "Default bad",
+                          "5": "Default good"
+                        }
+                      },
+                      {
+                        "id": "rate-legacy",
+                        "name": "Legacy rating",
+                        "scale_size": 4,
+                        "prompt_text": "Legacy prompt",
+                        "responses": {
+                          "1": "Legacy bad",
+                          "4": "Legacy great"
+                        }
+                      }
+                    ],
+                    "active_rating_template_id": "rate-default"
+                  }
+                }
+                """);
+        Channel channel = new Channel();
+        channel.setId(88L);
+        channel.setQuestionsCfg("""
+                {
+                  "question_template_id": "q-legacy",
+                  "rating_template_id": "rate-legacy"
+                }
+                """);
+
+        BotSettingsDto settings = service.loadFromChannel(channel);
+
+        assertThat(settings.getActiveTemplateId()).isEqualTo("q-default");
+        assertThat(settings.getQuestionFlow()).extracting(QuestionFlowItemDto::getText)
+                .containsExactly("Default question");
+        assertThat(settings.getActiveRatingTemplateId()).isEqualTo("rate-default");
+        assertThat(settings.getRatingSystem().getPromptText()).isEqualTo("Default prompt");
+        assertThat(settings.getRatingSystem().getScaleSize()).isEqualTo(5);
+    }
+
+    @Test
     void buildLocationPresetsShouldMatchExpectedOutput() throws IOException {
         Map<String, Object> locationTree = objectMapper.readValue(
                 """
@@ -363,5 +493,9 @@ class BotSettingsServiceTest {
                 });
 
         assertThat(javaResult).isEqualTo(pythonResult);
+    }
+
+    private void writeSharedSettings(String json) throws IOException {
+        Files.writeString(tempDir.resolve("settings.json"), json);
     }
 }
