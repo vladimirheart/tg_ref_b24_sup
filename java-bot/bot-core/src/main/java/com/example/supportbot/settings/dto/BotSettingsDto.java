@@ -1,6 +1,7 @@
 package com.example.supportbot.settings.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +69,7 @@ public class BotSettingsDto {
         this.activeTemplateId = activeTemplateId;
     }
 
-    @JsonProperty("question_flow")
+    @JsonIgnore
     public List<QuestionFlowItemDto> getQuestionFlow() {
         QuestionTemplateDto template = resolveActiveQuestionTemplate();
         if (template != null && template.getQuestionFlow() != null && !template.getQuestionFlow().isEmpty()) {
@@ -98,7 +99,7 @@ public class BotSettingsDto {
         this.activeRatingTemplateId = activeRatingTemplateId;
     }
 
-    @JsonProperty("rating_system")
+    @JsonIgnore
     public RatingSystemDto getRatingSystem() {
         RatingTemplateDto template = resolveActiveRatingTemplate();
         if (template != null) {

@@ -277,7 +277,7 @@ class BotSettingsServiceTest {
     }
 
     @Test
-    void dtoShouldSerializeDerivedCompatibilityMirrorsFromActiveTemplates() throws IOException {
+    void dtoShouldNotSerializeLegacyRootMirrorsIntoPublicJsonOutput() throws IOException {
         Map<String, Object> raw = objectMapper.readValue(
                 """
                         {
@@ -313,13 +313,11 @@ class BotSettingsServiceTest {
         Map<String, Object> serialized = objectMapper.convertValue(sanitized, new TypeReference<>() {
         });
 
-        assertThat(((List<?>) serialized.get("question_flow"))).hasSize(1);
-        assertThat(((Map<?, ?>) ((List<?>) serialized.get("question_flow")).get(0)).get("text"))
-                .isEqualTo("Derived question");
-        assertThat(((Map<?, ?>) serialized.get("rating_system")).get("prompt_text"))
-                .isEqualTo("Derived prompt");
-        assertThat(((Map<?, ?>) serialized.get("rating_system")).get("scale_size"))
-                .isEqualTo(3);
+        assertThat(serialized).doesNotContainKeys("question_flow", "rating_system");
+        assertThat(sanitized.getQuestionFlow()).extracting(QuestionFlowItemDto::getText)
+                .containsExactly("Derived question");
+        assertThat(sanitized.getRatingSystem().getPromptText()).isEqualTo("Derived prompt");
+        assertThat(sanitized.getRatingSystem().getScaleSize()).isEqualTo(3);
     }
 
     @Test
