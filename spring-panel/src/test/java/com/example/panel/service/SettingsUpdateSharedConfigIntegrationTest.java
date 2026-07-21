@@ -116,7 +116,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
     }
 
     @Test
-    void updateSettingsPersistsWarningsFromDialogConfigCoordinatorAlongsideTopLevelValues() {
+    void updateSettingsMigratesLegacyAutoCloseHoursIntoCanonicalConfigAlongsideOtherTopLevelValues() {
         when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
                 .thenAnswer(invocation -> {
                     Map<String, Object> settings = invocation.getArgument(1);
@@ -134,7 +134,16 @@ class SettingsUpdateSharedConfigIntegrationTest {
 
         assertEquals(true, result.get("success"));
         assertEquals(List.of("dialog warning"), result.get("warnings"));
-        assertEquals(72, sharedConfigService.loadSettings().get("auto_close_hours"));
+        assertEquals(
+                Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-close-migrated", "name", "Импортированный auto-close", "hours", 72)
+                        ),
+                        "active_template_id", "auto-close-migrated"
+                ),
+                sharedConfigService.loadSettings().get("auto_close_config")
+        );
+        assertTrue(!sharedConfigService.loadSettings().containsKey("auto_close_hours"));
         assertEquals(List.of("vip", "new"), sharedConfigService.loadSettings().get("client_statuses"));
         assertTrue(sharedConfigService.loadSettings().containsKey("dialog_config"));
     }

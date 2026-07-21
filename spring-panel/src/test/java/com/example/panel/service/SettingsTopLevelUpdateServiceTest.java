@@ -14,7 +14,7 @@ import static org.mockito.Mockito.mock;
 class SettingsTopLevelUpdateServiceTest {
 
     @Test
-    void applyTopLevelUpdatesNormalizesListsAndMaps() {
+    void applyTopLevelUpdatesMigratesLegacyAutoCloseHoursIntoCanonicalConfigAndNormalizesListsAndMaps() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
                         new AutoCloseConfigNormalizer(),
@@ -34,7 +34,16 @@ class SettingsTopLevelUpdateServiceTest {
         ), settings);
 
         assertTrue(modified);
-        assertEquals(48, settings.get("auto_close_hours"));
+        assertFalse(settings.containsKey("auto_close_hours"));
+        assertEquals(
+                Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-close-migrated", "name", "Импортированный auto-close", "hours", 48)
+                        ),
+                        "active_template_id", "auto-close-migrated"
+                ),
+                settings.get("auto_close_config")
+        );
         assertEquals(List.of("support", "sales"), settings.get("categories"));
         assertEquals(List.of("vip", "new"), settings.get("client_statuses"));
         assertEquals(Map.of("vip", "#fff000"), settings.get("client_status_colors"));
@@ -129,6 +138,44 @@ class SettingsTopLevelUpdateServiceTest {
                         "templates", List.of(
                                 Map.of("id", "auto-1", "hours", 1),
                                 Map.of("id", "auto-2", "hours", 72)
+                        ),
+                        "active_template_id", "auto-1"
+                ),
+                settings.get("auto_close_config")
+        );
+    }
+
+    @Test
+    void applyTopLevelUpdatesMigratesLegacyAutoCloseHoursIntoExistingCanonicalActiveTemplate() {
+        SettingsTopLevelUpdateService service =
+                new SettingsTopLevelUpdateService(
+                        new AutoCloseConfigNormalizer(),
+                        new BotSettingsPayloadNormalizer(),
+                        new LocationsIikoServerSourceSettingsService(),
+                        new LocationsIikoSyncSettingsService(),
+                        mock(NotificationRoutingService.class)
+                );
+        Map<String, Object> settings = new LinkedHashMap<>();
+        settings.put("auto_close_config", Map.of(
+                "templates", List.of(
+                        Map.of("id", "auto-1", "hours", 12, "description", "Primary"),
+                        Map.of("id", "auto-2", "hours", 48)
+                ),
+                "active_template_id", "auto-1"
+        ));
+        settings.put("auto_close_hours", 999);
+
+        boolean modified = service.applyTopLevelUpdates(Map.of(
+                "auto_close_hours", 6
+        ), settings);
+
+        assertTrue(modified);
+        assertFalse(settings.containsKey("auto_close_hours"));
+        assertEquals(
+                Map.of(
+                        "templates", List.of(
+                                Map.of("id", "auto-1", "hours", 6, "description", "Primary"),
+                                Map.of("id", "auto-2", "hours", 48)
                         ),
                         "active_template_id", "auto-1"
                 ),

@@ -15,6 +15,8 @@ public class AutoCloseConfigNormalizer {
 
     private static final Logger logger = LoggerFactory.getLogger(AutoCloseConfigNormalizer.class);
     private static final int DEFAULT_FALLBACK_HOURS = 24;
+    private static final String MIGRATED_TEMPLATE_ID = "auto-close-migrated";
+    private static final String MIGRATED_TEMPLATE_NAME = "Импортированный auto-close";
 
     public Map<String, Object> normalize(Object rawConfig) {
         if (!(rawConfig instanceof Map<?, ?> map)) {
@@ -61,6 +63,40 @@ public class AutoCloseConfigNormalizer {
             return legacyHours;
         }
         return DEFAULT_FALLBACK_HOURS;
+    }
+
+    public Map<String, Object> migrateLegacyTopLevelHours(Object rawConfig, Object legacyAutoCloseHours) {
+        Integer legacyHours = parseInteger(legacyAutoCloseHours);
+        if (legacyHours == null || legacyHours < 0) {
+            return normalize(rawConfig);
+        }
+
+        Map<String, Object> normalized = normalize(rawConfig);
+        List<Map<String, Object>> templates = new ArrayList<>(normalizeTemplates(normalized.get("templates")));
+        Map<String, Object> activeTemplate = resolveTemplateById(
+                templates,
+                stringValue(normalized.get("active_template_id"))
+        );
+
+        if (activeTemplate == null) {
+            Map<String, Object> importedTemplate = new LinkedHashMap<>();
+            importedTemplate.put("id", MIGRATED_TEMPLATE_ID);
+            importedTemplate.put("name", MIGRATED_TEMPLATE_NAME);
+            importedTemplate.put("hours", legacyHours);
+            templates.add(importedTemplate);
+            activeTemplate = importedTemplate;
+        } else {
+            int index = templates.indexOf(activeTemplate);
+            Map<String, Object> updatedTemplate = new LinkedHashMap<>(activeTemplate);
+            updatedTemplate.put("hours", legacyHours);
+            templates.set(index, updatedTemplate);
+            activeTemplate = updatedTemplate;
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>(normalized);
+        result.put("templates", templates);
+        result.put("active_template_id", stringValue(activeTemplate.get("id")));
+        return result;
     }
 
     private List<Map<String, Object>> normalizeTemplates(Object rawTemplates) {

@@ -130,7 +130,7 @@ class MaintenanceTasksTest {
         TicketService.AutoClosePolicy policy = captor.getValue().apply(ticket);
         assertThat(policy.enabled()).isTrue();
         assertThat(policy.inactivityLimit()).isEqualTo(Duration.ofHours(1));
-        assertThat(policy.source()).isEqualTo("legacy:auto_close_hours");
+        assertThat(policy.source()).isEqualTo("migration:auto_close_hours");
     }
 
     @Test

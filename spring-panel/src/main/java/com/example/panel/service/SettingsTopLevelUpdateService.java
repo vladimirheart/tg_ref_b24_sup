@@ -45,7 +45,17 @@ public class SettingsTopLevelUpdateService {
             settings.remove("auto_close_hours");
             modified = true;
         } else if (payload.containsKey("auto_close_hours")) {
-            settings.put("auto_close_hours", payload.get("auto_close_hours"));
+            boolean hadCanonicalConfig = !autoCloseConfigNormalizer.normalize(settings.get("auto_close_config")).isEmpty();
+            settings.put("auto_close_config",
+                    autoCloseConfigNormalizer.migrateLegacyTopLevelHours(
+                            settings.get("auto_close_config"),
+                            payload.get("auto_close_hours")));
+            settings.remove("auto_close_hours");
+            if (hadCanonicalConfig) {
+                logger.warn("Migrated deprecated auto_close_hours payload into canonical auto_close_config by updating the active template");
+            } else {
+                logger.warn("Migrated deprecated auto_close_hours payload into canonical auto_close_config because legacy top-level writes are no longer persisted");
+            }
             modified = true;
         }
 
