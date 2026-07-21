@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Service
 public class SettingsTopLevelUpdateService {
@@ -37,21 +36,10 @@ public class SettingsTopLevelUpdateService {
 
         if (payload.containsKey("auto_close_config")) {
             settings.put("auto_close_config", payload.get("auto_close_config"));
-            Integer derivedAutoCloseHours = deriveAutoCloseHours(payload.get("auto_close_config"));
-            Integer legacyAutoCloseHours = parseInteger(payload.get("auto_close_hours"));
-            if (derivedAutoCloseHours != null) {
-                settings.put("auto_close_hours", derivedAutoCloseHours);
-                if (legacyAutoCloseHours != null && !Objects.equals(legacyAutoCloseHours, derivedAutoCloseHours)) {
-                    logger.warn(
-                            "Ignoring mismatched legacy auto_close_hours={} and deriving auto_close_hours={} from active auto-close template",
-                            legacyAutoCloseHours,
-                            derivedAutoCloseHours
-                    );
-                }
-            } else if (payload.containsKey("auto_close_hours")) {
-                settings.put("auto_close_hours", payload.get("auto_close_hours"));
-                logger.debug("Persisting legacy auto_close_hours because active auto-close template hours could not be derived");
+            if (payload.containsKey("auto_close_hours")) {
+                logger.info("Ignoring deprecated auto_close_hours payload because auto_close_config is canonical source of truth");
             }
+            settings.remove("auto_close_hours");
             modified = true;
         } else if (payload.containsKey("auto_close_hours")) {
             settings.put("auto_close_hours", payload.get("auto_close_hours"));
@@ -137,76 +125,8 @@ public class SettingsTopLevelUpdateService {
         });
         return values;
     }
-
-    private List<Map<String, Object>> normalizeTemplateList(Object rawTemplates) {
-        List<Map<String, Object>> templates = new ArrayList<>();
-        if (!(rawTemplates instanceof List<?> list)) {
-            return templates;
-        }
-        for (Object item : list) {
-            if (!(item instanceof Map<?, ?> map)) {
-                continue;
-            }
-            Map<String, Object> template = new LinkedHashMap<>();
-            map.forEach((key, value) -> {
-                if (key != null) {
-                    template.put(key.toString(), value);
-                }
-            });
-            templates.add(template);
-        }
-        return templates;
-    }
-
-    private Map<String, Object> resolveActiveTemplate(List<Map<String, Object>> templates,
-                                                      String requestedId) {
-        if (templates.isEmpty()) {
-            return null;
-        }
-        if (StringUtils.hasText(requestedId)) {
-            for (Map<String, Object> template : templates) {
-                if (requestedId.equals(stringValue(template.get("id")))) {
-                    return template;
-                }
-            }
-        }
-        return templates.get(0);
-    }
-
     private String stringValue(Object rawValue) {
         return rawValue != null ? rawValue.toString().trim() : "";
-    }
-
-    private Integer deriveAutoCloseHours(Object rawAutoCloseConfig) {
-        if (!(rawAutoCloseConfig instanceof Map<?, ?> map)) {
-            return null;
-        }
-        Map<String, Object> config = new LinkedHashMap<>();
-        map.forEach((key, value) -> {
-            if (key != null) {
-                config.put(key.toString(), value);
-            }
-        });
-        Map<String, Object> activeTemplate = resolveActiveTemplate(
-                normalizeTemplateList(config.get("templates")),
-                stringValue(config.get("active_template_id"))
-        );
-        return activeTemplate != null ? extractAutoCloseHours(activeTemplate) : null;
-    }
-
-    private Integer extractAutoCloseHours(Map<String, Object> template) {
-        if (template == null || template.isEmpty()) {
-            return null;
-        }
-        Integer hours = parseInteger(template.get("hours"));
-        if (hours != null) {
-            return hours;
-        }
-        hours = parseInteger(template.get("timeout_hours"));
-        if (hours != null) {
-            return hours;
-        }
-        return parseInteger(template.get("auto_close_hours"));
     }
 
     private Integer parseInteger(Object rawValue) {

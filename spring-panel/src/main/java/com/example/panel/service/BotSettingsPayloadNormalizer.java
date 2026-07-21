@@ -51,18 +51,19 @@ public class BotSettingsPayloadNormalizer {
         );
         if (activeQuestionTemplate != null) {
             botSettings.put("active_template_id", stringValue(activeQuestionTemplate.get("id")));
-            if (activeQuestionTemplate.containsKey("question_flow")) {
+            if (botSettings.containsKey("question_flow")) {
                 Object derivedQuestionFlow = activeQuestionTemplate.get("question_flow");
-                if (botSettings.containsKey("question_flow")
-                        && !Objects.equals(botSettings.get("question_flow"), derivedQuestionFlow)) {
+                if (!Objects.equals(botSettings.get("question_flow"), derivedQuestionFlow)) {
                     logger.warn(
-                            "Deprecated bot_settings.question_flow payload differs from active template {}; deriving question_flow from question_templates",
+                            "Dropping deprecated bot_settings.question_flow payload because active template {} is canonical source of truth",
                             botSettings.get("active_template_id")
                     );
+                } else {
+                    logger.info("Dropping deprecated bot_settings.question_flow mirror in favor of canonical question_templates");
                 }
-                botSettings.put("question_flow", derivedQuestionFlow);
             }
         }
+        botSettings.remove("question_flow");
 
         List<Map<String, Object>> ratingTemplates = normalizeRatingTemplateList(botSettings.get("rating_templates"));
         if (ratingTemplates.isEmpty() && botSettings.get("rating_system") instanceof Map<?, ?>) {
@@ -86,17 +87,19 @@ public class BotSettingsPayloadNormalizer {
             copyFieldIfPresent(activeRatingTemplate, derivedRatingSystem, "prompt_text");
             copyFieldIfPresent(activeRatingTemplate, derivedRatingSystem, "scale_size");
             copyFieldIfPresent(activeRatingTemplate, derivedRatingSystem, "responses");
-            if (!derivedRatingSystem.isEmpty()) {
-                if (botSettings.containsKey("rating_system")
+            if (botSettings.containsKey("rating_system")) {
+                if (!derivedRatingSystem.isEmpty()
                         && !Objects.equals(botSettings.get("rating_system"), derivedRatingSystem)) {
                     logger.warn(
-                            "Deprecated bot_settings.rating_system payload differs from active rating template {}; deriving rating_system from rating_templates",
+                            "Dropping deprecated bot_settings.rating_system payload because active rating template {} is canonical source of truth",
                             botSettings.get("active_rating_template_id")
                     );
+                } else {
+                    logger.info("Dropping deprecated bot_settings.rating_system mirror in favor of canonical rating_templates");
                 }
-                botSettings.put("rating_system", derivedRatingSystem);
             }
         }
+        botSettings.remove("rating_system");
 
         return botSettings;
     }

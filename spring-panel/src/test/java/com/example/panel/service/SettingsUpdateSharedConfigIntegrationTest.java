@@ -179,11 +179,11 @@ class SettingsUpdateSharedConfigIntegrationTest {
         assertEquals(1, questionFlow.size());
         assertEquals(false, questionFlow.get(0).get("required"));
         assertEquals("Optional question", questionFlow.get(0).get("text"));
-        assertEquals(questionFlow, botSettings.get("question_flow"));
+        assertTrue(!botSettings.containsKey("question_flow"));
     }
 
     @Test
-    void updateSettingsPersistsDerivedRatingSystemFromActiveTemplate() {
+    void updateSettingsPersistsCanonicalRatingTemplatesWithoutDerivedMirror() {
         when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
                 .thenReturn(false);
 
@@ -211,18 +211,17 @@ class SettingsUpdateSharedConfigIntegrationTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> botSettings = (Map<String, Object>) sharedConfigService.loadSettings().get("bot_settings");
         assertEquals("rating-template-default", botSettings.get("active_rating_template_id"));
+        assertTrue(!botSettings.containsKey("rating_system"));
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> ratingSystem = (Map<String, Object>) botSettings.get("rating_system");
-        assertEquals("Пожалуйста, оцените качество ответа от 1 до 5.", ratingSystem.get("prompt_text"));
-        assertEquals(5, ratingSystem.get("scale_size"));
+        List<Map<String, Object>> ratingTemplates = (List<Map<String, Object>>) botSettings.get("rating_templates");
         @SuppressWarnings("unchecked")
-        List<Map<String, Object>> responses = (List<Map<String, Object>>) ratingSystem.get("responses");
+        List<Map<String, Object>> responses = (List<Map<String, Object>>) ratingTemplates.get(0).get("responses");
         assertEquals("Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.", responses.get(1).get("text"));
     }
 
     @Test
-    void updateSettingsDerivesLegacyAutoCloseHoursFromCanonicalAutoCloseConfigPayload() {
+    void updateSettingsPersistsCanonicalAutoCloseConfigWithoutLegacyMirror() {
         when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
                 .thenReturn(false);
 
@@ -249,7 +248,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
                 ),
                 sharedConfigService.loadSettings().get("auto_close_config")
         );
-        assertEquals(1, sharedConfigService.loadSettings().get("auto_close_hours"));
+        assertTrue(!sharedConfigService.loadSettings().containsKey("auto_close_hours"));
     }
 
     @Test

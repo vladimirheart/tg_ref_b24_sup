@@ -54,7 +54,7 @@ class SettingsTopLevelUpdateServiceTest {
     }
 
     @Test
-    void applyTopLevelUpdatesDerivesActiveBotFlowsAndRatingSystem() {
+    void applyTopLevelUpdatesPersistsCanonicalBotTemplatesWithoutDerivedMirrors() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
                         new BotSettingsPayloadNormalizer(),
@@ -92,23 +92,12 @@ class SettingsTopLevelUpdateServiceTest {
         Map<String, Object> botSettings = (Map<String, Object>) settings.get("bot_settings");
         assertEquals("bot-template-1", botSettings.get("active_template_id"));
         assertEquals("rating-template-1", botSettings.get("active_rating_template_id"));
-        assertEquals(
-                List.of(Map.of("id", "q1", "type", "custom", "text", "Как вас зовут?")),
-                botSettings.get("question_flow")
-        );
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> ratingSystem = (Map<String, Object>) botSettings.get("rating_system");
-        assertEquals("Оцените диалог", ratingSystem.get("prompt_text"));
-        assertEquals(5, ratingSystem.get("scale_size"));
-        assertEquals(
-                List.of(Map.of("value", 5, "text", "Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.")),
-                ratingSystem.get("responses")
-        );
+        assertFalse(botSettings.containsKey("question_flow"));
+        assertFalse(botSettings.containsKey("rating_system"));
     }
 
     @Test
-    void applyTopLevelUpdatesDerivesLegacyAutoCloseHoursFromActiveTemplate() {
+    void applyTopLevelUpdatesPersistsCanonicalAutoCloseConfigWithoutLegacyMirror() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
                         new BotSettingsPayloadNormalizer(),
@@ -130,7 +119,7 @@ class SettingsTopLevelUpdateServiceTest {
         ), settings);
 
         assertTrue(modified);
-        assertEquals(1, settings.get("auto_close_hours"));
+        assertFalse(settings.containsKey("auto_close_hours"));
         assertEquals(
                 Map.of(
                         "templates", List.of(
@@ -179,10 +168,7 @@ class SettingsTopLevelUpdateServiceTest {
 
         assertEquals("Импортированный сценарий", questionTemplates.get(0).get("name"));
         assertEquals("Импортированный шаблон оценок", ratingTemplates.get(0).get("name"));
-        assertEquals(questionTemplates.get(0).get("question_flow"), botSettings.get("question_flow"));
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> ratingSystem = (Map<String, Object>) botSettings.get("rating_system");
-        assertEquals("Оцените старый сценарий", ratingSystem.get("prompt_text"));
+        assertFalse(botSettings.containsKey("question_flow"));
+        assertFalse(botSettings.containsKey("rating_system"));
     }
 }
