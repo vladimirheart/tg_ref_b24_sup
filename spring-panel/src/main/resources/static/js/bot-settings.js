@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  function resolveLegacyBotConfig() {
+  function resolvePageBotConfig() {
     const pageConfigRuntime = window.SettingsRuntimeAccess?.resolvePageConfigRuntime?.();
     if (pageConfigRuntime
       && typeof pageConfigRuntime.getBotSettingsInitial === 'function'
@@ -9,28 +9,21 @@
       return {
         initial: pageConfigRuntime.getBotSettingsInitial(),
         presets: pageConfigRuntime.getBotPresetDefinitions(),
-        source: 'page-config-runtime',
       };
     }
 
-    if (typeof BOT_SETTINGS_INITIAL !== 'undefined' && typeof BOT_PRESET_DEFINITIONS !== 'undefined') {
-      return {
-        initial: BOT_SETTINGS_INITIAL,
-        presets: BOT_PRESET_DEFINITIONS,
-        source: 'legacy-globals',
-      };
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+      console.warn('Bot settings runtime requires SettingsPageConfigRuntime.getBotSettingsInitial/getBotPresetDefinitions bootstrap.');
     }
-
     return null;
   }
 
-  const legacyBotConfig = resolveLegacyBotConfig();
-  if (!legacyBotConfig) {
+  const pageBotConfig = resolvePageBotConfig();
+  if (!pageBotConfig) {
     return;
   }
-  const BOT_SETTINGS_INITIAL = legacyBotConfig.initial;
-  const BOT_PRESET_DEFINITIONS = legacyBotConfig.presets;
-  const BOT_SETTINGS_SOURCE = legacyBotConfig.source;
+  const pageBotSettingsInitial = pageBotConfig.initial;
+  const pageBotPresetDefinitions = pageBotConfig.presets;
 
   const mainModal = document.querySelector('[data-bot-settings-modal]');
   if (!mainModal) {
@@ -121,7 +114,7 @@
   }
 
   const PRESET_GROUPS = {};
-  Object.entries(BOT_PRESET_DEFINITIONS || {}).forEach(([groupKey, groupValue]) => {
+  Object.entries(pageBotPresetDefinitions || {}).forEach(([groupKey, groupValue]) => {
     if (!groupValue || typeof groupValue !== 'object') {
       return;
     }
@@ -680,7 +673,6 @@
 
   function createLegacyDiagnostics() {
     return {
-      usesLegacyBootstrapGlobals: BOT_SETTINGS_SOURCE === 'legacy-globals',
       usesLegacyTemplateQuestions: false,
       usesRootQuestionFlow: false,
       usesRootRatingSystem: false,
@@ -733,15 +725,6 @@
     const ratingTemplates = ratingTemplateSource
       .map((item, index) => normalizeRatingTemplate(item, index))
       .filter((template) => template && template.promptText);
-
-    if (!ratingTemplates.length && Array.isArray(BOT_SETTINGS_INITIAL?.rating_templates)) {
-      BOT_SETTINGS_INITIAL.rating_templates.forEach((item, index) => {
-        const normalized = normalizeRatingTemplate(item, index);
-        if (normalized) {
-          ratingTemplates.push(normalized);
-        }
-      });
-    }
 
     if (!ratingTemplates.length && source.rating_system && typeof source.rating_system === 'object') {
       legacyDiagnostics.usesRootRatingSystem = true;
@@ -804,7 +787,7 @@
     responses: {},
   };
 
-  let initialState = normalizeSettings(BOT_SETTINGS_INITIAL);
+  let initialState = normalizeSettings(pageBotSettingsInitial);
 
   function hydrateStateFrom(source) {
     const normalized = normalizeSettings(source);
@@ -1222,9 +1205,6 @@
     }
     const diagnostics = state.legacyDiagnostics || createLegacyDiagnostics();
     const parts = [];
-    if (diagnostics.usesLegacyBootstrapGlobals) {
-      parts.push('Загрузка bot settings выполнена через legacy BOT_* globals, а не через SettingsPageConfigRuntime.');
-    }
     if (diagnostics.usesLegacyTemplateQuestions) {
       parts.push('Внутри question_templates найден deprecated ключ questions; UI нормализовал его в question_flow.');
     }
@@ -1241,7 +1221,7 @@
       return;
     }
     legacyDiagnosticEl.classList.add('alert-success');
-    legacyDiagnosticEl.textContent = 'Legacy-аудит: bot settings загружены по канонической схеме question_templates / rating_templates без deprecated fallback.';
+    legacyDiagnosticEl.textContent = 'Legacy-аудит: bot settings загружены через SettingsPageConfigRuntime по канонической схеме question_templates / rating_templates без deprecated fallback.';
   }
 
   function renderHiddenSummary(card, question, meta) {
