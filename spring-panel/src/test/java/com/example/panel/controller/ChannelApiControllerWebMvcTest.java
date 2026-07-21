@@ -426,6 +426,55 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
+    void createChannelPromotesLegacyTemplateSelectionsOutOfQuestionsCfg() throws Exception {
+        when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> {
+            Channel channel = invocation.getArgument(0);
+            channel.setId(52L);
+            return channel;
+        });
+        sharedConfigService.saveBotCredentials(List.of());
+
+        mockMvc.perform(post("/api/channels")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "channel_name": "Legacy QuestionsCfg",
+                                  "platform": "telegram",
+                                  "token": "telegram-token",
+                                  "questions_cfg": {
+                                    "active_template_id": "q-legacy",
+                                    "active_rating_template_id": "r-legacy",
+                                    "panelNotifications": {
+                                      "routing": {
+                                        "targetMode": "all_operators",
+                                        "deliveryMode": "all"
+                                      },
+                                      "events": {
+                                        "newPublicAppeal": true
+                                      }
+                                    }
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.channel.id").value(52))
+                .andExpect(jsonPath("$.channel.question_template_id").value("q-legacy"))
+                .andExpect(jsonPath("$.channel.rating_template_id").value("r-legacy"))
+                .andExpect(jsonPath("$.channel.questions_cfg.active_template_id").doesNotExist())
+                .andExpect(jsonPath("$.channel.questions_cfg.active_rating_template_id").doesNotExist());
+
+        verify(channelRepository).save(argThat(channel ->
+                "q-legacy".equals(channel.getQuestionTemplateId())
+                        && "r-legacy".equals(channel.getRatingTemplateId())
+                        && channel.getQuestionsCfg() != null
+                        && !channel.getQuestionsCfg().contains("active_template_id")
+                        && !channel.getQuestionsCfg().contains("active_rating_template_id")
+        ));
+    }
+
+    @Test
     void createChannelRejectsMissingName() throws Exception {
         mockMvc.perform(post("/api/channels")
                         .contentType("application/json")
@@ -624,6 +673,41 @@ class ChannelApiControllerWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("questions_cfg должен быть объектом или массивом"));
+    }
+
+    @Test
+    void getChannelsBackfillsTypedSelectionsFromLegacyQuestionsCfgAndSanitizesResponseConfig() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(145L);
+        channel.setChannelName("Legacy Override");
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setActive(true);
+        channel.setQuestionsCfg("""
+                {
+                  "question_template_id": "q-legacy",
+                  "rating_template_id": "r-legacy",
+                  "panelNotifications": {
+                    "routing": {
+                      "targetMode": "all_operators",
+                      "deliveryMode": "all"
+                    },
+                    "events": {
+                      "newPublicAppeal": true
+                    }
+                  }
+                }
+                """);
+        when(channelRepository.findAll()).thenReturn(List.of(channel));
+        sharedConfigService.saveBotCredentials(List.of());
+
+        mockMvc.perform(get("/api/channels"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.channels[0].question_template_id").value("q-legacy"))
+                .andExpect(jsonPath("$.channels[0].rating_template_id").value("r-legacy"))
+                .andExpect(jsonPath("$.channels[0].questions_cfg.question_template_id").doesNotExist())
+                .andExpect(jsonPath("$.channels[0].questions_cfg.rating_template_id").doesNotExist());
     }
 
     @Test
