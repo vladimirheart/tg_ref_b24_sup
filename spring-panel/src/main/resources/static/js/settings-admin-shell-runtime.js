@@ -26,8 +26,8 @@
   function createRuntime(options = {}) {
     const config = resolveConfig(options);
     const reportingRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsReportingManagerBindings', {
-      reportingConfigInitial: readConfigObject(config, 'reportingConfig') || options.reportingConfigInitial,
-      managerLocationBindingsInitial: readConfigArray(config, 'managerLocationBindings') || options.managerLocationBindingsInitial,
+      reportingConfigInitial: readConfigObject(config, 'reportingConfig') || {},
+      managerLocationBindingsInitial: readConfigArray(config, 'managerLocationBindings') || [],
       getLocationsState: typeof options.getLocationsState === 'function'
         ? options.getLocationsState
         : null,

@@ -24,6 +24,7 @@ import com.example.panel.service.PermissionService;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
 import com.example.panel.service.LocationsIikoServerSourceSettingsService;
 import com.example.panel.service.LocationsIikoSyncSettingsService;
+import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SettingsParameterService;
 import com.example.panel.service.SharedConfigService;
@@ -93,6 +94,9 @@ class ManagementControllerWebMvcTest {
     @MockBean
     private UnblockRequestService unblockRequestService;
 
+    @MockBean
+    private PanelUserPhotoService panelUserPhotoService;
+
     @Test
     void settingsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         stubNavigationDefaults();
@@ -157,9 +161,16 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"settings\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"channels\": {")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"botSettings\":")))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"botSettingsInitial\""))))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"reportingConfigInitial\""))))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"locationsInitial\""))))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Смоленск")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Как вас зовут?")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"question_templates\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"rating_templates\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"template-1\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"rating-template-default\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Legacy-аудит bot settings будет показан здесь после загрузки настроек.")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Это legacy-секция для `dialog_config.question_templates`")));
     }
@@ -213,10 +224,11 @@ class ManagementControllerWebMvcTest {
         mockMvc.perform(get("/settings").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
             .andExpect(status().isOk())
             .andExpect(view().name("settings/index"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Импортированный сценарий")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Импортированный шаблон оценок")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Старый вопрос")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Старый ответ 5")));
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"question_templates\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"rating_templates\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"template-imported\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"rating-template-imported\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"legacy-question-1\"")));
     }
 
     @Test
@@ -401,5 +413,6 @@ class ManagementControllerWebMvcTest {
     private void stubNavigationDefaults() {
         when(permissionService.hasAuthority(any(), any())).thenReturn(false);
         when(panelUserRepository.findByUsernameIgnoreCase("operator")).thenReturn(Optional.empty());
+        when(panelUserPhotoService.resolveUrl(any(), any())).thenReturn("/avatar_default.svg");
     }
 }

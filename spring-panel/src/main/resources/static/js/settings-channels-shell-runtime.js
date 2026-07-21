@@ -27,10 +27,10 @@
 
   function createRuntime(options = {}) {
     const config = resolveConfig(options);
-    const botSettingsInitial = readConfigObject(config, 'botSettings') || options.botSettingsInitial || {};
-    const autoCloseConfig = readConfigObject(config, 'autoCloseConfig') || options.autoCloseConfig || {};
-    const integrationNetworkInitial = readConfigObject(config, 'integrationNetwork') || options.integrationNetworkInitial || {};
-    const integrationNetworkProfilesInitial = readConfigArray(config, 'integrationNetworkProfiles') || options.integrationNetworkProfilesInitial || [];
+    const botSettingsInitial = readConfigObject(config, 'botSettings') || {};
+    const autoCloseConfig = readConfigObject(config, 'autoCloseConfig') || {};
+    const integrationNetworkInitial = readConfigObject(config, 'integrationNetwork') || {};
+    const integrationNetworkProfilesInitial = readConfigArray(config, 'integrationNetworkProfiles') || [];
     const hasInitialIntegrationNetworkState = hasInitialIntegrationNetworkData(config, integrationNetworkProfilesInitial);
     const state = {
       channelsInitialized: false,

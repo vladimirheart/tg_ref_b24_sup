@@ -291,12 +291,12 @@
     return section && typeof section === 'object' ? section : {};
   }
 
-  function resolveConfigValue(raw, sectionName, nestedKey, legacyKey) {
+  function readSectionValue(raw, sectionName, nestedKey) {
     const section = resolveConfigSection(raw, sectionName);
     if (Object.prototype.hasOwnProperty.call(section, nestedKey)) {
       return section[nestedKey];
     }
-    return raw ? raw[legacyKey] : undefined;
+    return undefined;
   }
 
   function normalizeCityOptions(values) {
@@ -311,31 +311,31 @@
 
   function build(raw = {}) {
     const dialog = {
-      config: normalizeObject(resolveConfigValue(raw, 'dialog', 'config', 'dialogConfig')),
+      config: normalizeObject(readSectionValue(raw, 'dialog', 'config')),
       defaultSlaConfig: DEFAULT_DIALOG_SLA_CONFIG,
       defaultTimeMetrics: DEFAULT_DIALOG_TIME_METRICS,
       defaultSummaryBadges: DEFAULT_SUMMARY_BADGES,
-      canPublishMacros: Boolean(resolveConfigValue(raw, 'dialog', 'canPublishMacros', 'canPublishDialogMacros')),
-      autoCloseConfig: normalizeObject(resolveConfigValue(raw, 'dialog', 'autoCloseConfig', 'autoCloseConfig')),
-      autoCloseFallbackHours: normalizeNumber(resolveConfigValue(raw, 'dialog', 'autoCloseFallbackHours', 'autoCloseFallbackHours'), 24) || 24,
-      fallbackCategories: normalizeArray(resolveConfigValue(raw, 'dialog', 'fallbackCategories', 'fallbackDialogCategories')),
+      canPublishMacros: Boolean(readSectionValue(raw, 'dialog', 'canPublishMacros')),
+      autoCloseConfig: normalizeObject(readSectionValue(raw, 'dialog', 'autoCloseConfig')),
+      autoCloseFallbackHours: normalizeNumber(readSectionValue(raw, 'dialog', 'autoCloseFallbackHours'), 24) || 24,
+      fallbackCategories: normalizeArray(readSectionValue(raw, 'dialog', 'fallbackCategories')),
     };
 
     const admin = {
-      reportingConfig: normalizeObject(resolveConfigValue(raw, 'admin', 'reportingConfig', 'reportingConfigInitial')),
-      managerLocationBindings: normalizeArray(resolveConfigValue(raw, 'admin', 'managerLocationBindings', 'managerLocationBindingsInitial')),
+      reportingConfig: normalizeObject(readSectionValue(raw, 'admin', 'reportingConfig')),
+      managerLocationBindings: normalizeArray(readSectionValue(raw, 'admin', 'managerLocationBindings')),
     };
 
     const channels = {
-      botSettings: normalizeObject(resolveConfigValue(raw, 'channels', 'botSettings', 'botSettingsInitial')),
-      botPresetDefinitions: normalizeObject(resolveConfigValue(raw, 'channels', 'botPresetDefinitions', 'botPresetDefinitions')),
-      integrationNetwork: normalizeObject(resolveConfigValue(raw, 'channels', 'integrationNetwork', 'integrationNetworkInitial')),
-      integrationNetworkProfiles: normalizeArray(resolveConfigValue(raw, 'channels', 'integrationNetworkProfiles', 'integrationNetworkProfilesInitial')),
+      botSettings: normalizeObject(readSectionValue(raw, 'channels', 'botSettings')),
+      botPresetDefinitions: normalizeObject(readSectionValue(raw, 'channels', 'botPresetDefinitions')),
+      integrationNetwork: normalizeObject(readSectionValue(raw, 'channels', 'integrationNetwork')),
+      integrationNetworkProfiles: normalizeArray(readSectionValue(raw, 'channels', 'integrationNetworkProfiles')),
     };
 
     const parameters = {
-      titles: normalizeObject(resolveConfigValue(raw, 'parameters', 'titles', 'parameterTitles')),
-      dependencies: normalizeObject(resolveConfigValue(raw, 'parameters', 'dependencies', 'parameterDependencies')),
+      titles: normalizeObject(readSectionValue(raw, 'parameters', 'titles')),
+      dependencies: normalizeObject(readSectionValue(raw, 'parameters', 'dependencies')),
       stateTypes: PARAMETER_STATE_TYPES,
       states: PARAMETER_STATES,
       filterKeys: PARAMETER_FILTER_KEYS,
@@ -346,24 +346,24 @@
       partnerContactStateClassMap: PARTNER_CONTACT_STATE_CLASS_MAP,
       cityParameterType: CITY_PARAMETER_TYPE,
       cityParameterLabel: CITY_PARAMETER_LABEL,
-      itConnectionFallbackLabels: normalizeObject(resolveConfigValue(raw, 'parameters', 'itConnectionFallbackLabels', 'itConnectionFallbackLabels')),
-      itConnectionCategoryFields: normalizeObject(resolveConfigValue(raw, 'parameters', 'itConnectionCategoryFields', 'itConnectionCategoryFields')),
-      cityOptions: normalizeCityOptions(resolveConfigValue(raw, 'parameters', 'cityOptions', 'cityOptions')),
-      contractUsageData: normalizeObject(resolveConfigValue(raw, 'parameters', 'contractUsageData', 'contractUsageData')),
-      networkProfiles: normalizeArray(resolveConfigValue(raw, 'parameters', 'networkProfiles', 'networkProfilesInitial')),
+      itConnectionFallbackLabels: normalizeObject(readSectionValue(raw, 'parameters', 'itConnectionFallbackLabels')),
+      itConnectionCategoryFields: normalizeObject(readSectionValue(raw, 'parameters', 'itConnectionCategoryFields')),
+      cityOptions: normalizeCityOptions(readSectionValue(raw, 'parameters', 'cityOptions')),
+      contractUsageData: normalizeObject(readSectionValue(raw, 'parameters', 'contractUsageData')),
+      networkProfiles: normalizeArray(readSectionValue(raw, 'parameters', 'networkProfiles')),
     };
 
     const appearance = {
-      statusUsage: normalizeObject(resolveConfigValue(raw, 'appearance', 'statusUsage', 'statusUsage')),
-      clientStatuses: normalizeArray(resolveConfigValue(raw, 'appearance', 'clientStatuses', 'initialClientStatuses')),
-      clientStatusColors: normalizeObject(resolveConfigValue(raw, 'appearance', 'clientStatusColors', 'initialClientStatusColors')),
-      businessCellStyles: normalizeObject(resolveConfigValue(raw, 'appearance', 'businessCellStyles', 'initialBusinessCellStyles')),
+      statusUsage: normalizeObject(readSectionValue(raw, 'appearance', 'statusUsage')),
+      clientStatuses: normalizeArray(readSectionValue(raw, 'appearance', 'clientStatuses')),
+      clientStatusColors: normalizeObject(readSectionValue(raw, 'appearance', 'clientStatusColors')),
+      businessCellStyles: normalizeObject(readSectionValue(raw, 'appearance', 'businessCellStyles')),
     };
 
     const locations = {
-      tree: normalizeObject(resolveConfigValue(raw, 'locations', 'tree', 'locationsInitial')),
-      iikoServerSources: normalizeArray(resolveConfigValue(raw, 'locations', 'iikoServerSources', 'locationsIikoServerSourcesInitial')),
-      iikoSyncSettings: normalizeObject(resolveConfigValue(raw, 'locations', 'iikoSyncSettings', 'locationsIikoSyncSettingsInitial')),
+      tree: normalizeObject(readSectionValue(raw, 'locations', 'tree')),
+      iikoServerSources: normalizeArray(readSectionValue(raw, 'locations', 'iikoServerSources')),
+      iikoSyncSettings: normalizeObject(readSectionValue(raw, 'locations', 'iikoSyncSettings')),
     };
 
     lastBuiltConfig = {
@@ -423,10 +423,10 @@
     build,
     getLastConfig,
     getBotSettingsInitial() {
-      return normalizeObject(lastBuiltConfig.channels?.botSettings || lastBuiltConfig.botSettingsInitial);
+      return normalizeObject(lastBuiltConfig.channels?.botSettings);
     },
     getBotPresetDefinitions() {
-      return normalizeObject(lastBuiltConfig.channels?.botPresetDefinitions || lastBuiltConfig.botPresetDefinitions);
+      return normalizeObject(lastBuiltConfig.channels?.botPresetDefinitions);
     },
   });
 }());

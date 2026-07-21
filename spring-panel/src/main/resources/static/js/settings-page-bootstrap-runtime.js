@@ -45,33 +45,33 @@
     const promptDialog = resolveHelper(options, 'promptDialog', function fallbackPromptDialog() { return null; });
 
     const settingsDialogSlaCoreRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogSlaCoreRuntime', {
-      getDialogConfig: () => dialog.config || options.dialogConfig || {},
-      getDefaultDialogSlaConfig: () => dialog.defaultSlaConfig || options.defaultDialogSlaConfig || {},
+      getDialogConfig: () => dialog.config || {},
+      getDefaultDialogSlaConfig: () => dialog.defaultSlaConfig || {},
     }) || null;
 
     const settingsDialogMetricsRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogMetricsRuntime', {
-      getDialogConfig: () => dialog.config || options.dialogConfig || {},
-      getDefaultDialogTimeMetrics: () => dialog.defaultTimeMetrics || options.defaultDialogTimeMetrics || {},
-      getDefaultSummaryBadges: () => dialog.defaultSummaryBadges || options.defaultSummaryBadges || {},
+      getDialogConfig: () => dialog.config || {},
+      getDefaultDialogTimeMetrics: () => dialog.defaultTimeMetrics || {},
+      getDefaultSummaryBadges: () => dialog.defaultSummaryBadges || {},
     }) || null;
 
     const settingsDialogWorkspaceGovernanceRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogWorkspaceGovernanceRuntime', {
-      getDialogConfig: () => dialog.config || options.dialogConfig || {},
-      getDefaultDialogSlaConfig: () => dialog.defaultSlaConfig || options.defaultDialogSlaConfig || {},
+      getDialogConfig: () => dialog.config || {},
+      getDefaultDialogSlaConfig: () => dialog.defaultSlaConfig || {},
     }) || null;
 
     const settingsDialogWorkspaceExternalKpiRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogWorkspaceExternalKpiRuntime', {
-      getDialogConfig: () => dialog.config || options.dialogConfig || {},
-      getDefaultDialogSlaConfig: () => dialog.defaultSlaConfig || options.defaultDialogSlaConfig || {},
+      getDialogConfig: () => dialog.config || {},
+      getDefaultDialogSlaConfig: () => dialog.defaultSlaConfig || {},
       escapeHtml,
     }) || null;
 
     const settingsDialogTemplatesRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogTemplatesRuntime', {
-      getDialogConfig: () => dialog.config || options.dialogConfig || {},
-      getAutoCloseConfig: () => dialog.autoCloseConfig || options.autoCloseConfig || {},
-      getAutoCloseFallbackHours: () => dialog.autoCloseFallbackHours ?? options.autoCloseFallbackHours ?? 24,
-      getFallbackDialogCategories: () => dialog.fallbackCategories || options.fallbackDialogCategories || [],
-      canPublishDialogMacros: () => Boolean(dialog.canPublishMacros ?? options.canPublishDialogMacros),
+      getDialogConfig: () => dialog.config || {},
+      getAutoCloseConfig: () => dialog.autoCloseConfig || {},
+      getAutoCloseFallbackHours: () => dialog.autoCloseFallbackHours ?? 24,
+      getFallbackDialogCategories: () => dialog.fallbackCategories || [],
+      canPublishDialogMacros: () => Boolean(dialog.canPublishMacros),
       escapeHtml,
     }) || null;
 
@@ -125,7 +125,7 @@
     const settingsLocationWizardRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationWizardRuntime', {
       getParameterData: () => settingsParametersShellRuntime?.getParameterData() || {},
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
-      getCityOptionsFallback: () => parameters.cityOptions || options.cityOptions || [],
+      getCityOptionsFallback: () => parameters.cityOptions || [],
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
       isParametersLoaded: () => settingsParametersShellRuntime?.isParametersLoaded() || false,
       showPopup: (message, type) => showPopup(message, type),
@@ -144,7 +144,7 @@
     const settingsChannelsShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelsShellRuntime', {
       config: {
         ...channels,
-        autoCloseConfig: dialog.autoCloseConfig || options.autoCloseConfig || {},
+        autoCloseConfig: dialog.autoCloseConfig || {},
       },
       escapeHtml,
       getCookieValue: (name) => getCookieValue(name),
@@ -164,7 +164,7 @@
       metricsRuntime: settingsDialogMetricsRuntime,
       dialogShellRuntime: settingsDialogShellRuntime,
       networkProfilesRuntime: settingsNetworkProfilesRuntime,
-      getAutoCloseFallbackHours: () => dialog.autoCloseFallbackHours ?? options.autoCloseFallbackHours ?? 24,
+      getAutoCloseFallbackHours: () => dialog.autoCloseFallbackHours ?? 24,
       collectStatuses: () => Array.from(document.querySelectorAll('#statusesList .status-input'))
         .map((input) => input.value.trim())
         .filter(Boolean),
