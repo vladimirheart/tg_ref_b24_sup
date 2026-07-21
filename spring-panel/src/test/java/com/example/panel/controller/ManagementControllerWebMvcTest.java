@@ -106,7 +106,7 @@ class ManagementControllerWebMvcTest {
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(
                 "auto_close_config", Map.of(
                         "templates", List.of(
-                                Map.of("id", "auto-template-1", "timeout_hours", 1, "description", "legacy")
+                                Map.of("id", "auto-template-1", "hours", 1, "description", "primary")
                         ),
                         "active_template_id", "auto-template-1"
                 ),
@@ -186,7 +186,7 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
-    void settingsPageNormalizesLegacyBotSettingsIntoCanonicalBootstrapPayload() throws Exception {
+    void settingsPageImportsLegacyBotSettingsIntoCanonicalBootstrapPayload() throws Exception {
         stubNavigationDefaults();
         when(appSettingRepository.findAll()).thenReturn(List.of());
         when(settingsParameterRepository.findAll()).thenReturn(List.of());

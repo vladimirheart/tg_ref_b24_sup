@@ -49,7 +49,7 @@ class BotSettingsServiceTest {
     }
 
     @Test
-    void sanitizeShouldNormalizeSettings() throws IOException {
+    void sanitizeShouldNormalizeCanonicalTemplateSettings() throws IOException {
         Map<String, Object> raw = objectMapper.readValue(
                 """
                         {
@@ -74,10 +74,6 @@ class BotSettingsServiceTest {
                             }
                           ],
                           "active_template_id": "q-1",
-                          "question_flow": [
-                            {"type": "preset", "group": "locations", "field": "city"},
-                            "Fallback?"
-                          ],
                           "rating_templates": [
                             {
                               "id": "rate1",
@@ -100,8 +96,7 @@ class BotSettingsServiceTest {
                               ]
                             }
                           ],
-                          "active_rating_template_id": "rate1",
-                          "rating_system": {"scaleSize": "4", "responses": {"1": "one", "2": "two", "invalid": "bad"}}
+                          "active_rating_template_id": "rate1"
                         }
                         """,
                 new TypeReference<>() {
@@ -144,6 +139,62 @@ class BotSettingsServiceTest {
     }
 
     @Test
+    void sanitizeShouldPreferCanonicalTemplatesOverLegacyRootMirrorsWhenBothArePresent() throws IOException {
+        Map<String, Object> raw = objectMapper.readValue(
+                """
+                        {
+                          "question_templates": [
+                            {
+                              "id": "q-canonical",
+                              "name": "Canonical questions",
+                              "question_flow": [
+                                {"type": "custom", "text": "Canonical question"}
+                              ]
+                            }
+                          ],
+                          "active_template_id": "q-canonical",
+                          "question_flow": [
+                            {"type": "custom", "text": "Legacy mirror question"}
+                          ],
+                          "rating_templates": [
+                            {
+                              "id": "r-canonical",
+                              "name": "Canonical rating",
+                              "scale_size": 3,
+                              "prompt_text": "Canonical prompt",
+                              "responses": {
+                                "1": "Canonical bad",
+                                "3": "Canonical great"
+                              }
+                            }
+                          ],
+                          "active_rating_template_id": "r-canonical",
+                          "rating_system": {
+                            "scaleSize": 5,
+                            "prompt_text": "Legacy prompt",
+                            "responses": {
+                              "1": "Legacy bad",
+                              "5": "Legacy great"
+                            }
+                          }
+                        }
+                        """,
+                new TypeReference<>() {
+                });
+
+        BotSettingsDto sanitized = service.sanitizeFromJson(raw);
+
+        assertThat(sanitized.getQuestionFlow()).extracting(QuestionFlowItemDto::getText)
+                .containsExactly("Canonical question");
+        assertThat(sanitized.getRatingSystem().getPromptText()).isEqualTo("Canonical prompt");
+        assertThat(sanitized.getRatingSystem().getScaleSize()).isEqualTo(3);
+        assertThat(sanitized.getRatingSystem().getResponses())
+                .extracting(RatingResponseDto::getText)
+                .contains("Canonical bad", "Canonical great")
+                .doesNotContain("Legacy bad", "Legacy great");
+    }
+
+    @Test
     void sanitizeShouldPreserveRequiredFlagForOptionalFreeQuestions() throws IOException {
         Map<String, Object> raw = objectMapper.readValue(
                 """
@@ -183,7 +234,7 @@ class BotSettingsServiceTest {
     }
 
     @Test
-    void sanitizeShouldImportLegacyQuestionFlowAndRatingSystemIntoCanonicalTemplates() throws IOException {
+    void sanitizeShouldImportLegacyQuestionFlowAndRatingSystemIntoCanonicalTemplatesWhenCanonicalTemplatesAreMissing() throws IOException {
         Map<String, Object> raw = objectMapper.readValue(
                 """
                         {

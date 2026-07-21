@@ -18,7 +18,7 @@ import org.mockito.ArgumentCaptor;
 class MaintenanceTasksTest {
 
     @Test
-    void resolveAutoCloseDurationUsesSharedSettingInHours() {
+    void resolveAutoCloseDurationUsesMigrationOnlyTopLevelLegacyHours() {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("auto_close_hours", 1));
 
@@ -94,7 +94,7 @@ class MaintenanceTasksTest {
     }
 
     @Test
-    void resolveAutoCloseDurationDisablesAutoCloseWhenHoursIsZero() {
+    void resolveAutoCloseDurationDisablesAutoCloseWhenMigrationOnlyHoursIsZero() {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("auto_close_hours", 0));
 
@@ -108,7 +108,7 @@ class MaintenanceTasksTest {
     }
 
     @Test
-    void autoCloseInactiveTicketsPassesLegacyDurationToTicketServiceResolver() {
+    void autoCloseInactiveTicketsPassesMigrationOnlyDurationToTicketServiceResolver() {
         TicketService ticketService = mock(TicketService.class);
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("auto_close_hours", 1));
