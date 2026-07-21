@@ -55,6 +55,23 @@ class MaintenanceTasksTest {
     }
 
     @Test
+    void resolveAutoCloseDurationDoesNotFallbackToLegacyHoursWhenAutoCloseConfigAlreadyExists() {
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "auto_close_config", Map.of("templates", List.of()),
+                "auto_close_hours", 1
+        ));
+
+        MaintenanceTasks tasks = new MaintenanceTasks(
+                mock(ClientUnblockRequestRepository.class),
+                mock(TicketService.class),
+                sharedConfigService
+        );
+
+        assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(24));
+    }
+
+    @Test
     void resolveAutoCloseDurationDisablesAutoCloseWhenHoursIsZero() {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("auto_close_hours", 0));
@@ -92,6 +109,34 @@ class MaintenanceTasksTest {
         assertThat(policy.enabled()).isTrue();
         assertThat(policy.inactivityLimit()).isEqualTo(Duration.ofHours(1));
         assertThat(policy.source()).isEqualTo("legacy:auto_close_hours");
+    }
+
+    @Test
+    void autoCloseInactiveTicketsDoesNotUseLegacyHoursWhenCanonicalConfigExistsButIsEmpty() {
+        TicketService ticketService = mock(TicketService.class);
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "auto_close_hours", 1,
+                "auto_close_config", Map.of("templates", List.of())
+        ));
+        when(ticketService.closeInactiveTickets(org.mockito.ArgumentMatchers.<Function<Ticket, TicketService.AutoClosePolicy>>any()))
+                .thenReturn(new TicketService.AutoCloseRunResult(1, 0));
+
+        MaintenanceTasks tasks = new MaintenanceTasks(
+                mock(ClientUnblockRequestRepository.class),
+                ticketService,
+                sharedConfigService
+        );
+
+        tasks.autoCloseInactiveTickets();
+
+        ArgumentCaptor<Function<Ticket, TicketService.AutoClosePolicy>> captor = ArgumentCaptor.forClass(Function.class);
+        verify(ticketService).closeInactiveTickets(captor.capture());
+
+        TicketService.AutoClosePolicy policy = captor.getValue().apply(new Ticket());
+        assertThat(policy.enabled()).isTrue();
+        assertThat(policy.inactivityLimit()).isEqualTo(Duration.ofHours(24));
+        assertThat(policy.source()).isEqualTo("default:auto_close");
     }
 
     @Test

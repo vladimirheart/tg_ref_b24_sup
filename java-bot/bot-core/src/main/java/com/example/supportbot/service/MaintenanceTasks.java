@@ -125,15 +125,34 @@ public class MaintenanceTasks {
             return templateSelection;
         }
 
+        if (hasAutoCloseConfig(settings)) {
+            if (parsePositiveInteger(settings.get("auto_close_hours")) >= 0) {
+                log.warn("Ignoring deprecated legacy auto_close_hours because auto_close_config is present but did not resolve a valid template selection");
+            }
+            return AutoCloseSelection.enabled(DEFAULT_AUTO_CLOSE_DURATION, "default:auto_close", null,
+                    Math.toIntExact(DEFAULT_AUTO_CLOSE_DURATION.toHours()));
+        }
+
+        AutoCloseSelection legacySelection = resolveLegacyAutoCloseSelection(settings);
+        if (legacySelection != null) {
+            return legacySelection;
+        }
+
+        return AutoCloseSelection.enabled(DEFAULT_AUTO_CLOSE_DURATION, "default:auto_close", null,
+                Math.toIntExact(DEFAULT_AUTO_CLOSE_DURATION.toHours()));
+    }
+
+    private AutoCloseSelection resolveLegacyAutoCloseSelection(Map<String, Object> settings) {
         int legacyHours = parsePositiveInteger(settings.get("auto_close_hours"));
         if (legacyHours == 0) {
+            log.info("Using deprecated legacy auto_close_hours fallback to disable auto-close because auto_close_config is absent");
             return AutoCloseSelection.disabled("legacy:auto_close_hours", null, 0);
         }
         if (legacyHours > 0) {
+            log.info("Using deprecated legacy auto_close_hours fallback because auto_close_config is absent");
             return AutoCloseSelection.enabled(Duration.ofHours(legacyHours), "legacy:auto_close_hours", null, legacyHours);
         }
-        return AutoCloseSelection.enabled(DEFAULT_AUTO_CLOSE_DURATION, "default:auto_close", null,
-                Math.toIntExact(DEFAULT_AUTO_CLOSE_DURATION.toHours()));
+        return null;
     }
 
     private AutoCloseSelection resolveChannelAutoCloseSelection(Map<String, Object> settings,
@@ -231,6 +250,10 @@ public class MaintenanceTasks {
             }
         });
         return result;
+    }
+
+    private boolean hasAutoCloseConfig(Map<String, Object> settings) {
+        return settings != null && settings.containsKey("auto_close_config");
     }
 
     private List<Map<String, Object>> asMapList(Object rawValue) {
