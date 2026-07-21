@@ -96,10 +96,11 @@ public class BotSettingsService {
     }
 
     public int ratingScale(BotSettingsDto settings, int defaultValue) {
-        if (settings == null || settings.getRatingSystem() == null) {
+        com.example.supportbot.settings.dto.RatingSystemDto rating = activeRatingSystem(settings);
+        if (rating == null) {
             return defaultValue;
         }
-        int scale = settings.getRatingSystem().getScaleSize();
+        int scale = rating.getScaleSize();
         return scale >= 1 ? scale : defaultValue;
     }
 
@@ -113,10 +114,11 @@ public class BotSettingsService {
     }
 
     public String ratingPrompt(BotSettingsDto settings, String defaultPrompt) {
-        if (settings == null || settings.getRatingSystem() == null) {
+        com.example.supportbot.settings.dto.RatingSystemDto rating = activeRatingSystem(settings);
+        if (rating == null) {
             return defaultPrompt != null ? defaultPrompt : defaultRatingPrompt(5);
         }
-        String prompt = settings.getRatingSystem().getPromptText();
+        String prompt = rating.getPromptText();
         if (prompt != null && !prompt.isBlank()) {
             return prompt.trim();
         }
@@ -124,10 +126,11 @@ public class BotSettingsService {
     }
 
     public Map<String, String> ratingResponses(BotSettingsDto settings) {
-        if (settings == null || settings.getRatingSystem() == null) {
+        com.example.supportbot.settings.dto.RatingSystemDto rating = activeRatingSystem(settings);
+        if (rating == null) {
             return Collections.emptyMap();
         }
-        List<com.example.supportbot.settings.dto.RatingResponseDto> responses = settings.getRatingSystem().getResponses();
+        List<com.example.supportbot.settings.dto.RatingResponseDto> responses = rating.getResponses();
         if (responses == null) {
             return Collections.emptyMap();
         }
@@ -154,22 +157,13 @@ public class BotSettingsService {
     }
 
     public String startAutoReply(BotSettingsDto settings, String defaultPrompt) {
-        if (settings == null) {
+        com.example.supportbot.settings.dto.QuestionTemplateDto template = activeQuestionTemplate(settings);
+        if (template == null) {
             return defaultPrompt;
         }
-        if (settings.getQuestionTemplates() != null && settings.getActiveTemplateId() != null) {
-            for (var template : settings.getQuestionTemplates()) {
-                if (template == null || template.getId() == null) {
-                    continue;
-                }
-                if (template.getId().equals(settings.getActiveTemplateId())) {
-                    String message = optionalString(template.getStartMessage());
-                    if (!message.isBlank()) {
-                        return message;
-                    }
-                    break;
-                }
-            }
+        String message = optionalString(template.getStartMessage());
+        if (!message.isBlank()) {
+            return message;
         }
         return defaultPrompt;
     }
@@ -201,7 +195,6 @@ public class BotSettingsService {
                     .orElse(null);
             if (selectedQuestionTemplate != null) {
                 result.put("active_template_id", selectedQuestionTemplateId);
-                result.put("question_flow", castList(selectedQuestionTemplate.get("question_flow")));
             }
         }
 
@@ -215,38 +208,10 @@ public class BotSettingsService {
                     .orElse(null);
             if (selectedRatingTemplate != null) {
                 result.put("active_rating_template_id", selectedRatingTemplateId);
-                Map<String, Object> currentRating = result.get("rating_system") instanceof Map<?, ?> map
-                        ? convertToMap(map)
-                        : new LinkedHashMap<>();
-                Integer scale = tryParseInt(selectedRatingTemplate.get("scale_size"));
-                if (scale == null) {
-                    scale = tryParseInt(currentRating.get("scale_size"));
-                }
-                if (scale == null || scale < 1) {
-                    scale = 5;
-                }
-                String prompt = optionalString(selectedRatingTemplate.get("prompt_text"));
-                if (prompt.isBlank()) {
-                    prompt = optionalString(currentRating.get("prompt_text"));
-                }
-                if (prompt.isBlank()) {
-                    prompt = defaultRatingPrompt(scale);
-                }
-                List<Map<String, Object>> responses = castList(selectedRatingTemplate.get("responses"));
-                if (responses.isEmpty()) {
-                    responses = castList(currentRating.get("responses"));
-                }
-                if (responses.isEmpty()) {
-                    responses = buildDefaultResponses(scale);
-                }
-                Map<String, Object> mergedRatingSystem = new LinkedHashMap<>();
-                mergedRatingSystem.put("prompt_text", prompt);
-                mergedRatingSystem.put("scale_size", scale);
-                mergedRatingSystem.put("responses", responses);
-                result.put("rating_system", mergedRatingSystem);
             }
         }
 
+        applyDerivedCompatibilityMirrors(result);
         return result;
     }
 
@@ -398,15 +363,11 @@ public class BotSettingsService {
         settings.put("active_template_id", defaultTemplateId);
         settings.put("rating_templates", List.of(defaultRatingTemplate));
         settings.put("active_rating_template_id", defaultRatingTemplateId);
-        settings.put("rating_system", Map.of(
-                "prompt_text", ratingPrompt,
-                "scale_size", defaultScale,
-                "responses", buildDefaultResponses(defaultScale)));
-        settings.put("question_flow", defaultQuestions);
         settings.put("unblock_request_cooldown_minutes", 60);
         settings.put("business_aliases", Map.of(
                 "Р‘Р»РёРЅР±РµСЂРё", List.of("Р±Р±", "bb")
         ));
+        applyDerivedCompatibilityMirrors(settings);
         return settings;
     }
 
@@ -633,23 +594,6 @@ public class BotSettingsService {
             activeRatingTemplateId = ratingTemplates.get(0).get("id").toString();
         }
 
-        String resolvedActiveTemplateId = activeTemplateId;
-        String resolvedActiveRatingTemplateId = activeRatingTemplateId;
-
-        Map<String, Object> activeTemplate = templates.stream()
-                .filter(t -> Objects.equals(t.get("id"), resolvedActiveTemplateId))
-                .findFirst()
-                .orElse(templates.get(0));
-        Map<String, Object> activeRatingTemplate = ratingTemplates.stream()
-                .filter(t -> Objects.equals(t.get("id"), resolvedActiveRatingTemplateId))
-                .findFirst()
-                .orElse(ratingTemplates.get(0));
-
-        Map<String, Object> rating = new LinkedHashMap<>();
-        rating.put("prompt_text", activeRatingTemplate.get("prompt_text"));
-        rating.put("scale_size", activeRatingTemplate.get("scale_size"));
-        rating.put("responses", activeRatingTemplate.get("responses"));
-
         Integer cooldownMinutes = resolveCooldownMinutes(raw, defaults);
         Map<String, List<String>> businessAliases = sanitizeBusinessAliases(raw.get("business_aliases"));
         if (businessAliases.isEmpty()) {
@@ -658,14 +602,92 @@ public class BotSettingsService {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("question_templates", templates);
-        result.put("active_template_id", resolvedActiveTemplateId);
-        result.put("question_flow", castList(activeTemplate.get("question_flow")));
+        result.put("active_template_id", activeTemplateId);
         result.put("rating_templates", ratingTemplates);
-        result.put("active_rating_template_id", resolvedActiveRatingTemplateId);
-        result.put("rating_system", rating);
+        result.put("active_rating_template_id", activeRatingTemplateId);
         result.put("unblock_request_cooldown_minutes", cooldownMinutes);
         result.put("business_aliases", businessAliases);
+        applyDerivedCompatibilityMirrors(result);
         return result;
+    }
+
+    private com.example.supportbot.settings.dto.QuestionTemplateDto activeQuestionTemplate(BotSettingsDto settings) {
+        if (settings == null || settings.getQuestionTemplates() == null || settings.getQuestionTemplates().isEmpty()) {
+            return null;
+        }
+        String activeTemplateId = optionalString(settings.getActiveTemplateId());
+        if (!activeTemplateId.isBlank()) {
+            for (com.example.supportbot.settings.dto.QuestionTemplateDto template : settings.getQuestionTemplates()) {
+                if (template == null || template.getId() == null) {
+                    continue;
+                }
+                if (activeTemplateId.equals(template.getId())) {
+                    return template;
+                }
+            }
+        }
+        return settings.getQuestionTemplates().get(0);
+    }
+
+    private com.example.supportbot.settings.dto.RatingTemplateDto activeRatingTemplate(BotSettingsDto settings) {
+        if (settings == null || settings.getRatingTemplates() == null || settings.getRatingTemplates().isEmpty()) {
+            return null;
+        }
+        String activeTemplateId = optionalString(settings.getActiveRatingTemplateId());
+        if (!activeTemplateId.isBlank()) {
+            for (com.example.supportbot.settings.dto.RatingTemplateDto template : settings.getRatingTemplates()) {
+                if (template == null || template.getId() == null) {
+                    continue;
+                }
+                if (activeTemplateId.equals(template.getId())) {
+                    return template;
+                }
+            }
+        }
+        return settings.getRatingTemplates().get(0);
+    }
+
+    private com.example.supportbot.settings.dto.RatingSystemDto activeRatingSystem(BotSettingsDto settings) {
+        com.example.supportbot.settings.dto.RatingTemplateDto template = activeRatingTemplate(settings);
+        if (template != null) {
+            return new com.example.supportbot.settings.dto.RatingSystemDto(
+                    template.getPromptText(),
+                    template.getScaleSize(),
+                    template.getResponses()
+            );
+        }
+        return settings != null ? settings.getRatingSystem() : null;
+    }
+
+    private void applyDerivedCompatibilityMirrors(Map<String, Object> settings) {
+        Map<String, Object> activeQuestionTemplate = resolveTemplateById(
+                castList(settings.get("question_templates")),
+                optionalString(settings.get("active_template_id"))
+        );
+        if (activeQuestionTemplate != null) {
+            settings.put("question_flow", castList(activeQuestionTemplate.get("question_flow")));
+        } else {
+            settings.remove("question_flow");
+        }
+
+        Map<String, Object> activeRatingTemplate = resolveTemplateById(
+                castList(settings.get("rating_templates")),
+                optionalString(settings.get("active_rating_template_id"))
+        );
+        if (activeRatingTemplate != null) {
+            Map<String, Object> rating = new LinkedHashMap<>();
+            rating.put("prompt_text", optionalString(activeRatingTemplate.get("prompt_text")));
+            Integer scale = tryParseInt(activeRatingTemplate.get("scale_size"));
+            if (scale == null || scale < 1) {
+                scale = 5;
+            }
+            rating.put("scale_size", scale);
+            List<Map<String, Object>> responses = castList(activeRatingTemplate.get("responses"));
+            rating.put("responses", responses.isEmpty() ? buildDefaultResponses(scale) : responses);
+            settings.put("rating_system", rating);
+        } else {
+            settings.remove("rating_system");
+        }
     }
 
     public int unblockRequestCooldownMinutes(BotSettingsDto settings, int defaultValue) {
@@ -1230,7 +1252,7 @@ public class BotSettingsService {
     }
 
     private int normalizeScale(Object rawScale, Object altScale, Object camelScale, Map<String, Object> defaults, int maxScale) {
-        Integer  fallback = tryParseInt(((Map<String, Object>) defaults.get("rating_system")).get("scale_size"));
+        Integer fallback = activeDefaultRatingScale(defaults);
         Integer value = tryParseInt(rawScale);
         if (value == null) {
             value = tryParseInt(altScale);
@@ -1248,6 +1270,34 @@ public class BotSettingsService {
             value = maxScale;
         }
         return value;
+    }
+
+    private Integer activeDefaultRatingScale(Map<String, Object> defaults) {
+        if (defaults == null) {
+            return null;
+        }
+        Map<String, Object> activeTemplate = resolveTemplateById(
+                castList(defaults.get("rating_templates")),
+                optionalString(defaults.get("active_rating_template_id"))
+        );
+        if (activeTemplate == null) {
+            return null;
+        }
+        return tryParseInt(activeTemplate.get("scale_size"));
+    }
+
+    private Map<String, Object> resolveTemplateById(List<Map<String, Object>> templates, String templateId) {
+        if (templates == null || templates.isEmpty()) {
+            return null;
+        }
+        if (templateId != null && !templateId.isBlank()) {
+            for (Map<String, Object> template : templates) {
+                if (Objects.equals(templateId, optionalString(template.get("id")))) {
+                    return template;
+                }
+            }
+        }
+        return templates.get(0);
     }
 
     private List<Map<String, Object>> castList(Object value) {

@@ -3,6 +3,8 @@ package com.example.supportbot.settings;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
+import com.example.supportbot.settings.dto.RatingResponseDto;
+import com.example.supportbot.settings.dto.RatingSystemDto;
 import com.example.supportbot.settings.dto.RatingTemplateDto;
 import com.example.supportbot.service.SharedConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -214,6 +216,40 @@ class BotSettingsServiceTest {
         assertThat(sanitized.getRatingSystem().getResponses())
                 .extracting(com.example.supportbot.settings.dto.RatingResponseDto::getText)
                 .contains("Плохо", "Отлично");
+    }
+
+    @Test
+    void ratingHelpersShouldPreferActiveRatingTemplateOverLegacyRootMirror() {
+        BotSettingsDto settings = new BotSettingsDto();
+        settings.setRatingTemplates(List.of(
+                new RatingTemplateDto(
+                        "rate-template-active",
+                        "Active template",
+                        null,
+                        "Template prompt",
+                        3,
+                        List.of(
+                                new RatingResponseDto(1, "Template bad"),
+                                new RatingResponseDto(3, "Template great")
+                        )
+                )
+        ));
+        settings.setActiveRatingTemplateId("rate-template-active");
+        settings.setRatingSystem(new RatingSystemDto(
+                "Legacy prompt",
+                5,
+                List.of(
+                        new RatingResponseDto(1, "Legacy bad"),
+                        new RatingResponseDto(5, "Legacy great")
+                )
+        ));
+
+        assertThat(service.ratingScale(settings, 5)).isEqualTo(3);
+        assertThat(service.ratingPrompt(settings, null)).isEqualTo("Template prompt");
+        assertThat(service.ratingResponses(settings))
+                .containsEntry("1", "Template bad")
+                .containsEntry("3", "Template great")
+                .doesNotContainValue("Legacy great");
     }
 
     @Test
