@@ -39,6 +39,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
         sharedConfigService.saveSettings(new java.util.LinkedHashMap<>());
         settingsDialogConfigUpdateService = mock(SettingsDialogConfigUpdateService.class);
         settingsTopLevelUpdateService = new SettingsTopLevelUpdateService(
+                new BotSettingsPayloadNormalizer(),
                 new LocationsIikoServerSourceSettingsService(),
                 new LocationsIikoSyncSettingsService(),
                 mock(NotificationRoutingService.class)

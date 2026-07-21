@@ -15,6 +15,7 @@ import com.example.panel.repository.TaskRepository;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
+import com.example.panel.service.BotSettingsPayloadNormalizer;
 import com.example.panel.service.ObjectPassportService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SettingsParameterService;
@@ -54,6 +55,7 @@ public class ManagementController {
     private final SettingsParameterService settingsParameterService;
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final PermissionService permissionService;
+    private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final ObjectMapper objectMapper;
 
     public ManagementController(NavigationService navigationService,
@@ -69,6 +71,7 @@ public class ManagementController {
                                 SettingsParameterService settingsParameterService,
                                 IikoDepartmentLocationCatalogService locationCatalogService,
                                 PermissionService permissionService,
+                                BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
                                 ObjectMapper objectMapper) {
         this.navigationService = navigationService;
         this.taskRepository = taskRepository;
@@ -83,6 +86,7 @@ public class ManagementController {
         this.settingsParameterService = settingsParameterService;
         this.locationCatalogService = locationCatalogService;
         this.permissionService = permissionService;
+        this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.objectMapper = objectMapper;
     }
 
@@ -158,7 +162,8 @@ public class ManagementController {
             List<SettingsParameter> systemParameters = settingsParameterRepository.findAll();
             model.addAttribute("appSettings", appSettings);
             model.addAttribute("systemParameters", systemParameters);
-            var settings = sharedConfigService.loadSettings();
+            Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+            settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(settings.get("bot_settings")));
             model.addAttribute("settingsPayload", settings);
             IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
             Map<String, Object> effectiveLocationsPayload = locationCatalogService.buildEffectiveLocationsPayload(effectiveCatalog);

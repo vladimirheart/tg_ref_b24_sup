@@ -17,6 +17,7 @@ import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.entity.PanelUser;
+import com.example.panel.service.BotSettingsPayloadNormalizer;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.ObjectPassportService;
 import com.example.panel.service.PermissionService;
@@ -41,7 +42,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ManagementController.class)
 @AutoConfigureMockMvc
-@Import(NavigationService.class)
+@Import({NavigationService.class, BotSettingsPayloadNormalizer.class})
 class ManagementControllerWebMvcTest {
 
     @Autowired
@@ -161,6 +162,61 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение.")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Legacy-аудит bot settings будет показан здесь после загрузки настроек.")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Это legacy-секция для `dialog_config.question_templates`")));
+    }
+
+    @Test
+    void settingsPageNormalizesLegacyBotSettingsIntoCanonicalBootstrapPayload() throws Exception {
+        stubNavigationDefaults();
+        when(appSettingRepository.findAll()).thenReturn(List.of());
+        when(settingsParameterRepository.findAll()).thenReturn(List.of());
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "bot_settings", Map.of(
+                        "question_flow", List.of(
+                                Map.of("id", "legacy-question-1", "type", "custom", "text", "Старый вопрос")
+                        ),
+                        "rating_system", Map.of(
+                                "prompt_text", "Оцените старый сценарий",
+                                "scale_size", 5,
+                                "responses", List.of(
+                                        Map.of("value", 5, "text", "Старый ответ 5")
+                                )
+                        )
+                )
+        ));
+        when(locationsIikoServerSourceSettingsService.loadForClient(Map.of())).thenReturn(List.of());
+        when(locationsIikoSyncSettingsService.loadForClient(Map.of())).thenReturn(Map.of("enabled", true, "interval_minutes", 5));
+        IikoDepartmentLocationCatalogService.LocationCatalogSnapshot liveCatalog =
+                new IikoDepartmentLocationCatalogService.LocationCatalogSnapshot(
+                        Map.of("БлинБери", Map.of("Корпоративная сеть", Map.of("Смоленск", List.of("Ленина 1")))),
+                        Map.of(),
+                        "iiko_api",
+                        false,
+                        List.of()
+                );
+        Map<String, Object> effectiveLocationsPayload = Map.of(
+                "tree", liveCatalog.tree(),
+                "statuses", Map.of(),
+                "city_meta", Map.of(),
+                "location_meta", Map.of()
+        );
+        when(locationCatalogService.loadCatalog()).thenReturn(liveCatalog);
+        when(locationCatalogService.buildEffectiveLocationsPayload(liveCatalog)).thenReturn(effectiveLocationsPayload);
+        when(settingsCatalogService.collectCities(liveCatalog.tree())).thenReturn(List.of("Смоленск"));
+        when(settingsCatalogService.getParameterTypes()).thenReturn(Map.of());
+        when(settingsCatalogService.getParameterDependencies()).thenReturn(Map.of());
+        when(settingsCatalogService.getItConnectionCategories(Map.of("bot_settings", Map.of()))).thenReturn(Map.of());
+        when(settingsCatalogService.getItConnectionCategories(any())).thenReturn(Map.of());
+        when(settingsCatalogService.getItConnectionCategoryFields()).thenReturn(Map.of());
+        when(settingsCatalogService.buildLocationPresets(liveCatalog.tree(), Map.of())).thenReturn(Map.of());
+        when(permissionService.hasAuthority(any(), any())).thenReturn(false);
+
+        mockMvc.perform(get("/settings").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("settings/index"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Импортированный сценарий")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Импортированный шаблон оценок")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Старый вопрос")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Старый ответ 5")));
     }
 
     @Test

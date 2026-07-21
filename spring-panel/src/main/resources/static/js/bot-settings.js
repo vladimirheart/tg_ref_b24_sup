@@ -620,17 +620,10 @@
       flowSource = raw.questionFlow;
     }
     if (!Array.isArray(flowSource)) {
-      const legacy = raw.questions;
-      if (Array.isArray(legacy)) {
-        if (legacyDiagnostics && typeof legacyDiagnostics === 'object') {
-          legacyDiagnostics.usesLegacyTemplateQuestions = true;
-        }
-        flowSource = legacy
-          .map((entry) => (typeof entry === 'string' && entry.trim() ? { text: entry.trim(), type: 'custom' } : null))
-          .filter(Boolean);
-      } else {
-        flowSource = [];
+      if (legacyDiagnostics && typeof legacyDiagnostics === 'object' && Array.isArray(raw.questions)) {
+        legacyDiagnostics.usesLegacyTemplateQuestions = true;
       }
+      flowSource = [];
     }
     const questionFlow = flowSource
       .map((item, order) => normalizeQuestion(item, order + 1))
@@ -705,38 +698,8 @@
       .map((item, index) => normalizeTemplate(item, index, legacyDiagnostics))
       .filter((template) => template && template.questionFlow.length);
 
-    if (!templates.length) {
-      const fallbackFlow = Array.isArray(source.question_flow) ? source.question_flow : [];
-      const fallbackTemplate = normalizeTemplate(
-        {
-          id: source.active_template_id || generateTemplateId(),
-          start_message: source.start_message ?? source.startMessage ?? '',
-          name: 'Импортированный сценарий',
-          question_flow: fallbackFlow,
-        },
-        0,
-        legacyDiagnostics,
-      );
-      if (fallbackTemplate && fallbackTemplate.questionFlow.length) {
-        legacyDiagnostics.usesRootQuestionFlow = true;
-        templates.push(fallbackTemplate);
-      }
-    }
-
-    if (!templates.length && Array.isArray(BOT_SETTINGS_INITIAL?.question_flow)) {
-      const defaultTemplate = normalizeTemplate(
-        {
-          id: generateTemplateId(),
-          name: 'Базовый шаблон вопросов',
-          start_message: source.start_message ?? source.startMessage ?? '',
-          question_flow: BOT_SETTINGS_INITIAL.question_flow,
-        },
-        0,
-        legacyDiagnostics,
-      );
-      if (defaultTemplate && defaultTemplate.questionFlow.length) {
-        templates.push(defaultTemplate);
-      }
+    if (!templates.length && Array.isArray(source.question_flow)) {
+      legacyDiagnostics.usesRootQuestionFlow = true;
     }
 
     if (!templates.length) {
@@ -771,31 +734,6 @@
       .map((item, index) => normalizeRatingTemplate(item, index))
       .filter((template) => template && template.promptText);
 
-    if (!ratingTemplates.length) {
-      const ratingSystemSource = source.rating_system || source.ratingSystem;
-      if (ratingSystemSource && typeof ratingSystemSource === 'object') {
-        legacyDiagnostics.usesRootRatingSystem = true;
-        const fallback = normalizeRatingTemplate(
-          {
-            id: ratingSystemSource.id,
-            name: ratingSystemSource.name,
-            description: ratingSystemSource.description,
-            prompt_text: ratingSystemSource.prompt_text
-              ?? ratingSystemSource.promptText
-              ?? ratingSystemSource.prompt,
-            scale_size: ratingSystemSource.scale_size
-              ?? ratingSystemSource.scaleSize
-              ?? ratingSystemSource.scale,
-            responses: ratingSystemSource.responses,
-          },
-          0,
-        );
-        if (fallback) {
-          ratingTemplates.push(fallback);
-        }
-      }
-    }
-
     if (!ratingTemplates.length && Array.isArray(BOT_SETTINGS_INITIAL?.rating_templates)) {
       BOT_SETTINGS_INITIAL.rating_templates.forEach((item, index) => {
         const normalized = normalizeRatingTemplate(item, index);
@@ -805,11 +743,8 @@
       });
     }
 
-    if (!ratingTemplates.length && BOT_SETTINGS_INITIAL?.rating_system) {
-      const normalized = normalizeRatingTemplate(BOT_SETTINGS_INITIAL.rating_system, 0);
-      if (normalized) {
-        ratingTemplates.push(normalized);
-      }
+    if (!ratingTemplates.length && source.rating_system && typeof source.rating_system === 'object') {
+      legacyDiagnostics.usesRootRatingSystem = true;
     }
 
     if (!ratingTemplates.length) {

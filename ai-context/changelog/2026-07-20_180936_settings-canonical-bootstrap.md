@@ -1,0 +1,23 @@
+# 2026-07-20 18:09:36 - settings canonical bootstrap
+
+- Затронутые области:
+  - `spring-panel/src/main/java/com/example/panel/service/BotSettingsPayloadNormalizer.java`
+  - `spring-panel/src/main/java/com/example/panel/service/SettingsTopLevelUpdateService.java`
+  - `spring-panel/src/main/java/com/example/panel/controller/ManagementController.java`
+  - `spring-panel/src/main/resources/static/js/bot-settings.js`
+  - `spring-panel/src/test/java/com/example/panel/service/SettingsTopLevelUpdateServiceTest.java`
+  - `spring-panel/src/test/java/com/example/panel/service/SettingsUpdateSharedConfigIntegrationTest.java`
+  - `spring-panel/src/test/java/com/example/panel/controller/ManagementControllerWebMvcTest.java`
+  - `ai-context/tasks/task-details/01-150.md`
+- Пользовательский промпт:
+  - `погнали дальше. изиенеия в тело задачи тоже пропиши, на каком этапе останавливаетяс задача и какой следующий шаг`
+- Что сделано:
+  - добавлен `BotSettingsPayloadNormalizer`, который поднимает legacy `bot_settings.question_flow`, `bot_settings.rating_system` и template-level `questions` в канонические `question_templates` / `rating_templates` для panel bootstrap и save-boundary;
+  - `ManagementController` теперь отдаёт на settings page уже нормализованный `bot_settings`, поэтому страница загружается по канонической схеме даже для старых конфигов;
+  - `bot-settings.js` перестал использовать `raw.question_flow`, `raw.questions` и `raw.rating_system` как source of truth и ожидает канонический bootstrap от сервера;
+  - обновлены unit/integration/web MVC тесты под server-side canonical bootstrap;
+  - в `01-150` добавлен живой execution-log: текущая точка остановки и следующий planned step.
+- Проверки:
+  - `node --check spring-panel/src/main/resources/static/js/bot-settings.js` — success
+  - `spring-panel\\mvnw.cmd -DskipTests compile` — success
+  - Полный `spring-panel` test run по-прежнему не запускался через Maven из-за существующих посторонних проблем в `testCompile` модуля.

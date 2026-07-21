@@ -17,6 +17,7 @@ class SettingsTopLevelUpdateServiceTest {
     void applyTopLevelUpdatesNormalizesListsAndMaps() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
+                        new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
                         mock(NotificationRoutingService.class)
@@ -43,6 +44,7 @@ class SettingsTopLevelUpdateServiceTest {
     void applyTopLevelUpdatesReturnsFalseWhenPayloadDoesNotContainKnownKeys() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
+                        new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
                         mock(NotificationRoutingService.class)
@@ -55,6 +57,7 @@ class SettingsTopLevelUpdateServiceTest {
     void applyTopLevelUpdatesDerivesActiveBotFlowsAndRatingSystem() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
+                        new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
                         mock(NotificationRoutingService.class)
@@ -108,6 +111,7 @@ class SettingsTopLevelUpdateServiceTest {
     void applyTopLevelUpdatesDerivesLegacyAutoCloseHoursFromActiveTemplate() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
+                        new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
                         mock(NotificationRoutingService.class)
@@ -137,5 +141,48 @@ class SettingsTopLevelUpdateServiceTest {
                 ),
                 settings.get("auto_close_config")
         );
+    }
+
+    @Test
+    void applyTopLevelUpdatesImportsLegacyBotSettingsIntoCanonicalTemplates() {
+        SettingsTopLevelUpdateService service =
+                new SettingsTopLevelUpdateService(
+                        new BotSettingsPayloadNormalizer(),
+                        new LocationsIikoServerSourceSettingsService(),
+                        new LocationsIikoSyncSettingsService(),
+                        mock(NotificationRoutingService.class)
+                );
+        Map<String, Object> settings = new LinkedHashMap<>();
+
+        boolean modified = service.applyTopLevelUpdates(Map.of(
+                "bot_settings", Map.of(
+                        "question_flow", List.of(
+                                Map.of("id", "q-legacy", "type", "custom", "text", "Старый вопрос")
+                        ),
+                        "rating_system", Map.of(
+                                "prompt_text", "Оцените старый сценарий",
+                                "scale_size", 5,
+                                "responses", List.of(
+                                        Map.of("value", 5, "text", "Старый ответ 5")
+                                )
+                        )
+                )
+        ), settings);
+
+        assertTrue(modified);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> botSettings = (Map<String, Object>) settings.get("bot_settings");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> questionTemplates = (List<Map<String, Object>>) botSettings.get("question_templates");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> ratingTemplates = (List<Map<String, Object>>) botSettings.get("rating_templates");
+
+        assertEquals("Импортированный сценарий", questionTemplates.get(0).get("name"));
+        assertEquals("Импортированный шаблон оценок", ratingTemplates.get(0).get("name"));
+        assertEquals(questionTemplates.get(0).get("question_flow"), botSettings.get("question_flow"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ratingSystem = (Map<String, Object>) botSettings.get("rating_system");
+        assertEquals("Оцените старый сценарий", ratingSystem.get("prompt_text"));
     }
 }
