@@ -169,3 +169,4 @@
 🟣 [01-148] Дожать paste/staging вложений в модалке диалога для file-input detection
 🟣 [01-149] Пробить кэш dialogs assets и восстановить modal composer шаблон
 🟣 [01-150] Провести аудит legacy compatibility-слоя настроек бота/диалогов и спланировать его выпиливание
+🟣 [01-151] Починить запуск spring-panel после запоздалой Flyway-миграции client_phones и ложного repair() истории
