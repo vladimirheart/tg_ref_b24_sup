@@ -18,7 +18,7 @@ class DialogWorkspaceParityServiceTest {
     void buildComposerMetaMarksReplyTargetSupportWhenReplyPermissionAndThreadTargetsExist() {
         DialogListItem summary = sampleDialog();
         List<ChatMessageDto> history = List.of(
-                new ChatMessageDto("client", "hello", null, "2026-04-20T10:00:00Z", "text", null, 101L, null, null, null, null, null)
+                chatMessage("client", "hello", 101L)
         );
 
         Map<String, Object> composer = service.buildComposerMeta(summary, history, Map.of("can_reply", true));
@@ -33,7 +33,7 @@ class DialogWorkspaceParityServiceTest {
     void buildComposerMetaDisablesReplyCapabilitiesWithoutReplyPermission() {
         DialogListItem summary = sampleDialog();
         List<ChatMessageDto> history = List.of(
-                new ChatMessageDto("client", "hello", null, "2026-04-20T10:00:00Z", "text", null, 101L, null, null, null, null, null)
+                chatMessage("client", "hello", 101L)
         );
 
         Map<String, Object> composer = service.buildComposerMeta(summary, history, Map.of("can_reply", false));
@@ -46,7 +46,7 @@ class DialogWorkspaceParityServiceTest {
     @Test
     void buildParityMetaReturnsOkWhenCoreWorkspaceCapabilitiesAreReady() {
         Map<String, Object> composer = service.buildComposerMeta(sampleDialog(), List.of(
-                new ChatMessageDto("operator", "ok", null, "2026-04-20T10:01:00Z", "text", null, 200L, null, null, null, null, null)
+                chatMessage("operator", "ok", 200L)
         ), Map.of(
                 "can_reply", true,
                 "can_assign", true,
@@ -200,6 +200,25 @@ class DialogWorkspaceParityServiceTest {
                 1,
                 5,
                 "billing"
+        );
+    }
+
+    private ChatMessageDto chatMessage(String sender, String message, long telegramMessageId) {
+        return new ChatMessageDto(
+                sender,
+                message,
+                null,
+                "2026-04-20T10:00:00Z",
+                "text",
+                null,
+                null,
+                null,
+                telegramMessageId,
+                null,
+                null,
+                null,
+                null,
+                null
         );
     }
 }

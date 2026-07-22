@@ -60,6 +60,8 @@ class DialogDetailsReadServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
         ));
 

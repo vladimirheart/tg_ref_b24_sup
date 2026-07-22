@@ -14,7 +14,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -28,7 +27,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    SecurityHeadersFilter securityHeadersFilter,
                                                    ObjectProvider<UserLastActivityFilter> userLastActivityFilter,
-                                                   DaoAuthenticationProvider daoAuthenticationProvider) throws Exception {
+                                                   DaoAuthenticationProvider daoAuthenticationProvider,
+                                                   UserDetailsService userDetailsService) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
@@ -47,6 +47,12 @@ public class SecurityConfig {
                         .loginPage("/login")
                         .defaultSuccessUrl("/post-login", true)
                         .permitAll()
+                )
+                .rememberMe(rememberMe -> rememberMe
+                        .rememberMeParameter("remember-me")
+                        .tokenValiditySeconds(14 * 24 * 60 * 60)
+                        .key("iguana-panel-remember-me")
+                        .userDetailsService(userDetailsService)
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
@@ -90,7 +96,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new LegacyCompatiblePasswordEncoder();
     }
 
     @Bean

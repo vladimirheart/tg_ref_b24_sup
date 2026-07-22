@@ -84,10 +84,17 @@ public class SecurityBootstrap {
 
         // если админа нет — создаём
         String encoded = passwordEncoder.encode("admin");
-        jdbcTemplate.update(
-                "INSERT INTO users(username, password, enabled) VALUES(?, ?, 1)",
-                "admin", encoded
-        );
+        if (hasUsersColumn("enabled")) {
+            jdbcTemplate.update(
+                    "INSERT INTO users(username, password, enabled) VALUES(?, ?, 1)",
+                    "admin", encoded
+            );
+        } else {
+            jdbcTemplate.update(
+                    "INSERT INTO users(username, password) VALUES(?, ?)",
+                    "admin", encoded
+            );
+        }
 
         Long id = jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE lower(username) = 'admin' LIMIT 1",
@@ -163,6 +170,18 @@ public class SecurityBootstrap {
             );
         } catch (DataAccessException ignored) {
             // roles table may be absent in bootstrap edge cases
+        }
+    }
+
+    private boolean hasUsersColumn(String columnName) {
+        try {
+            List<String> columns = jdbcTemplate.query(
+                    "PRAGMA table_info(users)",
+                    (rs, rowNum) -> rs.getString("name")
+            );
+            return columns.stream().anyMatch(columnName::equalsIgnoreCase);
+        } catch (DataAccessException ex) {
+            return false;
         }
     }
 }

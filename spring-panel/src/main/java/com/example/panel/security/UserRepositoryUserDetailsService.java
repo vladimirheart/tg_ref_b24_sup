@@ -58,27 +58,22 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
         }
         try {
             Map<String, Object> userRow = jdbcTemplate.queryForMap(
-                    "SELECT id, username, password, enabled FROM users WHERE lower(username) = lower(?)",
+                    "SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1",
                     username
             );
 
-            // SQLite может вернуть Integer, Long, BigInteger — приводим через Number
             Number idNumber = (Number) userRow.get("id");
             Long userId = idNumber != null ? idNumber.longValue() : null;
-
-            // enabled может быть и BOOLEAN, и INTEGER (0/1) — аккуратно разбираем
-            Object enabledObj = userRow.get("enabled");
-            boolean enabled = false;
-            if (enabledObj instanceof Boolean b) {
-                enabled = b;
-            } else if (enabledObj instanceof Number n) {
-                enabled = n.intValue() != 0;
+            boolean enabled = resolveEnabled(userRow);
+            String storedCredential = resolveStoredCredential(userRow);
+            if (!org.springframework.util.StringUtils.hasText(storedCredential)) {
+                throw new UsernameNotFoundException("User credentials are not configured");
             }
 
             List<GrantedAuthority> authorities = loadAuthorities(userId);
 
             return User.withUsername((String) userRow.get("username"))
-                    .password((String) userRow.get("password"))
+                    .password(storedCredential)
                     .authorities(authorities)
                     .disabled(!enabled)
                     .build();
@@ -193,6 +188,37 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
         return value == null ? "" : value.toString().trim();
     }
 
+    private boolean resolveEnabled(Map<String, Object> userRow) {
+        boolean enabled = parseBoolean(userRow.get("enabled"), true);
+        boolean blocked = parseBoolean(userRow.get("is_blocked"), false);
+        return enabled && !blocked;
+    }
+
+    private String resolveStoredCredential(Map<String, Object> userRow) {
+        String password = stringValue(userRow.get("password"));
+        if (!password.isEmpty()) {
+            return password;
+        }
+        return stringValue(userRow.get("password_hash"));
+    }
+
+    private boolean parseBoolean(Object value, boolean defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Boolean booleanValue) {
+            return booleanValue;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        String text = value.toString().trim();
+        if (text.isEmpty()) {
+            return defaultValue;
+        }
+        return "1".equals(text) || "true".equalsIgnoreCase(text);
+    }
+
     void ensureDefaultAdmin(String username, String rawPassword) {
         if (jdbcTemplate == null || jdbcTemplate.getDataSource() == null) {
             return;
@@ -203,10 +229,17 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
         }
 
         String hashed = passwordEncoder.encode(rawPassword);
-        jdbcTemplate.update(
-                "INSERT INTO users(username, password, enabled) VALUES (?, ?, ?)",
-                username, hashed, true
-        );
+        try {
+            jdbcTemplate.update(
+                    "INSERT INTO users(username, password, enabled) VALUES (?, ?, ?)",
+                    username, hashed, true
+            );
+        } catch (DataAccessException ex) {
+            jdbcTemplate.update(
+                    "INSERT INTO users(username, password) VALUES (?, ?)",
+                    username, hashed
+            );
+        }
 
         // Тут тоже аккуратно читаем id как Number
         Number idNumber = jdbcTemplate.queryForObject(

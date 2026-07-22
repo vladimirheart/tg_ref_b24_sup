@@ -1,11 +1,16 @@
 package com.example.panel.security;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class UserRepositoryUserDetailsServiceTest {
 
@@ -46,5 +51,45 @@ class UserRepositoryUserDetailsServiceTest {
                 "PAGE_USERS",
                 "PAGE_OBJECT_PASSPORTS"
         );
+    }
+
+    @Test
+    void loadUserByUsernameDefaultsToEnabledWhenColumnIsAbsent() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        LegacyCompatiblePasswordEncoder passwordEncoder = new LegacyCompatiblePasswordEncoder();
+        UserRepositoryUserDetailsService service = new UserRepositoryUserDetailsService(jdbcTemplate, passwordEncoder);
+
+        when(jdbcTemplate.getDataSource()).thenReturn(mock(javax.sql.DataSource.class));
+        when(jdbcTemplate.queryForMap("SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1", "operator"))
+                .thenReturn(Map.of(
+                        "id", 42L,
+                        "username", "operator",
+                        "password", "plain-secret"
+                ));
+
+        UserDetails user = service.loadUserByUsername("operator");
+
+        assertThat(user.getPassword()).isEqualTo("plain-secret");
+        assertThat(user.isEnabled()).isTrue();
+    }
+
+    @Test
+    void loadUserByUsernameTreatsBlockedUserAsDisabled() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        LegacyCompatiblePasswordEncoder passwordEncoder = new LegacyCompatiblePasswordEncoder();
+        UserRepositoryUserDetailsService service = new UserRepositoryUserDetailsService(jdbcTemplate, passwordEncoder);
+
+        when(jdbcTemplate.getDataSource()).thenReturn(mock(javax.sql.DataSource.class));
+        when(jdbcTemplate.queryForMap("SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1", "blocked"))
+                .thenReturn(Map.of(
+                        "id", 43L,
+                        "username", "blocked",
+                        "password", "plain-secret",
+                        "is_blocked", 1
+                ));
+
+        UserDetails user = service.loadUserByUsername("blocked");
+
+        assertThat(user.isEnabled()).isFalse();
     }
 }

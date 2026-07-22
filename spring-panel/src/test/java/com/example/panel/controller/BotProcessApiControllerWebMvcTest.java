@@ -10,6 +10,7 @@ import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.service.BotProcessService;
 import com.example.panel.service.BotRuntimeContractService;
+import com.example.panel.service.UiEventStreamService;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +33,9 @@ class BotProcessApiControllerWebMvcTest {
 
     @MockBean
     private ChannelRepository channelRepository;
+
+    @MockBean
+    private UiEventStreamService uiEventStreamService;
 
     @Test
     void startReturnsStructuredStatusForExistingChannel() throws Exception {

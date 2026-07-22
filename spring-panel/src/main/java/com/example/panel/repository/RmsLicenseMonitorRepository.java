@@ -80,6 +80,13 @@ public class RmsLicenseMonitorRepository {
         return jdbcTemplate.query("SELECT * FROM rms_license_monitors ORDER BY id ASC", rowMapper);
     }
 
+    public List<String> findAllAddressesIncludingDeleted() {
+        return jdbcTemplate.query(
+            "SELECT rms_address FROM rms_license_monitors ORDER BY id ASC",
+            (rs, rowNum) -> rs.getString("rms_address")
+        );
+    }
+
     public List<RmsLicenseMonitor> findAllByOrderByRmsAddressAscIdAsc() {
         return jdbcTemplate.query("SELECT * FROM rms_license_monitors WHERE is_deleted = 0 ORDER BY rms_address ASC, id ASC", rowMapper);
     }

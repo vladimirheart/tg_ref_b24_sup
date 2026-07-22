@@ -87,16 +87,14 @@ public class ProfileApiController {
 
         String username = authentication.getName();
         var rows = usersJdbcTemplate.queryForList(
-            "SELECT password FROM users WHERE lower(username) = lower(?)",
+            "SELECT * FROM users WHERE lower(username) = lower(?) LIMIT 1",
             username
         );
         if (rows.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("success", false, "error", "Пользователь не найден."));
         }
-        String storedPassword = rows.get(0).get("password") != null
-            ? rows.get(0).get("password").toString()
-            : "";
+        String storedPassword = resolveStoredCredential(rows.get(0));
         if (!passwordEncoder.matches(currentPassword, storedPassword)) {
             return ResponseEntity.badRequest()
                 .body(Map.of("success", false, "error", "Текущий пароль введён неверно."));
@@ -121,6 +119,14 @@ public class ProfileApiController {
 
     private String stringValue(Object value) {
         return value == null ? "" : value.toString().trim();
+    }
+
+    private String resolveStoredCredential(Map<String, Object> row) {
+        String password = stringValue(row.get("password"));
+        if (StringUtils.hasText(password)) {
+            return password;
+        }
+        return stringValue(row.get("password_hash"));
     }
 
     private boolean hasColumn(String tableName, String columnName) {

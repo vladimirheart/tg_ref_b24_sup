@@ -331,7 +331,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             if (item.getRmsAddress() == null || item.getRmsAddress().isBlank()) {
                 continue;
             }
-            rmsRepository.findAnyByRmsAddress(item.getRmsAddress()).ifPresent(existing -> item.setId(existing.getId()));
+            findRmsMonitorIdByAddress(item.getRmsAddress()).ifPresent(item::setId);
             rmsRepository.save(item);
             migrated++;
         }
@@ -354,6 +354,19 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             return primaryProperties.getNormalizedPath().equals(monitoringProperties.getNormalizedPath());
         } catch (Exception ex) {
             return false;
+        }
+    }
+
+    private java.util.Optional<Long> findRmsMonitorIdByAddress(String rmsAddress) {
+        try {
+            return monitoringJdbcTemplate.query(
+                "SELECT id FROM rms_license_monitors WHERE rms_address = ? LIMIT 1",
+                rs -> rs.next() ? java.util.Optional.of(rs.getLong("id")) : java.util.Optional.empty(),
+                rmsAddress
+            );
+        } catch (Exception ex) {
+            log.warn("Failed to resolve RMS monitor id for address {} during bootstrap migration", rmsAddress, ex);
+            return java.util.Optional.empty();
         }
     }
 

@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.panel.service.SettingsClientStatusService;
 import com.example.panel.service.SettingsIntegrationNetworkProbeService;
 import com.example.panel.service.SettingsItConnectionCategoryService;
+import com.example.panel.service.SettingsPageDataService;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class SettingsApiControllerWebMvcTest {
 
     @MockBean
     private SettingsIntegrationNetworkProbeService settingsIntegrationNetworkProbeService;
+
+    @MockBean
+    private SettingsPageDataService settingsPageDataService;
 
     @Test
     void updateClientStatusesDelegatesToService() throws Exception {

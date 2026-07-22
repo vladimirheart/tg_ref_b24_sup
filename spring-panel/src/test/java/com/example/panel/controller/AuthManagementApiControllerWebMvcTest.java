@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.panel.service.PermissionService;
+import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -31,6 +32,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -61,6 +63,9 @@ class AuthManagementApiControllerWebMvcTest {
 
     @MockBean
     private PasswordEncoder passwordEncoder;
+
+    @MockBean
+    private PanelUserPhotoService panelUserPhotoService;
 
     @Test
     void getAuthStateReturnsOrgStructureAndBasePayloadContract() throws Exception {
@@ -1139,6 +1144,30 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void updateUserRejectsSelfBlockEvenWhenPermissionExists() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id FROM users"), eq("admin")))
+            .thenReturn(List.of(Map.of("id", 7L)));
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("is_blocked", "enabled"));
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken("admin", "n/a");
+
+        mockMvc.perform(patch("/api/users/7")
+                .principal(authentication)
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "is_blocked": true
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Нельзя заблокировать собственную учётную запись"));
+
+        verify(usersJdbcTemplate, never()).update(eq("UPDATE users SET is_blocked = ?, enabled = ? WHERE id = ?"), any(), any(), any());
+    }
+
+    @Test
     void deleteRoleReturnsNotFoundWhenRecordIsMissing() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         when(usersJdbcTemplate.update("DELETE FROM roles WHERE id = ?", 77L)).thenReturn(0);
@@ -1149,6 +1178,23 @@ class AuthManagementApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("Роль не найдена"));
+    }
+
+    @Test
+    void deleteUserRejectsSelfDeletion() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id FROM users"), eq("admin")))
+            .thenReturn(List.of(Map.of("id", 7L)));
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken("admin", "n/a");
+
+        mockMvc.perform(delete("/api/users/7")
+                .principal(authentication)
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Нельзя удалить собственную учётную запись"));
+
+        verify(usersJdbcTemplate, never()).update("DELETE FROM users WHERE id = ?", 7L);
     }
 
     @Test

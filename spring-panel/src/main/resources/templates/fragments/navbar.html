@@ -123,7 +123,7 @@
                         <span class="nav-label-sub">Пульсы, cert-monitoring и KPI</span>
                     </span>
                 </a>
-                <a class="nav-link" data-page-key="channels" data-nav-group="admin" th:if="${canManageChannels and !canViewSettings}"
+                <a class="nav-link" data-page-key="channels" data-nav-group="admin" th:if="${canManageChannels == true and canViewSettings != true}"
                    th:classappend="${active}=='channels' ? ' active'"
                    th:href="@{/channels}">
                     <span class="icon" aria-hidden="true">📡</span>
@@ -141,7 +141,7 @@
                         <span class="nav-label-sub">Конфигурация системы и UI</span>
                     </span>
                 </a>
-                <a class="nav-link" data-page-key="users" data-nav-group="admin" th:if="${canManageUsers and !canViewSettings}"
+                <a class="nav-link" data-page-key="users" data-nav-group="admin" th:if="${canManageUsers == true and canViewSettings != true}"
                    th:classappend="${active}=='users' ? ' active'"
                    th:href="@{/users}">
                     <span class="icon" aria-hidden="true">👥</span>

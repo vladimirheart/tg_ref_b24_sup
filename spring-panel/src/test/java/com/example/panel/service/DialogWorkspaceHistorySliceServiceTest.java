@@ -14,9 +14,9 @@ class DialogWorkspaceHistorySliceServiceTest {
     @Test
     void sliceBuildsPagedWindowAndNextCursor() {
         List<ChatMessageDto> history = List.of(
-                new ChatMessageDto("client", "m1", null, "2026-05-01T10:00:00Z", "text", null, 1L, null, null, null, null, null),
-                new ChatMessageDto("operator", "m2", null, "2026-05-01T10:01:00Z", "text", null, 2L, null, null, null, null, null),
-                new ChatMessageDto("client", "m3", null, "2026-05-01T10:02:00Z", "text", null, 3L, null, null, null, null, null)
+                chatMessage("client", "m1", "2026-05-01T10:00:00Z", 1L),
+                chatMessage("operator", "m2", "2026-05-01T10:01:00Z", 2L),
+                chatMessage("client", "m3", "2026-05-01T10:02:00Z", 3L)
         );
 
         DialogWorkspaceHistorySliceService.HistorySlice slice = service.slice(history, 1, 1);
@@ -25,5 +25,24 @@ class DialogWorkspaceHistorySliceServiceTest {
         assertThat(slice.pagedHistory()).hasSize(1);
         assertThat(slice.nextCursor()).isEqualTo(2);
         assertThat(slice.hasMore()).isTrue();
+    }
+
+    private ChatMessageDto chatMessage(String sender, String message, String timestamp, Long telegramMessageId) {
+        return new ChatMessageDto(
+                sender,
+                message,
+                null,
+                timestamp,
+                "text",
+                null,
+                null,
+                null,
+                telegramMessageId,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
     }
 }

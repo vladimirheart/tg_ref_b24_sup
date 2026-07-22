@@ -13,6 +13,7 @@ import com.example.panel.model.knowledge.KnowledgeBaseNotionConfigForm;
 import com.example.panel.service.KnowledgeBaseNotionService;
 import com.example.panel.service.KnowledgeBaseService;
 import com.example.panel.service.NavigationService;
+import com.example.panel.service.NotificationRoutingService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.storage.AttachmentService;
@@ -48,6 +49,9 @@ class KnowledgeBaseControllerWebMvcTest {
 
     @MockBean
     private NotificationService notificationService;
+
+    @MockBean
+    private NotificationRoutingService notificationRoutingService;
 
     @Test
     void knowledgeListIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {

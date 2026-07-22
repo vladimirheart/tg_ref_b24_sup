@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.service.ClientsService;
 import com.example.panel.service.NavigationService;
+import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.service.UnblockRequestService;
@@ -48,12 +49,16 @@ class ClientsControllerWebMvcTest {
     @MockBean
     private UnblockRequestService unblockRequestService;
 
+    @MockBean
+    private PanelUserPhotoService panelUserPhotoService;
+
     @Test
     void clientsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         when(clientsService.loadClients(null, null)).thenReturn(List.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
         when(permissionService.hasAuthority(any(), any())).thenReturn(false);
         when(panelUserRepository.findByUsernameIgnoreCase("operator")).thenReturn(Optional.empty());
+        when(panelUserPhotoService.resolveUrl(any(), any())).thenReturn("/avatar_default.svg");
 
         mockMvc.perform(get("/clients").with(user("operator").authorities(() -> "PAGE_CLIENTS")))
             .andExpect(status().isOk())

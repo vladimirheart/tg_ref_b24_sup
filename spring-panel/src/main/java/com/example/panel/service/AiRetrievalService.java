@@ -175,7 +175,7 @@ public class AiRetrievalService {
                      WHERE COALESCE(m.review_required, 0) = 0
                        AND trim(COALESCE(m.solution_text, '')) <> ''
                        AND lower(COALESCE(m.status, 'approved')) = 'approved'
-                     ORDER BY datetime(substr(COALESCE(m.updated_at, ''), 1, 19)) DESC,
+                     ORDER BY substr(COALESCE(m.updated_at, ''), 1, 19) DESC,
                               m.query_key DESC
                      LIMIT ?
                     """,
@@ -277,7 +277,7 @@ public class AiRetrievalService {
                       FROM ai_agent_knowledge_unit ku
                      WHERE lower(COALESCE(ku.status, 'active')) = 'active'
                        AND trim(COALESCE(ku.body_text, '')) <> ''
-                     ORDER BY datetime(substr(COALESCE(ku.updated_at, ''), 1, 19)) DESC,
+                     ORDER BY substr(COALESCE(ku.updated_at, ''), 1, 19) DESC,
                               ku.unit_key DESC
                      LIMIT ?
                     """,
@@ -520,7 +520,7 @@ public class AiRetrievalService {
                     supportCount++;
                 }
                 supportCount = Math.max(supportCount, candidate.evidenceCount());
-            } else if (candidate.score() >= Math.max(0.58d, top.score() - 0.07d)) {
+            } else if (isConflictCandidate(top, candidate)) {
                 conflict = true;
             }
         }
@@ -541,11 +541,25 @@ public class AiRetrievalService {
         if (StringUtils.hasText(top.canonicalKey()) && top.canonicalKey().equals(candidate.canonicalKey())) {
             return true;
         }
-        if (StringUtils.hasText(top.slotSignature()) && top.slotSignature().equals(candidate.slotSignature())
-                && StringUtils.hasText(top.intentKey()) && top.intentKey().equals(candidate.intentKey())) {
-            return answerSimilarity(top.snippet(), candidate.snippet()) >= 0.45d;
-        }
         return answerSimilarity(top.snippet(), candidate.snippet()) >= 0.78d;
+    }
+
+    private boolean isConflictCandidate(Candidate top, Candidate candidate) {
+        if (top == null || candidate == null) {
+            return false;
+        }
+        double candidateScore = candidate.score();
+        if (candidateScore >= Math.max(0.58d, top.score() - 0.07d)) {
+            return true;
+        }
+        boolean sameIntent = StringUtils.hasText(top.intentKey())
+                && top.intentKey().equals(candidate.intentKey());
+        boolean sameSlotSignature = StringUtils.hasText(top.slotSignature())
+                && top.slotSignature().equals(candidate.slotSignature());
+        if (sameIntent && sameSlotSignature) {
+            return candidateScore >= Math.max(0.50d, top.score() - 0.28d);
+        }
+        return false;
     }
 
     private double answerSimilarity(String left, String right) {

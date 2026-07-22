@@ -263,7 +263,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
-            uiEventStreamService.publishDialogsChanged("dialog_resolved", ticketId);
+            publishDialogsChanged(ticketId, "dialog_resolved");
         }
         return result;
     }
@@ -279,7 +279,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
-            uiEventStreamService.publishDialogsChanged("dialog_reopened", ticketId);
+            publishDialogsChanged(ticketId, "dialog_reopened");
         }
         return result;
     }
@@ -299,7 +299,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
-        uiEventStreamService.publishDialogsChanged("dialog_categories_updated", ticketId);
+        publishDialogsChanged(ticketId, "dialog_categories_updated");
         return new DialogCategoryUpdateResult(true, normalizedCategories);
     }
 
@@ -339,7 +339,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
-        uiEventStreamService.publishDialogsChanged("dialog_marked_spam", ticketId);
+        publishDialogsChanged(ticketId, "dialog_marked_spam");
         return new DialogSpamResult(true, true, null, userId, categories);
     }
 
@@ -390,7 +390,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
-        uiEventStreamService.publishDialogsChanged("dialog_taken", ticketId);
+        publishDialogsChanged(ticketId, "dialog_taken");
         return new DialogTakeResult(true, true, responsible != null && !responsible.isBlank() ? responsible : operator, null);
     }
 
@@ -421,7 +421,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
-            uiEventStreamService.publishDialogsChanged("dialog_participant_added", ticketId);
+            publishDialogsChanged(ticketId, "dialog_participant_added");
         }
         return new DialogParticipantMutationResult(true, changed, null, participants);
     }
@@ -444,7 +444,7 @@ public class DialogQuickActionService {
                     notificationService.buildDialogUrl(ticketId),
                     operator
             );
-            uiEventStreamService.publishDialogsChanged("dialog_participant_removed", ticketId);
+            publishDialogsChanged(ticketId, "dialog_participant_removed");
         }
         return new DialogParticipantMutationResult(true, changed, null, participants);
     }
@@ -477,7 +477,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
-        uiEventStreamService.publishDialogsChanged("dialog_reassigned", ticketId);
+        publishDialogsChanged(ticketId, "dialog_reassigned");
         return new DialogReassignResult(
                 true,
                 null,
@@ -505,6 +505,13 @@ public class DialogQuickActionService {
         }
         uiEventStreamService.publishDialogsChanged(reason, ticketId);
         uiEventStreamService.publishDialogHistoryChanged(ticketId, null, reason);
+    }
+
+    private void publishDialogsChanged(String ticketId, String reason) {
+        if (uiEventStreamService == null) {
+            return;
+        }
+        uiEventStreamService.publishDialogsChanged(reason, ticketId);
     }
 
     private static final class CachedMultipartFile implements MultipartFile {

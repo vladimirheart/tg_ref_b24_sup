@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogPreviousHistoryPage;
+import com.example.panel.storage.AttachmentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,6 +14,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class DialogConversationReadServiceTest {
 
@@ -24,7 +26,7 @@ class DialogConversationReadServiceTest {
         Path dbFile = Files.createTempFile("dialog-conversation-", ".db");
         DataSource dataSource = new DriverManagerDataSource("jdbc:sqlite:" + dbFile.toAbsolutePath());
         jdbcTemplate = new JdbcTemplate(dataSource);
-        service = new DialogConversationReadService(jdbcTemplate);
+        service = new DialogConversationReadService(jdbcTemplate, mock(AttachmentService.class));
         createSchema();
     }
 
@@ -75,7 +77,7 @@ class DialogConversationReadServiceTest {
 
         assertThat(history).hasSize(1);
         assertThat(history.get(0).attachment())
-                .isEqualTo("/api/attachments/tickets/by-path?path=attachments%2FT-11%2Fclient%20photo.jpg");
+                .isEqualTo("/api/attachments/tickets/by-path?path=attachments/T-11/client%20photo.jpg");
     }
 
     @Test

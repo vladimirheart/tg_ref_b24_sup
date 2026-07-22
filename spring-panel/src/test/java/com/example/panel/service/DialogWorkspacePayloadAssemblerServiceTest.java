@@ -20,7 +20,7 @@ class DialogWorkspacePayloadAssemblerServiceTest {
                 Set.of("messages"),
                 25,
                 0,
-                List.of(new ChatMessageDto("client", "hello", null, "2026-04-30T08:00:00Z", "text", null, 1L, null, null, null, null, null)),
+                List.of(chatMessage("client", "hello", "2026-04-30T08:00:00Z", 1L)),
                 1,
                 true,
                 Map.of("id", 1001L),
@@ -84,8 +84,10 @@ class DialogWorkspacePayloadAssemblerServiceTest {
                 "2026-05-26T10:02:00Z",
                 "image",
                 "/api/attachments/tickets/T-WS-RICH/reply.png",
+                "reply.png",
                 962L,
                 961L,
+                null,
                 "Изображение",
                 "2026-05-26T10:02:30Z",
                 "2026-05-26T10:03:30Z",
@@ -160,5 +162,24 @@ class DialogWorkspacePayloadAssemblerServiceTest {
         assertThat(sla).containsEntry("escalation_required", true);
         assertThat(meta).containsEntry("cursor", 2);
         assertThat(meta).containsEntry("parity", Map.of("status", "attention", "missing_capabilities", List.of("media_reply")));
+    }
+
+    private ChatMessageDto chatMessage(String sender, String message, String timestamp, Long telegramMessageId) {
+        return new ChatMessageDto(
+                sender,
+                message,
+                null,
+                timestamp,
+                "text",
+                null,
+                null,
+                null,
+                telegramMessageId,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
     }
 }

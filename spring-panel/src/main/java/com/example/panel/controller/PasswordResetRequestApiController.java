@@ -9,10 +9,15 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @RestController
@@ -117,12 +122,21 @@ public class PasswordResetRequestApiController {
 
         String temporaryPassword = generateTemporaryPassword();
         String hash = passwordEncoder.encode(temporaryPassword);
-        Integer updated = usersJdbcTemplate.update(
-                "UPDATE users SET password = ?, password_hash = ? WHERE id = ?",
-                hash,
-                hash,
-                ((Number) userId).longValue()
-        );
+        Integer updated;
+        if (hasColumn("users", "password_hash")) {
+            updated = usersJdbcTemplate.update(
+                    "UPDATE users SET password = ?, password_hash = ? WHERE id = ?",
+                    hash,
+                    hash,
+                    ((Number) userId).longValue()
+            );
+        } else {
+            updated = usersJdbcTemplate.update(
+                    "UPDATE users SET password = ? WHERE id = ?",
+                    hash,
+                    ((Number) userId).longValue()
+            );
+        }
         if (updated == null || updated == 0) {
             rejectMissingUserRequest(requestId, authentication, "Пользователь больше не существует");
             return Map.of("success", false, "error", "Пользователь для запроса не найден");
@@ -237,5 +251,25 @@ public class PasswordResetRequestApiController {
             sb.append(alphabet.charAt(random.nextInt(alphabet.length())));
         }
         return sb.toString();
+    }
+
+    private boolean hasColumn(String tableName, String columnName) {
+        DataSource dataSource = usersJdbcTemplate.getDataSource();
+        if (dataSource == null) {
+            return false;
+        }
+        try (Connection connection = dataSource.getConnection()) {
+            DatabaseMetaData metaData = connection.getMetaData();
+            try (ResultSet columns = metaData.getColumns(null, null, tableName, columnName)) {
+                if (columns.next()) {
+                    return true;
+                }
+            }
+            try (ResultSet columns = metaData.getColumns(null, null, tableName.toUpperCase(Locale.ROOT), columnName.toUpperCase(Locale.ROOT))) {
+                return columns.next();
+            }
+        } catch (Exception ex) {
+            return false;
+        }
     }
 }

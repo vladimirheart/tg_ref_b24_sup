@@ -80,6 +80,7 @@ public class AuthManagementApiController {
     private final PanelUserPhotoService panelUserPhotoService;
     private final ObjectMapper objectMapper;
     private final Path avatarsRoot;
+    private volatile Set<String> userColumns;
 
     public AuthManagementApiController(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                                        SharedConfigService sharedConfigService,
@@ -244,6 +245,9 @@ public class AuthManagementApiController {
 
         if (hasEditPermission(authentication, "user.block")
             && payload.containsKey("is_blocked") && userColumns.contains("is_blocked")) {
+            if (isSelf) {
+                return Map.of("success", false, "error", "Нельзя заблокировать собственную учётную запись");
+            }
             boolean blocked = Boolean.TRUE.equals(payload.get("is_blocked"));
             updates.add("is_blocked = ?");
             params.add(blocked ? 1 : 0);
@@ -281,6 +285,10 @@ public class AuthManagementApiController {
     public Map<String, Object> deleteUser(@PathVariable long userId, Authentication authentication) {
         if (!hasEditPermission(authentication, "user.delete")) {
             return Map.of("success", false, "error", "Недостаточно прав для удаления пользователя");
+        }
+        Long currentUserId = resolveCurrentUserId(authentication);
+        if (currentUserId != null && currentUserId.equals(userId)) {
+            return Map.of("success", false, "error", "Нельзя удалить собственную учётную запись");
         }
         int removed = usersJdbcTemplate.update("DELETE FROM users WHERE id = ?", userId);
         if (removed == 0) {
@@ -707,6 +715,10 @@ public class AuthManagementApiController {
     }
 
     private Set<String> loadUserColumns() {
+        Set<String> cached = userColumns;
+        if (cached != null && !cached.isEmpty()) {
+            return cached;
+        }
         try {
             List<Map<String, Object>> rows = usersJdbcTemplate.queryForList("PRAGMA table_info(users)");
             Set<String> columns = new LinkedHashSet<>();
@@ -716,6 +728,7 @@ public class AuthManagementApiController {
                     columns.add(name.toString());
                 }
             }
+            this.userColumns = columns;
             return columns;
         } catch (Exception ex) {
             return new LinkedHashSet<>();
