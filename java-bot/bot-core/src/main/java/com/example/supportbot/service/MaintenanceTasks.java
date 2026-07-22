@@ -133,26 +133,12 @@ public class MaintenanceTasks {
                     Math.toIntExact(DEFAULT_AUTO_CLOSE_DURATION.toHours()));
         }
 
-        AutoCloseSelection migrationSelection = resolveMigrationOnlyAutoCloseSelection(settings);
-        if (migrationSelection != null) {
-            return migrationSelection;
+        if (parsePositiveInteger(settings.get("auto_close_hours")) >= 0) {
+            log.warn("Ignoring deprecated top-level auto_close_hours because bot runtime now requires canonical auto_close_config. Using default auto-close settings.");
         }
 
         return AutoCloseSelection.enabled(DEFAULT_AUTO_CLOSE_DURATION, "default:auto_close", null,
                 Math.toIntExact(DEFAULT_AUTO_CLOSE_DURATION.toHours()));
-    }
-
-    private AutoCloseSelection resolveMigrationOnlyAutoCloseSelection(Map<String, Object> settings) {
-        int legacyHours = parsePositiveInteger(settings.get("auto_close_hours"));
-        if (legacyHours == 0) {
-            log.warn("Using migration-only fallback from deprecated top-level auto_close_hours to disable auto-close because auto_close_config is absent");
-            return AutoCloseSelection.disabled("migration:auto_close_hours", null, 0);
-        }
-        if (legacyHours > 0) {
-            log.warn("Using migration-only fallback from deprecated top-level auto_close_hours because auto_close_config is absent");
-            return AutoCloseSelection.enabled(Duration.ofHours(legacyHours), "migration:auto_close_hours", null, legacyHours);
-        }
-        return null;
     }
 
     private AutoCloseSelection resolveChannelAutoCloseSelection(Map<String, Object> settings,

@@ -18,7 +18,7 @@ import org.mockito.ArgumentCaptor;
 class MaintenanceTasksTest {
 
     @Test
-    void resolveAutoCloseDurationUsesMigrationOnlyTopLevelLegacyHours() {
+    void resolveAutoCloseDurationIgnoresTopLevelLegacyHoursWithoutCanonicalConfig() {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("auto_close_hours", 1));
 
@@ -28,7 +28,7 @@ class MaintenanceTasksTest {
                 sharedConfigService
         );
 
-        assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(1));
+        assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(24));
     }
 
     @Test
@@ -94,7 +94,7 @@ class MaintenanceTasksTest {
     }
 
     @Test
-    void resolveAutoCloseDurationDisablesAutoCloseWhenMigrationOnlyHoursIsZero() {
+    void resolveAutoCloseDurationIgnoresTopLevelLegacyZeroWithoutCanonicalConfig() {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("auto_close_hours", 0));
 
@@ -104,11 +104,11 @@ class MaintenanceTasksTest {
                 sharedConfigService
         );
 
-        assertThat(tasks.resolveAutoCloseDuration()).isNull();
+        assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(24));
     }
 
     @Test
-    void autoCloseInactiveTicketsPassesMigrationOnlyDurationToTicketServiceResolver() {
+    void autoCloseInactiveTicketsIgnoresTopLevelLegacyHoursWithoutCanonicalConfig() {
         TicketService ticketService = mock(TicketService.class);
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of("auto_close_hours", 1));
@@ -129,8 +129,8 @@ class MaintenanceTasksTest {
         Ticket ticket = new Ticket();
         TicketService.AutoClosePolicy policy = captor.getValue().apply(ticket);
         assertThat(policy.enabled()).isTrue();
-        assertThat(policy.inactivityLimit()).isEqualTo(Duration.ofHours(1));
-        assertThat(policy.source()).isEqualTo("migration:auto_close_hours");
+        assertThat(policy.inactivityLimit()).isEqualTo(Duration.ofHours(24));
+        assertThat(policy.source()).isEqualTo("default:auto_close");
     }
 
     @Test
