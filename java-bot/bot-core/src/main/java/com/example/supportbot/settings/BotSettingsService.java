@@ -45,7 +45,8 @@ public class BotSettingsService {
         Map<String, Object> presetDefinitions = sharedConfigService.presetDefinitions();
         Map<String, Object> sharedDefaults = sharedConfigService.loadSettings();
         if (!sharedDefaults.isEmpty()) {
-            Map<String, Object> sanitized = sanitizeBotSettingsInternal(sharedDefaults, presetDefinitions, 10);
+            Map<String, Object> sanitized = sanitizeBotSettingsInternal(
+                    canonicalBotSettingsFromSharedSettings(sharedDefaults), presetDefinitions, 10);
             return objectMapper.convertValue(sanitized, BotSettingsDto.class);
         }
         Map<String, Object> defaults = defaultBotSettingsInternal(presetDefinitions);
@@ -73,8 +74,7 @@ public class BotSettingsService {
      */
     public BotSettingsDto loadFromChannel(Channel channel) {
         Map<String, Object> sharedSettings = sharedConfigService.loadSettings();
-        Object sharedBotSettingsRaw = sharedSettings.get("bot_settings");
-        Map<String, Object> raw = convertToMap(sharedBotSettingsRaw);
+        Map<String, Object> raw = canonicalBotSettingsFromSharedSettings(sharedSettings);
         if (raw.isEmpty() && channel != null && channel.getQuestionsCfg() != null) {
             logger.info("Loading bot settings from deprecated channel.questions_cfg because shared bot_settings is empty");
             raw = convertToMap(channel.getQuestionsCfg());
@@ -85,6 +85,32 @@ public class BotSettingsService {
             sanitized = mergeChannelTemplateSelection(sanitized, channel);
         }
         return objectMapper.convertValue(sanitized, BotSettingsDto.class);
+    }
+
+    private Map<String, Object> canonicalBotSettingsFromSharedSettings(Map<String, Object> sharedSettings) {
+        Map<String, Object> raw = convertToMap(sharedSettings != null ? sharedSettings.get("bot_settings") : null);
+        Integer nestedCooldown = tryParseInt(raw.get("unblock_request_cooldown_minutes"));
+        if (nestedCooldown == null) {
+            nestedCooldown = tryParseInt(raw.get("unblockRequestCooldownMinutes"));
+        }
+        Integer rootCooldown = tryParseInt(sharedSettings != null ? sharedSettings.get("unblock_request_cooldown_minutes") : null);
+
+        if (nestedCooldown != null) {
+            nestedCooldown = Math.max(0, nestedCooldown);
+            raw.put("unblock_request_cooldown_minutes", nestedCooldown);
+            raw.remove("unblockRequestCooldownMinutes");
+            if (rootCooldown != null && nestedCooldown != Math.max(0, rootCooldown)) {
+                logger.warn("Ignoring deprecated root unblock_request_cooldown_minutes because bot_settings.unblock_request_cooldown_minutes is canonical");
+            }
+            return raw;
+        }
+
+        raw.remove("unblockRequestCooldownMinutes");
+        if (rootCooldown != null) {
+            logger.info("Importing deprecated root unblock_request_cooldown_minutes into canonical bot_settings");
+            raw.put("unblock_request_cooldown_minutes", Math.max(0, rootCooldown));
+        }
+        return raw;
     }
 
     public Map<String, Object> buildLocationPresets(Map<String, Object> locationTree) {

@@ -193,6 +193,22 @@ class SettingsUpdateSharedConfigIntegrationTest {
     }
 
     @Test
+    void updateSettingsMigratesRootCooldownPayloadIntoCanonicalBotSettings() {
+        when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
+                .thenReturn(false);
+
+        Map<String, Object> result = service.updateSettings(Map.of(
+                "unblock_request_cooldown_minutes", 9
+        ), mock(Authentication.class));
+
+        assertEquals(Map.of("success", true), result);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> botSettings = (Map<String, Object>) sharedConfigService.loadSettings().get("bot_settings");
+        assertEquals(9, botSettings.get("unblock_request_cooldown_minutes"));
+        assertTrue(!sharedConfigService.loadSettings().containsKey("unblock_request_cooldown_minutes"));
+    }
+
+    @Test
     void updateSettingsPersistsCanonicalRatingTemplatesWithoutDerivedMirror() {
         when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
                 .thenReturn(false);

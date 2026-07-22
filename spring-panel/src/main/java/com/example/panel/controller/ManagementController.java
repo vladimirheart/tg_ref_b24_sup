@@ -168,7 +168,10 @@ public class ManagementController {
             model.addAttribute("systemParameters", systemParameters);
             Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
             settings.put("auto_close_config", autoCloseConfigNormalizer.normalize(settings.get("auto_close_config")));
-            settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(settings.get("bot_settings")));
+            settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(
+                    settings.get("bot_settings"),
+                    settings.get("unblock_request_cooldown_minutes")));
+            settings.remove("unblock_request_cooldown_minutes");
             model.addAttribute("settingsPayload", settings);
             model.addAttribute("autoCloseFallbackHours",
                     autoCloseConfigNormalizer.resolveFallbackHours(

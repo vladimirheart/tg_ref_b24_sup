@@ -435,7 +435,6 @@
     "active_rating_template_id" : "rating-template-default",
     "unblock_request_cooldown_minutes" : 60
   },
-  "unblock_request_cooldown_minutes" : 1,
   "knowledge_base_config" : {
     "enabled" : true,
     "source_url" : "https://www.notion.so/blinberry-group",

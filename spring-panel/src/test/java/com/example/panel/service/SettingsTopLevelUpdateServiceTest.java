@@ -109,6 +109,63 @@ class SettingsTopLevelUpdateServiceTest {
     }
 
     @Test
+    void applyTopLevelUpdatesDropsRootCooldownDuplicateWhenCanonicalBotSettingsAreSaved() {
+        SettingsTopLevelUpdateService service =
+                new SettingsTopLevelUpdateService(
+                        new AutoCloseConfigNormalizer(),
+                        new BotSettingsPayloadNormalizer(),
+                        new LocationsIikoServerSourceSettingsService(),
+                        new LocationsIikoSyncSettingsService(),
+                        mock(NotificationRoutingService.class)
+                );
+        Map<String, Object> settings = new LinkedHashMap<>();
+        settings.put("unblock_request_cooldown_minutes", 1);
+
+        boolean modified = service.applyTopLevelUpdates(Map.of(
+                "bot_settings", Map.of(
+                        "question_templates", List.of(
+                                Map.of(
+                                        "id", "bot-template-1",
+                                        "question_flow", List.of(Map.of("id", "q1", "type", "custom", "text", "Как вас зовут?"))
+                                )
+                        ),
+                        "active_template_id", "bot-template-1",
+                        "unblock_request_cooldown_minutes", 45
+                )
+        ), settings);
+
+        assertTrue(modified);
+        assertFalse(settings.containsKey("unblock_request_cooldown_minutes"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> botSettings = (Map<String, Object>) settings.get("bot_settings");
+        assertEquals(45, botSettings.get("unblock_request_cooldown_minutes"));
+    }
+
+    @Test
+    void applyTopLevelUpdatesMigratesRootCooldownPayloadIntoCanonicalBotSettings() {
+        SettingsTopLevelUpdateService service =
+                new SettingsTopLevelUpdateService(
+                        new AutoCloseConfigNormalizer(),
+                        new BotSettingsPayloadNormalizer(),
+                        new LocationsIikoServerSourceSettingsService(),
+                        new LocationsIikoSyncSettingsService(),
+                        mock(NotificationRoutingService.class)
+                );
+        Map<String, Object> settings = new LinkedHashMap<>();
+
+        boolean modified = service.applyTopLevelUpdates(Map.of(
+                "unblock_request_cooldown_minutes", 7
+        ), settings);
+
+        assertTrue(modified);
+        assertFalse(settings.containsKey("unblock_request_cooldown_minutes"));
+        assertEquals(
+                Map.of("unblock_request_cooldown_minutes", 7),
+                settings.get("bot_settings")
+        );
+    }
+
+    @Test
     void applyTopLevelUpdatesPersistsCanonicalAutoCloseConfigWithoutLegacyMirror() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(

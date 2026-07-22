@@ -49,6 +49,19 @@ class BotSettingsServiceTest {
     }
 
     @Test
+    void defaultSettingsShouldImportDeprecatedRootCooldownIntoCanonicalBotSettings() throws IOException {
+        writeSharedSettings("""
+                {
+                  "unblock_request_cooldown_minutes": 11
+                }
+                """);
+
+        BotSettingsDto defaults = service.buildDefaultSettings();
+
+        assertThat(defaults.getUnblockRequestCooldownMinutes()).isEqualTo(11);
+    }
+
+    @Test
     void sanitizeShouldNormalizeCanonicalTemplateSettings() throws IOException {
         Map<String, Object> raw = objectMapper.readValue(
                 """
@@ -497,6 +510,53 @@ class BotSettingsServiceTest {
         assertThat(settings.getActiveRatingTemplateId()).isEqualTo("rate-default");
         assertThat(settings.getRatingSystem().getPromptText()).isEqualTo("Default prompt");
         assertThat(settings.getRatingSystem().getScaleSize()).isEqualTo(5);
+    }
+
+    @Test
+    void loadFromChannelShouldImportDeprecatedRootCooldownWhenCanonicalCooldownIsMissing() throws IOException {
+        writeSharedSettings("""
+                {
+                  "bot_settings": {
+                    "question_templates": [
+                      {
+                        "id": "q-default",
+                        "name": "Default",
+                        "question_flow": [{"type": "custom", "text": "Default question"}]
+                      }
+                    ],
+                    "active_template_id": "q-default"
+                  },
+                  "unblock_request_cooldown_minutes": 14
+                }
+                """);
+
+        BotSettingsDto settings = service.loadFromChannel(null);
+
+        assertThat(settings.getUnblockRequestCooldownMinutes()).isEqualTo(14);
+    }
+
+    @Test
+    void loadFromChannelShouldPreferCanonicalBotSettingsCooldownOverDeprecatedRootDuplicate() throws IOException {
+        writeSharedSettings("""
+                {
+                  "bot_settings": {
+                    "question_templates": [
+                      {
+                        "id": "q-default",
+                        "name": "Default",
+                        "question_flow": [{"type": "custom", "text": "Default question"}]
+                      }
+                    ],
+                    "active_template_id": "q-default",
+                    "unblock_request_cooldown_minutes": 21
+                  },
+                  "unblock_request_cooldown_minutes": 3
+                }
+                """);
+
+        BotSettingsDto settings = service.loadFromChannel(null);
+
+        assertThat(settings.getUnblockRequestCooldownMinutes()).isEqualTo(21);
     }
 
     @Test

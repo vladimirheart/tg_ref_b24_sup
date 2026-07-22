@@ -77,6 +77,7 @@ public class SettingsTopLevelUpdateService {
         modified |= copyIfPresent(payload, settings, "business_cell_styles");
         modified |= copyIfPresent(payload, settings, "network_profiles");
         modified |= copyBotSettingsIfPresent(payload, settings);
+        modified |= migrateLegacyUnblockCooldownIfPresent(payload, settings);
         modified |= copyIfPresent(payload, settings, "integration_network");
         modified |= copyIfPresent(payload, settings, "integration_network_profiles");
         modified |= copyIfPresent(payload, settings, "reporting_config");
@@ -93,7 +94,23 @@ public class SettingsTopLevelUpdateService {
         if (!payload.containsKey("bot_settings")) {
             return false;
         }
-        settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(payload.get("bot_settings")));
+        settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(
+                payload.get("bot_settings"),
+                payload.get("unblock_request_cooldown_minutes")));
+        settings.remove("unblock_request_cooldown_minutes");
+        return true;
+    }
+
+    private boolean migrateLegacyUnblockCooldownIfPresent(Map<String, Object> payload,
+                                                          Map<String, Object> settings) {
+        if (!payload.containsKey("unblock_request_cooldown_minutes") || payload.containsKey("bot_settings")) {
+            return false;
+        }
+        settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(
+                settings.get("bot_settings"),
+                payload.get("unblock_request_cooldown_minutes")));
+        settings.remove("unblock_request_cooldown_minutes");
+        logger.warn("Migrated deprecated root unblock_request_cooldown_minutes payload into canonical bot_settings.unblock_request_cooldown_minutes");
         return true;
     }
 

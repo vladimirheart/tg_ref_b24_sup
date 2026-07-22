@@ -242,6 +242,47 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
+    void settingsPageImportsDeprecatedRootCooldownIntoCanonicalBotSettingsBootstrapPayload() throws Exception {
+        stubNavigationDefaults();
+        when(appSettingRepository.findAll()).thenReturn(List.of());
+        when(settingsParameterRepository.findAll()).thenReturn(List.of());
+        when(sharedConfigService.loadSettings()).thenReturn(new LinkedHashMap<>(Map.of(
+                "bot_settings", Map.of(),
+                "unblock_request_cooldown_minutes", 13
+        )));
+        when(locationsIikoServerSourceSettingsService.loadForClient(Map.of())).thenReturn(List.of());
+        when(locationsIikoSyncSettingsService.loadForClient(Map.of())).thenReturn(Map.of("enabled", true, "interval_minutes", 5));
+        IikoDepartmentLocationCatalogService.LocationCatalogSnapshot liveCatalog =
+                new IikoDepartmentLocationCatalogService.LocationCatalogSnapshot(
+                        Map.of("БлинБери", Map.of("Корпоративная сеть", Map.of("Смоленск", List.of("Ленина 1")))),
+                        Map.of(),
+                        "iiko_api",
+                        false,
+                        List.of()
+                );
+        when(locationCatalogService.loadCatalog()).thenReturn(liveCatalog);
+        when(locationCatalogService.buildEffectiveLocationsPayload(liveCatalog)).thenReturn(Map.of(
+                "tree", liveCatalog.tree(),
+                "statuses", Map.of(),
+                "city_meta", Map.of(),
+                "location_meta", Map.of()
+        ));
+        when(settingsCatalogService.collectCities(liveCatalog.tree())).thenReturn(List.of("Смоленск"));
+        when(settingsCatalogService.getParameterTypes()).thenReturn(Map.of());
+        when(settingsCatalogService.getParameterDependencies()).thenReturn(Map.of());
+        when(settingsCatalogService.getItConnectionCategories(any())).thenReturn(Map.of());
+        when(settingsCatalogService.getItConnectionCategoryFields()).thenReturn(Map.of());
+        when(settingsCatalogService.buildLocationPresets(liveCatalog.tree(), Map.of())).thenReturn(Map.of());
+        when(permissionService.hasAuthority(any(), any())).thenReturn(false);
+
+        mockMvc.perform(get("/settings").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("settings/index"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"channels\": {\r\n    \"botSettings\": {\"unblock_request_cooldown_minutes\":13}")))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"unblock_request_cooldown_minutes\":1}"))));
+    }
+
+    @Test
     void tasksPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         stubNavigationDefaults();
         when(taskRepository.findTop50ByOrderByCreatedAtDesc()).thenReturn(List.of());

@@ -22,8 +22,14 @@ public class BotSettingsPayloadNormalizer {
     private static final String IMPORTED_RATING_TEMPLATE_NAME = "Импортированный шаблон оценок";
 
     public Map<String, Object> normalize(Object raw) {
+        return normalize(raw, null);
+    }
+
+    public Map<String, Object> normalize(Object raw, Object legacyRootCooldownMinutes) {
         if (!(raw instanceof Map<?, ?> map)) {
-            return new LinkedHashMap<>();
+            Map<String, Object> empty = new LinkedHashMap<>();
+            normalizeCooldown(empty, legacyRootCooldownMinutes);
+            return empty;
         }
 
         Map<String, Object> botSettings = new LinkedHashMap<>();
@@ -100,8 +106,35 @@ public class BotSettingsPayloadNormalizer {
             }
         }
         botSettings.remove("rating_system");
+        normalizeCooldown(botSettings, legacyRootCooldownMinutes);
 
         return botSettings;
+    }
+
+    private void normalizeCooldown(Map<String, Object> botSettings,
+                                   Object legacyRootCooldownMinutes) {
+        Integer cooldown = parseInteger(botSettings.get("unblock_request_cooldown_minutes"));
+        if (cooldown == null) {
+            cooldown = parseInteger(botSettings.get("unblockRequestCooldownMinutes"));
+        }
+        Integer legacyRoot = parseInteger(legacyRootCooldownMinutes);
+
+        if (cooldown != null) {
+            cooldown = Math.max(0, cooldown);
+            if (legacyRoot != null && cooldown != Math.max(0, legacyRoot)) {
+                logger.warn("Ignoring deprecated root unblock_request_cooldown_minutes because bot_settings.unblock_request_cooldown_minutes is canonical");
+            }
+            botSettings.put("unblock_request_cooldown_minutes", cooldown);
+            botSettings.remove("unblockRequestCooldownMinutes");
+            return;
+        }
+
+        if (legacyRoot != null) {
+            logger.info("Imported deprecated root unblock_request_cooldown_minutes into canonical bot_settings.unblock_request_cooldown_minutes for panel/runtime bootstrap");
+            botSettings.put("unblock_request_cooldown_minutes", Math.max(0, legacyRoot));
+        }
+
+        botSettings.remove("unblockRequestCooldownMinutes");
     }
 
     private List<Map<String, Object>> normalizeQuestionTemplateList(Object rawTemplates) {
@@ -214,5 +247,20 @@ public class BotSettingsPayloadNormalizer {
 
     private String stringValue(Object rawValue) {
         return rawValue != null ? rawValue.toString().trim() : "";
+    }
+
+    private Integer parseInteger(Object rawValue) {
+        if (rawValue instanceof Number number) {
+            return number.intValue();
+        }
+        String value = stringValue(rawValue);
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 }
