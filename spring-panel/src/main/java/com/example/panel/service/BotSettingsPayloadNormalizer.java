@@ -16,20 +16,9 @@ public class BotSettingsPayloadNormalizer {
 
     private static final Logger logger = LoggerFactory.getLogger(BotSettingsPayloadNormalizer.class);
 
-    private static final String IMPORTED_QUESTION_TEMPLATE_ID = "template-imported";
-    private static final String IMPORTED_QUESTION_TEMPLATE_NAME = "Импортированный сценарий";
-    private static final String IMPORTED_RATING_TEMPLATE_ID = "rating-template-imported";
-    private static final String IMPORTED_RATING_TEMPLATE_NAME = "Импортированный шаблон оценок";
-
     public Map<String, Object> normalize(Object raw) {
-        return normalize(raw, null);
-    }
-
-    public Map<String, Object> normalize(Object raw, Object legacyRootCooldownMinutes) {
         if (!(raw instanceof Map<?, ?> map)) {
-            Map<String, Object> empty = new LinkedHashMap<>();
-            normalizeCooldown(empty, legacyRootCooldownMinutes);
-            return empty;
+            return new LinkedHashMap<>();
         }
 
         Map<String, Object> botSettings = new LinkedHashMap<>();
@@ -40,15 +29,10 @@ public class BotSettingsPayloadNormalizer {
         });
 
         List<Map<String, Object>> questionTemplates = normalizeQuestionTemplateList(botSettings.get("question_templates"));
-        if (questionTemplates.isEmpty() && botSettings.get("question_flow") instanceof List<?>) {
-            Map<String, Object> importedTemplate = buildImportedQuestionTemplate(botSettings);
-            if (!importedTemplate.isEmpty()) {
-                questionTemplates.add(importedTemplate);
-                botSettings.put("question_templates", questionTemplates);
-                logger.info("Imported deprecated bot_settings.question_flow into canonical bot_settings.question_templates for panel/runtime bootstrap");
-            }
-        } else if (!questionTemplates.isEmpty()) {
+        if (!questionTemplates.isEmpty()) {
             botSettings.put("question_templates", questionTemplates);
+        } else if (botSettings.containsKey("question_flow")) {
+            logger.warn("Ignoring deprecated bot_settings.question_flow because canonical bot_settings.question_templates are required");
         }
 
         Map<String, Object> activeQuestionTemplate = resolveActiveTemplate(
@@ -72,15 +56,10 @@ public class BotSettingsPayloadNormalizer {
         botSettings.remove("question_flow");
 
         List<Map<String, Object>> ratingTemplates = normalizeRatingTemplateList(botSettings.get("rating_templates"));
-        if (ratingTemplates.isEmpty() && botSettings.get("rating_system") instanceof Map<?, ?>) {
-            Map<String, Object> importedTemplate = buildImportedRatingTemplate(botSettings);
-            if (!importedTemplate.isEmpty()) {
-                ratingTemplates.add(importedTemplate);
-                botSettings.put("rating_templates", ratingTemplates);
-                logger.info("Imported deprecated bot_settings.rating_system into canonical bot_settings.rating_templates for panel/runtime bootstrap");
-            }
-        } else if (!ratingTemplates.isEmpty()) {
+        if (!ratingTemplates.isEmpty()) {
             botSettings.put("rating_templates", ratingTemplates);
+        } else if (botSettings.containsKey("rating_system")) {
+            logger.warn("Ignoring deprecated bot_settings.rating_system because canonical bot_settings.rating_templates are required");
         }
 
         Map<String, Object> activeRatingTemplate = resolveActiveTemplate(
@@ -106,32 +85,22 @@ public class BotSettingsPayloadNormalizer {
             }
         }
         botSettings.remove("rating_system");
-        normalizeCooldown(botSettings, legacyRootCooldownMinutes);
+        normalizeCooldown(botSettings);
 
         return botSettings;
     }
 
-    private void normalizeCooldown(Map<String, Object> botSettings,
-                                   Object legacyRootCooldownMinutes) {
+    private void normalizeCooldown(Map<String, Object> botSettings) {
         Integer cooldown = parseInteger(botSettings.get("unblock_request_cooldown_minutes"));
         if (cooldown == null) {
             cooldown = parseInteger(botSettings.get("unblockRequestCooldownMinutes"));
         }
-        Integer legacyRoot = parseInteger(legacyRootCooldownMinutes);
 
         if (cooldown != null) {
             cooldown = Math.max(0, cooldown);
-            if (legacyRoot != null && cooldown != Math.max(0, legacyRoot)) {
-                logger.warn("Ignoring deprecated root unblock_request_cooldown_minutes because bot_settings.unblock_request_cooldown_minutes is canonical");
-            }
             botSettings.put("unblock_request_cooldown_minutes", cooldown);
             botSettings.remove("unblockRequestCooldownMinutes");
             return;
-        }
-
-        if (legacyRoot != null) {
-            logger.info("Imported deprecated root unblock_request_cooldown_minutes into canonical bot_settings.unblock_request_cooldown_minutes for panel/runtime bootstrap");
-            botSettings.put("unblock_request_cooldown_minutes", Math.max(0, legacyRoot));
         }
 
         botSettings.remove("unblockRequestCooldownMinutes");
@@ -171,45 +140,6 @@ public class BotSettingsPayloadNormalizer {
         return templates;
     }
 
-    private Map<String, Object> buildImportedQuestionTemplate(Map<String, Object> botSettings) {
-        if (!(botSettings.get("question_flow") instanceof List<?>)) {
-            return Map.of();
-        }
-        Map<String, Object> template = new LinkedHashMap<>();
-        String requestedId = stringValue(botSettings.get("active_template_id"));
-        template.put("id", StringUtils.hasText(requestedId) ? requestedId : IMPORTED_QUESTION_TEMPLATE_ID);
-        template.put("name", IMPORTED_QUESTION_TEMPLATE_NAME);
-        template.put("question_flow", botSettings.get("question_flow"));
-        String startMessage = stringValue(botSettings.get("start_message"));
-        if (!StringUtils.hasText(startMessage)) {
-            startMessage = stringValue(botSettings.get("startMessage"));
-        }
-        if (StringUtils.hasText(startMessage)) {
-            template.put("start_message", startMessage);
-        }
-        return template;
-    }
-
-    private Map<String, Object> buildImportedRatingTemplate(Map<String, Object> botSettings) {
-        if (!(botSettings.get("rating_system") instanceof Map<?, ?> rawRatingSystem)) {
-            return Map.of();
-        }
-        Map<String, Object> ratingSystem = new LinkedHashMap<>();
-        rawRatingSystem.forEach((key, value) -> {
-            if (key != null) {
-                ratingSystem.put(key.toString(), value);
-            }
-        });
-        Map<String, Object> template = new LinkedHashMap<>();
-        String requestedId = stringValue(botSettings.get("active_rating_template_id"));
-        template.put("id", StringUtils.hasText(requestedId) ? requestedId : IMPORTED_RATING_TEMPLATE_ID);
-        template.put("name", IMPORTED_RATING_TEMPLATE_NAME);
-        copyFirstPresent(ratingSystem, template, "prompt_text", "promptText", "prompt");
-        copyFirstPresent(ratingSystem, template, "scale_size", "scaleSize", "scale");
-        copyFieldIfPresent(ratingSystem, template, "responses");
-        return template;
-    }
-
     private Map<String, Object> resolveActiveTemplate(List<Map<String, Object>> templates,
                                                       String requestedId) {
         if (templates.isEmpty()) {
@@ -230,18 +160,6 @@ public class BotSettingsPayloadNormalizer {
                                     String key) {
         if (source.containsKey(key)) {
             target.put(key, source.get(key));
-        }
-    }
-
-    private void copyFirstPresent(Map<String, Object> source,
-                                  Map<String, Object> target,
-                                  String targetKey,
-                                  String... candidateKeys) {
-        for (String candidateKey : candidateKeys) {
-            if (source.containsKey(candidateKey)) {
-                target.put(targetKey, source.get(candidateKey));
-                return;
-            }
         }
     }
 

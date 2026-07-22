@@ -14,7 +14,7 @@ import static org.mockito.Mockito.mock;
 class SettingsTopLevelUpdateServiceTest {
 
     @Test
-    void applyTopLevelUpdatesMigratesLegacyAutoCloseHoursIntoCanonicalConfigAndNormalizesListsAndMaps() {
+    void applyTopLevelUpdatesIgnoresLegacyAutoCloseHoursAndNormalizesListsAndMaps() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
                         new AutoCloseConfigNormalizer(),
@@ -35,15 +35,7 @@ class SettingsTopLevelUpdateServiceTest {
 
         assertTrue(modified);
         assertFalse(settings.containsKey("auto_close_hours"));
-        assertEquals(
-                Map.of(
-                        "templates", List.of(
-                                Map.of("id", "auto-close-migrated", "name", "Импортированный auto-close", "hours", 48)
-                        ),
-                        "active_template_id", "auto-close-migrated"
-                ),
-                settings.get("auto_close_config")
-        );
+        assertFalse(settings.containsKey("auto_close_config"));
         assertEquals(List.of("support", "sales"), settings.get("categories"));
         assertEquals(List.of("vip", "new"), settings.get("client_statuses"));
         assertEquals(Map.of("vip", "#fff000"), settings.get("client_status_colors"));
@@ -142,7 +134,7 @@ class SettingsTopLevelUpdateServiceTest {
     }
 
     @Test
-    void applyTopLevelUpdatesMigratesRootCooldownPayloadIntoCanonicalBotSettings() {
+    void applyTopLevelUpdatesIgnoresDeprecatedRootCooldownPayload() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
                         new AutoCloseConfigNormalizer(),
@@ -159,10 +151,7 @@ class SettingsTopLevelUpdateServiceTest {
 
         assertTrue(modified);
         assertFalse(settings.containsKey("unblock_request_cooldown_minutes"));
-        assertEquals(
-                Map.of("unblock_request_cooldown_minutes", 7),
-                settings.get("bot_settings")
-        );
+        assertFalse(settings.containsKey("bot_settings"));
     }
 
     @Test
@@ -203,7 +192,7 @@ class SettingsTopLevelUpdateServiceTest {
     }
 
     @Test
-    void applyTopLevelUpdatesMigratesLegacyAutoCloseHoursIntoExistingCanonicalActiveTemplate() {
+    void applyTopLevelUpdatesIgnoresLegacyAutoCloseHoursWhenCanonicalConfigAlreadyExists() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
                         new AutoCloseConfigNormalizer(),
@@ -231,7 +220,7 @@ class SettingsTopLevelUpdateServiceTest {
         assertEquals(
                 Map.of(
                         "templates", List.of(
-                                Map.of("id", "auto-1", "hours", 6, "description", "Primary"),
+                                Map.of("id", "auto-1", "hours", 12, "description", "Primary"),
                                 Map.of("id", "auto-2", "hours", 48)
                         ),
                         "active_template_id", "auto-1"
@@ -241,7 +230,7 @@ class SettingsTopLevelUpdateServiceTest {
     }
 
     @Test
-    void applyTopLevelUpdatesImportsLegacyBotSettingsIntoCanonicalTemplates() {
+    void applyTopLevelUpdatesDropsLegacyBotSettingsMirrorsWithoutImportingThem() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
                         new AutoCloseConfigNormalizer(),
@@ -270,13 +259,7 @@ class SettingsTopLevelUpdateServiceTest {
         assertTrue(modified);
         @SuppressWarnings("unchecked")
         Map<String, Object> botSettings = (Map<String, Object>) settings.get("bot_settings");
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> questionTemplates = (List<Map<String, Object>>) botSettings.get("question_templates");
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> ratingTemplates = (List<Map<String, Object>>) botSettings.get("rating_templates");
-
-        assertEquals("Импортированный сценарий", questionTemplates.get(0).get("name"));
-        assertEquals("Импортированный шаблон оценок", ratingTemplates.get(0).get("name"));
+        assertTrue(botSettings.isEmpty());
         assertFalse(botSettings.containsKey("question_flow"));
         assertFalse(botSettings.containsKey("rating_system"));
     }

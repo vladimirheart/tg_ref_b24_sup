@@ -75,9 +75,8 @@ public class BotSettingsService {
     public BotSettingsDto loadFromChannel(Channel channel) {
         Map<String, Object> sharedSettings = sharedConfigService.loadSettings();
         Map<String, Object> raw = canonicalBotSettingsFromSharedSettings(sharedSettings);
-        if (raw.isEmpty() && channel != null && channel.getQuestionsCfg() != null) {
-            logger.info("Loading bot settings from deprecated channel.questions_cfg because shared bot_settings is empty");
-            raw = convertToMap(channel.getQuestionsCfg());
+        if (raw.isEmpty() && channel != null && channel.getQuestionsCfg() != null && !channel.getQuestionsCfg().isBlank()) {
+            logger.warn("Ignoring deprecated channel.questions_cfg bot settings payload because runtime requires shared canonical bot_settings");
         }
         Map<String, Object> sanitized = sanitizeBotSettingsInternal(raw,
                 sharedConfigService.presetDefinitions(), 10);
@@ -93,22 +92,15 @@ public class BotSettingsService {
         if (nestedCooldown == null) {
             nestedCooldown = tryParseInt(raw.get("unblockRequestCooldownMinutes"));
         }
-        Integer rootCooldown = tryParseInt(sharedSettings != null ? sharedSettings.get("unblock_request_cooldown_minutes") : null);
 
         if (nestedCooldown != null) {
             nestedCooldown = Math.max(0, nestedCooldown);
             raw.put("unblock_request_cooldown_minutes", nestedCooldown);
             raw.remove("unblockRequestCooldownMinutes");
-            if (rootCooldown != null && nestedCooldown != Math.max(0, rootCooldown)) {
-                logger.warn("Ignoring deprecated root unblock_request_cooldown_minutes because bot_settings.unblock_request_cooldown_minutes is canonical");
-            }
-            return raw;
         }
-
         raw.remove("unblockRequestCooldownMinutes");
-        if (rootCooldown != null) {
-            logger.info("Importing deprecated root unblock_request_cooldown_minutes into canonical bot_settings");
-            raw.put("unblock_request_cooldown_minutes", Math.max(0, rootCooldown));
+        if (sharedSettings != null && sharedSettings.containsKey("unblock_request_cooldown_minutes")) {
+            logger.warn("Ignoring deprecated root unblock_request_cooldown_minutes because runtime requires canonical bot_settings.unblock_request_cooldown_minutes");
         }
         return raw;
     }
@@ -199,10 +191,7 @@ public class BotSettingsService {
         if (template != null && template.getQuestionFlow() != null && !template.getQuestionFlow().isEmpty()) {
             return template.getQuestionFlow();
         }
-        if (settings == null || settings.getQuestionFlow() == null) {
-            return List.of();
-        }
-        return settings.getQuestionFlow();
+        return List.of();
     }
 
     public Map<String, List<String>> businessAliases(BotSettingsDto settings) {
@@ -506,19 +495,8 @@ public class BotSettingsService {
             }
         }
 
-        List<Map<String, Object>> fallbackFlow = sanitizeQuestionFlow(
-                raw.get("question_flow"),
-                allowedPresets,
-                lookup
-        );
-        if (!fallbackFlow.isEmpty() && templates.isEmpty()) {
-            logger.info("Importing deprecated bot_settings.question_flow into canonical question_templates");
-            Map<String, Object> imported = new LinkedHashMap<>();
-            imported.put("id", defaultsValue(defaults, "question_templates", 0, "id"));
-            imported.put("start_message", defaultsValue(defaults, "question_templates", 0, "start_message"));
-            imported.put("name", "Р В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’ВР В Р’В Р вЂ™Р’В Р В Р Р‹Р вЂ™Р’ВР В Р’В Р вЂ™Р’В Р В Р Р‹Р Р†Р вЂљРІР‚СњР В Р’В Р вЂ™Р’В Р В Р Р‹Р Р†Р вЂљРЎС›Р В Р’В Р В Р вЂ№Р В Р’В Р Р†Р вЂљРЎв„ўР В Р’В Р В Р вЂ№Р В Р вЂ Р В РІР‚С™Р РЋРІвЂћСћР В Р’В Р вЂ™Р’В Р В Р Р‹Р Р†Р вЂљР’ВР В Р’В Р В Р вЂ№Р В Р’В Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В Р В Р Р‹Р Р†Р вЂљРЎС›Р В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В Р В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’В°Р В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В¦Р В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В¦Р В Р’В Р В Р вЂ№Р В Р вЂ Р В РІР‚С™Р Р†РІР‚С›РІР‚вЂњР В Р’В Р вЂ™Р’В Р В Р вЂ Р Р†Р вЂљРЎвЂєР Р†Р вЂљРІР‚Сљ Р В Р’В Р В Р вЂ№Р В Р’В Р РЋРІР‚СљР В Р’В Р В Р вЂ№Р В Р вЂ Р В РІР‚С™Р вЂ™Р’В Р В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’ВµР В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В¦Р В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’В°Р В Р’В Р В Р вЂ№Р В Р’В Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В Р В Р Р‹Р Р†Р вЂљР’ВР В Р’В Р вЂ™Р’В Р В Р вЂ Р Р†Р вЂљРЎвЂєР Р†Р вЂљРІР‚Сљ");
-            imported.put("question_flow", fallbackFlow);
-            templates.add(imported);
+        if (templates.isEmpty() && raw.containsKey("question_flow")) {
+            logger.warn("Ignoring deprecated bot_settings.question_flow because canonical question_templates are required");
         }
         if (templates.isEmpty()) {
             templates.addAll(castList(defaults.get("question_templates")));
@@ -585,36 +563,8 @@ public class BotSettingsService {
         }
 
         List<Map<String, Object>> ratingDefaults = castList(defaults.get("rating_templates"));
-        Object rawRatingSystem = raw.get("rating_system");
-        Map<String, Object> ratingSystem = rawRatingSystem instanceof Map<?, ?> ? convertToMap(rawRatingSystem) : new LinkedHashMap<>();
-        if (ratingTemplates.isEmpty() && !ratingSystem.isEmpty()) {
-            logger.info("Importing deprecated bot_settings.rating_system into canonical rating_templates");
-            Map<String, Object> entry = new LinkedHashMap<>();
-            String templateId = ensureUuid(ratingSystem.get("id"));
-            entry.put("id", templateId);
-            String name = optionalString(ratingSystem.get("name"));
-            entry.put("name", name.isBlank() ? "Р В Р’В Р вЂ™Р’В Р В Р’В Р В РЎвЂњР В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’В°Р В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’В±Р В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’В»Р В Р’В Р вЂ™Р’В Р В Р Р‹Р Р†Р вЂљРЎС›Р В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В¦ Р В Р’В Р вЂ™Р’В Р В Р Р‹Р Р†Р вЂљРЎС›Р В Р’В Р В Р вЂ№Р В Р вЂ Р В РІР‚С™Р вЂ™Р’В Р В Р’В Р вЂ™Р’В Р В РІР‚в„ўР вЂ™Р’ВµР В Р’В Р вЂ™Р’В Р В Р’В Р Р†Р вЂљР’В¦Р В Р’В Р вЂ™Р’В Р В Р Р‹Р Р†Р вЂљРЎС›Р В Р’В Р вЂ™Р’В Р В Р Р‹Р Р†Р вЂљРЎСљ" : name);
-            String description = optionalString(ratingSystem.get("description"));
-            int scale = normalizeScale(ratingSystem.get("scale_size"), ratingSystem.get("scale"), ratingSystem.get("scaleSize"), defaults, maxScale);
-            String prompt = optionalString(ratingSystem.get("prompt_text"));
-            if (prompt.isBlank()) {
-                prompt = optionalString(ratingSystem.get("prompt"));
-            }
-            if (prompt.isBlank()) {
-                prompt = defaultRatingPrompt(scale);
-            }
-            List<Map<String, Object>> responses = sanitizeRatingResponses(
-                    ratingSystem.get("responses"),
-                    scale,
-                    buildDefaultResponses(scale)
-            );
-            entry.put("prompt_text", prompt);
-            entry.put("scale_size", scale);
-            entry.put("responses", responses);
-            if (!description.isBlank()) {
-                entry.put("description", description);
-            }
-            ratingTemplates.add(entry);
+        if (ratingTemplates.isEmpty() && raw.containsKey("rating_system")) {
+            logger.warn("Ignoring deprecated bot_settings.rating_system because canonical rating_templates are required");
         }
         if (ratingTemplates.isEmpty()) {
             ratingTemplates.addAll(ratingDefaults);
@@ -690,7 +640,7 @@ public class BotSettingsService {
                     template.getResponses()
             );
         }
-        return settings != null ? settings.getRatingSystem() : null;
+        return null;
     }
 
     public int unblockRequestCooldownMinutes(BotSettingsDto settings, int defaultValue) {
@@ -1308,17 +1258,6 @@ public class BotSettingsService {
             return (List<Map<String, Object>>) list;
         }
         return new ArrayList<>();
-    }
-
-    private Object defaultsValue(Map<String, Object> defaults, String listKey, int index, String mapKey) {
-        Object listObj = defaults.get(listKey);
-        if (listObj instanceof List<?> list && list.size() > index) {
-            Object map = list.get(index);
-            if (map instanceof Map<?, ?> mapEntry) {
-                return mapEntry.get(mapKey);
-            }
-        }
-        return null;
     }
 
     private Collection<?> toCollection(Iterable<?> iterable) {

@@ -45,17 +45,8 @@ public class SettingsTopLevelUpdateService {
             settings.remove("auto_close_hours");
             modified = true;
         } else if (payload.containsKey("auto_close_hours")) {
-            boolean hadCanonicalConfig = !autoCloseConfigNormalizer.normalize(settings.get("auto_close_config")).isEmpty();
-            settings.put("auto_close_config",
-                    autoCloseConfigNormalizer.migrateLegacyTopLevelHours(
-                            settings.get("auto_close_config"),
-                            payload.get("auto_close_hours")));
+            logger.warn("Ignoring deprecated auto_close_hours payload because top-level auto_close_hours is no longer supported");
             settings.remove("auto_close_hours");
-            if (hadCanonicalConfig) {
-                logger.warn("Migrated deprecated auto_close_hours payload into canonical auto_close_config by updating the active template");
-            } else {
-                logger.warn("Migrated deprecated auto_close_hours payload into canonical auto_close_config because legacy top-level writes are no longer persisted");
-            }
             modified = true;
         }
 
@@ -94,9 +85,10 @@ public class SettingsTopLevelUpdateService {
         if (!payload.containsKey("bot_settings")) {
             return false;
         }
-        settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(
-                payload.get("bot_settings"),
-                payload.get("unblock_request_cooldown_minutes")));
+        settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(payload.get("bot_settings")));
+        if (payload.containsKey("unblock_request_cooldown_minutes")) {
+            logger.warn("Ignoring deprecated root unblock_request_cooldown_minutes payload because canonical value must be sent inside bot_settings");
+        }
         settings.remove("unblock_request_cooldown_minutes");
         return true;
     }
@@ -106,11 +98,8 @@ public class SettingsTopLevelUpdateService {
         if (!payload.containsKey("unblock_request_cooldown_minutes") || payload.containsKey("bot_settings")) {
             return false;
         }
-        settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(
-                settings.get("bot_settings"),
-                payload.get("unblock_request_cooldown_minutes")));
+        logger.warn("Ignoring deprecated root unblock_request_cooldown_minutes payload because canonical value must be sent inside bot_settings");
         settings.remove("unblock_request_cooldown_minutes");
-        logger.warn("Migrated deprecated root unblock_request_cooldown_minutes payload into canonical bot_settings.unblock_request_cooldown_minutes");
         return true;
     }
 
@@ -154,23 +143,5 @@ public class SettingsTopLevelUpdateService {
             }
         });
         return values;
-    }
-    private String stringValue(Object rawValue) {
-        return rawValue != null ? rawValue.toString().trim() : "";
-    }
-
-    private Integer parseInteger(Object rawValue) {
-        if (rawValue instanceof Number number) {
-            return number.intValue();
-        }
-        String value = stringValue(rawValue);
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
     }
 }

@@ -36,9 +36,6 @@ public class ChannelTransportService {
     private static final Logger log = LoggerFactory.getLogger(ChannelTransportService.class);
     private static final Set<String> LOCATION_FIELD_IDS = Set.of("business", "location_type", "city", "location_name");
     private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
-    private static final Set<String> LEGACY_QUESTION_TEMPLATE_KEYS = Set.of("active_template_id", "question_template_id");
-    private static final Set<String> LEGACY_RATING_TEMPLATE_KEYS = Set.of("active_rating_template_id", "rating_template_id");
-
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
@@ -101,17 +98,6 @@ public class ChannelTransportService {
         channel.setQuestionTemplateId(stringValue(data.get("question_template_id")));
         channel.setRatingTemplateId(stringValue(data.get("rating_template_id")));
         channel.setAutoActionTemplateId(stringValue(data.get("auto_action_template_id")));
-        LegacyChannelTemplateSelection legacySelection = data.containsKey("questions_cfg")
-                ? extractLegacyChannelTemplateSelection(data.get("questions_cfg"))
-                : LegacyChannelTemplateSelection.empty();
-        if (!data.containsKey("question_template_id") && !legacySelection.questionTemplateId().isEmpty()) {
-            channel.setQuestionTemplateId(legacySelection.questionTemplateId());
-            log.warn("Promoting deprecated questions_cfg template selection into channel.question_template_id during create");
-        }
-        if (!data.containsKey("rating_template_id") && !legacySelection.ratingTemplateId().isEmpty()) {
-            channel.setRatingTemplateId(legacySelection.ratingTemplateId());
-            log.warn("Promoting deprecated questions_cfg rating selection into channel.rating_template_id during create");
-        }
         if (platformConfig != null) {
             channel.setPlatformConfig(serializeIfNeeded(platformConfig));
         }
@@ -248,21 +234,6 @@ public class ChannelTransportService {
         }
 
         if (data.containsKey("questions_cfg")) {
-            LegacyChannelTemplateSelection legacySelection = extractLegacyChannelTemplateSelection(data.get("questions_cfg"));
-            if (!data.containsKey("question_template_id")
-                    && isBlank(channel.getQuestionTemplateId())
-                    && !legacySelection.questionTemplateId().isEmpty()) {
-                channel.setQuestionTemplateId(legacySelection.questionTemplateId());
-                updated = true;
-                log.warn("Promoting deprecated questions_cfg template selection into channel.question_template_id during update");
-            }
-            if (!data.containsKey("rating_template_id")
-                    && isBlank(channel.getRatingTemplateId())
-                    && !legacySelection.ratingTemplateId().isEmpty()) {
-                channel.setRatingTemplateId(legacySelection.ratingTemplateId());
-                updated = true;
-                log.warn("Promoting deprecated questions_cfg rating selection into channel.rating_template_id during update");
-            }
             try {
                 String encoded = normalizeQuestionsConfig(data.get("questions_cfg"));
                 channel.setQuestionsCfg(encoded);
@@ -619,13 +590,6 @@ public class ChannelTransportService {
     }
 
     private Map<String, Object> toChannelResponse(Channel channel, Map<Long, Map<String, Object>> credentials) {
-        LegacyChannelTemplateSelection legacySelection = extractLegacyChannelTemplateSelection(channel.getQuestionsCfg());
-        String questionTemplateId = !isBlank(channel.getQuestionTemplateId())
-                ? channel.getQuestionTemplateId()
-                : legacySelection.questionTemplateId();
-        String ratingTemplateId = !isBlank(channel.getRatingTemplateId())
-                ? channel.getRatingTemplateId()
-                : legacySelection.ratingTemplateId();
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("id", channel.getId());
         response.put("channel_name", channel.getChannelName());
@@ -637,8 +601,8 @@ public class ChannelTransportService {
         response.put("credential_id", channel.getCredentialId());
         response.put("bot_name", channel.getBotName());
         response.put("bot_username", channel.getBotUsername());
-        response.put("question_template_id", questionTemplateId);
-        response.put("rating_template_id", ratingTemplateId);
+        response.put("question_template_id", stringValue(channel.getQuestionTemplateId()));
+        response.put("rating_template_id", stringValue(channel.getRatingTemplateId()));
         response.put("auto_action_template_id", channel.getAutoActionTemplateId());
         response.put("support_chat_id", channel.getSupportChatId());
         response.put("platform_config", parseJsonMap(channel.getPlatformConfig()));
@@ -1010,40 +974,6 @@ public class ChannelTransportService {
         }
     }
 
-    private LegacyChannelTemplateSelection extractLegacyChannelTemplateSelection(Object rawQuestionsCfg) {
-        Map<String, Object> questionsCfg = parseQuestionsConfigMap(rawQuestionsCfg);
-        String questionTemplateId = firstNonBlank(questionsCfg, LEGACY_QUESTION_TEMPLATE_KEYS);
-        String ratingTemplateId = firstNonBlank(questionsCfg, LEGACY_RATING_TEMPLATE_KEYS);
-        return new LegacyChannelTemplateSelection(questionTemplateId, ratingTemplateId);
-    }
-
-    private Map<String, Object> parseQuestionsConfigMap(Object rawQuestionsCfg) {
-        if (rawQuestionsCfg == null) {
-            return Map.of();
-        }
-        if (rawQuestionsCfg instanceof String rawString) {
-            return parseJsonMap(rawString);
-        }
-        JsonNode node = objectMapper.valueToTree(rawQuestionsCfg);
-        if (node != null && node.isObject()) {
-            return objectMapper.convertValue(
-                    node,
-                    objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, Object.class)
-            );
-        }
-        return Map.of();
-    }
-
-    private String firstNonBlank(Map<String, Object> source, Set<String> keys) {
-        for (String key : keys) {
-            String value = stringValue(source.get(key));
-            if (!value.isEmpty()) {
-                return value;
-            }
-        }
-        return "";
-    }
-
     private void updateTelegramBotInfoIfMissing(List<Channel> channels) {
         List<Channel> updated = new ArrayList<>();
         for (Channel channel : channels) {
@@ -1148,12 +1078,6 @@ public class ChannelTransportService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
-    }
-
-    private record LegacyChannelTemplateSelection(String questionTemplateId, String ratingTemplateId) {
-        private static LegacyChannelTemplateSelection empty() {
-            return new LegacyChannelTemplateSelection("", "");
-        }
     }
 
     private String buildTelegramBotMethodUrl(Channel channel, String token, String methodName) {

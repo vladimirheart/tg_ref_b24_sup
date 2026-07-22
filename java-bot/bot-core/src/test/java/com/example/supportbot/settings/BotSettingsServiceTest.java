@@ -49,7 +49,7 @@ class BotSettingsServiceTest {
     }
 
     @Test
-    void defaultSettingsShouldImportDeprecatedRootCooldownIntoCanonicalBotSettings() throws IOException {
+    void defaultSettingsShouldIgnoreDeprecatedRootCooldownAndUseCanonicalDefault() throws IOException {
         writeSharedSettings("""
                 {
                   "unblock_request_cooldown_minutes": 11
@@ -58,7 +58,7 @@ class BotSettingsServiceTest {
 
         BotSettingsDto defaults = service.buildDefaultSettings();
 
-        assertThat(defaults.getUnblockRequestCooldownMinutes()).isEqualTo(11);
+        assertThat(defaults.getUnblockRequestCooldownMinutes()).isEqualTo(60);
     }
 
     @Test
@@ -247,7 +247,7 @@ class BotSettingsServiceTest {
     }
 
     @Test
-    void sanitizeShouldImportLegacyQuestionFlowAndRatingSystemIntoCanonicalTemplatesWhenCanonicalTemplatesAreMissing() throws IOException {
+    void sanitizeShouldIgnoreLegacyQuestionFlowAndRatingSystemWhenCanonicalTemplatesAreMissing() throws IOException {
         Map<String, Object> raw = objectMapper.readValue(
                 """
                         {
@@ -271,15 +271,10 @@ class BotSettingsServiceTest {
         BotSettingsDto sanitized = service.sanitizeFromJson(raw);
 
         assertThat(sanitized.getQuestionTemplates()).hasSize(1);
-        assertThat(sanitized.getQuestionTemplates().get(0).getQuestionFlow()).hasSize(2);
         assertThat(sanitized.getQuestionFlow()).extracting(QuestionFlowItemDto::getText)
-                .containsExactly("Как вас зовут?", "Город");
-
+                .doesNotContain("Как вас зовут?");
         assertThat(sanitized.getRatingTemplates()).hasSize(1);
-        assertThat(sanitized.getRatingSystem().getPromptText()).isEqualTo("Оцените консультацию");
-        assertThat(sanitized.getRatingSystem().getResponses())
-                .extracting(com.example.supportbot.settings.dto.RatingResponseDto::getText)
-                .contains("Плохо", "Отлично");
+        assertThat(sanitized.getRatingSystem().getPromptText()).isNotEqualTo("Оцените консультацию");
     }
 
     @Test
@@ -513,7 +508,7 @@ class BotSettingsServiceTest {
     }
 
     @Test
-    void loadFromChannelShouldImportDeprecatedRootCooldownWhenCanonicalCooldownIsMissing() throws IOException {
+    void loadFromChannelShouldIgnoreDeprecatedRootCooldownWhenCanonicalCooldownIsMissing() throws IOException {
         writeSharedSettings("""
                 {
                   "bot_settings": {
@@ -532,11 +527,11 @@ class BotSettingsServiceTest {
 
         BotSettingsDto settings = service.loadFromChannel(null);
 
-        assertThat(settings.getUnblockRequestCooldownMinutes()).isEqualTo(14);
+        assertThat(settings.getUnblockRequestCooldownMinutes()).isEqualTo(60);
     }
 
     @Test
-    void loadFromChannelShouldPreferCanonicalBotSettingsCooldownOverDeprecatedRootDuplicate() throws IOException {
+    void loadFromChannelShouldPreferCanonicalBotSettingsCooldownOverIgnoredRootDuplicate() throws IOException {
         writeSharedSettings("""
                 {
                   "bot_settings": {

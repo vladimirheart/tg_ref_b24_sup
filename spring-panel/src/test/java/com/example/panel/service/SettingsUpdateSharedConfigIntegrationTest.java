@@ -116,7 +116,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
     }
 
     @Test
-    void updateSettingsMigratesLegacyAutoCloseHoursIntoCanonicalConfigAlongsideOtherTopLevelValues() {
+    void updateSettingsIgnoresLegacyAutoCloseHoursAlongsideOtherTopLevelValues() {
         when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
                 .thenAnswer(invocation -> {
                     Map<String, Object> settings = invocation.getArgument(1);
@@ -134,15 +134,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
 
         assertEquals(true, result.get("success"));
         assertEquals(List.of("dialog warning"), result.get("warnings"));
-        assertEquals(
-                Map.of(
-                        "templates", List.of(
-                                Map.of("id", "auto-close-migrated", "name", "Импортированный auto-close", "hours", 72)
-                        ),
-                        "active_template_id", "auto-close-migrated"
-                ),
-                sharedConfigService.loadSettings().get("auto_close_config")
-        );
+        assertTrue(!sharedConfigService.loadSettings().containsKey("auto_close_config"));
         assertTrue(!sharedConfigService.loadSettings().containsKey("auto_close_hours"));
         assertEquals(List.of("vip", "new"), sharedConfigService.loadSettings().get("client_statuses"));
         assertTrue(sharedConfigService.loadSettings().containsKey("dialog_config"));
@@ -193,7 +185,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
     }
 
     @Test
-    void updateSettingsMigratesRootCooldownPayloadIntoCanonicalBotSettings() {
+    void updateSettingsIgnoresDeprecatedRootCooldownPayload() {
         when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
                 .thenReturn(false);
 
@@ -202,9 +194,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
         ), mock(Authentication.class));
 
         assertEquals(Map.of("success", true), result);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> botSettings = (Map<String, Object>) sharedConfigService.loadSettings().get("bot_settings");
-        assertEquals(9, botSettings.get("unblock_request_cooldown_minutes"));
+        assertTrue(!sharedConfigService.loadSettings().containsKey("bot_settings"));
         assertTrue(!sharedConfigService.loadSettings().containsKey("unblock_request_cooldown_minutes"));
     }
 

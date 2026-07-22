@@ -426,7 +426,7 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
-    void createChannelPromotesLegacyTemplateSelectionsOutOfQuestionsCfg() throws Exception {
+    void createChannelIgnoresLegacyTemplateSelectionsInsideQuestionsCfg() throws Exception {
         when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> {
             Channel channel = invocation.getArgument(0);
             channel.setId(52L);
@@ -460,14 +460,14 @@ class ChannelApiControllerWebMvcTest {
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.channel.id").value(52))
-                .andExpect(jsonPath("$.channel.question_template_id").value("q-legacy"))
-                .andExpect(jsonPath("$.channel.rating_template_id").value("r-legacy"))
+                .andExpect(jsonPath("$.channel.question_template_id").value(""))
+                .andExpect(jsonPath("$.channel.rating_template_id").value(""))
                 .andExpect(jsonPath("$.channel.questions_cfg.active_template_id").doesNotExist())
                 .andExpect(jsonPath("$.channel.questions_cfg.active_rating_template_id").doesNotExist());
 
         verify(channelRepository).save(argThat(channel ->
-                "q-legacy".equals(channel.getQuestionTemplateId())
-                        && "r-legacy".equals(channel.getRatingTemplateId())
+                (channel.getQuestionTemplateId() == null || channel.getQuestionTemplateId().isBlank())
+                        && (channel.getRatingTemplateId() == null || channel.getRatingTemplateId().isBlank())
                         && channel.getQuestionsCfg() != null
                         && !channel.getQuestionsCfg().contains("active_template_id")
                         && !channel.getQuestionsCfg().contains("active_rating_template_id")
@@ -676,7 +676,7 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
-    void getChannelsBackfillsTypedSelectionsFromLegacyQuestionsCfgAndSanitizesResponseConfig() throws Exception {
+    void getChannelsDoesNotBackfillTypedSelectionsFromLegacyQuestionsCfg() throws Exception {
         Channel channel = new Channel();
         channel.setId(145L);
         channel.setChannelName("Legacy Override");
@@ -704,8 +704,8 @@ class ChannelApiControllerWebMvcTest {
         mockMvc.perform(get("/api/channels"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.channels[0].question_template_id").value("q-legacy"))
-                .andExpect(jsonPath("$.channels[0].rating_template_id").value("r-legacy"))
+                .andExpect(jsonPath("$.channels[0].question_template_id").value(""))
+                .andExpect(jsonPath("$.channels[0].rating_template_id").value(""))
                 .andExpect(jsonPath("$.channels[0].questions_cfg.question_template_id").doesNotExist())
                 .andExpect(jsonPath("$.channels[0].questions_cfg.rating_template_id").doesNotExist());
     }

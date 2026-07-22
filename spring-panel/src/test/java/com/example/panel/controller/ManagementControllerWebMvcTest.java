@@ -196,7 +196,7 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
-    void settingsPageImportsLegacyBotSettingsIntoCanonicalBootstrapPayload() throws Exception {
+    void settingsPageDoesNotImportLegacyBotSettingsMirrorsIntoBootstrapPayload() throws Exception {
         stubNavigationDefaults();
         when(appSettingRepository.findAll()).thenReturn(List.of());
         when(settingsParameterRepository.findAll()).thenReturn(List.of());
@@ -244,15 +244,14 @@ class ManagementControllerWebMvcTest {
         mockMvc.perform(get("/settings").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
             .andExpect(status().isOk())
             .andExpect(view().name("settings/index"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"question_templates\"")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"rating_templates\"")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"template-imported\"")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"rating-template-imported\"")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"legacy-question-1\"")));
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"template-imported\""))))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"rating-template-imported\""))))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"legacy-question-1\""))))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Старый ответ 5"))));
     }
 
     @Test
-    void settingsPageImportsDeprecatedRootCooldownIntoCanonicalBotSettingsBootstrapPayload() throws Exception {
+    void settingsPageDropsDeprecatedRootCooldownFromBootstrapPayload() throws Exception {
         stubNavigationDefaults();
         when(appSettingRepository.findAll()).thenReturn(List.of());
         when(settingsParameterRepository.findAll()).thenReturn(List.of());
@@ -288,8 +287,7 @@ class ManagementControllerWebMvcTest {
         mockMvc.perform(get("/settings").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
             .andExpect(status().isOk())
             .andExpect(view().name("settings/index"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"channels\": {\r\n    \"botSettings\": {\"unblock_request_cooldown_minutes\":13}")))
-            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"unblock_request_cooldown_minutes\":1}"))));
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"unblock_request_cooldown_minutes\":13"))));
     }
 
     @Test
