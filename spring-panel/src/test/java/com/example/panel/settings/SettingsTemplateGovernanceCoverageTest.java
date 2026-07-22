@@ -11,10 +11,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SettingsTemplateGovernanceCoverageTest {
 
     private static final Path SETTINGS_TEMPLATE = Path.of("src/main/resources/templates/settings/index.html");
+    private static final Path WORKSPACE_RUNTIME = Path.of("src/main/resources/static/js/settings-dialog-workspace-governance-runtime.js");
+    private static final Path SLA_RUNTIME = Path.of("src/main/resources/static/js/settings-dialog-sla-core-runtime.js");
 
     @Test
     void settingsTemplateContainsWorkspaceReviewGovernanceFields() throws IOException {
         String html = Files.readString(SETTINGS_TEMPLATE);
+        String workspaceRuntime = Files.readString(WORKSPACE_RUNTIME);
 
         assertThat(html)
                 .contains("id=\"dialogWorkspaceGovernanceReviewDecisionRequired\"")
@@ -22,7 +25,8 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("id=\"dialogWorkspaceGovernanceLegacyBlockedReasonsReviewRequired\"")
                 .contains("id=\"dialogWorkspaceGovernanceLegacyBlockedReasonsTopN\"")
                 .contains("id=\"dialogWorkspaceGovernanceReviewDecisionAction\"")
-                .contains("id=\"dialogWorkspaceGovernanceReviewIncidentFollowup\"")
+                .contains("id=\"dialogWorkspaceGovernanceReviewIncidentFollowup\"");
+        assertThat(workspaceRuntime)
                 .contains("dialog_workspace_rollout_governance_review_decision_required")
                 .contains("dialog_workspace_rollout_governance_incident_followup_required")
                 .contains("dialog_workspace_rollout_governance_legacy_blocked_reasons_review_required")
@@ -34,6 +38,7 @@ class SettingsTemplateGovernanceCoverageTest {
     @Test
     void settingsTemplateContainsMacroGovernanceBaselineFields() throws IOException {
         String html = Files.readString(SETTINGS_TEMPLATE);
+        String slaRuntime = Files.readString(SLA_RUNTIME);
 
         assertThat(html)
                 .contains("id=\"dialogMacroGovernanceRequireOwner\"")
@@ -56,7 +61,8 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("id=\"dialogMacroGovernanceCleanupSlaHighDays\"")
                 .contains("id=\"dialogMacroGovernanceDeprecationSlaLowDays\"")
                 .contains("id=\"dialogMacroGovernanceDeprecationSlaMediumDays\"")
-                .contains("id=\"dialogMacroGovernanceDeprecationSlaHighDays\"")
+                .contains("id=\"dialogMacroGovernanceDeprecationSlaHighDays\"");
+        assertThat(slaRuntime)
                 .contains("dialog_macro_governance_require_owner")
                 .contains("dialog_macro_governance_require_namespace")
                 .contains("dialog_macro_governance_require_review")
@@ -83,6 +89,7 @@ class SettingsTemplateGovernanceCoverageTest {
     @Test
     void settingsTemplateContainsSlaPolicyGovernanceBaselineFields() throws IOException {
         String html = Files.readString(SETTINGS_TEMPLATE);
+        String slaRuntime = Files.readString(SLA_RUNTIME);
 
         assertThat(html)
                 .contains("id=\"dialogSlaPolicyAuditRequireLayers\"")
@@ -95,7 +102,8 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("id=\"dialogSlaPolicyGovernanceReviewPath\"")
                 .contains("id=\"dialogSlaPolicyGovernanceReviewTtlHours\"")
                 .contains("id=\"dialogSlaPolicyGovernanceDryRunTicketRequired\"")
-                .contains("id=\"dialogSlaPolicyGovernanceDecisionRequired\"")
+                .contains("id=\"dialogSlaPolicyGovernanceDecisionRequired\"");
+        assertThat(slaRuntime)
                 .contains("dialog_sla_critical_auto_assign_audit_require_layers")
                 .contains("dialog_sla_critical_auto_assign_audit_require_owner")
                 .contains("dialog_sla_critical_auto_assign_audit_require_review")
@@ -118,8 +126,8 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("data-it-equipment-field=\"serial_number\"")
                 .contains("id=\"itEquipmentAccessoriesInput\"")
                 .contains("data-it-equipment-field=\"accessories\"")
-                .contains("<th>Серийный номер</th>")
-                .contains("<th>Комплектация</th>")
+                .contains("<th data-field=\"serial_number\">Серийный номер</th>")
+                .contains("<th data-field=\"accessories\">Комплектация</th>")
                 .contains("data-field=\"serial_number\"")
                 .contains("data-field=\"accessories\"");
     }

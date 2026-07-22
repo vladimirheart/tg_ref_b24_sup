@@ -1500,7 +1500,7 @@ class SupportPanelIntegrationTests {
     @Test
     void workspaceRolloutDecisionHoldsWhenKpiCoverageIsTooLow() {
         OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
-        seedRolloutOpenEvents("op-cov-", "T-COV-", 300, 980L, 940L, baseTime);
+        seedRolloutOpenEvents("op-cov-", "T-COV-", 500, 980L, 940L, baseTime);
         for (int i = 0; i < 10; i++) {
             recordWorkspaceTelemetryEvent("op-cov-kpi-c-" + i, "workspace_macro_apply", "macro", "T-COV-KPI-C-" + i,
                     null, null, null, "workspace_v1_rollout", "control", "team=ops;shift=day",
@@ -2039,6 +2039,10 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_review_ttl_hours":24}
                         """);
 
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-legacy-open-", "T-LEGACY-OPEN-", 40, 1000L, 900L, baseTime);
+        seedRolloutPrimaryKpiEvents("op-legacy", "T-LEGACY", 12, 1200L, 1100L, 2200L, 2000L, baseTime);
+
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
         Map<String, Object> externalSignal = (Map<String, Object>) rolloutDecision.get("external_kpi_signal");
@@ -2404,20 +2408,20 @@ class SupportPanelIntegrationTests {
 
         Map<String, Object> dialogConfig = (Map<String, Object>) sharedConfigService.loadSettings().get("dialog_config");
         assertThat(dialogConfig.get("macro_governance_red_list_enabled")).isEqualTo(true);
-        assertThat(dialogConfig.get("macro_governance_red_list_usage_max")).isEqualTo(2L);
+        assertThat(((Number) dialogConfig.get("macro_governance_red_list_usage_max")).longValue()).isEqualTo(2L);
         assertThat(dialogConfig.get("macro_governance_owner_action_required")).isEqualTo(true);
-        assertThat(dialogConfig.get("macro_governance_cleanup_cadence_days")).isEqualTo(14L);
+        assertThat(((Number) dialogConfig.get("macro_governance_cleanup_cadence_days")).longValue()).isEqualTo(14L);
         assertThat(dialogConfig.get("macro_governance_alias_cleanup_required")).isEqualTo(true);
         assertThat(dialogConfig.get("macro_governance_variable_cleanup_required")).isEqualTo(true);
         assertThat(dialogConfig.get("macro_governance_usage_tier_sla_required")).isEqualTo(true);
-        assertThat(dialogConfig.get("macro_governance_usage_tier_low_max")).isEqualTo(1L);
-        assertThat(dialogConfig.get("macro_governance_usage_tier_medium_max")).isEqualTo(6L);
-        assertThat(dialogConfig.get("macro_governance_cleanup_sla_low_days")).isEqualTo(10L);
-        assertThat(dialogConfig.get("macro_governance_cleanup_sla_medium_days")).isEqualTo(20L);
-        assertThat(dialogConfig.get("macro_governance_cleanup_sla_high_days")).isEqualTo(40L);
-        assertThat(dialogConfig.get("macro_governance_deprecation_sla_low_days")).isEqualTo(15L);
-        assertThat(dialogConfig.get("macro_governance_deprecation_sla_medium_days")).isEqualTo(30L);
-        assertThat(dialogConfig.get("macro_governance_deprecation_sla_high_days")).isEqualTo(60L);
+        assertThat(((Number) dialogConfig.get("macro_governance_usage_tier_low_max")).longValue()).isEqualTo(1L);
+        assertThat(((Number) dialogConfig.get("macro_governance_usage_tier_medium_max")).longValue()).isEqualTo(6L);
+        assertThat(((Number) dialogConfig.get("macro_governance_cleanup_sla_low_days")).longValue()).isEqualTo(10L);
+        assertThat(((Number) dialogConfig.get("macro_governance_cleanup_sla_medium_days")).longValue()).isEqualTo(20L);
+        assertThat(((Number) dialogConfig.get("macro_governance_cleanup_sla_high_days")).longValue()).isEqualTo(40L);
+        assertThat(((Number) dialogConfig.get("macro_governance_deprecation_sla_low_days")).longValue()).isEqualTo(15L);
+        assertThat(((Number) dialogConfig.get("macro_governance_deprecation_sla_medium_days")).longValue()).isEqualTo(30L);
+        assertThat(((Number) dialogConfig.get("macro_governance_deprecation_sla_high_days")).longValue()).isEqualTo(60L);
     }
 
     @Test
@@ -2494,6 +2498,10 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_datamart_contract_optional_coverage_required":true,
                          "workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct":80}
                         """);
+
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-optional-open-", "T-OPTIONAL-OPEN-", 40, 1000L, 900L, baseTime);
+        seedRolloutPrimaryKpiEvents("op-optional", "T-OPTIONAL", 12, 1200L, 1100L, 2200L, 2000L, baseTime);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");

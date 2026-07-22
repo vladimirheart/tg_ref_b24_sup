@@ -93,6 +93,8 @@ public class OperatorNotificationWatcher {
 
     @Scheduled(fixedDelayString = "${panel.notifications.watch-interval-ms:12000}")
     void watch() {
+        watchChatHistoryMessages();
+        watchFeedbacks();
         watchFirstResponseOverdue();
     }
 

@@ -22,10 +22,14 @@ class SettingsLocationsUpdateServiceTest {
         Map<String, Object> locations = new LinkedHashMap<>(Map.of(
                 "tree", Map.of("Business", Map.of("partner", Map.of("Moscow", java.util.List.of("Store 1"))))
         ));
+        Map<String, Object> normalizedLocations = new LinkedHashMap<>(locations);
+        normalizedLocations.put("statuses", Map.of());
+        normalizedLocations.put("city_meta", Map.of());
+        normalizedLocations.put("location_meta", Map.of());
 
         assertTrue(service.applyLocationsUpdate(Map.of("locations", locations)));
-        verify(sharedConfigService).saveLocations(locations);
-        verify(settingsParameterService).syncParametersFromLocationsPayload(locations);
+        verify(sharedConfigService).saveLocations(normalizedLocations);
+        verify(settingsParameterService).syncParametersFromLocationsPayload(normalizedLocations);
     }
 
     @Test

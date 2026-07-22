@@ -381,8 +381,7 @@ public class DialogWorkspaceTelemetryDataService {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("reason", rs.getString("reason"));
                 item.put("ticket_id", rs.getString("ticket_id"));
-                Timestamp createdAt = rs.getTimestamp("created_at");
-                item.put("created_at", createdAt != null ? createdAt.toInstant() : null);
+                item.put("created_at", parseCreatedAt(rs.getObject("created_at")));
                 return item;
             }, Timestamp.from(windowStart), Timestamp.from(windowEnd), eventType, filterExperiment, filterExperiment);
             return aggregateWorkspaceGapReasons(rawRows);
@@ -404,6 +403,35 @@ public class DialogWorkspaceTelemetryDataService {
             return number.longValue();
         }
         return 0L;
+    }
+
+    private Instant parseCreatedAt(Object rawValue) {
+        if (rawValue == null) {
+            return null;
+        }
+        if (rawValue instanceof Timestamp timestamp) {
+            return timestamp.toInstant();
+        }
+        if (rawValue instanceof java.util.Date date) {
+            return date.toInstant();
+        }
+        if (rawValue instanceof Number number) {
+            return Instant.ofEpochMilli(number.longValue());
+        }
+        String text = String.valueOf(rawValue).trim();
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        try {
+            return Instant.parse(text);
+        } catch (Exception ignored) {
+            // SQLite may materialize timestamp values as epoch millis text.
+        }
+        try {
+            return Instant.ofEpochMilli(Long.parseLong(text));
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static final class GapBreakdownAccumulator {

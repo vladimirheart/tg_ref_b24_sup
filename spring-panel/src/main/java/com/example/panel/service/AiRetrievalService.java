@@ -511,7 +511,8 @@ public class AiRetrievalService {
         boolean conflict = false;
         for (int i = 1; i < Math.min(candidates.size(), 5); i++) {
             Candidate candidate = candidates.get(i);
-            if (candidate.score() < Math.max(0.42d, top.score() - 0.18d)) {
+            if (!isComparableEvidence(top, candidate)
+                    && candidate.score() < Math.max(0.42d, top.score() - 0.18d)) {
                 continue;
             }
             if (supportsTop(top, candidate)) {
@@ -544,6 +545,17 @@ public class AiRetrievalService {
         return answerSimilarity(top.snippet(), candidate.snippet()) >= 0.78d;
     }
 
+    private boolean isComparableEvidence(Candidate top, Candidate candidate) {
+        if (top == null || candidate == null) {
+            return false;
+        }
+        boolean sameIntent = StringUtils.hasText(top.intentKey())
+                && top.intentKey().equals(candidate.intentKey());
+        boolean sameSlotSignature = StringUtils.hasText(top.slotSignature())
+                && top.slotSignature().equals(candidate.slotSignature());
+        return sameIntent || sameSlotSignature;
+    }
+
     private boolean isConflictCandidate(Candidate top, Candidate candidate) {
         if (top == null || candidate == null) {
             return false;
@@ -556,7 +568,10 @@ public class AiRetrievalService {
                 && top.intentKey().equals(candidate.intentKey());
         boolean sameSlotSignature = StringUtils.hasText(top.slotSignature())
                 && top.slotSignature().equals(candidate.slotSignature());
-        if (sameIntent && sameSlotSignature) {
+        if (sameSlotSignature) {
+            return candidateScore >= Math.max(0.48d, top.score() - 0.35d);
+        }
+        if (sameIntent) {
             return candidateScore >= Math.max(0.50d, top.score() - 0.28d);
         }
         return false;

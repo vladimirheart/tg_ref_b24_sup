@@ -60,15 +60,15 @@ public class DialogWorkspaceExternalKpiService {
         boolean financeReady = resolveBooleanDialogConfigValue(
                 "workspace_rollout_external_kpi_finance_ready",
                 false);
-        String note = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_note"));
-        String datamartOwner = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_owner"));
-        String datamartRunbookUrl = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_runbook_url"));
+        String note = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_note")));
+        String datamartOwner = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_owner")));
+        String datamartRunbookUrl = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_runbook_url")));
         String datamartDependencyTicketUrl = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_url")));
         String datamartDependencyTicketOwner = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_owner")));
         String datamartDependencyTicketOwnerContact = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact")));
         String datamartDependencyTicketUpdatedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at"));
-        String reviewedBy = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_by"));
-        String reviewedAtRaw = String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_at"));
+        String reviewedBy = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_by")));
+        String reviewedAtRaw = normalizeNullString(String.valueOf(resolveDialogConfigValue("workspace_rollout_external_kpi_reviewed_at")));
         long reviewTtlHours = resolveLongDialogConfigValue(
                 "workspace_rollout_external_kpi_review_ttl_hours",
                 DEFAULT_EXTERNAL_KPI_REVIEW_TTL_HOURS,
@@ -176,9 +176,6 @@ public class DialogWorkspaceExternalKpiService {
                 DEFAULT_EXTERNAL_KPI_DATAMART_DEPENDENCY_TICKET_TTL_HOURS,
                 1,
                 24 * 90L);
-        if ("null".equalsIgnoreCase(note)) {
-            note = "";
-        }
         OffsetDateTime reviewedAt = parseReviewTimestamp(reviewedAtRaw);
         boolean reviewTimestampInvalid = StringUtils.hasText(normalizeNullString(reviewedAtRaw)) && reviewedAt == null;
         boolean reviewPresent = reviewedAt != null && StringUtils.hasText(reviewedBy);
@@ -381,13 +378,13 @@ public class DialogWorkspaceExternalKpiService {
         if (!datamartDependencyTicketOwnerContactActionableReady) {
             datamartRiskReasons.add("dependency_ticket_owner_contact_not_actionable");
         }
-        if (!datamartContractMissingMandatoryFields.isEmpty()) {
+        if (datamartContractRequired && !datamartContractMissingMandatoryFields.isEmpty()) {
             datamartRiskReasons.add("datamart_contract_missing_mandatory_fields");
         }
-        if (datamartContractConfigurationConflict) {
+        if (datamartContractRequired && datamartContractConfigurationConflict) {
             datamartRiskReasons.add("datamart_contract_configuration_conflict");
         }
-        if (datamartContractOptionalCoverageGateActive && !datamartContractOptionalCoverageReady) {
+        if (datamartContractRequired && datamartContractOptionalCoverageGateActive && !datamartContractOptionalCoverageReady) {
             datamartRiskReasons.add("datamart_contract_optional_coverage_below_threshold");
         }
 
@@ -516,7 +513,7 @@ public class DialogWorkspaceExternalKpiService {
         signal.put("datamart_risk_level", datamartRiskLevel);
         signal.put("datamart_risk_reasons", datamartRiskReasons);
         signal.put("ready_for_decision", readyForDecision);
-        signal.put("note", note != null ? note.trim() : "");
+        signal.put("note", note);
         return signal;
     }
 
