@@ -4,6 +4,7 @@ import com.example.panel.model.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import java.io.IOException;
 import java.time.OffsetDateTime;
@@ -90,10 +92,21 @@ public class RestExceptionHandler {
         return build(status, message, status.name(), request);
     }
 
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public ResponseEntity<Void> handleAsyncTimeout(AsyncRequestTimeoutException ex,
+                                                   HttpServletRequest request) {
+        String path = request != null ? request.getRequestURI() : "unknown";
+        log.info("Async request timeout on {}", path);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+    }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception ex, HttpServletRequest request) {
+    public ResponseEntity<?> handleUnexpected(Exception ex, HttpServletRequest request) {
         String path = request != null ? request.getRequestURI() : "unknown";
         log.error("Unhandled exception on {}: {}", path, ex.getMessage(), ex);
+        if (isEventStreamRequest(request)) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Внутренняя ошибка сервера", "INTERNAL_ERROR", request);
     }
 
@@ -120,5 +133,17 @@ public class RestExceptionHandler {
             case "NotBlank", "NotEmpty", "NotNull" -> "VALIDATION_REQUIRED";
             default -> "VALIDATION_ERROR";
         };
+    }
+
+    private boolean isEventStreamRequest(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        String accept = request.getHeader("Accept");
+        if (accept != null && accept.contains(MediaType.TEXT_EVENT_STREAM_VALUE)) {
+            return true;
+        }
+        String uri = request.getRequestURI();
+        return uri != null && uri.contains("/api/events/stream");
     }
 }

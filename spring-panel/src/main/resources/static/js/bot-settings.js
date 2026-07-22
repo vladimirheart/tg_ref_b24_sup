@@ -73,6 +73,7 @@
   const ratingStatusEl = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-status]') : null;
   const ratingSaveButton = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-save]') : null;
   const ratingCancelButton = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-cancel]') : null;
+  const questionDiagnosticEl = mainModal.querySelector('[data-bot-question-active-diagnostic]');
   const ratingDiagnosticEl = mainModal.querySelector('[data-bot-rating-active-diagnostic]');
   const legacyDiagnosticEl = mainModal.querySelector('[data-bot-legacy-diagnostic]');
 
@@ -844,7 +845,32 @@
     }
   }
 
+  function renderActiveQuestionDiagnostic() {
+    if (!questionDiagnosticEl) {
+      return;
+    }
+    const activeTemplate = state.templates.find((template) => template.id === state.activeTemplateId) || null;
+    if (!activeTemplate) {
+      questionDiagnosticEl.textContent = 'Активный шаблон вопросов не выбран.';
+      return;
+    }
+    const questionCount = Array.isArray(activeTemplate.questionFlow) ? activeTemplate.questionFlow.length : 0;
+    const firstQuestion = questionCount > 0
+      ? String(activeTemplate.questionFlow[0]?.text || '').trim()
+      : '';
+    const diagnosticParts = [
+      `Активный шаблон: ${activeTemplate.name || 'Шаблон вопросов'}`,
+      `id: ${activeTemplate.id}`,
+      `вопросов: ${questionCount}`,
+    ];
+    if (firstQuestion) {
+      diagnosticParts.push(`первый вопрос: ${firstQuestion}`);
+    }
+    questionDiagnosticEl.textContent = diagnosticParts.join(' | ');
+  }
+
   function renderTemplates() {
+    renderActiveQuestionDiagnostic();
     if (!templatesContainer) {
       return;
     }
@@ -857,18 +883,22 @@
       return;
     }
     state.templates.forEach((template) => {
+      const isActive = template.id === state.activeTemplateId;
       const card = document.createElement('div');
-      card.className = 'card shadow-sm template-card';
+      card.className = `card shadow-sm template-card${isActive ? ' border-primary' : ''}`;
       card.dataset.templateId = template.id;
       const questionsCount = template.questionFlow.length;
       const descriptionHtml = template.description
         ? `<p class="small text-muted mb-1">${html(template.description)}</p>`
         : '';
       const summary = questionsCount === 1 ? '1 вопрос' : `${questionsCount} вопросов`;
+      const activeBadgeHtml = isActive
+        ? '<span class="badge text-bg-primary ms-2">Активный шаблон</span>'
+        : '';
       card.innerHTML = `
         <div class="card-body">
           <div class="template-card-header">
-            <h6 class="mb-1">${html(template.name || 'Шаблон вопросов')}</h6>
+            <h6 class="mb-1">${html(template.name || 'Шаблон вопросов')}${activeBadgeHtml}</h6>
             ${descriptionHtml}
             <div class="small text-muted">${html(summary)}</div>
           </div>
@@ -952,8 +982,9 @@
       return;
     }
     state.ratingTemplates.forEach((template) => {
+      const isActive = template.id === state.activeRatingTemplateId;
       const card = document.createElement('div');
-      card.className = 'card shadow-sm template-card';
+      card.className = `card shadow-sm template-card${isActive ? ' border-primary' : ''}`;
       card.dataset.ratingTemplateId = template.id;
       const descriptionHtml = template.description
         ? `<p class="small text-muted mb-1">${html(template.description)}</p>`
@@ -968,10 +999,13 @@
         summaryParts.push(`Запрос: ${promptSummary}`);
       }
       const summaryText = summaryParts.join(' • ');
+      const activeBadgeHtml = isActive
+        ? '<span class="badge text-bg-primary ms-2">Активный шаблон</span>'
+        : '';
       card.innerHTML = `
         <div class="card-body">
           <div class="template-card-header">
-            <h6 class="mb-1">${html(template.name || 'Шаблон оценок')}</h6>
+            <h6 class="mb-1">${html(template.name || 'Шаблон оценок')}${activeBadgeHtml}</h6>
             ${descriptionHtml}
             <div class="small text-muted">${html(summaryText)}</div>
           </div>
@@ -1188,7 +1222,7 @@
     }
     legacyDiagnosticEl.classList.remove('alert-light', 'alert-warning', 'alert-success');
     legacyDiagnosticEl.classList.add('alert-success');
-    legacyDiagnosticEl.textContent = 'Legacy-аудит: bot settings загружены через SettingsPageConfigRuntime по канонической схеме question_templates / rating_templates без deprecated fallback.';
+    legacyDiagnosticEl.textContent = 'Источник настроек: bot_settings.question_templates и bot_settings.rating_templates загружены по канонической схеме.';
   }
 
   function renderHiddenSummary(card, question, meta) {
@@ -2220,6 +2254,7 @@
       const templateId = input.value;
       if (state.templates.some((template) => template.id === templateId)) {
         state.activeTemplateId = templateId;
+        renderTemplates();
       }
     });
   }
@@ -2417,6 +2452,7 @@
       const templateId = input.value;
       if (state.ratingTemplates.some((template) => template.id === templateId)) {
         state.activeRatingTemplateId = templateId;
+        renderRatingTemplates();
       }
     });
   }
