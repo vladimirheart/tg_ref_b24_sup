@@ -282,7 +282,7 @@ class SettingsTopLevelUpdateServiceTest {
     }
 
     @Test
-    void applyTopLevelUpdatesNormalizesLegacyAutoCloseTemplateHourKeysIntoCanonicalHours() {
+    void applyTopLevelUpdatesDropsTemplatesThatOnlyContainDeprecatedAutoCloseHourKeys() {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
                         new AutoCloseConfigNormalizer(),
@@ -304,15 +304,6 @@ class SettingsTopLevelUpdateServiceTest {
         ), settings);
 
         assertTrue(modified);
-        assertEquals(
-                Map.of(
-                        "templates", List.of(
-                                Map.of("id", "auto-1", "hours", 12),
-                                Map.of("id", "auto-2", "hours", 24)
-                        ),
-                        "active_template_id", "auto-1"
-                ),
-                settings.get("auto_close_config")
-        );
+        assertEquals(Map.of(), settings.get("auto_close_config"));
     }
 }

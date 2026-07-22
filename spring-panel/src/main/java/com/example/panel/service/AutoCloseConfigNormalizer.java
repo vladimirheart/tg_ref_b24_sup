@@ -131,17 +131,9 @@ public class AutoCloseConfigNormalizer {
         if (hours != null && hours >= 0) {
             return hours;
         }
-        Integer timeoutHours = parseInteger(template.get("timeout_hours"));
-        if (timeoutHours != null && timeoutHours >= 0) {
-            logger.info("Imported deprecated auto_close_config template.timeout_hours into canonical hours for template {}",
+        if (template.containsKey("timeout_hours") || template.containsKey("auto_close_hours")) {
+            logger.warn("Ignoring deprecated auto-close template hour keys for template {} because canonical key is hours",
                     template.get("id"));
-            return timeoutHours;
-        }
-        Integer legacyHours = parseInteger(template.get("auto_close_hours"));
-        if (legacyHours != null && legacyHours >= 0) {
-            logger.info("Imported deprecated auto_close_config template.auto_close_hours into canonical hours for template {}",
-                    template.get("id"));
-            return legacyHours;
         }
         return null;
     }

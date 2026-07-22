@@ -278,7 +278,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
     }
 
     @Test
-    void updateSettingsPersistsCanonicalAutoCloseConfigHoursWhenLegacyTemplateKeysWereSubmitted() {
+    void updateSettingsDropsAutoCloseTemplatesThatOnlyUseDeprecatedHourKeys() {
         when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
                 .thenReturn(false);
 
@@ -295,16 +295,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
         Map<String, Object> result = service.updateSettings(payload, mock(Authentication.class));
 
         assertEquals(Map.of("success", true), result);
-        assertEquals(
-                Map.of(
-                        "templates", List.of(
-                                Map.of("id", "auto-template-1", "hours", 1),
-                                Map.of("id", "auto-template-2", "hours", 24)
-                        ),
-                        "active_template_id", "auto-template-1"
-                ),
-                sharedConfigService.loadSettings().get("auto_close_config")
-        );
+        assertEquals(Map.of(), sharedConfigService.loadSettings().get("auto_close_config"));
     }
 
     @Test

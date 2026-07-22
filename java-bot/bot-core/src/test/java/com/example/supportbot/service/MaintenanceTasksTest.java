@@ -55,7 +55,7 @@ class MaintenanceTasksTest {
     }
 
     @Test
-    void resolveAutoCloseDurationUsesDeprecatedTemplateAutoCloseHoursAsCompatibilityInput() {
+    void resolveAutoCloseDurationIgnoresDeprecatedTemplateAutoCloseHoursAndFallsBackToDefault() {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(
                 "auto_close_config", Map.of(
@@ -73,7 +73,7 @@ class MaintenanceTasksTest {
                 sharedConfigService
         );
 
-        assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(1));
+        assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(24));
     }
 
     @Test
