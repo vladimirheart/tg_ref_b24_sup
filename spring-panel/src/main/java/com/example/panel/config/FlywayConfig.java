@@ -5,7 +5,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
@@ -28,7 +27,7 @@ public class FlywayConfig {
     }
 
     private void normalizeSchemaHistory(Flyway flyway) {
-        Configuration configuration = flyway.getConfiguration();
+        org.flywaydb.core.api.configuration.Configuration configuration = flyway.getConfiguration();
         DataSource dataSource = configuration.getDataSource();
         if (dataSource == null) {
             return;
