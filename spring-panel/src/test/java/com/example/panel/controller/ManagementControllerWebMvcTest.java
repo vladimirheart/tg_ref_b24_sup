@@ -187,7 +187,7 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"template-1\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"rating-template-default\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Активный шаблон вопросов будет показан здесь после загрузки настроек.")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Источник настроек шаблонов будет показан здесь после загрузки настроек.")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Диагностика legacy-совместимости шаблонов будет показана здесь при необходимости.")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Это отдельный legacy-домен `dialog_config.question_templates`")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"legacyQuestionTemplateAudit\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"classification\":\"legacy_operator_workspace\"")))

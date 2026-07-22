@@ -555,6 +555,20 @@
   }
 
   function normalizeQuestion(raw, order) {
+    if (typeof raw === 'string') {
+      const text = raw.trim();
+      return {
+        id: generateQuestionId(),
+        type: 'custom',
+        text,
+        order,
+        preset: null,
+        presetUnavailable: false,
+        excludedOptions: [],
+        required: true,
+      };
+    }
+
     const source = raw && typeof raw === 'object' ? raw : {};
     const id = ensureQuestionId(source.id);
     let type = source.type === 'preset' ? 'preset' : 'custom';
@@ -613,7 +627,9 @@
       ? raw.question_flow
       : Array.isArray(raw.questionFlow)
         ? raw.questionFlow
-        : [];
+        : Array.isArray(raw.questions)
+          ? raw.questions
+          : [];
     const questionFlow = flowSource
       .map((item, order) => normalizeQuestion(item, order + 1))
       .filter((question) => question.type !== 'custom' || question.text);
@@ -680,7 +696,7 @@
     const templateSource = Array.isArray(source.question_templates) ? source.question_templates : [];
     const templates = templateSource
       .map((item, index) => normalizeTemplate(item, index))
-      .filter((template) => template && template.questionFlow.length);
+      .filter((template) => Boolean(template));
 
     if (!templates.length) {
       const [group, field] = firstPreset();
@@ -771,10 +787,30 @@
     responses: {},
   };
 
-  let initialState = normalizeSettings(pageBotSettingsInitial);
+  let initialState = pageBotSettingsInitial && typeof pageBotSettingsInitial === 'object'
+    ? pageBotSettingsInitial
+    : {};
+
+  function normalizeHydrationSource(source) {
+    const candidate = source && typeof source === 'object' ? source : {};
+    const hasNormalizedShape = Array.isArray(candidate.templates) || Array.isArray(candidate.ratingTemplates);
+    if (!hasNormalizedShape) {
+      return normalizeSettings(candidate);
+    }
+    return {
+      templates: Array.isArray(candidate.templates) ? candidate.templates : [],
+      activeTemplateId: typeof candidate.activeTemplateId === 'string' ? candidate.activeTemplateId.trim() : '',
+      ratingTemplates: Array.isArray(candidate.ratingTemplates) ? candidate.ratingTemplates : [],
+      activeRatingTemplateId: typeof candidate.activeRatingTemplateId === 'string'
+        ? candidate.activeRatingTemplateId.trim()
+        : '',
+      unblockCooldownMinutes: normalizeCooldownMinutes(candidate),
+      legacyDiagnostics: candidate.legacyDiagnostics || createLegacyDiagnostics(),
+    };
+  }
 
   function hydrateStateFrom(source) {
-    const normalized = normalizeSettings(source);
+    const normalized = normalizeHydrationSource(source);
     state.templates = normalized.templates.map((template) => cloneTemplate(template));
     state.activeTemplateId = normalized.activeTemplateId;
     state.ratingTemplates = normalized.ratingTemplates.map((template) => cloneRatingTemplate(template));
@@ -1220,9 +1256,18 @@
     if (!legacyDiagnosticEl) {
       return;
     }
+    const message = typeof state.legacyDiagnostics?.message === 'string'
+      ? state.legacyDiagnostics.message.trim()
+      : '';
+    if (!message) {
+      legacyDiagnosticEl.hidden = true;
+      legacyDiagnosticEl.textContent = '';
+      return;
+    }
+    legacyDiagnosticEl.hidden = false;
     legacyDiagnosticEl.classList.remove('alert-light', 'alert-warning', 'alert-success');
-    legacyDiagnosticEl.classList.add('alert-success');
-    legacyDiagnosticEl.textContent = 'Источник настроек: bot_settings.question_templates и bot_settings.rating_templates загружены по канонической схеме.';
+    legacyDiagnosticEl.classList.add(state.legacyDiagnostics.level === 'warning' ? 'alert-warning' : 'alert-success');
+    legacyDiagnosticEl.textContent = message;
   }
 
   function renderHiddenSummary(card, question, meta) {
@@ -2080,7 +2125,7 @@
     if (!response.ok || (data && data.success === false)) {
       throw new Error((data && data.error) || rawText || `HTTP ${response.status}`);
     }
-    initialState = normalizeSettings(payload);
+    initialState = payload;
     hydrateStateFrom(initialState);
     renderTemplates();
     renderRatingTemplates();
