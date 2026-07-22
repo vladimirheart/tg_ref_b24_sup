@@ -70,6 +70,7 @@
       getDialogConfig: () => dialog.config || {},
       getAutoCloseConfig: () => dialog.autoCloseConfig || {},
       getAutoCloseFallbackHours: () => dialog.autoCloseFallbackHours ?? 24,
+      getDialogLegacyQuestionTemplateAudit: () => dialog.legacyQuestionTemplateAudit || {},
       getFallbackDialogCategories: () => dialog.fallbackCategories || [],
       canPublishDialogMacros: () => Boolean(dialog.canPublishMacros),
       escapeHtml,

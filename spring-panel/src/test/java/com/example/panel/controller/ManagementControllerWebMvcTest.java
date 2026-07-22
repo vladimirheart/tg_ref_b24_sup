@@ -110,6 +110,11 @@ class ManagementControllerWebMvcTest {
                         ),
                         "active_template_id", "auto-template-1"
                 ),
+                "dialog_config", Map.of(
+                        "question_templates", List.of(
+                                Map.of("id", "dialog-template-1", "name", "Операторский шаблон", "questions", List.of("Уточните адрес"))
+                        )
+                ),
                 "bot_settings", Map.of(
                         "question_templates", List.of(
                                 Map.of(
@@ -182,7 +187,12 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"template-1\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("\"rating-template-default\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("Legacy-аудит bot settings будет показан здесь после загрузки настроек.")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Это legacy-секция для `dialog_config.question_templates`")));
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Это отдельный legacy-домен `dialog_config.question_templates`")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"legacyQuestionTemplateAudit\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"classification\":\"legacy_operator_workspace\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"template_count\":1")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Schema-аудит legacy operator templates будет показан здесь после загрузки настроек.")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Бот-runtime его не читает")));
     }
 
     @Test

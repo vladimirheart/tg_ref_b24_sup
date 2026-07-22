@@ -3255,12 +3255,15 @@
               >
                 <section class="mb-4">
                   <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">Шаблоны типовых вопросов</h6>
+                    <h6 class="mb-0">Шаблоны операторских вопросов</h6>
                     <button class="btn btn-sm btn-outline-success" type="button" data-question-template-add>+ Шаблон</button>
                   </div>
                   <div class="alert alert-warning small py-2 px-3 mb-3" role="alert">
-                    Это legacy-секция для `dialog_config.question_templates` и шаблонов операторского workspace.
-                    Вопросы бота настраиваются отдельно в разделе «Каналы» → «Шаблоны».
+                    Это отдельный legacy-домен `dialog_config.question_templates` для операторского workspace.
+                    Бот-runtime его не читает: вопросы бота настраиваются отдельно в разделе «Каналы» → «Шаблоны» через `bot_settings.question_templates`.
+                  </div>
+                  <div class="alert alert-light border small py-2 px-3 mb-3" id="dialogQuestionTemplatesAudit" role="status">
+                    Schema-аудит legacy operator templates будет показан здесь после загрузки настроек.
                   </div>
                   <p class="small text-muted">Создайте наборы вопросов, которые можно использовать при общении с клиентом. Они будут доступны в окне диалога.</p>
                   <div id="questionTemplatesList" class="d-flex flex-column gap-3"></div>
@@ -6972,7 +6975,8 @@
     "canPublishMacros": [[${canPublishDialogMacros}]],
     "autoCloseConfig": [[${settingsPayload['auto_close_config']}]],
     "autoCloseFallbackHours": [[${autoCloseFallbackHours}]],
-    "fallbackCategories": [[${settingsPayload['categories']}]]
+    "fallbackCategories": [[${settingsPayload['categories']}]],
+    "legacyQuestionTemplateAudit": [[${dialogLegacyQuestionTemplateAudit}]]
   },
   "admin": {
     "reportingConfig": [[${settingsPayload['reporting_config']}]]

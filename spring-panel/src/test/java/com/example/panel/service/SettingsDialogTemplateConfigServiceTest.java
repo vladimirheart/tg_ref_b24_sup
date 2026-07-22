@@ -38,6 +38,7 @@ class SettingsDialogTemplateConfigServiceTest {
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("dialog_category_templates", List.of("cat-a"));
+        payload.put("dialog_question_templates", List.of(Map.of("id", "legacy-q-1", "questions", List.of("Адрес?"))));
         payload.put("dialog_macro_templates", List.of(Map.of("name", "Welcome", "message", "Hi")));
         payload.put("dialog_macro_governance_require_owner", true);
         payload.put("dialog_macro_variable_catalog_external_url", "https://example.test/catalog");
@@ -46,6 +47,7 @@ class SettingsDialogTemplateConfigServiceTest {
         service.applySettings(payload, dialogConfig, authentication, warnings);
 
         assertEquals(List.of("cat-a"), dialogConfig.get("category_templates"));
+        assertEquals(List.of(Map.of("id", "legacy-q-1", "questions", List.of("Адрес?"))), dialogConfig.get("question_templates"));
         assertEquals(normalizedTemplates, dialogConfig.get("macro_templates"));
         assertEquals(true, dialogConfig.get("macro_governance_require_owner"));
         assertEquals("https://example.test/catalog", dialogConfig.get("macro_variable_catalog_external_url"));

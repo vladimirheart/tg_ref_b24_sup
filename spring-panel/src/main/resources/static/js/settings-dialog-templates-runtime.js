@@ -28,6 +28,13 @@
       return Array.isArray(value) ? value : [];
     }
 
+    function getDialogLegacyQuestionTemplateAudit() {
+      const value = typeof options.getDialogLegacyQuestionTemplateAudit === 'function'
+        ? options.getDialogLegacyQuestionTemplateAudit()
+        : null;
+      return value && typeof value === 'object' ? value : {};
+    }
+
     function canPublishDialogMacros() {
       return Boolean(typeof options.canPublishDialogMacros === 'function'
         ? options.canPublishDialogMacros()
@@ -982,6 +989,7 @@
       } else {
         addQuestionTemplate();
       }
+      renderQuestionTemplateAudit(questionTemplates);
 
       const completionTemplates = Array.isArray(dialogConfig.completion_templates)
         ? dialogConfig.completion_templates
@@ -1008,6 +1016,33 @@
       } else {
         addMacroTemplate();
       }
+    }
+
+    function renderQuestionTemplateAudit(questionTemplates) {
+      const auditEl = document.getElementById('dialogQuestionTemplatesAudit');
+      if (!(auditEl instanceof HTMLElement)) {
+        return;
+      }
+      const audit = getDialogLegacyQuestionTemplateAudit();
+      const templates = Array.isArray(questionTemplates) ? questionTemplates : [];
+      const templateCount = Number.isFinite(Number(audit.template_count))
+        ? Number(audit.template_count)
+        : templates.length;
+      const consumers = Array.isArray(audit.workspace_consumers)
+        ? audit.workspace_consumers.filter((value) => typeof value === 'string' && value.trim())
+        : [];
+      const consumerText = consumers.length ? consumers.join(', ') : 'dialogs.js';
+      const sourcePath = typeof audit.source_path === 'string' && audit.source_path.trim()
+        ? audit.source_path.trim()
+        : 'dialog_config.question_templates';
+      const botPath = typeof audit.bot_settings_path === 'string' && audit.bot_settings_path.trim()
+        ? audit.bot_settings_path.trim()
+        : 'bot_settings.question_templates';
+      const snapshotsCanonical = audit.historical_snapshots_are_canonical === true;
+      const snapshotText = snapshotsCanonical
+        ? 'historical snapshots считаются частью актуального контракта.'
+        : 'historical snapshots из temp-recovery не считаются актуальным schema-contract.';
+      auditEl.textContent = `Schema-аудит: ${templateCount} ${pluralizeRussian(templateCount, ['шаблон', 'шаблона', 'шаблонов'])} в ${sourcePath}; consumers: ${consumerText}; bot runtime использует ${botPath}; ${snapshotText}`;
     }
 
     function collectDialogTemplatesPayload() {

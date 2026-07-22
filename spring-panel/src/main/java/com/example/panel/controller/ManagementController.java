@@ -177,6 +177,8 @@ public class ManagementController {
                     autoCloseConfigNormalizer.resolveFallbackHours(
                             settings.get("auto_close_config"),
                             settings.get("auto_close_hours")));
+            model.addAttribute("dialogLegacyQuestionTemplateAudit",
+                    buildDialogLegacyQuestionTemplateAudit(settings));
             IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
             Map<String, Object> effectiveLocationsPayload = locationCatalogService.buildEffectiveLocationsPayload(effectiveCatalog);
             Map<String, Object> effectiveLocationTree = Map.of();
@@ -708,6 +710,34 @@ public class ManagementController {
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
+    private Map<String, Object> buildDialogLegacyQuestionTemplateAudit(Map<String, Object> settings) {
+        Map<String, Object> audit = new LinkedHashMap<>();
+        audit.put("source_path", "dialog_config.question_templates");
+        audit.put("classification", "legacy_operator_workspace");
+        audit.put("bot_settings_path", "bot_settings.question_templates");
+        audit.put("used_by_bot_runtime", false);
+        audit.put("workspace_consumers", List.of(
+                "settings-dialog-templates-runtime.js",
+                "dialogs.js"
+        ));
+        audit.put("historical_snapshots_are_canonical", false);
+        audit.put("historical_snapshot_paths", List.of(
+                "temp-recovery/routing-migration-backup-2026-07-08_085737/settings.json"
+        ));
+        int templateCount = 0;
+        if (settings != null) {
+            Object dialogConfigRaw = settings.get("dialog_config");
+            if (dialogConfigRaw instanceof Map<?, ?> dialogConfig) {
+                Object questionTemplatesRaw = dialogConfig.get("question_templates");
+                if (questionTemplatesRaw instanceof List<?> questionTemplates) {
+                    templateCount = questionTemplates.size();
+                }
+            }
+        }
+        audit.put("template_count", templateCount);
+        return audit;
     }
 
     private List<String> toStringList(Object raw) {

@@ -318,6 +318,7 @@
       canPublishMacros: Boolean(readSectionValue(raw, 'dialog', 'canPublishMacros')),
       autoCloseConfig: normalizeObject(readSectionValue(raw, 'dialog', 'autoCloseConfig')),
       autoCloseFallbackHours: normalizeNumber(readSectionValue(raw, 'dialog', 'autoCloseFallbackHours'), 24) || 24,
+      legacyQuestionTemplateAudit: normalizeObject(readSectionValue(raw, 'dialog', 'legacyQuestionTemplateAudit')),
       fallbackCategories: normalizeArray(readSectionValue(raw, 'dialog', 'fallbackCategories')),
     };
 
@@ -380,6 +381,7 @@
       canPublishDialogMacros: dialog.canPublishMacros,
       autoCloseConfig: dialog.autoCloseConfig,
       autoCloseFallbackHours: dialog.autoCloseFallbackHours,
+      dialogLegacyQuestionTemplateAudit: dialog.legacyQuestionTemplateAudit,
       fallbackDialogCategories: dialog.fallbackCategories,
       reportingConfigInitial: admin.reportingConfig,
       managerLocationBindingsInitial: admin.managerLocationBindings,

@@ -2,11 +2,15 @@ package com.example.panel.service;
 
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SettingsDialogTemplateConfigService {
+
+    private static final Logger logger = LoggerFactory.getLogger(SettingsDialogTemplateConfigService.class);
 
     private final SettingsMacroTemplateService settingsMacroTemplateService;
 
@@ -22,6 +26,7 @@ public class SettingsDialogTemplateConfigService {
             dialogConfig.put("category_templates", payload.get("dialog_category_templates"));
         }
         if (payload.containsKey("dialog_question_templates")) {
+            logger.warn("Persisting legacy operator workspace question templates via dialog_config.question_templates; bot runtime continues to use bot_settings.question_templates as canonical bot contract");
             dialogConfig.put("question_templates", payload.get("dialog_question_templates"));
         }
         if (payload.containsKey("dialog_completion_templates")) {
