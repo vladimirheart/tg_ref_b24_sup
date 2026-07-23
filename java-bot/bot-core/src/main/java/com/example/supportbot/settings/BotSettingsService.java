@@ -495,9 +495,6 @@ public class BotSettingsService {
             }
         }
 
-        if (templates.isEmpty() && raw.containsKey("question_flow")) {
-            logger.warn("Ignoring deprecated bot_settings.question_flow because canonical question_templates are required");
-        }
         if (templates.isEmpty()) {
             templates.addAll(castList(defaults.get("question_templates")));
         }
@@ -563,9 +560,6 @@ public class BotSettingsService {
         }
 
         List<Map<String, Object>> ratingDefaults = castList(defaults.get("rating_templates"));
-        if (ratingTemplates.isEmpty() && raw.containsKey("rating_system")) {
-            logger.warn("Ignoring deprecated bot_settings.rating_system because canonical rating_templates are required");
-        }
         if (ratingTemplates.isEmpty()) {
             ratingTemplates.addAll(ratingDefaults);
         }

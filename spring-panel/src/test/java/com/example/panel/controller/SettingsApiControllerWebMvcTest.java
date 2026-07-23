@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,6 +40,25 @@ class SettingsApiControllerWebMvcTest {
 
     @MockBean
     private SettingsPageDataService settingsPageDataService;
+
+    @Test
+    void pageDataChannelsReturnsCurrentBotSettingsPayload() throws Exception {
+        when(settingsPageDataService.loadSection("channels")).thenReturn(Map.of(
+                "botSettings", Map.of(
+                        "question_templates", List.of(
+                                Map.of("id", "template-default", "name", "Базовый шаблон вопросов")
+                        ),
+                        "active_template_id", "template-default"
+                )
+        ));
+
+        mockMvc.perform(get("/api/settings/page-data/channels")
+                        .with(user("admin").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.botSettings.active_template_id").value("template-default"))
+                .andExpect(jsonPath("$.data.botSettings.question_templates[0].name").value("Базовый шаблон вопросов"));
+    }
 
     @Test
     void updateClientStatusesDelegatesToService() throws Exception {

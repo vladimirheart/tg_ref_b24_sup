@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -17,6 +18,9 @@ class SettingsPageDataServiceTest {
 
     @Mock
     private SharedConfigService sharedConfigService;
+
+    @Spy
+    private BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
 
     @Mock
     private LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
@@ -36,6 +40,18 @@ class SettingsPageDataServiceTest {
     @Test
     void loadChannelsSectionIncludesDynamicBotPresetDefinitions() {
         Map<String, Object> settings = Map.of(
+                "bot_settings", Map.of(
+                        "question_templates", List.of(
+                                Map.of(
+                                        "id", "template-default",
+                                        "name", "Базовый шаблон вопросов",
+                                        "question_flow", List.of(
+                                                Map.of("id", "business", "type", "preset", "preset", Map.of("group", "locations", "field", "business"))
+                                        )
+                                )
+                        ),
+                        "active_template_id", "template-default"
+                ),
                 "integration_network", Map.of("enabled", true),
                 "integration_network_profiles", List.of(Map.of("id", "corp"))
         );
@@ -68,6 +84,7 @@ class SettingsPageDataServiceTest {
         Map<String, Object> section = settingsPageDataService.loadSection("channels");
 
         assertThat(section)
+                .containsEntry("botSettings", botSettingsPayloadNormalizer.normalize(settings.get("bot_settings")))
                 .containsEntry("integrationNetwork", settings.get("integration_network"))
                 .containsEntry("integrationNetworkProfiles", settings.get("integration_network_profiles"))
                 .containsEntry("botPresetDefinitions", presetDefinitions);

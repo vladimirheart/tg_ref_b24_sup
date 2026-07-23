@@ -116,6 +116,7 @@
 
   const PRESET_GROUPS = {};
   let presetDefinitionsLoadingPromise = null;
+  let botSettingsLoadingPromise = null;
 
   function applyPresetDefinitions(rawDefinitions) {
     Object.keys(PRESET_GROUPS).forEach((groupKey) => {
@@ -208,6 +209,38 @@
       });
     rerenderPresetUi();
     return presetDefinitionsLoadingPromise;
+  }
+
+  function ensureBotSettingsLoaded(forceReload = false) {
+    if (!forceReload && botSettingsLoadingPromise) {
+      return botSettingsLoadingPromise;
+    }
+    const fetchPageDataSection = window.SettingsRuntimeAccess?.fetchPageDataSection;
+    if (typeof fetchPageDataSection !== 'function') {
+      return Promise.resolve(false);
+    }
+    botSettingsLoadingPromise = fetchPageDataSection('channels', forceReload ? { force: true } : {})
+      .then((section) => {
+        const botSettings = section && typeof section === 'object' ? section.botSettings : null;
+        if (!botSettings || typeof botSettings !== 'object') {
+          return false;
+        }
+        initialState = botSettings;
+        hydrateStateFrom(initialState);
+        renderTemplates();
+        renderRatingTemplates();
+        return true;
+      })
+      .catch((error) => {
+        if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+          console.warn('Failed to load current bot settings from settings channels section.', error);
+        }
+        return false;
+      })
+      .finally(() => {
+        botSettingsLoadingPromise = null;
+      });
+    return botSettingsLoadingPromise;
   }
 
   const generatedQuestionIds = new Set();
@@ -680,13 +713,7 @@
     const description = typeof raw.description === 'string' ? raw.description.trim() : '';
     const startMessageRaw = raw.start_message ?? raw.startMessage;
     const startMessage = typeof startMessageRaw === 'string' ? startMessageRaw.trim() : '';
-    const flowSource = Array.isArray(raw.question_flow)
-      ? raw.question_flow
-      : Array.isArray(raw.questionFlow)
-        ? raw.questionFlow
-        : Array.isArray(raw.questions)
-          ? raw.questions
-          : [];
+    const flowSource = Array.isArray(raw.question_flow) ? raw.question_flow : [];
     const questionFlow = flowSource
       .map((item, order) => normalizeQuestion(item, order + 1))
       .filter((question) => question.type !== 'custom' || question.text);
@@ -2304,9 +2331,10 @@
     renderTemplates();
   }
 
-  if (mainModal) {
-    mainModal.addEventListener('show.bs.modal', () => {
+  if (parentModalEl) {
+    parentModalEl.addEventListener('show.bs.modal', () => {
       resetState();
+      ensureBotSettingsLoaded(true);
     });
   }
 

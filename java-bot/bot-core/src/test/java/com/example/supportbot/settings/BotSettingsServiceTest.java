@@ -4,7 +4,6 @@ import com.example.supportbot.entity.Channel;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.example.supportbot.settings.dto.RatingResponseDto;
-import com.example.supportbot.settings.dto.RatingSystemDto;
 import com.example.supportbot.settings.dto.RatingTemplateDto;
 import com.example.supportbot.service.SharedConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -278,7 +277,7 @@ class BotSettingsServiceTest {
     }
 
     @Test
-    void ratingHelpersShouldPreferActiveRatingTemplateOverLegacyRootMirror() {
+    void ratingHelpersShouldUseActiveRatingTemplate() {
         BotSettingsDto settings = new BotSettingsDto();
         settings.setRatingTemplates(List.of(
                 new RatingTemplateDto(
@@ -294,25 +293,16 @@ class BotSettingsServiceTest {
                 )
         ));
         settings.setActiveRatingTemplateId("rate-template-active");
-        settings.setRatingSystem(new RatingSystemDto(
-                "Legacy prompt",
-                5,
-                List.of(
-                        new RatingResponseDto(1, "Legacy bad"),
-                        new RatingResponseDto(5, "Legacy great")
-                )
-        ));
 
         assertThat(service.ratingScale(settings, 5)).isEqualTo(3);
         assertThat(service.ratingPrompt(settings, null)).isEqualTo("Template prompt");
         assertThat(service.ratingResponses(settings))
                 .containsEntry("1", "Template bad")
-                .containsEntry("3", "Template great")
-                .doesNotContainValue("Legacy great");
+                .containsEntry("3", "Template great");
     }
 
     @Test
-    void questionFlowHelperShouldPreferActiveQuestionTemplateOverLegacyRootMirror() {
+    void questionFlowHelperShouldUseActiveQuestionTemplate() {
         BotSettingsDto settings = new BotSettingsDto();
         settings.setQuestionTemplates(List.of(
                 new com.example.supportbot.settings.dto.QuestionTemplateDto(
@@ -326,9 +316,6 @@ class BotSettingsServiceTest {
                 )
         ));
         settings.setActiveTemplateId("question-template-active");
-        settings.setQuestionFlow(List.of(
-                new QuestionFlowItemDto("q-legacy", "custom", "Legacy question", 1, null, List.of())
-        ));
 
         assertThat(service.questionFlow(settings))
                 .extracting(QuestionFlowItemDto::getText)

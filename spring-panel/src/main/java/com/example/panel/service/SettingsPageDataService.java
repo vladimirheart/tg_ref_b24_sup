@@ -8,17 +8,20 @@ import org.springframework.stereotype.Service;
 public class SettingsPageDataService {
 
     private final SharedConfigService sharedConfigService;
+    private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
     private final LocationsIikoSyncSettingsService locationsIikoSyncSettingsService;
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final SettingsCatalogService settingsCatalogService;
 
     public SettingsPageDataService(SharedConfigService sharedConfigService,
+                                   BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
                                    LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
                                    LocationsIikoSyncSettingsService locationsIikoSyncSettingsService,
                                    IikoDepartmentLocationCatalogService locationCatalogService,
                                    SettingsCatalogService settingsCatalogService) {
         this.sharedConfigService = sharedConfigService;
+        this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
         this.locationsIikoSyncSettingsService = locationsIikoSyncSettingsService;
         this.locationCatalogService = locationCatalogService;
@@ -39,6 +42,7 @@ public class SettingsPageDataService {
                 Map<String, Object> effectiveLocationTree = toObjectMap(effectiveLocationsPayload.get("tree"));
                 Map<String, Object> effectiveLocationStatuses = toObjectMap(effectiveLocationsPayload.get("statuses"));
                 yield Map.of(
+                        "botSettings", botSettingsPayloadNormalizer.normalize(settings.get("bot_settings")),
                         "integrationNetwork", settings.getOrDefault("integration_network", Map.of()),
                         "integrationNetworkProfiles", settings.getOrDefault("integration_network_profiles", List.of()),
                         "botPresetDefinitions",

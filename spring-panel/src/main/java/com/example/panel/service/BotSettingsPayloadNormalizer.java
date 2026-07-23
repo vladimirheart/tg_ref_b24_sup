@@ -1,7 +1,5 @@
 package com.example.panel.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -9,12 +7,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Service
 public class BotSettingsPayloadNormalizer {
-
-    private static final Logger logger = LoggerFactory.getLogger(BotSettingsPayloadNormalizer.class);
 
     public Map<String, Object> normalize(Object raw) {
         if (!(raw instanceof Map<?, ?> map)) {
@@ -31,8 +26,6 @@ public class BotSettingsPayloadNormalizer {
         List<Map<String, Object>> questionTemplates = normalizeQuestionTemplateList(botSettings.get("question_templates"));
         if (!questionTemplates.isEmpty()) {
             botSettings.put("question_templates", questionTemplates);
-        } else if (botSettings.containsKey("question_flow")) {
-            logger.warn("Ignoring deprecated bot_settings.question_flow because canonical bot_settings.question_templates are required");
         }
 
         Map<String, Object> activeQuestionTemplate = resolveActiveTemplate(
@@ -41,25 +34,12 @@ public class BotSettingsPayloadNormalizer {
         );
         if (activeQuestionTemplate != null) {
             botSettings.put("active_template_id", stringValue(activeQuestionTemplate.get("id")));
-            if (botSettings.containsKey("question_flow")) {
-                Object derivedQuestionFlow = activeQuestionTemplate.get("question_flow");
-                if (!Objects.equals(botSettings.get("question_flow"), derivedQuestionFlow)) {
-                    logger.warn(
-                            "Dropping deprecated bot_settings.question_flow payload because active template {} is canonical source of truth",
-                            botSettings.get("active_template_id")
-                    );
-                } else {
-                    logger.info("Dropping deprecated bot_settings.question_flow mirror in favor of canonical question_templates");
-                }
-            }
         }
         botSettings.remove("question_flow");
 
         List<Map<String, Object>> ratingTemplates = normalizeRatingTemplateList(botSettings.get("rating_templates"));
         if (!ratingTemplates.isEmpty()) {
             botSettings.put("rating_templates", ratingTemplates);
-        } else if (botSettings.containsKey("rating_system")) {
-            logger.warn("Ignoring deprecated bot_settings.rating_system because canonical bot_settings.rating_templates are required");
         }
 
         Map<String, Object> activeRatingTemplate = resolveActiveTemplate(
@@ -68,21 +48,6 @@ public class BotSettingsPayloadNormalizer {
         );
         if (activeRatingTemplate != null) {
             botSettings.put("active_rating_template_id", stringValue(activeRatingTemplate.get("id")));
-            Map<String, Object> derivedRatingSystem = new LinkedHashMap<>();
-            copyFieldIfPresent(activeRatingTemplate, derivedRatingSystem, "prompt_text");
-            copyFieldIfPresent(activeRatingTemplate, derivedRatingSystem, "scale_size");
-            copyFieldIfPresent(activeRatingTemplate, derivedRatingSystem, "responses");
-            if (botSettings.containsKey("rating_system")) {
-                if (!derivedRatingSystem.isEmpty()
-                        && !Objects.equals(botSettings.get("rating_system"), derivedRatingSystem)) {
-                    logger.warn(
-                            "Dropping deprecated bot_settings.rating_system payload because active rating template {} is canonical source of truth",
-                            botSettings.get("active_rating_template_id")
-                    );
-                } else {
-                    logger.info("Dropping deprecated bot_settings.rating_system mirror in favor of canonical rating_templates");
-                }
-            }
         }
         botSettings.remove("rating_system");
         normalizeCooldown(botSettings);
@@ -153,14 +118,6 @@ public class BotSettingsPayloadNormalizer {
             }
         }
         return templates.get(0);
-    }
-
-    private void copyFieldIfPresent(Map<String, Object> source,
-                                    Map<String, Object> target,
-                                    String key) {
-        if (source.containsKey(key)) {
-            target.put(key, source.get(key));
-        }
     }
 
     private String stringValue(Object rawValue) {

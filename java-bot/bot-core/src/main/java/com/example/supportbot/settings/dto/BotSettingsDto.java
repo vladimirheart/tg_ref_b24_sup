@@ -27,20 +27,14 @@ public class BotSettingsDto {
     @JsonProperty("business_aliases")
     private Map<String, List<String>> businessAliases;
 
-    private List<QuestionFlowItemDto> legacyQuestionFlow;
-
-    private RatingSystemDto legacyRatingSystem;
-
     public BotSettingsDto() {
     }
 
     public BotSettingsDto(
             List<QuestionTemplateDto> questionTemplates,
             String activeTemplateId,
-            List<QuestionFlowItemDto> questionFlow,
             List<RatingTemplateDto> ratingTemplates,
             String activeRatingTemplateId,
-            RatingSystemDto ratingSystem,
             Integer unblockRequestCooldownMinutes,
             Map<String, List<String>> businessAliases) {
         this.questionTemplates = questionTemplates;
@@ -49,8 +43,6 @@ public class BotSettingsDto {
         this.activeRatingTemplateId = activeRatingTemplateId;
         this.unblockRequestCooldownMinutes = unblockRequestCooldownMinutes;
         this.businessAliases = businessAliases;
-        this.legacyQuestionFlow = questionFlow;
-        this.legacyRatingSystem = ratingSystem;
     }
 
     public List<QuestionTemplateDto> getQuestionTemplates() {
@@ -75,12 +67,7 @@ public class BotSettingsDto {
         if (template != null && template.getQuestionFlow() != null && !template.getQuestionFlow().isEmpty()) {
             return template.getQuestionFlow();
         }
-        return legacyQuestionFlow;
-    }
-
-    @JsonProperty("question_flow")
-    public void setQuestionFlow(List<QuestionFlowItemDto> questionFlow) {
-        this.legacyQuestionFlow = questionFlow;
+        return List.of();
     }
 
     public List<RatingTemplateDto> getRatingTemplates() {
@@ -109,12 +96,7 @@ public class BotSettingsDto {
                     template.getResponses()
             );
         }
-        return legacyRatingSystem;
-    }
-
-    @JsonProperty("rating_system")
-    public void setRatingSystem(RatingSystemDto ratingSystem) {
-        this.legacyRatingSystem = ratingSystem;
+        return null;
     }
 
     public Integer getUnblockRequestCooldownMinutes() {
