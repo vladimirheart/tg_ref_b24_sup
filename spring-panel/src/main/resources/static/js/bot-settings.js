@@ -115,35 +115,44 @@
   }
 
   const PRESET_GROUPS = {};
-  Object.entries(pageBotPresetDefinitions || {}).forEach(([groupKey, groupValue]) => {
-    if (!groupValue || typeof groupValue !== 'object') {
-      return;
-    }
-    const label = typeof groupValue.label === 'string' ? groupValue.label.trim() : '';
-    const fields = {};
-    Object.entries(groupValue.fields || {}).forEach(([fieldKey, fieldValue]) => {
-      if (!fieldValue || typeof fieldValue !== 'object') {
+  let presetDefinitionsLoadingPromise = null;
+
+  function applyPresetDefinitions(rawDefinitions) {
+    Object.keys(PRESET_GROUPS).forEach((groupKey) => {
+      delete PRESET_GROUPS[groupKey];
+    });
+    Object.entries(rawDefinitions || {}).forEach(([groupKey, groupValue]) => {
+      if (!groupValue || typeof groupValue !== 'object') {
         return;
       }
-      const fieldLabel = typeof fieldValue.label === 'string' ? fieldValue.label.trim() : '';
-      const options = Array.isArray(fieldValue.options)
-        ? fieldValue.options
-            .map((value) => (typeof value === 'string' ? value.trim() : ''))
-            .filter((value) => value)
-        : [];
-      const optionDependencies = fieldValue.option_dependencies && typeof fieldValue.option_dependencies === 'object'
-        ? fieldValue.option_dependencies
-        : {};
-      const tree = fieldValue.tree && typeof fieldValue.tree === 'object' ? fieldValue.tree : null;
-      fields[fieldKey] = {
-        label: fieldLabel || fieldKey,
-        options,
-        optionDependencies,
-        tree,
-      };
+      const label = typeof groupValue.label === 'string' ? groupValue.label.trim() : '';
+      const fields = {};
+      Object.entries(groupValue.fields || {}).forEach(([fieldKey, fieldValue]) => {
+        if (!fieldValue || typeof fieldValue !== 'object') {
+          return;
+        }
+        const fieldLabel = typeof fieldValue.label === 'string' ? fieldValue.label.trim() : '';
+        const options = Array.isArray(fieldValue.options)
+          ? fieldValue.options
+              .map((value) => (typeof value === 'string' ? value.trim() : ''))
+              .filter((value) => value)
+          : [];
+        const optionDependencies = fieldValue.option_dependencies && typeof fieldValue.option_dependencies === 'object'
+          ? fieldValue.option_dependencies
+          : {};
+        const tree = fieldValue.tree && typeof fieldValue.tree === 'object' ? fieldValue.tree : null;
+        fields[fieldKey] = {
+          label: fieldLabel || fieldKey,
+          options,
+          optionDependencies,
+          tree,
+        };
+      });
+      PRESET_GROUPS[groupKey] = { label: label || groupKey, fields };
     });
-    PRESET_GROUPS[groupKey] = { label: label || groupKey, fields };
-  });
+  }
+
+  applyPresetDefinitions(pageBotPresetDefinitions);
 
   function hasPresetDefinitions() {
     return Object.values(PRESET_GROUPS).some((groupValue) => Object.keys(groupValue.fields || {}).length);
@@ -151,6 +160,54 @@
 
   function presetUnavailableMessage() {
     return 'Готовые поля недоступны. Добавьте структуру локаций / готовые поля в разделе "Структура локаций".';
+  }
+
+  function presetLoadingMessage() {
+    return '\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u043c \u0433\u043e\u0442\u043e\u0432\u044b\u0435 \u043f\u043e\u043b\u044f \u0438\u0437 \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u044b \u043b\u043e\u043a\u0430\u0446\u0438\u0439...';
+  }
+
+  function presetStatusMessage() {
+    return presetDefinitionsLoadingPromise ? presetLoadingMessage() : presetUnavailableMessage();
+  }
+
+  function rerenderPresetUi() {
+    renderPresetHints();
+    if (templateModalEl && templateModalEl.classList.contains('show')) {
+      renderQuestions();
+    }
+  }
+
+  function ensurePresetDefinitionsLoaded(forceReload = false) {
+    if (!forceReload && hasPresetDefinitions()) {
+      return Promise.resolve(true);
+    }
+    if (!forceReload && presetDefinitionsLoadingPromise) {
+      return presetDefinitionsLoadingPromise;
+    }
+    const fetchPageDataSection = window.SettingsRuntimeAccess?.fetchPageDataSection;
+    if (typeof fetchPageDataSection !== 'function') {
+      return Promise.resolve(hasPresetDefinitions());
+    }
+    presetDefinitionsLoadingPromise = fetchPageDataSection('channels', forceReload ? { force: true } : {})
+      .then((section) => {
+        const rawDefinitions = section && typeof section === 'object' ? section.botPresetDefinitions : null;
+        if (rawDefinitions && typeof rawDefinitions === 'object') {
+          applyPresetDefinitions(rawDefinitions);
+        }
+        return hasPresetDefinitions();
+      })
+      .catch((error) => {
+        if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+          console.warn('Failed to load bot preset definitions from settings channels section.', error);
+        }
+        return false;
+      })
+      .finally(() => {
+        presetDefinitionsLoadingPromise = null;
+        rerenderPresetUi();
+      });
+    rerenderPresetUi();
+    return presetDefinitionsLoadingPromise;
   }
 
   const generatedQuestionIds = new Set();
@@ -1181,15 +1238,17 @@
 
   function renderPresetHints() {
     const presetsAvailable = hasPresetDefinitions();
+    const statusMessage = presetStatusMessage();
     addQuestionButtons.forEach((button) => {
       if (!(button instanceof HTMLButtonElement) || button.dataset.type !== 'preset') {
         return;
       }
       button.disabled = !presetsAvailable;
-      button.title = presetsAvailable ? '' : presetUnavailableMessage();
+      button.title = presetsAvailable ? '' : statusMessage;
     });
     if (presetEmptyAlertEl) {
       presetEmptyAlertEl.classList.toggle('d-none', presetsAvailable);
+      presetEmptyAlertEl.textContent = statusMessage;
     }
     if (presetSummaryCardEl) {
       presetSummaryCardEl.classList.toggle('border', !presetsAvailable);
@@ -1217,7 +1276,7 @@
     });
     presetHintsEl.textContent = rows.length
       ? rows.join('  ||  ')
-      : presetUnavailableMessage();
+      : statusMessage;
   }
 
   function renderActiveRatingDiagnostic() {
@@ -1508,7 +1567,7 @@
       const presetOptions = (() => {
         const groups = Object.entries(PRESET_GROUPS);
         if (!groups.length) {
-          return `<option value="" selected disabled>${html(presetUnavailableMessage())}</option>`;
+          return `<option value="" selected disabled>${html(presetStatusMessage())}</option>`;
         }
         const pieces = ['<option value="">Выберите поле</option>'];
         groups.forEach(([groupKey, groupValue]) => {
@@ -1581,12 +1640,12 @@
         optionsHtml = '<div class="text-muted small">Нет готовых значений для скрытия.</div>';
       }
       const hintText = !presetsAvailable
-        ? presetUnavailableMessage()
+        ? presetStatusMessage()
         : meta && meta.options && meta.options.length
         ? `Варианты: ${meta.options.slice(0, 5).join(', ')}${meta.options.length > 5 ? ' ...' : ''}`
         : 'Значения берутся из выбранного справочника.';
       const presetAlertText = !presetsAvailable
-        ? presetUnavailableMessage()
+        ? presetStatusMessage()
         : (isPreset && !meta)
           ? 'Выбранное готовое поле недоступно в текущих preset definitions. Проверьте структуру локаций и конфиг готовых полей.'
           : '';
@@ -1730,6 +1789,9 @@
     }
     setTemplateStatus('', false);
     renderQuestions();
+    if (!hasPresetDefinitions()) {
+      void ensurePresetDefinitionsLoaded();
+    }
     showChildModal(templateModalEl);
   }
 
