@@ -39,3 +39,28 @@
 2026-07-23 09:50:00.035+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
 2026-07-23 10:00:00.014+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T09:00:00.013225400+03:00
 2026-07-23 10:00:00.016+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 10:10:00.020+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T09:10:00.020031800+03:00
+2026-07-23 10:10:00.023+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 10:20:00.020+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T09:20:00.020555300+03:00
+2026-07-23 10:20:00.023+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 10:30:00.026+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T09:30:00.026962800+03:00
+2026-07-23 10:30:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 10:40:00.035+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T09:40:00.035942500+03:00
+2026-07-23 10:40:00.037+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 10:40:41.802+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-23 10:50:00.027+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T09:50:00.027605800+03:00
+2026-07-23 10:50:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 11:00:00.046+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T10:00:00.046551900+03:00
+2026-07-23 11:00:00.048+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 11:10:00.018+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T10:10:00.018281200+03:00
+2026-07-23 11:10:00.020+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 11:20:00.015+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T10:20:00.015689900+03:00
+2026-07-23 11:20:00.019+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 11:30:00.020+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T10:30:00.020534800+03:00
+2026-07-23 11:30:00.022+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 11:40:00.016+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T10:40:00.016808500+03:00
+2026-07-23 11:40:00.018+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 11:50:00.025+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T10:50:00.025580900+03:00
+2026-07-23 11:50:00.027+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-23 12:00:00.022+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-23T11:00:00.022974500+03:00
+2026-07-23 12:00:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
