@@ -107,6 +107,15 @@
         .join('');
     }
 
+    function buildTemplateSummary(template, detail) {
+      const name = typeof template?.name === 'string' ? template.name.trim() : '';
+      const normalizedDetail = typeof detail === 'string' ? detail.trim() : '';
+      if (name && normalizedDetail) {
+        return `${name} - ${normalizedDetail}`;
+      }
+      return name || normalizedDetail || 'Шаблон не выбран';
+    }
+
     function getQuestionTemplateSummary(id) {
       if (!questionTemplateMap.size) {
         return 'Нет доступных шаблонов';
@@ -124,7 +133,7 @@
       const description = typeof template.description === 'string' && template.description.trim()
         ? template.description.trim()
         : '';
-      return description ? `${base} • ${description}` : base;
+      return buildTemplateSummary(template, description ? `${base} - ${description}` : base);
     }
 
     function getRatingTemplateSummary(id) {
@@ -139,11 +148,11 @@
       const scale = Number.parseInt(template.scale_size, 10)
         || (Array.isArray(template.responses) ? template.responses.length : 0)
         || 0;
-      const base = scale > 1 ? `Шкала 1–${scale}` : 'Единая оценка';
+      const base = scale > 1 ? `Шкала 1-${scale}` : 'Единая оценка';
       const prompt = typeof template.prompt_text === 'string' && template.prompt_text.trim()
         ? template.prompt_text.trim()
         : '';
-      return prompt ? `${base} • ${prompt}` : base;
+      return buildTemplateSummary(template, prompt ? `${base} - ${prompt}` : base);
     }
 
     function getAutoActionTemplateSummary(id) {
@@ -163,7 +172,7 @@
       const description = typeof template.description === 'string' && template.description.trim()
         ? template.description.trim()
         : '';
-      return description ? `${base} • ${description}` : base;
+      return buildTemplateSummary(template, description ? `${base} - ${description}` : base);
     }
 
     const templateSummaryBuilders = {
