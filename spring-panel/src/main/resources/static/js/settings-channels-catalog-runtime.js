@@ -166,6 +166,54 @@
       return typeof options.buildTemplateOptions === 'function' ? options.buildTemplateOptions(templates, selectedId) : '';
     }
 
+    function getQuestionTemplateSummary(id) {
+      return typeof options.getQuestionTemplateSummary === 'function'
+        ? options.getQuestionTemplateSummary(id)
+        : '';
+    }
+
+    function getRatingTemplateSummary(id) {
+      return typeof options.getRatingTemplateSummary === 'function'
+        ? options.getRatingTemplateSummary(id)
+        : '';
+    }
+
+    function getAutoActionTemplateSummary(id) {
+      return typeof options.getAutoActionTemplateSummary === 'function'
+        ? options.getAutoActionTemplateSummary(id)
+        : '';
+    }
+
+    function describeTemplateBinding(rawId, effectiveId, defaultId, summaryBuilder) {
+      const requestedId = typeof rawId === 'string' ? rawId.trim() : '';
+      const fallbackId = typeof defaultId === 'string' ? defaultId.trim() : '';
+      const resolvedId = typeof effectiveId === 'string' ? effectiveId.trim() : '';
+      const summary = typeof summaryBuilder === 'function'
+        ? summaryBuilder(resolvedId || fallbackId)
+        : (resolvedId || fallbackId || 'Шаблон не выбран');
+
+      if (!requestedId) {
+        return {
+          summary,
+          sourceLabel: 'по умолчанию',
+          toneClass: 'text-muted',
+        };
+      }
+      if (resolvedId && requestedId === resolvedId) {
+        return {
+          summary,
+          sourceLabel: 'override',
+          toneClass: 'text-body-secondary',
+        };
+      }
+      return {
+        summary,
+        sourceLabel: 'битый override',
+        toneClass: 'text-warning',
+        note: `id ${requestedId} не найден, используется шаблон по умолчанию`,
+      };
+    }
+
     function updateAddChannelValidationAlert(message = '', type = 'warning') {
       const alertEl = document.getElementById('addChannelValidationAlert');
       if (!alertEl) {
@@ -211,20 +259,41 @@
         const platformConfig = parsePlatformConfig(row.platform_config ?? row.platformConfig);
         const deliverySettings = parseDeliverySettings(row.delivery_settings ?? row.deliverySettings);
         const vkGroupId = platform === 'vk' ? (platformConfig.group_id ?? platformConfig.groupId ?? null) : null;
+        const rawQuestionTemplateId = row.question_template_id ?? row.questionTemplateId;
+        const rawRatingTemplateId = row.rating_template_id ?? row.ratingTemplateId;
+        const rawAutoTemplateId = row.auto_action_template_id ?? row.autoActionTemplateId;
         const questionTemplateId = sanitizeTemplateId(
-          row.question_template_id ?? row.questionTemplateId,
+          rawQuestionTemplateId,
           getQuestionTemplateMap(),
           getDefaultQuestionTemplateId(),
         );
         const ratingTemplateId = sanitizeTemplateId(
-          row.rating_template_id ?? row.ratingTemplateId,
+          rawRatingTemplateId,
           getRatingTemplateMap(),
           getDefaultRatingTemplateId(),
         );
         const autoTemplateId = sanitizeTemplateId(
-          row.auto_action_template_id ?? row.autoActionTemplateId,
+          rawAutoTemplateId,
           getAutoActionTemplateMap(),
           getDefaultAutoActionTemplateId(),
+        );
+        const questionTemplateBinding = describeTemplateBinding(
+          rawQuestionTemplateId,
+          questionTemplateId,
+          getDefaultQuestionTemplateId(),
+          getQuestionTemplateSummary,
+        );
+        const ratingTemplateBinding = describeTemplateBinding(
+          rawRatingTemplateId,
+          ratingTemplateId,
+          getDefaultRatingTemplateId(),
+          getRatingTemplateSummary,
+        );
+        const autoTemplateBinding = describeTemplateBinding(
+          rawAutoTemplateId,
+          autoTemplateId,
+          getDefaultAutoActionTemplateId(),
+          getAutoActionTemplateSummary,
         );
 
         const prepared = {
@@ -237,6 +306,9 @@
           question_template_id: questionTemplateId,
           rating_template_id: ratingTemplateId,
           auto_action_template_id: autoTemplateId,
+          question_template_binding: questionTemplateBinding,
+          rating_template_binding: ratingTemplateBinding,
+          auto_action_template_binding: autoTemplateBinding,
           bot_name: row.bot_name || row.botName || '',
           bot_username: row.bot_username || row.botUsername || '',
           token: row.token || '',
@@ -268,6 +340,30 @@
                 ? 'Маршрут: direct'
                 : 'Маршрут: общий';
         const botLabel = formatBotLabel(prepared);
+        const templateLines = [
+          {
+            title: 'Вопросы',
+            binding: questionTemplateBinding,
+          },
+          {
+            title: 'Оценки',
+            binding: ratingTemplateBinding,
+          },
+          {
+            title: 'Автодействия',
+            binding: autoTemplateBinding,
+          },
+        ].map(({ title, binding }) => {
+          const noteHtml = binding.note
+            ? `<div class="small ${escapeHtml(binding.toneClass)}">${escapeHtml(binding.note)}</div>`
+            : '';
+          return `
+            <div class="small mt-1 ${escapeHtml(binding.toneClass)}">
+              ${escapeHtml(title)}: ${escapeHtml(binding.sourceLabel)} • ${escapeHtml(binding.summary)}
+            </div>
+            ${noteHtml}
+          `;
+        }).join('');
 
         const tr = document.createElement('tr');
         tr.dataset.id = row.id;
@@ -281,6 +377,7 @@
             ${prepared.vk_group_id ? `<div class="small text-muted mt-1">group_id: ${escapeHtml(String(prepared.vk_group_id))}</div>` : ''}
             ${supportChatInfo}
             <div class="small text-muted mt-1">${escapeHtml(routeLabel)}</div>
+            ${templateLines}
           </td>
           <td class="text-center">
             <div>${statusBadge}</div>

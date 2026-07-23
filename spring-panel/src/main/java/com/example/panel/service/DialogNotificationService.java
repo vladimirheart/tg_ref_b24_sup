@@ -10,6 +10,7 @@ import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -33,28 +34,30 @@ public class DialogNotificationService {
     private final JdbcTemplate jdbcTemplate;
     private final ChannelRepository channelRepository;
     private final IntegrationNetworkService integrationNetworkService;
+    private final SharedConfigService sharedConfigService;
+    private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final ObjectMapper objectMapper;
 
     public DialogNotificationService(JdbcTemplate jdbcTemplate,
                                      ChannelRepository channelRepository,
                                      IntegrationNetworkService integrationNetworkService,
+                                     SharedConfigService sharedConfigService,
+                                     BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
                                      ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.channelRepository = channelRepository;
         this.integrationNetworkService = integrationNetworkService;
+        this.sharedConfigService = sharedConfigService;
+        this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.objectMapper = objectMapper;
     }
 
     public void notifyResolved(String ticketId) {
-        List<String> messages = List.of(
-                "Диалог закрыт. Спасибо за обращение!",
-                "Пожалуйста, оцените диалог по шкале 1-5, ответив числом."
-        );
-        sendNotifications(ticketId, messages);
+        sendNotifications(ticketId, this::buildResolvedMessages);
     }
 
     public void notifyReopened(String ticketId) {
-        sendNotifications(ticketId, List.of(
+        sendNotifications(ticketId, channel -> List.of(
                 "Ваше обращение снова открыто. Мы продолжаем работу."
         ));
     }
@@ -132,8 +135,51 @@ public class DialogNotificationService {
         return delivered;
     }
 
-    private void sendNotifications(String ticketId, List<String> messages) {
-        if (!StringUtils.hasText(ticketId) || messages == null || messages.isEmpty()) {
+    List<String> buildResolvedMessages(Channel channel) {
+        List<String> messages = new ArrayList<>();
+        messages.add("Диалог закрыт. Спасибо за обращение!");
+        messages.add(resolveRatingPrompt(channel));
+        return messages;
+    }
+
+    String resolveRatingPrompt(Channel channel) {
+        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        Map<String, Object> botSettings = botSettingsPayloadNormalizer.normalize(settings.get("bot_settings"));
+        List<Map<String, Object>> ratingTemplates = castTemplateList(botSettings.get("rating_templates"));
+        if (ratingTemplates.isEmpty()) {
+            return defaultRatingPrompt(5);
+        }
+
+        Map<String, Object> selectedTemplate = null;
+        String channelTemplateId = channel != null ? stringValue(channel.getRatingTemplateId()) : "";
+        if (StringUtils.hasText(channelTemplateId)) {
+            selectedTemplate = findTemplateById(ratingTemplates, channelTemplateId);
+        }
+        if (selectedTemplate == null) {
+            selectedTemplate = findTemplateById(
+                    ratingTemplates,
+                    stringValue(botSettings.get("active_rating_template_id"))
+            );
+        }
+        if (selectedTemplate == null) {
+            selectedTemplate = ratingTemplates.get(0);
+        }
+
+        String prompt = stringValue(selectedTemplate.get("prompt_text"));
+        if (prompt.isBlank()) {
+            prompt = stringValue(selectedTemplate.get("prompt"));
+        }
+        if (prompt.isBlank()) {
+            prompt = stringValue(selectedTemplate.get("promptText"));
+        }
+        if (!prompt.isBlank()) {
+            return prompt;
+        }
+        return defaultRatingPrompt(resolveRatingScale(selectedTemplate));
+    }
+
+    private void sendNotifications(String ticketId, java.util.function.Function<Channel, List<String>> messageFactory) {
+        if (!StringUtils.hasText(ticketId) || messageFactory == null) {
             return;
         }
         Optional<DialogTarget> targetOpt = loadTarget(ticketId);
@@ -145,6 +191,10 @@ public class DialogNotificationService {
         Channel channel = channelRepository.findById(target.channelId()).orElse(null);
         if (channel == null) {
             log.warn("Unable to notify ticket {}: channel {} not found", ticketId, target.channelId());
+            return;
+        }
+        List<String> messages = messageFactory.apply(channel);
+        if (messages == null || messages.isEmpty()) {
             return;
         }
         if (hasWebFormSession(ticketId)) {
@@ -207,6 +257,75 @@ public class DialogNotificationService {
 
     private boolean sendPlatformMessage(Channel channel, Long userId, String text) {
         return sendTelegramMessage(channel, userId, text);
+    }
+
+    private List<Map<String, Object>> castTemplateList(Object rawTemplates) {
+        List<Map<String, Object>> templates = new ArrayList<>();
+        if (!(rawTemplates instanceof List<?> list)) {
+            return templates;
+        }
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> map)) {
+                continue;
+            }
+            Map<String, Object> template = new LinkedHashMap<>();
+            map.forEach((key, value) -> {
+                if (key != null) {
+                    template.put(key.toString(), value);
+                }
+            });
+            templates.add(template);
+        }
+        return templates;
+    }
+
+    private Map<String, Object> findTemplateById(List<Map<String, Object>> templates, String templateId) {
+        if (!StringUtils.hasText(templateId)) {
+            return null;
+        }
+        for (Map<String, Object> template : templates) {
+            if (templateId.equals(stringValue(template.get("id")))) {
+                return template;
+            }
+        }
+        return null;
+    }
+
+    private int resolveRatingScale(Map<String, Object> template) {
+        Integer scale = parseInteger(template != null ? template.get("scale_size") : null);
+        if (scale == null) {
+            scale = parseInteger(template != null ? template.get("scale") : null);
+        }
+        if (scale == null && template != null && template.get("responses") instanceof List<?> responses) {
+            scale = responses.size();
+        }
+        return scale != null && scale > 0 ? scale : 5;
+    }
+
+    private String defaultRatingPrompt(int scale) {
+        if (scale <= 1) {
+            return "Пожалуйста, оцените качество ответа: отправьте число 1.";
+        }
+        return "Пожалуйста, оцените качество ответа от 1 до " + scale + ".";
+    }
+
+    private String stringValue(Object value) {
+        return value != null ? value.toString().trim() : "";
+    }
+
+    private Integer parseInteger(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        String raw = stringValue(value);
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private boolean sendTelegramText(Channel channel, Long userId, String text) {
