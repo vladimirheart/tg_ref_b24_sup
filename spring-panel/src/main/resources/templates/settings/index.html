@@ -1945,6 +1945,30 @@
     .bot-question-option .btn-link {
       white-space: nowrap;
     }
+    [data-bot-questions-container] {
+      overflow-anchor: none;
+    }
+    .bot-question-card {
+      border-radius: 1rem;
+      overflow-anchor: none;
+    }
+    .bot-question-card [data-bot-question-answer-wrapper] .border,
+    .bot-question-card .bot-question-analytics-surface {
+      min-height: 8.75rem;
+    }
+    .bot-question-card [data-bot-question-options] {
+      min-height: 9.5rem;
+      max-height: min(24rem, 48vh);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .bot-question-card [data-bot-question-preview] {
+      min-height: 8.5rem;
+    }
+    .bot-question-card textarea[data-bot-question-select-options] {
+      min-height: 10.5rem;
+      resize: vertical;
+    }
     .bot-question-dependencies {
       border-radius: 0.75rem;
       border: 1px solid rgba(13, 110, 253, 0.15);

@@ -574,6 +574,194 @@
     return [];
   }
 
+  function escapeSelectorValue(value) {
+    const stringValue = value == null ? '' : String(value);
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+      return CSS.escape(stringValue);
+    }
+    return stringValue.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  function resolveQuestionEditorScrollContainer() {
+    if (templateModalEl instanceof HTMLElement) {
+      const modalBody = templateModalEl.querySelector('.modal-body');
+      if (modalBody instanceof HTMLElement) {
+        return modalBody;
+      }
+    }
+    return questionsContainer instanceof HTMLElement ? questionsContainer : null;
+  }
+
+  function resolveFocusedQuestionFieldState(activeElement, card) {
+    if (!(activeElement instanceof HTMLElement) || !(card instanceof HTMLElement)) {
+      return null;
+    }
+    if (activeElement.matches('[data-bot-question-text]')) {
+      return { selector: '[data-bot-question-text]' };
+    }
+    if (activeElement.matches('[data-bot-question-type]')) {
+      return { selector: '[data-bot-question-type]' };
+    }
+    if (activeElement.matches('[data-bot-question-preset]')) {
+      return { selector: '[data-bot-question-preset]' };
+    }
+    if (activeElement.matches('[data-bot-question-select-options]')) {
+      return { selector: '[data-bot-question-select-options]' };
+    }
+    if (activeElement.matches('[data-bot-question-binding]')) {
+      return { selector: '[data-bot-question-binding]' };
+    }
+    if (activeElement.matches('[data-bot-question-required]')) {
+      return { selector: '[data-bot-question-required]' };
+    }
+    if (activeElement.matches('[data-bot-question-dashboard]')) {
+      return { selector: '[data-bot-question-dashboard]' };
+    }
+    if (activeElement.matches('[data-bot-question-filter]')) {
+      const filterKey = activeElement.dataset.botQuestionFilter || '';
+      return filterKey ? { selector: `[data-bot-question-filter="${escapeSelectorValue(filterKey)}"]` } : null;
+    }
+    if (activeElement.matches('[data-bot-question-option]')) {
+      const optionValue = activeElement.getAttribute('value') || '';
+      return optionValue
+        ? { selector: `[data-bot-question-option][value="${escapeSelectorValue(optionValue)}"]` }
+        : { selector: '[data-bot-question-option]' };
+    }
+    if (activeElement.matches('[data-bot-question-option-info]')) {
+      const row = activeElement.closest('[data-bot-question-option-row]');
+      const optionValue = row instanceof HTMLElement ? (row.dataset.optionValue || '') : '';
+      return optionValue
+        ? { selector: `[data-bot-question-option-row][data-option-value="${escapeSelectorValue(optionValue)}"] [data-bot-question-option-info]` }
+        : { selector: '[data-bot-question-option-info]' };
+    }
+    if (activeElement.matches('[data-bot-question-action]')) {
+      const action = activeElement.dataset.botQuestionAction || '';
+      return action ? { selector: `[data-bot-question-action="${escapeSelectorValue(action)}"]` } : null;
+    }
+    return null;
+  }
+
+  function captureQuestionEditorUiState() {
+    if (!(questionsContainer instanceof HTMLElement)) {
+      return null;
+    }
+    const scrollContainer = resolveQuestionEditorScrollContainer();
+    const uiState = {
+      scrollTop: scrollContainer ? scrollContainer.scrollTop : 0,
+      activeQuestionId: '',
+      activeFieldSelector: '',
+      selectionStart: null,
+      selectionEnd: null,
+      anchorOffsetTop: null,
+      expandedOptions: [],
+    };
+    questionsContainer.querySelectorAll('.card[data-question-id]').forEach((card) => {
+      if (!(card instanceof HTMLElement)) {
+        return;
+      }
+      const activeRow = card.querySelector('[data-bot-question-option-active="true"]');
+      if (!(activeRow instanceof HTMLElement)) {
+        return;
+      }
+      const optionValue = activeRow.dataset.optionValue || '';
+      if (!optionValue) {
+        return;
+      }
+      uiState.expandedOptions.push({
+        questionId: card.dataset.questionId || '',
+        optionValue,
+      });
+    });
+    const activeElement = document.activeElement;
+    if (!(activeElement instanceof HTMLElement) || !questionsContainer.contains(activeElement)) {
+      return uiState;
+    }
+    const card = activeElement.closest('.card[data-question-id]');
+    if (!(card instanceof HTMLElement)) {
+      return uiState;
+    }
+    const fieldState = resolveFocusedQuestionFieldState(activeElement, card);
+    if (!fieldState || !fieldState.selector) {
+      return uiState;
+    }
+    uiState.activeQuestionId = card.dataset.questionId || '';
+    uiState.activeFieldSelector = fieldState.selector;
+    if (scrollContainer instanceof HTMLElement) {
+      uiState.anchorOffsetTop = card.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top;
+    }
+    if ((activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement)
+      && typeof activeElement.selectionStart === 'number'
+      && typeof activeElement.selectionEnd === 'number') {
+      uiState.selectionStart = activeElement.selectionStart;
+      uiState.selectionEnd = activeElement.selectionEnd;
+    }
+    return uiState;
+  }
+
+  function restoreQuestionEditorUiState(uiState) {
+    if (!uiState || !(questionsContainer instanceof HTMLElement)) {
+      return;
+    }
+    const scrollContainer = resolveQuestionEditorScrollContainer();
+    if (scrollContainer instanceof HTMLElement && Number.isFinite(uiState.scrollTop)) {
+      scrollContainer.scrollTop = uiState.scrollTop;
+    }
+    if (Array.isArray(uiState.expandedOptions)) {
+      uiState.expandedOptions.forEach((entry) => {
+        if (!entry || !entry.questionId || !entry.optionValue) {
+          return;
+        }
+        const card = questionsContainer.querySelector(`.card[data-question-id="${escapeSelectorValue(entry.questionId)}"]`);
+        if (card instanceof HTMLElement) {
+          showOptionDependencies(card, entry.optionValue);
+        }
+      });
+    }
+    if (!uiState.activeQuestionId || !uiState.activeFieldSelector) {
+      if (scrollContainer instanceof HTMLElement && Number.isFinite(uiState.scrollTop)) {
+        requestAnimationFrame(() => {
+          scrollContainer.scrollTop = uiState.scrollTop;
+        });
+      }
+      return;
+    }
+    const card = questionsContainer.querySelector(`.card[data-question-id="${escapeSelectorValue(uiState.activeQuestionId)}"]`);
+    if (!(card instanceof HTMLElement)) {
+      if (scrollContainer instanceof HTMLElement && Number.isFinite(uiState.scrollTop)) {
+        requestAnimationFrame(() => {
+          scrollContainer.scrollTop = uiState.scrollTop;
+        });
+      }
+      return;
+    }
+    const target = card.querySelector(uiState.activeFieldSelector);
+    if (target instanceof HTMLElement) {
+      try {
+        target.focus({ preventScroll: true });
+      } catch (error) {
+        target.focus();
+      }
+      if ((target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
+        && typeof uiState.selectionStart === 'number'
+        && typeof uiState.selectionEnd === 'number'
+        && typeof target.setSelectionRange === 'function') {
+        target.setSelectionRange(uiState.selectionStart, uiState.selectionEnd);
+      }
+    }
+    if (scrollContainer instanceof HTMLElement) {
+      const restorePosition = () => {
+        if (typeof uiState.anchorOffsetTop === 'number') {
+          const delta = card.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - uiState.anchorOffsetTop;
+          scrollContainer.scrollTop += delta;
+        } else if (Number.isFinite(uiState.scrollTop)) {
+          scrollContainer.scrollTop = uiState.scrollTop;
+        }
+      };
+      restorePosition();
+      requestAnimationFrame(restorePosition);
+    }
+  }
+
   function validateQuestionFlow(questionFlow, templateName) {
     const usedBindingKeys = new Map();
     for (let i = 0; i < questionFlow.length; i += 1) {
@@ -1769,10 +1957,14 @@
   }
 
 
-  function renderQuestions() {
+  function renderQuestions(options = {}) {
     if (!questionsContainer) {
       return;
     }
+    const shouldPreserveUi = options.preserveUi !== false
+      && templateModalEl instanceof HTMLElement
+      && templateModalEl.classList.contains('show');
+    const uiState = shouldPreserveUi ? captureQuestionEditorUiState() : null;
     questionsContainer.innerHTML = '';
     if (!editorState.questionFlow.length) {
       const empty = document.createElement('div');
@@ -1785,8 +1977,9 @@
     editorState.questionFlow.forEach((question, index) => {
       question.order = index + 1;
       const card = document.createElement('div');
-      card.className = 'card shadow-sm';
+      card.className = 'card shadow-sm bot-question-card';
       card.dataset.index = String(index);
+      card.dataset.questionId = question.id || '';
       const preset = question.preset && question.preset.group && question.preset.field ? question.preset : null;
       const presetValue = preset ? encodePresetValue(preset.group, preset.field) : '';
       const isPreset = question.type === 'preset';
@@ -1992,7 +2185,7 @@
           answerBox.innerHTML = answerBodyHtml;
         }
         const analyticsRow = document.createElement('div');
-        analyticsRow.className = 'row g-3 mt-1';
+        analyticsRow.className = 'row g-3 mt-1 bot-question-analytics-row';
         analyticsRow.innerHTML = `
           <div class="col-lg-7">
             <label class="form-label">Ключ атрибута</label>
@@ -2001,7 +2194,7 @@
           </div>
           <div class="col-lg-5">
             <label class="form-label d-block">Аналитика</label>
-            <div class="form-check form-switch border rounded-3 p-3 h-100 d-flex align-items-center">
+            <div class="form-check form-switch border rounded-3 p-3 h-100 d-flex align-items-center bot-question-analytics-surface">
               <input class="form-check-input me-2" type="checkbox" data-bot-question-dashboard${question.includeInDashboard ? ' checked' : ''}>
               <label class="form-check-label">Отображать в дашборде</label>
             </div>
@@ -2033,6 +2226,9 @@
       renderQuestionPreview(card, question, meta);
     });
     renderPresetHints();
+    if (uiState) {
+      restoreQuestionEditorUiState(uiState);
+    }
   }
   function openTemplateEditor(index) {
     if (!canManageChildModal(templateModalEl)) {
