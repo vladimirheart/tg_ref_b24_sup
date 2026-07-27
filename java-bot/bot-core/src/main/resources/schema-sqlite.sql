@@ -116,6 +116,24 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id);
 
+CREATE TABLE IF NOT EXISTS ticket_attributes (
+    ticket_id TEXT NOT NULL,
+    question_id TEXT NOT NULL,
+    attribute_key TEXT NOT NULL,
+    question_text TEXT,
+    input_type TEXT NOT NULL,
+    value_id TEXT,
+    value_label TEXT,
+    value_text TEXT,
+    include_in_dashboard INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT,
+    PRIMARY KEY (ticket_id, question_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ticket_attributes_ticket ON ticket_attributes(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_attributes_key_dashboard ON ticket_attributes(attribute_key, include_in_dashboard);
+
 CREATE TABLE IF NOT EXISTS client_statuses (
     user_id INTEGER PRIMARY KEY,
     status TEXT DEFAULT 'Не указан',

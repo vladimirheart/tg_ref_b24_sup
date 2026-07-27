@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -37,13 +38,16 @@ public class DashboardAnalyticsService {
     private final SharedConfigService sharedConfigService;
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
 
     public DashboardAnalyticsService(SharedConfigService sharedConfigService,
                                      ChannelRepository channelRepository,
-                                     ObjectMapper objectMapper) {
+                                     ObjectMapper objectMapper,
+                                     JdbcTemplate jdbcTemplate) {
         this.sharedConfigService = sharedConfigService;
         this.channelRepository = channelRepository;
         this.objectMapper = objectMapper;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public record DashboardFilters(LocalDate startDate, LocalDate endDate, List<String> restaurants) {}
@@ -348,6 +352,7 @@ public class DashboardAnalyticsService {
         Map<String, Long> byChannel = aggregate(dialogs, DialogListItem::channelLabel);
         Map<String, Long> byBusiness = aggregate(dialogs, dialog -> resolveBusinessLabel(dialog, locationCatalog));
         Map<String, Long> byNetwork = aggregate(dialogs, dialog -> resolvePartnerType(dialog, locationCatalog));
+        Map<String, Long> byDirection = loadStructuredAttributeChart(dialogs, "direction");
         Map<String, Long> byCategory = aggregate(dialogs, dialog -> {
             String categories = dialog.categoriesSafe();
             if (!StringUtils.hasText(categories) || "—".equals(categories)) {
@@ -358,6 +363,9 @@ public class DashboardAnalyticsService {
             }
             return categories;
         });
+        if (!byDirection.isEmpty()) {
+            byCategory = byDirection;
+        }
         Map<String, Long> byCity = aggregate(dialogs, dialog -> {
             String city = dialog.city();
             return StringUtils.hasText(city) ? city : "Без города";
@@ -368,6 +376,39 @@ public class DashboardAnalyticsService {
         });
 
         return new ChartsBlock(byChannel, byBusiness, byNetwork, byCategory, byCity, topTen(byRestaurant));
+    }
+
+    private Map<String, Long> loadStructuredAttributeChart(List<DialogListItem> dialogs, String attributeKey) {
+        if (!StringUtils.hasText(attributeKey) || dialogs == null || dialogs.isEmpty()) {
+            return Map.of();
+        }
+        List<String> ticketIds = dialogs.stream()
+                .map(DialogListItem::ticketId)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (ticketIds.isEmpty()) {
+            return Map.of();
+        }
+        String placeholders = ticketIds.stream().map(ticketId -> "?").collect(Collectors.joining(", "));
+        List<Object> params = new ArrayList<>();
+        params.add(attributeKey);
+        params.addAll(ticketIds);
+        Map<String, Long> counts = new HashMap<>();
+        jdbcTemplate.query(
+                """
+                SELECT COALESCE(NULLIF(trim(value_label), ''), NULLIF(trim(value_text), ''), NULLIF(trim(value_id), '')) AS label,
+                       COUNT(*) AS total
+                  FROM ticket_attributes
+                 WHERE include_in_dashboard = TRUE
+                   AND attribute_key = ?
+                   AND ticket_id IN (%s)
+                 GROUP BY COALESCE(NULLIF(trim(value_label), ''), NULLIF(trim(value_text), ''), NULLIF(trim(value_id), ''))
+                """.formatted(placeholders),
+                rs -> counts.put(normalizeLabel(rs.getString("label")), rs.getLong("total")),
+                params.toArray()
+        );
+        return sortByValueDesc(counts);
     }
 
     private Map<String, Long> aggregate(List<DialogListItem> dialogs, java.util.function.Function<DialogListItem, String> extractor) {

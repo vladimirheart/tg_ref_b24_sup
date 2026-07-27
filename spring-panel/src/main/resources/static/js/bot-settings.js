@@ -244,6 +244,7 @@
   }
 
   const generatedQuestionIds = new Set();
+  const generatedOptionIds = new Set();
   const generatedTemplateIds = new Set();
   const generatedRatingTemplateIds = new Set();
 
@@ -484,6 +485,135 @@
     return generateQuestionId();
   }
 
+  function generateOptionId() {
+    let id;
+    do {
+      id = `opt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    } while (generatedOptionIds.has(id));
+    generatedOptionIds.add(id);
+    return id;
+  }
+
+  function ensureOptionId(rawId) {
+    if (typeof rawId === 'string' && rawId.trim()) {
+      const trimmed = rawId.trim();
+      generatedOptionIds.add(trimmed);
+      return trimmed;
+    }
+    return generateOptionId();
+  }
+
+  function cloneQuestionOptions(rawOptions) {
+    if (!Array.isArray(rawOptions)) {
+      return [];
+    }
+    return rawOptions
+      .map((option) => {
+        if (!option || typeof option !== 'object') {
+          return null;
+        }
+        const label = typeof option.label === 'string' ? option.label : '';
+        return {
+          id: ensureOptionId(option.id),
+          label,
+        };
+      })
+      .filter((option) => option && option.id);
+  }
+
+  function normalizeBindingKey(value) {
+    if (typeof value !== 'string') {
+      return '';
+    }
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .replace(/_+/g, '_');
+  }
+
+  function normalizeEditableQuestionOptions(rawOptions) {
+    return cloneQuestionOptions(rawOptions)
+      .map((option) => ({
+        id: ensureOptionId(option && option.id),
+        label: typeof option?.label === 'string' ? option.label.trim() : '',
+      }))
+      .filter((option) => option.label);
+  }
+
+  function resolveQuestionBindingKey(question) {
+    const explicitKey = normalizeBindingKey(
+      question && typeof question.bindingKey === 'string'
+        ? question.bindingKey
+        : (question && typeof question.binding_key === 'string' ? question.binding_key : ''),
+    );
+    if (explicitKey) {
+      return explicitKey;
+    }
+    if (question && question.preset && typeof question.preset.field === 'string') {
+      return question.preset.field.trim();
+    }
+    return '';
+  }
+
+  function resolveQuestionOptionLabels(question, meta) {
+    if (!question) {
+      return [];
+    }
+    if (question.type === 'preset') {
+      return Array.isArray(meta && meta.options)
+        ? meta.options
+            .map((value) => (typeof value === 'string' ? value.trim() : ''))
+            .filter((value) => value)
+        : [];
+    }
+    if (question.type === 'select') {
+      return normalizeEditableQuestionOptions(question.options).map((option) => option.label);
+    }
+    return [];
+  }
+
+  function validateQuestionFlow(questionFlow, templateName) {
+    const usedBindingKeys = new Map();
+    for (let i = 0; i < questionFlow.length; i += 1) {
+      const question = questionFlow[i] || {};
+      const questionNumber = i + 1;
+      const bindingKey = resolveQuestionBindingKey(question);
+      const includeInDashboard = Boolean(question.includeInDashboard || question.include_in_dashboard);
+      if (question.type === 'preset') {
+        if (!question.preset || !question.preset.group || !question.preset.field) {
+          return `Выберите готовое поле для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''}.`;
+        }
+      } else {
+        const text = String(question.text || '').trim();
+        if (!text) {
+          return `Укажите текст для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''}.`;
+        }
+        if (question.type === 'select') {
+          const options = resolveQuestionOptionLabels(question, null);
+          if (!options.length) {
+            return `Добавьте хотя бы один вариант ответа для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''}.`;
+          }
+          if (new Set(options.map((value) => value.toLowerCase())).size !== options.length) {
+            return `Варианты ответа для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''} должны быть уникальными.`;
+          }
+        }
+      }
+      if (includeInDashboard && !bindingKey) {
+        return `Для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''} заполните ключ атрибута латиницей, если он должен попадать в дашборд.`;
+      }
+      if (bindingKey) {
+        const previousIndex = usedBindingKeys.get(bindingKey);
+        if (previousIndex != null) {
+          return `Ключ атрибута "${bindingKey}" повторяется в вопросах №${previousIndex + 1} и №${questionNumber}${templateName ? ` шаблона "${templateName}"` : ''}.`;
+        }
+        usedBindingKeys.set(bindingKey, i);
+      }
+    }
+    return null;
+  }
+
   function generateTemplateId() {
     let id;
     do {
@@ -525,6 +655,7 @@
     const preset = question && question.preset && question.preset.group && question.preset.field
       ? { group: question.preset.group, field: question.preset.field }
       : null;
+    const options = cloneQuestionOptions(question && question.options);
     const excluded = Array.isArray(question && question.excludedOptions)
       ? Array.from(new Set(question.excludedOptions.map((value) => (value || '').toString())))
       : [];
@@ -533,13 +664,18 @@
       : {};
     return {
       id,
-      type: question && question.type === 'preset' ? 'preset' : 'custom',
+      type: question && (question.type === 'preset' || question.type === 'select') ? question.type : 'custom',
       text: question && typeof question.text === 'string' ? question.text : '',
       order: Number.isFinite(question && question.order) ? Number(question.order) : 0,
       preset,
+      options,
       presetUnavailable: Boolean(question && question.presetUnavailable),
       excludedOptions: excluded,
       filterState,
+      bindingKey: question && typeof question.bindingKey === 'string'
+        ? question.bindingKey
+        : (question && typeof question.binding_key === 'string' ? question.binding_key : ''),
+      includeInDashboard: Boolean(question && (question.includeInDashboard || question.include_in_dashboard)),
       required: question && question.type === 'preset'
         ? true
         : normalizeQuestionRequired(question && question.required, true),
@@ -653,18 +789,22 @@
         text,
         order,
         preset: null,
+        options: [],
         presetUnavailable: false,
         excludedOptions: [],
+        bindingKey: '',
+        includeInDashboard: false,
         required: true,
       };
     }
 
     const source = raw && typeof raw === 'object' ? raw : {};
     const id = ensureQuestionId(source.id);
-    let type = source.type === 'preset' ? 'preset' : 'custom';
+    let type = source.type === 'preset' ? 'preset' : (source.type === 'select' ? 'select' : 'custom');
     let text = typeof source.text === 'string' ? source.text.trim() : '';
     let preset = null;
     let presetUnavailable = false;
+    const options = cloneQuestionOptions(source.options);
     if (type === 'preset') {
       const presetSource = source.preset && typeof source.preset === 'object' ? source.preset : source;
       let group = typeof presetSource.group === 'string' ? presetSource.group.trim() : '';
@@ -698,8 +838,13 @@
       text,
       order,
       preset,
+      options,
       presetUnavailable,
       excludedOptions: Array.from(new Set(excludedOptions)),
+      bindingKey: typeof source.binding_key === 'string'
+        ? source.binding_key.trim()
+        : (typeof source.bindingKey === 'string' ? source.bindingKey.trim() : ''),
+      includeInDashboard: Boolean(source.include_in_dashboard || source.includeInDashboard),
       required: type === 'preset' ? true : normalizeQuestionRequired(source.required, true),
     };
   }
@@ -1394,13 +1539,68 @@
     const optionsEl = previewEl.querySelector('[data-bot-question-preview-options]');
     const hintEl = previewEl.querySelector('[data-bot-question-preview-hint]');
     const text = question && typeof question.text === 'string' ? question.text.trim() : '';
+    const isPreset = Boolean(question && question.type === 'preset');
+    const isSelect = Boolean(question && question.type === 'select');
     if (titleEl) {
       titleEl.textContent = text || 'Текст вопроса пока не задан';
       titleEl.classList.toggle('text-muted', !text);
     }
-    if (!question || question.type !== 'preset' || !meta) {
+    if (!question || (!isPreset && !isSelect)) {
       if (descriptionEl) {
         descriptionEl.textContent = 'Клиент введёт ответ в свободной форме.';
+      }
+      if (optionsEl) {
+        optionsEl.innerHTML = '';
+        optionsEl.classList.add('d-none');
+      }
+      if (hintEl) {
+        if (question && question.required === false) {
+          hintEl.textContent = 'Вопрос необязательный: клиент сможет пропустить его.';
+          hintEl.classList.remove('d-none');
+        } else {
+          hintEl.classList.add('d-none');
+          hintEl.textContent = '';
+        }
+      }
+      return;
+    }
+    if (isSelect) {
+      const options = resolveQuestionOptionLabels(question, meta);
+      if (descriptionEl) {
+        descriptionEl.textContent = options.length
+          ? 'Клиент выберет один из подготовленных вариантов ответа.'
+          : 'Добавьте варианты ответа, чтобы вопрос корректно отображался клиенту.';
+      }
+      if (optionsEl) {
+        if (options.length) {
+          const badges = options
+            .slice(0, 12)
+            .map((value) => `<button class="btn btn-outline-secondary btn-sm bot-question-preview__badge" type="button" disabled>${html(value)}</button>`);
+          if (options.length > 12) {
+            badges.push(
+              `<button class="btn btn-outline-secondary btn-sm bot-question-preview__badge" type="button" disabled>+${options.length - 12} ещё</button>`,
+            );
+          }
+          optionsEl.innerHTML = badges.join(' ');
+        } else {
+          optionsEl.innerHTML = '<span class="text-muted small">Список вариантов пока пуст.</span>';
+        }
+        optionsEl.classList.remove('d-none');
+      }
+      if (hintEl) {
+        if (question.required === false) {
+          hintEl.textContent = 'Вопрос необязательный: клиент сможет пропустить его.';
+          hintEl.classList.remove('d-none');
+        } else {
+          hintEl.classList.add('d-none');
+          hintEl.textContent = '';
+        }
+      }
+      return;
+    }
+    if (!meta) {
+      if (descriptionEl) {
+        descriptionEl.textContent = 'Выберите готовое поле, чтобы показать клиенту связанные варианты ответа.';
       }
       if (optionsEl) {
         optionsEl.innerHTML = '';
@@ -1590,6 +1790,7 @@
       const preset = question.preset && question.preset.group && question.preset.field ? question.preset : null;
       const presetValue = preset ? encodePresetValue(preset.group, preset.field) : '';
       const isPreset = question.type === 'preset';
+      const isSelect = question.type === 'select';
       const presetsAvailable = hasPresetDefinitions();
       const presetOptions = (() => {
         const groups = Object.entries(PRESET_GROUPS);
@@ -1683,6 +1884,22 @@
       card.dataset.filterBusiness = filterState.business || '';
       card.dataset.filterLocationType = filterState.location_type || '';
       const isRequired = question.required !== false;
+      const selectOptionsText = isSelect ? resolveQuestionOptionLabels(question, null).join('\n') : '';
+      const bindingKey = normalizeBindingKey(question.bindingKey || question.binding_key || '');
+      const analyticsHint = isPreset
+        ? 'Оставьте поле пустым, чтобы использовать системный ключ готового поля. Для вывода в дашборд можно задать свой ключ.'
+        : 'Стабильный ключ для интеграций и аналитики, например company, direction или bot_product. Если включён дашборд, ключ обязателен.';
+      const answerBodyHtml = isSelect
+        ? `
+            <label class="form-label">Варианты ответа</label>
+            <textarea class="form-control font-monospace" rows="6" data-bot-question-select-options placeholder="По одному варианту на строку">${html(selectOptionsText)}</textarea>
+            <div class="form-text mb-0">Каждая строка станет отдельным вариантом ответа для клиента.</div>
+          `
+        : `
+            <div class="small text-uppercase text-muted fw-semibold mb-2">РџРѕР»Рµ РѕС‚РІРµС‚Р°</div>
+            <div class="small mb-1">РћС‚РІРµС‚ РєР»РёРµРЅС‚Р° Р±СѓРґРµС‚ СЃРѕС…СЂР°РЅС‘РЅ РєР°Рє СЃРІРѕР±РѕРґРЅС‹Р№ С‚РµРєСЃС‚ РґР»СЏ СЌС‚РѕРіРѕ РІРѕРїСЂРѕСЃР°.</div>
+            <div class="form-text mb-0">Р•СЃР»Рё РІС‹РєР»СЋС‡РёС‚СЊ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕСЃС‚СЊ, РєР»РёРµРЅС‚ СЃРјРѕР¶РµС‚ РЅР°РїРёСЃР°С‚СЊ "РџСЂРѕРїСѓСЃС‚РёС‚СЊ" Рё РїРµСЂРµР№С‚Рё РґР°Р»СЊС€Рµ.</div>
+          `;
       card.innerHTML = `
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
@@ -1760,6 +1977,38 @@
         </div>
       `;
       questionsContainer.appendChild(card);
+      const typeSelect = card.querySelector('[data-bot-question-type]');
+      if (typeSelect) {
+        typeSelect.innerHTML = `
+          <option value="custom"${!isPreset && !isSelect ? ' selected' : ''}>Свободный текст</option>
+          <option value="select"${isSelect ? ' selected' : ''}>Выбор из списка</option>
+          <option value="preset"${isPreset ? ' selected' : ''}${!presetsAvailable && !isPreset ? ' disabled' : ''}>Готовое поле</option>
+        `;
+      }
+      const answerWrapper = card.querySelector('[data-bot-question-answer-wrapper]');
+      if (answerWrapper) {
+        const answerBox = answerWrapper.querySelector('.col-lg-8 .border');
+        if (answerBox) {
+          answerBox.innerHTML = answerBodyHtml;
+        }
+        const analyticsRow = document.createElement('div');
+        analyticsRow.className = 'row g-3 mt-1';
+        analyticsRow.innerHTML = `
+          <div class="col-lg-7">
+            <label class="form-label">Ключ атрибута</label>
+            <input type="text" class="form-control font-monospace" value="${html(bindingKey)}" data-bot-question-binding placeholder="company">
+            <div class="form-text">${html(analyticsHint)}</div>
+          </div>
+          <div class="col-lg-5">
+            <label class="form-label d-block">Аналитика</label>
+            <div class="form-check form-switch border rounded-3 p-3 h-100 d-flex align-items-center">
+              <input class="form-check-input me-2" type="checkbox" data-bot-question-dashboard${question.includeInDashboard ? ' checked' : ''}>
+              <label class="form-check-label">Отображать в дашборде</label>
+            </div>
+          </div>
+        `;
+        answerWrapper.insertAdjacentElement('afterend', analyticsRow);
+      }
       card.__questionMeta = meta;
       if (isPreset) {
         const select = card.querySelector('[data-bot-question-preset]');
@@ -1844,15 +2093,22 @@
           setTemplateStatus(`Укажите текст для вопроса №${i + 1}.`, true);
           return false;
         }
-      } else if (!question.preset || !presetExists(question.preset.group, question.preset.field)) {
+      } else if (question.type === 'preset' && (!question.preset || !presetExists(question.preset.group, question.preset.field))) {
         setTemplateStatus(`Выберите готовое поле для вопроса №${i + 1}.`, true);
         return false;
       }
     }
+    const questionFlowError = validateQuestionFlow(editorState.questionFlow, name);
+    if (questionFlowError) {
+      setTemplateStatus(questionFlowError, true);
+      return false;
+    }
     const normalizedQuestions = editorState.questionFlow.map((question, index) => {
+      const bindingKey = normalizeBindingKey(question.bindingKey || question.binding_key || '');
+      const includeInDashboard = Boolean(question.includeInDashboard || question.include_in_dashboard);
       const entry = {
         id: question.id || generateQuestionId(),
-        type: question.type === 'preset' ? 'preset' : 'custom',
+        type: question.type === 'preset' ? 'preset' : (question.type === 'select' ? 'select' : 'custom'),
         text: String(question.text || '').trim(),
         order: index + 1,
         required: question.type === 'preset' ? true : question.required !== false,
@@ -1865,6 +2121,15 @@
         if (excluded.length) {
           entry.excluded_options = Array.from(new Set(excluded));
         }
+      }
+      if (entry.type === 'select') {
+        entry.options = normalizeEditableQuestionOptions(question.options);
+      }
+      if (bindingKey) {
+        entry.binding_key = bindingKey;
+      }
+      if (includeInDashboard) {
+        entry.include_in_dashboard = true;
       }
       return entry;
     });
@@ -1881,6 +2146,9 @@
         order: question.order,
         required: question.required !== false,
         preset: question.preset ? { group: question.preset.group, field: question.preset.field } : undefined,
+        options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
+        bindingKey: question.binding_key || '',
+        includeInDashboard: Boolean(question.include_in_dashboard),
         excludedOptions: Array.isArray(question.excluded_options)
           ? question.excluded_options.slice()
           : Array.isArray(question.excludedOptions)
@@ -1904,6 +2172,9 @@
           order: question.order,
           required: question.required !== false,
           preset: question.preset ? { group: question.preset.group, field: question.preset.field } : null,
+          options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
+          bindingKey: question.bindingKey || '',
+          includeInDashboard: Boolean(question.includeInDashboard),
           excludedOptions: Array.isArray(question.excludedOptions) ? question.excludedOptions : [],
         })),
       };
@@ -1920,6 +2191,9 @@
           order: question.order,
           required: question.required !== false,
           preset: question.preset ? { group: question.preset.group, field: question.preset.field } : null,
+          options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
+          bindingKey: question.bindingKey || '',
+          includeInDashboard: Boolean(question.includeInDashboard),
           excludedOptions: Array.isArray(question.excludedOptions) ? question.excludedOptions : [],
         })),
       });
@@ -1968,13 +2242,16 @@
     }
     const question = {
       id: generateQuestionId(),
-      type: type === 'preset' ? 'preset' : 'custom',
+      type: type === 'preset' ? 'preset' : (type === 'select' ? 'select' : 'custom'),
       text: '',
       order: editorState.questionFlow.length + 1,
       preset: null,
+      options: type === 'select' ? [{ id: generateOptionId(), label: '' }] : [],
       presetUnavailable: false,
       excludedOptions: [],
       filterState: {},
+      bindingKey: '',
+      includeInDashboard: false,
       required: true,
     };
     if (question.type === 'preset') {
@@ -2061,6 +2338,15 @@
         question.required = true;
         setTemplateStatus(presetUnavailableMessage(), true);
       }
+    } else if (type === 'select') {
+      question.type = 'select';
+      question.preset = null;
+      question.presetUnavailable = false;
+      question.excludedOptions = [];
+      question.required = true;
+      question.options = Array.isArray(question.options) && question.options.length
+        ? question.options
+        : [{ id: generateOptionId(), label: '' }];
     } else {
       question.type = 'custom';
       question.preset = null;
@@ -2135,9 +2421,11 @@
   }
 
   function serializeQuestion(question, index) {
+    const bindingKey = normalizeBindingKey(question.bindingKey || question.binding_key || '');
+    const includeInDashboard = Boolean(question.includeInDashboard || question.include_in_dashboard);
     const entry = {
       id: question.id || generateQuestionId(),
-      type: question.type === 'preset' ? 'preset' : 'custom',
+      type: question.type === 'preset' ? 'preset' : (question.type === 'select' ? 'select' : 'custom'),
       text: String(question.text || '').trim(),
       order: index + 1,
       required: question.type === 'preset' ? true : question.required !== false,
@@ -2150,6 +2438,15 @@
       if (excluded.length) {
         entry.excluded_options = Array.from(new Set(excluded));
       }
+    }
+    if (entry.type === 'select') {
+      entry.options = normalizeEditableQuestionOptions(question.options);
+    }
+    if (bindingKey) {
+      entry.binding_key = bindingKey;
+    }
+    if (includeInDashboard) {
+      entry.include_in_dashboard = true;
     }
     return entry;
   }
@@ -2241,6 +2538,19 @@
         }
       } else if (!question.text) {
         return `Укажите текст для вопроса №${i + 1}.`;
+      }
+    }
+    for (const template of templates) {
+      if (!template) {
+        continue;
+      }
+      const flow = Array.isArray(template.question_flow) ? template.question_flow : [];
+      if (!flow.length) {
+        return `Шаблон "${String(template.name || '').trim() || 'Шаблон вопросов'}" должен содержать хотя бы один вопрос.`;
+      }
+      const flowError = validateQuestionFlow(flow, String(template.name || '').trim());
+      if (flowError) {
+        return flowError;
       }
     }
     const ratingTemplates = Array.isArray(payload.rating_templates) ? payload.rating_templates : [];
@@ -2397,26 +2707,60 @@
   addQuestionButtons.forEach((button) => {
     button.addEventListener('click', () => {
       const type = button.dataset.type || button.getAttribute('data-type');
-      addQuestion(type === 'preset' ? 'preset' : 'custom');
+      addQuestion(type === 'preset' ? 'preset' : (type === 'select' ? 'select' : 'custom'));
     });
   });
 
   if (questionsContainer) {
     questionsContainer.addEventListener('input', (event) => {
       const input = event.target.closest('[data-bot-question-text]');
-      if (!input) {
+      if (input) {
+        const card = input.closest('.card[data-index]');
+        if (!card) {
+          return;
+        }
+        const index = Number.parseInt(card.dataset.index, 10);
+        if (Number.isFinite(index) && editorState.questionFlow[index]) {
+          const question = editorState.questionFlow[index];
+          question.text = input.value;
+          const meta = card.__questionMeta || (question.preset ? getPresetMeta(question.preset.group, question.preset.field) : null);
+          renderQuestionPreview(card, question, meta);
+        }
         return;
       }
-      const card = input.closest('.card[data-index]');
-      if (!card) {
+      const optionsInput = event.target.closest('[data-bot-question-select-options]');
+      if (optionsInput) {
+        const card = optionsInput.closest('.card[data-index]');
+        if (!card) {
+          return;
+        }
+        const index = Number.parseInt(card.dataset.index, 10);
+        const question = Number.isFinite(index) ? editorState.questionFlow[index] : null;
+        if (!question) {
+          return;
+        }
+        const lines = optionsInput.value.split(/\r?\n/).map((value) => value.trim()).filter((value) => value);
+        const previous = Array.isArray(question.options) ? question.options : [];
+        question.options = lines.map((label, optionIndex) => ({
+          id: previous[optionIndex] && previous[optionIndex].id ? previous[optionIndex].id : generateOptionId(),
+          label,
+        }));
+        renderQuestionPreview(card, question, null);
         return;
       }
-      const index = Number.parseInt(card.dataset.index, 10);
-      if (Number.isFinite(index) && editorState.questionFlow[index]) {
-        const question = editorState.questionFlow[index];
-        question.text = input.value;
-        const meta = card.__questionMeta || (question.preset ? getPresetMeta(question.preset.group, question.preset.field) : null);
-        renderQuestionPreview(card, question, meta);
+      const bindingInput = event.target.closest('[data-bot-question-binding]');
+      if (bindingInput) {
+        const card = bindingInput.closest('.card[data-index]');
+        if (!card) {
+          return;
+        }
+        const index = Number.parseInt(card.dataset.index, 10);
+        const question = Number.isFinite(index) ? editorState.questionFlow[index] : null;
+        if (question) {
+          const normalized = normalizeBindingKey(bindingInput.value);
+          question.bindingKey = normalized;
+          bindingInput.value = normalized;
+        }
       }
     });
 
@@ -2452,7 +2796,15 @@
       }
       const typeSelect = event.target.closest('[data-bot-question-type]');
       if (typeSelect) {
-        setQuestionType(index, typeSelect.value === 'preset' ? 'preset' : 'custom');
+        setQuestionType(index, typeSelect.value === 'preset' ? 'preset' : (typeSelect.value === 'select' ? 'select' : 'custom'));
+        return;
+      }
+      const dashboardToggle = event.target.closest('[data-bot-question-dashboard]');
+      if (dashboardToggle) {
+        const question = editorState.questionFlow[index];
+        if (question) {
+          question.includeInDashboard = dashboardToggle.checked;
+        }
         return;
       }
       const requiredToggle = event.target.closest('[data-bot-question-required]');

@@ -8,6 +8,7 @@ import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.entity.TicketId;
 import com.example.supportbot.entity.TicketMessage;
 import com.example.supportbot.entity.TicketSpan;
+import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.example.supportbot.repository.ChatHistoryRepository;
 import com.example.supportbot.repository.FeedbackRepository;
 import com.example.supportbot.repository.PendingFeedbackRequestRepository;
@@ -53,6 +54,7 @@ public class TicketService {
     private final FeedbackRepository feedbackRepository;
     private final AutoCloseFollowUpTaskService autoCloseFollowUpTaskService;
     private final UiEventOutboxService uiEventOutboxService;
+    private final TicketAttributeService ticketAttributeService;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketMessageRepository messageRepository,
@@ -63,7 +65,8 @@ public class TicketService {
                          ChatHistoryService chatHistoryService,
                          FeedbackRepository feedbackRepository,
                          AutoCloseFollowUpTaskService autoCloseFollowUpTaskService,
-                         UiEventOutboxService uiEventOutboxService) {
+                         UiEventOutboxService uiEventOutboxService,
+                         TicketAttributeService ticketAttributeService) {
         this.ticketRepository = ticketRepository;
         this.messageRepository = messageRepository;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
@@ -74,6 +77,7 @@ public class TicketService {
         this.feedbackRepository = feedbackRepository;
         this.autoCloseFollowUpTaskService = autoCloseFollowUpTaskService;
         this.uiEventOutboxService = uiEventOutboxService;
+        this.ticketAttributeService = ticketAttributeService;
     }
 
     @Transactional
@@ -81,7 +85,7 @@ public class TicketService {
                                              String username,
                                              Map<String, String> answers,
                                              Channel channel) {
-        return createTicket(userId, username, null, answers, channel);
+        return createTicket(userId, username, null, answers, List.of(), channel);
     }
 
     @Transactional
@@ -90,19 +94,34 @@ public class TicketService {
                                              String clientName,
                                              Map<String, String> answers,
                                              Channel channel) {
+        return createTicket(userId, username, clientName, answers, List.of(), channel);
+    }
+
+    @Transactional
+    public TicketCreationResult createTicket(long userId,
+                                             String username,
+                                             String clientName,
+                                             Map<String, String> answers,
+                                             List<TicketAttributeInput> attributes,
+                                             Channel channel) {
         OffsetDateTime now = OffsetDateTime.now();
         String ticketId = UUID.randomUUID().toString();
         String normalizedUsername = normalizeUsername(username, userId);
         String normalizedClientName = normalizeClientName(clientName);
+        String business = resolvePromotedValue(attributes, answers, "business");
+        String locationType = resolvePromotedValue(attributes, answers, "location_type");
+        String city = resolvePromotedValue(attributes, answers, "city");
+        String locationName = resolvePromotedValue(attributes, answers, "location_name");
+        String problem = resolvePromotedValue(attributes, answers, "problem");
 
         TicketMessage message = new TicketMessage();
         message.setId(now.toInstant().toEpochMilli());
         message.setUserId(userId);
-        message.setBusiness(answers.getOrDefault("business", ""));
-        message.setLocationType(answers.getOrDefault("location_type", ""));
-        message.setCity(answers.getOrDefault("city", ""));
-        message.setLocationName(answers.getOrDefault("location_name", ""));
-        message.setProblem(answers.getOrDefault("problem", ""));
+        message.setBusiness(business);
+        message.setLocationType(locationType);
+        message.setCity(city);
+        message.setLocationName(locationName);
+        message.setProblem(problem);
         message.setCreatedAt(now);
         message.setCreatedDate(now.toLocalDate());
         message.setCreatedTime(TIME_FORMATTER.format(now));
@@ -134,6 +153,7 @@ public class TicketService {
         active.setUser(normalizedUsername != null ? normalizedUsername : Long.toString(userId));
         active.setLastSeen(now);
         ticketActiveRepository.save(active);
+        ticketAttributeService.replaceAttributes(ticketId, attributes);
         uiEventOutboxService.publishTicketCreated(ticketId, channel, message.getProblem());
 
         return new TicketCreationResult(ticketId, message.getId(), "open");
@@ -631,5 +651,52 @@ public class TicketService {
             return null;
         }
         return clientName.trim();
+    }
+
+    private String resolvePromotedValue(List<TicketAttributeInput> attributes,
+                                        Map<String, String> answers,
+                                        String key) {
+        if (attributes != null) {
+            for (TicketAttributeInput attribute : attributes) {
+                if (attribute == null || !key.equals(attribute.attributeKey())) {
+                    continue;
+                }
+                if (StringUtils.hasText(attribute.valueLabel())) {
+                    return attribute.valueLabel().trim();
+                }
+                if (StringUtils.hasText(attribute.valueText())) {
+                    return attribute.valueText().trim();
+                }
+            }
+        }
+        if (answers == null) {
+            return "";
+        }
+        return answers.getOrDefault(key, "");
+    }
+
+    public record TicketAttributeInput(String questionId,
+                                       String attributeKey,
+                                       String questionText,
+                                       String inputType,
+                                       String valueId,
+                                       String valueLabel,
+                                       String valueText,
+                                       boolean includeInDashboard) {
+        public static TicketAttributeInput fromQuestion(QuestionFlowItemDto question,
+                                                        String valueId,
+                                                        String valueLabel,
+                                                        String valueText) {
+            String questionId = question != null ? question.getId() : null;
+            String fallbackKey = question != null && StringUtils.hasText(question.getBindingKey())
+                    ? question.getBindingKey().trim()
+                    : questionId;
+            String inputType = question != null && StringUtils.hasText(question.getType())
+                    ? question.getType().trim()
+                    : "custom";
+            String questionText = question != null ? question.getText() : null;
+            boolean includeInDashboard = question != null && Boolean.TRUE.equals(question.getIncludeInDashboard());
+            return new TicketAttributeInput(questionId, fallbackKey, questionText, inputType, valueId, valueLabel, valueText, includeInDashboard);
+        }
     }
 }

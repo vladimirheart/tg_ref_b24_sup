@@ -84,6 +84,24 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id);
 
+CREATE TABLE IF NOT EXISTS ticket_attributes (
+    ticket_id TEXT NOT NULL,
+    question_id TEXT NOT NULL,
+    attribute_key TEXT NOT NULL,
+    question_text TEXT,
+    input_type TEXT NOT NULL,
+    value_id TEXT,
+    value_label TEXT,
+    value_text TEXT,
+    include_in_dashboard BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TEXT,
+    updated_at TEXT,
+    PRIMARY KEY (ticket_id, question_id(191))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ticket_attributes_ticket ON ticket_attributes(ticket_id(191));
+CREATE INDEX IF NOT EXISTS idx_ticket_attributes_key_dashboard ON ticket_attributes(attribute_key(191), include_in_dashboard);
+
 CREATE OR REPLACE VIEW client_stats AS
 SELECT
     COALESCE(m.username, '') AS username,

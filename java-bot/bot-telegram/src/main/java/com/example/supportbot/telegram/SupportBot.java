@@ -15,6 +15,7 @@ import com.example.supportbot.service.UnblockRequestService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
+import com.example.supportbot.settings.dto.QuestionOptionDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1457,8 +1458,8 @@ public class SupportBot extends TelegramLongPollingBot {
         String resolvedAnswer = Optional.ofNullable(message.getText()).orElse("");
         if (isOptionalFreeQuestion(current) && SKIP_BUTTON.equalsIgnoreCase(resolvedAnswer.trim())) {
             resolvedAnswer = "";
-        } else if (isPresetQuestion(current)) {
-            List<String> options = resolvePresetOptions(current, session.answers());
+        } else if (isChoiceQuestion(current)) {
+            List<String> options = resolveQuestionOptions(current, session.answers());
             if (options.isEmpty()) {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
@@ -1472,7 +1473,7 @@ public class SupportBot extends TelegramLongPollingBot {
                 }
                 return;
             }
-            resolvedAnswer = resolvePresetAnswer(resolvedAnswer, options, current, session.settings());
+            resolvedAnswer = resolveChoiceAnswer(resolvedAnswer, options, current, session.settings());
             if (!options.contains(resolvedAnswer)) {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
@@ -1519,7 +1520,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         log.info("Prompting question {} for user {}", current.getId(), session.userId());
         boolean includeBack = session.canGoBack();
-        List<String> options = isPresetQuestion(current) ? resolvePresetOptions(current, session.answers()) : List.of();
+        List<String> options = isChoiceQuestion(current) ? resolveQuestionOptions(current, session.answers()) : List.of();
         SendMessage.SendMessageBuilder promptBuilder = SendMessage.builder()
                 .chatId(session.chatId())
                 .text(buildQuestionPromptText(current, options, includeBack))
@@ -1550,7 +1551,7 @@ public class SupportBot extends TelegramLongPollingBot {
         return text.toString();
     }
 
-    private String resolvePresetAnswer(String rawAnswer,
+    private String resolveChoiceAnswer(String rawAnswer,
                                        List<String> options,
                                        QuestionFlowItemDto question,
                                        BotSettingsDto settings) {
@@ -1698,8 +1699,19 @@ public class SupportBot extends TelegramLongPollingBot {
         return current.getPreset() != null && current.getPreset().field() != null;
     }
 
+    private boolean isSelectQuestion(QuestionFlowItemDto current) {
+        return current != null
+                && "select".equalsIgnoreCase(Optional.ofNullable(current.getType()).orElse(""))
+                && current.getOptions() != null
+                && !current.getOptions().isEmpty();
+    }
+
+    private boolean isChoiceQuestion(QuestionFlowItemDto current) {
+        return isPresetQuestion(current) || isSelectQuestion(current);
+    }
+
     private boolean isOptionalFreeQuestion(QuestionFlowItemDto current) {
-        return current != null && !isPresetQuestion(current) && !current.isRequiredAnswer();
+        return current != null && !isChoiceQuestion(current) && !current.isRequiredAnswer();
     }
 
     private ReplyKeyboardMarkup keyboardMarkup(List<String> options, boolean includeBack) {
@@ -1722,6 +1734,18 @@ public class SupportBot extends TelegramLongPollingBot {
         markup.setOneTimeKeyboard(true);
         markup.setSelective(true);
         return markup;
+    }
+
+    private List<String> resolveQuestionOptions(QuestionFlowItemDto current, Map<String, String> answers) {
+        if (isSelectQuestion(current)) {
+            return current.getOptions().stream()
+                    .map(QuestionOptionDto::getLabel)
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .toList();
+        }
+        return resolvePresetOptions(current, answers);
     }
 
     private List<String> resolvePresetOptions(QuestionFlowItemDto current, Map<String, String> answers) {
@@ -1856,7 +1880,14 @@ public class SupportBot extends TelegramLongPollingBot {
         conversations.remove(session.userId());
         Channel channel = getChannel();
         String username = Optional.ofNullable(session.user()).map(User::getUserName).orElse(null);
-        TicketService.TicketCreationResult ticket = ticketService.createTicket(session.userId(), username, session.answers(), channel);
+        TicketService.TicketCreationResult ticket = ticketService.createTicket(
+                session.userId(),
+                username,
+                null,
+                session.answers(),
+                session.ticketAttributes(),
+                channel
+        );
         log.info("Created ticket {} for user {} with {} attachments",
                 ticket.ticketId(),
                 session.userId(),
@@ -1926,7 +1957,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
     }
 
-    private static final class ConversationSession {
+    private final class ConversationSession {
         private final List<QuestionFlowItemDto> flow;
         private final long chatId;
         private final User user;
@@ -2037,6 +2068,28 @@ public class SupportBot extends TelegramLongPollingBot {
             return answers;
         }
 
+        List<TicketService.TicketAttributeInput> ticketAttributes() {
+            List<TicketService.TicketAttributeInput> attributes = new ArrayList<>();
+            for (QuestionFlowItemDto item : flow) {
+                if (item == null) {
+                    continue;
+                }
+                String answerKey = answerKeyFor(item);
+                if (answerKey == null) {
+                    continue;
+                }
+                String answer = answers.get(answerKey);
+                if (answer == null || answer.isBlank()) {
+                    continue;
+                }
+                String valueId = resolveValueId(item, answer);
+                String valueLabel = isChoiceQuestion(item) ? answer : null;
+                String valueText = answer;
+                attributes.add(TicketService.TicketAttributeInput.fromQuestion(item, valueId, valueLabel, valueText));
+            }
+            return attributes;
+        }
+
         List<Path> attachments() {
             return attachments;
         }
@@ -2145,6 +2198,10 @@ public class SupportBot extends TelegramLongPollingBot {
             if (item == null) {
                 return null;
             }
+            String bindingKey = Optional.ofNullable(item.getBindingKey()).orElse("").trim();
+            if (!bindingKey.isEmpty()) {
+                return bindingKey;
+            }
             if (item.getPreset() != null) {
                 String field = Optional.ofNullable(item.getPreset().field()).orElse("").trim();
                 if (!field.isEmpty()) {
@@ -2152,6 +2209,24 @@ public class SupportBot extends TelegramLongPollingBot {
                 }
             }
             return item.getId();
+        }
+
+        private String resolveValueId(QuestionFlowItemDto item, String answer) {
+            if (item == null || answer == null) {
+                return null;
+            }
+            List<QuestionOptionDto> options = item.getOptions();
+            if (options != null) {
+                for (QuestionOptionDto option : options) {
+                    if (option == null || option.getLabel() == null) {
+                        continue;
+                    }
+                    if (option.getLabel().equalsIgnoreCase(answer.trim())) {
+                        return option.getId();
+                    }
+                }
+            }
+            return isPresetQuestion(item) ? answer : null;
         }
     }
 

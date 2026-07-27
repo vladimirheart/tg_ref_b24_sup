@@ -667,13 +667,15 @@ public class BotSettingsService {
                     type = "custom";
                 }
                 type = type.toLowerCase();
-                if (!type.equals("custom") && !type.equals("preset")) {
+                if (!type.equals("custom") && !type.equals("preset") && !type.equals("select")) {
                     type = "custom";
                 }
                 Object textValue = map.containsKey("text") ? map.get("text") : map.get("label");
                 String text = optionalString(textValue);
                 String id = ensureUuid(map.get("id"));
                 boolean required = resolveRequiredFlag(map.get("required"));
+                String bindingKey = sanitizeBindingKey(map.get("binding_key"));
+                boolean includeInDashboard = resolveOptionalFlag(map.get("include_in_dashboard"));
                 entry = new LinkedHashMap<>();
                 entry.put("id", id);
                 entry.put("type", type);
@@ -700,6 +702,13 @@ public class BotSettingsService {
                             entry.put("excluded_options", excluded);
                         }
                     }
+                } else if ("select".equals(type)) {
+                    List<Map<String, Object>> options = sanitizeQuestionOptions(map.get("options"), id);
+                    if (text.isBlank() || options.isEmpty()) {
+                        entry = null;
+                    } else {
+                        entry.put("options", options);
+                    }
                 } else {
                     if (text.isBlank()) {
                         entry = null;
@@ -707,6 +716,12 @@ public class BotSettingsService {
                 }
                 if (entry != null) {
                     entry.put("text", text);
+                    if (!bindingKey.isBlank()) {
+                        entry.put("binding_key", bindingKey);
+                    }
+                    if (includeInDashboard) {
+                        entry.put("include_in_dashboard", true);
+                    }
                     sanitized.add(entry);
                     order += 1;
                 }
@@ -720,6 +735,40 @@ public class BotSettingsService {
                 sanitized.add(entry);
                 order += 1;
             }
+        }
+        return sanitized;
+    }
+
+    private List<Map<String, Object>> sanitizeQuestionOptions(Object rawOptions, String questionId) {
+        List<Map<String, Object>> sanitized = new ArrayList<>();
+        if (!(rawOptions instanceof Iterable<?>) || rawOptions instanceof String) {
+            return sanitized;
+        }
+        int index = 1;
+        Set<String> usedIds = new LinkedHashSet<>();
+        for (Object rawOption : (Iterable<?>) rawOptions) {
+            String label = "";
+            String id = "";
+            if (rawOption instanceof Map<?, ?> map) {
+                label = optionalString(map.containsKey("label") ? map.get("label") : map.get("text"));
+                id = optionalString(map.containsKey("id") ? map.get("id") : map.get("value"));
+            } else if (rawOption instanceof String str) {
+                label = str.trim();
+            }
+            if (label.isBlank()) {
+                continue;
+            }
+            String normalizedId = ensureQuestionOptionId(id, label, questionId, index);
+            while (usedIds.contains(normalizedId)) {
+                index += 1;
+                normalizedId = ensureQuestionOptionId("", label, questionId, index);
+            }
+            usedIds.add(normalizedId);
+            sanitized.add(Map.of(
+                    "id", normalizedId,
+                    "label", label
+            ));
+            index += 1;
         }
         return sanitized;
     }
@@ -758,6 +807,44 @@ public class BotSettingsService {
             }
         }
         return excluded;
+    }
+
+    private String sanitizeBindingKey(Object rawValue) {
+        String value = optionalString(rawValue);
+        if (value.isBlank()) {
+            return "";
+        }
+        String normalized = value
+                .trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9_]+", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_+|_+$", "");
+        return normalized;
+    }
+
+    private boolean resolveOptionalFlag(Object value) {
+        if (value == null) {
+            return false;
+        }
+        return resolveRequiredFlag(value);
+    }
+
+    private String ensureQuestionOptionId(Object rawId, String label, String questionId, int index) {
+        String id = optionalString(rawId);
+        if (!id.isBlank()) {
+            return id;
+        }
+        String slug = label == null ? "" : label
+                .trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9а-яё_]+", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_+|_+$", "");
+        if (!slug.isBlank()) {
+            return slug;
+        }
+        return "opt_" + ensureUuid(questionId) + "_" + index;
     }
 
     private List<Map<String, Object>> sanitizeRatingResponses(Object rawResponses, int scale, List<Map<String, Object>> defaults) {

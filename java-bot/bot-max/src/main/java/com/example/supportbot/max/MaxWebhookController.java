@@ -15,6 +15,7 @@ import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.PresetReference;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
+import com.example.supportbot.settings.dto.QuestionOptionDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +28,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -206,14 +208,14 @@ public class MaxWebhookController {
         String resolvedAnswer = text;
         if (isOptionalFreeQuestion(current) && SKIP_BUTTON.equalsIgnoreCase(String.valueOf(text).trim())) {
             resolvedAnswer = "";
-        } else if (isPresetQuestion(current)) {
-            List<String> options = resolvePresetOptions(current, session.answers());
+        } else if (isChoiceQuestion(current)) {
+            List<String> options = resolveQuestionOptions(current, session.answers());
             if (options.isEmpty()) {
                 messagingService.sendToUser(channel, userId,
                         "Сейчас нет доступных вариантов для выбора. Обратитесь к администратору.");
                 return ResponseEntity.ok(Map.of("ok", true, "missing_options", true));
             }
-            resolvedAnswer = resolvePresetAnswer(resolvedAnswer, options);
+            resolvedAnswer = resolveChoiceAnswer(resolvedAnswer, options);
             if (!options.contains(resolvedAnswer)) {
                 messagingService.sendToUser(channel, userId,
                         "Введите один из вариантов: " + String.join(", ", options));
@@ -446,7 +448,7 @@ public class MaxWebhookController {
         if (current == null) {
             return;
         }
-        List<String> options = isPresetQuestion(current) ? resolvePresetOptions(current, session.answers()) : List.of();
+        List<String> options = isChoiceQuestion(current) ? resolveQuestionOptions(current, session.answers()) : List.of();
         messagingService.sendToUser(channel, session.userId(), buildQuestionPromptText(current, options, session.canGoBack()));
     }
 
@@ -457,6 +459,7 @@ public class MaxWebhookController {
                 session.username(),
                 session.clientName(),
                 session.answers(),
+                session.ticketAttributes(),
                 channel
         );
         for (HistoryEvent event : session.history()) {
@@ -479,8 +482,19 @@ public class MaxWebhookController {
         return current.getPreset() != null && current.getPreset().field() != null;
     }
 
+    private boolean isSelectQuestion(QuestionFlowItemDto current) {
+        return current != null
+                && "select".equalsIgnoreCase(Optional.ofNullable(current.getType()).orElse(""))
+                && current.getOptions() != null
+                && !current.getOptions().isEmpty();
+    }
+
+    private boolean isChoiceQuestion(QuestionFlowItemDto current) {
+        return isPresetQuestion(current) || isSelectQuestion(current);
+    }
+
     private boolean isOptionalFreeQuestion(QuestionFlowItemDto current) {
-        return current != null && !isPresetQuestion(current) && !current.isRequiredAnswer();
+        return current != null && !isChoiceQuestion(current) && !current.isRequiredAnswer();
     }
 
     private String buildQuestionPromptText(QuestionFlowItemDto current, List<String> options, boolean includeBack) {
@@ -501,7 +515,7 @@ public class MaxWebhookController {
         return text.toString();
     }
 
-    private String resolvePresetAnswer(String rawAnswer, List<String> options) {
+    private String resolveChoiceAnswer(String rawAnswer, List<String> options) {
         if (rawAnswer == null) {
             return "";
         }
@@ -523,6 +537,18 @@ public class MaxWebhookController {
             }
         }
         return trimmed;
+    }
+
+    private List<String> resolveQuestionOptions(QuestionFlowItemDto current, Map<String, String> answers) {
+        if (isSelectQuestion(current)) {
+            return current.getOptions().stream()
+                    .map(QuestionOptionDto::getLabel)
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .toList();
+        }
+        return resolvePresetOptions(current, answers);
     }
 
     private List<String> resolvePresetOptions(QuestionFlowItemDto current, Map<String, String> answers) {
@@ -922,7 +948,7 @@ public class MaxWebhookController {
     private record HistoryEvent(Long userId, String text, String messageType) {
     }
 
-    private static final class ConversationSession {
+    private final class ConversationSession {
         private final Long userId;
         private final Long chatId;
         private final String username;
@@ -980,6 +1006,27 @@ public class MaxWebhookController {
 
         Map<String, String> answers() {
             return answers;
+        }
+
+        List<TicketService.TicketAttributeInput> ticketAttributes() {
+            List<TicketService.TicketAttributeInput> attributes = new ArrayList<>();
+            for (QuestionFlowItemDto item : flow) {
+                if (item == null) {
+                    continue;
+                }
+                String answerKey = answerKeyFor(item);
+                if (answerKey == null) {
+                    continue;
+                }
+                String answer = answers.get(answerKey);
+                if (answer == null || answer.isBlank()) {
+                    continue;
+                }
+                String valueId = resolveValueId(item, answer);
+                String valueLabel = isChoiceQuestion(item) ? answer : null;
+                attributes.add(TicketService.TicketAttributeInput.fromQuestion(item, valueId, valueLabel, answer));
+            }
+            return attributes;
         }
 
         List<HistoryEvent> history() {
@@ -1096,11 +1143,32 @@ public class MaxWebhookController {
             if (item == null) {
                 return null;
             }
+            String bindingKey = Optional.ofNullable(item.getBindingKey()).orElse("").trim();
+            if (!bindingKey.isEmpty()) {
+                return bindingKey;
+            }
             if (item.getPreset() != null && item.getPreset().field() != null
                     && !item.getPreset().field().isBlank()) {
                 return item.getPreset().field();
             }
             return item.getId();
+        }
+
+        private String resolveValueId(QuestionFlowItemDto item, String answer) {
+            if (item == null || answer == null) {
+                return null;
+            }
+            if (item.getOptions() != null) {
+                for (QuestionOptionDto option : item.getOptions()) {
+                    if (option == null || option.getLabel() == null) {
+                        continue;
+                    }
+                    if (option.getLabel().equalsIgnoreCase(answer.trim())) {
+                        return option.getId();
+                    }
+                }
+            }
+            return isPresetQuestion(item) ? answer : null;
         }
     }
 }

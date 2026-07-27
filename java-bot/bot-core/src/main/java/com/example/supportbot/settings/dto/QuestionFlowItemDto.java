@@ -28,6 +28,15 @@ public class QuestionFlowItemDto {
     @JsonProperty("required")
     private Boolean required;
 
+    @JsonProperty("binding_key")
+    private String bindingKey;
+
+    @JsonProperty("include_in_dashboard")
+    private Boolean includeInDashboard;
+
+    @JsonProperty("options")
+    private List<QuestionOptionDto> options;
+
     public QuestionFlowItemDto() {
     }
 
@@ -103,5 +112,29 @@ public class QuestionFlowItemDto {
 
     public boolean isRequiredAnswer() {
         return required == null || required;
+    }
+
+    public String getBindingKey() {
+        return bindingKey;
+    }
+
+    public void setBindingKey(String bindingKey) {
+        this.bindingKey = bindingKey;
+    }
+
+    public Boolean getIncludeInDashboard() {
+        return includeInDashboard;
+    }
+
+    public void setIncludeInDashboard(Boolean includeInDashboard) {
+        this.includeInDashboard = includeInDashboard;
+    }
+
+    public List<QuestionOptionDto> getOptions() {
+        return options;
+    }
+
+    public void setOptions(List<QuestionOptionDto> options) {
+        this.options = options;
     }
 }
