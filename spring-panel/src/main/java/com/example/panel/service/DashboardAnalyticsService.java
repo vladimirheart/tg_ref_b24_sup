@@ -410,7 +410,12 @@ public class DashboardAnalyticsService {
                    AND ticket_id IN (%s)
                  GROUP BY COALESCE(NULLIF(trim(value_label), ''), NULLIF(trim(value_text), ''), NULLIF(trim(value_id), ''))
                 """.formatted(placeholders),
-                rs -> counts.put(normalizeLabel(rs.getString("label")), rs.getLong("total")),
+                (org.springframework.jdbc.core.ResultSetExtractor<Void>) rs -> {
+                    while (rs.next()) {
+                        counts.put(normalizeLabel(rs.getString("label")), rs.getLong("total"));
+                    }
+                    return null;
+                },
                 params.toArray()
         );
         return sortByValueDesc(counts);
