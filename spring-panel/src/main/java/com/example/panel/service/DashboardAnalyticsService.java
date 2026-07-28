@@ -351,8 +351,13 @@ public class DashboardAnalyticsService {
         LocationCatalog locationCatalog = loadLocationCatalog();
         Map<String, Long> byChannel = aggregate(dialogs, DialogListItem::channelLabel);
         Map<String, Long> byBusiness = aggregate(dialogs, dialog -> resolveBusinessLabel(dialog, locationCatalog));
+        Map<String, Long> byStructuredBusiness = loadStructuredAttributeChart(dialogs, "business");
+        if (!byStructuredBusiness.isEmpty()) {
+            byBusiness = byStructuredBusiness;
+        }
         Map<String, Long> byNetwork = aggregate(dialogs, dialog -> resolvePartnerType(dialog, locationCatalog));
         Map<String, Long> byDirection = loadStructuredAttributeChart(dialogs, "direction");
+        Map<String, Long> byBotProduct = loadStructuredAttributeChart(dialogs, "bot_product");
         Map<String, Long> byCategory = aggregate(dialogs, dialog -> {
             String categories = dialog.categoriesSafe();
             if (!StringUtils.hasText(categories) || "—".equals(categories)) {
@@ -375,7 +380,7 @@ public class DashboardAnalyticsService {
             return StringUtils.hasText(location) ? location : "Без ресторана";
         });
 
-        return new ChartsBlock(byChannel, byBusiness, byNetwork, byCategory, byCity, topTen(byRestaurant));
+        return new ChartsBlock(byChannel, byBusiness, byNetwork, byCategory, byBotProduct, byCity, topTen(byRestaurant));
     }
 
     private Map<String, Long> loadStructuredAttributeChart(List<DialogListItem> dialogs, String attributeKey) {
@@ -826,6 +831,7 @@ public class DashboardAnalyticsService {
                                Map<String, Long> business,
                                Map<String, Long> network,
                                Map<String, Long> category,
+                               Map<String, Long> botProduct,
                                Map<String, Long> city,
                                Map<String, Long> restaurant) {
         Map<String, Object> toMap() {
@@ -834,6 +840,7 @@ public class DashboardAnalyticsService {
             map.put("business", business);
             map.put("network", network);
             map.put("category", category);
+            map.put("bot_product", botProduct);
             map.put("city", city);
             map.put("restaurant", restaurant);
             return map;

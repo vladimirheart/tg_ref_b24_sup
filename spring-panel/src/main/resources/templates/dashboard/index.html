@@ -692,8 +692,68 @@
 
     .dashboard-layout-toolbar {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.85rem;
+      flex-wrap: wrap;
       margin: 0.2rem 0 0.9rem;
+    }
+
+    .dashboard-hidden-panels {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .dashboard-hidden-panels__label {
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .dashboard-hidden-panels__list {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .dashboard-hidden-panel-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      min-height: 34px;
+      padding: 0.32rem 0.72rem;
+      border: 1px solid color-mix(in srgb, var(--color-border) 18%, transparent);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      color: var(--color-text);
+      font-size: 0.78rem;
+      font-weight: 700;
+      box-shadow: 0 10px 18px rgba(18, 33, 23, 0.06);
+    }
+
+    .dashboard-hidden-panel-chip:hover,
+    .dashboard-hidden-panel-chip:focus-visible {
+      border-color: color-mix(in srgb, var(--primary) 28%, transparent);
+      background: color-mix(in srgb, var(--primary) 10%, white);
+      color: var(--color-accent);
+      outline: none;
+    }
+
+    .dashboard-grid-empty {
+      grid-column: 1 / -1;
+      border: 1px dashed color-mix(in srgb, var(--color-border) 28%, transparent);
+      border-radius: 1.2rem;
+      padding: 1.25rem;
+      background: rgba(255, 255, 255, 0.68);
+      color: var(--color-text-muted);
+      text-align: center;
+      font-weight: 600;
     }
 
     .dashboard-layout-reset {
@@ -1413,6 +1473,14 @@
         </section>
 
         <div class="dashboard-layout-toolbar">
+          <div id="dashboardHiddenPanels" class="dashboard-hidden-panels d-none">
+            <span class="dashboard-hidden-panels__label">Скрытые виджеты</span>
+            <div id="dashboardHiddenPanelList" class="dashboard-hidden-panels__list"></div>
+            <button type="button" id="restoreAllDashboardPanels" class="dashboard-layout-reset">
+              <i class="bi bi-layout-three-columns" aria-hidden="true"></i>
+              Показать все
+            </button>
+          </div>
           <button type="button" id="resetDashboardLayout" class="dashboard-layout-reset">
             <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
             Вернуть по умолчанию
@@ -1558,18 +1626,36 @@
           <article class="chart-panel data-panel" data-panel-id="category-chart">
             <div class="chart-panel-head">
               <div>
-                <span class="section-kicker">Категории</span>
+                <span class="section-kicker">Направления</span>
                 <div class="panel-title-row">
-                  <h3 class="chart-panel-title">Категории обращений</h3>
-                  <button type="button" class="panel-info-button" aria-label="Описание блока категорий обращений">
+                  <h3 class="chart-panel-title">Направления обращений</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока направлений обращений">
                     i
-                    <span class="panel-info-tooltip">Какие типы запросов формируют повестку периода и где накапливается повторяемая нагрузка.</span>
+                    <span class="panel-info-tooltip">Основные направления обращений за период. Блок автоматически использует структурированный атрибут, если он настроен в шаблоне вопроса.</span>
                   </button>
                 </div>
               </div>
             </div>
             <div class="chart-container">
               <canvas id="categoryChart"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-panel data-panel" data-panel-id="bot-product-chart">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">Боты</span>
+                <div class="panel-title-row">
+                  <h3 class="chart-panel-title">Продукты ботов</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока продуктов ботов">
+                    i
+                    <span class="panel-info-tooltip">Показывает, по каким ботам и связанным продуктам чаще всего приходят обращения. Источник данных: структурированный атрибут шаблона вопроса.</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="botProductChart"></canvas>
             </div>
           </article>
 
@@ -1609,6 +1695,7 @@
             </div>
           </article>
         </section>
+        <div id="dashboardHiddenPanelBin" hidden></div>
       </div>
 
       <div class="tab-pane fade" id="reports-managers" role="tabpanel">
@@ -2000,6 +2087,22 @@
       return document.querySelector('.dashboard-grid');
     }
 
+    function getDashboardHiddenPanelBinElement() {
+      return document.getElementById('dashboardHiddenPanelBin');
+    }
+
+    function getDashboardHiddenPanelsElement() {
+      return document.getElementById('dashboardHiddenPanels');
+    }
+
+    function getDashboardHiddenPanelListElement() {
+      return document.getElementById('dashboardHiddenPanelList');
+    }
+
+    function getAllDashboardPanelElements() {
+      return Array.from(document.querySelectorAll('.data-panel[data-panel-id]'));
+    }
+
     function getDashboardPanelElements() {
       const grid = getDashboardGridElement();
       if (!grid) {
@@ -2010,6 +2113,13 @@
 
     function readDashboardPanelLayout() {
       try {
+        const preferencesApi = window.iguanaUiPreferences;
+        if (preferencesApi?.get) {
+          const stored = preferencesApi.get('dashboardPanelLayout');
+          if (Array.isArray(stored)) {
+            return stored;
+          }
+        }
         const raw = window.localStorage.getItem(DASHBOARD_PANEL_LAYOUT_KEY);
         if (!raw) {
           return [];
@@ -2022,24 +2132,38 @@
       }
     }
 
-    function buildDashboardPanelLayoutPayload() {
+    function getOrderedDashboardPanelEntries() {
       return Object.values(dashboardPanelLayoutState)
-        .map((entry) => ({
-          itemId: entry.itemId,
-          order: Number(entry.order || 0),
-          pinned: entry.pinned === true
-        }))
         .sort((left, right) => {
           if (left.pinned !== right.pinned) {
             return left.pinned ? -1 : 1;
           }
-          return left.order - right.order;
+          if (left.order !== right.order) {
+            return left.order - right.order;
+          }
+          return left.defaultOrder - right.defaultOrder;
         });
+    }
+
+    function buildDashboardPanelLayoutPayload() {
+      return getOrderedDashboardPanelEntries()
+        .map((entry) => ({
+          itemId: entry.itemId,
+          order: Number(entry.order || 0),
+          pinned: entry.pinned === true,
+          hidden: entry.hidden === true
+        }));
     }
 
     function saveDashboardPanelLayout() {
       try {
-        window.localStorage.setItem(DASHBOARD_PANEL_LAYOUT_KEY, JSON.stringify(buildDashboardPanelLayoutPayload()));
+        const payload = buildDashboardPanelLayoutPayload();
+        const preferencesApi = window.iguanaUiPreferences;
+        if (preferencesApi?.set) {
+          preferencesApi.set('dashboardPanelLayout', payload, 'dashboard');
+          return;
+        }
+        window.localStorage.setItem(DASHBOARD_PANEL_LAYOUT_KEY, JSON.stringify(payload));
       } catch (error) {
         console.warn('Не удалось сохранить layout dashboard:', error);
       }
@@ -2098,7 +2222,7 @@
       const sourceHiddenId = dashboardPanelDragState.sourceHiddenId;
       if (panelId || sourceHiddenId) {
         const targetId = panelId || sourceHiddenId;
-        const panel = getDashboardPanelElements().find((item) => item.dataset.panelId === targetId);
+        const panel = getAllDashboardPanelElements().find((item) => item.dataset.panelId === targetId);
         panel?.classList.remove('is-dragging', 'is-drag-source');
       }
       if (dashboardPanelDragState.placeholder?.parentNode) {
@@ -2109,10 +2233,82 @@
       dashboardPanelDragState.sourceHiddenId = null;
     }
 
+    function resolveDashboardPanelTitle(panel) {
+      const title = panel?.querySelector('.chart-panel-title')?.textContent || '';
+      return title.trim() || panel?.dataset?.panelId || 'Виджет';
+    }
+
+    function renderDashboardGridEmptyState(visibleCount) {
+      const grid = getDashboardGridElement();
+      if (!grid) {
+        return;
+      }
+      let emptyState = document.getElementById('dashboardGridEmptyState');
+      if (visibleCount > 0) {
+        emptyState?.remove();
+        return;
+      }
+      if (!emptyState) {
+        emptyState = document.createElement('div');
+        emptyState.id = 'dashboardGridEmptyState';
+        emptyState.className = 'dashboard-grid-empty';
+        emptyState.textContent = 'Все виджеты скрыты. Верните нужные блоки из списка выше.';
+      }
+      grid.appendChild(emptyState);
+    }
+
+    function restoreDashboardPanel(panelId) {
+      const state = getDashboardPanelState(panelId);
+      if (!state || state.hidden !== true) {
+        return;
+      }
+      state.hidden = false;
+      applyDashboardPanelLayout();
+    }
+
+    function renderHiddenDashboardPanels() {
+      const hiddenPanels = getDashboardHiddenPanelsElement();
+      const hiddenList = getDashboardHiddenPanelListElement();
+      const restoreAllButton = document.getElementById('restoreAllDashboardPanels');
+      if (!hiddenPanels || !hiddenList) {
+        return;
+      }
+
+      hiddenList.textContent = '';
+      const panelMap = new Map(getAllDashboardPanelElements().map((panel) => [panel.dataset.panelId, panel]));
+      const hiddenEntries = getOrderedDashboardPanelEntries().filter((entry) => entry.hidden === true);
+
+      hiddenPanels.classList.toggle('d-none', hiddenEntries.length === 0);
+      restoreAllButton?.classList.toggle('d-none', hiddenEntries.length <= 1);
+
+      hiddenEntries.forEach((entry) => {
+        const panel = panelMap.get(entry.itemId);
+        const title = resolveDashboardPanelTitle(panel);
+        const button = document.createElement('button');
+        const icon = document.createElement('i');
+        const label = document.createElement('span');
+
+        button.type = 'button';
+        button.className = 'dashboard-hidden-panel-chip';
+        button.setAttribute('title', `Показать виджет «${title}»`);
+        button.setAttribute('aria-label', `Показать виджет «${title}»`);
+        button.addEventListener('click', () => restoreDashboardPanel(entry.itemId));
+
+        icon.className = 'bi bi-eye';
+        icon.setAttribute('aria-hidden', 'true');
+        label.textContent = title;
+
+        button.appendChild(icon);
+        button.appendChild(label);
+        hiddenList.appendChild(button);
+      });
+    }
+
     function syncDashboardPanelControls() {
-      getDashboardPanelElements().forEach((panel) => {
+      getAllDashboardPanelElements().forEach((panel) => {
         const state = getDashboardPanelState(panel.dataset.panelId);
         const pinButton = panel.querySelector('.panel-pin-btn');
+        const hideButton = panel.querySelector('.panel-hide-btn');
         if (!state || !pinButton) {
           return;
         }
@@ -2125,31 +2321,37 @@
         if (icon) {
           icon.className = state.pinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle';
         }
+        if (hideButton) {
+          hideButton.setAttribute('title', state.hidden ? 'Вернуть виджет' : 'Скрыть виджет');
+          hideButton.setAttribute('aria-label', state.hidden ? 'Вернуть виджет' : 'Скрыть виджет');
+        }
       });
     }
 
     function applyDashboardPanelLayout({ persist = true, rerender = true } = {}) {
       const grid = getDashboardGridElement();
-      if (!grid) {
+      const hiddenBin = getDashboardHiddenPanelBinElement();
+      if (!grid || !hiddenBin) {
         return;
       }
 
-      const panelMap = new Map(getDashboardPanelElements().map((panel) => [panel.dataset.panelId, panel]));
-      const orderedPanels = Object.values(dashboardPanelLayoutState)
-        .sort((left, right) => {
-          if (left.pinned !== right.pinned) {
-            return left.pinned ? -1 : 1;
-          }
-          if (left.order !== right.order) {
-            return left.order - right.order;
-          }
-          return left.defaultOrder - right.defaultOrder;
-        })
-        .map((entry) => panelMap.get(entry.itemId))
-        .filter(Boolean);
-
-      orderedPanels.forEach((panel) => grid.appendChild(panel));
+      const panelMap = new Map(getAllDashboardPanelElements().map((panel) => [panel.dataset.panelId, panel]));
+      let visibleCount = 0;
+      getOrderedDashboardPanelEntries().forEach((entry) => {
+        const panel = panelMap.get(entry.itemId);
+        if (!panel) {
+          return;
+        }
+        if (entry.hidden === true) {
+          hiddenBin.appendChild(panel);
+          return;
+        }
+        visibleCount += 1;
+        grid.appendChild(panel);
+      });
       syncDashboardPanelControls();
+      renderHiddenDashboardPanels();
+      renderDashboardGridEmptyState(visibleCount);
       if (persist) {
         saveDashboardPanelLayout();
       }
@@ -2320,14 +2522,32 @@
       applyDashboardPanelLayout();
     }
 
+    function hideDashboardPanel(panelId) {
+      const state = getDashboardPanelState(panelId);
+      if (!state || state.hidden === true) {
+        return;
+      }
+      if (dashboardPanelDragState.activeId === panelId) {
+        clearDashboardDragState();
+      }
+      state.hidden = true;
+      applyDashboardPanelLayout();
+    }
+
     function resetDashboardPanelLayout() {
       clearDashboardDragState();
       Object.values(dashboardPanelLayoutState).forEach((state) => {
         state.pinned = false;
         state.order = state.defaultOrder;
+        state.hidden = false;
       });
       try {
-        window.localStorage.removeItem(DASHBOARD_PANEL_LAYOUT_KEY);
+        const preferencesApi = window.iguanaUiPreferences;
+        if (preferencesApi?.remove) {
+          preferencesApi.remove('dashboardPanelLayout', 'dashboard');
+        } else {
+          window.localStorage.removeItem(DASHBOARD_PANEL_LAYOUT_KEY);
+        }
       } catch (error) {
         console.warn('Не удалось очистить layout dashboard:', error);
       }
@@ -2335,7 +2555,7 @@
     }
 
     function decorateDashboardPanels() {
-      getDashboardPanelElements().forEach((panel) => {
+      getAllDashboardPanelElements().forEach((panel) => {
         const head = panel.querySelector('.chart-panel-head');
         if (!head || head.querySelector('.panel-actions')) {
           return;
@@ -2347,6 +2567,9 @@
           <button type="button" class="panel-action-btn panel-pin-btn" aria-pressed="false" title="Закрепить панель сверху">
             <i class="bi bi-pin-angle" aria-hidden="true"></i>
           </button>
+          <button type="button" class="panel-action-btn panel-hide-btn" title="Скрыть виджет" aria-label="Скрыть виджет">
+            <i class="bi bi-eye-slash" aria-hidden="true"></i>
+          </button>
           <button type="button" class="panel-action-btn panel-drag-handle" draggable="true" title="Перетащить панель" aria-label="Перетащить панель">
             <i class="bi bi-grip-vertical" aria-hidden="true"></i>
           </button>
@@ -2354,8 +2577,10 @@
         head.appendChild(actions);
 
         const pinButton = actions.querySelector('.panel-pin-btn');
+        const hideButton = actions.querySelector('.panel-hide-btn');
         const dragHandle = actions.querySelector('.panel-drag-handle');
         pinButton?.addEventListener('click', () => toggleDashboardPanelPin(panel.dataset.panelId));
+        hideButton?.addEventListener('click', () => hideDashboardPanel(panel.dataset.panelId));
         dragHandle?.addEventListener('dragstart', handleDashboardPanelDragStart);
         dragHandle?.addEventListener('dragend', handleDashboardPanelDragEnd);
       });
@@ -2367,7 +2592,7 @@
         return;
       }
 
-      getDashboardPanelElements().forEach((panel, index) => {
+      getAllDashboardPanelElements().forEach((panel, index) => {
         const panelId = panel.dataset.panelId;
         if (!panelId) {
           return;
@@ -2376,7 +2601,8 @@
           itemId: panelId,
           order: index,
           defaultOrder: index,
-          pinned: false
+          pinned: false,
+          hidden: false
         };
       });
 
@@ -2387,6 +2613,7 @@
         }
         state.order = Number.isFinite(Number(entry.order)) ? Number(entry.order) : state.order;
         state.pinned = entry.pinned === true;
+        state.hidden = entry.hidden === true;
       });
 
       decorateDashboardPanels();
@@ -2497,6 +2724,18 @@
       document.getElementById('resetManagerFilters')?.addEventListener('click', () => {
         applyManagerMonthDefaults();
         loadManagerReport(true);
+      });
+      document.getElementById('restoreAllDashboardPanels')?.addEventListener('click', () => {
+        let hasChanges = false;
+        Object.values(dashboardPanelLayoutState).forEach((state) => {
+          if (state.hidden === true) {
+            state.hidden = false;
+            hasChanges = true;
+          }
+        });
+        if (hasChanges) {
+          applyDashboardPanelLayout();
+        }
       });
       document.getElementById('resetDashboardLayout')?.addEventListener('click', resetDashboardPanelLayout);
       document.getElementById('buildOlap')?.addEventListener('click', buildOlapReport);
@@ -3010,6 +3249,10 @@ function updateStaffTimeStats(staffStats) {
 
         // Столбчатые диаграммы
         updateChart('categoryChart', 'bar', chartData.category, getChartPalette('default'), true, {
+          horizontal: true,
+          maxBars: 7
+        });
+        updateChart('botProductChart', 'bar', chartData.bot_product, getChartPalette('warm'), true, {
           horizontal: true,
           maxBars: 7
         });

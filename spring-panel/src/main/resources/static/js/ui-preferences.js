@@ -59,6 +59,39 @@
     }
   }
 
+  function normalizeDashboardPanelLayout(value) {
+    const source = Array.isArray(value)
+      ? value
+      : (typeof value === 'string' && value.trim()
+        ? (() => {
+            try {
+              const parsed = JSON.parse(value);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch (_error) {
+              return [];
+            }
+          })()
+        : []);
+    const normalized = [];
+    source.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return;
+      }
+      const itemId = typeof entry.itemId === 'string' ? entry.itemId.trim().toLowerCase() : '';
+      if (!itemId) {
+        return;
+      }
+      const rawOrder = Number.parseInt(entry.order, 10);
+      normalized.push({
+        itemId,
+        order: Number.isFinite(rawOrder) && rawOrder >= 0 ? rawOrder : 0,
+        pinned: entry.pinned === true || entry.pinned === 'true' || entry.pinned === 1 || entry.pinned === '1',
+        hidden: entry.hidden === true || entry.hidden === 'true' || entry.hidden === 1 || entry.hidden === '1',
+      });
+    });
+    return JSON.stringify(normalized.slice(0, 64));
+  }
+
   const REGISTRY = Object.freeze({
     theme: Object.freeze({
       storageKey: 'iguana:theme',
@@ -84,6 +117,20 @@
       storageKey: 'sidebarNavOrder',
       fallback: null,
       normalize: normalizeNavOrder,
+      parse(value) {
+        if (typeof value !== 'string' || !value.trim()) return null;
+        try {
+          const parsed = JSON.parse(value);
+          return Array.isArray(parsed) ? parsed : null;
+        } catch (_error) {
+          return null;
+        }
+      },
+    }),
+    dashboardPanelLayout: Object.freeze({
+      storageKey: 'dashboard-panel-layout-v1',
+      fallback: null,
+      normalize: normalizeDashboardPanelLayout,
       parse(value) {
         if (typeof value !== 'string' || !value.trim()) return null;
         try {

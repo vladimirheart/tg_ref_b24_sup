@@ -138,6 +138,7 @@ public class UiPreferenceService {
         mergeField(target, normalized, requestPayload, "sidebarPinned");
         mergeField(target, normalized, requestPayload, "uiDensityMode");
         mergeField(target, normalized, requestPayload, "sidebarNavOrder");
+        mergeField(target, normalized, requestPayload, "dashboardPanelLayout");
     }
 
     private void mergeField(Map<String, Object> target,
@@ -185,6 +186,10 @@ public class UiPreferenceService {
         List<String> navOrder = normalizeNavOrder(payload.get("sidebarNavOrder"));
         if (navOrder != null && !navOrder.isEmpty()) {
             normalized.put("sidebarNavOrder", navOrder);
+        }
+        List<Map<String, Object>> dashboardPanelLayout = normalizeDashboardPanelLayout(payload.get("dashboardPanelLayout"));
+        if (dashboardPanelLayout != null && !dashboardPanelLayout.isEmpty()) {
+            normalized.put("dashboardPanelLayout", dashboardPanelLayout);
         }
         Map<String, Object> dialogsTriage = normalizeDialogsTriage(payload.get("dialogsTriage"));
         if (!dialogsTriage.isEmpty()) {
@@ -282,6 +287,33 @@ public class UiPreferenceService {
         return result;
     }
 
+    private List<Map<String, Object>> normalizeDashboardPanelLayout(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return null;
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> map)) {
+                continue;
+            }
+            String itemId = asTrimmed(map.get("itemId")).toLowerCase(Locale.ROOT);
+            if (!StringUtils.hasText(itemId)) {
+                continue;
+            }
+            Integer order = parseIntegerFlexible(map.get("order"));
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("itemId", itemId);
+            entry.put("order", order != null ? Math.max(0, Math.min(order, 256)) : 0);
+            entry.put("pinned", isTruthy(map.get("pinned")));
+            entry.put("hidden", isTruthy(map.get("hidden")));
+            result.add(entry);
+            if (result.size() >= 64) {
+                break;
+            }
+        }
+        return result;
+    }
+
     private String normalizeDialogsView(Object value) {
         String raw = asTrimmed(value).toLowerCase(Locale.ROOT);
         if (!StringUtils.hasText(raw)) {
@@ -347,6 +379,25 @@ public class UiPreferenceService {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    private Integer parseIntegerFlexible(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(asTrimmed(value));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private boolean isTruthy(Object value) {
+        String raw = asTrimmed(value).toLowerCase(Locale.ROOT);
+        return "1".equals(raw) || "true".equals(raw);
     }
 
     private String asTrimmed(Object value) {

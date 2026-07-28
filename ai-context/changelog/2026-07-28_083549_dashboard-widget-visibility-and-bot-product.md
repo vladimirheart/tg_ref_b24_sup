@@ -1,0 +1,22 @@
+# 2026-07-28 08:35:49 - dashboard widget visibility and bot product
+
+- Затронутые области:
+  - `spring-panel/src/main/resources/templates/dashboard/index.html`
+  - `spring-panel/src/main/java/com/example/panel/service/DashboardAnalyticsService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/UiPreferenceService.java`
+  - `spring-panel/src/main/resources/static/js/ui-preferences.js`
+- Пользовательский промпт:
+  - `что ещё осталось в рамках задачи? например ui подправить чтобы ничего не прыгало во время заполнения данных или редактирования`
+  - `да, давай если делать, то правильно и до конца`
+  - `давай виджеты. но любой виджет должен иметь настройку скрытия и возврата из скрытого состояния, то есть нужна настройка отображения`
+- Что сделано:
+  - layout виджетов дашборда переведён из локального ad-hoc хранения в общую систему `ui-preferences` с нормализацией и поддержкой полей `order`, `pinned`, `hidden`;
+  - на дашборде добавлена настройка отображения: любой виджет можно скрыть, вернуть по отдельности из списка скрытых или разом через `Показать все`, а `Вернуть по умолчанию` теперь сбрасывает и порядок, и pin, и hidden-state;
+  - добавлен пустой state для сценария, когда пользователь скрыл все виджеты, чтобы интерфейс оставался предсказуемым и ничего не "прыгало";
+  - блок `Категории обращений` переориентирован в UI на `Направления обращений`, чтобы совпадать с уже внедрённым structured-измерением `direction`;
+  - добавлен новый виджет `Продукты ботов`, который строится по structured-атрибуту `bot_product`;
+  - backend dashboard analytics теперь предпочитает structured-значения `business`, а также отдаёт новый срез `bot_product` в payload графиков.
+- Проверки:
+  - `spring-panel\\mvnw.cmd -q -DskipTests compile` — success
+  - `java-bot\\mvnw.cmd -q -DskipTests compile` — success
+  - `node` parse check для inline script в `spring-panel/src/main/resources/templates/dashboard/index.html` — success (`checked_inline_scripts=1`)
