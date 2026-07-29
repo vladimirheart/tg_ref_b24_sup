@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.example.panel.config.BotProcessProperties;
 import com.example.panel.config.SqliteDataSourceProperties;
+import com.example.panel.entity.Channel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -109,6 +110,37 @@ class BotProcessServiceTest {
         assertThat(status.running()).isFalse();
         assertThat(status.message()).isEqualTo("stopped");
         assertThat(status.startedAt()).isNull();
+    }
+
+    @Test
+    void parseWindowsNetstatListeningPidFindsMatchingListener() {
+        String output = """
+            Active Connections
+
+              Proto  Local Address          Foreign Address        State           PID
+              TCP    127.0.0.1:18001        0.0.0.0:0              LISTENING       1234
+              TCP    127.0.0.1:18002        0.0.0.0:0              LISTENING       32496
+              TCP    127.0.0.1:8080         0.0.0.0:0              LISTENING       999
+            """;
+
+        Long pid = BotProcessService.parseWindowsNetstatListeningPid(output, 18002);
+
+        assertThat(pid).isEqualTo(32496L);
+    }
+
+    @Test
+    void releaseReservedServerPortIfOccupiedStopsRecoverableProcess() throws Exception {
+        Path processLog = tempDir.resolve("bot-process.log");
+        process = launchProbe("hang", processLog);
+        Channel channel = new Channel();
+        channel.setId(2L);
+        channel.setPlatform("max");
+        RecoveringBotProcessService service = new RecoveringBotProcessService(process.pid());
+
+        service.releaseReservedServerPortIfOccupied(channel);
+
+        process.waitFor(10, TimeUnit.SECONDS);
+        assertThat(process.isAlive()).isFalse();
     }
 
     @Test
@@ -351,6 +383,27 @@ class BotProcessServiceTest {
         @Override
         Duration startupPollInterval() {
             return pollInterval;
+        }
+    }
+
+    private static final class RecoveringBotProcessService extends BotProcessService {
+
+        private final long forcedPid;
+
+        private RecoveringBotProcessService(long forcedPid) {
+            super(null, configureProperties(Duration.ofSeconds(5), Duration.ofMillis(50)),
+                createRuntimeContractService(Duration.ofSeconds(5), Duration.ofMillis(50)));
+            this.forcedPid = forcedPid;
+        }
+
+        @Override
+        Long resolveListeningPid(int port) {
+            return ProcessHandle.of(forcedPid).filter(ProcessHandle::isAlive).map(ProcessHandle::pid).orElse(null);
+        }
+
+        @Override
+        boolean isRecoverableReservedPortOwner(ProcessHandle handle, Channel channel, int reservedPort) {
+            return true;
         }
     }
 

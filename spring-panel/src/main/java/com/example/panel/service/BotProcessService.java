@@ -3,8 +3,10 @@ package com.example.panel.service;
 import com.example.panel.config.BotProcessProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,7 +14,9 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -66,6 +70,7 @@ public class BotProcessService {
         try {
             String botModule = botRuntimeContractService.resolveBotModule(channel);
             Path botWorkingDir = resolveBotWorkingDir();
+            releaseReservedServerPortIfOccupied(channel);
             Files.createDirectories(resolveMavenRepoDir(botWorkingDir));
             BotRuntimeContractService.BotLaunchPlan launchPlan = resolveLaunchPlan(botWorkingDir, botModule);
             ProcessBuilder builder = new ProcessBuilder(launchPlan.command());
@@ -367,6 +372,39 @@ public class BotProcessService {
         return "Бот не прошёл инициализацию.";
     }
 
+    void releaseReservedServerPortIfOccupied(Channel channel) {
+        Integer reservedPort = resolveReservedServerPort(channel);
+        Long channelId = channel != null ? channel.getId() : null;
+        if (reservedPort == null || channelId == null) {
+            return;
+        }
+        Long listeningPid = resolveListeningPid(reservedPort);
+        if (listeningPid == null) {
+            return;
+        }
+        ProcessHandle handle = ProcessHandle.of(listeningPid).orElse(null);
+        if (handle == null || !handle.isAlive()) {
+            return;
+        }
+        if (!isRecoverableReservedPortOwner(handle, channel, reservedPort)) {
+            log.warn(
+                "Reserved MAX port {} for channel {} is occupied by pid {} and was not auto-recovered.",
+                reservedPort,
+                channelId,
+                listeningPid
+            );
+            return;
+        }
+        log.warn(
+            "Reserved MAX port {} for channel {} is occupied by stale pid {}, attempting recovery.",
+            reservedPort,
+            channelId,
+            listeningPid
+        );
+        stopProcess(handle, "max-reserved-port-recovery", channelId);
+        waitForPortRelease(reservedPort, Duration.ofSeconds(5));
+    }
+
     private String extractEarlyExitMessage(String processOutput) {
         if (containsStartupFailure(processOutput)) {
             return extractStartupFailureMessage(processOutput);
@@ -424,6 +462,185 @@ public class BotProcessService {
             }
         }
         return "";
+    }
+
+    Integer resolveReservedServerPort(Channel channel) {
+        if (channel == null || channel.getId() == null) {
+            return null;
+        }
+        String platform = Objects.toString(channel.getPlatform(), "").trim().toLowerCase(Locale.ROOT);
+        if (!"max".equals(platform)) {
+            return null;
+        }
+        return botProcessProperties.resolveMaxPort(channel.getId());
+    }
+
+    Long resolveListeningPid(int port) {
+        if (port <= 0 || port > 65535) {
+            return null;
+        }
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        try {
+            if (os.contains("win")) {
+                String output = runCommandAndCapture(List.of("cmd", "/c", "netstat -ano -p tcp"));
+                return parseWindowsNetstatListeningPid(output, port);
+            }
+            Long lsofPid = parseNumericPid(runCommandAndCapture(List.of(
+                "sh",
+                "-lc",
+                "lsof -nP -iTCP:" + port + " -sTCP:LISTEN -t 2>/dev/null | head -n 1"
+            )));
+            if (lsofPid != null) {
+                return lsofPid;
+            }
+            String ssOutput = runCommandAndCapture(List.of(
+                "sh",
+                "-lc",
+                "ss -ltnp '( sport = :" + port + " )' 2>/dev/null"
+            ));
+            return parseSsListeningPid(ssOutput, port);
+        } catch (Exception ex) {
+            log.debug("Failed to resolve listening pid for port {}", port, ex);
+            return null;
+        }
+    }
+
+    boolean isRecoverableReservedPortOwner(ProcessHandle handle, Channel channel, int reservedPort) {
+        if (handle == null || channel == null || reservedPort <= 0) {
+            return false;
+        }
+        String platform = Objects.toString(channel.getPlatform(), "").trim().toLowerCase(Locale.ROOT);
+        if (!"max".equals(platform)) {
+            return false;
+        }
+        String command = handle.info().command().orElse("");
+        String[] arguments = handle.info().arguments().orElse(new String[0]);
+        String fingerprint = (command + " " + String.join(" ", arguments)).trim().toLowerCase(Locale.ROOT);
+        if (fingerprint.isBlank()) {
+            return true;
+        }
+        return fingerprint.contains("bot-max")
+            || fingerprint.contains("maxbotapplication")
+            || fingerprint.contains("spring-boot:run")
+            || fingerprint.contains("java");
+    }
+
+    static Long parseWindowsNetstatListeningPid(String output, int port) {
+        if (output == null || output.isBlank() || port <= 0) {
+            return null;
+        }
+        String[] lines = output.split("\\R");
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || !trimmed.toUpperCase(Locale.ROOT).startsWith("TCP")) {
+                continue;
+            }
+            String[] parts = trimmed.split("\\s+");
+            if (parts.length < 5) {
+                continue;
+            }
+            String state = parts[parts.length - 2];
+            if (!"LISTENING".equalsIgnoreCase(state)) {
+                continue;
+            }
+            Integer candidatePort = extractPort(parts[1]);
+            if (candidatePort == null || candidatePort != port) {
+                continue;
+            }
+            return parseNumericPid(parts[parts.length - 1]);
+        }
+        return null;
+    }
+
+    static Long parseSsListeningPid(String output, int port) {
+        if (output == null || output.isBlank() || port <= 0) {
+            return null;
+        }
+        String[] lines = output.split("\\R");
+        Pattern pidPattern = Pattern.compile("pid=(\\d+)");
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || !trimmed.contains("LISTEN")) {
+                continue;
+            }
+            Integer candidatePort = extractPort(trimmed);
+            if (candidatePort == null || candidatePort != port) {
+                continue;
+            }
+            Matcher matcher = pidPattern.matcher(trimmed);
+            if (matcher.find()) {
+                return parseNumericPid(matcher.group(1));
+            }
+        }
+        return null;
+    }
+
+    private static Integer extractPort(String value) {
+        String normalized = Objects.toString(value, "").trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        int lastColon = normalized.lastIndexOf(':');
+        if (lastColon < 0 || lastColon + 1 >= normalized.length()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(normalized.substring(lastColon + 1).replace("]", "").trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private static Long parseNumericPid(String raw) {
+        String normalized = Objects.toString(raw, "").trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(normalized);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private String runCommandAndCapture(List<String> command) throws IOException, InterruptedException {
+        List<String> safeCommand = command == null ? List.of() : new ArrayList<>(command);
+        if (safeCommand.isEmpty()) {
+            return "";
+        }
+        Process process = new ProcessBuilder(safeCommand)
+            .redirectErrorStream(true)
+            .start();
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (output.length() > 0) {
+                    output.append(System.lineSeparator());
+                }
+                output.append(line);
+            }
+        }
+        process.waitFor(5, TimeUnit.SECONDS);
+        return output.toString();
+    }
+
+    private void waitForPortRelease(int port, Duration timeout) {
+        Duration safeTimeout = timeout == null || timeout.isNegative() || timeout.isZero()
+            ? Duration.ofSeconds(5)
+            : timeout;
+        long deadlineNanos = System.nanoTime() + safeTimeout.toNanos();
+        while (System.nanoTime() < deadlineNanos) {
+            if (resolveListeningPid(port) == null) {
+                return;
+            }
+            try {
+                Thread.sleep(100L);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
     }
 
     private void writePidFile(Path botWorkingDir, Long channelId, long pid) {

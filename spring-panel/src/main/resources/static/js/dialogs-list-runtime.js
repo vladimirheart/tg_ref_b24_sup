@@ -385,6 +385,23 @@
       nextAvatar.replaceWith(preservedAvatar);
     }
 
+    function syncTableBodyOrder(rows) {
+      const tbody = table?.tBodies?.[0];
+      if (!tbody) {
+        return;
+      }
+      const nextRows = Array.isArray(rows) ? rows.filter(Boolean) : [];
+      const currentRows = rowsList();
+      const hasSameOrder = currentRows.length === nextRows.length
+        && currentRows.every((row, index) => row === nextRows[index]);
+      if (hasSameOrder) {
+        return;
+      }
+      nextRows.forEach((row) => {
+        tbody.appendChild(row);
+      });
+    }
+
     function syncDialogsTable(dialogs) {
       const tbody = table?.tBodies?.[0];
       if (!tbody) {
@@ -426,9 +443,7 @@
         row.remove();
       });
 
-      orderedRows.forEach((row) => {
-        tbody.appendChild(row);
-      });
+      syncTableBodyOrder(orderedRows);
 
       if (!orderedRows.length) {
         rowsList().forEach((row) => row.remove());
@@ -921,9 +936,7 @@
         matchedRows.sort(compareRowsBySlaPriority);
       }
       setLastFilteredRows(matchedRows.slice());
-      const tableBody = table?.tBodies?.[0];
-      matchedRows.forEach((row) => tableBody?.appendChild(row));
-      hiddenRows.forEach((row) => tableBody?.appendChild(row));
+      syncTableBodyOrder(matchedRows.concat(hiddenRows));
       const visibleCount = applyPageSize(matchedRows);
       updateZebraRows(matchedRows);
       ensureEmptyRow();
