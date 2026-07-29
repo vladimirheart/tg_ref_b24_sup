@@ -118,6 +118,16 @@
   let presetDefinitionsLoadingPromise = null;
   let botSettingsLoadingPromise = null;
   const QUESTION_ROUTE_PROBLEM_ID = 'problem';
+  const DASHBOARD_ATTRIBUTE_KEYS = [
+    { value: 'business', label: 'Бизнес' },
+    { value: 'direction', label: 'Направление обращения' },
+    { value: 'bot_product', label: 'Продукт бота' },
+    { value: 'issue_type', label: 'Тип обращения' },
+    { value: 'location_type', label: 'Тип бизнеса' },
+    { value: 'city', label: 'Город' },
+    { value: 'location_name', label: 'Локация' },
+  ];
+  const DASHBOARD_ATTRIBUTE_KEY_SET = new Set(DASHBOARD_ATTRIBUTE_KEYS.map((item) => item.value));
 
   function applyPresetDefinitions(rawDefinitions) {
     Object.keys(PRESET_GROUPS).forEach((groupKey) => {
@@ -558,6 +568,51 @@
     return '';
   }
 
+  function isDashboardBindingKeyAllowed(value) {
+    return typeof value === 'string' && DASHBOARD_ATTRIBUTE_KEY_SET.has(value.trim());
+  }
+
+  function suggestDashboardBindingKey(question) {
+    const explicitKey = resolveQuestionBindingKey(question);
+    if (isDashboardBindingKeyAllowed(explicitKey)) {
+      return explicitKey;
+    }
+    const presetField = question && question.preset && typeof question.preset.field === 'string'
+      ? question.preset.field.trim()
+      : '';
+    if (isDashboardBindingKeyAllowed(presetField)) {
+      return presetField;
+    }
+    return '';
+  }
+
+  function buildDashboardBindingOptions(selectedValue) {
+    const normalized = isDashboardBindingKeyAllowed(selectedValue) ? selectedValue.trim() : '';
+    return ['<option value="">Выберите атрибут</option>']
+      .concat(DASHBOARD_ATTRIBUTE_KEYS.map((item) => (
+        `<option value="${html(item.value)}"${item.value === normalized ? ' selected' : ''}>${html(item.label)}</option>`
+      )))
+      .join('');
+  }
+
+  function buildBindingEditorHtml(question, bindingKey, analyticsHint) {
+    const includeInDashboard = Boolean(question && (question.includeInDashboard || question.include_in_dashboard));
+    if (includeInDashboard) {
+      return `
+        <label class="form-label">Атрибут дашборда</label>
+        <select class="form-select" data-bot-question-binding>
+          ${buildDashboardBindingOptions(bindingKey)}
+        </select>
+        <div class="form-text mb-0">Для дашборда можно выбирать только разрешённые атрибуты, чтобы не создавать ошибки в аналитике.</div>
+      `;
+    }
+    return `
+      <label class="form-label">Ключ атрибута</label>
+      <input type="text" class="form-control font-monospace" value="${html(bindingKey)}" data-bot-question-binding placeholder="company">
+      <div class="form-text mb-0">${html(analyticsHint)}</div>
+    `;
+  }
+
   function resolveQuestionOptionLabels(question, meta) {
     if (!question) {
       return [];
@@ -665,12 +720,14 @@
       return '';
     }
     const targetChoices = resolveQuestionRouteTargets(questionIndex);
+    const hasIntermediateTargets = targetChoices.some((target) => target.id !== QUESTION_ROUTE_PROBLEM_ID);
     const targetOptions = ['<option value="">По порядку</option>']
       .concat(targetChoices.map((target) => `<option value="${html(target.id)}">${html(target.label)}</option>`))
       .join('');
     const rows = routeChoices.map((option) => `
       <div class="bot-question-route-row">
-        <div class="small fw-semibold">${html(option.label)}</div>
+        <div class="small fw-semibold">Если клиент выбрал: ${html(option.label)}</div>
+        <label class="small text-muted">Следующий шаг</label>
         <select class="form-select form-select-sm" data-bot-question-route-target="${html(option.id)}">
           ${targetOptions}
         </select>
@@ -923,6 +980,9 @@
       }
       if (includeInDashboard && !bindingKey) {
         return `Для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''} заполните ключ атрибута латиницей, если он должен попадать в дашборд.`;
+      }
+      if (includeInDashboard && !isDashboardBindingKeyAllowed(bindingKey)) {
+        return `Для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''} выберите атрибут из списка разрешённых значений дашборда.`;
       }
       if (bindingKey) {
         const previousIndex = usedBindingKeys.get(bindingKey);
@@ -2347,6 +2407,10 @@
           </div>
         `;
         answerWrapper.insertAdjacentElement('afterend', analyticsRow);
+        const bindingSurface = analyticsRow.querySelector('.col-lg-7 .bot-question-info-surface');
+        if (bindingSurface instanceof HTMLElement) {
+          bindingSurface.innerHTML = buildBindingEditorHtml(question, bindingKey, analyticsHint);
+        }
       }
       sanitizeQuestionRoutes(question, index, meta).forEach((route) => {
         const routeSelect = card.querySelector(`[data-bot-question-route-target="${escapeSelectorValue(route.valueId)}"]`);
@@ -2354,6 +2418,33 @@
           routeSelect.value = route.nextQuestionId;
         }
       });
+      const routeSurface = card.querySelector('.bot-question-route-surface');
+      if (routeSurface instanceof HTMLElement) {
+        const routeTargets = resolveQuestionRouteTargets(index);
+        const hasIntermediateTargets = routeTargets.some((target) => target.id !== QUESTION_ROUTE_PROBLEM_ID);
+        const title = routeSurface.querySelector('.small.text-uppercase.text-muted.fw-semibold');
+        if (title instanceof HTMLElement) {
+          title.textContent = 'Маршрутизация';
+        }
+        const headerHint = routeSurface.querySelector('.d-flex.justify-content-between .small.text-muted');
+        if (headerHint instanceof HTMLElement) {
+          headerHint.textContent = 'Если маршрут не задан, бот задаст следующий вопрос по порядку.';
+        }
+        const routeGrid = routeSurface.querySelector('.bot-question-route-grid');
+        if (routeGrid instanceof HTMLElement && !routeSurface.querySelector('[data-bot-question-route-note]')) {
+          const note = document.createElement('div');
+          note.className = 'small text-muted mb-3';
+          note.dataset.botQuestionRouteNote = 'true';
+          note.textContent = 'В списке показываются только вопросы ниже текущего. Сначала добавьте следующие шаги сценария, и затем они появятся здесь.';
+          routeGrid.insertAdjacentElement('beforebegin', note);
+        }
+        const footer = routeSurface.querySelector('.form-text.mt-2.mb-0');
+        if (footer instanceof HTMLElement) {
+          footer.textContent = hasIntermediateTargets
+            ? 'Можно отправить клиента к следующему релевантному вопросу или сразу к финальному описанию проблемы.'
+            : 'Пока ниже нет дополнительных вопросов, поэтому доступен только переход по порядку или сразу к финальному описанию проблемы.';
+        }
+      }
       card.__questionMeta = meta;
       if (isPreset) {
         const select = card.querySelector('[data-bot-question-preset]');
@@ -3123,9 +3214,13 @@
         const index = Number.parseInt(card.dataset.index, 10);
         const question = Number.isFinite(index) ? editorState.questionFlow[index] : null;
         if (question) {
-          const normalized = normalizeBindingKey(bindingInput.value);
+          const normalized = question.includeInDashboard
+            ? (isDashboardBindingKeyAllowed(bindingInput.value) ? bindingInput.value.trim() : '')
+            : normalizeBindingKey(bindingInput.value);
           question.bindingKey = normalized;
-          bindingInput.value = normalized;
+          if (bindingInput instanceof HTMLInputElement || bindingInput instanceof HTMLSelectElement) {
+            bindingInput.value = normalized;
+          }
         }
       }
     });
@@ -3174,12 +3269,26 @@
         setQuestionType(index, typeSelect.value === 'preset' ? 'preset' : (typeSelect.value === 'select' ? 'select' : 'custom'));
         return;
       }
+      const bindingSelect = event.target.closest('[data-bot-question-binding]');
+      if (bindingSelect) {
+        const question = editorState.questionFlow[index];
+        if (question) {
+          question.bindingKey = question.includeInDashboard
+            ? (isDashboardBindingKeyAllowed(bindingSelect.value) ? bindingSelect.value.trim() : '')
+            : normalizeBindingKey(bindingSelect.value);
+        }
+        return;
+      }
       const dashboardToggle = event.target.closest('[data-bot-question-dashboard]');
       if (dashboardToggle) {
         const question = editorState.questionFlow[index];
         if (question) {
           question.includeInDashboard = dashboardToggle.checked;
+          if (dashboardToggle.checked) {
+            question.bindingKey = suggestDashboardBindingKey(question);
+          }
         }
+        renderQuestions();
         return;
       }
       const requiredToggle = event.target.closest('[data-bot-question-required]');

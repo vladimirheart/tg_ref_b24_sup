@@ -1356,3 +1356,5 @@ Identify and stop the process that's listening on port 18002 or configure this a
 2026-07-29 12:30:00.034+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
 2026-07-29 12:40:00.039+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-29T11:40:00.039764700+03:00
 2026-07-29 12:40:00.040+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-29 12:50:00.016+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-29T11:50:00.016990800+03:00
+2026-07-29 12:50:00.019+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
