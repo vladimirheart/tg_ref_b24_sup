@@ -39,6 +39,11 @@
         channelId: null,
         tokenVisible: false,
       },
+      channelAssignmentRoutingCatalog: {
+        operators: [],
+        departments: [],
+        orgStructure: { nodes: [] },
+      },
       integrationNetworkProfilesData: Array.isArray(integrationNetworkProfilesInitial)
         ? integrationNetworkProfilesInitial
         : [],
@@ -69,6 +74,12 @@
       channelEditorPanelNotifDepartmentInput: document.getElementById('channelEditorPanelNotifDepartment'),
       channelEditorPanelNotifEmployeesInput: document.getElementById('channelEditorPanelNotifEmployees'),
       channelEditorPanelNotifExcludeInput: document.getElementById('channelEditorPanelNotifExclude'),
+      channelEditorAssignmentModeInput: document.getElementById('channelEditorAssignmentMode'),
+      channelEditorAssignmentAssignResponsibleInput: document.getElementById('channelEditorAssignmentAssignResponsible'),
+      channelEditorAssignmentStrategyInput: document.getElementById('channelEditorAssignmentStrategy'),
+      channelEditorAssignmentSingleOperatorInput: document.getElementById('channelEditorAssignmentSingleOperator'),
+      channelEditorAssignmentPoolOperatorsInput: document.getElementById('channelEditorAssignmentPoolOperators'),
+      channelEditorAssignmentDepartmentInput: document.getElementById('channelEditorAssignmentDepartment'),
     };
 
     const integrationNetworkProfileForm = elements.integrationNetworkProfileEditorModalEl
@@ -129,6 +140,51 @@
       return parts.length ? parts.join(' • ') : '—';
     }
 
+    function normalizeAssignmentRoutingCatalog(raw) {
+      const source = raw && typeof raw === 'object' ? raw : {};
+      const operators = Array.isArray(source.operators)
+        ? source.operators
+            .filter((item) => item && typeof item === 'object')
+            .map((item) => ({
+              username: String(item.username || '').trim().toLowerCase(),
+              display_name: String(item.display_name || '').trim(),
+              department: String(item.department || '').trim(),
+              role: String(item.role || '').trim(),
+              avatar_url: String(item.avatar_url || '').trim(),
+            }))
+            .filter((item) => item.username)
+        : [];
+      const departments = Array.isArray(source.departments)
+        ? Array.from(new Set(source.departments
+            .map((value) => String(value || '').trim())
+            .filter((value) => value)))
+            .sort((left, right) => left.localeCompare(right, 'ru'))
+        : [];
+      const orgStructure = source.orgStructure && typeof source.orgStructure === 'object'
+        ? source.orgStructure
+        : { nodes: [] };
+      return { operators, departments, orgStructure };
+    }
+
+    function applyAssignmentRoutingCatalog(raw) {
+      state.channelAssignmentRoutingCatalog = normalizeAssignmentRoutingCatalog(raw);
+      settingsChannelEditorShell?.refreshChannelEditorIfOpen?.();
+    }
+
+    function ensureChannelAssignmentRoutingCatalogLoaded(forceReload = false) {
+      const fetchPageDataSection = window.SettingsRuntimeAccess?.fetchPageDataSection;
+      if (typeof fetchPageDataSection !== 'function') {
+        return Promise.resolve(state.channelAssignmentRoutingCatalog);
+      }
+      return fetchPageDataSection('channels', forceReload ? { force: true } : {})
+        .then((section) => {
+          const catalog = section && typeof section === 'object' ? section.assignmentRoutingCatalog : null;
+          applyAssignmentRoutingCatalog(catalog);
+          return state.channelAssignmentRoutingCatalog;
+        })
+        .catch(() => state.channelAssignmentRoutingCatalog);
+    }
+
     const settingsChannelTemplates = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelTemplatesRuntime', {
       botSettingsInitial,
       autoCloseConfig,
@@ -158,7 +214,19 @@
       settingsChannelEditorShell?.populateChannelEditorShell?.(channel);
     }
 
+    function readMultiSelectValues(selectEl) {
+      if (!(selectEl instanceof HTMLSelectElement) || !selectEl.multiple) {
+        return [];
+      }
+      return Array.from(selectEl.selectedOptions || [])
+        .map((option) => String(option.value || '').trim().toLowerCase())
+        .filter((value) => value);
+    }
+
     function buildChannelQuestionsCfgPayload(existingQuestionsCfg) {
+      const existingAssignmentRouting = existingQuestionsCfg?.assignmentRouting && typeof existingQuestionsCfg.assignmentRouting === 'object'
+        ? existingQuestionsCfg.assignmentRouting
+        : settingsChannelConfig.defaultChannelAssignmentRouting();
       const existingPanelNotifications = existingQuestionsCfg?.panelNotifications && typeof existingQuestionsCfg.panelNotifications === 'object'
         ? existingQuestionsCfg.panelNotifications
         : settingsChannelConfig.defaultChannelPanelNotifications();
@@ -170,7 +238,7 @@
         : settingsChannelConfig.defaultChannelPanelNotifications().events;
       const notificationTargetModeRaw = String(
         elements.channelEditorPanelNotifTargetModeInput?.value
-        || existingQuestionsCfg.panelNotifications?.routing?.targetMode
+        || existingQuestionsCfg?.panelNotifications?.routing?.targetMode
         || 'all_operators'
       ).trim().toLowerCase();
       const notificationTargetMode = ['all_operators', 'department_all', 'employees_only', 'department_except'].includes(notificationTargetModeRaw)
@@ -178,7 +246,7 @@
         : 'all_operators';
       const notificationDepartmentValue = String(
         elements.channelEditorPanelNotifDepartmentInput?.value
-        || existingQuestionsCfg.panelNotifications?.routing?.department
+        || existingQuestionsCfg?.panelNotifications?.routing?.department
         || ''
       ).trim();
       const normalizedNotificationTargetMode = notificationDepartmentValue
@@ -186,15 +254,59 @@
         : 'all_operators';
       const notificationDeliveryModeRaw = String(
         elements.channelEditorPanelNotifDeliveryModeInput?.value
-        || existingQuestionsCfg.panelNotifications?.routing?.deliveryMode
+        || existingQuestionsCfg?.panelNotifications?.routing?.deliveryMode
         || 'all'
       ).trim().toLowerCase();
       const notificationDeliveryMode = notificationDeliveryModeRaw === 'online_only_fallback_all'
         ? 'online_only_fallback_all'
         : 'all';
+      const assignmentModeRaw = String(
+        elements.channelEditorAssignmentModeInput?.value
+        || existingAssignmentRouting.mode
+        || 'disabled'
+      ).trim().toLowerCase();
+      const assignmentMode = ['single_operator', 'operator_pool', 'department_queue'].includes(assignmentModeRaw)
+        ? assignmentModeRaw
+        : 'disabled';
+      const assignmentEnabled = assignmentMode !== 'disabled';
+      const assignmentStrategyRaw = String(
+        elements.channelEditorAssignmentStrategyInput?.value
+        || existingAssignmentRouting.strategy
+        || 'round_robin'
+      ).trim().toLowerCase();
+      const assignmentStrategy = ['least_loaded', 'hash_by_ticket'].includes(assignmentStrategyRaw)
+        ? assignmentStrategyRaw
+        : 'round_robin';
+      const assignmentSingleOperator = String(
+        elements.channelEditorAssignmentSingleOperatorInput?.value
+        || existingAssignmentRouting.operatorUsername
+        || ''
+      ).trim().toLowerCase();
+      const assignmentDepartment = String(
+        elements.channelEditorAssignmentDepartmentInput?.value
+        || existingAssignmentRouting.department
+        || ''
+      ).trim();
       return {
         ...existingQuestionsCfg,
-        schemaVersion: Math.max(1, Number.parseInt(existingQuestionsCfg.schemaVersion || 1, 10) || 1),
+        schemaVersion: Math.max(1, Number.parseInt(existingQuestionsCfg?.schemaVersion || 1, 10) || 1),
+        assignmentRouting: {
+          enabled: assignmentEnabled,
+          mode: assignmentEnabled ? assignmentMode : 'disabled',
+          assignResponsibleOnCreate: assignmentEnabled
+            ? Boolean(elements.channelEditorAssignmentAssignResponsibleInput?.checked)
+            : false,
+          strategy: assignmentStrategy,
+          operatorUsername: assignmentEnabled && assignmentMode === 'single_operator'
+            ? assignmentSingleOperator
+            : '',
+          operatorUsernames: assignmentEnabled && assignmentMode === 'operator_pool'
+            ? readMultiSelectValues(elements.channelEditorAssignmentPoolOperatorsInput)
+            : [],
+          department: assignmentEnabled && assignmentMode === 'department_queue'
+            ? assignmentDepartment
+            : '',
+        },
         panelNotifications: {
           routing: {
             department: notificationDepartmentValue,
@@ -259,6 +371,7 @@
     const settingsChannelEditorShell = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelEditorShellRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,
       getChannelEditorState: () => state.channelEditorState,
+      getChannelAssignmentRoutingCatalog: () => state.channelAssignmentRoutingCatalog,
       getQuestionTemplates: () => settingsChannelTemplates.getQuestionTemplates(),
       getRatingTemplates: () => settingsChannelTemplates.getRatingTemplates(),
       getAutoActionTemplates: () => settingsChannelTemplates.getAutoActionTemplates(),
@@ -276,6 +389,7 @@
       parseDeliverySettings: (...args) => settingsChannelConfig.parseDeliverySettings(...args),
       parsePlatformConfig: (...args) => settingsChannelConfig.parsePlatformConfig(...args),
       normalizeChannelWorkingHours: (...args) => settingsIntegrationNetwork.normalizeChannelWorkingHours(...args),
+      defaultChannelAssignmentRouting: (...args) => settingsChannelConfig.defaultChannelAssignmentRouting(...args),
       defaultChannelPanelNotifications: (...args) => settingsChannelConfig.defaultChannelPanelNotifications(...args),
       applyRouteToInputs: (...args) => settingsIntegrationNetwork.applyRouteToInputs(...args),
       updateBotRefreshControl: (...args) => settingsChannelsBotRuntime.updateBotRefreshControl(...args),
@@ -286,6 +400,7 @@
       updateBotControls: (...args) => settingsChannelsBotRuntime.updateBotControls(...args),
       refreshBotStatus: (...args) => settingsChannelsBotRuntime.refreshBotStatus(...args),
       loadChannels: (...args) => settingsChannelsCatalog.loadChannels(...args),
+      escapeHtml: options.escapeHtml,
       showPopup: (message) => popup(message),
       populateChannelEditor,
     });
@@ -320,6 +435,7 @@
       settingsIntegrationNetwork.renderIntegrationNetworkProfilesTable();
       settingsIntegrationNetwork.renderIntegrationNetworkSettings();
       settingsChannelEditorControls.bindControls();
+      ensureChannelAssignmentRoutingCatalogLoaded(true);
       settingsChannelsCatalog.loadChannels();
 
       document.getElementById('new_platform')?.addEventListener('change', () => settingsChannelsCatalog.togglePlatformFields());

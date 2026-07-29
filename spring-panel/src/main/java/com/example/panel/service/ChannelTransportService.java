@@ -748,6 +748,9 @@ public class ChannelTransportService {
         Integer rateLimitMaxRequests = root.has("rateLimitMaxRequests")
                 ? normalizeIntegerOrNull(root.path("rateLimitMaxRequests"), 1, 500)
                 : null;
+        Map<String, Object> assignmentRouting = root.has("assignmentRouting")
+                ? normalizeAssignmentRouting(root.path("assignmentRouting"))
+                : null;
         Map<String, Object> alertQueue = root.has("alertQueue")
                 ? normalizeAlertQueue(root.path("alertQueue"))
                 : null;
@@ -769,6 +772,9 @@ public class ChannelTransportService {
         if (rateLimitMaxRequests != null) {
             normalized.put("rateLimitMaxRequests", rateLimitMaxRequests);
         }
+        if (assignmentRouting != null) {
+            normalized.put("assignmentRouting", assignmentRouting);
+        }
         if (alertQueue != null) {
             normalized.put("alertQueue", alertQueue);
         }
@@ -778,6 +784,38 @@ public class ChannelTransportService {
         normalized.put("disabledStatus", disabledStatus);
         normalized.put("fields", fields);
         return serializeIfNeeded(normalized);
+    }
+
+    private Map<String, Object> normalizeAssignmentRouting(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return Map.of(
+                    "enabled", false,
+                    "mode", "disabled",
+                    "assignResponsibleOnCreate", false,
+                    "strategy", "round_robin",
+                    "operatorUsername", "",
+                    "operatorUsernames", List.of(),
+                    "department", ""
+            );
+        }
+        if (!node.isObject()) {
+            throw new IllegalArgumentException("questions_cfg.assignmentRouting должен быть объектом");
+        }
+        String mode = normalizeAssignmentMode(stringValue(node.path("mode").asText("disabled")));
+        boolean enabled = node.path("enabled").asBoolean(false) && !"disabled".equals(mode);
+        String strategy = normalizeAssignmentStrategy(stringValue(node.path("strategy").asText("round_robin")));
+        String operatorUsername = stringValue(node.path("operatorUsername").asText("")).toLowerCase();
+        List<String> operatorUsernames = normalizeStringList(node.path("operatorUsernames"));
+        String department = stringValue(node.path("department").asText(""));
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        normalized.put("enabled", enabled);
+        normalized.put("mode", enabled ? mode : "disabled");
+        normalized.put("assignResponsibleOnCreate", enabled && node.path("assignResponsibleOnCreate").asBoolean(false));
+        normalized.put("strategy", strategy);
+        normalized.put("operatorUsername", operatorUsername);
+        normalized.put("operatorUsernames", operatorUsernames);
+        normalized.put("department", department);
+        return normalized;
     }
 
     private Map<String, Object> normalizeAlertQueue(JsonNode node) {
@@ -856,6 +894,23 @@ public class ChannelTransportService {
         normalized.put("employeeUsernames", normalizeStringList(node.path("employeeUsernames")));
         normalized.put("excludeUsernames", normalizeStringList(node.path("excludeUsernames")));
         return normalized;
+    }
+
+    private String normalizeAssignmentMode(String raw) {
+        String normalized = raw == null ? "" : raw.trim().toLowerCase();
+        if (Set.of("single_operator", "operator_pool", "department_queue").contains(normalized)) {
+            return normalized;
+        }
+        return "disabled";
+    }
+
+    private String normalizeAssignmentStrategy(String raw) {
+        String normalized = raw == null ? "" : raw.trim().toLowerCase();
+        return switch (normalized) {
+            case "least_loaded", "least_load", "load" -> "least_loaded";
+            case "hash_by_ticket", "hash", "ticket_hash" -> "hash_by_ticket";
+            default -> "round_robin";
+        };
     }
 
     private List<String> normalizeStringList(JsonNode node) {

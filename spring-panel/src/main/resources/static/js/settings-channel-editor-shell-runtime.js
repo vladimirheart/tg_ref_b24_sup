@@ -20,6 +20,16 @@
       channelEditorPanelNotifDepartmentInput: document.getElementById('channelEditorPanelNotifDepartment'),
       channelEditorPanelNotifEmployeesInput: document.getElementById('channelEditorPanelNotifEmployees'),
       channelEditorPanelNotifExcludeInput: document.getElementById('channelEditorPanelNotifExclude'),
+      channelEditorAssignmentModeInput: document.getElementById('channelEditorAssignmentMode'),
+      channelEditorAssignmentStrategyBlock: document.getElementById('channelEditorAssignmentStrategyBlock'),
+      channelEditorAssignmentStrategyInput: document.getElementById('channelEditorAssignmentStrategy'),
+      channelEditorAssignmentSingleOperatorBlock: document.getElementById('channelEditorAssignmentSingleOperatorBlock'),
+      channelEditorAssignmentSingleOperatorInput: document.getElementById('channelEditorAssignmentSingleOperator'),
+      channelEditorAssignmentPoolOperatorsBlock: document.getElementById('channelEditorAssignmentPoolOperatorsBlock'),
+      channelEditorAssignmentPoolOperatorsInput: document.getElementById('channelEditorAssignmentPoolOperators'),
+      channelEditorAssignmentDepartmentBlock: document.getElementById('channelEditorAssignmentDepartmentBlock'),
+      channelEditorAssignmentDepartmentInput: document.getElementById('channelEditorAssignmentDepartment'),
+      channelEditorAssignmentAssignResponsibleInput: document.getElementById('channelEditorAssignmentAssignResponsible'),
       channelEditorWorkingHoursStartInput: document.getElementById('channelEditorWorkingHoursStart'),
       channelEditorWorkingHoursEndInput: document.getElementById('channelEditorWorkingHoursEnd'),
       channelEditorScheduleToGroupInput: document.getElementById('channelEditorScheduleToGroup'),
@@ -110,8 +120,34 @@
         : { routing: {}, events: {} };
     }
 
+    function defaultChannelAssignmentRouting() {
+      return typeof options.defaultChannelAssignmentRouting === 'function'
+        ? options.defaultChannelAssignmentRouting()
+        : {
+            enabled: false,
+            mode: 'disabled',
+            assignResponsibleOnCreate: false,
+            strategy: 'round_robin',
+            operatorUsername: '',
+            operatorUsernames: [],
+            department: '',
+          };
+    }
+
     function buildTemplateOptions(templates, selectedId) {
       return typeof options.buildTemplateOptions === 'function' ? options.buildTemplateOptions(templates, selectedId) : '';
+    }
+
+    function escapeHtml(value) {
+      if (typeof options.escapeHtml === 'function') {
+        return options.escapeHtml(value);
+      }
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     function formatBotLabel(channel) {
@@ -158,6 +194,15 @@
       if (typeof options.refreshBotStatus === 'function') {
         options.refreshBotStatus(channelId);
       }
+    }
+
+    function getChannelAssignmentRoutingCatalog() {
+      const catalog = typeof options.getChannelAssignmentRoutingCatalog === 'function'
+        ? options.getChannelAssignmentRoutingCatalog()
+        : null;
+      return catalog && typeof catalog === 'object'
+        ? catalog
+        : { operators: [], departments: [], orgStructure: { nodes: [] } };
     }
 
     function updateChannelEditorStatusLabel(isActive) {
@@ -215,6 +260,135 @@
       }
     }
 
+    function buildAssignmentOperatorLabel(operator) {
+      const username = String(operator?.username || '').trim();
+      const displayName = String(operator?.display_name || '').trim();
+      const department = String(operator?.department || '').trim();
+      const identity = displayName && username
+        ? `${displayName} (@${username})`
+        : (displayName || (username ? `@${username}` : 'Неизвестный оператор'));
+      return department ? `${identity} · ${department}` : identity;
+    }
+
+    function populateAssignmentOperatorSelect(selectEl, operators, selectedValue, optionsArg = {}) {
+      if (!(selectEl instanceof HTMLSelectElement)) {
+        return;
+      }
+      const selectedUsername = String(selectedValue || '').trim().toLowerCase();
+      const includePlaceholder = optionsArg.includePlaceholder !== false;
+      const placeholderLabel = optionsArg.placeholderLabel || 'Выберите оператора';
+      const optionItems = Array.isArray(operators) ? operators : [];
+      const optionMarkup = optionItems.map((operator) => {
+        const username = String(operator?.username || '').trim().toLowerCase();
+        if (!username) {
+          return '';
+        }
+        const selectedAttr = username === selectedUsername ? ' selected' : '';
+        return `<option value="${escapeHtml(username)}"${selectedAttr}>${escapeHtml(buildAssignmentOperatorLabel(operator))}</option>`;
+      }).join('');
+      const hasSelectedOperator = optionItems.some((operator) => String(operator?.username || '').trim().toLowerCase() === selectedUsername);
+      const placeholderSelected = includePlaceholder && !hasSelectedOperator ? ' selected' : '';
+      const emptyLabel = optionItems.length ? placeholderLabel : 'Нет доступных операторов';
+      selectEl.innerHTML = includePlaceholder
+        ? `<option value=""${placeholderSelected}>${escapeHtml(emptyLabel)}</option>${optionMarkup}`
+        : optionMarkup;
+      selectEl.dataset.assignmentOptionsAvailable = optionItems.length ? '1' : '0';
+      selectEl.disabled = optionItems.length === 0;
+    }
+
+    function populateAssignmentPoolSelect(selectEl, operators, selectedValues) {
+      if (!(selectEl instanceof HTMLSelectElement)) {
+        return;
+      }
+      const selectedUsernames = new Set(
+        Array.isArray(selectedValues)
+          ? selectedValues.map((value) => String(value || '').trim().toLowerCase()).filter((value) => value)
+          : []
+      );
+      const optionItems = Array.isArray(operators) ? operators : [];
+      selectEl.innerHTML = optionItems.map((operator) => {
+        const username = String(operator?.username || '').trim().toLowerCase();
+        if (!username) {
+          return '';
+        }
+        const selectedAttr = selectedUsernames.has(username) ? ' selected' : '';
+        return `<option value="${escapeHtml(username)}"${selectedAttr}>${escapeHtml(buildAssignmentOperatorLabel(operator))}</option>`;
+      }).join('');
+      selectEl.dataset.assignmentOptionsAvailable = optionItems.length ? '1' : '0';
+      selectEl.disabled = optionItems.length === 0;
+    }
+
+    function populateAssignmentDepartmentSelect(selectEl, departments, selectedValue) {
+      if (!(selectEl instanceof HTMLSelectElement)) {
+        return;
+      }
+      const selectedDepartment = String(selectedValue || '').trim();
+      const optionItems = Array.isArray(departments) ? departments : [];
+      const hasSelectedDepartment = optionItems.some((department) => String(department || '').trim() === selectedDepartment);
+      const optionMarkup = optionItems.map((department) => {
+        const value = String(department || '').trim();
+        if (!value) {
+          return '';
+        }
+        const selectedAttr = value === selectedDepartment ? ' selected' : '';
+        return `<option value="${escapeHtml(value)}"${selectedAttr}>${escapeHtml(value)}</option>`;
+      }).join('');
+      const placeholderSelected = !hasSelectedDepartment ? ' selected' : '';
+      const placeholderLabel = optionItems.length ? 'Выберите отдел' : 'Отделы не найдены';
+      selectEl.innerHTML = `<option value=""${placeholderSelected}>${escapeHtml(placeholderLabel)}</option>${optionMarkup}`;
+      selectEl.dataset.assignmentOptionsAvailable = optionItems.length ? '1' : '0';
+      selectEl.disabled = optionItems.length === 0;
+    }
+
+    function toggleAssignmentField(blockEl, inputEl, visible) {
+      if (blockEl) {
+        blockEl.classList.toggle('d-none', !visible);
+      }
+      if (inputEl instanceof HTMLElement) {
+        const hasOptions = !(inputEl instanceof HTMLSelectElement) || inputEl.dataset.assignmentOptionsAvailable !== '0';
+        inputEl.toggleAttribute('disabled', !visible || !hasOptions);
+      }
+    }
+
+    function updateChannelAssignmentRoutingState() {
+      const mode = String(elements.channelEditorAssignmentModeInput?.value || 'disabled').trim().toLowerCase();
+      const normalizedMode = ['single_operator', 'operator_pool', 'department_queue'].includes(mode)
+        ? mode
+        : 'disabled';
+      const usesStrategy = normalizedMode === 'operator_pool' || normalizedMode === 'department_queue';
+      const usesSingleOperator = normalizedMode === 'single_operator';
+      const usesOperatorPool = normalizedMode === 'operator_pool';
+      const usesDepartment = normalizedMode === 'department_queue';
+
+      toggleAssignmentField(
+        elements.channelEditorAssignmentStrategyBlock,
+        elements.channelEditorAssignmentStrategyInput,
+        usesStrategy,
+      );
+      toggleAssignmentField(
+        elements.channelEditorAssignmentSingleOperatorBlock,
+        elements.channelEditorAssignmentSingleOperatorInput,
+        usesSingleOperator,
+      );
+      toggleAssignmentField(
+        elements.channelEditorAssignmentPoolOperatorsBlock,
+        elements.channelEditorAssignmentPoolOperatorsInput,
+        usesOperatorPool,
+      );
+      toggleAssignmentField(
+        elements.channelEditorAssignmentDepartmentBlock,
+        elements.channelEditorAssignmentDepartmentInput,
+        usesDepartment,
+      );
+
+      if (elements.channelEditorAssignmentAssignResponsibleInput) {
+        elements.channelEditorAssignmentAssignResponsibleInput.disabled = normalizedMode === 'disabled';
+        if (normalizedMode === 'disabled') {
+          elements.channelEditorAssignmentAssignResponsibleInput.checked = false;
+        }
+      }
+    }
+
     function populateChannelEditorShell(channel) {
       const editorState = getChannelEditorState();
       if (elements.channelEditorNameInput) {
@@ -265,8 +439,12 @@
       const deliverySettings = parseDeliverySettings(channel.delivery_settings);
       const workingHours = normalizeChannelWorkingHours(deliverySettings.working_hours);
       const panelNotifications = channel.questions_cfg?.panelNotifications || defaultChannelPanelNotifications();
+      const assignmentRouting = channel.questions_cfg?.assignmentRouting || defaultChannelAssignmentRouting();
       const panelRouting = panelNotifications.routing || defaultChannelPanelNotifications().routing;
       const panelEvents = panelNotifications.events || defaultChannelPanelNotifications().events;
+      const assignmentCatalog = getChannelAssignmentRoutingCatalog();
+      const assignmentOperators = Array.isArray(assignmentCatalog.operators) ? assignmentCatalog.operators : [];
+      const assignmentDepartments = Array.isArray(assignmentCatalog.departments) ? assignmentCatalog.departments : [];
       if (elements.channelEditorSupportChatInput) {
         elements.channelEditorSupportChatInput.value = supportChatValue;
       }
@@ -295,6 +473,35 @@
           ? panelRouting.excludeUsernames.join(', ')
           : '';
       }
+      populateAssignmentOperatorSelect(
+        elements.channelEditorAssignmentSingleOperatorInput,
+        assignmentOperators,
+        assignmentRouting.operatorUsername || '',
+        { includePlaceholder: true, placeholderLabel: 'Выберите оператора' },
+      );
+      populateAssignmentPoolSelect(
+        elements.channelEditorAssignmentPoolOperatorsInput,
+        assignmentOperators,
+        assignmentRouting.operatorUsernames || [],
+      );
+      populateAssignmentDepartmentSelect(
+        elements.channelEditorAssignmentDepartmentInput,
+        assignmentDepartments,
+        assignmentRouting.department || '',
+      );
+      if (elements.channelEditorAssignmentModeInput) {
+        elements.channelEditorAssignmentModeInput.value = assignmentRouting.enabled
+          ? (assignmentRouting.mode || 'disabled')
+          : 'disabled';
+      }
+      if (elements.channelEditorAssignmentStrategyInput) {
+        elements.channelEditorAssignmentStrategyInput.value = assignmentRouting.strategy || 'round_robin';
+      }
+      if (elements.channelEditorAssignmentAssignResponsibleInput) {
+        elements.channelEditorAssignmentAssignResponsibleInput.checked = Boolean(
+          assignmentRouting.enabled && assignmentRouting.assignResponsibleOnCreate
+        );
+      }
       if (elements.channelEditorWorkingHoursStartInput) {
         elements.channelEditorWorkingHoursStartInput.value = String(workingHours.start_hour);
       }
@@ -302,6 +509,7 @@
         elements.channelEditorWorkingHoursEndInput.value = String(workingHours.end_hour);
       }
       updateChannelPanelNotificationRoutingState();
+      updateChannelAssignmentRoutingState();
       if (elements.channelEditorScheduleToGroupInput) {
         elements.channelEditorScheduleToGroupInput.checked = Boolean(deliverySettings.schedule_to_group ?? true);
       }
@@ -443,6 +651,7 @@
       configureChannelEditorSelect,
       updateSupportChatHint,
       updateChannelPanelNotificationRoutingState,
+      updateChannelAssignmentRoutingState,
       populateChannelEditorShell,
       refreshChannelEditorIfOpen,
       prepareChannelEditorSettingsTrigger,

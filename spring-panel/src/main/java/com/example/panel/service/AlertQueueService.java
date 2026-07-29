@@ -32,13 +32,16 @@ public class AlertQueueService {
     private final JdbcTemplate usersJdbcTemplate;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
+    private final ChannelAssignmentRoutingService channelAssignmentRoutingService;
 
     public AlertQueueService(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                              NotificationService notificationService,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             ChannelAssignmentRoutingService channelAssignmentRoutingService) {
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.notificationService = notificationService;
         this.objectMapper = objectMapper;
+        this.channelAssignmentRoutingService = channelAssignmentRoutingService;
     }
 
     public boolean notifyQueueForNewPublicAppeal(Channel channel, String ticketId, String previewText) {
@@ -48,7 +51,7 @@ public class AlertQueueService {
         String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
         String text = "Новое обращение (" + channelLabel + "): " + trimPreview(previewText);
         String url = notificationService.buildDialogUrl(ticketId);
-        return notifyChannelEvent(channel, AlertEvent.NEW_PUBLIC_APPEAL, text, url);
+        return notifyChannelEvent(channel, AlertEvent.NEW_PUBLIC_APPEAL, ticketId, text, url);
     }
 
     public boolean notifyFirstResponseOverdue(Channel channel, String ticketId, long overdueMinutes) {
@@ -60,7 +63,7 @@ public class AlertQueueService {
                 ? " Просрочка: " + overdueMinutes + " мин."
                 : "";
         String text = "Первая реакция просрочена (" + channelLabel + ") в обращении " + ticketId + "." + overdueLabel;
-        return notifyChannelEvent(channel, AlertEvent.FIRST_RESPONSE_OVERDUE, text, notificationService.buildDialogUrl(ticketId));
+        return notifyChannelEvent(channel, AlertEvent.FIRST_RESPONSE_OVERDUE, ticketId, text, notificationService.buildDialogUrl(ticketId));
     }
 
     public boolean notifyIncomingClientMessage(Channel channel, String ticketId, String previewText) {
@@ -71,10 +74,20 @@ public class AlertQueueService {
         if (StringUtils.hasText(previewText)) {
             text += ": " + trimPreview(previewText);
         }
-        return notifyChannelEvent(channel, AlertEvent.INCOMING_CLIENT_MESSAGE, text, notificationService.buildDialogUrl(ticketId));
+        return notifyChannelEvent(channel, AlertEvent.INCOMING_CLIENT_MESSAGE, ticketId, text, notificationService.buildDialogUrl(ticketId));
     }
 
-    private boolean notifyChannelEvent(Channel channel, AlertEvent event, String text, String url) {
+    private boolean notifyChannelEvent(Channel channel, AlertEvent event, String ticketId, String text, String url) {
+        ChannelAssignmentRoutingService.ResolvedAssignmentRouting assignmentRouting =
+                channelAssignmentRoutingService.resolve(channel, mapRoutingEvent(event), ticketId);
+        if (assignmentRouting.enabled() && !assignmentRouting.recipients().isEmpty()) {
+            notificationService.notifyUsers(new LinkedHashSet<>(assignmentRouting.recipients()), text, url);
+            log.info("Queued {} '{}' notifications for channel {} via assignmentRouting",
+                    assignmentRouting.recipients().size(),
+                    event.key(),
+                    channel.getId());
+            return true;
+        }
         ResolvedAlertConfig config = parseConfig(channel, event);
         if (!config.enabled()) {
             return false;
@@ -89,6 +102,14 @@ public class AlertQueueService {
                 event.key(),
                 channel.getId());
         return true;
+    }
+
+    private ChannelAssignmentRoutingService.RoutingEvent mapRoutingEvent(AlertEvent event) {
+        return switch (event) {
+            case NEW_PUBLIC_APPEAL -> ChannelAssignmentRoutingService.RoutingEvent.NEW_PUBLIC_APPEAL;
+            case INCOMING_CLIENT_MESSAGE -> ChannelAssignmentRoutingService.RoutingEvent.INCOMING_CLIENT_MESSAGE;
+            case FIRST_RESPONSE_OVERDUE -> ChannelAssignmentRoutingService.RoutingEvent.FIRST_RESPONSE_OVERDUE;
+        };
     }
 
     private String trimPreview(String previewText) {

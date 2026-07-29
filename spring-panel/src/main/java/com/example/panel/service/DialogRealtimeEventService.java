@@ -13,20 +13,26 @@ public class DialogRealtimeEventService {
     private final NotificationService notificationService;
     private final DialogAiAssistantService dialogAiAssistantService;
     private final AlertQueueService alertQueueService;
+    private final ChannelAssignmentRoutingService channelAssignmentRoutingService;
     private final ChannelRepository channelRepository;
+    private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogNotificationService dialogNotificationService;
     private final UiEventStreamService uiEventStreamService;
 
     public DialogRealtimeEventService(NotificationService notificationService,
                                       DialogAiAssistantService dialogAiAssistantService,
                                       AlertQueueService alertQueueService,
+                                      ChannelAssignmentRoutingService channelAssignmentRoutingService,
                                       ChannelRepository channelRepository,
+                                      DialogResponsibilityService dialogResponsibilityService,
                                       DialogNotificationService dialogNotificationService,
                                       UiEventStreamService uiEventStreamService) {
         this.notificationService = notificationService;
         this.dialogAiAssistantService = dialogAiAssistantService;
         this.alertQueueService = alertQueueService;
+        this.channelAssignmentRoutingService = channelAssignmentRoutingService;
         this.channelRepository = channelRepository;
+        this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogNotificationService = dialogNotificationService;
         this.uiEventStreamService = uiEventStreamService;
     }
@@ -37,6 +43,21 @@ public class DialogRealtimeEventService {
             return;
         }
         Channel channel = resolveChannel(channelId);
+        if (channel != null) {
+            ChannelAssignmentRoutingService.ResolvedAssignmentRouting routing =
+                    channelAssignmentRoutingService.resolve(
+                            channel,
+                            ChannelAssignmentRoutingService.RoutingEvent.NEW_PUBLIC_APPEAL,
+                            normalizedTicketId
+                    );
+            if (StringUtils.hasText(routing.assignee())) {
+                dialogResponsibilityService.assignResponsibleIfMissing(
+                        normalizedTicketId,
+                        routing.assignee(),
+                        "channel_assignment_routing"
+                );
+            }
+        }
         boolean handledByQueue = channel != null
                 && alertQueueService.notifyQueueForNewPublicAppeal(channel, normalizedTicketId, previewText);
         if (!handledByQueue) {

@@ -34,6 +34,9 @@ class SettingsPageDataServiceTest {
     @Mock
     private SettingsCatalogService settingsCatalogService;
 
+    @Mock
+    private ChannelAssignmentRoutingService channelAssignmentRoutingService;
+
     @InjectMocks
     private SettingsPageDataService settingsPageDataService;
 
@@ -80,6 +83,11 @@ class SettingsPageDataServiceTest {
         when(locationCatalogService.loadCatalog()).thenReturn(catalog);
         when(locationCatalogService.buildEffectiveLocationsPayload(catalog)).thenReturn(effectiveLocationsPayload);
         when(settingsCatalogService.buildLocationPresets(catalog.tree(), catalog.statuses())).thenReturn(presetDefinitions);
+        when(channelAssignmentRoutingService.loadCatalogPayload()).thenReturn(Map.of(
+                "operators", List.of(Map.of("username", "alice")),
+                "departments", List.of("Support"),
+                "orgStructure", Map.of("nodes", List.of())
+        ));
 
         Map<String, Object> section = settingsPageDataService.loadSection("channels");
 
@@ -87,6 +95,7 @@ class SettingsPageDataServiceTest {
                 .containsEntry("botSettings", botSettingsPayloadNormalizer.normalize(settings.get("bot_settings")))
                 .containsEntry("integrationNetwork", settings.get("integration_network"))
                 .containsEntry("integrationNetworkProfiles", settings.get("integration_network_profiles"))
+                .containsEntry("assignmentRoutingCatalog", channelAssignmentRoutingService.loadCatalogPayload())
                 .containsEntry("botPresetDefinitions", presetDefinitions);
         verify(settingsCatalogService).buildLocationPresets(catalog.tree(), catalog.statuses());
     }

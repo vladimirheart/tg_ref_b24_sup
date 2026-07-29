@@ -13,19 +13,22 @@ public class SettingsPageDataService {
     private final LocationsIikoSyncSettingsService locationsIikoSyncSettingsService;
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final SettingsCatalogService settingsCatalogService;
+    private final ChannelAssignmentRoutingService channelAssignmentRoutingService;
 
     public SettingsPageDataService(SharedConfigService sharedConfigService,
                                    BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
                                    LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
                                    LocationsIikoSyncSettingsService locationsIikoSyncSettingsService,
                                    IikoDepartmentLocationCatalogService locationCatalogService,
-                                   SettingsCatalogService settingsCatalogService) {
+                                   SettingsCatalogService settingsCatalogService,
+                                   ChannelAssignmentRoutingService channelAssignmentRoutingService) {
         this.sharedConfigService = sharedConfigService;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
         this.locationsIikoSyncSettingsService = locationsIikoSyncSettingsService;
         this.locationCatalogService = locationCatalogService;
         this.settingsCatalogService = settingsCatalogService;
+        this.channelAssignmentRoutingService = channelAssignmentRoutingService;
     }
 
     public Map<String, Object> loadSection(String sectionName) {
@@ -45,6 +48,7 @@ public class SettingsPageDataService {
                         "botSettings", botSettingsPayloadNormalizer.normalize(settings.get("bot_settings")),
                         "integrationNetwork", settings.getOrDefault("integration_network", Map.of()),
                         "integrationNetworkProfiles", settings.getOrDefault("integration_network_profiles", List.of()),
+                        "assignmentRoutingCatalog", channelAssignmentRoutingService.loadCatalogPayload(),
                         "botPresetDefinitions",
                         settingsCatalogService.buildLocationPresets(effectiveLocationTree, effectiveLocationStatuses)
                 );

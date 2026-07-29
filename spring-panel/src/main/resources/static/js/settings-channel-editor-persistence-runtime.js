@@ -13,6 +13,10 @@
       channelEditorSupportChatInput: document.getElementById('channelEditorSupportChatId'),
       channelEditorBroadcastChannelInput: document.getElementById('channelEditorBroadcastChannelId'),
       channelEditorPanelNotifTargetModeInput: document.getElementById('channelEditorPanelNotifTargetMode'),
+      channelEditorAssignmentModeInput: document.getElementById('channelEditorAssignmentMode'),
+      channelEditorAssignmentSingleOperatorInput: document.getElementById('channelEditorAssignmentSingleOperator'),
+      channelEditorAssignmentPoolOperatorsInput: document.getElementById('channelEditorAssignmentPoolOperators'),
+      channelEditorAssignmentDepartmentInput: document.getElementById('channelEditorAssignmentDepartment'),
       channelEditorWorkingHoursStartInput: document.getElementById('channelEditorWorkingHoursStart'),
       channelEditorWorkingHoursEndInput: document.getElementById('channelEditorWorkingHoursEnd'),
       channelEditorScheduleToGroupInput: document.getElementById('channelEditorScheduleToGroup'),
@@ -99,6 +103,15 @@
       return error;
     }
 
+    function readMultiSelectValues(selectEl) {
+      if (!(selectEl instanceof HTMLSelectElement) || !selectEl.multiple) {
+        return [];
+      }
+      return Array.from(selectEl.selectedOptions || [])
+        .map((option) => String(option.value || '').trim().toLowerCase())
+        .filter((value) => value);
+    }
+
     function buildChannelSaveBody(id) {
       const channelName = elements.channelEditorNameInput?.value?.trim() || '';
       if (!channelName) {
@@ -124,6 +137,10 @@
       const channelRoute = collectRouteFromInputs('channel');
       const workingHoursStart = Number.parseInt(elements.channelEditorWorkingHoursStartInput?.value || '9', 10);
       const workingHoursEnd = Number.parseInt(elements.channelEditorWorkingHoursEndInput?.value || '18', 10);
+      const assignmentModeRaw = String(elements.channelEditorAssignmentModeInput?.value || 'disabled').trim().toLowerCase();
+      const assignmentMode = ['single_operator', 'operator_pool', 'department_queue'].includes(assignmentModeRaw)
+        ? assignmentModeRaw
+        : 'disabled';
       if (channelRoute.mode === 'profile' && !(channelRoute.profile_ids || []).length) {
         throw createValidationError('Для бота в режиме «Профиль» выберите хотя бы один профиль failover.');
       }
@@ -138,6 +155,16 @@
       }
       if (workingHoursEnd <= workingHoursStart) {
         throw createValidationError('Конец рабочего времени должен быть позже начала.');
+      }
+
+      if (assignmentMode === 'single_operator' && !String(elements.channelEditorAssignmentSingleOperatorInput?.value || '').trim()) {
+        throw createValidationError('Выберите оператора для режима отдельной очереди.');
+      }
+      if (assignmentMode === 'operator_pool' && !readMultiSelectValues(elements.channelEditorAssignmentPoolOperatorsInput).length) {
+        throw createValidationError('Выберите хотя бы одного оператора для пула очереди.');
+      }
+      if (assignmentMode === 'department_queue' && !String(elements.channelEditorAssignmentDepartmentInput?.value || '').trim()) {
+        throw createValidationError('Выберите отдел оргструктуры для очереди обращения.');
       }
 
       const workingHours = normalizeChannelWorkingHours({

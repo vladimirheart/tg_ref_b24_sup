@@ -1,0 +1,36 @@
+# 2026-07-29 17:50:48 - channel assignment routing queue
+
+- Затронутые области:
+  - `spring-panel/src/main/java/com/example/panel/service/ChannelAssignmentRoutingService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/AlertQueueService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/DialogRealtimeEventService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/DialogResponsibilityService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/SettingsPageDataService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/ChannelTransportService.java`
+  - `spring-panel/src/main/resources/templates/settings/index.html`
+  - `spring-panel/src/main/resources/static/js/settings-channel-config-runtime.js`
+  - `spring-panel/src/main/resources/static/js/settings-channels-shell-runtime.js`
+  - `spring-panel/src/main/resources/static/js/settings-channel-editor-shell-runtime.js`
+  - `spring-panel/src/main/resources/static/js/settings-channel-editor-controls-runtime.js`
+  - `spring-panel/src/main/resources/static/js/settings-channel-editor-persistence-runtime.js`
+  - `spring-panel/src/test/java/com/example/panel/service/ChannelAssignmentRoutingServiceTest.java`
+  - `spring-panel/src/test/java/com/example/panel/service/AlertQueueServiceTest.java`
+  - `spring-panel/src/test/java/com/example/panel/service/SettingsPageDataServiceTest.java`
+  - `ai-context/tasks/task-list.md`
+  - `ai-context/tasks/task-details/01-153.md`
+- Пользовательский промпт:
+  - `давай дёрнем теперь другую задачу. у каждого бота нужна возможность настройки, каким операторам или какому отделу из орг.структуры будет назначаться  очередь обращений со всеми вытекающими действиями`
+- Что сделано:
+  - для каждого канала добавлен новый блок `assignmentRouting` в `questions_cfg` с нормализацией, безопасными значениями по умолчанию и поддержкой режимов `disabled`, `single_operator`, `operator_pool`, `department_queue`;
+  - реализован `ChannelAssignmentRoutingService`, который строит каталог операторов/отделов, разрешает получателей очереди и при необходимости выбирает ответственного по стратегиям `round_robin`, `least_loaded`, `hash_by_ticket`;
+  - bot-level routing встроен в создание новых обращений и оповещения: очередь теперь можно направлять на конкретного оператора, пул операторов или отдел, а при включённой опции сразу назначать ответственного;
+  - в settings UI карточки канала добавлен отдельный блок настройки очереди обращений с живыми select-полями, загрузкой каталога из page-data, скрытием нерелевантных полей и валидацией перед сохранением;
+  - обновлены unit-тесты backend-слоя и task-метаданные, задача переведена в статус `🟣`.
+- Проверки:
+  - `node --check spring-panel/src/main/resources/static/js/settings-channel-config-runtime.js`
+  - `node --check spring-panel/src/main/resources/static/js/settings-channels-shell-runtime.js`
+  - `node --check spring-panel/src/main/resources/static/js/settings-channel-editor-shell-runtime.js`
+  - `node --check spring-panel/src/main/resources/static/js/settings-channel-editor-controls-runtime.js`
+  - `node --check spring-panel/src/main/resources/static/js/settings-channel-editor-persistence-runtime.js`
+  - `./mvnw.cmd -q -DskipTests compile` в `spring-panel`
+  - `./mvnw.cmd -q "-Dtest=ChannelAssignmentRoutingServiceTest,AlertQueueServiceTest,SettingsPageDataServiceTest,DialogResponsibilityServiceTest" test` в `spring-panel`

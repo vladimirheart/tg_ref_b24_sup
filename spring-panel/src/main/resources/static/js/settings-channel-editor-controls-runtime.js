@@ -11,6 +11,7 @@
       channelEditorAutoSelect: document.getElementById('channelEditorAutoTemplate'),
       channelEditorSupportChatInput: document.getElementById('channelEditorSupportChatId'),
       channelEditorPanelNotifTargetModeInput: document.getElementById('channelEditorPanelNotifTargetMode'),
+      channelEditorAssignmentModeInput: document.getElementById('channelEditorAssignmentMode'),
       channelEditorTestTargetSelect: document.getElementById('channelEditorTestTarget'),
       channelEditorSendTestBtn: document.getElementById('channelEditorSendTestBtn'),
       channelEditorBotStartBtn: document.getElementById('channelEditorBotStartBtn'),
@@ -43,6 +44,7 @@
       elements.channelEditorAutoSelect?.addEventListener('change', () => options.channelEditorShell?.handleAutoTemplateChange?.());
       elements.channelEditorSupportChatInput?.addEventListener('input', () => options.channelEditorShell?.handleSupportChatInput?.());
       elements.channelEditorPanelNotifTargetModeInput?.addEventListener('change', () => options.channelEditorShell?.updateChannelPanelNotificationRoutingState?.());
+      elements.channelEditorAssignmentModeInput?.addEventListener('change', () => options.channelEditorShell?.updateChannelAssignmentRoutingState?.());
       elements.channelEditorTestTargetSelect?.addEventListener('change', () => options.channelBotRuntime?.updateTestRecipientState?.());
       elements.channelEditorSendTestBtn?.addEventListener('click', () => options.channelBotRuntime?.sendChannelTestMessage?.());
       elements.channelEditorBotStartBtn?.addEventListener('click', () => {

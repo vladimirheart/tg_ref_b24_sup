@@ -29,6 +29,7 @@ class AlertQueueServiceTest {
 
     private JdbcTemplate usersJdbcTemplate;
     private NotificationService notificationService;
+    private ChannelAssignmentRoutingService channelAssignmentRoutingService;
     private AlertQueueService service;
 
     @BeforeEach
@@ -41,7 +42,10 @@ class AlertQueueServiceTest {
             Object raw = invocation.getArgument(0);
             return raw == null ? "/dialogs" : "/dialogs/" + String.valueOf(raw).trim();
         });
-        service = new AlertQueueService(usersJdbcTemplate, notificationService, new ObjectMapper());
+        channelAssignmentRoutingService = mock(ChannelAssignmentRoutingService.class);
+        when(channelAssignmentRoutingService.resolve(any(), any(), any()))
+                .thenReturn(ChannelAssignmentRoutingService.ResolvedAssignmentRouting.disabled());
+        service = new AlertQueueService(usersJdbcTemplate, notificationService, new ObjectMapper(), channelAssignmentRoutingService);
         usersJdbcTemplate.execute("""
                 CREATE TABLE users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,6 +166,38 @@ class AlertQueueServiceTest {
                 .startsWith("Новое обращение (Веб-форма): ")
                 .hasSize("Новое обращение (Веб-форма): ".length() + 143);
         assertThat(textCaptor.getValue()).endsWith("...");
+    }
+
+    @Test
+    void notifyQueueForNewPublicAppealPrefersAssignmentRoutingRecipients() {
+        when(channelAssignmentRoutingService.resolve(any(), any(), any()))
+                .thenReturn(new ChannelAssignmentRoutingService.ResolvedAssignmentRouting(
+                        true,
+                        java.util.List.of("alice", "bob"),
+                        "alice",
+                        "operator_pool",
+                        "round_robin"
+                ));
+
+        boolean notified = service.notifyQueueForNewPublicAppeal(
+                channel("Support Desk", """
+                        {
+                          "assignmentRouting": {
+                            "enabled": true,
+                            "mode": "operator_pool",
+                            "operatorUsernames": ["alice", "bob"]
+                          }
+                        }
+                        """),
+                "T-77",
+                "Новый запрос"
+        );
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Set<String>> recipientsCaptor = ArgumentCaptor.forClass(Set.class);
+        assertThat(notified).isTrue();
+        verify(notificationService).notifyUsers(recipientsCaptor.capture(), any(), org.mockito.ArgumentMatchers.eq("/dialogs/T-77"));
+        assertThat(recipientsCaptor.getValue()).containsExactlyInAnyOrder("alice", "bob");
     }
 
     private Channel channel(String channelName, String questionsCfg) {

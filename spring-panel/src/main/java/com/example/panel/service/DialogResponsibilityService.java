@@ -20,10 +20,15 @@ public class DialogResponsibilityService {
     }
 
     public String assignResponsibleIfMissing(String ticketId, String username) {
+        return assignResponsibleIfMissing(ticketId, username, username);
+    }
+
+    public String assignResponsibleIfMissing(String ticketId, String username, String assignedBy) {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(username)) {
             return loadResponsible(ticketId);
         }
         String normalizedUsername = trimToNull(username);
+        String actor = trimToNull(assignedBy);
         if (normalizedUsername == null || AI_AGENT_USERNAME.equalsIgnoreCase(normalizedUsername)) {
             return loadResponsible(ticketId);
         }
@@ -32,7 +37,7 @@ public class DialogResponsibilityService {
                     "INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) "
                             + "SELECT ?, ?, ? WHERE NOT EXISTS ("
                             + "SELECT 1 FROM ticket_responsibles WHERE ticket_id = ?)",
-                    ticketId, normalizedUsername, normalizedUsername, ticketId
+                    ticketId, normalizedUsername, actor != null ? actor : normalizedUsername, ticketId
             );
         } catch (DataAccessException ex) {
             log.warn("Unable to assign responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));

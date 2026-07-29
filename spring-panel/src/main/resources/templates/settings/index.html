@@ -6649,6 +6649,57 @@
                     <div class="channel-editor-section__head">
                       <div>
                         <h6 class="channel-editor-section__title">
+                          <i class="bi bi-diagram-2" aria-hidden="true"></i>
+                          Очередь обращений
+                        </h6>
+                        <p class="channel-editor-section__hint">Определяет, какая команда сопровождает новые обращения именно у этого бота и нужно ли сразу назначать ответственного.</p>
+                      </div>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorAssignmentMode">Режим очереди</label>
+                        <select class="form-select" id="channelEditorAssignmentMode">
+                          <option value="disabled">Не использовать отдельную очередь</option>
+                          <option value="single_operator">Назначать конкретному оператору</option>
+                          <option value="operator_pool">Распределять между выбранными операторами</option>
+                          <option value="department_queue">Назначать отделу из оргструктуры</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-6 d-none" id="channelEditorAssignmentStrategyBlock">
+                        <label class="form-label" for="channelEditorAssignmentStrategy">Стратегия выбора ответственного</label>
+                        <select class="form-select" id="channelEditorAssignmentStrategy">
+                          <option value="round_robin">Round robin</option>
+                          <option value="least_loaded">Наименее загруженный</option>
+                          <option value="hash_by_ticket">Стабильно по номеру обращения</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-6 d-none" id="channelEditorAssignmentSingleOperatorBlock">
+                        <label class="form-label" for="channelEditorAssignmentSingleOperator">Оператор</label>
+                        <select class="form-select" id="channelEditorAssignmentSingleOperator"></select>
+                      </div>
+                      <div class="col-12 d-none" id="channelEditorAssignmentPoolOperatorsBlock">
+                        <label class="form-label" for="channelEditorAssignmentPoolOperators">Операторы пула</label>
+                        <select class="form-select" id="channelEditorAssignmentPoolOperators" multiple size="6"></select>
+                        <div class="form-text small">Можно выбрать несколько операторов. Для множественного выбора используйте `Ctrl` / `Cmd`.</div>
+                      </div>
+                      <div class="col-12 col-md-6 d-none" id="channelEditorAssignmentDepartmentBlock">
+                        <label class="form-label" for="channelEditorAssignmentDepartment">Отдел оргструктуры</label>
+                        <select class="form-select" id="channelEditorAssignmentDepartment"></select>
+                      </div>
+                      <div class="col-12">
+                        <div class="form-check form-switch mt-1">
+                          <input class="form-check-input" type="checkbox" id="channelEditorAssignmentAssignResponsible" />
+                          <label class="form-check-label" for="channelEditorAssignmentAssignResponsible">Сразу назначать ответственного при создании обращения</label>
+                        </div>
+                        <div class="form-text small">Если переключатель выключен, очередь всё равно получит обращение, но ответственный останется неназначенным до ручного действия оператора.</div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="channel-editor-section channel-editor-section--accent">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
                           <i class="bi bi-bell" aria-hidden="true"></i>
                           Оповещения в панели
                         </h6>

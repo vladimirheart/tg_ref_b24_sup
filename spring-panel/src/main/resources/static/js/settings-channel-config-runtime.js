@@ -19,6 +19,18 @@
     };
   }
 
+  function defaultChannelAssignmentRouting() {
+    return {
+      enabled: false,
+      mode: 'disabled',
+      assignResponsibleOnCreate: false,
+      strategy: 'round_robin',
+      operatorUsername: '',
+      operatorUsernames: [],
+      department: '',
+    };
+  }
+
   function createDefaultQuestionsCfg() {
     return {
       schemaVersion: 1,
@@ -31,6 +43,7 @@
       successInstruction: '',
       responseEtaMinutes: null,
       fields: [],
+      assignmentRouting: defaultChannelAssignmentRouting(),
       panelNotifications: defaultChannelPanelNotifications(),
     };
   }
@@ -114,8 +127,12 @@
 
     const disabledStatusRaw = Number.parseInt(raw.disabledStatus || 404, 10);
     const defaults = defaultChannelPanelNotifications();
+    const assignmentDefaults = defaultChannelAssignmentRouting();
     const legacyAlertQueue = raw.alertQueue && typeof raw.alertQueue === 'object'
       ? raw.alertQueue
+      : {};
+    const assignmentRoutingRaw = raw.assignmentRouting && typeof raw.assignmentRouting === 'object'
+      ? raw.assignmentRouting
       : {};
     const panelNotificationsRaw = raw.panelNotifications && typeof raw.panelNotifications === 'object'
       ? raw.panelNotifications
@@ -135,6 +152,15 @@
     const eventSource = panelNotificationsRaw?.events && typeof panelNotificationsRaw.events === 'object'
       ? panelNotificationsRaw.events
       : {};
+    const assignmentModeRaw = String(assignmentRoutingRaw.mode || '').trim().toLowerCase();
+    const assignmentMode = ['single_operator', 'operator_pool', 'department_queue'].includes(assignmentModeRaw)
+      ? assignmentModeRaw
+      : assignmentDefaults.mode;
+    const assignmentEnabled = Boolean(assignmentRoutingRaw.enabled) && assignmentMode !== 'disabled';
+    const assignmentStrategyRaw = String(assignmentRoutingRaw.strategy || '').trim().toLowerCase();
+    const assignmentStrategy = ['least_loaded', 'hash_by_ticket'].includes(assignmentStrategyRaw)
+      ? assignmentStrategyRaw
+      : assignmentDefaults.strategy;
 
     return {
       schemaVersion: Number.parseInt(raw.schemaVersion || 1, 10) || 1,
@@ -153,6 +179,17 @@
         ? Math.max(0, Math.min(10080, Number.parseInt(raw.responseEtaMinutes, 10)))
         : null,
       fields: Array.isArray(raw.fields) ? raw.fields : [],
+      assignmentRouting: {
+        enabled: assignmentEnabled,
+        mode: assignmentEnabled ? assignmentMode : 'disabled',
+        assignResponsibleOnCreate: assignmentEnabled
+          ? Boolean(assignmentRoutingRaw.assignResponsibleOnCreate)
+          : false,
+        strategy: assignmentStrategy,
+        operatorUsername: String(assignmentRoutingRaw.operatorUsername || '').trim().toLowerCase(),
+        operatorUsernames: parseChannelNotificationList(assignmentRoutingRaw.operatorUsernames),
+        department: String(assignmentRoutingRaw.department || '').trim(),
+      },
       panelNotifications: {
         routing: {
           department: String(routingSource.department || legacyAlertQueue.department || '').trim(),
@@ -175,6 +212,7 @@
 
   function createRuntime() {
     return {
+      defaultChannelAssignmentRouting,
       defaultChannelPanelNotifications,
       parseChannelNotificationList,
       serializeChannelNotificationList,
