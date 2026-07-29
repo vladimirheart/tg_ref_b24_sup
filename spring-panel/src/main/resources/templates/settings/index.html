@@ -1999,9 +1999,29 @@
       min-height: 10.5rem;
       resize: vertical;
     }
+    .bot-question-card .bot-question-route-surface {
+      min-height: auto;
+    }
+    .bot-question-card .bot-question-route-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.75rem;
+    }
+    .bot-question-card .bot-question-route-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(25, 135, 84, 0.12);
+      background: rgba(255, 255, 255, 0.72);
+    }
     @media (max-width: 991.98px) {
       .bot-question-card .bot-question-surface {
         min-height: auto;
+      }
+      .bot-question-card .bot-question-route-grid {
+        grid-template-columns: 1fr;
       }
     }
     .bot-question-dependencies {

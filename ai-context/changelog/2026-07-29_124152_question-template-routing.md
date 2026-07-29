@@ -1,0 +1,27 @@
+# 2026-07-29 12:41:52 - question template routing
+
+- Затронутые области:
+  - `java-bot/bot-core/src/main/java/com/example/supportbot/settings/BotSettingsService.java`
+  - `java-bot/bot-core/src/main/java/com/example/supportbot/settings/dto/QuestionFlowItemDto.java`
+  - `java-bot/bot-core/src/main/java/com/example/supportbot/settings/dto/QuestionRouteDto.java`
+  - `java-bot/bot-core/src/test/java/com/example/supportbot/settings/BotSettingsServiceTest.java`
+  - `java-bot/bot-telegram/src/main/java/com/example/supportbot/telegram/SupportBot.java`
+  - `java-bot/bot-vk/src/main/java/com/example/supportbot/vk/VkSupportBot.java`
+  - `java-bot/bot-max/src/main/java/com/example/supportbot/max/MaxWebhookController.java`
+  - `spring-panel/src/main/resources/static/js/bot-settings.js`
+  - `spring-panel/src/main/resources/templates/settings/index.html`
+  - `ai-context/tasks/task-details/01-152.md`
+- Пользовательский промпт:
+  - `вот есть классная штука с выбором вопросов и обязательностью ответа по заданным вариантам. но нет возможности сделать сопоставление - нет настройки маршрута вопросов-ответов. например выбрал один вариант ответа в первом или втором вопросе, и далее долден быть маршрут в зависимости от выбора`
+- Что сделано:
+  - добавлен новый контракт маршрутизации `routes[value_id -> next_question_id]` для вопросов с вариантами ответа;
+  - в `BotSettingsService` добавлена санитизация маршрутов с фильтрацией только допустимых вариантов и только переходов вперёд по сценарию, включая специальную цель `problem`;
+  - runtime Telegram/VK/MAX переведён на историю посещённых шагов, чтобы ветвление и возврат `Назад` работали корректно;
+  - в редакторе шаблонов вопросов добавлен UI-блок маршрутизации по вариантам ответа с переходом к следующему вопросу по порядку, к выбранному следующему вопросу или сразу к финальному шагу `Опишите проблему`;
+  - обновлена раскладка карточки вопроса под новый блок маршрутов без визуального перекоса, а редактирование вариантов ответа теперь очищает невалидные переходы;
+  - добавлен unit-тест на санитизацию forward-only маршрутов.
+- Проверки:
+  - `node --check spring-panel/src/main/resources/static/js/bot-settings.js` — success
+  - `.\mvnw.cmd -q -DskipTests compile` в `java-bot` — success
+  - `.\mvnw.cmd -q -DskipTests compile` в `spring-panel` — success
+  - `.\mvnw.cmd -q -pl bot-core -Dtest=BotSettingsServiceTest test` в `java-bot` — success

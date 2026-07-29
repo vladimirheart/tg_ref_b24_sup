@@ -654,6 +654,7 @@ public class BotSettingsService {
             Map<PresetKey, Map<String, Object>> lookup
     ) {
         List<Map<String, Object>> sanitized = new ArrayList<>();
+        List<Object> pendingRoutes = new ArrayList<>();
         if (!(rawFlow instanceof Iterable<?>) || rawFlow instanceof String) {
             return sanitized;
         }
@@ -676,6 +677,7 @@ public class BotSettingsService {
                 boolean required = resolveRequiredFlag(map.get("required"));
                 String bindingKey = sanitizeBindingKey(map.get("binding_key"));
                 boolean includeInDashboard = resolveOptionalFlag(map.get("include_in_dashboard"));
+                Object routesSource = map.get("routes");
                 entry = new LinkedHashMap<>();
                 entry.put("id", id);
                 entry.put("type", type);
@@ -723,6 +725,7 @@ public class BotSettingsService {
                         entry.put("include_in_dashboard", true);
                     }
                     sanitized.add(entry);
+                    pendingRoutes.add(routesSource);
                     order += 1;
                 }
             } else if (item instanceof String str && !str.isBlank()) {
@@ -733,10 +736,48 @@ public class BotSettingsService {
                 entry.put("text", str.trim());
                 entry.put("required", true);
                 sanitized.add(entry);
+                pendingRoutes.add(null);
                 order += 1;
             }
         }
+        applyQuestionRoutes(sanitized, pendingRoutes, lookup);
         return sanitized;
+    }
+
+    private void applyQuestionRoutes(
+            List<Map<String, Object>> sanitized,
+            List<Object> pendingRoutes,
+            Map<PresetKey, Map<String, Object>> lookup
+    ) {
+        if (sanitized.isEmpty()) {
+            return;
+        }
+        Map<String, Integer> orderByQuestionId = new LinkedHashMap<>();
+        for (Map<String, Object> entry : sanitized) {
+            String questionId = optionalString(entry.get("id"));
+            if (questionId.isBlank()) {
+                continue;
+            }
+            orderByQuestionId.put(questionId, asPositiveInt(entry.get("order"), 0));
+        }
+        orderByQuestionId.put("problem", sanitized.size() + 1);
+        for (int i = 0; i < sanitized.size(); i++) {
+            Map<String, Object> entry = sanitized.get(i);
+            Object rawRoutes = i < pendingRoutes.size() ? pendingRoutes.get(i) : null;
+            List<String> allowedValueIds = resolveRouteValueIds(entry, lookup);
+            if (allowedValueIds.isEmpty()) {
+                continue;
+            }
+            List<Map<String, Object>> routes = sanitizeQuestionRoutes(
+                    rawRoutes,
+                    optionalString(entry.get("id")),
+                    asPositiveInt(entry.get("order"), i + 1),
+                    allowedValueIds,
+                    orderByQuestionId);
+            if (!routes.isEmpty()) {
+                entry.put("routes", routes);
+            }
+        }
     }
 
     private List<Map<String, Object>> sanitizeQuestionOptions(Object rawOptions, String questionId) {
@@ -771,6 +812,131 @@ public class BotSettingsService {
             index += 1;
         }
         return sanitized;
+    }
+
+    private List<Map<String, Object>> sanitizeQuestionRoutes(
+            Object rawRoutes,
+            String questionId,
+            int currentOrder,
+            List<String> allowedValueIds,
+            Map<String, Integer> orderByQuestionId
+    ) {
+        if (!(rawRoutes instanceof Iterable<?>) || rawRoutes instanceof String || questionId.isBlank() || allowedValueIds.isEmpty()) {
+            return List.of();
+        }
+        Set<String> allowed = new LinkedHashSet<>(allowedValueIds);
+        Map<String, String> resolved = new LinkedHashMap<>();
+        for (Object rawRoute : (Iterable<?>) rawRoutes) {
+            if (!(rawRoute instanceof Map<?, ?> map)) {
+                continue;
+            }
+            String valueId = optionalString(map.get("value_id"));
+            if (valueId.isBlank()) {
+                valueId = optionalString(map.get("option_id"));
+            }
+            if (valueId.isBlank()) {
+                valueId = optionalString(map.get("value"));
+            }
+            if (valueId.isBlank()) {
+                continue;
+            }
+            String nextQuestionId = optionalString(map.get("next_question_id"));
+            if (nextQuestionId.isBlank()) {
+                nextQuestionId = optionalString(map.get("target_question_id"));
+            }
+            if (nextQuestionId.isBlank()) {
+                nextQuestionId = optionalString(map.get("target"));
+            }
+            if (nextQuestionId.isBlank() || !allowed.contains(valueId)) {
+                continue;
+            }
+            if (!"problem".equals(nextQuestionId)) {
+                Integer targetOrder = orderByQuestionId.get(nextQuestionId);
+                if (targetOrder == null || targetOrder <= currentOrder) {
+                    continue;
+                }
+            }
+            resolved.put(valueId, nextQuestionId);
+        }
+        if (resolved.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> routes = new ArrayList<>();
+        for (String valueId : allowedValueIds) {
+            String nextQuestionId = resolved.get(valueId);
+            if (nextQuestionId == null || nextQuestionId.isBlank()) {
+                continue;
+            }
+            routes.add(new LinkedHashMap<>(Map.of(
+                    "value_id", valueId,
+                    "next_question_id", nextQuestionId
+            )));
+        }
+        return routes;
+    }
+
+    private List<String> resolveRouteValueIds(
+            Map<String, Object> entry,
+            Map<PresetKey, Map<String, Object>> lookup
+    ) {
+        String type = optionalString(entry.get("type")).toLowerCase(Locale.ROOT);
+        if ("select".equals(type)) {
+            List<String> valueIds = new ArrayList<>();
+            for (Map<String, Object> option : castList(entry.get("options"))) {
+                String optionId = optionalString(option.get("id"));
+                if (!optionId.isBlank()) {
+                    valueIds.add(optionId);
+                }
+            }
+            return valueIds;
+        }
+        if (!"preset".equals(type)) {
+            return List.of();
+        }
+        Map<String, Object> preset = convertToMap(entry.get("preset"));
+        String group = optionalString(preset.get("group"));
+        String field = optionalString(preset.get("field"));
+        if (group.isBlank() || field.isBlank()) {
+            return List.of();
+        }
+        Map<String, Object> meta = lookup.getOrDefault(new PresetKey(group, field), Collections.emptyMap());
+        Object optionsRaw = meta.get("options");
+        if (!(optionsRaw instanceof Iterable<?>) || optionsRaw instanceof String) {
+            return List.of();
+        }
+        Set<String> excluded = new LinkedHashSet<>();
+        Object excludedRaw = entry.get("excluded_options");
+        if (excludedRaw instanceof Iterable<?> iterable && !(excludedRaw instanceof String)) {
+            for (Object option : iterable) {
+                String value = optionalString(option);
+                if (!value.isBlank()) {
+                    excluded.add(value);
+                }
+            }
+        }
+        List<String> valueIds = new ArrayList<>();
+        for (Object option : (Iterable<?>) optionsRaw) {
+            String value = optionalString(option);
+            if (!value.isBlank() && !excluded.contains(value)) {
+                valueIds.add(value);
+            }
+        }
+        return valueIds;
+    }
+
+    private int asPositiveInt(Object rawValue, int defaultValue) {
+        if (rawValue instanceof Number number) {
+            return number.intValue();
+        }
+        String stringValue = optionalString(rawValue);
+        if (stringValue.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(stringValue);
+        } catch (NumberFormatException ignored) {
+            return defaultValue;
+        }
     }
 
     private List<String> sanitizeExcludedOptions(Object primary, Object alternative, Map<String, Object> meta) {

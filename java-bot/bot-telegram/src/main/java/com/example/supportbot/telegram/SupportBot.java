@@ -16,6 +16,7 @@ import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.example.supportbot.settings.dto.QuestionOptionDto;
+import com.example.supportbot.settings.dto.QuestionRouteDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1965,6 +1966,8 @@ public class SupportBot extends TelegramLongPollingBot {
         private final Map<String, String> answers;
         private final List<Path> attachments;
         private final List<HistoryEvent> historyEvents;
+        private final List<Integer> visitedQuestionIndexes;
+        private final Map<String, Integer> questionIndexes;
         private final OffsetDateTime startedAt;
         private Map<String, String> cachedAnswers;
         private boolean reuseDecisionPending;
@@ -1978,6 +1981,8 @@ public class SupportBot extends TelegramLongPollingBot {
             this.answers = new LinkedHashMap<>();
             this.attachments = new ArrayList<>();
             this.historyEvents = new ArrayList<>();
+            this.visitedQuestionIndexes = new ArrayList<>();
+            this.questionIndexes = indexQuestions(flow);
             this.startedAt = OffsetDateTime.now();
             this.cachedAnswers = new LinkedHashMap<>();
             this.reuseDecisionPending = false;
@@ -2004,7 +2009,9 @@ public class SupportBot extends TelegramLongPollingBot {
             if (answerKey != null) {
                 answers.put(answerKey, resolvedAnswer);
             }
-            currentIndex += 1;
+            int answeredIndex = currentIndex;
+            visitedQuestionIndexes.add(answeredIndex);
+            currentIndex = resolveNextQuestionIndex(answeredIndex, current, resolvedAnswer);
             addHistoryEvent(message, "text", null, null);
         }
 
@@ -2013,19 +2020,20 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         boolean isLastQuestion() {
-            return currentIndex == flow.size() - 1;
+            QuestionFlowItemDto current = currentQuestion();
+            return current != null && resolveNextQuestionIndex(currentIndex, current, "") >= flow.size();
         }
 
         boolean canGoBack() {
-            return currentIndex > 0;
+            return !visitedQuestionIndexes.isEmpty();
         }
 
         boolean stepBack() {
-            if (currentIndex <= 0) {
+            if (visitedQuestionIndexes.isEmpty()) {
                 return false;
             }
-            currentIndex -= 1;
-            QuestionFlowItemDto previous = flow.get(currentIndex);
+            currentIndex = visitedQuestionIndexes.remove(visitedQuestionIndexes.size() - 1);
+            QuestionFlowItemDto previous = currentQuestion();
             String answerKey = answerKeyFor(previous);
             if (answerKey != null) {
                 answers.remove(answerKey);
@@ -2131,17 +2139,27 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         private void applyCachedAnswers() {
-            for (int i = 0; i < flow.size(); i++) {
-                QuestionFlowItemDto item = flow.get(i);
+            answers.clear();
+            visitedQuestionIndexes.clear();
+            int index = 0;
+            while (index < flow.size()) {
+                QuestionFlowItemDto item = flow.get(index);
                 String answerKey = answerKeyFor(item);
-                if (answerKey != null && cachedAnswers.containsKey(answerKey)) {
-                    answers.put(answerKey, cachedAnswers.get(answerKey));
-                    currentIndex = i + 1;
-                } else {
-                    currentIndex = i;
-                    break;
+                if (answerKey == null || !cachedAnswers.containsKey(answerKey)) {
+                    currentIndex = index;
+                    return;
                 }
+                String answer = cachedAnswers.get(answerKey);
+                answers.put(answerKey, answer);
+                visitedQuestionIndexes.add(index);
+                int nextIndex = resolveNextQuestionIndex(index, item, answer);
+                if (nextIndex <= index) {
+                    currentIndex = index + 1;
+                    return;
+                }
+                index = nextIndex;
             }
+            currentIndex = flow.size();
         }
 
         String reusePrompt() {
@@ -2227,6 +2245,55 @@ public class SupportBot extends TelegramLongPollingBot {
                 }
             }
             return isPresetQuestion(item) ? answer : null;
+        }
+
+        private Map<String, Integer> indexQuestions(List<QuestionFlowItemDto> questions) {
+            Map<String, Integer> indexes = new LinkedHashMap<>();
+            for (int i = 0; i < questions.size(); i++) {
+                QuestionFlowItemDto item = questions.get(i);
+                if (item == null || item.getId() == null || item.getId().isBlank()) {
+                    continue;
+                }
+                indexes.put(item.getId(), i);
+            }
+            return indexes;
+        }
+
+        private int resolveNextQuestionIndex(int sourceIndex, QuestionFlowItemDto current, String answer) {
+            int sequentialIndex = sourceIndex + 1;
+            if (current == null) {
+                return sequentialIndex;
+            }
+            String routeTargetId = resolveRouteTargetId(current, answer);
+            if (routeTargetId == null || routeTargetId.isBlank()) {
+                return sequentialIndex;
+            }
+            Integer routedIndex = questionIndexes.get(routeTargetId);
+            if (routedIndex == null || routedIndex <= sourceIndex) {
+                return sequentialIndex;
+            }
+            return routedIndex;
+        }
+
+        private String resolveRouteTargetId(QuestionFlowItemDto item, String answer) {
+            List<QuestionRouteDto> routes = item != null ? item.getRoutes() : null;
+            if (routes == null || routes.isEmpty()) {
+                return null;
+            }
+            String valueId = resolveValueId(item, answer);
+            if (valueId == null || valueId.isBlank()) {
+                return null;
+            }
+            for (QuestionRouteDto route : routes) {
+                if (route == null) {
+                    continue;
+                }
+                String routeValueId = Optional.ofNullable(route.getValueId()).orElse("").trim();
+                if (routeValueId.equals(valueId.trim())) {
+                    return Optional.ofNullable(route.getNextQuestionId()).orElse("").trim();
+                }
+            }
+            return null;
         }
     }
 

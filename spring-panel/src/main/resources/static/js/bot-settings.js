@@ -117,6 +117,7 @@
   const PRESET_GROUPS = {};
   let presetDefinitionsLoadingPromise = null;
   let botSettingsLoadingPromise = null;
+  const QUESTION_ROUTE_PROBLEM_ID = 'problem';
 
   function applyPresetDefinitions(rawDefinitions) {
     Object.keys(PRESET_GROUPS).forEach((groupKey) => {
@@ -574,6 +575,125 @@
     return [];
   }
 
+  function cloneQuestionRoutes(rawRoutes) {
+    if (!Array.isArray(rawRoutes)) {
+      return [];
+    }
+    return rawRoutes
+      .map((route) => {
+        if (!route || typeof route !== 'object') {
+          return null;
+        }
+        const valueId = typeof route.value_id === 'string'
+          ? route.value_id.trim()
+          : (typeof route.valueId === 'string' ? route.valueId.trim() : '');
+        const nextQuestionId = typeof route.next_question_id === 'string'
+          ? route.next_question_id.trim()
+          : (typeof route.nextQuestionId === 'string' ? route.nextQuestionId.trim() : '');
+        if (!valueId || !nextQuestionId) {
+          return null;
+        }
+        return { valueId, nextQuestionId };
+      })
+      .filter((route) => route && route.valueId && route.nextQuestionId);
+  }
+
+  function resolveQuestionRouteChoices(question, meta) {
+    if (!question) {
+      return [];
+    }
+    if (question.type === 'select') {
+      return normalizeEditableQuestionOptions(question.options).map((option) => ({
+        id: option.id,
+        label: option.label,
+      }));
+    }
+    if (question.type === 'preset') {
+      const excluded = new Set(
+        Array.isArray(question.excludedOptions)
+          ? question.excludedOptions
+            .map((value) => (typeof value === 'string' ? value.trim() : ''))
+            .filter((value) => value)
+          : [],
+      );
+      return Array.isArray(meta && meta.options)
+        ? meta.options
+            .map((value) => (typeof value === 'string' ? value.trim() : ''))
+            .filter((value) => value && !excluded.has(value))
+            .map((value) => ({ id: value, label: value }))
+        : [];
+    }
+    return [];
+  }
+
+  function resolveQuestionRouteTargets(questionIndex) {
+    const targets = [];
+    for (let i = questionIndex + 1; i < editorState.questionFlow.length; i += 1) {
+      const candidate = editorState.questionFlow[i];
+      if (!candidate || !candidate.id) {
+        continue;
+      }
+      const title = String(candidate.text || '').trim() || `Вопрос ${i + 1}`;
+      targets.push({
+        id: candidate.id,
+        label: `${i + 1}. ${title}`,
+      });
+    }
+    targets.push({
+      id: QUESTION_ROUTE_PROBLEM_ID,
+      label: 'Финальный шаг: "Опишите проблему"',
+    });
+    return targets;
+  }
+
+  function sanitizeQuestionRoutes(question, questionIndex, meta) {
+    if (!question || (question.type !== 'select' && question.type !== 'preset')) {
+      return [];
+    }
+    const choiceIds = new Set(resolveQuestionRouteChoices(question, meta).map((option) => option.id));
+    if (!choiceIds.size) {
+      return [];
+    }
+    const targetIds = new Set(resolveQuestionRouteTargets(questionIndex).map((target) => target.id));
+    return cloneQuestionRoutes(question.routes)
+      .filter((route) => choiceIds.has(route.valueId) && targetIds.has(route.nextQuestionId));
+  }
+
+  function buildQuestionRouteControls(question, questionIndex, meta) {
+    const routeChoices = resolveQuestionRouteChoices(question, meta);
+    if (!routeChoices.length) {
+      return '';
+    }
+    const targetChoices = resolveQuestionRouteTargets(questionIndex);
+    const targetOptions = ['<option value="">По порядку</option>']
+      .concat(targetChoices.map((target) => `<option value="${html(target.id)}">${html(target.label)}</option>`))
+      .join('');
+    const rows = routeChoices.map((option) => `
+      <div class="bot-question-route-row">
+        <div class="small fw-semibold">${html(option.label)}</div>
+        <select class="form-select form-select-sm" data-bot-question-route-target="${html(option.id)}">
+          ${targetOptions}
+        </select>
+      </div>
+    `).join('');
+    return `
+      <div class="row g-3 mt-1 align-items-stretch bot-question-route-rowset">
+        <div class="col-12">
+          <div class="border rounded-3 bg-light p-3 bot-question-surface bot-question-info-surface bot-question-route-surface">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+              <div class="small text-uppercase text-muted fw-semibold">Маршрутизация</div>
+              <div class="small text-muted">Если маршрут не задан, бот задаст следующий вопрос по порядку.</div>
+            </div>
+            <div class="bot-question-route-grid">
+              ${rows}
+            </div>
+            <div class="form-text mt-2 mb-0">Можно отправить клиента сразу к следующему релевантному вопросу или сразу к финальному описанию проблемы.</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function escapeSelectorValue(value) {
     const stringValue = value == null ? '' : String(value);
     if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
@@ -616,6 +736,12 @@
     }
     if (activeElement.matches('[data-bot-question-dashboard]')) {
       return { selector: '[data-bot-question-dashboard]' };
+    }
+    if (activeElement.matches('[data-bot-question-route-target]')) {
+      const routeValueId = activeElement.dataset.botQuestionRouteTarget || '';
+      return routeValueId
+        ? { selector: `[data-bot-question-route-target="${escapeSelectorValue(routeValueId)}"]` }
+        : { selector: '[data-bot-question-route-target]' };
     }
     if (activeElement.matches('[data-bot-question-filter]')) {
       const filterKey = activeElement.dataset.botQuestionFilter || '';
@@ -769,6 +895,9 @@
       const questionNumber = i + 1;
       const bindingKey = resolveQuestionBindingKey(question);
       const includeInDashboard = Boolean(question.includeInDashboard || question.include_in_dashboard);
+      const meta = question.type === 'preset' && question.preset
+        ? getPresetMeta(question.preset.group, question.preset.field)
+        : null;
       if (question.type === 'preset') {
         if (!question.preset || !question.preset.group || !question.preset.field) {
           return `Выберите готовое поле для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''}.`;
@@ -787,6 +916,10 @@
             return `Варианты ответа для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''} должны быть уникальными.`;
           }
         }
+      }
+      const normalizedRoutes = sanitizeQuestionRoutes(question, i, meta);
+      if (Array.isArray(question.routes) && normalizedRoutes.length !== cloneQuestionRoutes(question.routes).length) {
+        return `Проверьте маршруты для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''}: часть переходов указывает на недоступные варианты или вопросы выше по сценарию.`;
       }
       if (includeInDashboard && !bindingKey) {
         return `Для вопроса №${questionNumber}${templateName ? ` в шаблоне "${templateName}"` : ''} заполните ключ атрибута латиницей, если он должен попадать в дашборд.`;
@@ -850,6 +983,7 @@
     const filterState = question && typeof question.filterState === 'object'
       ? Object.assign({}, question.filterState)
       : {};
+    const routes = cloneQuestionRoutes(question && question.routes);
     return {
       id,
       type: question && (question.type === 'preset' || question.type === 'select') ? question.type : 'custom',
@@ -864,6 +998,7 @@
         ? question.bindingKey
         : (question && typeof question.binding_key === 'string' ? question.binding_key : ''),
       includeInDashboard: Boolean(question && (question.includeInDashboard || question.include_in_dashboard)),
+      routes,
       required: question && question.type === 'preset'
         ? true
         : normalizeQuestionRequired(question && question.required, true),
@@ -982,6 +1117,7 @@
         excludedOptions: [],
         bindingKey: '',
         includeInDashboard: false,
+        routes: [],
         required: true,
       };
     }
@@ -1033,6 +1169,7 @@
         ? source.binding_key.trim()
         : (typeof source.bindingKey === 'string' ? source.bindingKey.trim() : ''),
       includeInDashboard: Boolean(source.include_in_dashboard || source.includeInDashboard),
+      routes: cloneQuestionRoutes(source.routes),
       required: type === 'preset' ? true : normalizeQuestionRequired(source.required, true),
     };
   }
@@ -2161,6 +2298,7 @@
               ${optionsHtml}
             </div>
           </div>
+          ${(isSelect || isPreset) ? buildQuestionRouteControls(question, index, meta) : ''}
           <div class="mt-3" data-bot-question-preview-wrapper>
             <div class="bot-question-preview alert alert-light border mb-0" data-bot-question-preview>
               <div class="small text-uppercase text-muted fw-semibold mb-2">Как увидит клиент</div>
@@ -2210,6 +2348,12 @@
         `;
         answerWrapper.insertAdjacentElement('afterend', analyticsRow);
       }
+      sanitizeQuestionRoutes(question, index, meta).forEach((route) => {
+        const routeSelect = card.querySelector(`[data-bot-question-route-target="${escapeSelectorValue(route.valueId)}"]`);
+        if (routeSelect instanceof HTMLSelectElement) {
+          routeSelect.value = route.nextQuestionId;
+        }
+      });
       card.__questionMeta = meta;
       if (isPreset) {
         const select = card.querySelector('[data-bot-question-preset]');
@@ -2307,36 +2451,7 @@
       setTemplateStatus(questionFlowError, true);
       return false;
     }
-    const normalizedQuestions = editorState.questionFlow.map((question, index) => {
-      const bindingKey = normalizeBindingKey(question.bindingKey || question.binding_key || '');
-      const includeInDashboard = Boolean(question.includeInDashboard || question.include_in_dashboard);
-      const entry = {
-        id: question.id || generateQuestionId(),
-        type: question.type === 'preset' ? 'preset' : (question.type === 'select' ? 'select' : 'custom'),
-        text: String(question.text || '').trim(),
-        order: index + 1,
-        required: question.type === 'preset' ? true : question.required !== false,
-      };
-      if (entry.type === 'preset' && question.preset && presetExists(question.preset.group, question.preset.field)) {
-        entry.preset = { group: question.preset.group, field: question.preset.field };
-        const excluded = Array.isArray(question.excludedOptions)
-          ? question.excludedOptions.map((value) => (value || '').toString().trim()).filter((value) => value)
-          : [];
-        if (excluded.length) {
-          entry.excluded_options = Array.from(new Set(excluded));
-        }
-      }
-      if (entry.type === 'select') {
-        entry.options = normalizeEditableQuestionOptions(question.options);
-      }
-      if (bindingKey) {
-        entry.binding_key = bindingKey;
-      }
-      if (includeInDashboard) {
-        entry.include_in_dashboard = true;
-      }
-      return entry;
-    });
+    const normalizedQuestions = editorState.questionFlow.map((question, index) => serializeQuestion(question, index));
 
     const templatePayload = {
       id: editorState.templateId || generateTemplateId(),
@@ -2353,6 +2468,9 @@
         options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
         bindingKey: question.binding_key || '',
         includeInDashboard: Boolean(question.include_in_dashboard),
+        routes: Array.isArray(question.routes)
+          ? question.routes.map((route) => ({ valueId: route.value_id, nextQuestionId: route.next_question_id }))
+          : [],
         excludedOptions: Array.isArray(question.excluded_options)
           ? question.excluded_options.slice()
           : Array.isArray(question.excludedOptions)
@@ -2379,6 +2497,9 @@
           options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
           bindingKey: question.bindingKey || '',
           includeInDashboard: Boolean(question.includeInDashboard),
+          routes: Array.isArray(question.routes)
+            ? question.routes.map((route) => ({ valueId: route.valueId, nextQuestionId: route.nextQuestionId }))
+            : [],
           excludedOptions: Array.isArray(question.excludedOptions) ? question.excludedOptions : [],
         })),
       };
@@ -2398,6 +2519,9 @@
           options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
           bindingKey: question.bindingKey || '',
           includeInDashboard: Boolean(question.includeInDashboard),
+          routes: Array.isArray(question.routes)
+            ? question.routes.map((route) => ({ valueId: route.valueId, nextQuestionId: route.nextQuestionId }))
+            : [],
           excludedOptions: Array.isArray(question.excludedOptions) ? question.excludedOptions : [],
         })),
       });
@@ -2456,6 +2580,7 @@
       filterState: {},
       bindingKey: '',
       includeInDashboard: false,
+      routes: [],
       required: true,
     };
     if (question.type === 'preset') {
@@ -2536,6 +2661,7 @@
         question.presetUnavailable = false;
         question.excludedOptions = Array.isArray(question.excludedOptions) ? question.excludedOptions : [];
         question.required = true;
+        question.routes = sanitizeQuestionRoutes(question, index, meta);
       } else {
         question.type = 'preset';
         question.presetUnavailable = true;
@@ -2551,12 +2677,14 @@
       question.options = Array.isArray(question.options) && question.options.length
         ? question.options
         : [{ id: generateOptionId(), label: '' }];
+      question.routes = sanitizeQuestionRoutes(question, index, null);
     } else {
       question.type = 'custom';
       question.preset = null;
       question.presetUnavailable = false;
       question.excludedOptions = [];
       question.required = normalizeQuestionRequired(question.required, true);
+      question.routes = [];
     }
     question.filterState = {};
     renderQuestions();
@@ -2584,6 +2712,7 @@
     }
     question.excludedOptions = Array.isArray(question.excludedOptions) ? question.excludedOptions : [];
     question.required = true;
+    question.routes = sanitizeQuestionRoutes(question, index, meta);
     question.filterState = {};
     renderQuestions();
   }
@@ -2613,8 +2742,8 @@
       : question.preset
         ? getPresetMeta(question.preset.group, question.preset.field)
         : null;
-    renderHiddenSummary(card, question, meta);
-    renderQuestionPreview(card, question, meta);
+    question.routes = sanitizeQuestionRoutes(question, index, meta);
+    renderQuestions();
   }
 
   function resetState() {
@@ -2627,6 +2756,10 @@
   function serializeQuestion(question, index) {
     const bindingKey = normalizeBindingKey(question.bindingKey || question.binding_key || '');
     const includeInDashboard = Boolean(question.includeInDashboard || question.include_in_dashboard);
+    const meta = question.type === 'preset' && question.preset
+      ? getPresetMeta(question.preset.group, question.preset.field)
+      : null;
+    const routes = sanitizeQuestionRoutes(question, index, meta);
     const entry = {
       id: question.id || generateQuestionId(),
       type: question.type === 'preset' ? 'preset' : (question.type === 'select' ? 'select' : 'custom'),
@@ -2651,6 +2784,12 @@
     }
     if (includeInDashboard) {
       entry.include_in_dashboard = true;
+    }
+    if (routes.length) {
+      entry.routes = routes.map((route) => ({
+        value_id: route.valueId,
+        next_question_id: route.nextQuestionId,
+      }));
     }
     return entry;
   }
@@ -2945,10 +3084,33 @@
         }
         const lines = optionsInput.value.split(/\r?\n/).map((value) => value.trim()).filter((value) => value);
         const previous = Array.isArray(question.options) ? question.options : [];
+        const previousByLabel = new Map();
+        previous.forEach((option) => {
+          const key = typeof option?.label === 'string' ? option.label.trim().toLowerCase() : '';
+          if (key && option.id && !previousByLabel.has(key)) {
+            previousByLabel.set(key, option.id);
+          }
+        });
+        const usedIds = new Set();
         question.options = lines.map((label, optionIndex) => ({
-          id: previous[optionIndex] && previous[optionIndex].id ? previous[optionIndex].id : generateOptionId(),
+          id: (() => {
+            const indexed = previous[optionIndex] && previous[optionIndex].id ? previous[optionIndex].id : '';
+            if (indexed && !usedIds.has(indexed) && previous[optionIndex]?.label?.trim() === label) {
+              usedIds.add(indexed);
+              return indexed;
+            }
+            const byLabel = previousByLabel.get(label.toLowerCase());
+            if (byLabel && !usedIds.has(byLabel)) {
+              usedIds.add(byLabel);
+              return byLabel;
+            }
+            const generated = generateOptionId();
+            usedIds.add(generated);
+            return generated;
+          })(),
           label,
         }));
+        question.routes = sanitizeQuestionRoutes(question, index, null);
         renderQuestionPreview(card, question, null);
         return;
       }
@@ -2998,6 +3160,15 @@
         applyQuestionFilters(card);
         return;
       }
+      const optionsTextarea = event.target.closest('[data-bot-question-select-options]');
+      if (optionsTextarea) {
+        const question = editorState.questionFlow[index];
+        if (question) {
+          question.routes = sanitizeQuestionRoutes(question, index, null);
+        }
+        renderQuestions();
+        return;
+      }
       const typeSelect = event.target.closest('[data-bot-question-type]');
       if (typeSelect) {
         setQuestionType(index, typeSelect.value === 'preset' ? 'preset' : (typeSelect.value === 'select' ? 'select' : 'custom'));
@@ -3029,10 +3200,24 @@
         }
         return;
       }
+      const routeSelect = event.target.closest('[data-bot-question-route-target]');
+      if (routeSelect) {
+        const question = editorState.questionFlow[index];
+        if (question) {
+          const valueId = routeSelect.dataset.botQuestionRouteTarget || '';
+          const targetId = routeSelect.value || '';
+          const routes = sanitizeQuestionRoutes(question, index, card.__questionMeta || null)
+            .filter((route) => route.valueId !== valueId);
+          if (valueId && targetId) {
+            routes.push({ valueId, nextQuestionId: targetId });
+          }
+          question.routes = routes;
+        }
+        return;
+      }
       const optionCheckbox = event.target.closest('[data-bot-question-option]');
       if (optionCheckbox) {
         updateOptionVisibility(index, optionCheckbox.value, !optionCheckbox.checked);
-        showOptionDependencies(card, optionCheckbox.value);
         return;
       }
     });

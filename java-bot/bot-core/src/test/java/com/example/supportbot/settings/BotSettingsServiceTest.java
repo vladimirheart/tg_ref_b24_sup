@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 class BotSettingsServiceTest {
 
@@ -243,6 +244,54 @@ class BotSettingsServiceTest {
 
         assertThat(sanitized.getQuestionFlow()).extracting(QuestionFlowItemDto::getRequired)
                 .containsExactly(false, true, false);
+    }
+
+    @Test
+    void sanitizeShouldKeepOnlyForwardRoutesForChoiceQuestions() throws IOException {
+        Map<String, Object> raw = objectMapper.readValue(
+                """
+                        {
+                          "question_templates": [
+                            {
+                              "id": "template-routes",
+                              "name": "Routing flow",
+                              "question_flow": [
+                                {
+                                  "id": "q-route",
+                                  "type": "select",
+                                  "text": "Choose company",
+                                  "options": [
+                                    {"id": "opt-a", "label": "A"},
+                                    {"id": "opt-b", "label": "B"}
+                                  ],
+                                  "routes": [
+                                    {"value_id": "opt-a", "next_question_id": "q-details"},
+                                    {"value_id": "opt-b", "next_question_id": "problem"},
+                                    {"value_id": "opt-missing", "next_question_id": "q-fallback"},
+                                    {"value_id": "opt-a", "next_question_id": "q-route"}
+                                  ]
+                                },
+                                {"id": "q-fallback", "type": "custom", "text": "Fallback question"},
+                                {"id": "q-details", "type": "custom", "text": "Details question"}
+                              ]
+                            }
+                          ],
+                          "active_template_id": "template-routes"
+                        }
+                        """,
+                new TypeReference<>() {
+                });
+
+        BotSettingsDto sanitized = service.sanitizeFromJson(raw);
+
+        QuestionFlowItemDto firstQuestion = sanitized.getQuestionFlow().get(0);
+        assertThat(firstQuestion.getRoutes())
+                .extracting(com.example.supportbot.settings.dto.QuestionRouteDto::getValueId,
+                        com.example.supportbot.settings.dto.QuestionRouteDto::getNextQuestionId)
+                .containsExactly(
+                        tuple("opt-a", "q-details"),
+                        tuple("opt-b", "problem")
+                );
     }
 
     @Test

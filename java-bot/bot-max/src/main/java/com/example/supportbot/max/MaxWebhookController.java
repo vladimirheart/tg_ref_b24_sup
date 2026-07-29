@@ -16,6 +16,7 @@ import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.PresetReference;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.example.supportbot.settings.dto.QuestionOptionDto;
+import com.example.supportbot.settings.dto.QuestionRouteDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -415,14 +416,20 @@ public class MaxWebhookController {
             List<String> excluded = existing != null && existing.getExcludedOptions() != null
                     ? existing.getExcludedOptions()
                     : List.of();
-            normalized.add(new QuestionFlowItemDto(
+            QuestionFlowItemDto question = new QuestionFlowItemDto(
                     field,
                     "preset",
                     (text == null || text.isBlank()) ? defaultPrompt(field) : text,
                     order++,
                     new PresetReference("locations", field),
                     excluded
-            ));
+            );
+            if (existing != null) {
+                question.setBindingKey(existing.getBindingKey());
+                question.setIncludeInDashboard(existing.getIncludeInDashboard());
+                question.setRoutes(existing.getRoutes());
+            }
+            normalized.add(question);
         }
 
         normalized.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", order, null, List.of()));
@@ -957,6 +964,8 @@ public class MaxWebhookController {
         private final BotSettingsDto settings;
         private final Map<String, String> answers = new LinkedHashMap<>();
         private final List<HistoryEvent> history = new ArrayList<>();
+        private final List<Integer> visitedQuestionIndexes = new ArrayList<>();
+        private final Map<String, Integer> questionIndexes;
         private final OffsetDateTime startedAt = OffsetDateTime.now();
         private Map<String, String> cachedAnswers = new LinkedHashMap<>();
         private boolean reuseDecisionPending = false;
@@ -974,6 +983,7 @@ public class MaxWebhookController {
             this.clientName = clientName;
             this.flow = flow;
             this.settings = settings;
+            this.questionIndexes = indexQuestions(flow);
         }
 
         QuestionFlowItemDto currentQuestion() {
@@ -993,7 +1003,9 @@ public class MaxWebhookController {
                 answers.put(answerKey, text);
             }
             history.add(new HistoryEvent(userId, text, "text"));
-            currentIndex += 1;
+            int answeredIndex = currentIndex;
+            visitedQuestionIndexes.add(answeredIndex);
+            currentIndex = resolveNextQuestionIndex(answeredIndex, current, text);
         }
 
         boolean isComplete() {
@@ -1001,7 +1013,7 @@ public class MaxWebhookController {
         }
 
         boolean canGoBack() {
-            return currentIndex > 0;
+            return !visitedQuestionIndexes.isEmpty();
         }
 
         Map<String, String> answers() {
@@ -1086,11 +1098,11 @@ public class MaxWebhookController {
         }
 
         boolean stepBack() {
-            if (currentIndex <= 0) {
+            if (visitedQuestionIndexes.isEmpty()) {
                 return false;
             }
-            currentIndex -= 1;
-            QuestionFlowItemDto previous = flow.get(currentIndex);
+            currentIndex = visitedQuestionIndexes.remove(visitedQuestionIndexes.size() - 1);
+            QuestionFlowItemDto previous = currentQuestion();
             String answerKey = answerKeyFor(previous);
             if (answerKey != null) {
                 answers.remove(answerKey);
@@ -1099,17 +1111,27 @@ public class MaxWebhookController {
         }
 
         private void applyCachedAnswers() {
-            for (int i = 0; i < flow.size(); i++) {
-                QuestionFlowItemDto item = flow.get(i);
+            answers.clear();
+            visitedQuestionIndexes.clear();
+            int index = 0;
+            while (index < flow.size()) {
+                QuestionFlowItemDto item = flow.get(index);
                 String answerKey = answerKeyFor(item);
-                if (answerKey != null && cachedAnswers.containsKey(answerKey)) {
-                    answers.put(answerKey, cachedAnswers.get(answerKey));
-                    currentIndex = i + 1;
-                } else {
-                    currentIndex = i;
-                    break;
+                if (answerKey == null || !cachedAnswers.containsKey(answerKey)) {
+                    currentIndex = index;
+                    return;
                 }
+                String answer = cachedAnswers.get(answerKey);
+                answers.put(answerKey, answer);
+                visitedQuestionIndexes.add(index);
+                int nextIndex = resolveNextQuestionIndex(index, item, answer);
+                if (nextIndex <= index) {
+                    currentIndex = index + 1;
+                    return;
+                }
+                index = nextIndex;
             }
+            currentIndex = flow.size();
         }
 
         String reusePrompt() {
@@ -1169,6 +1191,55 @@ public class MaxWebhookController {
                 }
             }
             return isPresetQuestion(item) ? answer : null;
+        }
+
+        private Map<String, Integer> indexQuestions(List<QuestionFlowItemDto> questions) {
+            Map<String, Integer> indexes = new LinkedHashMap<>();
+            for (int i = 0; i < questions.size(); i++) {
+                QuestionFlowItemDto item = questions.get(i);
+                if (item == null || item.getId() == null || item.getId().isBlank()) {
+                    continue;
+                }
+                indexes.put(item.getId(), i);
+            }
+            return indexes;
+        }
+
+        private int resolveNextQuestionIndex(int sourceIndex, QuestionFlowItemDto current, String answer) {
+            int sequentialIndex = sourceIndex + 1;
+            if (current == null) {
+                return sequentialIndex;
+            }
+            String routeTargetId = resolveRouteTargetId(current, answer);
+            if (routeTargetId == null || routeTargetId.isBlank()) {
+                return sequentialIndex;
+            }
+            Integer routedIndex = questionIndexes.get(routeTargetId);
+            if (routedIndex == null || routedIndex <= sourceIndex) {
+                return sequentialIndex;
+            }
+            return routedIndex;
+        }
+
+        private String resolveRouteTargetId(QuestionFlowItemDto item, String answer) {
+            List<QuestionRouteDto> routes = item != null ? item.getRoutes() : null;
+            if (routes == null || routes.isEmpty()) {
+                return null;
+            }
+            String valueId = resolveValueId(item, answer);
+            if (valueId == null || valueId.isBlank()) {
+                return null;
+            }
+            for (QuestionRouteDto route : routes) {
+                if (route == null) {
+                    continue;
+                }
+                String routeValueId = Optional.ofNullable(route.getValueId()).orElse("").trim();
+                if (routeValueId.equals(valueId.trim())) {
+                    return Optional.ofNullable(route.getNextQuestionId()).orElse("").trim();
+                }
+            }
+            return null;
         }
     }
 }

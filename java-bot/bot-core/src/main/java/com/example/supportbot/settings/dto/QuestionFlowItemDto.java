@@ -37,6 +37,9 @@ public class QuestionFlowItemDto {
     @JsonProperty("options")
     private List<QuestionOptionDto> options;
 
+    @JsonProperty("routes")
+    private List<QuestionRouteDto> routes;
+
     public QuestionFlowItemDto() {
     }
 
@@ -136,5 +139,13 @@ public class QuestionFlowItemDto {
 
     public void setOptions(List<QuestionOptionDto> options) {
         this.options = options;
+    }
+
+    public List<QuestionRouteDto> getRoutes() {
+        return routes;
+    }
+
+    public void setRoutes(List<QuestionRouteDto> routes) {
+        this.routes = routes;
     }
 }
