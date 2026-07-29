@@ -2058,7 +2058,7 @@
           optionsHtml = '<div class="text-muted small">Нет готовых значений для скрытия.</div>';
         }
       } else {
-        optionsHtml = '<div class="text-muted small">Нет готовых значений для скрытия.</div>';
+        optionsHtml = '<div class="text-muted small">Нет готовых значений для отображения.</div>';
       }
       const hintText = !presetsAvailable
         ? presetStatusMessage()
@@ -2089,9 +2089,9 @@
             <div class="form-text mb-0">Каждая строка станет отдельным вариантом ответа для клиента.</div>
           `
         : `
-            <div class="small text-uppercase text-muted fw-semibold mb-2">РџРѕР»Рµ РѕС‚РІРµС‚Р°</div>
-            <div class="small mb-1">РћС‚РІРµС‚ РєР»РёРµРЅС‚Р° Р±СѓРґРµС‚ СЃРѕС…СЂР°РЅС‘РЅ РєР°Рє СЃРІРѕР±РѕРґРЅС‹Р№ С‚РµРєСЃС‚ РґР»СЏ СЌС‚РѕРіРѕ РІРѕРїСЂРѕСЃР°.</div>
-            <div class="form-text mb-0">Р•СЃР»Рё РІС‹РєР»СЋС‡РёС‚СЊ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕСЃС‚СЊ, РєР»РёРµРЅС‚ СЃРјРѕР¶РµС‚ РЅР°РїРёСЃР°С‚СЊ "РџСЂРѕРїСѓСЃС‚РёС‚СЊ" Рё РїРµСЂРµР№С‚Рё РґР°Р»СЊС€Рµ.</div>
+            <div class="small text-uppercase text-muted fw-semibold mb-2">Поле ответа</div>
+            <div class="small mb-1 bot-question-answer-copy">Ответ клиента будет сохранён как свободный текст для этого вопроса.</div>
+            <div class="form-text mb-0">Если отключить обязательность, клиент сможет написать "Пропустить" и перейти дальше.</div>
           `;
       card.innerHTML = `
         <div class="card-body">
@@ -2127,19 +2127,22 @@
               <div class="alert alert-warning small py-2 px-3 mt-2 mb-0${presetAlertText ? '' : ' d-none'}" data-bot-question-preset-alert>${html(presetAlertText)}</div>
             </div>
           </div>
-          <div class="row g-3 mt-1${isPreset ? ' d-none' : ''}" data-bot-question-answer-wrapper>
+          <div class="row g-3 mt-1 align-items-stretch${isPreset ? ' d-none' : ''}" data-bot-question-answer-wrapper>
             <div class="col-lg-8">
-              <div class="border rounded-3 bg-light p-3 h-100">
+              <div class="border rounded-3 bg-light p-3 h-100 bot-question-surface bot-question-info-surface">
                 <div class="small text-uppercase text-muted fw-semibold mb-2">Поле ответа</div>
-                <div class="small mb-1">Ответ клиента будет сохранён как свободный текст для этого вопроса.</div>
+                <div class="small mb-1 bot-question-answer-copy">Ответ клиента будет сохранён как свободный текст для этого вопроса.</div>
                 <div class="form-text mb-0">Если выключить обязательность, клиент сможет написать "Пропустить" и перейти дальше.</div>
               </div>
             </div>
             <div class="col-lg-4">
-              <label class="form-label d-block">Обязательность ответа</label>
-              <div class="form-check form-switch border rounded-3 p-3 h-100 d-flex align-items-center">
-                <input class="form-check-input me-2" type="checkbox" data-bot-question-required${isRequired ? ' checked' : ''}>
-                <label class="form-check-label">Ответ обязателен</label>
+              <div class="border rounded-3 p-3 h-100 bot-question-surface bot-question-switch-surface">
+                <div class="small text-uppercase text-muted fw-semibold mb-2">Обязательность ответа</div>
+                <div class="form-check form-switch mb-0 bot-question-switch-control">
+                  <input class="form-check-input" type="checkbox" data-bot-question-required${isRequired ? ' checked' : ''}>
+                  <label class="form-check-label">Ответ обязателен</label>
+                </div>
+                <div class="form-text mb-0">Оставьте включённым, если клиент должен ответить перед переходом к следующему шагу.</div>
               </div>
             </div>
           </div>
@@ -2185,18 +2188,23 @@
           answerBox.innerHTML = answerBodyHtml;
         }
         const analyticsRow = document.createElement('div');
-        analyticsRow.className = 'row g-3 mt-1 bot-question-analytics-row';
+        analyticsRow.className = 'row g-3 mt-1 align-items-stretch bot-question-analytics-row';
         analyticsRow.innerHTML = `
           <div class="col-lg-7">
-            <label class="form-label">Ключ атрибута</label>
-            <input type="text" class="form-control font-monospace" value="${html(bindingKey)}" data-bot-question-binding placeholder="company">
-            <div class="form-text">${html(analyticsHint)}</div>
+            <div class="border rounded-3 bg-light p-3 h-100 bot-question-surface bot-question-info-surface">
+              <label class="form-label">Ключ атрибута</label>
+              <input type="text" class="form-control font-monospace" value="${html(bindingKey)}" data-bot-question-binding placeholder="company">
+              <div class="form-text mb-0">${html(analyticsHint)}</div>
+            </div>
           </div>
           <div class="col-lg-5">
-            <label class="form-label d-block">Аналитика</label>
-            <div class="form-check form-switch border rounded-3 p-3 h-100 d-flex align-items-center bot-question-analytics-surface">
-              <input class="form-check-input me-2" type="checkbox" data-bot-question-dashboard${question.includeInDashboard ? ' checked' : ''}>
-              <label class="form-check-label">Отображать в дашборде</label>
+            <div class="border rounded-3 p-3 h-100 bot-question-surface bot-question-switch-surface bot-question-analytics-surface">
+              <div class="small text-uppercase text-muted fw-semibold mb-2">Аналитика</div>
+              <div class="form-check form-switch mb-0 bot-question-switch-control">
+                <input class="form-check-input" type="checkbox" data-bot-question-dashboard${question.includeInDashboard ? ' checked' : ''}>
+                <label class="form-check-label">Отображать в дашборде</label>
+              </div>
+              <div class="form-text mb-0">Включайте для вопросов, которые должны попадать в агрегаты и виджеты дашборда.</div>
             </div>
           </div>
         `;

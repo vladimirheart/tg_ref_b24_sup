@@ -1952,9 +1952,39 @@
       border-radius: 1rem;
       overflow-anchor: none;
     }
-    .bot-question-card [data-bot-question-answer-wrapper] .border,
-    .bot-question-card .bot-question-analytics-surface {
+    .bot-question-card .bot-question-surface {
       min-height: 8.75rem;
+    }
+    .bot-question-card .bot-question-info-surface,
+    .bot-question-card .bot-question-switch-surface {
+      border-color: rgba(25, 135, 84, 0.14) !important;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 252, 249, 0.94) 100%);
+    }
+    .bot-question-card .bot-question-answer-copy {
+      line-height: 1.5;
+    }
+    .bot-question-card .bot-question-switch-surface {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      justify-content: flex-start;
+    }
+    .bot-question-card .bot-question-switch-control {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.1rem 0;
+      min-height: 2rem;
+      flex-wrap: wrap;
+    }
+    .bot-question-card .bot-question-switch-control .form-check-input {
+      float: none;
+      margin: 0;
+      flex: 0 0 auto;
+    }
+    .bot-question-card .bot-question-switch-control .form-check-label {
+      margin: 0;
+      font-weight: 600;
     }
     .bot-question-card [data-bot-question-options] {
       min-height: 9.5rem;
@@ -1968,6 +1998,11 @@
     .bot-question-card textarea[data-bot-question-select-options] {
       min-height: 10.5rem;
       resize: vertical;
+    }
+    @media (max-width: 991.98px) {
+      .bot-question-card .bot-question-surface {
+        min-height: auto;
+      }
     }
     .bot-question-dependencies {
       border-radius: 0.75rem;
