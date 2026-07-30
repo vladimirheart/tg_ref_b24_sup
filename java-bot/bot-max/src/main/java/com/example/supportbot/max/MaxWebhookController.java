@@ -7,6 +7,7 @@ import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
+import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.MessagingService;
 import com.example.supportbot.service.SharedConfigService;
@@ -177,6 +178,9 @@ public class MaxWebhookController {
                 return feedbackResponse;
             }
             session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
+            if (shouldCaptureBootstrapProblemText(text)) {
+                session.captureBootstrapClientText(text);
+            }
             sessions.put(userId, session);
             promptCurrentQuestion(channel, session);
             return ResponseEntity.ok(Map.of("ok", true, "session_started", true));
@@ -434,6 +438,11 @@ public class MaxWebhookController {
 
         normalized.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", order, null, List.of()));
         return normalized;
+    }
+
+    private boolean shouldCaptureBootstrapProblemText(String text) {
+        String normalized = ConversationProblemTextSupport.trimToNull(text);
+        return normalized != null && !normalized.startsWith("/");
     }
 
     private String defaultPrompt(String field) {
@@ -968,6 +977,7 @@ public class MaxWebhookController {
         private final Map<String, Integer> questionIndexes;
         private final OffsetDateTime startedAt = OffsetDateTime.now();
         private Map<String, String> cachedAnswers = new LinkedHashMap<>();
+        private String bootstrapProblemText;
         private boolean reuseDecisionPending = false;
         private int currentIndex = 0;
 
@@ -984,6 +994,16 @@ public class MaxWebhookController {
             this.flow = flow;
             this.settings = settings;
             this.questionIndexes = indexQuestions(flow);
+            this.bootstrapProblemText = null;
+        }
+
+        void captureBootstrapClientText(String text) {
+            String normalized = ConversationProblemTextSupport.trimToNull(text);
+            if (normalized == null) {
+                return;
+            }
+            bootstrapProblemText = normalized;
+            history.add(new HistoryEvent(userId, normalized, "text"));
         }
 
         QuestionFlowItemDto currentQuestion() {
@@ -1000,7 +1020,7 @@ public class MaxWebhookController {
             }
             String answerKey = answerKeyFor(current);
             if (answerKey != null) {
-                answers.put(answerKey, text);
+                answers.put(answerKey, mergeAnswerWithBootstrap(answerKey, text));
             }
             history.add(new HistoryEvent(userId, text, "text"));
             int answeredIndex = currentIndex;
@@ -1191,6 +1211,13 @@ public class MaxWebhookController {
                 }
             }
             return isPresetQuestion(item) ? answer : null;
+        }
+
+        private String mergeAnswerWithBootstrap(String answerKey, String answer) {
+            if (!"problem".equals(answerKey)) {
+                return answer;
+            }
+            return ConversationProblemTextSupport.mergeProblemText(bootstrapProblemText, answer);
         }
 
         private Map<String, Integer> indexQuestions(List<QuestionFlowItemDto> questions) {

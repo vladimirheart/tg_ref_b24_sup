@@ -66,3 +66,403 @@
 2026-07-30 09:10:00.037+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
 2026-07-30 09:20:00.038+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T08:20:00.038143+03:00
 2026-07-30 09:20:00.040+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 09:30:00.023+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T08:30:00.023675400+03:00
+2026-07-30 09:30:00.025+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 09:40:00.019+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T08:40:00.019011700+03:00
+2026-07-30 09:40:00.022+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 09:50:00.012+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T08:50:00.012462300+03:00
+2026-07-30 09:50:00.013+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 10:00:00.025+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T09:00:00.025502100+03:00
+2026-07-30 10:00:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 10:10:00.024+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T09:10:00.024462600+03:00
+2026-07-30 10:10:00.027+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 10:20:00.017+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T09:20:00.017485+03:00
+2026-07-30 10:20:00.020+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 10:30:00.030+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T09:30:00.030637800+03:00
+2026-07-30 10:30:00.033+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 10:40:00.021+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T09:40:00.021359900+03:00
+2026-07-30 10:40:00.024+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 10:50:00.039+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T09:50:00.039874+03:00
+2026-07-30 10:50:00.042+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 11:00:00.030+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T10:00:00.030979500+03:00
+2026-07-30 11:00:00.034+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 11:10:00.013+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T10:10:00.013026600+03:00
+2026-07-30 11:10:00.014+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 11:20:00.020+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T10:20:00.020697800+03:00
+2026-07-30 11:20:00.023+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 11:30:00.021+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T10:30:00.021460200+03:00
+2026-07-30 11:30:00.024+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 11:40:00.035+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T10:40:00.035540300+03:00
+2026-07-30 11:40:00.039+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 11:41:56.217+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:42:11.766+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Connection reset
+2026-07-30 11:42:22.130+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: HTTP connect timed out
+2026-07-30 11:42:32.447+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: HTTP connect timed out
+2026-07-30 11:42:43.880+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:44.202+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:44.509+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:44.821+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:45.131+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:45.442+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:45.755+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:46.138+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:46.478+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:46.791+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:47.112+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:47.447+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:47.765+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:48.081+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:48.388+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:48.698+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:49.010+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:49.322+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:49.633+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:49.945+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:50.257+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:50.569+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:50.883+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:51.190+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:51.497+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:51.806+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:52.118+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:52.430+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:52.742+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:53.054+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:53.368+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:42:53.676+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:43:04.017+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: HTTP connect timed out
+2026-07-30 11:43:14.340+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: HTTP connect timed out
+2026-07-30 11:43:44.669+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:44:14.986+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:44:45.304+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:45:15.625+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:45:45.953+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:46:16.264+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:46:46.583+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:47:16.901+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:47:47.219+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:48:17.535+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 11:48:39.255+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Connection reset
+2026-07-30 11:48:39.572+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:39.880+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:40.193+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:40.509+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:40.829+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:41.136+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:41.450+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:41.760+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:42.075+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:42.394+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:42.708+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:43.018+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:43.330+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:43.646+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:43.957+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:44.272+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:44.581+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:44.901+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:45.221+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:45.532+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:45.846+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:46.158+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:46.504+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:46.815+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:47.126+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:47.440+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:47.751+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Network is unreachable: getsockopt
+2026-07-30 11:48:48.065+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:48.374+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:48.691+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:49.018+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:49.329+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:49.637+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:49.949+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:50.263+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:50.578+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:50.884+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:51.214+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:51.521+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:51.835+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:52.159+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:52.472+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:52.782+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:53.111+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:53.422+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:53.731+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:54.049+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:54.354+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:54.663+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:54.976+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:55.286+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:55.606+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:55.911+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:56.218+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:56.538+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:56.849+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:57.165+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:57.475+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:48:57.788+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-07-30 11:49:08.113+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: HTTP connect timed out
+2026-07-30 11:49:18.432+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: HTTP connect timed out
+2026-07-30 11:49:28.756+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: HTTP connect timed out
+2026-07-30 11:49:39.077+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: HTTP connect timed out
+2026-07-30 11:49:39.392+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:39.709+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:40.016+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:40.331+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:40.651+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:40.960+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:41.278+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:41.585+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:41.896+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:42.218+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:42.522+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:42.835+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:43.145+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:49:43.458+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: No route to host: getsockopt
+2026-07-30 11:50:00.040+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T10:50:00.040789400+03:00
+2026-07-30 11:50:00.043+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 12:00:00.026+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T11:00:00.026376300+03:00
+2026-07-30 12:00:00.031+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 12:10:00.031+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T11:10:00.031635800+03:00
+2026-07-30 12:10:00.035+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 12:20:00.007+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T11:20:00.007097900+03:00
+2026-07-30 12:20:00.010+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 12:30:00.024+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T11:30:00.024169700+03:00
+2026-07-30 12:30:00.027+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 12:33:32.053+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Connection reset
+2026-07-30 12:34:02.370+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-07-30 12:40:00.022+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T11:40:00.022034200+03:00
+2026-07-30 12:40:00.023+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 12:50:00.018+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T11:50:00.018255300+03:00
+2026-07-30 12:50:00.020+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 13:00:00.039+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T12:00:00.039469100+03:00
+2026-07-30 13:00:00.045+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 13:10:00.021+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T12:10:00.021047100+03:00
+2026-07-30 13:10:00.023+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 13:20:00.022+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T12:20:00.022772300+03:00
+2026-07-30 13:20:00.025+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 13:30:00.037+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T12:30:00.037411200+03:00
+2026-07-30 13:30:00.039+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 13:40:00.027+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T12:40:00.027247100+03:00
+2026-07-30 13:40:00.028+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 13:50:00.027+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T12:50:00.027968100+03:00
+2026-07-30 13:50:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 14:00:00.040+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T13:00:00.040340700+03:00
+2026-07-30 14:00:00.043+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 14:10:00.031+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T13:10:00.031377200+03:00
+2026-07-30 14:10:00.032+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 14:20:00.008+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T13:20:00.008246400+03:00
+2026-07-30 14:20:00.011+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 14:30:00.009+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T13:30:00.009862800+03:00
+2026-07-30 14:30:00.011+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 14:40:00.028+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T13:40:00.028045900+03:00
+2026-07-30 14:40:00.032+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 14:50:00.028+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T13:50:00.028812900+03:00
+2026-07-30 14:50:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 15:00:00.006+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T14:00:00.006078900+03:00
+2026-07-30 15:00:00.009+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 15:10:00.019+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T14:10:00.019386600+03:00
+2026-07-30 15:10:00.021+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 15:20:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T14:20:00.029437100+03:00
+2026-07-30 15:20:00.030+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 15:30:00.051+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T14:30:00.051223700+03:00
+2026-07-30 15:30:00.056+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 15:40:00.019+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T14:40:00.019642400+03:00
+2026-07-30 15:40:00.021+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 15:50:00.048+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T14:50:00.048531500+03:00
+2026-07-30 15:50:00.052+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 16:00:00.085+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T15:00:00.085794600+03:00
+2026-07-30 16:00:00.087+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 16:10:00.027+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T15:10:00.027812300+03:00
+2026-07-30 16:10:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 16:20:00.019+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T15:20:00.019872100+03:00
+2026-07-30 16:20:00.578+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-07-30 16:30:00.014+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T15:30:00.014339900+03:00
+2026-07-30 16:30:00.024+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-07-30 16:40:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T15:40:00.029708800+03:00
+2026-07-30 16:40:00.048+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-07-30 16:50:00.020+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T15:50:00.020370700+03:00
+2026-07-30 16:50:00.035+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-07-30 17:00:00.039+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T16:00:00.039908700+03:00
+2026-07-30 17:00:00.051+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-07-30 17:09:04.517+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: EOF reached while reading
+2026-07-30 17:10:00.027+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T16:10:00.027567300+03:00
+2026-07-30 17:10:00.038+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-07-30 17:11:50.976+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: EOF reached while reading
+2026-07-30 17:20:00.052+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T16:20:00.052060100+03:00
+2026-07-30 17:20:00.072+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-07-30 17:29:02.252+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: EOF reached while reading
+2026-07-30 17:30:00.027+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T16:30:00.027088600+03:00
+2026-07-30 17:30:00.038+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-07-30 17:40:00.022+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T16:40:00.022406600+03:00
+2026-07-30 17:40:00.042+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-07-30 17:50:00.039+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T16:50:00.039775800+03:00
+2026-07-30 17:50:00.054+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-07-30 18:00:00.025+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T17:00:00.025990100+03:00
+2026-07-30 18:00:00.610+03:00 WARN  [scheduling-1] o.h.e.jdbc.spi.SqlExceptionHelper - SQL Error: 19, SQLState: null
+2026-07-30 18:00:00.610+03:00 ERROR [scheduling-1] o.h.e.jdbc.spi.SqlExceptionHelper - [SQLITE_CONSTRAINT_NOTNULL] A NOT NULL constraint failed (NOT NULL constraint failed: task_links.user_id)
+2026-07-30 18:00:00.676+03:00 WARN  [scheduling-1] c.e.s.s.AutoCloseFollowUpTaskService - Unable to create follow-up task for auto-closed ticket c7bbd801-2ada-4500-9e95-0c641dac477b: could not execute statement [[SQLITE_CONSTRAINT_NOTNULL] A NOT NULL constraint failed (NOT NULL constraint failed: task_links.user_id)] [insert into task_links (task_id,ticket_id) values (?,?)]
+org.springframework.orm.jpa.JpaSystemException: could not execute statement [[SQLITE_CONSTRAINT_NOTNULL] A NOT NULL constraint failed (NOT NULL constraint failed: task_links.user_id)] [insert into task_links (task_id,ticket_id) values (?,?)]
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.convertHibernateAccessException(HibernateJpaDialect.java:341)
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.translateExceptionIfPossible(HibernateJpaDialect.java:241)
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.translateExceptionIfPossible(AbstractEntityManagerFactoryBean.java:550)
+	at org.springframework.dao.support.ChainedPersistenceExceptionTranslator.translateExceptionIfPossible(ChainedPersistenceExceptionTranslator.java:61)
+	at org.springframework.dao.support.DataAccessUtils.translateIfNecessary(DataAccessUtils.java:335)
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:152)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:164)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:97)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:223)
+	at jdk.proxy2/jdk.proxy2.$Proxy138.save(Unknown Source)
+	at com.example.supportbot.service.TaskService.appendHistory(TaskService.java:200)
+	at com.example.supportbot.service.TaskService.linkTickets(TaskService.java:216)
+	at com.example.supportbot.service.TaskService.createTask(TaskService.java:70)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.TaskService$$SpringCGLIB$$0.createTask(<generated>)
+	at com.example.supportbot.service.AutoCloseFollowUpTaskService.createTaskForAutoClosedDialog(AutoCloseFollowUpTaskService.java:63)
+	at com.example.supportbot.service.TicketService.closeInactiveTickets(TicketService.java:386)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.TicketService$$SpringCGLIB$$0.closeInactiveTickets(<generated>)
+	at com.example.supportbot.service.MaintenanceTasks.autoCloseInactiveTickets(MaintenanceTasks.java:79)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.MaintenanceTasks$$SpringCGLIB$$0.autoCloseInactiveTickets(<generated>)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: org.hibernate.exception.GenericJDBCException: could not execute statement [[SQLITE_CONSTRAINT_NOTNULL] A NOT NULL constraint failed (NOT NULL constraint failed: task_links.user_id)] [insert into task_links (task_id,ticket_id) values (?,?)]
+	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:63)
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:108)
+	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:197)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.performNonBatchedMutation(AbstractMutationExecutor.java:108)
+	at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleNonBatched.performNonBatchedOperations(MutationExecutorSingleNonBatched.java:40)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:52)
+	at org.hibernate.persister.entity.mutation.InsertCoordinator.doStaticInserts(InsertCoordinator.java:175)
+	at org.hibernate.persister.entity.mutation.InsertCoordinator.coordinateInsert(InsertCoordinator.java:113)
+	at org.hibernate.persister.entity.AbstractEntityPersister.insert(AbstractEntityPersister.java:2873)
+	at org.hibernate.action.internal.EntityInsertAction.execute(EntityInsertAction.java:104)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:632)
+	at org.hibernate.engine.spi.ActionQueue.executeInserts(ActionQueue.java:484)
+	at org.hibernate.engine.spi.ActionQueue.addInsertAction(ActionQueue.java:267)
+	at org.hibernate.engine.spi.ActionQueue.addAction(ActionQueue.java:322)
+	at org.hibernate.event.internal.AbstractSaveEventListener.addInsertAction(AbstractSaveEventListener.java:386)
+	at org.hibernate.event.internal.AbstractSaveEventListener.performSaveOrReplicate(AbstractSaveEventListener.java:300)
+	at org.hibernate.event.internal.AbstractSaveEventListener.performSave(AbstractSaveEventListener.java:219)
+	at org.hibernate.event.internal.AbstractSaveEventListener.saveWithGeneratedId(AbstractSaveEventListener.java:134)
+	at org.hibernate.event.internal.DefaultPersistEventListener.entityIsTransient(DefaultPersistEventListener.java:175)
+	at org.hibernate.event.internal.DefaultPersistEventListener.persist(DefaultPersistEventListener.java:93)
+	at org.hibernate.event.internal.DefaultPersistEventListener.onPersist(DefaultPersistEventListener.java:77)
+	at org.hibernate.event.internal.DefaultPersistEventListener.onPersist(DefaultPersistEventListener.java:54)
+	at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:127)
+	at org.hibernate.internal.SessionImpl.firePersist(SessionImpl.java:754)
+	at org.hibernate.internal.SessionImpl.persist(SessionImpl.java:738)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.orm.jpa.SharedEntityManagerCreator$SharedEntityManagerInvocationHandler.invoke(SharedEntityManagerCreator.java:319)
+	at jdk.proxy2/jdk.proxy2.$Proxy118.persist(Unknown Source)
+	at org.springframework.data.jpa.repository.support.SimpleJpaRepository.save(SimpleJpaRepository.java:618)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker$RepositoryFragmentMethodInvoker.lambda$new$0(RepositoryMethodInvoker.java:277)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:170)
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158)
+	at org.springframework.data.repository.core.support.RepositoryComposition$RepositoryFragments.invoke(RepositoryComposition.java:516)
+	at org.springframework.data.repository.core.support.RepositoryComposition.invoke(RepositoryComposition.java:285)
+	at org.springframework.data.repository.core.support.RepositoryFactorySupport$ImplementationMethodExecutionInterceptor.invoke(RepositoryFactorySupport.java:628)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:168)
+	at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:143)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:70)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:137)
+	... 66 common frames omitted
+Caused by: org.sqlite.SQLiteException: [SQLITE_CONSTRAINT_NOTNULL] A NOT NULL constraint failed (NOT NULL constraint failed: task_links.user_id)
+	at org.sqlite.core.DB.newSQLException(DB.java:1179)
+	at org.sqlite.core.DB.newSQLException(DB.java:1190)
+	at org.sqlite.core.DB.execute(DB.java:985)
+	at org.sqlite.core.DB.executeUpdate(DB.java:1054)
+	at org.sqlite.jdbc3.JDBC3PreparedStatement.lambda$executeLargeUpdate$2(JDBC3PreparedStatement.java:129)
+	at org.sqlite.jdbc3.JDBC3Statement.withConnectionTimeout(JDBC3Statement.java:454)
+	at org.sqlite.jdbc3.JDBC3PreparedStatement.executeLargeUpdate(JDBC3PreparedStatement.java:124)
+	at org.sqlite.jdbc3.JDBC3PreparedStatement.executeUpdate(JDBC3PreparedStatement.java:105)
+	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:194)
+	... 113 common frames omitted
+2026-07-30 18:00:00.705+03:00 INFO  [scheduling-1] c.e.supportbot.service.TicketService - Auto-closed ticket c7bbd801-2ada-4500-9e95-0c641dac477b using source=channel:auto_action_template_id, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T17:00:00.027759900+03:00
+2026-07-30 18:00:00.705+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 1
+2026-07-30 18:00:00.719+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.springframework.transaction.UnexpectedRollbackException: Transaction silently rolled back because it has been marked as rollback-only
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:803)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:757)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:676)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:426)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.MaintenanceTasks$$SpringCGLIB$$0.autoCloseInactiveTickets(<generated>)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)

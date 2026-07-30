@@ -8,6 +8,7 @@ import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
+import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.SharedConfigService;
 import com.example.supportbot.service.TicketService;
@@ -1393,6 +1394,9 @@ public class SupportBot extends TelegramLongPollingBot {
         flow.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", flow.size() + 1, null, List.of()));
 
         ConversationSession session = new ConversationSession(flow, message.getChatId(), message.getFrom(), settings);
+        if (shouldCaptureBootstrapProblemText(message.getText())) {
+            session.captureBootstrapClientMessage(message);
+        }
         log.info("Starting conversation for user {} chat {} with {} questions",
                 session.userId(),
                 session.chatId(),
@@ -1639,6 +1643,11 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         String normalized = text.trim().toLowerCase().replaceAll("\\s+", " ");
         return "мои заявки".equals(normalized);
+    }
+
+    private boolean shouldCaptureBootstrapProblemText(String text) {
+        String normalized = ConversationProblemTextSupport.trimToNull(text);
+        return normalized != null && !normalized.startsWith("/");
     }
 
     private void handleMyTickets(Message message) {
@@ -1970,6 +1979,7 @@ public class SupportBot extends TelegramLongPollingBot {
         private final Map<String, Integer> questionIndexes;
         private final OffsetDateTime startedAt;
         private Map<String, String> cachedAnswers;
+        private String bootstrapProblemText;
         private boolean reuseDecisionPending;
         private int currentIndex;
 
@@ -1985,8 +1995,21 @@ public class SupportBot extends TelegramLongPollingBot {
             this.questionIndexes = indexQuestions(flow);
             this.startedAt = OffsetDateTime.now();
             this.cachedAnswers = new LinkedHashMap<>();
+            this.bootstrapProblemText = null;
             this.reuseDecisionPending = false;
             this.currentIndex = 0;
+        }
+
+        void captureBootstrapClientMessage(Message message) {
+            if (message == null) {
+                return;
+            }
+            String text = ConversationProblemTextSupport.trimToNull(message.getText());
+            if (text == null) {
+                return;
+            }
+            bootstrapProblemText = text;
+            addHistoryEvent(message, "text", null, null);
         }
 
         QuestionFlowItemDto currentQuestion() {
@@ -2007,7 +2030,7 @@ public class SupportBot extends TelegramLongPollingBot {
             }
             String answerKey = answerKeyFor(current);
             if (answerKey != null) {
-                answers.put(answerKey, resolvedAnswer);
+                answers.put(answerKey, mergeAnswerWithBootstrap(answerKey, resolvedAnswer));
             }
             int answeredIndex = currentIndex;
             visitedQuestionIndexes.add(answeredIndex);
@@ -2245,6 +2268,13 @@ public class SupportBot extends TelegramLongPollingBot {
                 }
             }
             return isPresetQuestion(item) ? answer : null;
+        }
+
+        private String mergeAnswerWithBootstrap(String answerKey, String answer) {
+            if (!"problem".equals(answerKey)) {
+                return answer;
+            }
+            return ConversationProblemTextSupport.mergeProblemText(bootstrapProblemText, answer);
         }
 
         private Map<String, Integer> indexQuestions(List<QuestionFlowItemDto> questions) {

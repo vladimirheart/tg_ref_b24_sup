@@ -8,6 +8,7 @@ import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
+import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.SharedConfigService;
 import com.example.supportbot.service.TicketService;
@@ -274,6 +275,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 return;
             }
             session = startSession(actor, message, channel, clientProfile);
+            if (shouldCaptureBootstrapProblemText(text)) {
+                session.captureBootstrapClientText(text);
+            }
             sessions.put(fromId, session);
             return;
         }
@@ -438,6 +442,11 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         promptCurrentQuestion(actor, session);
         return session;
+    }
+
+    private boolean shouldCaptureBootstrapProblemText(String text) {
+        String normalized = ConversationProblemTextSupport.trimToNull(text);
+        return normalized != null && !normalized.startsWith("/");
     }
 
     private void promptCurrentQuestion(GroupActor actor, ConversationSession session) {
@@ -1152,6 +1161,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         private final Map<String, Integer> questionIndexes;
         private final OffsetDateTime startedAt = OffsetDateTime.now();
         private Map<String, String> cachedAnswers = new LinkedHashMap<>();
+        private String bootstrapProblemText;
         private boolean reuseDecisionPending = false;
         private int currentIndex = 0;
 
@@ -1168,6 +1178,16 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             this.flow = flow;
             this.settings = settings;
             this.questionIndexes = indexQuestions(flow);
+            this.bootstrapProblemText = null;
+        }
+
+        void captureBootstrapClientText(String text) {
+            String normalized = ConversationProblemTextSupport.trimToNull(text);
+            if (normalized == null) {
+                return;
+            }
+            bootstrapProblemText = normalized;
+            history.add(new HistoryEvent(userId, normalized, "text", null));
         }
 
         QuestionFlowItemDto currentQuestion() {
@@ -1184,7 +1204,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             }
             String answerKey = answerKeyFor(current);
             if (answerKey != null) {
-                answers.put(answerKey, text);
+                answers.put(answerKey, mergeAnswerWithBootstrap(answerKey, text));
             }
             history.add(new HistoryEvent(userId, text, "text", null));
             int answeredIndex = currentIndex;
@@ -1363,6 +1383,13 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 }
             }
             return isPresetQuestion(item) ? answer : null;
+        }
+
+        private String mergeAnswerWithBootstrap(String answerKey, String answer) {
+            if (!"problem".equals(answerKey)) {
+                return answer;
+            }
+            return ConversationProblemTextSupport.mergeProblemText(bootstrapProblemText, answer);
         }
 
         private Map<String, Integer> indexQuestions(List<QuestionFlowItemDto> questions) {
