@@ -58,3 +58,11 @@
 2026-07-30 08:34:24.238+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 4.306 seconds (process running for 4.539)
 2026-07-30 08:40:00.102+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T07:40:00.102606300+03:00
 2026-07-30 08:40:00.107+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 08:50:00.028+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T07:50:00.028740100+03:00
+2026-07-30 08:50:00.030+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 09:00:00.027+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T08:00:00.027257200+03:00
+2026-07-30 09:00:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 09:10:00.035+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T08:10:00.035841700+03:00
+2026-07-30 09:10:00.037+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-07-30 09:20:00.038+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-07-30T08:20:00.038143+03:00
+2026-07-30 09:20:00.040+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0

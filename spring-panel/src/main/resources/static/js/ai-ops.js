@@ -12,6 +12,8 @@
   const assistRateEl = document.getElementById('aiOpsAssistRate');
   const escalationRateEl = document.getElementById('aiOpsEscalationRate');
   const correctionRateEl = document.getElementById('aiOpsCorrectionRate');
+  const actionStatusEl = document.getElementById('aiOpsActionStatus');
+  const autoRefreshStateEl = document.getElementById('aiOpsAutoRefreshState');
 
   const memoryStateEl = document.getElementById('aiOpsMemoryState');
   const memoryListEl = document.getElementById('aiOpsMemoryList');
@@ -30,8 +32,19 @@
 
   if (!stateEl) return;
 
+  const AUTO_REFRESH_MS = 20000;
   const filters = { eventType: '', actor: '' };
   const memoryFilters = { query: '' };
+  const actionStatusState = { timerId: 0 };
+  const refreshRuntime = {
+    timerId: 0,
+    lastSuccessfulAt: 0,
+    lastOutcome: 'idle',
+  };
+  const inFlight = {
+    review: null,
+    offline: null,
+  };
 
   function getCookieValue(name) {
     const cookies = String(document.cookie || '').split(';');
@@ -75,11 +88,57 @@
     return Number.isFinite(n) ? String(n) : '--';
   }
 
+  function formatTime(value) {
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return '--';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
   function formatUtcDate(value) {
     if (!value) return '--';
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return String(value);
     return d.toLocaleString();
+  }
+
+  function setTextIfChanged(el, value) {
+    if (!el) return;
+    const next = String(value || '');
+    if (el.textContent !== next) {
+      el.textContent = next;
+    }
+  }
+
+  function setHtmlIfChanged(el, value) {
+    if (!el) return;
+    const next = String(value || '');
+    if (el.innerHTML !== next) {
+      el.innerHTML = next;
+    }
+  }
+
+  function showActionStatus(message, tone = 'info', autoHideMs = 5000) {
+    if (!actionStatusEl) return;
+    window.clearTimeout(actionStatusState.timerId);
+    actionStatusEl.dataset.tone = tone;
+    setTextIfChanged(actionStatusEl, message);
+    actionStatusEl.classList.add('is-visible');
+    if (autoHideMs > 0) {
+      actionStatusState.timerId = window.setTimeout(() => {
+        actionStatusEl.classList.remove('is-visible');
+      }, autoHideMs);
+    }
+  }
+
+  function updateAutoRefreshState(outcome = refreshRuntime.lastOutcome) {
+    if (!autoRefreshStateEl) return;
+    const intervalLabel = `${Math.round(AUTO_REFRESH_MS / 1000)} сек.`;
+    if (!refreshRuntime.lastSuccessfulAt) {
+      setTextIfChanged(autoRefreshStateEl, `Автообновление каждые ${intervalLabel}. Ожидание первого цикла.`);
+      return;
+    }
+    const suffix = outcome === 'error' ? 'Последний цикл с ошибкой' : 'Последняя синхронизация';
+    setTextIfChanged(autoRefreshStateEl, `Автообновление каждые ${intervalLabel}. ${suffix}: ${formatTime(refreshRuntime.lastSuccessfulAt)}`);
   }
 
   function buildEventsQuery(days = 7, limit = 50, includeFormat) {
@@ -94,11 +153,13 @@
 
   function renderAlerts(alerts) {
     if (!alertsEl) return;
+    let html = '';
     if (!Array.isArray(alerts) || !alerts.length) {
-      alertsEl.innerHTML = '<div class="text-muted">No alerts.</div>';
+      html = '<div class="text-muted">No alerts.</div>';
+      setHtmlIfChanged(alertsEl, html);
       return;
     }
-    alertsEl.innerHTML = alerts.map((a) => {
+    html = alerts.map((a) => {
       const severity = String(a?.severity || 'info');
       const cls = severity === 'warning'
         ? 'alert alert-warning py-2 px-3 mb-2'
@@ -108,24 +169,30 @@
         <div class="small text-muted">value: ${formatRatePercent(a?.value)} | threshold: ${formatRatePercent(a?.threshold)}</div>
       </div>`;
     }).join('');
+    setHtmlIfChanged(alertsEl, html);
   }
 
   function renderRunbook(items) {
     if (!runbookEl) return;
+    let html = '';
     if (!Array.isArray(items) || !items.length) {
-      runbookEl.innerHTML = '<li>Runbook unavailable.</li>';
+      html = '<li>Runbook unavailable.</li>';
+      setHtmlIfChanged(runbookEl, html);
       return;
     }
-    runbookEl.innerHTML = items.map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    html = items.map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    setHtmlIfChanged(runbookEl, html);
   }
 
   function renderEvents(items) {
     if (!eventsEl) return;
+    let html = '';
     if (!Array.isArray(items) || !items.length) {
-      eventsEl.innerHTML = '<div class="text-muted">No events.</div>';
+      html = '<div class="text-muted">No events.</div>';
+      setHtmlIfChanged(eventsEl, html);
       return;
     }
-    eventsEl.innerHTML = items.slice(0, 20).map((item) => {
+    html = items.slice(0, 20).map((item) => {
       const createdAt = formatUtcDate(item?.created_at);
       return `<div class="border rounded p-2 mb-1">
         <div class="d-flex flex-wrap justify-content-between gap-2">
@@ -136,15 +203,18 @@
         <div>${escapeHtml(item?.decision_reason || item?.detail || '')}</div>
       </div>`;
     }).join('');
+    setHtmlIfChanged(eventsEl, html);
   }
 
   function renderSolutionMemory(items) {
     if (!memoryListEl) return;
+    let html = '';
     if (!Array.isArray(items) || !items.length) {
-      memoryListEl.innerHTML = '<div class="text-muted">No records.</div>';
+      html = '<div class="text-muted">No records.</div>';
+      setHtmlIfChanged(memoryListEl, html);
       return;
     }
-    memoryListEl.innerHTML = items.map((item) => {
+    html = items.map((item) => {
       const key = escapeHtml(item?.query_key || '');
       const queryText = escapeHtml(item?.query_text || '');
       const solutionText = escapeHtml(item?.solution_text || '');
@@ -171,15 +241,18 @@
         <div class="small mt-2" data-memory-history-list></div>
       </div>`;
     }).join('');
+    setHtmlIfChanged(memoryListEl, html);
   }
 
   function renderReviewQueue(items) {
     if (!reviewTableBodyEl) return;
+    let html = '';
     if (!Array.isArray(items) || !items.length) {
-      reviewTableBodyEl.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Очередь ревизий пуста.</td></tr>';
+      html = '<tr><td colspan="5" class="text-muted text-center py-3">Очередь ревизий пуста.</td></tr>';
+      setHtmlIfChanged(reviewTableBodyEl, html);
       return;
     }
-    reviewTableBodyEl.innerHTML = items.map((item) => {
+    html = items.map((item) => {
       const queryKey = escapeHtml(String(item?.query_key || '').trim());
       const ticketId = String(item?.last_ticket_id || '').trim();
       const ticketLabel = ticketId ? `#${escapeHtml(ticketId)}` : '—';
@@ -200,6 +273,7 @@
         </td>
       </tr>`;
     }).join('');
+    setHtmlIfChanged(reviewTableBodyEl, html);
   }
 
   function renderOfflineEval(payload) {
@@ -208,20 +282,20 @@
       const datasetVersion = escapeHtml(String(dataset?.dataset_version || payload?.dataset_version || '—'));
       const casesTotal = formatCount(dataset?.cases_total ?? payload?.dataset_cases);
       const templatesTotal = formatCount(dataset?.templates_total);
-      offlineEvalDatasetEl.innerHTML = `
+      setHtmlIfChanged(offlineEvalDatasetEl, `
         <div><strong>Dataset:</strong> ${datasetVersion}</div>
         <div><strong>Cases:</strong> ${casesTotal}</div>
         <div><strong>Templates:</strong> ${templatesTotal}</div>
-      `;
+      `);
     }
     if (offlineEvalMetricsEl) {
       const available = payload?.available === true;
       if (!available) {
-        offlineEvalMetricsEl.innerHTML = '<div class="text-muted">Прогонов ещё не было. Можно запустить первый eval вручную.</div>';
+        setHtmlIfChanged(offlineEvalMetricsEl, '<div class="text-muted">Прогонов ещё не было. Можно запустить первый eval вручную.</div>');
       } else {
         const createdAt = formatUtcDate(payload?.created_at);
         const actor = escapeHtml(String(payload?.actor || 'system'));
-        offlineEvalMetricsEl.innerHTML = `
+        setHtmlIfChanged(offlineEvalMetricsEl, `
           <div><strong>Последний запуск:</strong> ${escapeHtml(createdAt)}</div>
           <div><strong>Actor:</strong> ${actor}</div>
           <div><strong>Passed:</strong> ${formatCount(payload?.cases_passed)} / ${formatCount(payload?.cases_total)}</div>
@@ -229,15 +303,15 @@
           <div><strong>Policy accuracy:</strong> ${formatRatePercent(payload?.policy_accuracy)}</div>
           <div><strong>Retrieval hit rate:</strong> ${formatRatePercent(payload?.retrieval_hit_rate)}</div>
           <div><strong>Confirmed reply rate:</strong> ${formatRatePercent(payload?.confirmed_reply_rate)}</div>
-        `;
+        `);
       }
     }
     if (offlineEvalFailuresEl) {
       const failures = Array.isArray(payload?.details?.sample_failures) ? payload.details.sample_failures : [];
       if (!failures.length) {
-        offlineEvalFailuresEl.innerHTML = '<div class="text-muted">Нет сохранённых ошибок или прогон ещё не выполнялся.</div>';
+        setHtmlIfChanged(offlineEvalFailuresEl, '<div class="text-muted">Нет сохранённых ошибок или прогон ещё не выполнялся.</div>');
       } else {
-        offlineEvalFailuresEl.innerHTML = failures.slice(0, 5).map((item) => {
+        setHtmlIfChanged(offlineEvalFailuresEl, failures.slice(0, 5).map((item) => {
           const message = escapeHtml(String(item?.message || '').trim() || '—');
           const expectedIntent = escapeHtml(String(item?.expected_intent || '').trim() || '—');
           const actualIntent = escapeHtml(String(item?.actual_intent || '').trim() || '—');
@@ -247,46 +321,53 @@
             <div class="text-muted">expected: ${expectedIntent} | actual: ${actualIntent}</div>
             <div>${reason}</div>
           </div>`;
-        }).join('');
+        }).join(''));
       }
     }
   }
 
-  async function loadSummary(days = 7) {
-    stateEl.textContent = 'Loading...';
+  async function loadSummary(days = 7, options = {}) {
+    if (!options.silent) setTextIfChanged(stateEl, 'Loading...');
     try {
       const resp = await fetch(`/api/dialogs/ai-monitoring/summary?days=${encodeURIComponent(days)}`, { credentials: 'same-origin', cache: 'no-store' });
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
       const summary = payload.summary || {};
       const kpis = summary.kpis || {};
-      if (autoReplyRateEl) autoReplyRateEl.textContent = formatRatePercent(kpis.auto_reply_rate);
-      if (assistRateEl) assistRateEl.textContent = formatRatePercent(kpis.assist_usage_rate);
-      if (escalationRateEl) escalationRateEl.textContent = formatRatePercent(kpis.escalation_rate);
-      if (correctionRateEl) correctionRateEl.textContent = formatRatePercent(kpis.correction_rate);
+      setTextIfChanged(autoReplyRateEl, formatRatePercent(kpis.auto_reply_rate));
+      setTextIfChanged(assistRateEl, formatRatePercent(kpis.assist_usage_rate));
+      setTextIfChanged(escalationRateEl, formatRatePercent(kpis.escalation_rate));
+      setTextIfChanged(correctionRateEl, formatRatePercent(kpis.correction_rate));
       renderAlerts(summary.alerts);
       renderRunbook(summary.runbook?.items);
-      stateEl.textContent = `Window: ${summary.window_days || days} days | updated ${formatUtcDate(summary.generated_at)}`;
+      setTextIfChanged(stateEl, `Window: ${summary.window_days || days} days | updated ${formatUtcDate(summary.generated_at)}`);
+      return { success: true };
     } catch (error) {
-      stateEl.textContent = `Failed to load AI metrics: ${error.message || 'unknown_error'}`;
+      setTextIfChanged(stateEl, `Failed to load AI metrics: ${error.message || 'unknown_error'}`);
       renderAlerts([]);
       renderRunbook([]);
+      return { success: false, error };
     }
   }
 
-  async function loadEvents(days = 7, limit = 50) {
+  async function loadEvents(days = 7, limit = 50, options = {}) {
     try {
       const resp = await fetch(`/api/dialogs/ai-monitoring/events?${buildEventsQuery(days, limit)}`, { credentials: 'same-origin', cache: 'no-store' });
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
       renderEvents(Array.isArray(payload.items) ? payload.items : []);
+      return { success: true };
     } catch (_error) {
       renderEvents([]);
+      if (!options.silent) {
+        showActionStatus('Не удалось обновить список событий AI Ops.', 'error', 5500);
+      }
+      return { success: false };
     }
   }
 
-  async function loadSolutionMemory(limit = 100) {
-    if (memoryStateEl) memoryStateEl.textContent = 'Loading...';
+  async function loadSolutionMemory(limit = 100, options = {}) {
+    if (!options.silent) setTextIfChanged(memoryStateEl, 'Loading...');
     try {
       const params = new URLSearchParams();
       params.set('limit', String(limit));
@@ -296,40 +377,52 @@
       if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
       const items = Array.isArray(payload.items) ? payload.items : [];
       renderSolutionMemory(items);
-      if (memoryStateEl) memoryStateEl.textContent = `Loaded: ${items.length}`;
+      setTextIfChanged(memoryStateEl, `Loaded: ${items.length}`);
+      return { success: true, count: items.length };
     } catch (error) {
       renderSolutionMemory([]);
-      if (memoryStateEl) memoryStateEl.textContent = `Failed to load: ${error.message || 'unknown_error'}`;
+      setTextIfChanged(memoryStateEl, `Failed to load: ${error.message || 'unknown_error'}`);
+      return { success: false, error };
     }
   }
 
-  async function loadReviewQueue(limit = 30) {
-    if (reviewStateEl) reviewStateEl.textContent = 'Загрузка...';
-    try {
-      const resp = await fetch(`/api/dialogs/ai-reviews?limit=${encodeURIComponent(limit)}`, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
-      const items = Array.isArray(payload.items) ? payload.items : [];
-      renderReviewQueue(items);
-      if (reviewStateEl) {
-        reviewStateEl.textContent = items.length
+  async function loadReviewQueue(limit = 30, options = {}) {
+    if (inFlight.review) return inFlight.review;
+    if (!options.silent) setTextIfChanged(reviewStateEl, 'Загрузка...');
+    inFlight.review = (async () => {
+      try {
+        const resp = await fetch(`/api/dialogs/ai-reviews?limit=${encodeURIComponent(limit)}`, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        renderReviewQueue(items);
+        setTextIfChanged(reviewStateEl, items.length
           ? `Найдено ревизий: ${items.length}`
-          : 'Очередь ревизий пуста.';
+          : 'Очередь ревизий пуста.');
+        return { success: true, count: items.length };
+      } catch (error) {
+        if (!options.keepStaleOnError) {
+          renderReviewQueue([]);
+        }
+        setTextIfChanged(reviewStateEl, `Не удалось загрузить очередь ревизий: ${error.message || 'unknown_error'}`);
+        return { success: false, error };
+      } finally {
+        inFlight.review = null;
       }
-    } catch (error) {
-      renderReviewQueue([]);
-      if (reviewStateEl) reviewStateEl.textContent = `Не удалось загрузить очередь ревизий: ${error.message || 'unknown_error'}`;
-    }
+    })();
+    return inFlight.review;
   }
 
-  async function reviewQueueAction(queryKey, action) {
+  async function reviewQueueAction(queryKey, action, row) {
     const key = String(queryKey || '').trim();
     const normalizedAction = String(action || '').trim().toLowerCase();
     if (!key || !['approve', 'reject'].includes(normalizedAction)) return;
-    if (reviewStateEl) reviewStateEl.textContent = normalizedAction === 'approve' ? 'Принятие ревизии...' : 'Отклонение ревизии...';
+    const rowButtons = row ? Array.from(row.querySelectorAll('button')) : [];
+    rowButtons.forEach((button) => { button.disabled = true; });
+    setTextIfChanged(reviewStateEl, normalizedAction === 'approve' ? 'Принятие ревизии...' : 'Отклонение ревизии...');
     try {
       const resp = await fetch(`/api/dialogs/ai-reviews/${encodeURIComponent(key)}/${normalizedAction}`, {
         method: 'POST',
@@ -338,38 +431,65 @@
       });
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
-      await Promise.all([loadReviewQueue(30), loadSolutionMemory(100)]);
+      await Promise.all([
+        loadReviewQueue(30, { keepStaleOnError: true }),
+        loadSolutionMemory(100, { silent: true }),
+      ]);
+      showActionStatus(
+        normalizedAction === 'approve'
+          ? 'Ревизия принята и очередь обновлена.'
+          : 'Ревизия отклонена и очередь обновлена.',
+        'success'
+      );
     } catch (error) {
-      if (reviewStateEl) reviewStateEl.textContent = `Не удалось выполнить действие: ${error.message || 'unknown_error'}`;
+      setTextIfChanged(reviewStateEl, `Не удалось выполнить действие: ${error.message || 'unknown_error'}`);
+      showActionStatus(`Не удалось выполнить действие по ревизии: ${error.message || 'unknown_error'}`, 'error', 6500);
+    } finally {
+      if (row && row.isConnected) {
+        const openBtn = row.querySelector('[data-ai-review-open]');
+        const ticketId = String(row.getAttribute('data-ai-review-ticket') || '').trim();
+        if (openBtn) openBtn.disabled = !ticketId;
+        row.querySelectorAll('[data-ai-review-approve],[data-ai-review-reject]').forEach((button) => {
+          button.disabled = false;
+        });
+      }
     }
   }
 
-  async function loadOfflineEval() {
-    if (offlineEvalStateEl) offlineEvalStateEl.textContent = 'Загрузка...';
-    try {
-      const resp = await fetch('/api/dialogs/ai-monitoring/offline-eval', {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
-      renderOfflineEval(payload.offline_eval || {});
-      if (offlineEvalStateEl) {
+  async function loadOfflineEval(options = {}) {
+    if (inFlight.offline) return inFlight.offline;
+    if (!options.silent) setTextIfChanged(offlineEvalStateEl, 'Загрузка...');
+    inFlight.offline = (async () => {
+      try {
+        const resp = await fetch('/api/dialogs/ai-monitoring/offline-eval', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
+        renderOfflineEval(payload.offline_eval || {});
         const available = payload?.offline_eval?.available === true;
-        offlineEvalStateEl.textContent = available
+        setTextIfChanged(offlineEvalStateEl, available
           ? `Последний прогон: ${formatUtcDate(payload.offline_eval.created_at)}`
-          : 'Offline eval ещё не запускался.';
+          : 'Offline eval ещё не запускался.');
+        return { success: true, available };
+      } catch (error) {
+        if (!options.keepStaleOnError) {
+          renderOfflineEval({});
+        }
+        setTextIfChanged(offlineEvalStateEl, `Не удалось загрузить offline eval: ${error.message || 'unknown_error'}`);
+        return { success: false, error };
+      } finally {
+        inFlight.offline = null;
       }
-    } catch (error) {
-      renderOfflineEval({});
-      if (offlineEvalStateEl) offlineEvalStateEl.textContent = `Не удалось загрузить offline eval: ${error.message || 'unknown_error'}`;
-    }
+    })();
+    return inFlight.offline;
   }
 
   async function runOfflineEvalNow() {
     if (!offlineEvalRunBtn) return;
     offlineEvalRunBtn.disabled = true;
-    if (offlineEvalStateEl) offlineEvalStateEl.textContent = 'Запуск offline eval...';
+    setTextIfChanged(offlineEvalStateEl, 'Запуск offline eval...');
     try {
       const resp = await fetch('/api/dialogs/ai-monitoring/offline-eval/run', {
         method: 'POST',
@@ -379,12 +499,37 @@
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
       renderOfflineEval(payload.offline_eval || {});
-      if (offlineEvalStateEl) offlineEvalStateEl.textContent = `Offline eval обновлён: ${formatUtcDate(payload?.offline_eval?.created_at)}`;
+      setTextIfChanged(offlineEvalStateEl, `Offline eval обновлён: ${formatUtcDate(payload?.offline_eval?.created_at)}`);
+      showActionStatus('Offline eval успешно запущен и результат обновлён.', 'success');
     } catch (error) {
-      if (offlineEvalStateEl) offlineEvalStateEl.textContent = `Не удалось запустить offline eval: ${error.message || 'unknown_error'}`;
+      setTextIfChanged(offlineEvalStateEl, `Не удалось запустить offline eval: ${error.message || 'unknown_error'}`);
+      showActionStatus(`Не удалось запустить offline eval: ${error.message || 'unknown_error'}`, 'error', 6500);
     } finally {
       offlineEvalRunBtn.disabled = false;
     }
+  }
+
+  async function refreshAutoSlices() {
+    if (document.hidden) return;
+    const [reviewResult, offlineResult] = await Promise.all([
+      loadReviewQueue(30, { silent: true, keepStaleOnError: true }),
+      loadOfflineEval({ silent: true, keepStaleOnError: true }),
+    ]);
+    if (reviewResult?.success && offlineResult?.success) {
+      refreshRuntime.lastSuccessfulAt = Date.now();
+      refreshRuntime.lastOutcome = 'ok';
+    } else {
+      refreshRuntime.lastOutcome = 'error';
+    }
+    updateAutoRefreshState(refreshRuntime.lastOutcome);
+  }
+
+  function startAutoRefresh() {
+    window.clearInterval(refreshRuntime.timerId);
+    updateAutoRefreshState('idle');
+    refreshRuntime.timerId = window.setInterval(() => {
+      refreshAutoSlices();
+    }, AUTO_REFRESH_MS);
   }
 
   async function saveSolutionMemoryRow(button) {
@@ -538,11 +683,23 @@
     link.remove();
   }
 
-  if (refreshBtn) refreshBtn.addEventListener('click', () => {
-    loadSummary(7);
-    loadEvents(7, 50);
-    loadReviewQueue(30);
-    loadOfflineEval();
+  if (refreshBtn) refreshBtn.addEventListener('click', async () => {
+    const [summaryResult, eventsResult, reviewResult, offlineResult] = await Promise.all([
+      loadSummary(7),
+      loadEvents(7, 50, { silent: true }),
+      loadReviewQueue(30, { keepStaleOnError: true }),
+      loadOfflineEval({ keepStaleOnError: true }),
+    ]);
+    if (summaryResult?.success && eventsResult?.success && reviewResult?.success && offlineResult?.success) {
+      refreshRuntime.lastSuccessfulAt = Date.now();
+      refreshRuntime.lastOutcome = 'ok';
+      updateAutoRefreshState('ok');
+      showActionStatus('AI Ops обновлён без полной перезагрузки страницы.', 'success');
+    } else {
+      refreshRuntime.lastOutcome = 'error';
+      updateAutoRefreshState('error');
+      showActionStatus('Часть данных AI Ops не удалось обновить. Старые данные сохранены, где это возможно.', 'error', 6500);
+    }
   });
   if (applyFiltersBtn) applyFiltersBtn.addEventListener('click', () => {
     filters.eventType = String(eventTypeInput?.value || '').trim().toLowerCase();
@@ -558,14 +715,29 @@
     memoryFilters.query = String(memoryQueryInput?.value || '').trim();
     loadSolutionMemory(100);
   });
-  if (memoryRefreshBtn) memoryRefreshBtn.addEventListener('click', () => {
-    loadSolutionMemory(100);
+  if (memoryRefreshBtn) memoryRefreshBtn.addEventListener('click', async () => {
+    const result = await loadSolutionMemory(100);
+    showActionStatus(
+      result?.success ? 'Solution memory обновлена.' : 'Не удалось обновить solution memory.',
+      result?.success ? 'success' : 'error',
+      result?.success ? 4500 : 6500
+    );
   });
-  if (reviewRefreshBtn) reviewRefreshBtn.addEventListener('click', () => {
-    loadReviewQueue(30);
+  if (reviewRefreshBtn) reviewRefreshBtn.addEventListener('click', async () => {
+    const result = await loadReviewQueue(30, { keepStaleOnError: true });
+    showActionStatus(
+      result?.success ? 'Очередь ревизий обновлена.' : 'Не удалось обновить очередь ревизий.',
+      result?.success ? 'success' : 'error',
+      result?.success ? 4500 : 6500
+    );
   });
-  if (offlineEvalRefreshBtn) offlineEvalRefreshBtn.addEventListener('click', () => {
-    loadOfflineEval();
+  if (offlineEvalRefreshBtn) offlineEvalRefreshBtn.addEventListener('click', async () => {
+    const result = await loadOfflineEval({ keepStaleOnError: true });
+    showActionStatus(
+      result?.success ? 'Данные offline eval обновлены.' : 'Не удалось обновить offline eval.',
+      result?.success ? 'success' : 'error',
+      result?.success ? 4500 : 6500
+    );
   });
   if (offlineEvalRunBtn) offlineEvalRunBtn.addEventListener('click', () => {
     runOfflineEvalNow();
@@ -583,12 +755,12 @@
       }
       const approveBtn = event.target.closest('[data-ai-review-approve]');
       if (approveBtn) {
-        reviewQueueAction(queryKey, 'approve');
+        reviewQueueAction(queryKey, 'approve', row);
         return;
       }
       const rejectBtn = event.target.closest('[data-ai-review-reject]');
       if (rejectBtn) {
-        reviewQueueAction(queryKey, 'reject');
+        reviewQueueAction(queryKey, 'reject', row);
       }
     });
   }
@@ -605,9 +777,25 @@
     });
   }
 
-  loadSummary(7);
-  loadEvents(7, 50);
-  loadSolutionMemory(100);
-  loadReviewQueue(30);
-  loadOfflineEval();
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      refreshAutoSlices();
+    }
+  });
+
+  Promise.all([
+    loadSummary(7),
+    loadEvents(7, 50, { silent: true }),
+    loadSolutionMemory(100, { silent: true }),
+    loadReviewQueue(30, { keepStaleOnError: true }),
+    loadOfflineEval({ keepStaleOnError: true }),
+  ]).then((results) => {
+    const criticalOk = results[0]?.success && results[3]?.success && results[4]?.success;
+    refreshRuntime.lastOutcome = criticalOk ? 'ok' : 'error';
+    if (criticalOk) {
+      refreshRuntime.lastSuccessfulAt = Date.now();
+    }
+    updateAutoRefreshState(refreshRuntime.lastOutcome);
+    startAutoRefresh();
+  });
 })();

@@ -57,6 +57,60 @@
         .aiops-runbook {
             margin-bottom: 0;
         }
+        .aiops-topbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: stretch;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .aiops-action-status {
+            flex: 1 1 32rem;
+            min-height: 2.75rem;
+            display: flex;
+            align-items: center;
+            padding: 0.65rem 0.85rem;
+            border: 1px solid transparent;
+            border-radius: 0.9rem;
+            font-size: 0.86rem;
+            opacity: 0;
+            transform: translateY(2px);
+            transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+            pointer-events: none;
+        }
+        .aiops-action-status.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .aiops-action-status[data-tone="info"] {
+            background: color-mix(in srgb, var(--card) 90%, #dbeafe);
+            border-color: color-mix(in srgb, var(--ui-panel-border) 70%, #93c5fd);
+            color: color-mix(in srgb, var(--foreground) 88%, #1d4ed8);
+        }
+        .aiops-action-status[data-tone="success"] {
+            background: color-mix(in srgb, var(--card) 88%, #dcfce7);
+            border-color: color-mix(in srgb, var(--ui-panel-border) 70%, #86efac);
+            color: color-mix(in srgb, var(--foreground) 88%, #166534);
+        }
+        .aiops-action-status[data-tone="error"] {
+            background: color-mix(in srgb, var(--card) 88%, #fee2e2);
+            border-color: color-mix(in srgb, var(--ui-panel-border) 70%, #fca5a5);
+            color: color-mix(in srgb, var(--foreground) 88%, #b91c1c);
+        }
+        .aiops-refresh-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 2.75rem;
+            padding: 0.65rem 0.95rem;
+            border: 1px solid var(--ui-panel-border);
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--card) 98%, white);
+            font-size: 0.8rem;
+            color: var(--muted-foreground);
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="ai-ops" data-ui-density="compact">
@@ -80,6 +134,11 @@
 
     <div class="tab-content" id="aiOpsTabsContent">
         <div class="tab-pane fade show active" id="aiOpsOverviewPane" role="tabpanel" aria-labelledby="aiOpsOverviewTab" tabindex="0">
+
+    <div class="aiops-topbar">
+        <div class="aiops-action-status" id="aiOpsActionStatus" data-tone="info" aria-live="polite"></div>
+        <div class="aiops-refresh-pill" id="aiOpsAutoRefreshState">Автообновление: подготовка...</div>
+    </div>
 
     <section class="card shadow-sm mb-4 aiops-section-card">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
