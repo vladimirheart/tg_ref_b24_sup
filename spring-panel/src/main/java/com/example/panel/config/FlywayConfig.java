@@ -19,7 +19,6 @@ public class FlywayConfig {
     private static final Logger logger = LoggerFactory.getLogger(FlywayConfig.class);
     private static final String BASELINE_VERSION = "1";
     private static final String BASELINE_SCRIPT = "V1__baseline_schema.sql";
-    private static final int BASELINE_FALLBACK_CHECKSUM = 823443258;
     private static final String LEGACY_CLIENT_PHONES_VERSION = "6.1";
     private static final String LEGACY_CLIENT_PHONES_SCRIPT = "db.migration.V6_1__fix_client_phones_schema";
 
@@ -67,9 +66,6 @@ public class FlywayConfig {
 
             int repairedBaselineChecksums = 0;
             Integer resolvedBaselineChecksum = resolveChecksum(flyway, BASELINE_VERSION, BASELINE_SCRIPT);
-            if (resolvedBaselineChecksum == null) {
-                resolvedBaselineChecksum = BASELINE_FALLBACK_CHECKSUM;
-            }
             if (resolvedBaselineChecksum != null) {
                 try (PreparedStatement statement = connection.prepareStatement(updateBaselineChecksumSql)) {
                     statement.setInt(1, resolvedBaselineChecksum);
@@ -78,6 +74,12 @@ public class FlywayConfig {
                     statement.setInt(4, resolvedBaselineChecksum);
                     repairedBaselineChecksums = statement.executeUpdate();
                 }
+            } else {
+                logger.warn(
+                    "Unable to resolve local Flyway checksum for {} {} before migrate. Skipping direct checksum rewrite and deferring to repair logic if needed.",
+                    BASELINE_VERSION,
+                    BASELINE_SCRIPT
+                );
             }
 
             int removedDeleteMarkers;
@@ -124,31 +126,28 @@ public class FlywayConfig {
             return;
         }
 
-        Integer resolvedBaselineChecksum = resolveChecksum(flyway, BASELINE_VERSION, BASELINE_SCRIPT);
-        if (resolvedBaselineChecksum == null) {
-            resolvedBaselineChecksum = BASELINE_FALLBACK_CHECKSUM;
-        }
-
         String schemaHistoryTable = configuration.getTable();
-        String mismatchCountSql =
+        String successfulBaselineCountSql =
             "SELECT COUNT(*) FROM " + schemaHistoryTable +
-                " WHERE version = ? AND script = ? AND success = 1 AND (checksum IS NULL OR checksum <> ?)";
-
+                " WHERE version = ? AND script = ? AND success = 1";
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(mismatchCountSql)) {
-            statement.setString(1, BASELINE_VERSION);
-            statement.setString(2, BASELINE_SCRIPT);
-            statement.setInt(3, resolvedBaselineChecksum);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (resultSet.next() && resultSet.getInt(1) > 0) {
-                    logger.warn(
-                        "Detected legacy Flyway baseline checksum mismatch for {} {}. Running Flyway repair before migrate.",
-                        BASELINE_VERSION,
-                        BASELINE_SCRIPT
-                    );
-                    flyway.repair();
-                }
+             PreparedStatement successfulBaselineStatement = connection.prepareStatement(successfulBaselineCountSql)) {
+            successfulBaselineStatement.setString(1, BASELINE_VERSION);
+            successfulBaselineStatement.setString(2, BASELINE_SCRIPT);
+            int successfulBaselineCount;
+            try (ResultSet resultSet = successfulBaselineStatement.executeQuery()) {
+                successfulBaselineCount = resultSet.next() ? resultSet.getInt(1) : 0;
             }
+            if (successfulBaselineCount <= 0) {
+                return;
+            }
+
+            logger.warn(
+                "Detected applied Flyway baseline {} {} in schema history. Running Flyway repair before migrate to keep mutable baseline checksums aligned.",
+                BASELINE_VERSION,
+                BASELINE_SCRIPT
+            );
+            flyway.repair();
         } catch (SQLException ex) {
             logger.warn("Unable to check legacy Flyway baseline checksum mismatch before migrate.", ex);
         }

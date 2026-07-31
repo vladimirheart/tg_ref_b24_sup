@@ -181,3 +181,4 @@
 🟣 [01-160] Спроектировать data lifecycle и стратегию масштабируемого хранения Iguana для роста вложений и исторических данных
 🟣 [01-161] Нормализовать attachment metadata и восстановить broken attachment references как первый implementation-шаг storage strategy Iguana
 🟣 [01-162] Разобрать и закрыть оставшиеся orphan attachment rows после metadata migration Iguana
+🟣 [01-163] Починить запуск spring-panel после нового Flyway checksum mismatch для baseline V1
