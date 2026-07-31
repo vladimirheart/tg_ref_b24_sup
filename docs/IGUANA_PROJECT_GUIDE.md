@@ -349,6 +349,7 @@ $env:SPRING_OPTS='--server.port=8080'
 
 Если нужна глубокая эксплуатация:
 
+- [IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md](IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md)
 - [windows_setup.md](windows_setup.md)
 - [configuration.md](configuration.md)
 - [environment_variables.md](environment_variables.md)

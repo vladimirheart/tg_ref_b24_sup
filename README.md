@@ -166,6 +166,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 ### Старт и эксплуатация
 
 - [docs/IGUANA_PROJECT_GUIDE.md](docs/IGUANA_PROJECT_GUIDE.md)
+- [docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md](docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md)
 - [docs/IGUANA_TRANSFER_WINDOWS.md](docs/IGUANA_TRANSFER_WINDOWS.md)
 - [docs/windows_setup.md](docs/windows_setup.md)
 - [docs/configuration.md](docs/configuration.md)
