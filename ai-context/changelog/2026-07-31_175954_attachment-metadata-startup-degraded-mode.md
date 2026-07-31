@@ -1,0 +1,22 @@
+# 2026-07-31 17:59:54 - attachment metadata startup degraded mode
+
+- Затронутые области:
+  - `spring-panel/src/main/java/com/example/panel/service/ChatAttachmentMetadataAvailabilityService.java`
+  - `spring-panel/src/test/java/com/example/panel/service/ChatAttachmentMetadataAvailabilityServiceTest.java`
+  - `ai-context/tasks/task-list.md`
+  - `ai-context/tasks/task-details/01-165.md`
+- Пользовательский промпт:
+  - `spring-panel> .\\run-windows.bat [INFO] Java runtime: 25.0.2 (major 25) [WARN] ...`
+  - `The attached pasted text file(s) contain the user's request. Read and act on that content.`
+- Что сделано:
+  - локализована новая startup-регрессия: `ChatAttachmentMetadataAvailabilityService` падал на `@PostConstruct` из-за `SQLITE_CORRUPT` при чтении `chat_attachment_metadata`;
+  - startup reconcile availability-status переведён в режим best-effort: при `DataAccessException` сервис логирует degraded warning и не валит весь Spring context;
+  - добавлен regression test на сценарий corrupted metadata без исключения из `reconcileAvailabilityStatuses()`;
+  - создана и закрыта в статус `🟣` follow-up задача `01-165`.
+- Проверки:
+  - `spring-panel\\mvnw.cmd -q -DskipTests compile` — success
+  - `spring-panel\\run-windows.bat` на текущей runtime БД:
+    - `Tomcat initialized with port 8099`
+    - `Skipping attachment metadata availability reconcile because chat_attachment_metadata is unavailable`
+    - `Started PanelApplication in 66.861 seconds`
+  - тестовый runtime-процесс после проверки остановлен вручную

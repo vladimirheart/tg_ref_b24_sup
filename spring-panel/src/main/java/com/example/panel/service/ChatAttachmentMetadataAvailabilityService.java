@@ -2,6 +2,9 @@ package com.example.panel.service;
 
 import com.example.panel.storage.AttachmentService;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -11,6 +14,8 @@ import java.util.List;
 
 @Service
 public class ChatAttachmentMetadataAvailabilityService {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatAttachmentMetadataAvailabilityService.class);
 
     private final JdbcTemplate jdbcTemplate;
     private final AttachmentService attachmentService;
@@ -23,33 +28,40 @@ public class ChatAttachmentMetadataAvailabilityService {
 
     @PostConstruct
     void reconcileAvailabilityStatuses() {
-        ensureColumn();
-        List<AttachmentMetadataRow> rows = jdbcTemplate.query("""
-                SELECT chat_history_id, storage_provider, storage_key, legacy_attachment_ref, normalization_status
-                  FROM chat_attachment_metadata
-                """, (rs, rowNum) -> new AttachmentMetadataRow(
-                rs.getLong("chat_history_id"),
-                trim(rs.getString("storage_provider")),
-                trim(rs.getString("storage_key")),
-                trim(rs.getString("legacy_attachment_ref")),
-                trim(rs.getString("normalization_status"))
-        ));
-        for (AttachmentMetadataRow row : rows) {
-            String storageProvider = resolveStorageProvider(row);
-            String normalizationStatus = resolveNormalizationStatus(row, storageProvider);
-            String availabilityStatus = resolveAvailabilityStatus(row, storageProvider);
-            jdbcTemplate.update("""
-                    UPDATE chat_attachment_metadata
-                       SET storage_provider = ?,
-                           normalization_status = ?,
-                           availability_status = ?,
-                           updated_at = CURRENT_TIMESTAMP
-                     WHERE chat_history_id = ?
-                    """,
-                    storageProvider,
-                    normalizationStatus,
-                    availabilityStatus,
-                    row.chatHistoryId()
+        try {
+            ensureColumn();
+            List<AttachmentMetadataRow> rows = jdbcTemplate.query("""
+                    SELECT chat_history_id, storage_provider, storage_key, legacy_attachment_ref, normalization_status
+                      FROM chat_attachment_metadata
+                    """, (rs, rowNum) -> new AttachmentMetadataRow(
+                    rs.getLong("chat_history_id"),
+                    trim(rs.getString("storage_provider")),
+                    trim(rs.getString("storage_key")),
+                    trim(rs.getString("legacy_attachment_ref")),
+                    trim(rs.getString("normalization_status"))
+            ));
+            for (AttachmentMetadataRow row : rows) {
+                String storageProvider = resolveStorageProvider(row);
+                String normalizationStatus = resolveNormalizationStatus(row, storageProvider);
+                String availabilityStatus = resolveAvailabilityStatus(row, storageProvider);
+                jdbcTemplate.update("""
+                        UPDATE chat_attachment_metadata
+                           SET storage_provider = ?,
+                               normalization_status = ?,
+                               availability_status = ?,
+                               updated_at = CURRENT_TIMESTAMP
+                         WHERE chat_history_id = ?
+                        """,
+                        storageProvider,
+                        normalizationStatus,
+                        availabilityStatus,
+                        row.chatHistoryId()
+                );
+            }
+        } catch (DataAccessException ex) {
+            log.warn(
+                    "Skipping attachment metadata availability reconcile because chat_attachment_metadata is unavailable: {}",
+                    DialogDataAccessSupport.summarizeDataAccessException(ex)
             );
         }
     }
