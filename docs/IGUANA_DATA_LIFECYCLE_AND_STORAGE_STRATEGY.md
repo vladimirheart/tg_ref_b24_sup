@@ -393,6 +393,12 @@ Iguana уже не выглядит как "просто Spring Boot + неск�
 
 - команда понимает, что именно растёт и сколько это стоит.
 
+Текущий operational helper для этого этапа:
+
+- `python scripts/report-iguana-storage.py`
+- скрипт инвентаризирует candidate attachment roots, размеры SQLite-файлов и attachment/path references из БД;
+- отдельным сигналом подсвечивает path drift, когда в истории остались старые абсолютные пути, а фактическое хранилище уже живёт в другом каталоге.
+
 ## Этап 2. Storage abstraction для вложений
 
 Сделать:

@@ -174,6 +174,8 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 - [docs/database-paths.md](docs/database-paths.md)
 - [docs/database_distribution.md](docs/database_distribution.md)
 
+Для быстрой инвентаризации storage/growth используйте `python scripts/report-iguana-storage.py`.
+
 ### Боты и каналы
 
 - [docs/java_bot.md](docs/java_bot.md)
