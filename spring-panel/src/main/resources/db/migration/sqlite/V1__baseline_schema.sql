@@ -127,6 +127,32 @@ CREATE INDEX IF NOT EXISTS idx_history_ticket_order
 CREATE INDEX IF NOT EXISTS idx_history_ticket_sender_order
     ON chat_history(ticket_id, lower(COALESCE(sender, '')), substr(COALESCE(timestamp, ''), 1, 19), id);
 
+CREATE TABLE IF NOT EXISTS chat_attachment_metadata (
+    id                    INTEGER PRIMARY KEY ${autoIncrement},
+    chat_history_id       BIGINT NOT NULL UNIQUE REFERENCES chat_history(id) ON DELETE CASCADE,
+    ticket_id             TEXT,
+    channel_id            BIGINT,
+    storage_key           TEXT,
+    storage_provider      TEXT NOT NULL DEFAULT 'local_fs',
+    storage_class         TEXT NOT NULL DEFAULT 'dialog_attachment',
+    original_name         TEXT,
+    mime_type             TEXT,
+    size                  BIGINT,
+    content_hash          TEXT,
+    legacy_attachment_ref TEXT,
+    normalization_status  TEXT NOT NULL DEFAULT 'normalized',
+    created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            TEXT,
+    archived_at           TEXT,
+    deleted_at            TEXT,
+    CHECK (normalization_status IN ('normalized', 'unresolved'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_ticket
+    ON chat_attachment_metadata(ticket_id, chat_history_id);
+CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_storage_key
+    ON chat_attachment_metadata(storage_key);
+
 DROP VIEW IF EXISTS client_stats;
 CREATE VIEW client_stats AS
 SELECT

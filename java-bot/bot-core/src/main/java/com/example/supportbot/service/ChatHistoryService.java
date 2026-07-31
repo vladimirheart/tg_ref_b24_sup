@@ -14,13 +14,16 @@ public class ChatHistoryService {
     private final ChatHistoryRepository historyRepository;
     private final JdbcTemplate jdbcTemplate;
     private final UiEventOutboxService uiEventOutboxService;
+    private final ChatAttachmentMetadataService chatAttachmentMetadataService;
 
     public ChatHistoryService(ChatHistoryRepository historyRepository,
                               JdbcTemplate jdbcTemplate,
-                              UiEventOutboxService uiEventOutboxService) {
+                              UiEventOutboxService uiEventOutboxService,
+                              ChatAttachmentMetadataService chatAttachmentMetadataService) {
         this.historyRepository = historyRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.uiEventOutboxService = uiEventOutboxService;
+        this.chatAttachmentMetadataService = chatAttachmentMetadataService;
         ensureColumns();
     }
 
@@ -104,6 +107,14 @@ public class ChatHistoryService {
         history.setReplyToTelegramId(replyToTelegramId);
         history.setForwardedFrom(forwardedFrom);
         ChatHistory saved = historyRepository.save(history);
+        chatAttachmentMetadataService.upsertForChatHistory(
+                saved.getId(),
+                ticketId,
+                channel != null ? channel.getId() : null,
+                attachmentPath,
+                attachmentName,
+                messageType
+        );
         uiEventOutboxService.publishClientMessage(ticketId, channel, text, messageType, attachmentPath);
         return saved;
     }

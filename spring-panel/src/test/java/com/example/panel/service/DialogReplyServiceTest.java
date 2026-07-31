@@ -9,6 +9,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -63,12 +64,23 @@ class DialogReplyServiceTest {
         when(targetService.hasWebFormSession("T-901")).thenReturn(false);
         when(transportService.sendMedia(channel, 200L, file, "caption", "image.png", null))
                 .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 88L));
-        when(targetService.logOutgoingMediaMessage(any(), eq("T-901"), eq("caption"), eq("stored.bin"), eq("image"), eq(88L), eq(null)))
+        when(targetService.logOutgoingMediaMessage(
+                any(),
+                eq("T-901"),
+                eq("caption"),
+                eq("stored.bin"),
+                eq("image.png"),
+                eq("image/png"),
+                eq(3L),
+                eq("image"),
+                eq(88L),
+                isNull()
+        ))
                 .thenReturn("2026-04-30T12:05:00Z");
         when(responsibilityService.assignResponsibleIfMissing("T-901", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogMediaReplyResult result =
-                dialogReplyService.sendMediaReply("T-901", file, "caption", null, "operator", "stored.bin", "image.png");
+                dialogReplyService.sendMediaReply("T-901", file, "caption", null, "operator", "stored.bin", "image.png", "image/png", 3L);
 
         assertThat(result.success()).isTrue();
         assertThat(result.telegramMessageId()).isEqualTo(88L);

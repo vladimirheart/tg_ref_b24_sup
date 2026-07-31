@@ -4,6 +4,7 @@ import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogPreviousHistoryBatch;
 import com.example.panel.model.dialog.DialogPreviousHistoryPage;
 import com.example.panel.storage.AttachmentService;
+import com.example.panel.storage.AttachmentStorageKeyResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -57,20 +58,46 @@ public class DialogConversationReadService {
             String fileNameColumn = columns.contains("file_name")
                     ? "file_name"
                     : "NULL AS file_name";
+            Set<String> attachmentMetadataColumns = loadTableColumns("chat_attachment_metadata");
+            boolean attachmentMetadataAvailable = !attachmentMetadataColumns.isEmpty();
+            String metadataSelect = attachmentMetadataAvailable
+                    ? """
+                            , cam.storage_key AS attachment_storage_key,
+                              cam.original_name AS attachment_original_name,
+                              cam.size AS attachment_size
+                            """
+                    : """
+                            , NULL AS attachment_storage_key,
+                              NULL AS attachment_original_name,
+                              NULL AS attachment_size
+                            """;
+            String metadataJoin = attachmentMetadataAvailable
+                    ? " LEFT JOIN chat_attachment_metadata cam ON cam.chat_history_id = ch.id "
+                    : "";
             String baseSql = """
-                    SELECT sender, message, timestamp, message_type, attachment,
-                           tg_message_id, reply_to_tg_id, channel_id,
+                    SELECT ch.sender, ch.message, ch.timestamp, ch.message_type, ch.attachment,
+                           ch.tg_message_id, ch.reply_to_tg_id, ch.channel_id,
                            %s, %s, %s, %s, %s
-                      FROM chat_history
-                     WHERE ticket_id = ?
-                    """.formatted(originalMessageColumn, editedAtColumn, deletedAtColumn, forwardedFromColumn, fileNameColumn);
+                           %s
+                      FROM chat_history ch
+                      %s
+                     WHERE ch.ticket_id = ?
+                    """.formatted(
+                    qualifyChatHistoryColumn(originalMessageColumn),
+                    qualifyChatHistoryColumn(editedAtColumn),
+                    qualifyChatHistoryColumn(deletedAtColumn),
+                    qualifyChatHistoryColumn(forwardedFromColumn),
+                    qualifyChatHistoryColumn(fileNameColumn),
+                    metadataSelect,
+                    metadataJoin
+            );
             List<Object> args = new ArrayList<>();
             args.add(ticketId);
             if (channelId != null) {
-                baseSql += " AND channel_id = ?";
+                baseSql += " AND ch.channel_id = ?";
                 args.add(channelId);
             }
-            baseSql += " ORDER BY substr(timestamp,1,19) ASC, COALESCE(tg_message_id, 0) ASC, rowid ASC";
+            baseSql += " ORDER BY substr(ch.timestamp,1,19) ASC, COALESCE(ch.tg_message_id, 0) ASC, ch.rowid ASC";
 
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(baseSql, args.toArray());
             Map<String, String> previewByMessage = new HashMap<>();
@@ -95,8 +122,16 @@ public class DialogConversationReadService {
                     replyPreview = previewByMessage.get(key);
                 }
                 String rawAttachment = value(row.get("attachment"));
-                String attachment = toAttachmentUrl(ticketId, rawAttachment);
-                AttachmentMeta attachmentMeta = resolveAttachmentMeta(ticketId, rawAttachment, attachment);
+                String storageKey = value(row.get("attachment_storage_key"));
+                String attachment = toAttachmentUrl(ticketId, rawAttachment, storageKey);
+                AttachmentMeta attachmentMeta = resolveAttachmentMeta(
+                        ticketId,
+                        rawAttachment,
+                        storageKey,
+                        attachment,
+                        value(row.get("attachment_original_name")),
+                        parseLong(row.get("attachment_size"))
+                );
                 String message = value(row.get("message"));
                 String originalMessage = value(row.get("original_message"));
                 String deletedAt = value(row.get("deleted_at"));
@@ -250,7 +285,11 @@ public class DialogConversationReadService {
         return (channelId != null ? channelId : 0L) + ":" + telegramMessageId;
     }
 
-    private static String toAttachmentUrl(String ticketId, String attachment) {
+    private static String toAttachmentUrl(String ticketId, String attachment, String storageKey) {
+        if (StringUtils.hasText(storageKey)) {
+            return "/api/attachments/tickets/by-storage-key?key="
+                    + UriUtils.encodeQueryParam(storageKey.trim(), StandardCharsets.UTF_8);
+        }
         if (!StringUtils.hasText(attachment) || !StringUtils.hasText(ticketId)) {
             return attachment;
         }
@@ -272,64 +311,83 @@ public class DialogConversationReadService {
                 + UriUtils.encodePathSegment(trimmed, StandardCharsets.UTF_8);
     }
 
-    private AttachmentMeta resolveAttachmentMeta(String ticketId, String rawAttachment, String attachmentUrl) {
+    private AttachmentMeta resolveAttachmentMeta(String ticketId,
+                                                 String rawAttachment,
+                                                 String storageKey,
+                                                 String attachmentUrl,
+                                                 String metadataOriginalName,
+                                                 Long metadataSize) {
+        if (StringUtils.hasText(storageKey) && (StringUtils.hasText(metadataOriginalName) || metadataSize != null)) {
+            return new AttachmentMeta(
+                    AttachmentStorageKeyResolver.resolveOriginalName(metadataOriginalName, rawAttachment, storageKey),
+                    metadataSize
+            );
+        }
         if (!StringUtils.hasText(rawAttachment)) {
-            return new AttachmentMeta(resolveAttachmentName(rawAttachment, attachmentUrl), null);
+            return new AttachmentMeta(resolveAttachmentName(rawAttachment, storageKey, attachmentUrl), metadataSize);
         }
         try {
             AttachmentService.AttachmentDescriptor descriptor;
-            String normalized = rawAttachment.trim().replace('\\', '/');
-            if (normalized.startsWith("attachments/") || normalized.contains("/attachments/")) {
-                descriptor = attachmentService.describeTicketAttachmentByPath(rawAttachment);
-            } else if (StringUtils.hasText(ticketId)) {
-                descriptor = attachmentService.describeTicketAttachment(ticketId.trim(), rawAttachment.trim());
+            if (StringUtils.hasText(storageKey)) {
+                descriptor = attachmentService.describeTicketAttachmentByStorageKey(storageKey.trim());
             } else {
-                descriptor = null;
+                String normalized = rawAttachment.trim().replace('\\', '/');
+                if (normalized.startsWith("attachments/") || normalized.contains("/attachments/")) {
+                    descriptor = attachmentService.describeTicketAttachmentByPath(rawAttachment);
+                } else if (StringUtils.hasText(ticketId)) {
+                    descriptor = attachmentService.describeTicketAttachment(ticketId.trim(), rawAttachment.trim());
+                } else {
+                    descriptor = null;
+                }
             }
             if (descriptor != null) {
                 return new AttachmentMeta(
-                        StringUtils.hasText(descriptor.originalName()) ? descriptor.originalName() : resolveAttachmentName(rawAttachment, attachmentUrl),
-                        descriptor.size() >= 0 ? descriptor.size() : null
+                        AttachmentStorageKeyResolver.resolveOriginalName(
+                                firstNonBlank(metadataOriginalName, descriptor.originalName()),
+                                rawAttachment,
+                                storageKey
+                        ),
+                        metadataSize != null ? metadataSize : (descriptor.size() >= 0 ? descriptor.size() : null)
                 );
             }
         } catch (Exception ex) {
             log.debug("Unable to resolve attachment meta for ticket {} and attachment {}: {}", ticketId, rawAttachment, ex.getMessage());
         }
-        return new AttachmentMeta(resolveAttachmentName(rawAttachment, attachmentUrl), null);
+        return new AttachmentMeta(
+                resolveAttachmentName(rawAttachment, storageKey, attachmentUrl),
+                metadataSize
+        );
     }
 
-    private String resolveAttachmentName(String rawAttachment, String attachmentUrl) {
-        String candidate = StringUtils.hasText(rawAttachment) ? rawAttachment.trim() : "";
-        if (!StringUtils.hasText(candidate)) {
-            candidate = StringUtils.hasText(attachmentUrl) ? attachmentUrl.trim() : "";
+    private String resolveAttachmentName(String rawAttachment, String storageKey, String attachmentUrl) {
+        String resolved = AttachmentStorageKeyResolver.resolveOriginalName(null, rawAttachment, storageKey);
+        if (StringUtils.hasText(resolved)) {
+            return resolved;
         }
+        String candidate = StringUtils.hasText(attachmentUrl) ? attachmentUrl.trim() : "";
         if (!StringUtils.hasText(candidate)) {
             return null;
         }
-        String normalized = candidate.replace('\\', '/');
-        int queryIndex = normalized.indexOf('?');
-        if (queryIndex >= 0) {
-            normalized = normalized.substring(0, queryIndex);
-        }
-        int hashIndex = normalized.indexOf('#');
-        if (hashIndex >= 0) {
-            normalized = normalized.substring(0, hashIndex);
-        }
-        int slashIndex = normalized.lastIndexOf('/');
-        String filename = slashIndex >= 0 ? normalized.substring(slashIndex + 1) : normalized;
+        String filename = AttachmentStorageKeyResolver.extractFileName(candidate);
         if (!StringUtils.hasText(filename)) {
             return null;
         }
-        String resolved = decodeFileName(filename);
-        resolved = stripStoredAttachmentPrefix(resolved);
-        if (!StringUtils.hasText(resolved)) {
+        String normalized = AttachmentStorageKeyResolver.stripStoredAttachmentPrefix(decodeFileName(filename));
+        if (!StringUtils.hasText(normalized)) {
             return null;
         }
-        if (isOpaqueAttachmentName(resolved)) {
-            String extension = extractExtension(resolved);
+        if (isOpaqueAttachmentName(normalized)) {
+            String extension = extractExtension(normalized);
             return StringUtils.hasText(extension) ? "Файл " + extension.toUpperCase() : null;
         }
-        return resolved;
+        return normalized;
+    }
+
+    private static String qualifyChatHistoryColumn(String columnExpression) {
+        if (!StringUtils.hasText(columnExpression) || columnExpression.contains(" AS ") || columnExpression.contains(" as ")) {
+            return columnExpression;
+        }
+        return "ch." + columnExpression;
     }
 
     private static String firstNonBlank(String... values) {
@@ -353,21 +411,6 @@ public class DialogConversationReadService {
         } catch (Exception ex) {
             return value.trim();
         }
-    }
-
-    private static String stripStoredAttachmentPrefix(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        String normalized = value.trim();
-        int separatorIndex = normalized.indexOf('_');
-        if (separatorIndex > 0) {
-            String prefix = normalized.substring(0, separatorIndex);
-            if (prefix.matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
-                return normalized.substring(separatorIndex + 1).trim();
-            }
-        }
-        return normalized;
     }
 
     private static boolean isOpaqueAttachmentName(String value) {

@@ -56,6 +56,12 @@ public class AttachmentService {
         return buildInlineResponse(resolved);
     }
 
+    public ResponseEntity<Resource> downloadTicketAttachmentByStorageKey(Authentication authentication, String storageKey) throws IOException {
+        requireAuthority(authentication, "PAGE_DIALOGS");
+        Path resolved = resolveByStoredPath(attachmentsRoot, storageKey);
+        return buildInlineResponse(resolved);
+    }
+
     public ResponseEntity<Resource> downloadKnowledgeBaseFile(Authentication authentication, String fileId) throws IOException {
         requireAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
         Path resolved = resolveAttachment(knowledgeBaseRoot, "", fileId);
@@ -137,6 +143,11 @@ public class AttachmentService {
 
     public AttachmentDescriptor describeTicketAttachmentByPath(String rawPath) throws IOException {
         Path resolved = resolveByStoredPath(attachmentsRoot, rawPath);
+        return describeResolvedAttachment(resolved);
+    }
+
+    public AttachmentDescriptor describeTicketAttachmentByStorageKey(String storageKey) throws IOException {
+        Path resolved = resolveByStoredPath(attachmentsRoot, storageKey);
         return describeResolvedAttachment(resolved);
     }
 

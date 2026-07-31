@@ -210,7 +210,17 @@ public class DialogQuickActionService {
         var metadata = attachmentService.storeTicketAttachment(authentication, ticketId, cachedFile);
         DialogReplyService.DialogMediaReplyResult result;
         try {
-            result = dialogReplyService.sendMediaReply(ticketId, cachedFile, message, replyToTelegramId, operator, metadata.storedName(), metadata.originalName());
+            result = dialogReplyService.sendMediaReply(
+                    ticketId,
+                    cachedFile,
+                    message,
+                    replyToTelegramId,
+                    operator,
+                    metadata.storedName(),
+                    metadata.originalName(),
+                    metadata.mimeType(),
+                    metadata.size()
+            );
         } catch (RuntimeException ex) {
             cleanupStoredTicketAttachment(ticketId, metadata.storedName());
             throw ex;

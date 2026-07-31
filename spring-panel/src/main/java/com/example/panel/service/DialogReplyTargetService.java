@@ -1,9 +1,12 @@
 package com.example.panel.service;
 
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.sql.PreparedStatement;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 
@@ -11,9 +14,12 @@ import java.util.Optional;
 public class DialogReplyTargetService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final ChatAttachmentMetadataService chatAttachmentMetadataService;
 
-    public DialogReplyTargetService(JdbcTemplate jdbcTemplate) {
+    public DialogReplyTargetService(JdbcTemplate jdbcTemplate,
+                                    ChatAttachmentMetadataService chatAttachmentMetadataService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.chatAttachmentMetadataService = chatAttachmentMetadataService;
     }
 
     public Optional<DialogReplyTarget> loadReplyTarget(String ticketId) {
@@ -82,25 +88,44 @@ public class DialogReplyTargetService {
                                           String ticketId,
                                           String caption,
                                           String storedName,
+                                          String originalName,
+                                          String mimeType,
+                                          Long size,
                                           String messageType,
                                           Long telegramMessageId,
                                           Long replyToTelegramId) {
         String timestamp = OffsetDateTime.now().toString();
-        jdbcTemplate.update("""
-                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                target.userId(),
-                "operator",
-                caption != null ? caption : "",
-                timestamp,
-                ticketId,
-                messageType,
-                storedName,
-                target.channelId(),
-                telegramMessageId,
-                replyToTelegramId
-        );
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement("""
+                    INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, PreparedStatement.RETURN_GENERATED_KEYS);
+            statement.setLong(1, target.userId());
+            statement.setString(2, "operator");
+            statement.setString(3, caption != null ? caption : "");
+            statement.setString(4, timestamp);
+            statement.setString(5, ticketId);
+            statement.setString(6, messageType);
+            statement.setString(7, storedName);
+            statement.setLong(8, target.channelId());
+            statement.setObject(9, telegramMessageId);
+            statement.setObject(10, replyToTelegramId);
+            return statement;
+        }, keyHolder);
+        Number generatedId = keyHolder.getKey();
+        if (generatedId != null) {
+            chatAttachmentMetadataService.upsertForChatHistory(
+                    generatedId.longValue(),
+                    ticketId,
+                    target.channelId(),
+                    storedName,
+                    originalName,
+                    mimeType,
+                    size,
+                    messageType
+            );
+        }
         return timestamp;
     }
 

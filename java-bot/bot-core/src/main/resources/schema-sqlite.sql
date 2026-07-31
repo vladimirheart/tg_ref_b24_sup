@@ -75,6 +75,30 @@ CREATE TABLE IF NOT EXISTS chat_history (
 CREATE INDEX IF NOT EXISTS idx_history_channel_time ON chat_history(channel_id, timestamp);
 CREATE INDEX IF NOT EXISTS idx_history_ticket_channel ON chat_history(ticket_id, channel_id);
 
+CREATE TABLE IF NOT EXISTS chat_attachment_metadata (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_history_id INTEGER NOT NULL UNIQUE REFERENCES chat_history(id) ON DELETE CASCADE,
+    ticket_id TEXT,
+    channel_id INTEGER,
+    storage_key TEXT,
+    storage_provider TEXT NOT NULL DEFAULT 'local_fs',
+    storage_class TEXT NOT NULL DEFAULT 'dialog_attachment',
+    original_name TEXT,
+    mime_type TEXT,
+    size INTEGER,
+    content_hash TEXT,
+    legacy_attachment_ref TEXT,
+    normalization_status TEXT NOT NULL DEFAULT 'normalized',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT,
+    archived_at TEXT,
+    deleted_at TEXT,
+    CHECK (normalization_status IN ('normalized', 'unresolved'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_ticket ON chat_attachment_metadata(ticket_id, chat_history_id);
+CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_storage_key ON chat_attachment_metadata(storage_key);
+
 CREATE TABLE IF NOT EXISTS tickets (
     user_id INTEGER,
     group_msg_id INTEGER,

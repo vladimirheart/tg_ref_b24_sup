@@ -161,7 +161,9 @@ public class DialogReplyService {
                                                  Long replyToTelegramId,
                                                  String operator,
                                                  String storedName,
-                                                 String originalName) {
+                                                 String originalName,
+                                                 String mimeType,
+                                                 Long size) {
         if (!StringUtils.hasText(ticketId) || file == null || file.isEmpty()) {
             return DialogMediaReplyResult.error("Файл не выбран.");
         }
@@ -196,6 +198,9 @@ public class DialogReplyService {
                 ticketId,
                 caption,
                 storedName,
+                originalName,
+                mimeType,
+                size,
                 messageType,
                 transportResult.telegramMessageId(),
                 replyToTelegramId

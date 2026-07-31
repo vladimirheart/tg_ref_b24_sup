@@ -198,15 +198,28 @@ def scan_storage_root(root: Path, top_n: int) -> dict:
 
 def query_reference_samples(connection: sqlite3.Connection) -> list[dict]:
     results: list[dict] = []
-    if has_columns(connection, "chat_history", ("attachment",)):
+    metadata_present = has_columns(connection, "chat_attachment_metadata", ("chat_history_id",))
+    if has_columns(connection, "chat_attachment_metadata", ("storage_key",)):
         results.extend(
             query_simple_column(
                 connection,
-                table="chat_history",
-                column="attachment",
+                table="chat_attachment_metadata",
+                column="storage_key",
                 ticket_column="ticket_id",
             )
         )
+    if has_columns(connection, "chat_history", ("attachment",)):
+        if metadata_present:
+            results.extend(query_chat_history_legacy_attachment_column(connection))
+        else:
+            results.extend(
+                query_simple_column(
+                    connection,
+                    table="chat_history",
+                    column="attachment",
+                    ticket_column="ticket_id",
+                )
+            )
 
     if has_columns(connection, "knowledge_article_files", ("stored_path",)):
         results.extend(
@@ -257,6 +270,50 @@ def query_reference_samples(connection: sqlite3.Connection) -> list[dict]:
         results.extend(query_knowledge_article_attachments(connection))
 
     return results
+
+
+def query_chat_history_legacy_attachment_column(connection: sqlite3.Connection) -> list[dict]:
+    sql = """
+        SELECT ch.ticket_id, ch.attachment
+          FROM chat_history ch
+         WHERE ch.attachment IS NOT NULL
+           AND TRIM(ch.attachment) <> ''
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM chat_attachment_metadata cam
+                WHERE cam.chat_history_id = ch.id
+           )
+    """
+    result = []
+    for ticket_id, raw in connection.execute(sql):
+        result.append(
+            {
+                "reference_key": "chat_history.attachment_legacy",
+                "raw": str(raw).strip(),
+                "ticket_id": str(ticket_id).strip() if ticket_id is not None else None,
+            }
+        )
+    return result
+
+
+def query_attachment_metadata_status(connection: sqlite3.Connection) -> dict | None:
+    if not has_columns(connection, "chat_attachment_metadata", ("normalization_status",)):
+        return None
+    sql = """
+        SELECT
+            COUNT(*) AS total_rows,
+            SUM(CASE WHEN normalization_status = 'normalized' THEN 1 ELSE 0 END) AS normalized_rows,
+            SUM(CASE WHEN normalization_status = 'unresolved' THEN 1 ELSE 0 END) AS unresolved_rows
+          FROM chat_attachment_metadata
+    """
+    row = connection.execute(sql).fetchone()
+    if row is None:
+        return None
+    return {
+        "total_rows": int(row[0] or 0),
+        "normalized_rows": int(row[1] or 0),
+        "unresolved_rows": int(row[2] or 0),
+    }
 
 
 def has_columns(connection: sqlite3.Connection, table: str, expected: tuple[str, ...]) -> bool:
@@ -478,13 +535,14 @@ def summarize_references(
     repo_root: Path,
     db_path: Path,
     storage_roots: list[Path],
-) -> list[dict]:
+) -> tuple[list[dict], dict | None]:
     connection = sqlite3.connect(
         f"file:{db_path.as_posix()}?mode=ro&immutable=1",
         uri=True,
     )
     try:
         raw_samples = query_reference_samples(connection)
+        attachment_metadata_status = query_attachment_metadata_status(connection)
     finally:
         connection.close()
 
@@ -541,7 +599,7 @@ def summarize_references(
             }
         )
 
-    return summaries
+    return summaries, attachment_metadata_status
 
 
 def build_report(repo_root: Path, storage_roots: list[Path], top_n: int) -> dict:
@@ -550,6 +608,7 @@ def build_report(repo_root: Path, storage_roots: list[Path], top_n: int) -> dict
 
     databases = []
     attachment_references = []
+    attachment_metadata = []
     for db_path in db_files:
         relative = db_path.relative_to(repo_root)
         databases.append(
@@ -558,27 +617,36 @@ def build_report(repo_root: Path, storage_roots: list[Path], top_n: int) -> dict
                 "bytes": db_path.stat().st_size,
             }
         )
+        summaries, metadata_status = summarize_references(repo_root, db_path, storage_roots)
         attachment_references.extend(
             [
                 {
                     "database": str(relative).replace("\\", "/"),
                     **summary,
                 }
-                for summary in summarize_references(repo_root, db_path, storage_roots)
+                for summary in summaries
             ]
         )
+        if metadata_status is not None:
+            attachment_metadata.append(
+                {
+                    "database": str(relative).replace("\\", "/"),
+                    **metadata_status,
+                }
+            )
 
     return {
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "repo_root": str(repo_root),
         "storage_roots": storage,
         "databases": databases,
+        "attachment_metadata": attachment_metadata,
         "attachment_references": attachment_references,
-        "risks": build_risks(storage, databases, attachment_references),
+        "risks": build_risks(storage, databases, attachment_references, attachment_metadata),
     }
 
 
-def build_risks(storage: list[dict], databases: list[dict], attachment_references: list[dict]) -> list[str]:
+def build_risks(storage: list[dict], databases: list[dict], attachment_references: list[dict], attachment_metadata: list[dict]) -> list[str]:
     risks: list[str] = []
     for root in storage:
         if not root["exists"]:
@@ -595,6 +663,12 @@ def build_risks(storage: list[dict], databases: list[dict], attachment_reference
                 "Path drift detected in "
                 f"{reference['database']}::{reference['reference_key']} "
                 f"({reference['path_drift_matches']} rows)"
+            )
+    for metadata in attachment_metadata:
+        if metadata["unresolved_rows"] > 0:
+            risks.append(
+                "Unresolved attachment metadata rows in "
+                f"{metadata['database']} ({metadata['unresolved_rows']} rows)"
             )
     if not databases:
         risks.append("No SQLite files discovered under the repository root.")
@@ -655,6 +729,18 @@ def render_markdown(report: dict, top_n: int) -> str:
     for db in report["databases"]:
         lines.append(f"| `{db['path']}` | {human_size(db['bytes'])} |")
     lines.append("")
+
+    if report["attachment_metadata"]:
+        lines.append("## Attachment metadata")
+        lines.append("")
+        lines.append("| Database | Total | Normalized | Unresolved |")
+        lines.append("| --- | ---: | ---: | ---: |")
+        for item in report["attachment_metadata"]:
+            lines.append(
+                f"| `{item['database']}` | {item['total_rows']} | "
+                f"{item['normalized_rows']} | {item['unresolved_rows']} |"
+            )
+        lines.append("")
 
     lines.append("## Attachment references")
     lines.append("")

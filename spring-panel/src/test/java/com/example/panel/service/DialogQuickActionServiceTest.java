@@ -455,7 +455,17 @@ class DialogQuickActionServiceTest {
 
         when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-707"), any(MultipartFile.class)))
                 .thenReturn(metadata);
-        when(dialogReplyService.sendMediaReply(eq("T-707"), any(MultipartFile.class), eq("caption"), eq(null), eq("operator"), eq("stored-screen.png"), eq("screen.png")))
+        when(dialogReplyService.sendMediaReply(
+                eq("T-707"),
+                any(MultipartFile.class),
+                eq("caption"),
+                eq(null),
+                eq("operator"),
+                eq("stored-screen.png"),
+                eq("screen.png"),
+                eq("image/png"),
+                eq(5L)
+        ))
                 .thenReturn(new DialogReplyService.DialogMediaReplyResult(
                         true,
                         null,
@@ -525,7 +535,17 @@ class DialogQuickActionServiceTest {
 
         when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-708"), any(MultipartFile.class)))
                 .thenReturn(metadata);
-        when(dialogReplyService.sendMediaReply(eq("T-708"), any(MultipartFile.class), eq("caption"), eq(null), eq("operator"), eq("stored-screen.png"), eq("screen.png")))
+        when(dialogReplyService.sendMediaReply(
+                eq("T-708"),
+                any(MultipartFile.class),
+                eq("caption"),
+                eq(null),
+                eq("operator"),
+                eq("stored-screen.png"),
+                eq("screen.png"),
+                eq("image/png"),
+                eq(5L)
+        ))
                 .thenReturn(new DialogReplyService.DialogMediaReplyResult(
                         false,
                         "transport_error",
@@ -585,7 +605,17 @@ class DialogQuickActionServiceTest {
 
         when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-709"), any(MultipartFile.class)))
                 .thenReturn(metadata);
-        when(dialogReplyService.sendMediaReply(eq("T-709"), any(MultipartFile.class), eq("caption"), eq(null), eq("operator"), eq("stored-proof.png"), eq("proof.png")))
+        when(dialogReplyService.sendMediaReply(
+                eq("T-709"),
+                any(MultipartFile.class),
+                eq("caption"),
+                eq(null),
+                eq("operator"),
+                eq("stored-proof.png"),
+                eq("proof.png"),
+                eq("image/png"),
+                eq(5L)
+        ))
                 .thenReturn(new DialogReplyService.DialogMediaReplyResult(
                         true,
                         null,

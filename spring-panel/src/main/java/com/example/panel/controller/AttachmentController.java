@@ -38,6 +38,12 @@ public class AttachmentController {
         return attachmentService.downloadTicketAttachmentByPath(authentication, path);
     }
 
+    @GetMapping("/tickets/by-storage-key")
+    public ResponseEntity<?> downloadTicketByStorageKey(Authentication authentication,
+                                                        @RequestParam("key") String storageKey) throws IOException {
+        return attachmentService.downloadTicketAttachmentByStorageKey(authentication, storageKey);
+    }
+
     @GetMapping("/knowledge-base/{fileId:.+}")
     public ResponseEntity<?> downloadKnowledge(Authentication authentication, @PathVariable String fileId) throws IOException {
         return attachmentService.downloadKnowledgeBaseFile(authentication, fileId);
