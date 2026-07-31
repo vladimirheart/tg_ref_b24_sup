@@ -16,7 +16,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @Service
 public class AutoCloseFollowUpTaskService {
@@ -31,15 +35,30 @@ public class AutoCloseFollowUpTaskService {
     private final TicketResponsibleRepository ticketResponsibleRepository;
     private final TicketMessageRepository ticketMessageRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final TransactionOperations isolatedTransactionOperations;
 
     public AutoCloseFollowUpTaskService(TaskService taskService,
                                         TicketResponsibleRepository ticketResponsibleRepository,
                                         TicketMessageRepository ticketMessageRepository,
-                                        JdbcTemplate jdbcTemplate) {
+                                        JdbcTemplate jdbcTemplate,
+                                        PlatformTransactionManager transactionManager) {
+        this(taskService,
+                ticketResponsibleRepository,
+                ticketMessageRepository,
+                jdbcTemplate,
+                buildRequiresNewTransactionOperations(transactionManager));
+    }
+
+    AutoCloseFollowUpTaskService(TaskService taskService,
+                                 TicketResponsibleRepository ticketResponsibleRepository,
+                                 TicketMessageRepository ticketMessageRepository,
+                                 JdbcTemplate jdbcTemplate,
+                                 TransactionOperations isolatedTransactionOperations) {
         this.taskService = taskService;
         this.ticketResponsibleRepository = ticketResponsibleRepository;
         this.ticketMessageRepository = ticketMessageRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.isolatedTransactionOperations = isolatedTransactionOperations;
         ensureParticipantSchema();
     }
 
@@ -50,36 +69,49 @@ public class AutoCloseFollowUpTaskService {
         }
 
         try {
-            String responsible = resolveResponsible(normalizedTicketId);
-            if (responsible == null) {
-                log.debug("Skipping auto-close follow-up task for ticket {} because no responsible is assigned",
-                        normalizedTicketId);
-                return;
-            }
-
-            TicketMessage message = ticketMessageRepository.findByTicketId(normalizedTicketId).orElse(null);
-            List<String> coExecutors = loadCoExecutors(normalizedTicketId, responsible);
-
-            Task task = taskService.createTask(new TaskService.TaskPayload(
-                    buildTitle(normalizedTicketId, message),
-                    buildBodyHtml(normalizedTicketId, message, responsible, coExecutors),
-                    TASK_CREATOR,
-                    responsible,
-                    TASK_TAG,
-                    null,
-                    null,
-                    TASK_SOURCE,
-                    coExecutors,
-                    List.of(),
-                    List.of(normalizedTicketId)
-            ));
-
-            log.info("Created follow-up task {} for auto-closed ticket {} (assignee={}, coExecutors={})",
-                    task.getId(), normalizedTicketId, responsible, coExecutors.size());
+            isolatedTransactionOperations.execute(status -> {
+                createTaskForAutoClosedDialogTransactional(normalizedTicketId);
+                return null;
+            });
         } catch (Exception ex) {
             log.warn("Unable to create follow-up task for auto-closed ticket {}: {}", normalizedTicketId,
                     ex.getMessage(), ex);
         }
+    }
+
+    private void createTaskForAutoClosedDialogTransactional(String normalizedTicketId) {
+        String responsible = resolveResponsible(normalizedTicketId);
+        if (responsible == null) {
+            log.debug("Skipping auto-close follow-up task for ticket {} because no responsible is assigned",
+                    normalizedTicketId);
+            return;
+        }
+
+        TicketMessage message = ticketMessageRepository.findByTicketId(normalizedTicketId).orElse(null);
+        List<String> coExecutors = loadCoExecutors(normalizedTicketId, responsible);
+
+        Task task = taskService.createTask(new TaskService.TaskPayload(
+                buildTitle(normalizedTicketId, message),
+                buildBodyHtml(normalizedTicketId, message, responsible, coExecutors),
+                TASK_CREATOR,
+                responsible,
+                TASK_TAG,
+                null,
+                null,
+                TASK_SOURCE,
+                coExecutors,
+                List.of(),
+                List.of(normalizedTicketId)
+        ));
+
+        log.info("Created follow-up task {} for auto-closed ticket {} (assignee={}, coExecutors={})",
+                task.getId(), normalizedTicketId, responsible, coExecutors.size());
+    }
+
+    private static TransactionOperations buildRequiresNewTransactionOperations(PlatformTransactionManager transactionManager) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return template;
     }
 
     private String resolveResponsible(String ticketId) {

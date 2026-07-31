@@ -19,8 +19,18 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionOperations;
 
 class AutoCloseFollowUpTaskServiceTest {
+
+    private static final TransactionOperations NOOP_NEW_TRANSACTION = new TransactionOperations() {
+        @Override
+        public <T> T execute(TransactionCallback<T> action) {
+            return action.doInTransaction(new SimpleTransactionStatus());
+        }
+    };
 
     @Test
     void createsTaskForAutoClosedDialogWithResponsibleParticipantsAndLink() {
@@ -51,7 +61,7 @@ class AutoCloseFollowUpTaskServiceTest {
         when(taskService.createTask(any())).thenReturn(savedTask);
 
         AutoCloseFollowUpTaskService service = new AutoCloseFollowUpTaskService(
-                taskService, responsibleRepository, messageRepository, jdbcTemplate);
+                taskService, responsibleRepository, messageRepository, jdbcTemplate, NOOP_NEW_TRANSACTION);
 
         service.createTaskForAutoClosedDialog("T-100");
 
@@ -79,10 +89,33 @@ class AutoCloseFollowUpTaskServiceTest {
         when(responsibleRepository.findById("T-101")).thenReturn(Optional.empty());
 
         AutoCloseFollowUpTaskService service = new AutoCloseFollowUpTaskService(
-                taskService, responsibleRepository, messageRepository, jdbcTemplate);
+                taskService, responsibleRepository, messageRepository, jdbcTemplate, NOOP_NEW_TRANSACTION);
 
         service.createTaskForAutoClosedDialog("T-101");
 
         verify(taskService, never()).createTask(any());
+    }
+
+    @Test
+    void swallowsTaskCreationFailureInsideIsolatedTransaction() {
+        TaskService taskService = mock(TaskService.class);
+        TicketResponsibleRepository responsibleRepository = mock(TicketResponsibleRepository.class);
+        TicketMessageRepository messageRepository = mock(TicketMessageRepository.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+
+        TicketResponsible responsible = new TicketResponsible();
+        responsible.setTicketId("T-102");
+        responsible.setResponsible("owner");
+        when(responsibleRepository.findById("T-102")).thenReturn(Optional.of(responsible));
+        when(messageRepository.findByTicketId("T-102")).thenReturn(Optional.empty());
+        when(jdbcTemplate.query(any(String.class), any(RowMapper.class), eq("T-102"))).thenReturn(List.of());
+        when(taskService.createTask(any())).thenThrow(new RuntimeException("task_links.user_id is null"));
+
+        AutoCloseFollowUpTaskService service = new AutoCloseFollowUpTaskService(
+                taskService, responsibleRepository, messageRepository, jdbcTemplate, NOOP_NEW_TRANSACTION);
+
+        service.createTaskForAutoClosedDialog("T-102");
+
+        verify(taskService).createTask(any());
     }
 }
