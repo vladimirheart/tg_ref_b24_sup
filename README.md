@@ -2,68 +2,62 @@
 
 ![Логотип Iguana](spring-panel/src/main/resources/static/iguana-icon.svg)
 
-Iguana — support CRM и операторская панель для обработки обращений из
-`Telegram`, `VK` и `MAX`. Проект объединяет многоканальный
-приём сообщений, рабочее место операторов, базу знаний, аналитику и управление
-ботами из единого интерфейса.
+Iguana - многоканальная support CRM и операторская панель для обработки обращений из `Telegram`, `VK` и `MAX`.
+Проект объединяет приём сообщений, очередь диалогов, карточки клиентов, базу знаний, аналитику, управление ботами и служебные сценарии сопровождения в одном контуре.
 
-## Что есть в проекте
+Этот репозиторий ориентирован в первую очередь на Windows-эксплуатацию, но содержит и Linux-скрипты запуска. Основной UI и orchestration живут в `spring-panel`, а транспортные боты и shared runtime - в `java-bot`.
 
-- многоканальные диалоги с клиентами через `Telegram`, `VK` и `MAX`;
-- рабочее место оператора со списком диалогов, SLA, историей сообщений,
-  аватарами и уведомлениями;
-- карточки клиентов с источником обращения и идентификаторами по каналу;
-- база знаний с ручным редактированием и импортом статей из `Notion`;
-- дашборды и аналитические отчёты по каналам, сотрудникам, бизнесам и локациям;
-- настройки каналов, ролей, локаций, справочников и визуальной темы панели;
-- запуск и мониторинг процессов ботов прямо из `spring-panel`;
-- мониторинг SSL-сертификатов и дополнительные сервисные уведомления.
+## Что есть в системе
 
-## Архитектура
+- операторская панель с очередью обращений, историей сообщений, назначением ответственных и SLA;
+- каналы `Telegram`, `VK`, `MAX` с отдельными runtime-процессами ботов;
+- шаблоны вопросов, сценарии оценок, авто-действия и аналитические разрезы по обращениям;
+- карточки клиентов, канальные идентификаторы, вложения и история обращений;
+- база знаний и сопутствующий knowledge workflow;
+- dashboard и operational analytics по каналам, бизнесам, локациям, сотрудникам и продуктовым направлениям;
+- контур мониторинга и служебные настройки проекта;
+- shared JSON-справочники в `config/shared/`.
 
-Проект состоит из двух основных частей:
+## Архитектурная схема
 
-- `spring-panel/` — веб-панель на `Spring Boot` с UI, настройками, аналитикой,
-  базой знаний, клиентами, диалогами и API для operator workflow;
-- `java-bot/` — набор Java-ботов и общее ядро обработки сообщений:
-  `bot-core`, `bot-telegram`, `bot-vk`, `bot-max`.
+### `spring-panel/`
 
-Общие настройки и часть справочников лежат в `config/shared/`.
+Spring Boot приложение с серверным UI и backend-логикой:
 
-## Основные сценарии
+- страница диалогов;
+- dashboard;
+- настройки каналов, ботов, шаблонов, ролей и оргструктуры;
+- база знаний;
+- управление запуском bot runtime;
+- серверные API для operator workflow и внутренних runtime-сценариев.
 
-### Диалоги и операторы
+### `java-bot/`
 
-- входящие сообщения автоматически создают или продолжают диалоги;
-- оператор видит канал, SLA, ответственного, историю переписки и архив
-  предыдущих обращений клиента;
-- ответы клиенту отправляются из панели в соответствующий канал;
-- при событиях по диалогу используются in-app уведомления в sidebar.
+Maven multi-module проект с ботами и общим ядром:
 
-### Клиенты
+- `bot-core` - общая бизнес-логика, runtime-сервисы, question flow, ticket lifecycle;
+- `bot-telegram` - Telegram runtime;
+- `bot-vk` - VK runtime;
+- `bot-max` - MAX runtime.
 
-- карточка клиента показывает не только условный "Telegram ID", а реальный
-  источник и идентификатор в конкретном канале;
-- поддерживаются статусы клиента, телефоны, usernames, блокировки и история.
+### `config/shared/`
 
-### База знаний
+Общие JSON-конфиги, которые используются приложением и ботами:
 
-- статьи можно вести внутри панели;
-- есть внутренняя интеграция `Notion` для импорта статей по авторам в базу
-  знаний проекта;
-- для контента используется markdown-oriented workflow.
-
-### Настройки и инфраструктура
-
-- из панели управляются каналы, боты, шаблоны, справочники, роли и оргструктура;
-- для каналов доступны запуск и контроль bot-процессов;
-- поддерживается конфигурирование внешних интеграций и сетевых подключений.
+- `settings.json` - прикладные настройки и справочники;
+- `locations.json` - локации и связанные данные;
+- `org_structure.json` - оргструктура и отделы;
+- `monitoring-credentials.key` - служебный ключ для monitoring-контура.
 
 ## Быстрый старт
 
 ### Windows
 
-Подробный гайд: [docs/windows_setup.md](docs/windows_setup.md)
+1. Установите `JDK 17`.
+2. Перейдите в каталог `spring-panel`.
+3. Запустите `.\run-windows.bat`.
+4. Дождитесь старта Spring Boot.
+5. Откройте панель по адресу `http://localhost:8080/`.
 
 Базовый сценарий:
 
@@ -72,7 +66,9 @@ cd spring-panel
 .\run-windows.bat
 ```
 
-Если нужно передать параметры:
+Если порт `8080` занят, `run-windows.bat` пытается подобрать свободный HTTP-порт автоматически.
+
+Пример запуска с параметрами:
 
 ```powershell
 $env:JAVA_OPTS='-Xmx1024m'
@@ -89,119 +85,129 @@ export SPRING_OPTS="--server.port=8080"
 ./run-linux.sh
 ```
 
-По умолчанию панель поднимается на <http://localhost:8080/>.
+## Что нужно для рабочего запуска
+
+Минимальный набор:
+
+1. `JDK 17`.
+2. Исходники этого репозитория.
+3. Актуальные SQLite-базы и `bot_databases/`.
+4. Каталог `attachments/`, если нужны вложения и пользовательские файлы.
+5. Корректные токены/секреты окружения для нужных каналов.
+6. JSON-конфиги в `config/shared/`.
+
+Maven wrapper уже лежит в репозитории, поэтому отдельная установка Maven обычно не требуется.
+
+## Каталоги, которые важно знать
+
+| Каталог | Назначение |
+| --- | --- |
+| `spring-panel/` | UI, backend, настройки, dashboard, knowledge base, orchestration |
+| `java-bot/` | код и runtime модулей ботов |
+| `config/shared/` | shared JSON-конфиги |
+| `attachments/` | пользовательские вложения, knowledge assets, аватары и другие файлы |
+| `bot_databases/` | по-ботовые SQLite-базы `bot-<channelId>.db` |
+| `docs/` | эксплуатационная и архитектурная документация |
+| `ai-context/` | AI-контекст, правила проекта, task-tracking и changelog |
+
+## Основные базы данных
+
+Канонические SQLite-файлы в текущем контуре:
+
+- `panel_runtime.db` - обращения, сообщения, активный runtime панели;
+- `panel_identity.db` - пользователи панели, роли и часть identity-данных;
+- `bot_runtime.db` - shared bot runtime;
+- `monitoring.db` - monitoring-контур;
+- `clients.db` - transitional контур клиентов;
+- `knowledge_base.db` - transitional контур базы знаний;
+- `objects.db` - transitional контур паспортов объектов;
+- `settings.db` - общие настройки и registry/bootstrap данные.
+
+Подробная карта путей и canonical aliases описана в [docs/database-paths.md](docs/database-paths.md).
 
 ## Конфигурация
 
-Проект использует переменные окружения и shared JSON-конфиги.
+Проект использует:
 
-1. Подготовьте `.env` с основными параметрами.
-2. Проверьте файлы в `config/shared/`.
-3. Запустите `spring-panel`.
-4. Настройте каналы и ботов через UI.
+- переменные окружения;
+- SQLite-файлы по умолчанию;
+- JSON-настройки в `config/shared/`;
+- UI-настройки через `spring-panel`.
 
-Ключевые точки конфигурации:
+Ключевые переменные:
 
-- `TELEGRAM_BOT_TOKEN` и другие токены каналов;
-- `APP_DB_PANEL_RUNTIME`, `APP_DB_PANEL_IDENTITY`, `APP_DB_BOT_RUNTIME` для канонических main DB;
-- `APP_DB_TICKETS`, `APP_DB_USERS`, `APP_DB_BOT` остаются поддержаны как legacy aliases;
-- `APP_BOT_DATABASE_DIR` для отдельных bot-баз;
-- `config/shared/settings.json`;
-- `config/shared/locations.json`;
-- `config/shared/org_structure.json`.
+- `APP_DB_PANEL_RUNTIME`
+- `APP_DB_PANEL_IDENTITY`
+- `APP_DB_BOT_RUNTIME`
+- `APP_DB_MONITORING`
+- `APP_DB_CLIENTS`
+- `APP_DB_KNOWLEDGE`
+- `APP_DB_OBJECTS`
+- `APP_DB_SETTINGS`
+- `APP_BOT_DATABASE_DIR`
+- `APP_STORAGE_ATTACHMENTS`
+- `TELEGRAM_BOT_TOKEN`
+- `VK_BOT_TOKEN`
+- `MAX_BOT_TOKEN`
 
-Полный список переменных: [docs/environment_variables.md](docs/environment_variables.md)
+Полный список смотрите в [docs/environment_variables.md](docs/environment_variables.md).
 
-## Хранилища данных
+## Как обычно запускается Iguana
 
-В проекте используется разделение по SQLite-файлам:
+1. Поднимается `spring-panel`.
+2. Через UI открывается раздел `Настройки -> Каналы (боты)`.
+3. Для нужного канала запускается соответствующий bot runtime.
+4. Операторы работают с обращениями через страницу диалогов.
 
-- `panel_runtime.db` — диалоги, сообщения, активные обращения и основной runtime панели;
-- `panel_identity.db` — пользователи панели, роли и аватары;
-- `bot_runtime.db` — shared runtime-контур ботов;
-- `clients.db` — профили клиентов;
-- `knowledge_base.db` — база знаний;
-- `objects.db` — объекты и связанные справочники;
-- `settings.db` — общие настройки и часть служебных связей;
-- `bot-<channelId>.db` — отдельные базы каналов/ботов.
+То есть панель является центром конфигурации и operational control, а сами боты могут жить отдельными процессами.
 
-Подробнее: [docs/database-paths.md](docs/database-paths.md)
+## Главные документы
 
-## Запуск и управление ботами
+### Старт и эксплуатация
 
-Управление ботами вынесено в панель:
-
-1. Откройте `Настройки -> Каналы (боты)`.
-2. Выберите канал.
-3. Запустите нужный bot-процесс.
-
-Панель умеет:
-
-- создавать и регистрировать bot-базы;
-- запускать Java-процессы ботов;
-- отслеживать статусы и отображать их в интерфейсе;
-- использовать общий runtime-конфиг для `Telegram`, `VK` и `MAX`.
-
-Технические детали:
-
-- [docs/java_bot.md](docs/java_bot.md)
-- [docs/vk_bot_setup.md](docs/vk_bot_setup.md)
-- [docs/max_bot_setup.md](docs/max_bot_setup.md)
-
-## UI и рабочее место
-
-В последних обновлениях проект получил более цельный UI:
-
-- переработанный sidebar;
-- обновлённую страницу dashboard;
-- улучшенный список диалогов с цветами каналов и SLA;
-- более аккуратные settings-модалки и карточки;
-- аватары операторов в рабочих сценариях;
-- уведомления в колокольчике sidebar.
-
-Если нужен контекст по UI-изменениям:
-
-- [docs/ui_ux_audit.md](docs/ui_ux_audit.md)
-- [docs/settings_page_gap_audit.md](docs/settings_page_gap_audit.md)
-- [docs/ai_agent_uiux_changes_plan.md](docs/ai_agent_uiux_changes_plan.md)
-
-## Документация
-
-### Запуск и конфиг
-
-- [docs/configuration.md](docs/configuration.md)
-- [docs/database_distribution.md](docs/database_distribution.md)
-- [docs/environment_variables.md](docs/environment_variables.md)
+- [docs/IGUANA_PROJECT_GUIDE.md](docs/IGUANA_PROJECT_GUIDE.md)
+- [docs/IGUANA_TRANSFER_WINDOWS.md](docs/IGUANA_TRANSFER_WINDOWS.md)
 - [docs/windows_setup.md](docs/windows_setup.md)
+- [docs/configuration.md](docs/configuration.md)
+- [docs/environment_variables.md](docs/environment_variables.md)
 - [docs/database-paths.md](docs/database-paths.md)
+- [docs/database_distribution.md](docs/database_distribution.md)
 
 ### Боты и каналы
 
 - [docs/java_bot.md](docs/java_bot.md)
 - [docs/vk_bot_setup.md](docs/vk_bot_setup.md)
 - [docs/max_bot_setup.md](docs/max_bot_setup.md)
+- [docs/BOT_RUNTIME_CONTRACT.md](docs/BOT_RUNTIME_CONTRACT.md)
 - [docs/conversation_flow.md](docs/conversation_flow.md)
 
 ### Архитектура и развитие
 
-- [docs/ARCHITECTURE_AUDIT_2026-04-08.md](docs/ARCHITECTURE_AUDIT_2026-04-08.md)
-- [docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md](docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md)
-- [docs/EXEC_SUMMARY_ARCHITECTURE_AUDIT.md](docs/EXEC_SUMMARY_ARCHITECTURE_AUDIT.md)
 - [docs/OOP_ARCHITECTURE_OVERVIEW.md](docs/OOP_ARCHITECTURE_OVERVIEW.md)
+- [docs/ARCHITECTURE_AUDIT_2026-04-08.md](docs/ARCHITECTURE_AUDIT_2026-04-08.md)
+- [docs/ARCH_UI_REFACTORING_ROADMAP_2026-04-15.md](docs/ARCH_UI_REFACTORING_ROADMAP_2026-04-15.md)
 - [docs/REFACTORING_PLAN_2026.md](docs/REFACTORING_PLAN_2026.md)
 
-### AI и база знаний
+## Перенос на другую машину
 
-- [docs/ai_dialog_agent_plan.md](docs/ai_dialog_agent_plan.md)
-- [docs/ai_solution_memory_editing.md](docs/ai_solution_memory_editing.md)
+Для переноса и запуска на другом Windows-хосте используйте:
 
-## Репозиторий в работе
+- [docs/IGUANA_TRANSFER_WINDOWS.md](docs/IGUANA_TRANSFER_WINDOWS.md) - полная инструкция;
+- [scripts/export-iguana-portable.ps1](scripts/export-iguana-portable.ps1) - воспроизводимая сборка переносимого пакета.
 
-Проект активно развивается, поэтому часть документов в `docs/` описывает не
-только текущее поведение, но и планы, аудит или runbook-сценарии. Для
-прикладной разработки обычно достаточно начать с:
+По умолчанию экспорт формируется в `C:\Intel\iguana`.
+
+## Если нужно быстро разобраться в проекте
+
+Рекомендуемый порядок чтения:
 
 1. `README.md`
-2. [docs/configuration.md](docs/configuration.md)
-3. [docs/java_bot.md](docs/java_bot.md)
-4. [docs/database-paths.md](docs/database-paths.md)
+2. [docs/IGUANA_PROJECT_GUIDE.md](docs/IGUANA_PROJECT_GUIDE.md)
+3. [docs/IGUANA_TRANSFER_WINDOWS.md](docs/IGUANA_TRANSFER_WINDOWS.md)
+4. [docs/environment_variables.md](docs/environment_variables.md)
+5. [docs/database-paths.md](docs/database-paths.md)
+6. [docs/java_bot.md](docs/java_bot.md)
+
+## Практический смысл этого репозитория
+
+Iguana - не просто кодовая база, а рабочий support-контур с состоянием, ботами, SQLite-хранилищами, вложениями и служебными настройками. Поэтому для корректного переноса важно относиться к репозиторию как к приложению вместе с данными, а не только как к исходникам.
