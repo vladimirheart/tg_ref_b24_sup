@@ -194,6 +194,7 @@ public class ManagementController {
                 settingsCatalogService.buildLocationPresets(
                         effectiveLocationTree,
                         effectiveLocationStatuses));
+            model.addAttribute("canRunStorageInventory", permissionService.isSuperUser(authentication));
             model.addAttribute("canPublishDialogMacros",
                 canPublishDialogMacros(authentication, settings));
             log.info("Loaded settings for user {}: {} app settings, {} system parameters", authentication.getName(), appSettings.size(), systemParameters.size());

@@ -70,6 +70,10 @@ app:
     attachments: ${APP_STORAGE_ATTACHMENTS:../attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
     avatars: ${APP_STORAGE_AVATARS:${APP_STORAGE_ATTACHMENTS:../attachments}/avatars}
+  admin:
+    python-executable: ${APP_ADMIN_PYTHON_EXECUTABLE:python}
+    repository-root: ${APP_ADMIN_REPOSITORY_ROOT:}
+    storage-inventory-timeout: ${APP_ADMIN_STORAGE_INVENTORY_TIMEOUT:90s}
 
 server:
   port: ${APP_HTTP_PORT:8080}

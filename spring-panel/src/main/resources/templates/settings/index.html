@@ -104,6 +104,44 @@
     .settings-overview__list li + li {
       margin-top: 0.35rem;
     }
+    .settings-storage-inventory__stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+      gap: 0.75rem;
+    }
+    .settings-storage-inventory__stat {
+      border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+      border-radius: 0.95rem;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 10%, white));
+      padding: 0.8rem 0.9rem;
+    }
+    .settings-storage-inventory__stat-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1.1;
+    }
+    .settings-storage-inventory__stat-label {
+      margin-top: 0.35rem;
+      font-size: 0.8rem;
+      color: var(--color-text-muted);
+    }
+    .settings-storage-inventory__root-list {
+      display: grid;
+      gap: 0.65rem;
+    }
+    .settings-storage-inventory__root-item {
+      border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+      border-radius: 0.85rem;
+      padding: 0.75rem 0.85rem;
+      background: color-mix(in srgb, var(--card) 97%, white);
+    }
+    .settings-storage-inventory__report {
+      max-height: 30rem;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
 
     .settings-surface {
       position: relative;
@@ -2360,6 +2398,27 @@
               <span class="settings-tile__tag">Периодичность</span>
             </div>
             <div class="settings-tile__footer">Открыть настройки отчётов</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col" th:if="${canRunStorageInventory}">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="storageInventoryModal">
+          <div class="card-body">
+            <div class="settings-tile__head">
+              <div class="settings-tile__lead">
+                <div class="tile-icon"><i class="bi bi-hdd-stack" aria-hidden="true"></i></div>
+                <h5 class="card-title">Storage inventory Iguana</h5>
+              </div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
+            <p class="card-text text-muted">Запускайте инвентаризацию storage roots, SQLite и attachment references прямо из админки.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Storage</span>
+              <span class="settings-tile__tag">SQLite</span>
+              <span class="settings-tile__tag">Attachments</span>
+            </div>
+            <div class="settings-tile__footer">Открыть storage inventory</div>
           </div>
         </div>
       </div>
@@ -5779,6 +5838,72 @@
               </div>
               <p class="text-muted small mb-0">Настройка сохраняется в вашем браузере и применяется ко всем страницам панели.</p>
             </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade settings-primary-modal" id="storageInventoryModal" tabindex="-1" aria-labelledby="storageInventoryModalLabel" aria-hidden="true" th:if="${canRunStorageInventory}">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="storageInventoryModalLabel">Storage inventory Iguana</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-hdd-stack-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Запускает inventory-скрипт из репозитория, собирает storage roots, размеры SQLite и проверяет attachment references на path drift и missing files.</div>
+            </div>
+            <div
+              data-storage-inventory
+              data-storage-inventory-endpoint="/api/admin/storage-inventory/run"
+            >
+              <div class="row g-3 align-items-end mb-3">
+                <div class="col-sm-4 col-md-3">
+                  <label class="form-label" for="storageInventoryTopInput">Top N в summary</label>
+                  <input type="number" min="1" max="20" step="1" value="5" class="form-control" id="storageInventoryTopInput" data-storage-inventory-top>
+                </div>
+                <div class="col-sm-8 col-md-9">
+                  <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-primary" data-storage-inventory-run>
+                      <i class="bi bi-play-circle me-1" aria-hidden="true"></i>Запустить inventory
+                    </button>
+                  </div>
+                  <div class="form-text mt-2">Результат сохраняется в <code>run/storage-inventory/</code> как markdown и json snapshot, а ниже показывается raw markdown отчёта.</div>
+                </div>
+              </div>
+              <div class="alert d-none" role="alert" data-storage-inventory-feedback></div>
+              <div class="small text-muted mb-3" data-storage-inventory-meta>После первого запуска здесь появятся длительность и пути к snapshot-файлам.</div>
+              <div class="small text-muted mb-3" data-storage-inventory-last-info>После запуска здесь появится timestamp последнего inventory.</div>
+              <div class="mb-4" data-storage-inventory-summary>
+                <div class="text-muted small">Сводка появится после запуска inventory.</div>
+              </div>
+              <div class="row g-3 mb-4">
+                <div class="col-lg-6">
+                  <h6 class="mb-2">Storage roots</h6>
+                  <div class="settings-storage-inventory__root-list" data-storage-inventory-roots>
+                    <div class="text-muted small">Inventory ещё не запускался.</div>
+                  </div>
+                </div>
+                <div class="col-lg-6">
+                  <h6 class="mb-2">Сигналы риска</h6>
+                  <ul class="small mb-0 ps-3" data-storage-inventory-risks>
+                    <li class="text-muted">После запуска здесь появятся storage-риски и path drift сигналы.</li>
+                  </ul>
+                </div>
+              </div>
+              <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="mb-0">Raw markdown report</h6>
+                  <span class="text-muted small">scripts/report-iguana-storage.py</span>
+                </div>
+                <pre class="border rounded bg-body-tertiary p-3 small font-monospace settings-storage-inventory__report mb-0" data-storage-inventory-output>Отчёт пока не запускался.</pre>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>

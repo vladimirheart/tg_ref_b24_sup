@@ -42,6 +42,9 @@
 | `APP_STORAGE_KNOWLEDGE_BASE` | файлы базы знаний | `../attachments/knowledge_base` |
 | `APP_STORAGE_AVATARS` | аватары | `../attachments/avatars` |
 | `APP_STORAGE_WEBFORMS` | формы | `../attachments/forms` |
+| `APP_ADMIN_PYTHON_EXECUTABLE` | python executable для admin storage inventory | `python` |
+| `APP_ADMIN_REPOSITORY_ROOT` | явный repo root для admin storage inventory | auto-detect |
+| `APP_ADMIN_STORAGE_INVENTORY_TIMEOUT` | timeout запуска inventory из админки | `90s` |
 
 ## Пример запуска
 

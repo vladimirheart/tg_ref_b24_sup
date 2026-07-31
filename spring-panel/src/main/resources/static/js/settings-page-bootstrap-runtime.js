@@ -158,6 +158,10 @@
     const settingsAdminShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsAdminShellRuntime', {
       config: admin,
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
+      getCookieValue: (name) => getCookieValue(name),
+      showPopup: (message, type) => showPopup(message, type),
+      showNotification,
+      escapeHtml,
     }) || null;
 
     const settingsSaveRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsSaveRuntime', {

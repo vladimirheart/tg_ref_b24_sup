@@ -74,6 +74,10 @@
     managerBindingsModal: Object.freeze({
       show: 'prepareManagerBindingsSettingsModal',
     }),
+    storageInventoryModal: Object.freeze({
+      shown: 'mountStorageInventorySettingsModal',
+      hidden: 'resetStorageInventorySettingsModal',
+    }),
     channelsModal: Object.freeze({
       shown: 'initChannelsManagement',
     }),
@@ -101,6 +105,7 @@
     'panelDesignSettingsModal',
     'reportingModal',
     'managerBindingsModal',
+    'storageInventoryModal',
     'channelsModal',
   ]);
 
@@ -124,6 +129,7 @@
     panelDesignSettingsModal: 'appearance',
     reportingModal: 'reporting',
     managerBindingsModal: 'manager-bindings',
+    storageInventoryModal: 'storage-inventory',
     channelsModal: 'channels',
   });
 
@@ -143,6 +149,10 @@
     itEquipmentAddModal: Object.freeze({
       selector: '[data-it-equipment-field="equipment_type"], [data-it-equipment-field="equipment_vendor"], [data-it-equipment-field="equipment_model"]',
       select: false,
+    }),
+    storageInventoryModal: Object.freeze({
+      selector: '[data-storage-inventory-top]',
+      select: true,
     }),
   });
 

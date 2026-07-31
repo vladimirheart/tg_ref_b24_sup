@@ -150,6 +150,11 @@ Shared JSON-файлы лежат в `config/shared/`:
 python scripts/report-iguana-storage.py
 ```
 
+Либо запустите тот же inventory из админки:
+
+- `Настройки -> Storage inventory Iguana`
+- панель сохранит markdown/json snapshot в `run/storage-inventory/` и покажет raw report прямо в modal-окне
+
 Скрипт:
 
 - считает размер и состав `attachments/` и `java-bot/attachments/`;
