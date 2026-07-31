@@ -5,16 +5,23 @@ import com.example.panel.model.dialog.DialogPreviousHistoryPage;
 import com.example.panel.storage.AttachmentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import javax.sql.DataSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DialogConversationReadServiceTest {
 
@@ -124,6 +131,54 @@ class DialogConversationReadServiceTest {
         List<String> categories = service.loadTicketCategories("T-55");
 
         assertThat(categories).containsExactly("billing", "delivery");
+    }
+
+    @Test
+    void loadHistoryFallsBackToLegacyQueryWhenAttachmentMetadataReadFails() {
+        JdbcTemplate failingJdbcTemplate = mock(JdbcTemplate.class);
+        DialogConversationReadService fallbackService = new DialogConversationReadService(
+                failingJdbcTemplate,
+                mock(AttachmentService.class)
+        );
+
+        when(failingJdbcTemplate.execute(org.mockito.ArgumentMatchers.<ConnectionCallback<Set<String>>>any())).thenReturn(
+                Set.of("original_message", "edited_at", "deleted_at", "forwarded_from", "file_name"),
+                Set.of("storage_key")
+        );
+        when(failingJdbcTemplate.queryForList(any(String.class), any(Object[].class))).thenAnswer(invocation -> {
+            String sql = invocation.getArgument(0, String.class);
+            if (sql.contains("LEFT JOIN chat_attachment_metadata")) {
+                throw new DataIntegrityViolationException("database disk image is malformed");
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("sender", "operator");
+            row.put("message", "Фолбэк без metadata");
+            row.put("timestamp", "2026-07-31T17:40:00+03:00");
+            row.put("message_type", "image");
+            row.put("attachment", "attachments/T-77/image one.png");
+            row.put("tg_message_id", 77L);
+            row.put("reply_to_tg_id", null);
+            row.put("channel_id", 5L);
+            row.put("original_message", "Фолбэк без metadata");
+            row.put("edited_at", null);
+            row.put("deleted_at", null);
+            row.put("forwarded_from", null);
+            row.put("file_name", null);
+            row.put("attachment_storage_key", null);
+            row.put("attachment_storage_provider", null);
+            row.put("attachment_original_name", null);
+            row.put("attachment_size", null);
+            row.put("attachment_availability_status", null);
+            row.put("attachment_legacy_ref", null);
+            return List.of(row);
+        });
+
+        List<ChatMessageDto> history = fallbackService.loadHistory("T-77", 5L);
+
+        assertThat(history).hasSize(1);
+        assertThat(history.get(0).message()).isEqualTo("Фолбэк без metadata");
+        assertThat(history.get(0).attachment())
+                .isEqualTo("/api/attachments/tickets/by-path?path=attachments/T-77/image%20one.png");
     }
 
     private void createSchema() {

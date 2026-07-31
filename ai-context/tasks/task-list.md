@@ -182,3 +182,4 @@
 🟣 [01-161] Нормализовать attachment metadata и восстановить broken attachment references как первый implementation-шаг storage strategy Iguana
 🟣 [01-162] Разобрать и закрыть оставшиеся orphan attachment rows после metadata migration Iguana
 🟣 [01-163] Починить запуск spring-panel после нового Flyway checksum mismatch для baseline V1
+🟣 [01-164] Починить исчезающую историю диалога после ответа оператора при сбое attachment metadata

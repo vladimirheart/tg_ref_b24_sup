@@ -1,0 +1,24 @@
+# 2026-07-31 17:48:50 - dialog history metadata fallback
+
+- Затронутые области:
+  - `spring-panel/src/main/java/com/example/panel/service/DialogConversationReadService.java`
+  - `spring-panel/src/test/java/com/example/panel/service/DialogConversationReadServiceTest.java`
+  - `ai-context/tasks/task-list.md`
+  - `ai-context/tasks/task-details/01-164.md`
+- Пользовательский промпт:
+  - `что-то сильно всё сделано.`
+  - `кейс: открываю диалог, пишу ответ и пропадает вся история, даже новые сообщения. при попытке загрузить предыдущие сообщения - ничего не подгружает`
+- Что сделано:
+  - локализована причина регрессии: чтение `chat_attachment_metadata` на текущем `spring-panel/panel_runtime.db` падает с `SQLITE_CORRUPT`, а history-service возвращал пустой список сообщений;
+  - в `DialogConversationReadService` добавлен degraded fallback: при сбое metadata-join история перечитывается напрямую из `chat_history` без потери основного контента;
+  - previous-history подхватывает тот же fallback, потому что использует общий путь `loadHistory(...)`;
+  - добавлен regression test, фиксирующий поведение retry без `chat_attachment_metadata`;
+  - заведена follow-up задача `01-164` и переведена в статус `🟣`.
+- Проверки:
+  - `spring-panel\\mvnw.cmd -q -DskipTests compile` — success
+  - одноразовый service-level вызов на реальной `spring-panel\\panel_runtime.db`:
+    - warning `Retrying dialog history without metadata join`
+    - `HISTORY_SIZE=8`
+    - `PREVIOUS_PRESENT=true`
+    - `PREVIOUS_BATCH_MESSAGES=40`
+  - `spring-panel\\mvnw.cmd -q -Dtest=DialogConversationReadServiceTest test` не использован как финальный gate, потому что в репозитории уже есть посторонние ошибки test-слоя вне рамок этой задачи

@@ -43,69 +43,19 @@ public class DialogConversationReadService {
         }
         try {
             Set<String> columns = loadTableColumns("chat_history");
-            String originalMessageColumn = columns.contains("original_message")
-                    ? "original_message"
-                    : "NULL AS original_message";
-            String forwardedFromColumn = columns.contains("forwarded_from")
-                    ? "forwarded_from"
-                    : "NULL AS forwarded_from";
-            String editedAtColumn = columns.contains("edited_at")
-                    ? "edited_at"
-                    : "NULL AS edited_at";
-            String deletedAtColumn = columns.contains("deleted_at")
-                    ? "deleted_at"
-                    : "NULL AS deleted_at";
-            String fileNameColumn = columns.contains("file_name")
-                    ? "file_name"
-                    : "NULL AS file_name";
             Set<String> attachmentMetadataColumns = loadTableColumns("chat_attachment_metadata");
-            boolean attachmentMetadataAvailable = !attachmentMetadataColumns.isEmpty();
-            String metadataSelect = attachmentMetadataAvailable
-                    ? """
-                            , cam.storage_key AS attachment_storage_key,
-                              cam.storage_provider AS attachment_storage_provider,
-                              cam.original_name AS attachment_original_name,
-                              cam.size AS attachment_size,
-                              cam.availability_status AS attachment_availability_status,
-                              cam.legacy_attachment_ref AS attachment_legacy_ref
-                            """
-                    : """
-                            , NULL AS attachment_storage_key,
-                              NULL AS attachment_storage_provider,
-                              NULL AS attachment_original_name,
-                              NULL AS attachment_size,
-                              NULL AS attachment_availability_status,
-                              NULL AS attachment_legacy_ref
-                            """;
-            String metadataJoin = attachmentMetadataAvailable
-                    ? " LEFT JOIN chat_attachment_metadata cam ON cam.chat_history_id = ch.id "
-                    : "";
-            String baseSql = """
-                    SELECT ch.sender, ch.message, ch.timestamp, ch.message_type, ch.attachment,
-                           ch.tg_message_id, ch.reply_to_tg_id, ch.channel_id,
-                           %s, %s, %s, %s, %s
-                           %s
-                      FROM chat_history ch
-                      %s
-                     WHERE ch.ticket_id = ?
-                    """.formatted(
-                    qualifyChatHistoryColumn(originalMessageColumn),
-                    qualifyChatHistoryColumn(editedAtColumn),
-                    qualifyChatHistoryColumn(deletedAtColumn),
-                    qualifyChatHistoryColumn(forwardedFromColumn),
-                    qualifyChatHistoryColumn(fileNameColumn),
-                    metadataSelect,
-                    metadataJoin
-            );
             List<Object> args = new ArrayList<>();
             args.add(ticketId);
             if (channelId != null) {
-                baseSql += " AND ch.channel_id = ?";
                 args.add(channelId);
             }
-            baseSql += " ORDER BY substr(ch.timestamp,1,19) ASC, COALESCE(ch.tg_message_id, 0) ASC, ch.rowid ASC";
-
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(baseSql, args.toArray());
+            List<Map<String, Object>> rows = queryHistoryRows(
+                    ticketId,
+                    channelId != null,
+                    columns,
+                    !attachmentMetadataColumns.isEmpty(),
+                    args
+            );
             Map<String, String> previewByMessage = new HashMap<>();
             for (Map<String, Object> row : rows) {
                 Long tgMessageId = parseLong(row.get("tg_message_id"));
@@ -170,6 +120,32 @@ public class DialogConversationReadService {
         } catch (DataAccessException ex) {
             log.warn("Unable to load chat history for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
+        }
+    }
+
+    private List<Map<String, Object>> queryHistoryRows(String ticketId,
+                                                       boolean filterByChannelId,
+                                                       Set<String> columns,
+                                                       boolean attachmentMetadataAvailable,
+                                                       List<Object> args) {
+        try {
+            return jdbcTemplate.queryForList(
+                    buildHistorySql(columns, filterByChannelId, attachmentMetadataAvailable),
+                    args.toArray()
+            );
+        } catch (DataAccessException ex) {
+            if (!attachmentMetadataAvailable) {
+                throw ex;
+            }
+            log.warn(
+                    "Unable to load attachment metadata for ticket {}: {}. Retrying dialog history without metadata join.",
+                    ticketId,
+                    DialogDataAccessSupport.summarizeDataAccessException(ex)
+            );
+            return jdbcTemplate.queryForList(
+                    buildHistorySql(columns, filterByChannelId, false),
+                    args.toArray()
+            );
         }
     }
 
@@ -437,6 +413,68 @@ public class DialogConversationReadService {
             return columnExpression;
         }
         return "ch." + columnExpression;
+    }
+
+    private String buildHistorySql(Set<String> columns,
+                                   boolean filterByChannelId,
+                                   boolean attachmentMetadataAvailable) {
+        String originalMessageColumn = columns.contains("original_message")
+                ? "original_message"
+                : "NULL AS original_message";
+        String forwardedFromColumn = columns.contains("forwarded_from")
+                ? "forwarded_from"
+                : "NULL AS forwarded_from";
+        String editedAtColumn = columns.contains("edited_at")
+                ? "edited_at"
+                : "NULL AS edited_at";
+        String deletedAtColumn = columns.contains("deleted_at")
+                ? "deleted_at"
+                : "NULL AS deleted_at";
+        String fileNameColumn = columns.contains("file_name")
+                ? "file_name"
+                : "NULL AS file_name";
+        String metadataSelect = attachmentMetadataAvailable
+                ? """
+                        , cam.storage_key AS attachment_storage_key,
+                          cam.storage_provider AS attachment_storage_provider,
+                          cam.original_name AS attachment_original_name,
+                          cam.size AS attachment_size,
+                          cam.availability_status AS attachment_availability_status,
+                          cam.legacy_attachment_ref AS attachment_legacy_ref
+                        """
+                : """
+                        , NULL AS attachment_storage_key,
+                          NULL AS attachment_storage_provider,
+                          NULL AS attachment_original_name,
+                          NULL AS attachment_size,
+                          NULL AS attachment_availability_status,
+                          NULL AS attachment_legacy_ref
+                        """;
+        String metadataJoin = attachmentMetadataAvailable
+                ? " LEFT JOIN chat_attachment_metadata cam ON cam.chat_history_id = ch.id "
+                : "";
+        StringBuilder sql = new StringBuilder("""
+                SELECT ch.sender, ch.message, ch.timestamp, ch.message_type, ch.attachment,
+                       ch.tg_message_id, ch.reply_to_tg_id, ch.channel_id,
+                       %s, %s, %s, %s, %s
+                       %s
+                  FROM chat_history ch
+                  %s
+                 WHERE ch.ticket_id = ?
+                """.formatted(
+                qualifyChatHistoryColumn(originalMessageColumn),
+                qualifyChatHistoryColumn(editedAtColumn),
+                qualifyChatHistoryColumn(deletedAtColumn),
+                qualifyChatHistoryColumn(forwardedFromColumn),
+                qualifyChatHistoryColumn(fileNameColumn),
+                metadataSelect,
+                metadataJoin
+        ));
+        if (filterByChannelId) {
+            sql.append(" AND ch.channel_id = ?");
+        }
+        sql.append(" ORDER BY substr(ch.timestamp,1,19) ASC, COALESCE(ch.tg_message_id, 0) ASC, ch.rowid ASC");
+        return sql.toString();
     }
 
     private static String firstNonBlank(String... values) {
