@@ -95,9 +95,9 @@
       ? elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-scheme]')
       : null;
 
-    function popup(message) {
+    function popup(message, type = 'info') {
       if (typeof options.showPopup === 'function') {
-        options.showPopup(message);
+        options.showPopup(message, type);
       }
     }
 
@@ -183,6 +183,34 @@
           return state.channelAssignmentRoutingCatalog;
         })
         .catch(() => state.channelAssignmentRoutingCatalog);
+    }
+
+    function refreshTemplateCatalog(forceReload = false) {
+      const fetchPageDataSection = window.SettingsRuntimeAccess?.fetchPageDataSection;
+      if (typeof settingsChannelTemplates?.replaceSource !== 'function') {
+        settingsChannelsCatalog?.populateAddChannelTemplateSelects?.();
+        settingsChannelEditorShell?.refreshChannelEditorIfOpen?.();
+        return Promise.resolve(false);
+      }
+      if (typeof fetchPageDataSection !== 'function') {
+        settingsChannelsCatalog?.populateAddChannelTemplateSelects?.();
+        settingsChannelEditorShell?.refreshChannelEditorIfOpen?.();
+        return Promise.resolve(false);
+      }
+      return fetchPageDataSection('channels', forceReload ? { force: true } : {})
+        .then((section) => {
+          const nextBotSettings = section && typeof section === 'object' ? section.botSettings : null;
+          const nextAutoCloseConfig = section && typeof section === 'object' ? section.autoCloseConfig : null;
+          settingsChannelTemplates.replaceSource(nextBotSettings, nextAutoCloseConfig);
+          settingsChannelsCatalog?.populateAddChannelTemplateSelects?.();
+          settingsChannelEditorShell?.refreshChannelEditorIfOpen?.();
+          return true;
+        })
+        .catch(() => {
+          settingsChannelsCatalog?.populateAddChannelTemplateSelects?.();
+          settingsChannelEditorShell?.refreshChannelEditorIfOpen?.();
+          return false;
+        });
     }
 
     const settingsChannelTemplates = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelTemplatesRuntime', {
@@ -356,7 +384,7 @@
       refreshAllBotRuntimeStatuses: (...args) => settingsChannelsBotRuntime.refreshAllBotRuntimeStatuses(...args),
       refreshChannelEditorIfOpen: (...args) => settingsChannelEditorShell.refreshChannelEditorIfOpen(...args),
       requestSettingsModalClose: requestCloseModal,
-      showPopup: (message) => popup(message),
+      showPopup: (message, type) => popup(message, type),
       showNotification: typeof options.showNotification === 'function' ? options.showNotification : null,
       startBot: (...args) => settingsChannelsBotRuntime.startBot(...args),
     });
@@ -365,7 +393,7 @@
       getChannelEditorState: () => state.channelEditorState,
       notifyChannelStatus: (...args) => settingsChannelsCatalog.notifyChannelStatus(...args),
       loadChannels: (...args) => settingsChannelsCatalog.loadChannels(...args),
-      showPopup: (message) => popup(message),
+      showPopup: (message, type) => popup(message, type),
       getCookieValue: (name) => typeof options.getCookieValue === 'function' ? options.getCookieValue(name) : '',
     });
     const settingsChannelEditorShell = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelEditorShellRuntime', {
@@ -401,7 +429,7 @@
       refreshBotStatus: (...args) => settingsChannelsBotRuntime.refreshBotStatus(...args),
       loadChannels: (...args) => settingsChannelsCatalog.loadChannels(...args),
       escapeHtml: options.escapeHtml,
-      showPopup: (message) => popup(message),
+      showPopup: (message, type) => popup(message, type),
       populateChannelEditor,
     });
     const settingsChannelEditorPersistence = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelEditorPersistenceRuntime', {
@@ -415,7 +443,7 @@
       buildQuestionsCfgPayload: (existingQuestionsCfg) => buildChannelQuestionsCfgPayload(existingQuestionsCfg),
       loadChannels: (...args) => settingsChannelsCatalog.loadChannels(...args),
       requestSettingsModalClose: requestCloseModal,
-      showPopup: (message) => popup(message),
+      showPopup: (message, type) => popup(message, type),
       confirmDialog: (message) => typeof options.confirmDialog === 'function' ? options.confirmDialog(message) : false,
     });
     const settingsChannelEditorControls = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelEditorControlsRuntime', {
@@ -475,6 +503,7 @@
     return {
       addChannel,
       initChannelsManagement,
+      refreshTemplateCatalog,
     };
   }
 
@@ -487,6 +516,7 @@
       window.SettingsPageCallbackRegistry?.registerMany({
         initChannelsManagement: runtime.initChannelsManagement,
         addChannel: runtime.addChannel,
+        refreshTemplateCatalog: runtime.refreshTemplateCatalog,
       });
       window.__settingsChannelsShellRuntime = runtime;
       return runtime;

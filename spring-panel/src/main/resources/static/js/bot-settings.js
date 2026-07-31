@@ -254,6 +254,17 @@
     return botSettingsLoadingPromise;
   }
 
+  async function refreshLinkedBotSettingsConsumers() {
+    await ensureBotSettingsLoaded(true);
+    const refreshTemplateCatalog = window.SettingsRuntimeAccess?.resolveRuntimeMethod?.(
+      'SettingsChannelsShellRuntime',
+      'refreshTemplateCatalog'
+    );
+    if (typeof refreshTemplateCatalog === 'function') {
+      await refreshTemplateCatalog(true);
+    }
+  }
+
   const generatedQuestionIds = new Set();
   const generatedOptionIds = new Set();
   const generatedTemplateIds = new Set();
@@ -1448,21 +1459,28 @@
     });
   }
 
+  function applyStatusAppearance(element, message, isError) {
+    if (!(element instanceof HTMLElement)) {
+      return;
+    }
+    element.classList.remove('text-muted', 'text-danger', 'text-success');
+    if (!message) {
+      element.textContent = '';
+      element.classList.add('text-muted');
+      return;
+    }
+    element.textContent = message;
+    element.classList.add(isError ? 'text-danger' : 'text-success');
+  }
+
   function setStatus(message, isError) {
     if (!statusEl) {
       return;
     }
-    statusEl.classList.remove('text-danger', 'text-success');
-    if (!message) {
-      statusEl.textContent = '';
-      return;
-    }
-    statusEl.textContent = message;
-    statusEl.classList.add(isError ? 'text-danger' : 'text-success');
+    applyStatusAppearance(statusEl, message, isError);
     setTimeout(() => {
       if (statusEl.textContent === message) {
-        statusEl.textContent = '';
-        statusEl.classList.remove('text-danger', 'text-success');
+        applyStatusAppearance(statusEl, '', false);
       }
     }, 4000);
   }
@@ -1478,18 +1496,11 @@
     if (!templateStatusEl) {
       return;
     }
-    templateStatusEl.classList.remove('text-danger', 'text-success');
-    if (!message) {
-      templateStatusEl.textContent = '';
-      return;
-    }
-    templateStatusEl.textContent = message;
-    templateStatusEl.classList.add(isError ? 'text-danger' : 'text-success');
+    applyStatusAppearance(templateStatusEl, message, isError);
     if (!isError) {
       setTimeout(() => {
         if (templateStatusEl.textContent === message) {
-          templateStatusEl.textContent = '';
-          templateStatusEl.classList.remove('text-danger', 'text-success');
+          applyStatusAppearance(templateStatusEl, '', false);
         }
       }, 3000);
     }
@@ -1573,18 +1584,11 @@
     if (!ratingStatusEl) {
       return;
     }
-    ratingStatusEl.classList.remove('text-danger', 'text-success');
-    if (!message) {
-      ratingStatusEl.textContent = '';
-      return;
-    }
-    ratingStatusEl.textContent = message;
-    ratingStatusEl.classList.add(isError ? 'text-danger' : 'text-success');
+    applyStatusAppearance(ratingStatusEl, message, isError);
     if (!isError) {
       setTimeout(() => {
         if (ratingStatusEl.textContent === message) {
-          ratingStatusEl.textContent = '';
-          ratingStatusEl.classList.remove('text-danger', 'text-success');
+          applyStatusAppearance(ratingStatusEl, '', false);
         }
       }, 3000);
     }
@@ -2632,6 +2636,7 @@
     setTemplateStatus('Сохраняем шаблон и общие настройки бота...', false);
     try {
       await persistBotSettingsPayload(collectPayload());
+      await refreshLinkedBotSettingsConsumers().catch(() => undefined);
       setTemplateStatus('Шаблон сохранён.', false);
       hideChildModal(templateModalEl);
       return true;
@@ -3040,7 +3045,9 @@
     setStatus('Сохраняем настройки...', false);
     try {
       await persistBotSettingsPayload(payload);
+      await refreshLinkedBotSettingsConsumers().catch(() => undefined);
       setStatus('Настройки сохранены.', false);
+      hideSettingsModal(parentModalEl);
     } catch (error) {
       const message = error && error.message ? error.message : String(error);
       setStatus(`Ошибка сохранения: ${message}`, true);

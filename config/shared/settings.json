@@ -161,7 +161,7 @@
     "sla_critical_auto_assign_governance_review_ttl_hours" : 168,
     "sla_critical_auto_assign_governance_dry_run_ticket_required" : false,
     "sla_critical_auto_assign_governance_decision_required" : false,
-    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-07-08T08:51:11.847530100Z",
+    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-07-31T06:13:31.264840700Z",
     "sla_critical_operator_skills" : { },
     "sla_critical_operator_queues" : { },
     "sla_critical_escalation_webhook_enabled" : false,
@@ -359,6 +359,7 @@
         "type" : "preset",
         "text" : "Бизнес",
         "order" : 1,
+        "required" : true,
         "preset" : {
           "group" : "locations",
           "field" : "business"
@@ -368,6 +369,7 @@
         "type" : "preset",
         "text" : "Тип бизнесаx",
         "order" : 2,
+        "required" : true,
         "preset" : {
           "group" : "locations",
           "field" : "location_type"
@@ -377,6 +379,7 @@
         "type" : "preset",
         "text" : "Город",
         "order" : 3,
+        "required" : true,
         "preset" : {
           "group" : "locations",
           "field" : "city"
@@ -386,6 +389,7 @@
         "type" : "preset",
         "text" : "Локация",
         "order" : 4,
+        "required" : true,
         "preset" : {
           "group" : "locations",
           "field" : "location_name"
@@ -400,12 +404,76 @@
         "id" : "q_mpnrpxd1ixlzyl",
         "type" : "custom",
         "text" : "Выберете направление",
-        "order" : 1
+        "order" : 1,
+        "required" : true
       }, {
         "id" : "q_mpnrr3p0emvpw4",
         "type" : "custom",
         "text" : "Укажите вопрос",
-        "order" : 2
+        "order" : 2,
+        "required" : true
+      } ]
+    }, {
+      "id" : "tpl_ms8i6iqp04fa",
+      "name" : "Тестовый набор",
+      "description" : "",
+      "start_message" : "Доброе пожаловать в тест",
+      "question_flow" : [ {
+        "id" : "q_ms8i75411yvg5i",
+        "type" : "select",
+        "text" : "Тестимся?",
+        "order" : 1,
+        "required" : true,
+        "options" : [ {
+          "id" : "opt_ms8illijq2quk4",
+          "label" : "1) да"
+        }, {
+          "id" : "opt_ms8ilo7yap3ulc",
+          "label" : "2) нет"
+        }, {
+          "id" : "opt_ms8iltbhgf4mo2",
+          "label" : "3) смотри пункт 1"
+        } ],
+        "routes" : [ {
+          "value_id" : "opt_ms8illijq2quk4",
+          "next_question_id" : "q_ms8imsyz13w1fq"
+        } ]
+      }, {
+        "id" : "q_ms8imsyz13w1fq",
+        "type" : "select",
+        "text" : "Уверены?",
+        "order" : 2,
+        "required" : true,
+        "options" : [ {
+          "id" : "opt_ms8iy14yeuhrdy",
+          "label" : "Да"
+        }, {
+          "id" : "opt_ms8jotxro0xdf2",
+          "label" : "ДАб"
+        }, {
+          "id" : "opt_ms8iy3dp76th2n",
+          "label" : "ДА!"
+        } ],
+        "routes" : [ {
+          "value_id" : "opt_ms8iy3dp76th2n",
+          "next_question_id" : "q_ms8iyhe3v8cbxu"
+        } ]
+      }, {
+        "id" : "q_ms8iyhe3v8cbxu",
+        "type" : "select",
+        "text" : "Точно уверены?",
+        "order" : 3,
+        "required" : true,
+        "options" : [ {
+          "id" : "opt_ms8iyt2q3jiohy",
+          "label" : "ДА"
+        }, {
+          "id" : "opt_ms8jp0f1s51cxo",
+          "label" : "дад"
+        }, {
+          "id" : "opt_ms8iyxvpyprbe7",
+          "label" : "МБ?"
+        } ]
       } ]
     } ],
     "active_template_id" : "tpl_mpnp8g3k1qcg",

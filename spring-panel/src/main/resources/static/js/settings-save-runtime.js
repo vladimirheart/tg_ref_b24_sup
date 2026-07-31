@@ -19,9 +19,9 @@
       return state;
     }
 
-    function showMessage(message) {
+    function showMessage(message, type = 'info') {
       if (typeof options.showPopup === 'function') {
-        options.showPopup(message);
+        options.showPopup(message, type);
       }
     }
 
@@ -46,11 +46,11 @@
           }
         );
         if (autoCloseState.errors && autoCloseState.errors.length) {
-          showMessage(autoCloseState.errors.join('\n'));
+          showMessage(autoCloseState.errors.join('\n'), 'error');
           return;
         }
         if (!Array.isArray(autoCloseState.templates) || !autoCloseState.templates.length) {
-          showMessage('Добавьте хотя бы один шаблон автозакрытия.');
+          showMessage('Добавьте хотя бы один шаблон автозакрытия.', 'error');
           return;
         }
 
@@ -70,7 +70,7 @@
           }
         );
         if (timeMetricsState.errors && timeMetricsState.errors.length) {
-          showMessage(uniqueErrors(timeMetricsState.errors).join('\n'));
+          showMessage(uniqueErrors(timeMetricsState.errors).join('\n'), 'error');
           return;
         }
 
@@ -83,7 +83,7 @@
           }
         );
         if (dialogSlaState.errors && dialogSlaState.errors.length) {
-          showMessage(uniqueErrors(dialogSlaState.errors).join('\n'));
+          showMessage(uniqueErrors(dialogSlaState.errors).join('\n'), 'error');
           return;
         }
 
@@ -96,7 +96,7 @@
           }
         );
         if (summaryBadgesState.errors && summaryBadgesState.errors.length) {
-          showMessage(uniqueErrors(summaryBadgesState.errors).join('\n'));
+          showMessage(uniqueErrors(summaryBadgesState.errors).join('\n'), 'error');
           return;
         }
 
@@ -155,16 +155,16 @@
           if (typeof options.markLocationsIikoServerSourcesSaved === 'function') {
             options.markLocationsIikoServerSourcesSaved();
           }
-          showMessage('✅ Настройки сохранены');
+          showMessage('✅ Настройки сохранены', 'success');
           if (Array.isArray(data.warnings) && data.warnings.length) {
-            showMessage(`⚠️ ${data.warnings.join('\n')}`);
+            showMessage(`⚠️ ${data.warnings.join('\n')}`, 'warning');
           }
           return;
         }
 
-        showMessage(`❌ Ошибка: ${data.error || 'неизвестная ошибка'}`);
+        showMessage(`❌ Ошибка: ${data.error || 'неизвестная ошибка'}`, 'error');
       } catch (error) {
-        showMessage(`❌ Ошибка сети: ${error.message}`);
+        showMessage(`❌ Ошибка сети: ${error.message}`, 'error');
       }
     }
 

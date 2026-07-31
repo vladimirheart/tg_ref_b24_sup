@@ -40,9 +40,9 @@
         : { channelId: null, tokenVisible: false };
     }
 
-    function popup(message) {
+    function popup(message, type = 'info') {
       if (typeof options.showPopup === 'function') {
-        options.showPopup(message);
+        options.showPopup(message, type);
         return;
       }
       console.log(message);
@@ -236,10 +236,10 @@
         body = buildChannelSaveBody(id);
       } catch (error) {
         if (error?.name === 'ChannelEditorValidationError') {
-          popup(error.message);
+          popup(error.message, 'error');
           return;
         }
-        popup('Ошибка сохранения: ' + error.message);
+        popup('Ошибка сохранения: ' + error.message, 'error');
         return;
       }
 
@@ -254,13 +254,14 @@
         if (!result.resp.ok || result.data.success === false) {
           throw new Error(result.data.error || ('HTTP ' + result.resp.status));
         }
-        popup('Настройки канала сохранены.');
+        popup('Настройки канала сохранены.', 'success');
         if (elements.channelEditorNewTokenInput) {
           elements.channelEditorNewTokenInput.value = '';
         }
         await reloadChannels();
+        requestCloseModal(elements.channelEditorDeleteBtn || elements.channelEditorNameInput);
       } catch (error) {
-        popup('Ошибка сохранения: ' + error.message);
+        popup('Ошибка сохранения: ' + error.message, 'error');
       }
     }
 
@@ -279,7 +280,7 @@
           requestCloseModal(elements.channelEditorDeleteBtn);
         }
       } catch (error) {
-        popup('Ошибка удаления: ' + error.message);
+        popup('Ошибка удаления: ' + error.message, 'error');
       }
     }
 

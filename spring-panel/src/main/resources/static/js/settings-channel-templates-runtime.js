@@ -11,56 +11,17 @@
       ? options.autoCloseConfig
       : {};
 
-    const questionTemplates = Array.isArray(botSettings.question_templates)
-      ? botSettings.question_templates.filter((tpl) => tpl && typeof tpl === 'object' && tpl.id)
-      : [];
-    const questionTemplateMap = new Map(
-      questionTemplates.map((tpl) => [String(tpl.id || '').trim(), tpl]),
-    );
-    const defaultQuestionTemplateId = (() => {
-      const raw = typeof botSettings.active_template_id === 'string'
-        ? botSettings.active_template_id.trim()
-        : '';
-      if (raw && questionTemplateMap.has(raw)) {
-        return raw;
-      }
-      const first = questionTemplates.find((tpl) => tpl && tpl.id);
-      return first ? String(first.id).trim() : '';
-    })();
+    let questionTemplates = [];
+    let questionTemplateMap = new Map();
+    let defaultQuestionTemplateId = '';
 
-    const ratingTemplates = Array.isArray(botSettings.rating_templates)
-      ? botSettings.rating_templates.filter((tpl) => tpl && typeof tpl === 'object' && tpl.id)
-      : [];
-    const ratingTemplateMap = new Map(
-      ratingTemplates.map((tpl) => [String(tpl.id || '').trim(), tpl]),
-    );
-    const defaultRatingTemplateId = (() => {
-      const raw = typeof botSettings.active_rating_template_id === 'string'
-        ? botSettings.active_rating_template_id.trim()
-        : '';
-      if (raw && ratingTemplateMap.has(raw)) {
-        return raw;
-      }
-      const first = ratingTemplates.find((tpl) => tpl && tpl.id);
-      return first ? String(first.id).trim() : '';
-    })();
+    let ratingTemplates = [];
+    let ratingTemplateMap = new Map();
+    let defaultRatingTemplateId = '';
 
-    const autoActionTemplates = Array.isArray(autoCloseConfig.templates)
-      ? autoCloseConfig.templates.filter((tpl) => tpl && typeof tpl === 'object' && tpl.id)
-      : [];
-    const autoActionTemplateMap = new Map(
-      autoActionTemplates.map((tpl) => [String(tpl.id || '').trim(), tpl]),
-    );
-    const defaultAutoActionTemplateId = (() => {
-      const raw = typeof autoCloseConfig.active_template_id === 'string'
-        ? autoCloseConfig.active_template_id.trim()
-        : '';
-      if (raw && autoActionTemplateMap.has(raw)) {
-        return raw;
-      }
-      const first = autoActionTemplates.find((tpl) => tpl && tpl.id);
-      return first ? String(first.id).trim() : '';
-    })();
+    let autoActionTemplates = [];
+    let autoActionTemplateMap = new Map();
+    let defaultAutoActionTemplateId = '';
 
     function escapeHtml(value) {
       if (typeof options.escapeHtml === 'function') {
@@ -88,6 +49,64 @@
       }
       return fallback || '';
     }
+
+    function normalizeTemplates(rawTemplates) {
+      return Array.isArray(rawTemplates)
+        ? rawTemplates.filter((tpl) => tpl && typeof tpl === 'object' && tpl.id)
+        : [];
+    }
+
+    function resolveDefaultTemplateId(rawId, templateMap, templates) {
+      const value = typeof rawId === 'string' ? rawId.trim() : '';
+      if (value && templateMap.has(value)) {
+        return value;
+      }
+      const first = templates.find((tpl) => tpl && tpl.id);
+      return first ? String(first.id).trim() : '';
+    }
+
+    function applyBotSettings(nextBotSettings) {
+      const source = nextBotSettings && typeof nextBotSettings === 'object' ? nextBotSettings : {};
+      questionTemplates = normalizeTemplates(source.question_templates);
+      questionTemplateMap = new Map(
+        questionTemplates.map((tpl) => [String(tpl.id || '').trim(), tpl]),
+      );
+      defaultQuestionTemplateId = resolveDefaultTemplateId(
+        source.active_template_id,
+        questionTemplateMap,
+        questionTemplates
+      );
+
+      ratingTemplates = normalizeTemplates(source.rating_templates);
+      ratingTemplateMap = new Map(
+        ratingTemplates.map((tpl) => [String(tpl.id || '').trim(), tpl]),
+      );
+      defaultRatingTemplateId = resolveDefaultTemplateId(
+        source.active_rating_template_id,
+        ratingTemplateMap,
+        ratingTemplates
+      );
+    }
+
+    function applyAutoCloseConfig(nextAutoCloseConfig) {
+      const source = nextAutoCloseConfig && typeof nextAutoCloseConfig === 'object' ? nextAutoCloseConfig : {};
+      autoActionTemplates = normalizeTemplates(source.templates);
+      autoActionTemplateMap = new Map(
+        autoActionTemplates.map((tpl) => [String(tpl.id || '').trim(), tpl]),
+      );
+      defaultAutoActionTemplateId = resolveDefaultTemplateId(
+        source.active_template_id,
+        autoActionTemplateMap,
+        autoActionTemplates
+      );
+    }
+
+    function replaceSource(nextBotSettings, nextAutoCloseConfig) {
+      applyBotSettings(nextBotSettings);
+      applyAutoCloseConfig(nextAutoCloseConfig);
+    }
+
+    replaceSource(botSettings, autoCloseConfig);
 
     function buildTemplateOptions(templates, selectedId) {
       if (!Array.isArray(templates) || !templates.length) {
@@ -217,6 +236,7 @@
       getTemplateSummaryBuilders() {
         return templateSummaryBuilders;
       },
+      replaceSource,
     };
   }
 
