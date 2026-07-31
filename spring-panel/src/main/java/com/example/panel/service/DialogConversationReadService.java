@@ -63,13 +63,19 @@ public class DialogConversationReadService {
             String metadataSelect = attachmentMetadataAvailable
                     ? """
                             , cam.storage_key AS attachment_storage_key,
+                              cam.storage_provider AS attachment_storage_provider,
                               cam.original_name AS attachment_original_name,
-                              cam.size AS attachment_size
+                              cam.size AS attachment_size,
+                              cam.availability_status AS attachment_availability_status,
+                              cam.legacy_attachment_ref AS attachment_legacy_ref
                             """
                     : """
                             , NULL AS attachment_storage_key,
+                              NULL AS attachment_storage_provider,
                               NULL AS attachment_original_name,
-                              NULL AS attachment_size
+                              NULL AS attachment_size,
+                              NULL AS attachment_availability_status,
+                              NULL AS attachment_legacy_ref
                             """;
             String metadataJoin = attachmentMetadataAvailable
                     ? " LEFT JOIN chat_attachment_metadata cam ON cam.chat_history_id = ch.id "
@@ -123,11 +129,16 @@ public class DialogConversationReadService {
                 }
                 String rawAttachment = value(row.get("attachment"));
                 String storageKey = value(row.get("attachment_storage_key"));
-                String attachment = toAttachmentUrl(ticketId, rawAttachment, storageKey);
+                String attachmentProvider = value(row.get("attachment_storage_provider"));
+                String attachmentStatus = value(row.get("attachment_availability_status"));
+                String legacyAttachmentRef = value(row.get("attachment_legacy_ref"));
+                String attachment = toAttachmentUrl(ticketId, rawAttachment, storageKey, attachmentProvider, attachmentStatus, legacyAttachmentRef);
                 AttachmentMeta attachmentMeta = resolveAttachmentMeta(
                         ticketId,
                         rawAttachment,
                         storageKey,
+                        attachmentProvider,
+                        attachmentStatus,
                         attachment,
                         value(row.get("attachment_original_name")),
                         parseLong(row.get("attachment_size"))
@@ -144,6 +155,9 @@ public class DialogConversationReadService {
                         attachment,
                         firstNonBlank(value(row.get("file_name")), attachmentMeta.name()),
                         attachmentMeta.size(),
+                        attachmentStatus,
+                        attachmentProvider,
+                        buildAttachmentNote(attachmentStatus, attachmentProvider),
                         parseLong(row.get("tg_message_id")),
                         replyTo,
                         replyPreview,
@@ -285,7 +299,18 @@ public class DialogConversationReadService {
         return (channelId != null ? channelId : 0L) + ":" + telegramMessageId;
     }
 
-    private static String toAttachmentUrl(String ticketId, String attachment, String storageKey) {
+    private static String toAttachmentUrl(String ticketId,
+                                          String attachment,
+                                          String storageKey,
+                                          String attachmentProvider,
+                                          String attachmentStatus,
+                                          String legacyAttachmentRef) {
+        if ("external_url".equalsIgnoreCase(trimToNull(attachmentProvider))) {
+            return trimToNull(legacyAttachmentRef);
+        }
+        if ("missing".equalsIgnoreCase(trimToNull(attachmentStatus))) {
+            return null;
+        }
         if (StringUtils.hasText(storageKey)) {
             return "/api/attachments/tickets/by-storage-key?key="
                     + UriUtils.encodeQueryParam(storageKey.trim(), StandardCharsets.UTF_8);
@@ -314,9 +339,19 @@ public class DialogConversationReadService {
     private AttachmentMeta resolveAttachmentMeta(String ticketId,
                                                  String rawAttachment,
                                                  String storageKey,
+                                                 String attachmentProvider,
+                                                 String attachmentStatus,
                                                  String attachmentUrl,
                                                  String metadataOriginalName,
                                                  Long metadataSize) {
+        if ("missing".equalsIgnoreCase(trimToNull(attachmentStatus))
+                || "external".equalsIgnoreCase(trimToNull(attachmentStatus))
+                || "external_url".equalsIgnoreCase(trimToNull(attachmentProvider))) {
+            return new AttachmentMeta(
+                    AttachmentStorageKeyResolver.resolveOriginalName(metadataOriginalName, rawAttachment, storageKey),
+                    metadataSize
+            );
+        }
         if (StringUtils.hasText(storageKey) && (StringUtils.hasText(metadataOriginalName) || metadataSize != null)) {
             return new AttachmentMeta(
                     AttachmentStorageKeyResolver.resolveOriginalName(metadataOriginalName, rawAttachment, storageKey),
@@ -357,6 +392,20 @@ public class DialogConversationReadService {
                 resolveAttachmentName(rawAttachment, storageKey, attachmentUrl),
                 metadataSize
         );
+    }
+
+    private static String buildAttachmentNote(String attachmentStatus, String attachmentProvider) {
+        String status = trimToNull(attachmentStatus);
+        if ("missing".equalsIgnoreCase(status)) {
+            return "Файл отсутствует в локальном storage.";
+        }
+        if ("external".equalsIgnoreCase(status) || "external_url".equalsIgnoreCase(trimToNull(attachmentProvider))) {
+            return "Внешнее вложение.";
+        }
+        if ("unresolved".equalsIgnoreCase(status)) {
+            return "Ссылка на вложение не нормализована.";
+        }
+        return null;
     }
 
     private String resolveAttachmentName(String rawAttachment, String storageKey, String attachmentUrl) {
@@ -455,6 +504,14 @@ public class DialogConversationReadService {
         }
         String text = String.valueOf(value).trim();
         return text.isEmpty() ? null : text;
+    }
+
+    private static String trimToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private Set<String> loadTableColumns(String tableName) {

@@ -30,11 +30,18 @@ public class ChatAttachmentMetadataService {
         if (chatHistoryId == null || !StringUtils.hasText(rawAttachment)) {
             return;
         }
+        String storageProvider = isExternalUrl(rawAttachment) ? "external_url" : "local_fs";
         String storageKey = normalizeStorageKey(ticketId, rawAttachment);
         Path resolvedPath = resolveLocalPath(rawAttachment);
         Long size = resolveSize(resolvedPath);
         String resolvedOriginalName = resolveOriginalName(originalName, rawAttachment, storageKey);
         String mimeType = resolveMimeType(resolvedPath, resolvedOriginalName, storageKey, messageType);
+        String normalizationStatus = "external_url".equals(storageProvider) || StringUtils.hasText(storageKey)
+                ? "normalized"
+                : "unresolved";
+        String availabilityStatus = "external_url".equals(storageProvider)
+                ? "external"
+                : (resolvedPath != null ? "available" : (StringUtils.hasText(storageKey) ? "missing" : "unresolved"));
         String timestamp = OffsetDateTime.now().toString();
 
         jdbcTemplate.update("DELETE FROM chat_attachment_metadata WHERE chat_history_id = ?", chatHistoryId);
@@ -52,21 +59,24 @@ public class ChatAttachmentMetadataService {
                     content_hash,
                     legacy_attachment_ref,
                     normalization_status,
+                    availability_status,
                     created_at,
                     updated_at,
                     archived_at,
                     deleted_at
-                ) VALUES (?, ?, ?, ?, 'local_fs', 'dialog_attachment', ?, ?, ?, NULL, ?, ?, ?, ?, NULL, NULL)
+                ) VALUES (?, ?, ?, ?, ?, 'dialog_attachment', ?, ?, ?, NULL, ?, ?, ?, ?, ?, NULL, NULL)
                 """,
                 chatHistoryId,
                 trim(ticketId),
                 channelId,
                 trim(storageKey),
+                storageProvider,
                 trim(resolvedOriginalName),
                 trim(mimeType),
                 size,
                 trim(rawAttachment),
-                StringUtils.hasText(storageKey) ? "normalized" : "unresolved",
+                normalizationStatus,
+                availabilityStatus,
                 timestamp,
                 timestamp
         );
@@ -88,11 +98,13 @@ public class ChatAttachmentMetadataService {
                     content_hash TEXT,
                     legacy_attachment_ref TEXT,
                     normalization_status TEXT NOT NULL DEFAULT 'normalized',
+                    availability_status TEXT NOT NULL DEFAULT 'unknown',
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT,
                     archived_at TEXT,
                     deleted_at TEXT,
-                    CHECK (normalization_status IN ('normalized', 'unresolved'))
+                    CHECK (normalization_status IN ('normalized', 'unresolved')),
+                    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
                 )
                 """);
         jdbcTemplate.execute("""
@@ -103,13 +115,20 @@ public class ChatAttachmentMetadataService {
                 CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_storage_key
                 ON chat_attachment_metadata(storage_key)
                 """);
+        try {
+            jdbcTemplate.execute("""
+                    ALTER TABLE chat_attachment_metadata
+                    ADD COLUMN availability_status TEXT NOT NULL DEFAULT 'unknown'
+                    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
+                    """);
+        } catch (Exception ignored) {
+        }
     }
 
     private String normalizeStorageKey(String ticketId, String rawAttachment) {
         String normalized = normalizeReference(rawAttachment);
         if (!StringUtils.hasText(normalized)
-                || normalized.startsWith("http://")
-                || normalized.startsWith("https://")
+                || isExternalUrl(normalized)
                 || normalized.startsWith("api/")
                 || normalized.startsWith("/api/")) {
             return null;
@@ -252,5 +271,13 @@ public class ChatAttachmentMetadataService {
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private boolean isExternalUrl(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        return normalized.startsWith("http://") || normalized.startsWith("https://");
     }
 }

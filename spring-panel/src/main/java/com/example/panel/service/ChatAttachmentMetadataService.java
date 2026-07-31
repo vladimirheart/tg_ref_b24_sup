@@ -28,8 +28,14 @@ public class ChatAttachmentMetadataService {
         if (chatHistoryId == null || !StringUtils.hasText(rawAttachment)) {
             return;
         }
+        String storageProvider = AttachmentStorageKeyResolver.isExternalUrl(rawAttachment) ? "external_url" : "local_fs";
         String storageKey = AttachmentStorageKeyResolver.normalizeStorageKey(ticketId, rawAttachment);
-        String normalizationStatus = StringUtils.hasText(storageKey) ? "normalized" : "unresolved";
+        String normalizationStatus = "external_url".equals(storageProvider) || StringUtils.hasText(storageKey)
+                ? "normalized"
+                : "unresolved";
+        String availabilityStatus = "external_url".equals(storageProvider)
+                ? "external"
+                : (StringUtils.hasText(storageKey) ? "available" : "unresolved");
         String resolvedOriginalName = AttachmentStorageKeyResolver.resolveOriginalName(originalName, rawAttachment, storageKey);
         String resolvedMimeType = AttachmentStorageKeyResolver.guessMimeType(mimeType, resolvedOriginalName, storageKey, messageType);
         String timestamp = OffsetDateTime.now().toString();
@@ -49,21 +55,24 @@ public class ChatAttachmentMetadataService {
                     content_hash,
                     legacy_attachment_ref,
                     normalization_status,
+                    availability_status,
                     created_at,
                     updated_at,
                     archived_at,
                     deleted_at
-                ) VALUES (?, ?, ?, ?, 'local_fs', 'dialog_attachment', ?, ?, ?, NULL, ?, ?, ?, ?, NULL, NULL)
+                ) VALUES (?, ?, ?, ?, ?, 'dialog_attachment', ?, ?, ?, NULL, ?, ?, ?, ?, ?, NULL, NULL)
                 """,
                 chatHistoryId,
                 trim(ticketId),
                 channelId,
                 trim(storageKey),
+                storageProvider,
                 trim(resolvedOriginalName),
                 trim(resolvedMimeType),
                 size,
                 trim(rawAttachment),
                 normalizationStatus,
+                availabilityStatus,
                 timestamp,
                 timestamp
         );
@@ -85,11 +94,13 @@ public class ChatAttachmentMetadataService {
                     content_hash TEXT,
                     legacy_attachment_ref TEXT,
                     normalization_status TEXT NOT NULL DEFAULT 'normalized',
+                    availability_status TEXT NOT NULL DEFAULT 'unknown',
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT,
                     archived_at TEXT,
                     deleted_at TEXT,
-                    CHECK (normalization_status IN ('normalized', 'unresolved'))
+                    CHECK (normalization_status IN ('normalized', 'unresolved')),
+                    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
                 )
                 """);
         jdbcTemplate.execute("""
@@ -100,6 +111,14 @@ public class ChatAttachmentMetadataService {
                 CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_storage_key
                 ON chat_attachment_metadata(storage_key)
                 """);
+        try {
+            jdbcTemplate.execute("""
+                    ALTER TABLE chat_attachment_metadata
+                    ADD COLUMN availability_status TEXT NOT NULL DEFAULT 'unknown'
+                    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
+                    """);
+        } catch (Exception ignored) {
+        }
     }
 
     private String trim(String value) {

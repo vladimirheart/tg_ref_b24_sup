@@ -140,8 +140,13 @@
         attachment: message?.attachment || message?.attachmentUrl || null,
         attachmentName: message?.attachmentName || message?.fileName || null,
         attachmentSize: message?.attachmentSize || message?.fileSize || null,
+        attachmentStatus: message?.attachmentStatus || null,
+        attachmentProvider: message?.attachmentProvider || null,
+        attachmentNote: message?.attachmentNote || null,
       };
-      const mediaMarkup = normalizedMessage.attachment ? (options.buildMediaMarkup?.(normalizedMessage) || '') : '';
+      const mediaMarkup = (normalizedMessage.attachment || normalizedMessage.attachmentStatus)
+        ? (options.buildMediaMarkup?.(normalizedMessage) || '')
+        : '';
       const textMarkup = text ? `<div class="workspace-message-body">${escapeHtml(text)}</div>` : '';
       const replyPreviewMarkup = replyPreviewText
         ? `<div class="small text-muted border-start ps-2 mb-1 workspace-message-reply-source">↪ ${escapeHtml(replyPreviewText)}</div>`

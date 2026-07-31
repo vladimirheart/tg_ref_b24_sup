@@ -89,11 +89,13 @@ CREATE TABLE IF NOT EXISTS chat_attachment_metadata (
     content_hash TEXT,
     legacy_attachment_ref TEXT,
     normalization_status TEXT NOT NULL DEFAULT 'normalized',
+    availability_status TEXT NOT NULL DEFAULT 'unknown',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT,
     archived_at TEXT,
     deleted_at TEXT,
-    CHECK (normalization_status IN ('normalized', 'unresolved'))
+    CHECK (normalization_status IN ('normalized', 'unresolved')),
+    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_ticket ON chat_attachment_metadata(ticket_id, chat_history_id);

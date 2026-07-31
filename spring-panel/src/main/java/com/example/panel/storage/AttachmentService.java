@@ -151,6 +151,15 @@ public class AttachmentService {
         return describeResolvedAttachment(resolved);
     }
 
+    public boolean hasTicketAttachmentByStorageKey(String storageKey) {
+        try {
+            Path resolved = resolveByStoredPath(attachmentsRoot, storageKey);
+            return Files.exists(resolved) && Files.isRegularFile(resolved);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
     private AttachmentUploadMetadata storeKnowledgeBaseFileInternal(String preferredStoredName,
                                                                     String originalName,
                                                                     String mimeType,

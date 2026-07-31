@@ -1,0 +1,106 @@
+package com.example.panel.service;
+
+import com.example.panel.storage.AttachmentService;
+import com.example.panel.storage.AttachmentStorageKeyResolver;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import jakarta.annotation.PostConstruct;
+import java.util.List;
+
+@Service
+public class ChatAttachmentMetadataAvailabilityService {
+
+    private final JdbcTemplate jdbcTemplate;
+    private final AttachmentService attachmentService;
+
+    public ChatAttachmentMetadataAvailabilityService(JdbcTemplate jdbcTemplate,
+                                                     AttachmentService attachmentService) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.attachmentService = attachmentService;
+    }
+
+    @PostConstruct
+    void reconcileAvailabilityStatuses() {
+        ensureColumn();
+        List<AttachmentMetadataRow> rows = jdbcTemplate.query("""
+                SELECT chat_history_id, storage_provider, storage_key, legacy_attachment_ref, normalization_status
+                  FROM chat_attachment_metadata
+                """, (rs, rowNum) -> new AttachmentMetadataRow(
+                rs.getLong("chat_history_id"),
+                trim(rs.getString("storage_provider")),
+                trim(rs.getString("storage_key")),
+                trim(rs.getString("legacy_attachment_ref")),
+                trim(rs.getString("normalization_status"))
+        ));
+        for (AttachmentMetadataRow row : rows) {
+            String storageProvider = resolveStorageProvider(row);
+            String normalizationStatus = resolveNormalizationStatus(row, storageProvider);
+            String availabilityStatus = resolveAvailabilityStatus(row, storageProvider);
+            jdbcTemplate.update("""
+                    UPDATE chat_attachment_metadata
+                       SET storage_provider = ?,
+                           normalization_status = ?,
+                           availability_status = ?,
+                           updated_at = CURRENT_TIMESTAMP
+                     WHERE chat_history_id = ?
+                    """,
+                    storageProvider,
+                    normalizationStatus,
+                    availabilityStatus,
+                    row.chatHistoryId()
+            );
+        }
+    }
+
+    private String resolveStorageProvider(AttachmentMetadataRow row) {
+        if (AttachmentStorageKeyResolver.isExternalUrl(row.legacyAttachmentRef())) {
+            return "external_url";
+        }
+        return "local_fs";
+    }
+
+    private String resolveNormalizationStatus(AttachmentMetadataRow row, String storageProvider) {
+        if ("external_url".equals(storageProvider)) {
+            return "normalized";
+        }
+        return StringUtils.hasText(row.storageKey()) ? "normalized" : "unresolved";
+    }
+
+    private String resolveAvailabilityStatus(AttachmentMetadataRow row, String storageProvider) {
+        if ("external_url".equals(storageProvider)) {
+            return "external";
+        }
+        if (!StringUtils.hasText(row.storageKey())) {
+            return "unresolved";
+        }
+        return attachmentService.hasTicketAttachmentByStorageKey(row.storageKey()) ? "available" : "missing";
+    }
+
+    private void ensureColumn() {
+        try {
+            jdbcTemplate.execute("""
+                    ALTER TABLE chat_attachment_metadata
+                    ADD COLUMN availability_status TEXT NOT NULL DEFAULT 'unknown'
+                    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
+                    """);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String trim(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private record AttachmentMetadataRow(Long chatHistoryId,
+                                         String storageProvider,
+                                         String storageKey,
+                                         String legacyAttachmentRef,
+                                         String normalizationStatus) {
+    }
+}

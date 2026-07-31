@@ -14,7 +14,7 @@ public final class AttachmentStorageKeyResolver {
 
     public static String normalizeStorageKey(String ticketId, String rawAttachment) {
         String normalized = normalizeReference(rawAttachment);
-        if (!StringUtils.hasText(normalized) || isApiReference(normalized) || normalized.startsWith("http://") || normalized.startsWith("https://")) {
+        if (!StringUtils.hasText(normalized) || isApiReference(normalized) || isExternalUrl(normalized)) {
             return null;
         }
         String attachmentSuffix = extractAttachmentsSuffix(normalized);
@@ -41,6 +41,14 @@ public final class AttachmentStorageKeyResolver {
         String decoded = decode(candidate);
         String stripped = stripStoredAttachmentPrefix(decoded);
         return StringUtils.hasText(stripped) ? stripped : decoded;
+    }
+
+    public static boolean isExternalUrl(String rawValue) {
+        if (!StringUtils.hasText(rawValue)) {
+            return false;
+        }
+        String normalized = rawValue.trim().toLowerCase(Locale.ROOT);
+        return normalized.startsWith("http://") || normalized.startsWith("https://");
     }
 
     public static String guessMimeType(String preferredMimeType, String originalName, String storageKey, String messageType) {

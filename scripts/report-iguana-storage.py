@@ -200,13 +200,7 @@ def query_reference_samples(connection: sqlite3.Connection) -> list[dict]:
     results: list[dict] = []
     metadata_present = has_columns(connection, "chat_attachment_metadata", ("chat_history_id",))
     if has_columns(connection, "chat_attachment_metadata", ("storage_key",)):
-        results.extend(
-            query_simple_column(
-                connection,
-                table="chat_attachment_metadata",
-                column="storage_key",
-            )
-        )
+        results.extend(query_chat_attachment_metadata_storage_keys(connection))
     if has_columns(connection, "chat_history", ("attachment",)):
         if metadata_present:
             results.extend(query_chat_history_legacy_attachment_column(connection))
@@ -295,24 +289,63 @@ def query_chat_history_legacy_attachment_column(connection: sqlite3.Connection) 
     return result
 
 
+def query_chat_attachment_metadata_storage_keys(connection: sqlite3.Connection) -> list[dict]:
+    sql = """
+        SELECT NULL AS ticket_id, storage_key
+          FROM chat_attachment_metadata
+         WHERE storage_key IS NOT NULL
+           AND TRIM(storage_key) <> ''
+           AND lower(COALESCE(storage_provider, 'local_fs')) <> 'external_url'
+    """
+    result = []
+    for ticket_id, raw in connection.execute(sql):
+        result.append(
+            {
+                "reference_key": "chat_attachment_metadata.storage_key",
+                "raw": str(raw).strip(),
+                "ticket_id": str(ticket_id).strip() if ticket_id is not None else None,
+            }
+        )
+    return result
+
+
 def query_attachment_metadata_status(connection: sqlite3.Connection) -> dict | None:
     if not has_columns(connection, "chat_attachment_metadata", ("normalization_status",)):
         return None
+    has_availability_status = has_columns(connection, "chat_attachment_metadata", ("availability_status",))
     sql = """
         SELECT
             COUNT(*) AS total_rows,
             SUM(CASE WHEN normalization_status = 'normalized' THEN 1 ELSE 0 END) AS normalized_rows,
             SUM(CASE WHEN normalization_status = 'unresolved' THEN 1 ELSE 0 END) AS unresolved_rows
+            %s
           FROM chat_attachment_metadata
-    """
+    """ % (
+        """,
+            SUM(CASE WHEN availability_status = 'available' THEN 1 ELSE 0 END) AS available_rows,
+            SUM(CASE WHEN availability_status = 'missing' THEN 1 ELSE 0 END) AS missing_rows,
+            SUM(CASE WHEN availability_status = 'external' THEN 1 ELSE 0 END) AS external_rows,
+            SUM(CASE WHEN availability_status = 'unknown' THEN 1 ELSE 0 END) AS unknown_rows
+        """ if has_availability_status else ""
+    )
     row = connection.execute(sql).fetchone()
     if row is None:
         return None
-    return {
+    result = {
         "total_rows": int(row[0] or 0),
         "normalized_rows": int(row[1] or 0),
         "unresolved_rows": int(row[2] or 0),
     }
+    if has_availability_status:
+        result.update(
+            {
+                "available_rows": int(row[3] or 0),
+                "missing_rows": int(row[4] or 0),
+                "external_rows": int(row[5] or 0),
+                "unknown_rows": int(row[6] or 0),
+            }
+        )
+    return result
 
 
 def has_columns(connection: sqlite3.Connection, table: str, expected: tuple[str, ...]) -> bool:
@@ -669,6 +702,11 @@ def build_risks(storage: list[dict], databases: list[dict], attachment_reference
                 "Unresolved attachment metadata rows in "
                 f"{metadata['database']} ({metadata['unresolved_rows']} rows)"
             )
+        if metadata.get("missing_rows", 0) > 0:
+            risks.append(
+                "Missing attachment binaries in "
+                f"{metadata['database']} ({metadata['missing_rows']} rows)"
+            )
     if not databases:
         risks.append("No SQLite files discovered under the repository root.")
     return risks
@@ -732,13 +770,26 @@ def render_markdown(report: dict, top_n: int) -> str:
     if report["attachment_metadata"]:
         lines.append("## Attachment metadata")
         lines.append("")
-        lines.append("| Database | Total | Normalized | Unresolved |")
-        lines.append("| --- | ---: | ---: | ---: |")
+        has_availability = any("available_rows" in item for item in report["attachment_metadata"])
+        if has_availability:
+            lines.append("| Database | Total | Normalized | Unresolved | Available | Missing | External | Unknown |")
+            lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
+        else:
+            lines.append("| Database | Total | Normalized | Unresolved |")
+            lines.append("| --- | ---: | ---: | ---: |")
         for item in report["attachment_metadata"]:
-            lines.append(
-                f"| `{item['database']}` | {item['total_rows']} | "
-                f"{item['normalized_rows']} | {item['unresolved_rows']} |"
-            )
+            if has_availability:
+                lines.append(
+                    f"| `{item['database']}` | {item['total_rows']} | "
+                    f"{item['normalized_rows']} | {item['unresolved_rows']} | "
+                    f"{item.get('available_rows', 0)} | {item.get('missing_rows', 0)} | "
+                    f"{item.get('external_rows', 0)} | {item.get('unknown_rows', 0)} |"
+                )
+            else:
+                lines.append(
+                    f"| `{item['database']}` | {item['total_rows']} | "
+                    f"{item['normalized_rows']} | {item['unresolved_rows']} |"
+                )
         lines.append("")
 
     lines.append("## Attachment references")

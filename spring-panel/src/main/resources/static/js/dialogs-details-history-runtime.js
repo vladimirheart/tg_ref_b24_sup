@@ -415,27 +415,42 @@
     }
 
     function buildMediaInlineMetaMarkup(message, name, kind) {
-      if (!message?.attachment) return '';
-      const attachmentUrl = escapeAttribute(message.attachment);
+      if (!message?.attachment && !message?.attachmentStatus) return '';
+      const attachmentUrl = message?.attachment ? escapeAttribute(message.attachment) : '';
       const typeLabel = resolveAttachmentTypeLabel(message, kind);
       const normalizedName = String(name || '').trim() || typeLabel;
       const sizeLabel = formatAttachmentSize(message?.attachmentSize);
-      const metaLine = [typeLabel, sizeLabel].filter(Boolean).join(' · ');
+      const noteLabel = String(message?.attachmentNote || '').trim();
+      const metaLine = [typeLabel, sizeLabel, noteLabel].filter(Boolean).join(' · ');
+      const actionMarkup = message?.attachment
+        ? `<div class="chat-media-actions">
+            <a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" ${message?.attachmentProvider === 'external_url' ? '' : 'download'} target="_blank" rel="noopener">
+              ${message?.attachmentProvider === 'external_url' ? 'Открыть' : 'Скачать'}
+            </a>
+          </div>`
+        : `<div class="chat-media-actions"><span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">Недоступно</span></div>`;
       return `
         <div class="chat-media-meta">
           <div class="chat-media-meta-title">${escapeHtml(normalizedName)}</div>
           ${metaLine ? `<div class="chat-media-meta-details">${escapeHtml(metaLine)}</div>` : ''}
-          <div class="chat-media-actions">
-            <a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" download target="_blank" rel="noopener">
-              Скачать
-            </a>
-          </div>
+          ${actionMarkup}
         </div>
       `;
     }
 
     function buildMediaMarkup(message) {
-      if (!message?.attachment) return '';
+      if (!message?.attachment && !message?.attachmentStatus) return '';
+      if (!message?.attachment && message?.attachmentStatus) {
+        const kind = resolveAttachmentKind(message.messageType, message.attachmentName || message.attachmentStatus);
+        const name = resolveAttachmentDisplayName(message, kind);
+        const mediaInfo = buildMediaInlineMetaMarkup(message, name, kind);
+        return `
+          <div class="chat-media chat-media--file chat-media--missing">
+            <div class="chat-media-file-tile">Вложение недоступно</div>
+            ${mediaInfo}
+          </div>
+        `;
+      }
       const kind = resolveAttachmentKind(message.messageType, message.attachment);
       const name = resolveAttachmentDisplayName(message, kind);
       const attachmentUrl = escapeAttribute(message.attachment);
@@ -637,7 +652,7 @@
       const archivedHistory = renderOptions.archivedHistory === true;
       const mediaKind = message?.attachment
         ? resolveAttachmentKind(message.messageType, message.attachment)
-        : '';
+        : (message?.attachmentStatus ? resolveAttachmentKind(message.messageType, message.attachmentName || message.attachmentStatus) : '');
       const replyPreview = message?.replyPreview
         ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
         : '';
@@ -645,7 +660,7 @@
         ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
         : '';
       const bodyText = message?.message ? escapeHtml(message.message).replace(/\n/g, '<br>') : '';
-      const fallbackType = !message?.attachment && message?.messageType && !bodyText
+      const fallbackType = !message?.attachment && !message?.attachmentStatus && message?.messageType && !bodyText
         ? `[${escapeHtml(message.messageType)}]`
         : '';
       let body = '';
@@ -655,7 +670,7 @@
         body = bodyText;
       } else if (fallbackType) {
         body = fallbackType;
-      } else if (!message?.attachment) {
+      } else if (!message?.attachment && !message?.attachmentStatus) {
         body = '—';
       }
       const originalBlock = isEdited && message?.originalMessage && message.originalMessage !== message.message
@@ -671,7 +686,7 @@
       ].join(' ');
       const media = isDeleted ? '' : buildMediaMarkup(message);
       const messagePreviewText = String(message?.replyPreview || message?.message || '').trim()
-        || (message?.attachment ? resolveAttachmentTypeLabel(message, mediaKind) : 'Сообщение');
+        || ((message?.attachment || message?.attachmentStatus) ? resolveAttachmentTypeLabel(message, mediaKind) : 'Сообщение');
       const canReply = !archivedHistory && senderType !== 'system' && message?.telegramMessageId;
       const actionButtons = canReply
         ? `<div class="chat-message-menu">
