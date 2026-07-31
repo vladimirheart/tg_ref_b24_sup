@@ -205,7 +205,6 @@ def query_reference_samples(connection: sqlite3.Connection) -> list[dict]:
                 connection,
                 table="chat_attachment_metadata",
                 column="storage_key",
-                ticket_column="ticket_id",
             )
         )
     if has_columns(connection, "chat_history", ("attachment",)):
