@@ -1,0 +1,21 @@
+# 2026-08-03 09:24:05 - bot runtime monitoring
+
+- Затронутые области:
+  - `spring-panel/src/main/resources/templates/analytics/index.html`
+  - `spring-panel/src/main/resources/static/js/analytics-bot-runtime.js`
+  - `spring-panel/src/main/java/com/example/panel/service/AnalyticsBotRuntimeMonitoringService.java`
+  - `spring-panel/src/main/java/com/example/panel/controller/AnalyticsBotRuntimeMonitoringController.java`
+  - `spring-panel/src/test/java/com/example/panel/controller/AnalyticsBotRuntimeMonitoringControllerWebMvcTest.java`
+  - `ai-context/tasks/task-list.md`
+  - `ai-context/tasks/task-details/01-166.md`
+- Пользовательский промпт:
+  - `в мониторинге не вижу чтобы боты были запущены`
+- Что сделано:
+  - на странице мониторинга/аналитики добавлен отдельный блок `Bot Runtime Monitoring` со сводкой по каналам и таблицей фактических runtime-статусов ботов;
+  - добавлен backend-агрегатор поверх `ChannelRepository` и `BotProcessService`, который собирает `running/stopped/inactive/error`, активность канала и время старта;
+  - опубликован новый API `GET /api/analytics/bot-runtime` с защитой `PAGE_ANALYTICS`;
+  - добавлен отдельный frontend-скрипт с автообновлением по таймеру, ручным refresh и реакцией на SSE-событие `panel:sse:sidebar_bots_changed`;
+  - в процессе финализации исправлена битая кодировка пользовательских строк в новом JS-файле, чтобы мониторинг не показывал mojibake.
+- Проверки:
+  - `spring-panel\mvnw.cmd -q -Dtest=AnalyticsBotRuntimeMonitoringControllerWebMvcTest test` — не выполнен из-за уже существующих ошибок компиляции в посторонних тестах (`DialogDetailsReadServiceTest`, `DialogWorkspacePayloadAssemblerServiceTest`, `DialogWorkspaceParityServiceTest`, `DialogWorkspaceHistorySliceServiceTest`) после изменения сигнатуры `ChatMessageDto`;
+  - `spring-panel\mvnw.cmd -q -Dtest=AnalyticsControllerWebMvcTest test` — не выполнен: Maven не смог скопировать `target/classes/static/css/style.css`, потому что файл занят другим процессом запущенного `spring-panel`.

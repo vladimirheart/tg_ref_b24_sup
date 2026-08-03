@@ -184,3 +184,4 @@
 🟣 [01-163] Починить запуск spring-panel после нового Flyway checksum mismatch для baseline V1
 🟣 [01-164] Починить исчезающую историю диалога после ответа оператора при сбое attachment metadata
 🟣 [01-165] Починить падение spring-panel на startup из-за битой chat_attachment_metadata availability reconcile
+🟣 [01-166] Показать в мониторинге фактический runtime-статус запущенных ботов по каналам
