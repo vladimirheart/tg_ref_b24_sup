@@ -5292,16 +5292,21 @@
                           id="netBoxSyncInterval"
                         />
                       </div>
-                      <div class="col-12 col-md-4">
+                      <div class="col-12 col-md-3">
                         <div class="form-check form-switch mt-md-4 pt-md-2">
                           <input class="form-check-input" type="checkbox" id="netBoxSyncClearToken" />
                           <label class="form-check-label" for="netBoxSyncClearToken">Удалить сохранённый token</label>
                         </div>
                       </div>
-                      <div class="col-12 col-md-4 d-flex align-items-end">
-                        <button class="btn btn-primary w-100" type="button" id="netBoxSyncRunBtn">
-                          <i class="bi bi-play-fill me-1"></i>Запустить sync сейчас
-                        </button>
+                      <div class="col-12 col-md-5 d-flex align-items-end">
+                        <div class="d-flex flex-column flex-sm-row gap-2 w-100">
+                          <button class="btn btn-outline-primary flex-fill" type="button" id="netBoxSyncSaveBtn">
+                            <i class="bi bi-floppy me-1"></i>Сохранить подключение
+                          </button>
+                          <button class="btn btn-primary flex-fill" type="button" id="netBoxSyncRunBtn">
+                            <i class="bi bi-play-fill me-1"></i>Запустить sync сейчас
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <div class="mt-4">

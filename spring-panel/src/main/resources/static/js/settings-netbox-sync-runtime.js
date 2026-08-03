@@ -291,6 +291,41 @@
       }
     }
 
+    async function saveSettings() {
+      const saveButton = document.getElementById('netBoxSyncSaveBtn');
+      const runButton = document.getElementById('netBoxSyncRunBtn');
+      if (saveButton instanceof HTMLButtonElement) {
+        saveButton.disabled = true;
+      }
+      if (runButton instanceof HTMLButtonElement) {
+        runButton.disabled = true;
+      }
+      try {
+        const response = await fetch('/api/settings/netbox-sync/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            netbox_sync: serializeNetBoxSyncSettings(),
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось сохранить конфигурацию NetBox');
+        }
+        markNetBoxSyncSettingsSaved();
+        showPopup('Конфигурация подключения NetBox сохранена.', 'success');
+      } catch (error) {
+        showPopup(`Не удалось сохранить конфигурацию NetBox: ${error.message}`, 'error');
+      } finally {
+        if (saveButton instanceof HTMLButtonElement) {
+          saveButton.disabled = false;
+        }
+        if (runButton instanceof HTMLButtonElement) {
+          runButton.disabled = Boolean(netBoxSyncStatusState.running || String(netBoxSyncStatusState.state || '').toLowerCase() === 'running');
+        }
+      }
+    }
+
     async function runSync() {
       const runButton = document.getElementById('netBoxSyncRunBtn');
       if (runButton instanceof HTMLButtonElement) {
@@ -300,11 +335,15 @@
         const response = await fetch('/api/settings/netbox-sync/run', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            netbox_sync: serializeNetBoxSyncSettings(),
+          }),
         });
         const data = await response.json();
         if (!response.ok || data.success === false) {
           throw new Error(data.error || 'Не удалось запустить sync');
         }
+        markNetBoxSyncSettingsSaved();
         if (data.status) {
           renderStatus(data.status);
         }
@@ -384,6 +423,11 @@
         intervalInput.dataset.netBoxSyncBound = 'true';
         intervalInput.addEventListener('input', (event) => updateSetting('interval_minutes', event.target.value));
       }
+      const saveButton = document.getElementById('netBoxSyncSaveBtn');
+      if (saveButton instanceof HTMLButtonElement && !saveButton.dataset.netBoxSyncBound) {
+        saveButton.dataset.netBoxSyncBound = 'true';
+        saveButton.addEventListener('click', () => saveSettings());
+      }
       const runButton = document.getElementById('netBoxSyncRunBtn');
       if (runButton instanceof HTMLButtonElement && !runButton.dataset.netBoxSyncBound) {
         runButton.dataset.netBoxSyncBound = 'true';
@@ -402,6 +446,7 @@
       renderSettings,
       serializeNetBoxSyncSettings,
       markNetBoxSyncSettingsSaved,
+      saveSettings,
     };
   }
 
