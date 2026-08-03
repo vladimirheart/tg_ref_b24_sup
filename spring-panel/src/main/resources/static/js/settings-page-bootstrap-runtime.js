@@ -185,6 +185,7 @@
       serializeLocationsIikoSyncSettings: () => settingsLocationsIikoRuntime?.serializeLocationsIikoSyncSettings?.() || {},
       serializeNetBoxSyncSettings: () => settingsNetBoxSyncRuntime?.serializeNetBoxSyncSettings?.() || {},
       markLocationsIikoServerSourcesSaved: () => settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(),
+      markNetBoxSyncSettingsSaved: () => settingsNetBoxSyncRuntime?.markNetBoxSyncSettingsSaved?.(),
       showPopup: (message, type) => showPopup(message, type),
       getSaveUrl: () => '/settings',
     }) || null;

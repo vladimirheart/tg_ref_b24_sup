@@ -32,6 +32,7 @@ public class NetBoxSyncSettingsService {
         payload.put("base_url", loaded.baseUrl());
         payload.put("api_token", "");
         payload.put("api_token_saved", StringUtils.hasText(loaded.apiToken()));
+        payload.put("clear_api_token", false);
         payload.put("enabled", loaded.enabled());
         payload.put("interval_minutes", loaded.intervalMinutes());
         payload.put("full_overwrite_pending", loaded.fullOverwritePending());
@@ -47,8 +48,15 @@ public class NetBoxSyncSettingsService {
         Object raw = payload.get(SETTINGS_KEY);
         if (raw instanceof Map<?, ?> map) {
             String tokenFromPayload = readString(map, "api_token", "apiToken");
+            boolean clearToken = parseBoolean(readValue(map, "clear_api_token", "clearApiToken"), false);
             normalized.put("base_url", normalizeBaseUrl(readString(map, "base_url", "baseUrl")));
-            normalized.put("api_token", StringUtils.hasText(tokenFromPayload) ? tokenFromPayload : existing.apiToken());
+            if (StringUtils.hasText(tokenFromPayload)) {
+                normalized.put("api_token", tokenFromPayload);
+            } else if (clearToken) {
+                normalized.put("api_token", "");
+            } else {
+                normalized.put("api_token", existing.apiToken());
+            }
             normalized.put("enabled", parseBoolean(readValue(map, "enabled"), existing.enabled()));
             normalized.put("interval_minutes", normalizeInterval(readValue(map, "interval_minutes", "intervalMinutes")));
             normalized.put(

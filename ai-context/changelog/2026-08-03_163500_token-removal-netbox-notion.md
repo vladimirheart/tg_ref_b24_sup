@@ -1,0 +1,24 @@
+# 2026-08-03 16:35:00 - token removal for netbox and notion
+
+- Затронутые области:
+  - `spring-panel/src/main/java/com/example/panel/service/NetBoxSyncSettingsService.java`
+  - `spring-panel/src/main/resources/static/js/settings-netbox-sync-runtime.js`
+  - `spring-panel/src/main/resources/static/js/settings-page-bootstrap-runtime.js`
+  - `spring-panel/src/main/resources/static/js/settings-save-runtime.js`
+  - `spring-panel/src/main/resources/templates/settings/index.html`
+  - `spring-panel/src/main/java/com/example/panel/model/knowledge/KnowledgeBaseNotionConfigForm.java`
+  - `spring-panel/src/main/java/com/example/panel/service/KnowledgeBaseNotionService.java`
+  - `spring-panel/src/main/resources/templates/knowledge/list.html`
+  - `ai-context/tasks/task-list.md`
+  - `ai-context/tasks/task-details/01-172.md`
+- Промпты пользователя:
+  - `я правильно понимаю что при запуске синхронизации из "Подключения IT-блока" всё засинхронится и сюда и в паспорта объектов?`
+  - `для сохранения возможности синхронизации в облако github, добавь возможность удаления токена из настроек подключения netbox и notion`
+- Что сделано:
+  - подтверждён и сохранён в логике ответ пользователю: NetBox sync из блока `Подключения IT-блока` обновляет и паспорта объектов, и связанные справочники IT-блока;
+  - в `netbox_sync` добавлен явный флаг очистки `clear_api_token`, чтобы пустое поле по-прежнему означало "не менять", а отдельная галка реально удаляла сохранённый токен из `settings.json`;
+  - runtime NetBox обновлён так, чтобы после успешного сохранения локальное состояние токена сразу сбрасывалось, а флаг удаления не зависал до следующего reload;
+  - в форму интеграции Notion добавлен отдельный флаг `clearSavedToken`, а merge-логика сервиса обновлена так, чтобы он очищал сохранённый token только по явному действию пользователя;
+  - UI Notion и NetBox получил подсказки, объясняющие разницу между пустым полем и явным удалением секрета.
+- Проверки:
+  - `spring-panel\\mvnw.cmd -q -DskipTests compile` - success

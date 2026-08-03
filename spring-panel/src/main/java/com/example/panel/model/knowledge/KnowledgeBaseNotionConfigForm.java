@@ -7,6 +7,7 @@ public class KnowledgeBaseNotionConfigForm implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private boolean enabled;
+    private boolean clearSavedToken;
     private String sourceUrl;
     private String token;
     private String authors;
@@ -25,6 +26,14 @@ public class KnowledgeBaseNotionConfigForm implements Serializable {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isClearSavedToken() {
+        return clearSavedToken;
+    }
+
+    public void setClearSavedToken(boolean clearSavedToken) {
+        this.clearSavedToken = clearSavedToken;
     }
 
     public String getSourceUrl() {

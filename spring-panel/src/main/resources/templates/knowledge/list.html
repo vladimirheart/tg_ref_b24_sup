@@ -242,6 +242,13 @@
                             <input class="form-control" type="password" name="token" value="" placeholder="secret_...">
                             <div class="form-text" th:text="${notionHasToken} ? 'Оставьте поле пустым, чтобы сохранить текущий токен.' : 'Токен сохраняется внутри settings.json и не выводится обратно в UI.'"></div>
                         </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="notionClearSavedToken" name="clearSavedToken" th:checked="${notionConfig.clearSavedToken}">
+                                <label class="form-check-label" for="notionClearSavedToken">Удалить сохранённый token Notion</label>
+                            </div>
+                            <div class="form-text">Пустое поле token ничего не меняет. Эта опция явно очищает секрет из settings.json.</div>
+                        </div>
                         <div class="col-12 col-xl-4">
                             <label class="form-label">Поле заголовка</label>
                             <input class="form-control" type="text" name="titleProperty" th:value="${notionConfig.titleProperty}">

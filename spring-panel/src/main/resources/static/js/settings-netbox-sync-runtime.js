@@ -24,6 +24,7 @@
           : '',
       api_token: typeof normalized.api_token === 'string' ? normalized.api_token : '',
       api_token_saved: Boolean(normalized.api_token_saved || normalized.apiTokenSaved),
+      clear_api_token: Boolean(normalized.clear_api_token || normalized.clearApiToken),
       enabled,
       interval_minutes: Number.isFinite(intervalRaw) ? Math.min(10080, Math.max(5, intervalRaw)) : 60,
       full_overwrite_pending: normalized.full_overwrite_pending !== false && normalized.fullOverwritePending !== false,
@@ -106,16 +107,30 @@
       return {
         base_url: netBoxSyncSettingsState.base_url,
         api_token: netBoxSyncSettingsState.api_token,
+        clear_api_token: Boolean(netBoxSyncSettingsState.clear_api_token),
         enabled: Boolean(netBoxSyncSettingsState.enabled),
         interval_minutes: Number(netBoxSyncSettingsState.interval_minutes || 60),
         full_overwrite_pending: Boolean(netBoxSyncSettingsState.full_overwrite_pending),
       };
     }
 
+    function markNetBoxSyncSettingsSaved() {
+      const hadNewToken = typeof netBoxSyncSettingsState.api_token === 'string' && netBoxSyncSettingsState.api_token.trim().length > 0;
+      const clearedToken = Boolean(netBoxSyncSettingsState.clear_api_token);
+      netBoxSyncSettingsState = sanitizeSettings({
+        ...netBoxSyncSettingsState,
+        api_token: '',
+        api_token_saved: clearedToken ? false : (hadNewToken ? true : netBoxSyncSettingsState.api_token_saved),
+        clear_api_token: false,
+      });
+      renderSettings();
+    }
+
     function renderSettings() {
       const baseUrlInput = document.getElementById('netBoxSyncBaseUrl');
       const enabledInput = document.getElementById('netBoxSyncEnabled');
       const intervalInput = document.getElementById('netBoxSyncInterval');
+      const clearTokenInput = document.getElementById('netBoxSyncClearToken');
       const tokenHint = document.getElementById('netBoxSyncTokenHint');
       const overwriteBadge = document.getElementById('netBoxSyncOverwriteBadge');
       if (baseUrlInput instanceof HTMLInputElement) {
@@ -128,8 +143,13 @@
         intervalInput.value = String(netBoxSyncSettingsState.interval_minutes || 60);
         intervalInput.disabled = !Boolean(netBoxSyncSettingsState.enabled);
       }
+      if (clearTokenInput instanceof HTMLInputElement) {
+        clearTokenInput.checked = Boolean(netBoxSyncSettingsState.clear_api_token);
+      }
       if (tokenHint instanceof HTMLElement) {
-        tokenHint.textContent = netBoxSyncSettingsState.api_token_saved
+        tokenHint.textContent = netBoxSyncSettingsState.clear_api_token
+          ? 'При сохранении текущий токен NetBox будет удалён из settings.json.'
+          : netBoxSyncSettingsState.api_token_saved
           ? 'Токен уже сохранён. Оставьте поле пустым, если его не нужно менять.'
           : 'Секрет ещё не сохранён. Укажите API token NetBox.';
       }
@@ -243,6 +263,14 @@
         next.base_url = typeof value === 'string' ? value.trim().replace(/\/+$/, '') : '';
       } else if (field === 'api_token') {
         next.api_token = typeof value === 'string' ? value : '';
+        if (next.api_token.trim()) {
+          next.clear_api_token = false;
+        }
+      } else if (field === 'clear_api_token') {
+        next.clear_api_token = Boolean(value);
+        if (next.clear_api_token) {
+          next.api_token = '';
+        }
       }
       netBoxSyncSettingsState = sanitizeSettings(next);
       renderSettings();
@@ -346,6 +374,11 @@
         enabledInput.dataset.netBoxSyncBound = 'true';
         enabledInput.addEventListener('change', (event) => updateSetting('enabled', event.target.checked));
       }
+      const clearTokenInput = document.getElementById('netBoxSyncClearToken');
+      if (clearTokenInput instanceof HTMLInputElement && !clearTokenInput.dataset.netBoxSyncBound) {
+        clearTokenInput.dataset.netBoxSyncBound = 'true';
+        clearTokenInput.addEventListener('change', (event) => updateSetting('clear_api_token', event.target.checked));
+      }
       const intervalInput = document.getElementById('netBoxSyncInterval');
       if (intervalInput instanceof HTMLInputElement && !intervalInput.dataset.netBoxSyncBound) {
         intervalInput.dataset.netBoxSyncBound = 'true';
@@ -368,6 +401,7 @@
       renderStatus,
       renderSettings,
       serializeNetBoxSyncSettings,
+      markNetBoxSyncSettingsSaved,
     };
   }
 

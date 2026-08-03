@@ -97,6 +97,7 @@ public class KnowledgeBaseNotionService {
         NotionConfig config = loadConfig(false);
         KnowledgeBaseNotionConfigForm form = new KnowledgeBaseNotionConfigForm();
         form.setEnabled(config.enabled());
+        form.setClearSavedToken(false);
         form.setSourceUrl(config.sourceUrl());
         form.setAuthors(String.join("\n", config.authors()));
         form.setTitleProperty(config.titleProperty());
@@ -335,7 +336,7 @@ public class KnowledgeBaseNotionService {
         return new NotionConfig(
             form.isEnabled(),
             trim(form.getSourceUrl()),
-            StringUtils.hasText(form.getToken()) ? form.getToken().trim() : current.token(),
+            resolveMergedToken(current, form),
             authors.isEmpty() ? DEFAULT_AUTHORS : authors,
             defaultIfBlank(trim(form.getTitleProperty()), "Name"),
             defaultIfBlank(trim(form.getAuthorProperty()), "Автор"),
@@ -346,6 +347,16 @@ public class KnowledgeBaseNotionService {
             defaultIfBlank(trim(form.getDirectionSubtypeProperty()), "Поднаправление"),
             defaultIfBlank(trim(form.getStatusProperty()), "Статус")
         );
+    }
+
+    private String resolveMergedToken(NotionConfig current, KnowledgeBaseNotionConfigForm form) {
+        if (StringUtils.hasText(form.getToken())) {
+            return form.getToken().trim();
+        }
+        if (form.isClearSavedToken()) {
+            return "";
+        }
+        return current.token();
     }
 
     private Map<String, Object> toSettingsMap(NotionConfig config) {

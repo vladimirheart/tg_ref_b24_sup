@@ -158,6 +158,9 @@
           if (typeof options.markLocationsIikoServerSourcesSaved === 'function') {
             options.markLocationsIikoServerSourcesSaved();
           }
+          if (typeof options.markNetBoxSyncSettingsSaved === 'function') {
+            options.markNetBoxSyncSettingsSaved();
+          }
           showMessage('✅ Настройки сохранены', 'success');
           if (Array.isArray(data.warnings) && data.warnings.length) {
             showMessage(`⚠️ ${data.warnings.join('\n')}`, 'warning');
