@@ -128,6 +128,7 @@
 
     function renderSettings() {
       const baseUrlInput = document.getElementById('netBoxSyncBaseUrl');
+      const tokenInput = document.getElementById('netBoxSyncApiToken');
       const enabledInput = document.getElementById('netBoxSyncEnabled');
       const intervalInput = document.getElementById('netBoxSyncInterval');
       const clearTokenInput = document.getElementById('netBoxSyncClearToken');
@@ -135,6 +136,9 @@
       const overwriteBadge = document.getElementById('netBoxSyncOverwriteBadge');
       if (baseUrlInput instanceof HTMLInputElement) {
         baseUrlInput.value = netBoxSyncSettingsState.base_url || '';
+      }
+      if (tokenInput instanceof HTMLInputElement) {
+        tokenInput.value = netBoxSyncSettingsState.api_token || '';
       }
       if (enabledInput instanceof HTMLInputElement) {
         enabledInput.checked = Boolean(netBoxSyncSettingsState.enabled);

@@ -161,7 +161,7 @@
     "sla_critical_auto_assign_governance_review_ttl_hours" : 168,
     "sla_critical_auto_assign_governance_dry_run_ticket_required" : false,
     "sla_critical_auto_assign_governance_decision_required" : false,
-    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-07-31T06:13:31.264840700Z",
+    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-08-03T13:28:23.571578Z",
     "sla_critical_operator_skills" : { },
     "sla_critical_operator_queues" : { },
     "sla_critical_escalation_webhook_enabled" : false,
@@ -573,5 +573,12 @@
       "notes" : "",
       "env" : { }
     }
-  } ]
+  } ],
+  "netbox_sync" : {
+    "base_url" : "https://netbox.sushivesla.su",
+    "api_token" : "Укажите API token NetBox",
+    "enabled" : false,
+    "interval_minutes" : 60,
+    "full_overwrite_pending" : true
+  }
 }

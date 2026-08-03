@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -19,7 +20,7 @@ public class NetBoxSyncSettingsService {
             return defaults();
         }
         String baseUrl = normalizeBaseUrl(readString(map, "base_url", "baseUrl"));
-        String apiToken = readString(map, "api_token", "apiToken");
+        String apiToken = normalizeApiToken(readString(map, "api_token", "apiToken"));
         boolean enabled = parseBoolean(readValue(map, "enabled"), false);
         int intervalMinutes = normalizeInterval(readValue(map, "interval_minutes", "intervalMinutes"));
         boolean fullOverwritePending = parseBoolean(readValue(map, "full_overwrite_pending", "fullOverwritePending"), true);
@@ -47,7 +48,7 @@ public class NetBoxSyncSettingsService {
         Map<String, Object> normalized = new LinkedHashMap<>();
         Object raw = payload.get(SETTINGS_KEY);
         if (raw instanceof Map<?, ?> map) {
-            String tokenFromPayload = readString(map, "api_token", "apiToken");
+            String tokenFromPayload = normalizeApiToken(readString(map, "api_token", "apiToken"));
             boolean clearToken = parseBoolean(readValue(map, "clear_api_token", "clearApiToken"), false);
             normalized.put("base_url", normalizeBaseUrl(readString(map, "base_url", "baseUrl")));
             if (StringUtils.hasText(tokenFromPayload)) {
@@ -85,6 +86,14 @@ public class NetBoxSyncSettingsService {
 
     public NetBoxSyncSettings defaults() {
         return new NetBoxSyncSettings("", "", false, DEFAULT_INTERVAL_MINUTES, true);
+    }
+
+    public boolean hasUsableApiToken(String rawToken) {
+        String normalized = normalizeApiToken(rawToken);
+        if (!StringUtils.hasText(normalized)) {
+            return false;
+        }
+        return normalized.chars().noneMatch(Character::isWhitespace);
     }
 
     private Object readValue(Map<?, ?> map, String... keys) {
@@ -148,6 +157,19 @@ public class NetBoxSyncSettingsService {
             return "";
         }
         return raw.trim().replaceAll("/+$", "");
+    }
+
+    private String normalizeApiToken(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return "";
+        }
+        String token = raw.trim();
+        return looksLikeUiHint(token) ? "" : token;
+    }
+
+    private boolean looksLikeUiHint(String raw) {
+        String normalized = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+        return normalized.contains("api token netbox");
     }
 
     public record NetBoxSyncSettings(String baseUrl,
