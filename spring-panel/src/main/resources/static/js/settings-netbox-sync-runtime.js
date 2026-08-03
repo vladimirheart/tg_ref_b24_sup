@@ -103,14 +103,38 @@
       return loadingPromise;
     }
 
+    function syncStateFromDom() {
+      const baseUrlInput = document.getElementById('netBoxSyncBaseUrl');
+      const tokenInput = document.getElementById('netBoxSyncApiToken');
+      const enabledInput = document.getElementById('netBoxSyncEnabled');
+      const intervalInput = document.getElementById('netBoxSyncInterval');
+      const clearTokenInput = document.getElementById('netBoxSyncClearToken');
+      netBoxSyncSettingsState = sanitizeSettings({
+        ...netBoxSyncSettingsState,
+        base_url: baseUrlInput instanceof HTMLInputElement ? baseUrlInput.value : netBoxSyncSettingsState.base_url,
+        api_token: tokenInput instanceof HTMLInputElement ? tokenInput.value : netBoxSyncSettingsState.api_token,
+        enabled: enabledInput instanceof HTMLInputElement ? enabledInput.checked : netBoxSyncSettingsState.enabled,
+        interval_minutes: intervalInput instanceof HTMLInputElement ? intervalInput.value : netBoxSyncSettingsState.interval_minutes,
+        clear_api_token: clearTokenInput instanceof HTMLInputElement ? clearTokenInput.checked : netBoxSyncSettingsState.clear_api_token,
+      });
+      return netBoxSyncSettingsState;
+    }
+
+    function applySavedSettings(savedSettings) {
+      netBoxSyncSettingsState = sanitizeSettings(savedSettings);
+      settingsLoaded = true;
+      renderSettings();
+    }
+
     function serializeNetBoxSyncSettings() {
+      const current = syncStateFromDom();
       return {
-        base_url: netBoxSyncSettingsState.base_url,
-        api_token: netBoxSyncSettingsState.api_token,
-        clear_api_token: Boolean(netBoxSyncSettingsState.clear_api_token),
-        enabled: Boolean(netBoxSyncSettingsState.enabled),
-        interval_minutes: Number(netBoxSyncSettingsState.interval_minutes || 60),
-        full_overwrite_pending: Boolean(netBoxSyncSettingsState.full_overwrite_pending),
+        base_url: current.base_url,
+        api_token: current.api_token,
+        clear_api_token: Boolean(current.clear_api_token),
+        enabled: Boolean(current.enabled),
+        interval_minutes: Number(current.interval_minutes || 60),
+        full_overwrite_pending: Boolean(current.full_overwrite_pending),
       };
     }
 
@@ -316,7 +340,11 @@
         if (!response.ok || data.success === false) {
           throw new Error(data.error || 'Не удалось сохранить конфигурацию NetBox');
         }
-        markNetBoxSyncSettingsSaved();
+        if (data.savedSettings && typeof data.savedSettings === 'object') {
+          applySavedSettings(data.savedSettings);
+        } else {
+          markNetBoxSyncSettingsSaved();
+        }
         await ensureLoaded(true);
         showPopup('Конфигурация подключения NetBox сохранена.', 'success');
       } catch (error) {
@@ -348,7 +376,11 @@
         if (!response.ok || data.success === false) {
           throw new Error(data.error || 'Не удалось запустить sync');
         }
-        markNetBoxSyncSettingsSaved();
+        if (data.savedSettings && typeof data.savedSettings === 'object') {
+          applySavedSettings(data.savedSettings);
+        } else {
+          markNetBoxSyncSettingsSaved();
+        }
         await ensureLoaded(true);
         if (data.status) {
           renderStatus(data.status);
@@ -450,6 +482,8 @@
       loadStatus,
       renderStatus,
       renderSettings,
+      syncStateFromDom,
+      applySavedSettings,
       serializeNetBoxSyncSettings,
       markNetBoxSyncSettingsSaved,
       saveSettings,
