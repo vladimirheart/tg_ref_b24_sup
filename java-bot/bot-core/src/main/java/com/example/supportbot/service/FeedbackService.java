@@ -7,11 +7,16 @@ import com.example.supportbot.repository.FeedbackRepository;
 import com.example.supportbot.repository.PendingFeedbackRequestRepository;
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 public class FeedbackService {
+
+    private static final Logger log = LoggerFactory.getLogger(FeedbackService.class);
 
     private final PendingFeedbackRequestRepository pendingFeedbackRequestRepository;
     private final FeedbackRepository feedbackRepository;
@@ -33,27 +38,59 @@ public class FeedbackService {
             request = pendingFeedbackRequestRepository
                     .findFirstByUserIdAndChannel_IdAndExpiresAtAfterOrderByCreatedAtDesc(userId, channel.getId(), now);
         }
-        if (request.isPresent()) {
+        if (request.isPresent() && !hasStoredFeedback(request.get())) {
             return request;
         }
-        return pendingFeedbackRequestRepository
+        Optional<PendingFeedbackRequest> fallback = pendingFeedbackRequestRepository
                 .findFirstByUserIdAndExpiresAtAfterOrderByCreatedAtDesc(userId, now);
+        if (fallback.isPresent() && hasStoredFeedback(fallback.get())) {
+            return Optional.empty();
+        }
+        return fallback;
     }
 
-    @Transactional
     public void storeFeedback(PendingFeedbackRequest request, int rating) {
         Channel channel = request.getChannel();
+        String ticketId = request.getTicketId();
+        OffsetDateTime now = OffsetDateTime.now();
 
-        Feedback feedback = new Feedback();
+        Feedback feedback = resolveFeedbackRecord(ticketId);
         feedback.setUserId(request.getUserId());
         feedback.setChannel(channel);
-        feedback.setTicketId(request.getTicketId());
+        feedback.setTicketId(ticketId);
         feedback.setRating(rating);
-        feedback.setTimestamp(OffsetDateTime.now());
+        feedback.setTimestamp(now);
         feedbackRepository.save(feedback);
-        uiEventOutboxService.publishFeedbackCreated(request.getTicketId(), channel, rating);
+        uiEventOutboxService.publishFeedbackCreated(ticketId, channel, rating);
+        expireRequestQuietly(request, now);
+    }
 
-        request.setExpiresAt(OffsetDateTime.now());
-        pendingFeedbackRequestRepository.save(request);
+    private boolean hasStoredFeedback(PendingFeedbackRequest request) {
+        if (request == null || !StringUtils.hasText(request.getTicketId())) {
+            return false;
+        }
+        return feedbackRepository.existsByTicketId(request.getTicketId());
+    }
+
+    private Feedback resolveFeedbackRecord(String ticketId) {
+        if (StringUtils.hasText(ticketId)) {
+            return feedbackRepository.findFirstByTicketIdOrderByTimestampDesc(ticketId).orElseGet(Feedback::new);
+        }
+        return new Feedback();
+    }
+
+    private void expireRequestQuietly(PendingFeedbackRequest request, OffsetDateTime expiresAt) {
+        if (request == null) {
+            return;
+        }
+        request.setExpiresAt(expiresAt);
+        try {
+            pendingFeedbackRequestRepository.save(request);
+        } catch (RuntimeException ex) {
+            log.warn("Saved feedback for ticket {}, but failed to expire pending feedback request {}: {}",
+                    request.getTicketId(),
+                    request.getId(),
+                    ex.getMessage());
+        }
     }
 }

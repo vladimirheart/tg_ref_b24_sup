@@ -55,6 +55,8 @@
   const templateNameInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-name]') : null;
   const templateDescriptionInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-description]') : null;
   const templateStartMessageInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-start-message]') : null;
+  const templateFirstResponseTimeoutInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-first-response-timeout]') : null;
+  const templateFirstResponseTimeoutMessageInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-first-response-message]') : null;
   const questionsContainer = templateModalEl ? templateModalEl.querySelector('[data-bot-questions-container]') : null;
   const addQuestionButtons = templateModalEl ? templateModalEl.querySelectorAll('[data-bot-question-add]') : [];
   const presetHintsEl = templateModalEl ? templateModalEl.querySelector('[data-bot-preset-hints]') : null;
@@ -118,6 +120,8 @@
   let presetDefinitionsLoadingPromise = null;
   let botSettingsLoadingPromise = null;
   const QUESTION_ROUTE_PROBLEM_ID = 'problem';
+  const DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES = 10;
+  const DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE = 'Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.';
   const DASHBOARD_ATTRIBUTE_KEYS = [
     { value: 'business', label: 'Бизнес' },
     { value: 'direction', label: 'Направление обращения' },
@@ -1088,6 +1092,12 @@
       startMessage: template && typeof template.startMessage === 'string'
         ? template.startMessage
         : (template && typeof template.start_message === 'string' ? template.start_message : ''),
+      firstResponseTimeoutMinutes: normalizeFirstResponseTimeoutMinutesValue(
+        template && (template.firstResponseTimeoutMinutes ?? template.first_response_timeout_minutes)
+      ),
+      firstResponseTimeoutMessage: normalizeFirstResponseTimeoutMessageValue(
+        template && (template.firstResponseTimeoutMessage ?? template.first_response_timeout_message)
+      ),
       questionFlow,
     };
   }
@@ -1254,6 +1264,12 @@
     const description = typeof raw.description === 'string' ? raw.description.trim() : '';
     const startMessageRaw = raw.start_message ?? raw.startMessage;
     const startMessage = typeof startMessageRaw === 'string' ? startMessageRaw.trim() : '';
+    const firstResponseTimeoutMinutes = normalizeFirstResponseTimeoutMinutesValue(
+      raw.first_response_timeout_minutes ?? raw.firstResponseTimeoutMinutes
+    );
+    const firstResponseTimeoutMessage = normalizeFirstResponseTimeoutMessageValue(
+      raw.first_response_timeout_message ?? raw.firstResponseTimeoutMessage
+    );
     const flowSource = Array.isArray(raw.question_flow) ? raw.question_flow : [];
     const questionFlow = flowSource
       .map((item, order) => normalizeQuestion(item, order + 1))
@@ -1263,6 +1279,8 @@
       name,
       description,
       startMessage,
+      firstResponseTimeoutMinutes,
+      firstResponseTimeoutMessage,
       questionFlow,
     };
   }
@@ -1306,6 +1324,19 @@
       return parsed;
     }
     return 60;
+  }
+
+  function normalizeFirstResponseTimeoutMinutesValue(rawValue) {
+    const parsed = Number.parseInt(rawValue, 10);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed;
+    }
+    return DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES;
+  }
+
+  function normalizeFirstResponseTimeoutMessageValue(rawValue) {
+    const value = typeof rawValue === 'string' ? rawValue.trim() : '';
+    return value || DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE;
   }
 
   function createLegacyDiagnostics() {
@@ -1399,6 +1430,8 @@
     name: '',
     description: '',
     startMessage: '',
+    firstResponseTimeoutMinutes: DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES,
+    firstResponseTimeoutMessage: DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE,
     questionFlow: [],
   };
 
@@ -3370,6 +3403,598 @@
         removeQuestion(index);
       }
     });
+  }
+
+  function buildDashboardBindingOptions(selectedValue) {
+    const normalized = isDashboardBindingKeyAllowed(selectedValue) ? selectedValue.trim() : '';
+    return ['<option value="">Выберите атрибут</option>']
+      .concat(DASHBOARD_ATTRIBUTE_KEYS.map((item) => (
+        `<option value="${html(item.value)}"${item.value === normalized ? ' selected' : ''}>${html(item.label)}</option>`
+      )))
+      .join('');
+  }
+
+  function buildBindingEditorHtml(question, bindingKey, analyticsHint) {
+    const includeInDashboard = Boolean(question && (question.includeInDashboard || question.include_in_dashboard));
+    if (includeInDashboard) {
+      return `
+        <label class="form-label">Атрибут дашборда</label>
+        <select class="form-select" data-bot-question-binding>
+          ${buildDashboardBindingOptions(bindingKey)}
+        </select>
+        <div class="form-text mb-0">Для дашборда можно выбирать только разрешённые атрибуты, чтобы не создавать ошибки в аналитике.</div>
+      `;
+    }
+    return `
+      <label class="form-label">Ключ атрибута</label>
+      <input type="text" class="form-control font-monospace" value="${html(bindingKey)}" data-bot-question-binding placeholder="company">
+      <div class="form-text mb-0">${html(analyticsHint)}</div>
+    `;
+  }
+
+  function renderQuestions(options = {}) {
+    if (!questionsContainer) {
+      return;
+    }
+    const shouldPreserveUi = options.preserveUi !== false
+      && templateModalEl instanceof HTMLElement
+      && templateModalEl.classList.contains('show');
+    const uiState = shouldPreserveUi ? captureQuestionEditorUiState() : null;
+    questionsContainer.innerHTML = '';
+    if (!editorState.questionFlow.length) {
+      const empty = document.createElement('div');
+      empty.className = 'alert alert-light border mb-0';
+      empty.textContent = 'Вопросы не заданы. Добавьте вопрос, чтобы сохранить шаблон.';
+      questionsContainer.appendChild(empty);
+      renderPresetHints();
+      return;
+    }
+
+    editorState.questionFlow.forEach((question, index) => {
+      const card = document.createElement('div');
+      card.className = 'card bot-question-card border-0 shadow-sm';
+      card.dataset.index = String(index);
+      const isPreset = question.type === 'preset';
+      const isSelect = question.type === 'select';
+      const presetGroup = isPreset && question.preset ? question.preset.group : '';
+      const presetField = isPreset && question.preset ? question.preset.field : '';
+      const presetValue = presetGroup && presetField ? `${presetGroup}:${presetField}` : '';
+      const meta = presetValue ? getPresetMeta(presetGroup, presetField) : null;
+      const presetsAvailable = hasPresetDefinitions();
+      const presetOptions = buildPresetOptionsHtml(presetValue);
+      const hintText = meta && meta.options && meta.options.length
+        ? `Доступно значений: ${meta.options.length}.`
+        : (presetValue ? 'Готовое поле использует значения из справочника.' : 'Выберите поле из доступного списка.');
+      const presetAlertText = question.presetUnavailable
+        ? 'Это поле сейчас недоступно в справочнике. Выберите новое значение, чтобы продолжить.'
+        : '';
+      const filtersHtml = isPreset ? buildFilterControls(meta) : '';
+      const filterState = question.filterState && typeof question.filterState === 'object' ? question.filterState : {};
+      card.dataset.filterBusiness = filterState.business || '';
+      card.dataset.filterLocationType = filterState.location_type || '';
+      const isRequired = question.required !== false;
+      const selectOptionsText = isSelect ? resolveQuestionOptionLabels(question, null).join('\n') : '';
+      const bindingKey = normalizeBindingKey(question.bindingKey || question.binding_key || '');
+      const analyticsHint = isPreset
+        ? 'Оставьте поле пустым, чтобы использовать системный ключ готового поля. Для вывода в дашборд можно задать свой ключ.'
+        : 'Стабильный ключ для интеграций и аналитики, например company, direction или bot_product. Если включён дашборд, ключ обязателен.';
+      const answerBodyHtml = isSelect
+        ? `
+            <label class="form-label">Варианты ответа</label>
+            <textarea class="form-control font-monospace" rows="6" data-bot-question-select-options placeholder="По одному варианту на строку">${html(selectOptionsText)}</textarea>
+            <div class="form-text mb-0">Каждая строка станет отдельным вариантом ответа для клиента.</div>
+          `
+        : `
+            <div class="small text-uppercase text-muted fw-semibold mb-2">Поле ответа</div>
+            <div class="small mb-1 bot-question-answer-copy">Ответ клиента будет сохранён как свободный текст для этого вопроса.</div>
+            <div class="form-text mb-0">Если отключить обязательность, клиент сможет написать "Пропустить" и перейти дальше.</div>
+          `;
+      card.innerHTML = `
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-primary rounded-pill">${index + 1}</span>
+              <span class="text-muted small">Порядок вопроса</span>
+            </div>
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-secondary" type="button" data-bot-question-action="move-up" ${index === 0 ? 'disabled' : ''}>↑</button>
+              <button class="btn btn-outline-secondary" type="button" data-bot-question-action="move-down" ${index === editorState.questionFlow.length - 1 ? 'disabled' : ''}>↓</button>
+              <button class="btn btn-outline-danger" type="button" data-bot-question-action="remove">Удалить</button>
+            </div>
+          </div>
+          <div class="row g-3 align-items-end">
+            <div class="col-lg-6">
+              <label class="form-label">Текст вопроса</label>
+              <input type="text" class="form-control" value="${html(question.text || '')}" data-bot-question-text${isPreset ? ' readonly aria-readonly="true"' : ''}>
+            </div>
+            <div class="col-lg-3">
+              <label class="form-label">Тип вопроса</label>
+              <select class="form-select" data-bot-question-type>
+                <option value="custom"${isPreset ? '' : ' selected'}>Свободный текст</option>
+                <option value="preset"${isPreset ? ' selected' : ''}${!presetsAvailable && !isPreset ? ' disabled' : ''}>Готовое поле</option>
+              </select>
+            </div>
+            <div class="col-lg-3${isPreset ? '' : ' d-none'}" data-bot-question-preset-wrapper>
+              <label class="form-label">Готовое поле</label>
+              <select class="form-select" data-bot-question-preset${presetsAvailable ? '' : ' disabled'}>
+                ${presetOptions}
+              </select>
+              <div class="form-text small text-muted" data-bot-question-preset-hint>${html(hintText)}</div>
+              <div class="alert alert-warning small py-2 px-3 mt-2 mb-0${presetAlertText ? '' : ' d-none'}" data-bot-question-preset-alert>${html(presetAlertText)}</div>
+            </div>
+          </div>
+          <div class="row g-3 mt-1 align-items-stretch${isPreset ? ' d-none' : ''}" data-bot-question-answer-wrapper>
+            <div class="col-lg-8">
+              <div class="border rounded-3 bg-light p-3 h-100 bot-question-surface bot-question-info-surface">
+                <div class="small text-uppercase text-muted fw-semibold mb-2">Поле ответа</div>
+                <div class="small mb-1 bot-question-answer-copy">Ответ клиента будет сохранён как свободный текст для этого вопроса.</div>
+                <div class="form-text mb-0">Если выключить обязательность, клиент сможет написать "Пропустить" и перейти дальше.</div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="border rounded-3 p-3 h-100 bot-question-surface bot-question-switch-surface">
+                <div class="small text-uppercase text-muted fw-semibold mb-2">Обязательность ответа</div>
+                <div class="form-check form-switch mb-0 bot-question-switch-control">
+                  <input class="form-check-input" type="checkbox" data-bot-question-required${isRequired ? ' checked' : ''}>
+                  <label class="form-check-label">Ответ обязателен</label>
+                </div>
+                <div class="form-text mb-0">Оставьте включённым, если клиент должен ответить перед переходом к следующему шагу.</div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3${isPreset ? '' : ' d-none'}" data-bot-question-options-wrapper>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="small fw-semibold">Варианты для отображения</span>
+                <span class="small text-muted" data-bot-question-hidden-summary></span>
+              </div>
+              ${filtersHtml}
+            </div>
+            <div class="small text-muted mb-2">
+              Отметьте галочкой варианты, которые увидит клиент. Нажмите на значок <i class="bi bi-diagram-3"></i>, чтобы увидеть условия показа конкретного варианта.
+            </div>
+            <div class="border rounded-3 p-3 bg-light" data-bot-question-options>
+              ${optionsHtml}
+            </div>
+          </div>
+          ${(isSelect || isPreset) ? buildQuestionRouteControls(question, index, meta) : ''}
+          <div class="mt-3" data-bot-question-preview-wrapper>
+            <div class="bot-question-preview alert alert-light border mb-0" data-bot-question-preview>
+              <div class="small text-uppercase text-muted fw-semibold mb-2">Как увидит клиент</div>
+              <div class="fw-semibold" data-bot-question-preview-title></div>
+              <div class="small text-muted mt-2" data-bot-question-preview-description></div>
+              <div class="d-flex flex-wrap gap-2 mt-2" data-bot-question-preview-options></div>
+              <div class="small text-muted mt-2 d-none" data-bot-question-preview-hint></div>
+            </div>
+          </div>
+        </div>
+      `;
+      questionsContainer.appendChild(card);
+      const typeSelect = card.querySelector('[data-bot-question-type]');
+      if (typeSelect) {
+        typeSelect.innerHTML = `
+          <option value="custom"${!isPreset && !isSelect ? ' selected' : ''}>Свободный текст</option>
+          <option value="select"${isSelect ? ' selected' : ''}>Выбор из списка</option>
+          <option value="preset"${isPreset ? ' selected' : ''}${!presetsAvailable && !isPreset ? ' disabled' : ''}>Готовое поле</option>
+        `;
+      }
+      const answerWrapper = card.querySelector('[data-bot-question-answer-wrapper]');
+      if (answerWrapper) {
+        const answerBox = answerWrapper.querySelector('.col-lg-8 .border');
+        if (answerBox) {
+          answerBox.innerHTML = answerBodyHtml;
+        }
+        const analyticsRow = document.createElement('div');
+        analyticsRow.className = 'row g-3 mt-1 align-items-stretch bot-question-analytics-row';
+        analyticsRow.innerHTML = `
+          <div class="col-lg-7">
+            <div class="border rounded-3 bg-light p-3 h-100 bot-question-surface bot-question-info-surface">
+              <label class="form-label">Ключ атрибута</label>
+              <input type="text" class="form-control font-monospace" value="${html(bindingKey)}" data-bot-question-binding placeholder="company">
+              <div class="form-text mb-0">${html(analyticsHint)}</div>
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="border rounded-3 p-3 h-100 bot-question-surface bot-question-switch-surface bot-question-analytics-surface">
+              <div class="small text-uppercase text-muted fw-semibold mb-2">Аналитика</div>
+              <div class="form-check form-switch mb-0 bot-question-switch-control">
+                <input class="form-check-input" type="checkbox" data-bot-question-dashboard${question.includeInDashboard ? ' checked' : ''}>
+                <label class="form-check-label">Отображать в дашборде</label>
+              </div>
+              <div class="form-text mb-0">Включайте для вопросов, которые должны попадать в агрегаты и виджеты дашборда.</div>
+            </div>
+          </div>
+        `;
+        answerWrapper.insertAdjacentElement('afterend', analyticsRow);
+        const bindingSurface = analyticsRow.querySelector('.col-lg-7 .bot-question-info-surface');
+        if (bindingSurface instanceof HTMLElement) {
+          bindingSurface.innerHTML = buildBindingEditorHtml(question, bindingKey, analyticsHint);
+        }
+      }
+      sanitizeQuestionRoutes(question, index, meta).forEach((route) => {
+        const routeSelect = card.querySelector(`[data-bot-question-route-target="${escapeSelectorValue(route.valueId)}"]`);
+        if (routeSelect instanceof HTMLSelectElement) {
+          routeSelect.value = route.nextQuestionId;
+        }
+      });
+      const routeSurface = card.querySelector('.bot-question-route-surface');
+      if (routeSurface instanceof HTMLElement) {
+        const routeTargets = resolveQuestionRouteTargets(index);
+        const hasIntermediateTargets = routeTargets.some((target) => target.id !== QUESTION_ROUTE_PROBLEM_ID);
+        const title = routeSurface.querySelector('.small.text-uppercase.text-muted.fw-semibold');
+        if (title instanceof HTMLElement) {
+          title.textContent = 'Маршрутизация';
+        }
+        const headerHint = routeSurface.querySelector('.d-flex.justify-content-between .small.text-muted');
+        if (headerHint instanceof HTMLElement) {
+          headerHint.textContent = 'Если маршрут не задан, бот задаст следующий вопрос по порядку.';
+        }
+        const routeGrid = routeSurface.querySelector('.bot-question-route-grid');
+        if (routeGrid instanceof HTMLElement && !routeSurface.querySelector('[data-bot-question-route-note]')) {
+          const note = document.createElement('div');
+          note.className = 'small text-muted mb-3';
+          note.dataset.botQuestionRouteNote = 'true';
+          note.textContent = 'В списке показываются только вопросы ниже текущего. Сначала добавьте следующие шаги сценария, и затем они появятся здесь.';
+          routeGrid.insertAdjacentElement('beforebegin', note);
+        }
+        const footer = routeSurface.querySelector('.form-text.mt-2.mb-0');
+        if (footer instanceof HTMLElement) {
+          footer.textContent = hasIntermediateTargets
+            ? 'Можно отправить клиента к следующему релевантному вопросу или сразу к финальному описанию проблемы.'
+            : 'Пока ниже нет дополнительных вопросов, поэтому доступен только переход по порядку или сразу к финальному описанию проблемы.';
+        }
+      }
+      card.__questionMeta = meta;
+      if (isPreset) {
+        const select = card.querySelector('[data-bot-question-preset]');
+        if (select) {
+          select.value = presetValue;
+        }
+      }
+      const filterSelects = card.querySelectorAll('[data-bot-question-filter]');
+      filterSelects.forEach((select) => {
+        if (!(select instanceof HTMLSelectElement)) {
+          return;
+        }
+        const filterKey = select.dataset.botQuestionFilter;
+        if (filterKey === 'business') {
+          select.value = card.dataset.filterBusiness || '';
+        } else if (filterKey === 'location_type') {
+          select.value = card.dataset.filterLocationType || '';
+        }
+      });
+      applyQuestionFilters(card);
+      renderHiddenSummary(card, question, meta);
+      renderQuestionPreview(card, question, meta);
+    });
+
+    renderPresetHints();
+    if (uiState) {
+      restoreQuestionEditorUiState(uiState);
+    }
+  }
+
+  function openTemplateEditor(index) {
+    if (!canManageChildModal(templateModalEl)) {
+      return;
+    }
+    if (typeof index === 'number' && index >= 0 && index < state.templates.length) {
+      const template = state.templates[index];
+      editorState.index = index;
+      editorState.templateId = template.id;
+      editorState.name = template.name;
+      editorState.description = template.description;
+      editorState.startMessage = template.startMessage || '';
+      editorState.firstResponseTimeoutMinutes = normalizeFirstResponseTimeoutMinutesValue(
+        template.firstResponseTimeoutMinutes ?? template.first_response_timeout_minutes
+      );
+      editorState.firstResponseTimeoutMessage = normalizeFirstResponseTimeoutMessageValue(
+        template.firstResponseTimeoutMessage ?? template.first_response_timeout_message
+      );
+      editorState.questionFlow = template.questionFlow.map((question) => cloneQuestion(question));
+    } else {
+      editorState.index = -1;
+      editorState.templateId = generateTemplateId();
+      editorState.name = 'Новый шаблон вопросов';
+      editorState.description = '';
+      editorState.startMessage = '';
+      editorState.firstResponseTimeoutMinutes = DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES;
+      editorState.firstResponseTimeoutMessage = DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE;
+      editorState.questionFlow = [];
+    }
+    if (templateNameInput) {
+      templateNameInput.value = editorState.name || '';
+    }
+    if (templateDescriptionInput) {
+      templateDescriptionInput.value = editorState.description || '';
+    }
+    if (templateStartMessageInput) {
+      templateStartMessageInput.value = editorState.startMessage || '';
+    }
+    if (templateFirstResponseTimeoutInput) {
+      templateFirstResponseTimeoutInput.value = editorState.firstResponseTimeoutMinutes;
+    }
+    if (templateFirstResponseTimeoutMessageInput) {
+      templateFirstResponseTimeoutMessageInput.value = editorState.firstResponseTimeoutMessage || '';
+    }
+    setTemplateStatus('', false);
+    renderQuestions();
+    if (!hasPresetDefinitions()) {
+      void ensurePresetDefinitionsLoaded();
+    }
+    showChildModal(templateModalEl);
+  }
+
+  async function saveTemplateFromEditor() {
+    const name = templateNameInput ? templateNameInput.value.trim() : '';
+    const description = templateDescriptionInput ? templateDescriptionInput.value.trim() : '';
+    const startMessage = templateStartMessageInput ? templateStartMessageInput.value.trim() : '';
+    const rawTimeoutValue = templateFirstResponseTimeoutInput ? templateFirstResponseTimeoutInput.value : '';
+    const firstResponseTimeoutMinutes = normalizeFirstResponseTimeoutMinutesValue(
+      rawTimeoutValue !== '' ? rawTimeoutValue : editorState.firstResponseTimeoutMinutes
+    );
+    const firstResponseTimeoutMessage = normalizeFirstResponseTimeoutMessageValue(
+      templateFirstResponseTimeoutMessageInput ? templateFirstResponseTimeoutMessageInput.value : editorState.firstResponseTimeoutMessage
+    );
+    if (!name) {
+      setTemplateStatus('Укажите название шаблона.', true);
+      if (templateNameInput) {
+        templateNameInput.focus();
+      }
+      return false;
+    }
+    if (templateFirstResponseTimeoutInput) {
+      const parsed = Number.parseInt(rawTimeoutValue, 10);
+      if (rawTimeoutValue !== '' && (!Number.isFinite(parsed) || parsed < 0)) {
+        setTemplateStatus('Укажите корректный таймаут первого ответа в минутах.', true);
+        templateFirstResponseTimeoutInput.focus();
+        return false;
+      }
+    }
+    if (!editorState.questionFlow.length) {
+      setTemplateStatus('Добавьте хотя бы один вопрос.', true);
+      return false;
+    }
+    for (let i = 0; i < editorState.questionFlow.length; i += 1) {
+      const question = editorState.questionFlow[i];
+      if (question.type === 'custom') {
+        if (!question.text || !question.text.trim()) {
+          setTemplateStatus(`Укажите текст для вопроса №${i + 1}.`, true);
+          return false;
+        }
+      } else if (question.type === 'preset' && (!question.preset || !presetExists(question.preset.group, question.preset.field))) {
+        setTemplateStatus(`Выберите готовое поле для вопроса №${i + 1}.`, true);
+        return false;
+      }
+    }
+    const questionFlowError = validateQuestionFlow(editorState.questionFlow, name);
+    if (questionFlowError) {
+      setTemplateStatus(questionFlowError, true);
+      return false;
+    }
+
+    const normalizedQuestions = editorState.questionFlow.map((question, index) => serializeQuestion(question, index));
+    const templatePayload = {
+      id: editorState.templateId || generateTemplateId(),
+      name,
+      description,
+      startMessage,
+      firstResponseTimeoutMinutes,
+      firstResponseTimeoutMessage,
+      questionFlow: normalizedQuestions.map((question) => ({
+        id: question.id,
+        type: question.type,
+        text: question.text,
+        order: question.order,
+        required: question.required !== false,
+        preset: question.preset ? { group: question.preset.group, field: question.preset.field } : undefined,
+        options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
+        bindingKey: question.binding_key || '',
+        includeInDashboard: Boolean(question.include_in_dashboard),
+        routes: Array.isArray(question.routes)
+          ? question.routes.map((route) => ({ valueId: route.value_id, nextQuestionId: route.next_question_id }))
+          : [],
+        excludedOptions: Array.isArray(question.excluded_options)
+          ? question.excluded_options.slice()
+          : Array.isArray(question.excludedOptions)
+            ? question.excludedOptions.slice()
+            : [],
+      })),
+    };
+
+    const previousTemplates = state.templates.map((template) => cloneTemplate(template));
+    const previousActiveTemplateId = state.activeTemplateId;
+    const normalizedTemplateState = {
+      id: templatePayload.id,
+      name: templatePayload.name,
+      description: templatePayload.description,
+      startMessage: templatePayload.startMessage,
+      firstResponseTimeoutMinutes: templatePayload.firstResponseTimeoutMinutes,
+      firstResponseTimeoutMessage: templatePayload.firstResponseTimeoutMessage,
+      questionFlow: templatePayload.questionFlow.map((question) => ({
+        id: question.id,
+        type: question.type,
+        text: question.text,
+        order: question.order,
+        required: question.required !== false,
+        preset: question.preset ? { group: question.preset.group, field: question.preset.field } : null,
+        options: Array.isArray(question.options) ? question.options.map((option) => ({ id: option.id, label: option.label })) : [],
+        bindingKey: question.bindingKey || '',
+        includeInDashboard: Boolean(question.includeInDashboard),
+        routes: Array.isArray(question.routes)
+          ? question.routes.map((route) => ({ valueId: route.valueId, nextQuestionId: route.nextQuestionId }))
+          : [],
+        excludedOptions: Array.isArray(question.excludedOptions) ? question.excludedOptions : [],
+      })),
+    };
+
+    if (editorState.index >= 0 && editorState.index < state.templates.length) {
+      state.templates[editorState.index] = normalizedTemplateState;
+    } else {
+      state.templates.push(normalizedTemplateState);
+      if (!state.activeTemplateId) {
+        state.activeTemplateId = templatePayload.id;
+      }
+    }
+
+    const originalSaveText = templateSaveButton ? templateSaveButton.textContent : '';
+    if (templateSaveButton) {
+      templateSaveButton.disabled = true;
+      templateSaveButton.textContent = 'Сохраняем...';
+    }
+    if (templateCancelButton) {
+      templateCancelButton.disabled = true;
+    }
+    setTemplateStatus('Сохраняем шаблон и общие настройки бота...', false);
+    try {
+      await persistBotSettingsPayload(collectPayload());
+      await refreshLinkedBotSettingsConsumers().catch(() => undefined);
+      setTemplateStatus('Шаблон сохранён.', false);
+      hideChildModal(templateModalEl);
+      return true;
+    } catch (error) {
+      state.templates = previousTemplates.map((template) => cloneTemplate(template));
+      state.activeTemplateId = previousActiveTemplateId;
+      renderTemplates();
+      const message = error && error.message ? error.message : String(error);
+      setTemplateStatus(`Ошибка сохранения: ${message}`, true);
+      return false;
+    } finally {
+      if (templateSaveButton) {
+        templateSaveButton.disabled = false;
+        templateSaveButton.textContent = originalSaveText || 'Сохранить шаблон';
+      }
+      if (templateCancelButton) {
+        templateCancelButton.disabled = false;
+      }
+    }
+  }
+
+  function collectPayload() {
+    const templatesPayload = state.templates.map((template) => ({
+      id: template.id,
+      name: template.name,
+      description: template.description,
+      start_message: String(template.startMessage || template.start_message || '').trim(),
+      first_response_timeout_minutes: normalizeFirstResponseTimeoutMinutesValue(
+        template.firstResponseTimeoutMinutes ?? template.first_response_timeout_minutes
+      ),
+      first_response_timeout_message: normalizeFirstResponseTimeoutMessageValue(
+        template.firstResponseTimeoutMessage ?? template.first_response_timeout_message
+      ),
+      question_flow: template.questionFlow.map(serializeQuestion),
+    }));
+    let activeTemplateId = state.activeTemplateId;
+    if (!templatesPayload.some((template) => template.id === activeTemplateId)) {
+      activeTemplateId = templatesPayload.length ? templatesPayload[0].id : null;
+    }
+    const ratingTemplatesPayload = state.ratingTemplates.map((template) => {
+      const scale = normalizeScale(template.scaleSize || template.scale_size || 5);
+      const ensured = normalizeRatingResponses(template.responses || {}, scale);
+      const responses = [];
+      for (let value = 1; value <= Math.max(1, scale); value += 1) {
+        const key = String(value);
+        responses.push({ value, text: String(ensured[key] || '').trim() });
+      }
+      return {
+        id: template.id,
+        name: String(template.name || '').trim() || 'Шаблон оценок',
+        description: String(template.description || '').trim(),
+        prompt_text: String(template.promptText || template.prompt_text || '').trim(),
+        scale_size: scale,
+        responses,
+      };
+    });
+    let activeRatingTemplateId = state.activeRatingTemplateId;
+    if (!ratingTemplatesPayload.some((template) => template.id === activeRatingTemplateId)) {
+      activeRatingTemplateId = ratingTemplatesPayload.length ? ratingTemplatesPayload[0].id : null;
+    }
+    return {
+      question_templates: templatesPayload,
+      active_template_id: activeTemplateId,
+      rating_templates: ratingTemplatesPayload,
+      active_rating_template_id: activeRatingTemplateId,
+      unblock_request_cooldown_minutes: state.unblockCooldownMinutes,
+    };
+  }
+
+  function validatePayload(payload) {
+    const templates = Array.isArray(payload.question_templates) ? payload.question_templates : [];
+    if (!templates.length) {
+      return 'Добавьте хотя бы один шаблон вопросов.';
+    }
+    const activeId = payload.active_template_id;
+    const activeTemplate = templates.find((template) => template.id === activeId) || templates[0];
+    const activeFlow = Array.isArray(activeTemplate && activeTemplate.question_flow)
+      ? activeTemplate.question_flow
+      : [];
+    if (!activeFlow.length) {
+      return 'Активный шаблон должен содержать хотя бы один вопрос.';
+    }
+    for (let i = 0; i < activeFlow.length; i += 1) {
+      const question = activeFlow[i];
+      if (question.type === 'preset') {
+        if (!question.preset || !question.preset.group || !question.preset.field) {
+          return `Выберите готовое поле для вопроса №${i + 1}.`;
+        }
+      } else if (!question.text) {
+        return `Укажите текст для вопроса №${i + 1}.`;
+      }
+    }
+    for (const template of templates) {
+      if (!template) {
+        continue;
+      }
+      if (template.first_response_timeout_minutes != null) {
+        const parsedTimeout = Number.parseInt(template.first_response_timeout_minutes, 10);
+        if (!Number.isFinite(parsedTimeout) || parsedTimeout < 0) {
+          return `Укажите корректный таймаут первого ответа в шаблоне "${String(template.name || '').trim() || 'Шаблон вопросов'}".`;
+        }
+      }
+      const flow = Array.isArray(template.question_flow) ? template.question_flow : [];
+      if (!flow.length) {
+        return `Шаблон "${String(template.name || '').trim() || 'Шаблон вопросов'}" должен содержать хотя бы один вопрос.`;
+      }
+      const flowError = validateQuestionFlow(flow, String(template.name || '').trim());
+      if (flowError) {
+        return flowError;
+      }
+    }
+    const ratingTemplates = Array.isArray(payload.rating_templates) ? payload.rating_templates : [];
+    if (!ratingTemplates.length) {
+      return 'Добавьте хотя бы один шаблон оценок.';
+    }
+    if (payload.unblock_request_cooldown_minutes != null) {
+      const parsed = Number.parseInt(payload.unblock_request_cooldown_minutes, 10);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return 'Укажите корректный интервал между запросами на разблокировку (в минутах).';
+      }
+    }
+    const activeRatingId = payload.active_rating_template_id;
+    const nameForMessage = (template) => String(template?.name || '').trim() || 'Шаблон оценок';
+    for (const template of ratingTemplates) {
+      if (!template) {
+        continue;
+      }
+      const prompt = String(template.prompt_text || template.prompt || '').trim();
+      if (!prompt) {
+        return `Укажите текст запроса оценки в шаблоне "${nameForMessage(template)}".`;
+      }
+      const scale = normalizeScale(template.scale_size || template.scale || template.scaleSize);
+      const responses = Array.isArray(template.responses) ? template.responses : [];
+      if (responses.length < Math.max(1, scale)) {
+        return `Добавьте ответы для всех значений шкалы в шаблоне "${nameForMessage(template)}".`;
+      }
+      for (const response of responses) {
+        if (!response || !String(response.text || '').trim()) {
+          return `Каждое значение оценки должно иметь текст ответа в шаблоне "${nameForMessage(template)}".`;
+        }
+      }
+    }
+    if (!ratingTemplates.some((template) => template && template.id === activeRatingId)) {
+      return 'Выберите активный шаблон оценок.';
+    }
+    return null;
   }
 
   if (templateSaveButton) {

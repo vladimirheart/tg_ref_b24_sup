@@ -186,3 +186,4 @@
 🟣 [01-165] Починить падение spring-panel на startup из-за битой chat_attachment_metadata availability reconcile
 🟣 [01-166] Показать в мониторинге фактический runtime-статус запущенных ботов по каналам
 🟣 [01-167] Починить автозапуск bot runtime после падения Spring-контекста на AutoCloseFollowUpTaskService
+🟣 [01-168] Стабилизировать сохранение оценок диалога и добавить настраиваемый сброс question-flow при молчании клиента

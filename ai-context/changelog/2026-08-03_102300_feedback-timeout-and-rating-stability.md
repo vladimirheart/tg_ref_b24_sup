@@ -1,0 +1,29 @@
+# 2026-08-03 10:23:00 - feedback timeout and rating stability
+
+- Затронутые области:
+  - `java-bot/bot-core/src/main/java/com/example/supportbot/service/FeedbackService.java`
+  - `java-bot/bot-core/src/main/java/com/example/supportbot/service/EngagementTasks.java`
+  - `java-bot/bot-core/src/main/java/com/example/supportbot/settings/BotSettingsService.java`
+  - `java-bot/bot-core/src/main/java/com/example/supportbot/settings/dto/QuestionTemplateDto.java`
+  - `java-bot/bot-core/src/test/java/com/example/supportbot/settings/BotSettingsServiceTest.java`
+  - `java-bot/bot-core/src/test/java/com/example/supportbot/service/FeedbackServiceTest.java`
+  - `java-bot/bot-telegram/src/main/java/com/example/supportbot/telegram/SupportBot.java`
+  - `java-bot/bot-max/src/main/java/com/example/supportbot/max/MaxWebhookController.java`
+  - `java-bot/bot-vk/src/main/java/com/example/supportbot/vk/VkSupportBot.java`
+  - `spring-panel/src/main/resources/static/js/bot-settings.js`
+  - `spring-panel/src/main/resources/templates/settings/index.html`
+  - `ai-context/tasks/task-list.md`
+  - `ai-context/tasks/task-details/01-168.md`
+- Пользовательский промпт:
+  - `интересно получается: создал нового бота, сваял ему отдельные вопросы. после закрытия диалога и отправки оценки клиентом, в списке диалогов не увидел оценки. бот "тостов".`
+  - `ещё: если на первое сообщение от бота клиенту нет реакции от клиента более 10 минут, бот должен сбрасывать такое обращение а клиенту возвращать "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение". Причё оба этих параметра должны быть настраиваемы`
+- Что сделано:
+  - разорван хрупкий feedback-flow: сохранение оценки теперь не откатывается, если SQLite не смог обновить `pending_feedback_requests`;
+  - scheduled-отправка запросов на оценку больше не держит лишнюю транзакцию вокруг network send и не валится целиком, если служебное `sent_at` не сохранилось;
+  - в модель шаблона вопросов добавлены `first_response_timeout_minutes` и `first_response_timeout_message` с нормализацией, дефолтами и покрытием тестами;
+  - в Telegram, MAX и VK добавлен sweep незавершённых question-flow сессий без первого ответа клиента;
+  - в settings UI добавлены поля таймаута и текста автозакрытия, а также исправлены битые подписи и сохранение новых полей в payload.
+- Проверки:
+  - `java-bot\mvnw.cmd -q -f .\java-bot\pom.xml -pl bot-core -am "-Dtest=BotSettingsServiceTest,FeedbackServiceTest" test` - success
+  - `java-bot\mvnw.cmd -q -f .\java-bot\pom.xml -pl bot-telegram,bot-max,bot-vk -am -DskipTests compile` - success
+  - `node --check spring-panel/src/main/resources/static/js/bot-settings.js` - success

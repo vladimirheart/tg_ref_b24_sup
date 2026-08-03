@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class EngagementTasks {
@@ -44,7 +43,6 @@ public class EngagementTasks {
     }
 
     @Scheduled(cron = "0 */2 * * * *")
-    @Transactional
     public void dispatchPendingFeedbackRequests() {
         OffsetDateTime now = OffsetDateTime.now();
         List<PendingFeedbackRequest> pending = pendingFeedbackRequestRepository
@@ -60,8 +58,7 @@ public class EngagementTasks {
             }
             String prompt = buildRatingPrompt(channel, request);
             if (messagingService.sendToUser(channel, userId, prompt)) {
-                request.setSentAt(OffsetDateTime.now());
-                pendingFeedbackRequestRepository.save(request);
+                markFeedbackRequestSent(request, OffsetDateTime.now());
             }
         }
     }
@@ -78,10 +75,24 @@ public class EngagementTasks {
     }
 
     @Scheduled(cron = "30 */2 * * * *")
-    @Transactional
     public void dispatchOperatorNotifications() {
         if (notificationRepository.count() > 0) {
             log.debug("Legacy operator-notification bridge to support chats is disabled");
+        }
+    }
+
+    private void markFeedbackRequestSent(PendingFeedbackRequest request, OffsetDateTime sentAt) {
+        if (request == null) {
+            return;
+        }
+        request.setSentAt(sentAt);
+        try {
+            pendingFeedbackRequestRepository.save(request);
+        } catch (RuntimeException ex) {
+            log.warn("Feedback prompt was sent for ticket {}, but sent_at was not persisted for request {}: {}",
+                    request.getTicketId(),
+                    request.getId(),
+                    ex.getMessage());
         }
     }
 

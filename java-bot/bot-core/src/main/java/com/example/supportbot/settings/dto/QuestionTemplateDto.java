@@ -22,15 +22,29 @@ public class QuestionTemplateDto {
     @JsonProperty("question_flow")
     private List<QuestionFlowItemDto> questionFlow;
 
+    @JsonProperty("first_response_timeout_minutes")
+    private Integer firstResponseTimeoutMinutes;
+
+    @JsonProperty("first_response_timeout_message")
+    private String firstResponseTimeoutMessage;
+
     public QuestionTemplateDto() {
     }
 
-    public QuestionTemplateDto(String id, String name, String description, String startMessage, List<QuestionFlowItemDto> questionFlow) {
+    public QuestionTemplateDto(String id,
+                               String name,
+                               String description,
+                               String startMessage,
+                               List<QuestionFlowItemDto> questionFlow,
+                               Integer firstResponseTimeoutMinutes,
+                               String firstResponseTimeoutMessage) {
         this.id = id;
         this.name = name;
         this.description = description;
         this.startMessage = startMessage;
         this.questionFlow = questionFlow;
+        this.firstResponseTimeoutMinutes = firstResponseTimeoutMinutes;
+        this.firstResponseTimeoutMessage = firstResponseTimeoutMessage;
     }
 
     public String getId() {
@@ -71,5 +85,21 @@ public class QuestionTemplateDto {
 
     public void setQuestionFlow(List<QuestionFlowItemDto> questionFlow) {
         this.questionFlow = questionFlow;
+    }
+
+    public Integer getFirstResponseTimeoutMinutes() {
+        return firstResponseTimeoutMinutes;
+    }
+
+    public void setFirstResponseTimeoutMinutes(Integer firstResponseTimeoutMinutes) {
+        this.firstResponseTimeoutMinutes = firstResponseTimeoutMinutes;
+    }
+
+    public String getFirstResponseTimeoutMessage() {
+        return firstResponseTimeoutMessage;
+    }
+
+    public void setFirstResponseTimeoutMessage(String firstResponseTimeoutMessage) {
+        this.firstResponseTimeoutMessage = firstResponseTimeoutMessage;
     }
 }

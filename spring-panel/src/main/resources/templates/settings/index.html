@@ -5738,6 +5738,18 @@
               <textarea class="form-control" id="botTemplateStartMessageInput" rows="3" data-bot-template-start-message></textarea>
               <div class="form-text">Отправляется клиенту один раз при старте нового обращения для выбранного шаблона.</div>
             </div>
+            <div class="row g-3 mb-3">
+              <div class="col-lg-4">
+                <label class="form-label" for="botTemplateFirstResponseTimeoutInput">Таймаут первого ответа, минут</label>
+                <input type="number" min="0" step="1" class="form-control" id="botTemplateFirstResponseTimeoutInput" data-bot-template-first-response-timeout>
+                <div class="form-text">Через сколько минут закрыть сценарий, если клиент не ответил на первое сообщение бота. <code>0</code> отключает автосброс.</div>
+              </div>
+              <div class="col-lg-8">
+                <label class="form-label" for="botTemplateFirstResponseMessageInput">Сообщение при автозакрытии</label>
+                <textarea class="form-control" id="botTemplateFirstResponseMessageInput" rows="3" data-bot-template-first-response-message></textarea>
+                <div class="form-text">Это сообщение бот отправит клиенту перед закрытием незавершённого сценария.</div>
+              </div>
+            </div>
             <div class="mb-3">
               <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                 <div>

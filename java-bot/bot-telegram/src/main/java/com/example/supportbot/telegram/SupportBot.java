@@ -83,6 +83,9 @@ public class SupportBot extends TelegramLongPollingBot {
     private static final int MAX_LOG_TEXT_LENGTH = 160;
     private static final String SKIP_BUTTON = "Пропустить";
     private static final String BACK_BUTTON = "Назад";
+    private static final int DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES = 10;
+    private static final String DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE =
+            "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
     private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
 
     private final BotProperties properties;
@@ -103,6 +106,10 @@ public class SupportBot extends TelegramLongPollingBot {
     private volatile Channel cachedChannel;
     private volatile Map<String, Object> cachedLocationTree;
     private volatile Map<String, Object> cachedPresetDefinitions;
+
+    private static String defaultFirstResponseTimeoutMessage() {
+        return "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
+    }
 
     public SupportBot(BotProperties properties,
                       BlacklistService blacklistService,
@@ -1212,6 +1219,42 @@ public class SupportBot extends TelegramLongPollingBot {
         sendOperatorMessage(channelId, builder.toString().trim());
     }
 
+    @Scheduled(fixedDelay = 60000L)
+    public void expireSilentQuestionFlowSessions() {
+        OffsetDateTime now = OffsetDateTime.now();
+        conversations.forEach((userId, session) -> {
+            if (session == null) {
+                return;
+            }
+            int timeoutMinutes = botSettingsService.firstResponseTimeoutMinutes(
+                    session.settings(),
+                    DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES
+            );
+            if (!session.shouldExpireDueToMissingFirstResponse(now, timeoutMinutes)) {
+                return;
+            }
+            if (!conversations.remove(userId, session)) {
+                return;
+            }
+            SendMessage notification = SendMessage.builder()
+                    .chatId(session.chatId())
+                    .text(botSettingsService.firstResponseTimeoutMessage(
+                            session.settings(),
+                            defaultFirstResponseTimeoutMessage()
+                    ))
+                    .replyMarkup(new ReplyKeyboardRemove(true))
+                    .build();
+            try {
+                execute(notification);
+            } catch (TelegramApiException e) {
+                log.error("Failed to send first-response-timeout notice to user {}", userId, e);
+            }
+            log.info("Expired question-flow session for user {} after {} minutes without first response",
+                    userId,
+                    timeoutMinutes);
+        });
+    }
+
     private void notifyOperatorsAboutUnblockRequest(com.example.supportbot.entity.ClientUnblockRequest request) {
         Long channelId = properties.getChannelId();
         if (channelId == null || channelId <= 0 || request == null) {
@@ -1430,6 +1473,7 @@ public class SupportBot extends TelegramLongPollingBot {
     }
 
     private void handleConversationAnswer(Message message, ConversationSession session) {
+        session.markClientResponseReceived();
         if (session.awaitingReuseDecision()) {
             if (!session.consumeReuseDecision(message.getText())) {
                 SendMessage retry = SendMessage.builder()
@@ -1980,6 +2024,7 @@ public class SupportBot extends TelegramLongPollingBot {
         private final OffsetDateTime startedAt;
         private Map<String, String> cachedAnswers;
         private String bootstrapProblemText;
+        private boolean firstClientResponseReceived;
         private boolean reuseDecisionPending;
         private int currentIndex;
 
@@ -1996,6 +2041,7 @@ public class SupportBot extends TelegramLongPollingBot {
             this.startedAt = OffsetDateTime.now();
             this.cachedAnswers = new LinkedHashMap<>();
             this.bootstrapProblemText = null;
+            this.firstClientResponseReceived = false;
             this.reuseDecisionPending = false;
             this.currentIndex = 0;
         }
@@ -2024,6 +2070,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         void recordAnswer(Message message, String resolvedAnswer) {
+            markClientResponseReceived();
             QuestionFlowItemDto current = currentQuestion();
             if (current == null) {
                 return;
@@ -2065,6 +2112,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         void addAttachment(Path attachment) {
+            markClientResponseReceived();
             attachments.add(attachment);
         }
 
@@ -2148,6 +2196,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (decision == null) {
                 return false;
             }
+            markClientResponseReceived();
             String normalized = decision.trim().toLowerCase();
             if (normalized.startsWith("д") || normalized.startsWith("y")) {
                 applyCachedAnswers();
@@ -2159,6 +2208,17 @@ public class SupportBot extends TelegramLongPollingBot {
                 return true;
             }
             return false;
+        }
+
+        void markClientResponseReceived() {
+            firstClientResponseReceived = true;
+        }
+
+        boolean shouldExpireDueToMissingFirstResponse(OffsetDateTime now, int timeoutMinutes) {
+            if (firstClientResponseReceived || timeoutMinutes <= 0 || now == null) {
+                return false;
+            }
+            return !now.isBefore(startedAt.plusMinutes(timeoutMinutes));
         }
 
         private void applyCachedAnswers() {

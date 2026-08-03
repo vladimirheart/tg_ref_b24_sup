@@ -32,6 +32,9 @@ import org.springframework.stereotype.Service;
 public class BotSettingsService {
 
     private static final Logger logger = LoggerFactory.getLogger(BotSettingsService.class);
+    private static final int DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES = 10;
+    private static final String DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE =
+            "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
 
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
@@ -39,6 +42,10 @@ public class BotSettingsService {
     public BotSettingsService(ObjectMapper objectMapper, SharedConfigService sharedConfigService) {
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.sharedConfigService = Objects.requireNonNull(sharedConfigService, "sharedConfigService");
+    }
+
+    private static String defaultFirstResponseTimeoutMessage() {
+        return "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
     }
 
     public BotSettingsDto buildDefaultSettings() {
@@ -49,12 +56,20 @@ public class BotSettingsService {
                     canonicalBotSettingsFromSharedSettings(sharedDefaults), presetDefinitions, 10);
             return objectMapper.convertValue(sanitized, BotSettingsDto.class);
         }
-        Map<String, Object> defaults = defaultBotSettingsInternal(presetDefinitions);
+        Map<String, Object> defaults = sanitizeBotSettingsInternal(
+                defaultBotSettingsInternal(presetDefinitions),
+                presetDefinitions,
+                10
+        );
         return objectMapper.convertValue(defaults, BotSettingsDto.class);
     }
 
     public BotSettingsDto buildDefaultSettings(Map<String, Object> presetDefinitions) {
-        Map<String, Object> defaults = defaultBotSettingsInternal(presetDefinitions);
+        Map<String, Object> defaults = sanitizeBotSettingsInternal(
+                defaultBotSettingsInternal(presetDefinitions),
+                presetDefinitions,
+                10
+        );
         return objectMapper.convertValue(defaults, BotSettingsDto.class);
     }
 
@@ -192,6 +207,26 @@ public class BotSettingsService {
             return template.getQuestionFlow();
         }
         return List.of();
+    }
+
+    public int firstResponseTimeoutMinutes(BotSettingsDto settings, int defaultValue) {
+        com.example.supportbot.settings.dto.QuestionTemplateDto template = activeQuestionTemplate(settings);
+        if (template == null || template.getFirstResponseTimeoutMinutes() == null) {
+            return Math.max(0, defaultValue);
+        }
+        return Math.max(0, template.getFirstResponseTimeoutMinutes());
+    }
+
+    public String firstResponseTimeoutMessage(BotSettingsDto settings, String defaultMessage) {
+        com.example.supportbot.settings.dto.QuestionTemplateDto template = activeQuestionTemplate(settings);
+        if (template == null) {
+            return defaultMessage;
+        }
+        String message = optionalString(template.getFirstResponseTimeoutMessage());
+        if (!message.isBlank()) {
+            return message;
+        }
+        return defaultMessage;
     }
 
     public Map<String, List<String>> businessAliases(BotSettingsDto settings) {
@@ -469,6 +504,8 @@ public class BotSettingsService {
                 if (startMessage.isBlank()) {
                     startMessage = optionalString(templateMap.get("startMessage"));
                 }
+                Integer firstResponseTimeoutMinutes = normalizeFirstResponseTimeoutMinutes(templateMap);
+                String firstResponseTimeoutMessage = normalizeFirstResponseTimeoutMessage(templateMap);
                 Object flowSource = templateMap.get("question_flow");
                 if (!(flowSource instanceof Iterable<?>) || flowSource instanceof String) {
                     flowSource = templateMap.get("questions");
@@ -491,12 +528,23 @@ public class BotSettingsService {
                 if (!description.isBlank()) {
                     templateEntry.put("description", description);
                 }
+                templateEntry.put("first_response_timeout_minutes", firstResponseTimeoutMinutes);
+                templateEntry.put("first_response_timeout_message", firstResponseTimeoutMessage);
                 templates.add(templateEntry);
             }
         }
 
         if (templates.isEmpty()) {
-            templates.addAll(castList(defaults.get("question_templates")));
+            for (Map<String, Object> defaultTemplate : castList(defaults.get("question_templates"))) {
+                templates.add(new LinkedHashMap<>(defaultTemplate));
+            }
+        }
+        for (Map<String, Object> template : templates) {
+            if (template == null) {
+                continue;
+            }
+            template.putIfAbsent("first_response_timeout_minutes", DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES);
+            template.putIfAbsent("first_response_timeout_message", defaultFirstResponseTimeoutMessage());
         }
 
         String activeTemplateId = optionalString(raw.get("active_template_id"));
@@ -1498,6 +1546,28 @@ public class BotSettingsService {
             }
         }
         return templates.get(0);
+    }
+
+    private Integer normalizeFirstResponseTimeoutMinutes(Map<?, ?> templateMap) {
+        Integer value = tryParseInt(templateMap.get("first_response_timeout_minutes"));
+        if (value == null) {
+            value = tryParseInt(templateMap.get("firstResponseTimeoutMinutes"));
+        }
+        if (value == null) {
+            value = DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES;
+        }
+        return Math.max(0, value);
+    }
+
+    private String normalizeFirstResponseTimeoutMessage(Map<?, ?> templateMap) {
+        String message = optionalString(templateMap.get("first_response_timeout_message"));
+        if (message.isBlank()) {
+            message = optionalString(templateMap.get("firstResponseTimeoutMessage"));
+        }
+        if (message.isBlank()) {
+            return defaultFirstResponseTimeoutMessage();
+        }
+        return message;
     }
 
     private List<Map<String, Object>> castList(Object value) {

@@ -41,6 +41,9 @@ class BotSettingsServiceTest {
 
         assertThat(defaults.getQuestionTemplates()).hasSize(1);
         assertThat(defaults.getQuestionFlow()).hasSize(4);
+        assertThat(defaults.getQuestionTemplates().get(0).getFirstResponseTimeoutMinutes()).isEqualTo(10);
+        assertThat(defaults.getQuestionTemplates().get(0).getFirstResponseTimeoutMessage())
+                .isEqualTo("Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.");
         assertThat(defaults.getRatingTemplates()).hasSize(1);
         assertThat(defaults.getRatingSystem().getScaleSize()).isEqualTo(5);
         assertThat(defaults.getRatingSystem().getResponses())
@@ -247,6 +250,49 @@ class BotSettingsServiceTest {
     }
 
     @Test
+    void sanitizeShouldNormalizeFirstResponseTimeoutSettings() throws IOException {
+        Map<String, Object> raw = objectMapper.readValue(
+                """
+                        {
+                          "question_templates": [
+                            {
+                              "id": "template-timeout",
+                              "name": "Timeout flow",
+                              "start_message": "Hello",
+                              "first_response_timeout_minutes": "-3",
+                              "first_response_timeout_message": "  Закрыто по таймауту  ",
+                              "question_flow": [
+                                {"type": "custom", "text": "Question"}
+                              ]
+                            },
+                            {
+                              "id": "template-camel",
+                              "name": "Camel flow",
+                              "firstResponseTimeoutMinutes": 25,
+                              "firstResponseTimeoutMessage": "Camel timeout",
+                              "question_flow": [
+                                {"type": "custom", "text": "Second question"}
+                              ]
+                            }
+                          ],
+                          "active_template_id": "template-timeout"
+                        }
+                        """,
+                new TypeReference<>() {
+                });
+
+        BotSettingsDto sanitized = service.sanitizeFromJson(raw);
+
+        assertThat(sanitized.getQuestionTemplates()).hasSize(2);
+        assertThat(sanitized.getQuestionTemplates().get(0).getFirstResponseTimeoutMinutes()).isZero();
+        assertThat(sanitized.getQuestionTemplates().get(0).getFirstResponseTimeoutMessage()).isEqualTo("Закрыто по таймауту");
+        assertThat(sanitized.getQuestionTemplates().get(1).getFirstResponseTimeoutMinutes()).isEqualTo(25);
+        assertThat(sanitized.getQuestionTemplates().get(1).getFirstResponseTimeoutMessage()).isEqualTo("Camel timeout");
+        assertThat(service.firstResponseTimeoutMinutes(sanitized, 99)).isZero();
+        assertThat(service.firstResponseTimeoutMessage(sanitized, "fallback")).isEqualTo("Закрыто по таймауту");
+    }
+
+    @Test
     void sanitizeShouldKeepOnlyForwardRoutesForChoiceQuestions() throws IOException {
         Map<String, Object> raw = objectMapper.readValue(
                 """
@@ -361,7 +407,9 @@ class BotSettingsServiceTest {
                         null,
                         List.of(
                                 new QuestionFlowItemDto("q-template", "custom", "Template question", 1, null, List.of())
-                        )
+                        ),
+                        null,
+                        null
                 )
         ));
         settings.setActiveTemplateId("question-template-active");

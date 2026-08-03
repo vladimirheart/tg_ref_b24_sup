@@ -37,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -47,6 +48,9 @@ public class MaxWebhookController {
     private static final Logger log = LoggerFactory.getLogger(MaxWebhookController.class);
     private static final List<String> CORE_LOCATION_FIELDS = List.of("business", "location_type", "city", "location_name");
     private static final Duration LOCATION_CACHE_TTL = Duration.ofMinutes(5);
+    private static final int DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES = 10;
+    private static final String DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE =
+            "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
     private static final String SKIP_BUTTON = "Пропустить";
     private static final String BACK_BUTTON = "Назад";
     private static final String BLACKLISTED_TEXT =
@@ -64,6 +68,10 @@ public class MaxWebhookController {
     private final BotSettingsService botSettingsService;
     private final SharedConfigService sharedConfigService;
     private final ObjectMapper objectMapper;
+
+    private static String defaultFirstResponseTimeoutMessage() {
+        return "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
+    }
 
     private final Map<Long, ConversationSession> sessions = new ConcurrentHashMap<>();
     private final Object locationCacheMonitor = new Object();
@@ -186,6 +194,8 @@ public class MaxWebhookController {
             return ResponseEntity.ok(Map.of("ok", true, "session_started", true));
         }
 
+        session.markClientResponseReceived();
+
         if (session.awaitingReuseDecision()) {
             if (!session.consumeReuseDecision(text)) {
                 messagingService.sendToUser(channel, userId,
@@ -270,6 +280,45 @@ public class MaxWebhookController {
         String response = botSettingsService.ratingResponseFor(settings, rating).orElse("Спасибо за оценку!");
         messagingService.sendToUser(channel, userId, response);
         return ResponseEntity.ok(Map.of("ok", true, "feedback_saved", true, "rating", rating));
+    }
+
+    @Scheduled(fixedDelay = 60000L)
+    public void expireSilentQuestionFlowSessions() {
+        Channel channel = getChannel();
+        if (channel == null) {
+            return;
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        sessions.forEach((userId, session) -> {
+            if (session == null) {
+                return;
+            }
+            int timeoutMinutes = botSettingsService.firstResponseTimeoutMinutes(
+                    session.settings(),
+                    DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES
+            );
+            if (!session.shouldExpireDueToMissingFirstResponse(now, timeoutMinutes)) {
+                return;
+            }
+            if (!sessions.remove(userId, session)) {
+                return;
+            }
+            messagingService.sendToUser(
+                    channel,
+                    session.userId(),
+                    botSettingsService.firstResponseTimeoutMessage(
+                            session.settings(),
+                            defaultFirstResponseTimeoutMessage()
+                    )
+            );
+            log.info("Expired MAX question-flow session for user {} after {} minutes without first response",
+                    userId,
+                    timeoutMinutes);
+        });
+    }
+
+    private Channel getChannel() {
+        return channelService.resolveConfiguredChannel(properties.getChannelId(), properties.getToken(), "MAX", "max");
     }
 
     private void handleUnblockRequest(Channel channel, Long userId) {
@@ -978,6 +1027,7 @@ public class MaxWebhookController {
         private final OffsetDateTime startedAt = OffsetDateTime.now();
         private Map<String, String> cachedAnswers = new LinkedHashMap<>();
         private String bootstrapProblemText;
+        private boolean firstClientResponseReceived = false;
         private boolean reuseDecisionPending = false;
         private int currentIndex = 0;
 
@@ -1014,6 +1064,7 @@ public class MaxWebhookController {
         }
 
         void recordAnswer(String text) {
+            markClientResponseReceived();
             QuestionFlowItemDto current = currentQuestion();
             if (current == null) {
                 return;
@@ -1104,6 +1155,7 @@ public class MaxWebhookController {
             if (decision == null) {
                 return false;
             }
+            markClientResponseReceived();
             String normalized = decision.trim().toLowerCase();
             if (normalized.startsWith("д") || normalized.startsWith("y")) {
                 applyCachedAnswers();
@@ -1115,6 +1167,17 @@ public class MaxWebhookController {
                 return true;
             }
             return false;
+        }
+
+        void markClientResponseReceived() {
+            firstClientResponseReceived = true;
+        }
+
+        boolean shouldExpireDueToMissingFirstResponse(OffsetDateTime now, int timeoutMinutes) {
+            if (firstClientResponseReceived || timeoutMinutes <= 0 || now == null) {
+                return false;
+            }
+            return !now.isBefore(startedAt.plusMinutes(timeoutMinutes));
         }
 
         boolean stepBack() {

@@ -77,6 +77,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private static final Logger log = LoggerFactory.getLogger(VkSupportBot.class);
     private static final int MAX_LOG_TEXT_LENGTH = 160;
     private static final String SKIP_BUTTON = "Пропустить";
+    private static final int DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES = 10;
+    private static final String DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE =
+            "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
     private static final Duration VK_PROFILE_CACHE_TTL = Duration.ofMinutes(30);
 
     private final VkBotProperties properties;
@@ -96,6 +99,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Map<Long, ConversationSession> sessions = new ConcurrentHashMap<>();
     private final Map<Long, CachedVkProfile> vkProfileCache = new ConcurrentHashMap<>();
+
+    private static String defaultFirstResponseTimeoutMessage() {
+        return "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
+    }
 
     private volatile boolean running = false;
     private volatile Channel cachedChannel;
@@ -276,11 +283,13 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             }
             session = startSession(actor, message, channel, clientProfile);
             if (shouldCaptureBootstrapProblemText(text)) {
-                session.captureBootstrapClientText(text);
+            session.captureBootstrapClientText(text);
             }
             sessions.put(fromId, session);
             return;
         }
+
+        session.markClientResponseReceived();
 
         if (session.awaitingReuseDecision()) {
             if (!session.consumeReuseDecision(text)) {
@@ -948,6 +957,38 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         sendOperatorMessage(channelId, builder.toString().trim());
     }
 
+    @Scheduled(fixedDelay = 60000L)
+    public void expireSilentQuestionFlowSessions() {
+        Channel channel = getChannel();
+        if (channel == null) {
+            return;
+        }
+        GroupActor actor = createActor();
+        OffsetDateTime now = OffsetDateTime.now();
+        sessions.forEach((userId, session) -> {
+            if (session == null) {
+                return;
+            }
+            int timeoutMinutes = botSettingsService.firstResponseTimeoutMinutes(
+                    session.settings(),
+                    DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES
+            );
+            if (!session.shouldExpireDueToMissingFirstResponse(now, timeoutMinutes)) {
+                return;
+            }
+            if (!sessions.remove(userId, session)) {
+                return;
+            }
+            sendText(actor, session.peerId(), botSettingsService.firstResponseTimeoutMessage(
+                    session.settings(),
+                    defaultFirstResponseTimeoutMessage()
+            ));
+            log.info("Expired VK question-flow session for user {} after {} minutes without first response",
+                    userId,
+                    timeoutMinutes);
+        });
+    }
+
     private void notifyOperatorsAboutUnblockRequest(GroupActor actor,
                                                     com.example.supportbot.entity.ClientUnblockRequest request) {
         Long channelId = properties.getChannelId();
@@ -1162,6 +1203,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         private final OffsetDateTime startedAt = OffsetDateTime.now();
         private Map<String, String> cachedAnswers = new LinkedHashMap<>();
         private String bootstrapProblemText;
+        private boolean firstClientResponseReceived = false;
         private boolean reuseDecisionPending = false;
         private int currentIndex = 0;
 
@@ -1198,6 +1240,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
 
         void recordAnswer(String text) {
+            markClientResponseReceived();
             QuestionFlowItemDto current = currentQuestion();
             if (current == null) {
                 return;
@@ -1217,6 +1260,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
 
         void addAttachment(Path path, String messageType) {
+            markClientResponseReceived();
             history.add(new HistoryEvent(userId, messageType, messageType, path.toString()));
         }
 
@@ -1288,6 +1332,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             if (decision == null) {
                 return false;
             }
+            markClientResponseReceived();
             String normalized = decision.trim().toLowerCase();
             if (normalized.startsWith("д") || normalized.startsWith("y")) {
                 applyCachedAnswers();
@@ -1299,6 +1344,17 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 return true;
             }
             return false;
+        }
+
+        void markClientResponseReceived() {
+            firstClientResponseReceived = true;
+        }
+
+        boolean shouldExpireDueToMissingFirstResponse(OffsetDateTime now, int timeoutMinutes) {
+            if (firstClientResponseReceived || timeoutMinutes <= 0 || now == null) {
+                return false;
+            }
+            return !now.isBefore(startedAt.plusMinutes(timeoutMinutes));
         }
 
         private void applyCachedAnswers() {
