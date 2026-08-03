@@ -365,6 +365,8 @@
       tree: normalizeObject(readSectionValue(raw, 'locations', 'tree')),
       iikoServerSources: normalizeArray(readSectionValue(raw, 'locations', 'iikoServerSources')),
       iikoSyncSettings: normalizeObject(readSectionValue(raw, 'locations', 'iikoSyncSettings')),
+      netBoxSyncSettings: normalizeObject(readSectionValue(raw, 'locations', 'netBoxSyncSettings')),
+      netBoxSyncStatus: normalizeObject(readSectionValue(raw, 'locations', 'netBoxSyncStatus')),
     };
 
     lastBuiltConfig = {
@@ -413,6 +415,8 @@
       locationsInitial: locations.tree,
       locationsIikoServerSourcesInitial: locations.iikoServerSources,
       locationsIikoSyncSettingsInitial: locations.iikoSyncSettings,
+      netBoxSyncSettingsInitial: locations.netBoxSyncSettings,
+      netBoxSyncStatusInitial: locations.netBoxSyncStatus,
     };
     return lastBuiltConfig;
   }

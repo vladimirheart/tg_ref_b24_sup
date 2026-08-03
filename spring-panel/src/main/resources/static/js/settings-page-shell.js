@@ -351,6 +351,7 @@
   ]);
 
   const DEFAULT_SETTINGS_COLLAPSE_ACTIONS = Object.freeze([
+    Object.freeze({ selector: '[data-it-collapse-tile="netbox-sync"]', target: 'netBoxSyncSection', scroll: true }),
     Object.freeze({ selector: '[data-it-collapse-tile="equipment-catalog"]', target: 'itEquipmentSection', scroll: true }),
     Object.freeze({ selector: '[data-it-collapse-tile="connections"]', target: 'itConnectionsSection', scroll: true }),
     Object.freeze({ selector: '[data-it-collapse-tile="network-profiles"]', target: 'networkProfilesSection', scroll: true }),

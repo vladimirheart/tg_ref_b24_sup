@@ -11,6 +11,8 @@ public class SettingsPageDataService {
     private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
     private final LocationsIikoSyncSettingsService locationsIikoSyncSettingsService;
+    private final NetBoxSyncSettingsService netBoxSyncSettingsService;
+    private final NetBoxObjectPassportSyncService netBoxObjectPassportSyncService;
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final SettingsCatalogService settingsCatalogService;
     private final ChannelAssignmentRoutingService channelAssignmentRoutingService;
@@ -19,6 +21,8 @@ public class SettingsPageDataService {
                                    BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
                                    LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
                                    LocationsIikoSyncSettingsService locationsIikoSyncSettingsService,
+                                   NetBoxSyncSettingsService netBoxSyncSettingsService,
+                                   NetBoxObjectPassportSyncService netBoxObjectPassportSyncService,
                                    IikoDepartmentLocationCatalogService locationCatalogService,
                                    SettingsCatalogService settingsCatalogService,
                                    ChannelAssignmentRoutingService channelAssignmentRoutingService) {
@@ -26,6 +30,8 @@ public class SettingsPageDataService {
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
         this.locationsIikoSyncSettingsService = locationsIikoSyncSettingsService;
+        this.netBoxSyncSettingsService = netBoxSyncSettingsService;
+        this.netBoxObjectPassportSyncService = netBoxObjectPassportSyncService;
         this.locationCatalogService = locationCatalogService;
         this.settingsCatalogService = settingsCatalogService;
         this.channelAssignmentRoutingService = channelAssignmentRoutingService;
@@ -56,7 +62,9 @@ public class SettingsPageDataService {
             case "locations" -> Map.of(
                     "tree", locationCatalogService.buildEffectiveLocationsPayload(locationCatalogService.loadCatalog()),
                     "iikoServerSources", locationsIikoServerSourceSettingsService.loadForClient(settings),
-                    "iikoSyncSettings", locationsIikoSyncSettingsService.loadForClient(settings)
+                    "iikoSyncSettings", locationsIikoSyncSettingsService.loadForClient(settings),
+                    "netBoxSyncSettings", netBoxSyncSettingsService.loadForClient(settings),
+                    "netBoxSyncStatus", netBoxObjectPassportSyncService.getStatus()
             );
             case "parameters" -> Map.of(
                     "networkProfiles", settings.getOrDefault("network_profiles", List.of())

@@ -43,6 +43,7 @@ class SettingsUpdateSharedConfigIntegrationTest {
                 new BotSettingsPayloadNormalizer(),
                 new LocationsIikoServerSourceSettingsService(),
                 new LocationsIikoSyncSettingsService(),
+                new NetBoxSyncSettingsService(),
                 mock(NotificationRoutingService.class)
         );
         settingsParameterService = mock(SettingsParameterService.class);

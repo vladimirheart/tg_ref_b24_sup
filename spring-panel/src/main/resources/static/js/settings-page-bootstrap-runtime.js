@@ -112,6 +112,12 @@
       escapeHtml,
     }) || null;
 
+    const settingsNetBoxSyncRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsNetBoxSyncRuntime', {
+      config: locations,
+      showPopup: (message, type) => showPopup(message, type),
+      escapeHtml,
+    }) || null;
+
     settingsLocationsTreeRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationsTreeRuntime', {
       config: locations,
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
@@ -177,8 +183,9 @@
       areLocationsLoaded: () => settingsLocationsTreeRuntime?.isLoaded?.() || false,
       serializeLocationsIikoServerSources: () => settingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [],
       serializeLocationsIikoSyncSettings: () => settingsLocationsIikoRuntime?.serializeLocationsIikoSyncSettings?.() || {},
+      serializeNetBoxSyncSettings: () => settingsNetBoxSyncRuntime?.serializeNetBoxSyncSettings?.() || {},
       markLocationsIikoServerSourcesSaved: () => settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(),
-      showPopup: (message) => showPopup(message),
+      showPopup: (message, type) => showPopup(message, type),
       getSaveUrl: () => '/settings',
     }) || null;
 
@@ -200,6 +207,7 @@
       settingsDialogWorkspaceGovernanceRuntime,
       settingsLocationWizardRuntime,
       settingsLocationsIikoRuntime,
+      settingsNetBoxSyncRuntime,
       settingsLocationsTreeRuntime,
       settingsNetworkProfilesRuntime,
       settingsParametersShellRuntime,

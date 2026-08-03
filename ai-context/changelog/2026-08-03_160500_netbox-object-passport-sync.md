@@ -1,0 +1,40 @@
+# 2026-08-03 16:05:00 - netbox object passport sync
+
+- Затронутые области:
+  - `spring-panel/src/main/java/com/example/panel/service/NetBoxSyncSettingsService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/NetBoxApiService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/NetBoxObjectPassportSyncService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/NetBoxObjectPassportSyncScheduler.java`
+  - `spring-panel/src/main/java/com/example/panel/controller/SettingsNetBoxSyncController.java`
+  - `spring-panel/src/main/java/com/example/panel/service/ObjectPassportService.java`
+  - `spring-panel/src/main/java/com/example/panel/storage/ObjectPassportPhotoStorageService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/SettingsTopLevelUpdateService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/SettingsPageDataService.java`
+  - `spring-panel/src/main/resources/templates/settings/index.html`
+  - `spring-panel/src/main/resources/static/js/settings-netbox-sync-runtime.js`
+  - `spring-panel/src/main/resources/static/js/settings-page-bootstrap-runtime.js`
+  - `spring-panel/src/main/resources/static/js/settings-page-config-runtime.js`
+  - `spring-panel/src/main/resources/static/js/settings-page-shell.js`
+  - `spring-panel/src/main/resources/static/js/settings-save-runtime.js`
+  - `spring-panel/src/test/java/com/example/panel/service/SettingsTopLevelUpdateServiceTest.java`
+  - `spring-panel/src/test/java/com/example/panel/service/SettingsUpdateSharedConfigIntegrationTest.java`
+  - `ai-context/tasks/task-list.md`
+  - `ai-context/tasks/task-details/01-171.md`
+- Промпты пользователя:
+  - `таак, а теперь серьёзная задача. я использую netbox и нужно из него вытащить информацию какую возможно и положить в раздел паспортов объекта и что-то в настройки блока "Подключения IT-блока". что тебе нужно для реализации задачи? но прежде чем что-то переносить, уточни у меня как будешь парсить данные`
+  - `Есть один важный момент, который нужно подтвердить до реализации, иначе можно наделать дублей. давай как есть. всё что сейчас у меня в iguana в паспортах объектов - тесты, поэтому сейчас их можно и даже нужно переписать полностью. но только на один раз)`
+  - `доступ к NetBox и токен переданы пользователем в чате; секрет в changelog намеренно не повторяется`
+- Что сделано:
+  - добавлен новый контур `netbox_sync` в shared settings с безопасной client-выдачей: URL, сохранённый токен без раскрытия секрета, флаг автосинхронизации, интервал и признак одноразового полного overwrite;
+  - реализован NetBox REST-клиент для `dcim/sites`, `dcim/devices`, `circuits/circuits`, `extras/image-attachments` и скачивания site images;
+  - добавлен sync-сервис паспортов объектов с ручным запуском, scheduler-тикером, статусом выполнения и двумя режимами: первый полный overwrite тестовых паспортов, затем безопасный upsert по `netbox_site_id`;
+  - собран согласованный мэппинг `site -> passport`, `devices -> equipment`, `circuits -> network fields`, `custom_fields.WorkTime -> schedule`, `tenant.name -> business`, `site comments -> aggregated tech block`;
+  - добавен merge фото без дублей: NetBox-фото маркируются служебными метаданными `source/external_id/source_url`, переиспользуются на повторных sync, удаляются только устаревшие NetBox-файлы, а уже существующее титульное фото Iguana не перетирается;
+  - сервис паспортов расширен методами полного replace/upsert-по-site и сохранением служебных метаданных фото, а storage получил API сохранения картинок из внешнего `InputStream`;
+  - импортируемое оборудование теперь автоматически пополняет справочники блока `Подключения IT-блока` по категориям `equipment_type`, `equipment_vendor`, `equipment_model`, `equipment_status`;
+  - в модалку `Подключения IT-блока` добавлен UI-блок NetBox sync со статусом, warning о первом overwrite, настройками URL/токена/интервала и кнопкой ручного запуска;
+  - общий settings save-flow расширен сериализацией `netbox_sync`, а runtime bootstrap/config обновлены для загрузки и отображения состояния sync;
+  - скорректированы unit/integration тесты, которые напрямую создают `SettingsTopLevelUpdateService`, чтобы они соответствовали новой сигнатуре сервиса.
+- Проверки:
+  - `spring-panel\\mvnw.cmd -q -DskipTests compile` - success
+  - `spring-panel\\mvnw.cmd -q "-Dtest=SettingsTopLevelUpdateServiceTest,SettingsUpdateSharedConfigIntegrationTest" test` - blocked unrelated existing test-compile failures in `DialogDetailsReadServiceTest`, `DialogWorkspacePayloadAssemblerServiceTest`, `DialogWorkspaceParityServiceTest`, `DialogWorkspaceHistorySliceServiceTest`, `RmsLicenseMonitoringServiceTest`

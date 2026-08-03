@@ -5179,9 +5179,18 @@
               <div class="settings-modal-lead__text">Настройте оборудование, провайдеров и маршруты в одном контуре, чтобы эксплуатация и поддержка опирались на единый источник данных.</div>
             </div>
             <div
-              class="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-4 settings-tiles"
+              class="row row-cols-1 row-cols-sm-2 row-cols-xl-5 g-3 mb-4 settings-tiles"
               data-it-settings-tiles-nav
             >
+              <div class="col">
+                <div class="card settings-tile h-100" data-it-collapse-tile="netbox-sync">
+                  <div class="card-body text-center">
+                    <div class="tile-icon">🧭</div>
+                    <h6 class="card-title mb-1">Синхронизация NetBox</h6>
+                    <p class="card-text text-muted small mb-0">Импорт сайтов, оборудования, каналов и фото в паспорта объектов.</p>
+                  </div>
+                </div>
+              </div>
               <div class="col">
                 <div class="card settings-tile h-100" data-it-collapse-tile="equipment-catalog">
                   <div class="card-body text-center">
@@ -5220,6 +5229,91 @@
               </div>
             </div>
             <div class="accordion it-section-accordion" id="itSettingsAccordion">
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="netBoxSyncSectionHeading">
+                  <button
+                    class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#netBoxSyncSection"
+                    aria-expanded="true"
+                    aria-controls="netBoxSyncSection"
+                  >
+                    Синхронизация NetBox
+                  </button>
+                </h2>
+                <div
+                  id="netBoxSyncSection"
+                  class="accordion-collapse collapse show"
+                  aria-labelledby="netBoxSyncSectionHeading"
+                  data-bs-parent="#itSettingsAccordion"
+                >
+                  <div class="accordion-body">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                      <span class="badge text-bg-warning-subtle border border-warning-subtle text-warning-emphasis d-none" id="netBoxSyncOverwriteBadge">
+                        Первый sync полностью перепишет текущие тестовые паспорта объектов
+                      </span>
+                      <span class="text-muted small">Ручной запуск использует сохранённые настройки. Если меняли URL/токен, сначала нажмите «Сохранить настройки».</span>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-12 col-lg-7">
+                        <label class="form-label" for="netBoxSyncBaseUrl">Base URL NetBox</label>
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="netBoxSyncBaseUrl"
+                          placeholder="https://netbox.example.com"
+                        />
+                      </div>
+                      <div class="col-12 col-lg-5">
+                        <label class="form-label" for="netBoxSyncApiToken">API token</label>
+                        <input
+                          type="password"
+                          class="form-control"
+                          id="netBoxSyncApiToken"
+                          placeholder="Оставьте пустым, чтобы не менять"
+                        />
+                        <div class="form-text" id="netBoxSyncTokenHint">Токен ещё не сохранён. Укажите API token NetBox.</div>
+                      </div>
+                      <div class="col-12 col-md-4">
+                        <div class="form-check form-switch mt-md-4 pt-md-2">
+                          <input class="form-check-input" type="checkbox" id="netBoxSyncEnabled" />
+                          <label class="form-check-label" for="netBoxSyncEnabled">Включить регулярный sync</label>
+                        </div>
+                      </div>
+                      <div class="col-12 col-md-4">
+                        <label class="form-label" for="netBoxSyncInterval">Интервал, минут</label>
+                        <input
+                          type="number"
+                          min="5"
+                          max="10080"
+                          step="1"
+                          class="form-control"
+                          id="netBoxSyncInterval"
+                        />
+                      </div>
+                      <div class="col-12 col-md-4 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" type="button" id="netBoxSyncRunBtn">
+                          <i class="bi bi-play-fill me-1"></i>Запустить sync сейчас
+                        </button>
+                      </div>
+                    </div>
+                    <div class="mt-4">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-semibold">Статус синхронизации</div>
+                        <div class="small text-muted">Сайты NetBox -> паспорта объектов Iguana</div>
+                      </div>
+                      <div class="progress mb-2" role="progressbar" aria-label="NetBox sync progress" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar" id="netBoxSyncProgressBar" style="width: 0%">0%</div>
+                      </div>
+                      <div class="small fw-semibold mb-2" id="netBoxSyncStatusText">Синхронизация NetBox ещё не запускалась.</div>
+                      <div class="small text-muted d-grid gap-1 mb-3" id="netBoxSyncMeta"></div>
+                      <div class="alert alert-danger d-none small mb-3" id="netBoxSyncWarnings"></div>
+                      <div class="d-none" id="netBoxSyncResult"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="accordion-item">
                 <h2 class="accordion-header" id="itEquipmentSectionHeading">
                   <button
@@ -7232,6 +7326,7 @@
     <script src="/js/settings-integration-network-runtime.js"></script>
     <script src="/js/settings-channels-shell-runtime.js"></script>
     <script src="/js/settings-locations-iiko-runtime.js"></script>
+    <script src="/js/settings-netbox-sync-runtime.js"></script>
     <script src="/js/settings-locations-tree-runtime.js"></script>
     <script src="/js/settings-location-wizard-runtime.js"></script>
     <script src="/js/settings-reporting-manager-bindings.js"></script>

@@ -21,6 +21,7 @@ class SettingsTopLevelUpdateServiceTest {
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
+                        new NetBoxSyncSettingsService(),
                         mock(NotificationRoutingService.class)
                 );
         Map<String, Object> settings = new LinkedHashMap<>();
@@ -50,6 +51,7 @@ class SettingsTopLevelUpdateServiceTest {
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
+                        new NetBoxSyncSettingsService(),
                         mock(NotificationRoutingService.class)
                 );
 
@@ -64,6 +66,7 @@ class SettingsTopLevelUpdateServiceTest {
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
+                        new NetBoxSyncSettingsService(),
                         mock(NotificationRoutingService.class)
                 );
         Map<String, Object> settings = new LinkedHashMap<>();
@@ -108,6 +111,7 @@ class SettingsTopLevelUpdateServiceTest {
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
+                        new NetBoxSyncSettingsService(),
                         mock(NotificationRoutingService.class)
                 );
         Map<String, Object> settings = new LinkedHashMap<>();
@@ -141,6 +145,7 @@ class SettingsTopLevelUpdateServiceTest {
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
+                        new NetBoxSyncSettingsService(),
                         mock(NotificationRoutingService.class)
                 );
         Map<String, Object> settings = new LinkedHashMap<>();
@@ -162,6 +167,7 @@ class SettingsTopLevelUpdateServiceTest {
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
+                        new NetBoxSyncSettingsService(),
                         mock(NotificationRoutingService.class)
                 );
         Map<String, Object> settings = new LinkedHashMap<>();
@@ -199,6 +205,7 @@ class SettingsTopLevelUpdateServiceTest {
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
+                        new NetBoxSyncSettingsService(),
                         mock(NotificationRoutingService.class)
                 );
         Map<String, Object> settings = new LinkedHashMap<>();
@@ -237,6 +244,7 @@ class SettingsTopLevelUpdateServiceTest {
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
+                        new NetBoxSyncSettingsService(),
                         mock(NotificationRoutingService.class)
                 );
         Map<String, Object> settings = new LinkedHashMap<>();
@@ -272,6 +280,7 @@ class SettingsTopLevelUpdateServiceTest {
                         new BotSettingsPayloadNormalizer(),
                         new LocationsIikoServerSourceSettingsService(),
                         new LocationsIikoSyncSettingsService(),
+                        new NetBoxSyncSettingsService(),
                         mock(NotificationRoutingService.class)
                 );
         Map<String, Object> settings = new LinkedHashMap<>();

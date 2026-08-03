@@ -78,6 +78,37 @@ public class ObjectPassportPhotoStorageService {
         );
     }
 
+    public StoredPhoto store(InputStream inputStream,
+                             String originalFilename,
+                             String contentType) throws IOException {
+        if (inputStream == null) {
+            throw new IllegalArgumentException("Р¤Р°Р№Р» РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј");
+        }
+        String extension = resolveExtension(originalFilename, contentType);
+        if (!StringUtils.hasText(extension) || !ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("РџРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ PNG, JPG, GIF, BMP РёР»Рё WebP.");
+        }
+        String originalName = StringUtils.cleanPath(
+                StringUtils.hasText(originalFilename) ? originalFilename : "photo" + extension
+        );
+        String storedName = System.currentTimeMillis() + "_" + UUID.randomUUID() + extension;
+        Path target = passportPhotosRoot.resolve(storedName).normalize();
+        if (!target.startsWith(passportPhotosRoot)) {
+            throw new IllegalArgumentException("РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ РїСѓС‚СЊ РґР»СЏ СЃРѕС…СЂР°РЅРµРЅРёСЏ С„Р°Р№Р»Р°");
+        }
+        Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
+        String mimeType = probeContentType(target, contentType);
+        OffsetDateTime uploadedAt = OffsetDateTime.now();
+        return new StoredPhoto(
+                originalName,
+                storedName,
+                buildPhotoUrl(storedName),
+                mimeType,
+                Files.size(target),
+                uploadedAt.toString()
+        );
+    }
+
     public ResponseEntity<Resource> download(String storedName) throws IOException {
         Path resolved = resolveStoredPhoto(storedName);
         String filename = resolved.getFileName() != null ? resolved.getFileName().toString() : "photo";

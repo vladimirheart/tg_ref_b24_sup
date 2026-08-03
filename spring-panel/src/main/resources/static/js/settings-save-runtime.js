@@ -128,6 +128,9 @@
           locations_iiko_sync: typeof options.serializeLocationsIikoSyncSettings === 'function'
             ? options.serializeLocationsIikoSyncSettings()
             : {},
+          netbox_sync: typeof options.serializeNetBoxSyncSettings === 'function'
+            ? options.serializeNetBoxSyncSettings()
+            : {},
           network_profiles: networkProfilesPayload,
           dialog_category_templates: dialogTemplatesState.categoryTemplates || [],
           dialog_question_templates: dialogTemplatesState.questionTemplates || [],

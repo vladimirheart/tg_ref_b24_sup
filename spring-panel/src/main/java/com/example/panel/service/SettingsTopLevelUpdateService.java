@@ -19,17 +19,20 @@ public class SettingsTopLevelUpdateService {
     private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
     private final LocationsIikoSyncSettingsService locationsIikoSyncSettingsService;
+    private final NetBoxSyncSettingsService netBoxSyncSettingsService;
     private final NotificationRoutingService notificationRoutingService;
 
     public SettingsTopLevelUpdateService(AutoCloseConfigNormalizer autoCloseConfigNormalizer,
                                          BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
                                          LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
                                          LocationsIikoSyncSettingsService locationsIikoSyncSettingsService,
+                                         NetBoxSyncSettingsService netBoxSyncSettingsService,
                                          NotificationRoutingService notificationRoutingService) {
         this.autoCloseConfigNormalizer = autoCloseConfigNormalizer;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
         this.locationsIikoSyncSettingsService = locationsIikoSyncSettingsService;
+        this.netBoxSyncSettingsService = netBoxSyncSettingsService;
         this.notificationRoutingService = notificationRoutingService;
     }
 
@@ -76,6 +79,7 @@ public class SettingsTopLevelUpdateService {
         modified |= notificationRoutingService.applyPayload(payload, settings);
         modified |= locationsIikoServerSourceSettingsService.applyPayload(payload, settings);
         modified |= locationsIikoSyncSettingsService.applyPayload(payload, settings);
+        modified |= netBoxSyncSettingsService.applyPayload(payload, settings);
 
         return modified;
     }

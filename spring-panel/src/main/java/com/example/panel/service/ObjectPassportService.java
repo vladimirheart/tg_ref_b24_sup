@@ -12,9 +12,11 @@ import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -99,6 +101,65 @@ public class ObjectPassportService {
                     "passport", normalizePayload(Map.of(), existing.payload(), passportId));
         } catch (SQLException ex) {
             throw new IllegalStateException("Не удалось загрузить паспорт объекта", ex);
+        }
+    }
+
+    public Map<String, Object> findPassportByNetBoxSiteId(Object siteId) {
+        String normalizedSiteId = stringValue(siteId);
+        if (!StringUtils.hasText(normalizedSiteId)) {
+            return null;
+        }
+        try (Connection connection = openConnection()) {
+            for (StoredPassportRecord record : loadAllStoredPassports(connection)) {
+                if (normalizedSiteId.equals(stringValue(record.payload().get("netbox_site_id")))) {
+                    return normalizePayload(Map.of(), record.payload(), record.passportId());
+                }
+            }
+            return null;
+        } catch (SQLException ex) {
+            throw new IllegalStateException("РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё РїР°СЃРїРѕСЂС‚ NetBox-РѕР±СЉРµРєС‚Р°", ex);
+        }
+    }
+
+    public Map<String, Object> upsertPassportByNetBoxSiteId(Object siteId,
+                                                            Map<String, Object> payload) {
+        Map<String, Object> existing = findPassportByNetBoxSiteId(siteId);
+        if (existing != null && existing.get("id") instanceof Number id) {
+            return updatePassport(id.longValue(), payload);
+        }
+        return createPassport(payload);
+    }
+
+    public void replaceAllPassports(List<Map<String, Object>> payloads) {
+        List<Map<String, Object>> safePayloads = payloads == null ? List.of() : payloads;
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                List<StoredPassportRecord> existing = loadAllStoredPassports(connection);
+                Set<String> storedPhotosToDelete = collectStoredPhotos(existing);
+
+                try (PreparedStatement statement = connection.prepareStatement("DELETE FROM object_passports")) {
+                    statement.executeUpdate();
+                }
+                try (PreparedStatement statement = connection.prepareStatement("DELETE FROM objects")) {
+                    statement.executeUpdate();
+                }
+
+                for (Map<String, Object> payload : safePayloads) {
+                    Map<String, Object> normalized = normalizePayload(Map.of(), payload, null);
+                    validatePayload(normalized);
+                    long objectId = insertObject(connection, normalized);
+                    insertPassport(connection, objectId, normalized);
+                }
+
+                connection.commit();
+                storedPhotosToDelete.forEach(photoStorageService::deleteQuietly);
+            } catch (RuntimeException | SQLException ex) {
+                connection.rollback();
+                throw ex;
+            }
+        } catch (SQLException ex) {
+            throw new IllegalStateException("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»РЅРѕСЃС‚СЊСЋ РѕР±РЅРѕРІРёС‚СЊ РїР°СЃРїРѕСЂС‚С‹ РѕР±СЉРµРєС‚РѕРІ", ex);
         }
     }
 
@@ -372,6 +433,51 @@ public class ObjectPassportService {
         }
     }
 
+    private List<StoredPassportRecord> loadAllStoredPassports(Connection connection) throws SQLException {
+        String sql = """
+                SELECT p.id, p.object_id, p.passport_number, p.details, o.name AS object_name, o.address AS object_address
+                FROM object_passports p
+                LEFT JOIN objects o ON o.id = p.object_id
+                ORDER BY p.id ASC
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet rs = statement.executeQuery()) {
+            List<StoredPassportRecord> items = new ArrayList<>();
+            while (rs.next()) {
+                Map<String, Object> payload = readJson(rs.getString("details"));
+                if (!StringUtils.hasText(stringValue(payload.get("department")))) {
+                    payload.put("department", rs.getString("passport_number"));
+                }
+                if (!StringUtils.hasText(stringValue(payload.get("location_address")))) {
+                    payload.put("location_address", rs.getString("object_address"));
+                }
+                items.add(new StoredPassportRecord(
+                        rs.getLong("id"),
+                        rs.getLong("object_id"),
+                        payload
+                ));
+            }
+            return items;
+        }
+    }
+
+    private Set<String> collectStoredPhotos(List<StoredPassportRecord> records) {
+        Set<String> storedNames = new HashSet<>();
+        if (records == null) {
+            return storedNames;
+        }
+        for (StoredPassportRecord record : records) {
+            List<Map<String, Object>> photos = normalizePhotos(record.payload().get("photos"));
+            for (Map<String, Object> photo : photos) {
+                String storedName = stringValue(photo.get("stored_name"));
+                if (StringUtils.hasText(storedName)) {
+                    storedNames.add(storedName);
+                }
+            }
+        }
+        return storedNames;
+    }
+
     private Map<String, Object> normalizePayload(Map<String, Object> existing,
                                                  Map<String, Object> incoming,
                                                  Long passportId) {
@@ -426,6 +532,18 @@ public class ObjectPassportService {
             String originalName = firstNonBlank(rawMap.get("original_name"), rawMap.get("originalName"));
             if (StringUtils.hasText(originalName)) {
                 photo.put("original_name", originalName);
+            }
+            String source = stringValue(rawMap.get("source"));
+            if (StringUtils.hasText(source)) {
+                photo.put("source", source);
+            }
+            String externalId = firstNonBlank(rawMap.get("external_id"), rawMap.get("externalId"));
+            if (StringUtils.hasText(externalId)) {
+                photo.put("external_id", externalId);
+            }
+            String sourceUrl = firstNonBlank(rawMap.get("source_url"), rawMap.get("sourceUrl"));
+            if (StringUtils.hasText(sourceUrl)) {
+                photo.put("source_url", sourceUrl);
             }
             String mimeType = stringValue(rawMap.get("mime_type"));
             if (StringUtils.hasText(mimeType)) {
