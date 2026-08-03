@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class AutoCloseFollowUpTaskService {
     private final JdbcTemplate jdbcTemplate;
     private final TransactionOperations isolatedTransactionOperations;
 
+    @Autowired
     public AutoCloseFollowUpTaskService(TaskService taskService,
                                         TicketResponsibleRepository ticketResponsibleRepository,
                                         TicketMessageRepository ticketMessageRepository,
