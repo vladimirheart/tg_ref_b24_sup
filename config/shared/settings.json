@@ -576,7 +576,7 @@
   } ],
   "netbox_sync" : {
     "base_url" : "https://netbox.sushivesla.su",
-    "api_token" : "Укажите API token NetBox",
+    "api_token" : "c8c2bb8a04f8014b483f3a0834fd35cc76cc8f0b",
     "enabled" : false,
     "interval_minutes" : 60,
     "full_overwrite_pending" : true

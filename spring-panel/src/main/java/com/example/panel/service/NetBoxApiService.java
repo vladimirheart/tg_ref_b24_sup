@@ -60,7 +60,7 @@ public class NetBoxApiService {
         if (!StringUtils.hasText(absoluteOrRelativeUrl)) {
             throw new IllegalArgumentException("Не указан URL файла NetBox");
         }
-        URI uri = resolveUri(settings.baseUrl(), absoluteOrRelativeUrl);
+        URI uri = canonicalizeUri(settings.baseUrl(), resolveUri(settings.baseUrl(), absoluteOrRelativeUrl));
         HttpRequest request = baseRequest(settings, uri).GET().build();
         try {
             HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -94,13 +94,13 @@ public class NetBoxApiService {
                 }
             }
             Object nextRaw = page.get("next");
-            nextUrl = nextRaw == null ? "" : String.valueOf(nextRaw).trim();
+            nextUrl = normalizeNextUrl(settings.baseUrl(), nextRaw);
         }
         return items;
     }
 
     private Map<String, Object> fetchMap(NetBoxSyncSettings settings, String pathOrUrl) {
-        URI uri = resolveUri(settings.baseUrl(), pathOrUrl);
+        URI uri = canonicalizeUri(settings.baseUrl(), resolveUri(settings.baseUrl(), pathOrUrl));
         HttpRequest request = baseRequest(settings, uri).GET().build();
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -142,6 +142,31 @@ public class NetBoxApiService {
         URI base = URI.create(baseUrl.endsWith("/") ? baseUrl : baseUrl + "/");
         URI candidate = URI.create(pathOrUrl);
         return candidate.isAbsolute() ? candidate : base.resolve(pathOrUrl.startsWith("/") ? pathOrUrl.substring(1) : pathOrUrl);
+    }
+
+    private String normalizeNextUrl(String baseUrl, Object nextRaw) {
+        if (nextRaw == null) {
+            return "";
+        }
+        String nextUrl = String.valueOf(nextRaw).trim();
+        if (!StringUtils.hasText(nextUrl)) {
+            return "";
+        }
+        return canonicalizeUri(baseUrl, resolveUri(baseUrl, nextUrl)).toString();
+    }
+
+    private URI canonicalizeUri(String baseUrl, URI candidate) {
+        if (candidate == null || !candidate.isAbsolute() || !StringUtils.hasText(baseUrl)) {
+            return candidate;
+        }
+        URI base = URI.create(baseUrl.endsWith("/") ? baseUrl : baseUrl + "/");
+        if (!StringUtils.hasText(candidate.getHost()) || !candidate.getHost().equalsIgnoreCase(base.getHost())) {
+            return candidate;
+        }
+        String rawPath = StringUtils.hasText(candidate.getRawPath()) ? candidate.getRawPath() : "/";
+        String rawQuery = candidate.getRawQuery();
+        String relative = rawQuery == null ? rawPath : rawPath + "?" + rawQuery;
+        return base.resolve(relative.startsWith("/") ? relative.substring(1) : relative);
     }
 
     private String firstHeader(HttpResponse<?> response, String name) {

@@ -317,6 +317,7 @@
           throw new Error(data.error || 'Не удалось сохранить конфигурацию NetBox');
         }
         markNetBoxSyncSettingsSaved();
+        await ensureLoaded(true);
         showPopup('Конфигурация подключения NetBox сохранена.', 'success');
       } catch (error) {
         showPopup(`Не удалось сохранить конфигурацию NetBox: ${error.message}`, 'error');
@@ -348,6 +349,7 @@
           throw new Error(data.error || 'Не удалось запустить sync');
         }
         markNetBoxSyncSettingsSaved();
+        await ensureLoaded(true);
         if (data.status) {
           renderStatus(data.status);
         }
