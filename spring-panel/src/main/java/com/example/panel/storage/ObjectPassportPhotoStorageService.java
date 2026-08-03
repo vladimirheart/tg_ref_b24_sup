@@ -2,6 +2,7 @@ package com.example.panel.storage;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PushbackInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,9 +35,13 @@ public class ObjectPassportPhotoStorageService {
     private static final Map<String, String> MIME_EXTENSION_MAP = Map.of(
             "image/png", ".png",
             "image/jpeg", ".jpg",
+            "image/jpg", ".jpg",
+            "image/pjpeg", ".jpg",
             "image/gif", ".gif",
             "image/webp", ".webp",
-            "image/bmp", ".bmp"
+            "image/bmp", ".bmp",
+            "image/x-png", ".png",
+            "image/x-ms-bmp", ".bmp"
     );
 
     private final Path passportPhotosRoot;
@@ -84,7 +89,12 @@ public class ObjectPassportPhotoStorageService {
         if (inputStream == null) {
             throw new IllegalArgumentException("Р¤Р°Р№Р» РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј");
         }
+        PushbackInputStream sniffableInputStream = new PushbackInputStream(inputStream, 32);
+        inputStream = sniffableInputStream;
         String extension = resolveExtension(originalFilename, contentType);
+        if (!StringUtils.hasText(extension) || !ALLOWED_EXTENSIONS.contains(extension)) {
+            extension = sniffImageExtension(sniffableInputStream, extension);
+        }
         if (!StringUtils.hasText(extension) || !ALLOWED_EXTENSIONS.contains(extension)) {
             throw new IllegalArgumentException("РџРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ PNG, JPG, GIF, BMP РёР»Рё WebP.");
         }
@@ -162,12 +172,73 @@ public class ObjectPassportPhotoStorageService {
         String original = StringUtils.hasText(originalFilename) ? originalFilename.trim().toLowerCase() : "";
         int extensionIndex = original.lastIndexOf('.');
         if (extensionIndex >= 0 && extensionIndex < original.length() - 1) {
-            return original.substring(extensionIndex);
+            return normalizeExtension(original.substring(extensionIndex));
         }
         if (StringUtils.hasText(contentType)) {
-            return MIME_EXTENSION_MAP.getOrDefault(contentType.trim().toLowerCase(), "");
+            return MIME_EXTENSION_MAP.getOrDefault(normalizeContentType(contentType), "");
         }
         return "";
+    }
+
+    private String normalizeExtension(String extension) {
+        if (!StringUtils.hasText(extension)) {
+            return "";
+        }
+        String normalized = extension.trim().toLowerCase();
+        if (".jfif".equals(normalized)) {
+            return ".jpg";
+        }
+        return normalized;
+    }
+
+    private String normalizeContentType(String contentType) {
+        if (!StringUtils.hasText(contentType)) {
+            return "";
+        }
+        String normalized = contentType.trim().toLowerCase();
+        int delimiterIndex = normalized.indexOf(';');
+        return delimiterIndex >= 0 ? normalized.substring(0, delimiterIndex).trim() : normalized;
+    }
+
+    private String sniffImageExtension(PushbackInputStream inputStream, String currentExtension) throws IOException {
+        byte[] header = inputStream.readNBytes(16);
+        if (header.length > 0) {
+            inputStream.unread(header);
+        }
+        if (header.length >= 3
+                && (header[0] & 0xFF) == 0xFF
+                && (header[1] & 0xFF) == 0xD8
+                && (header[2] & 0xFF) == 0xFF) {
+            return ".jpg";
+        }
+        if (header.length >= 8
+                && (header[0] & 0xFF) == 0x89
+                && header[1] == 0x50
+                && header[2] == 0x4E
+                && header[3] == 0x47
+                && (header[4] & 0xFF) == 0x0D
+                && (header[5] & 0xFF) == 0x0A
+                && (header[6] & 0xFF) == 0x1A
+                && (header[7] & 0xFF) == 0x0A) {
+            return ".png";
+        }
+        if (header.length >= 6) {
+            String gifHeader = new String(header, 0, 6, StandardCharsets.US_ASCII);
+            if ("GIF87a".equals(gifHeader) || "GIF89a".equals(gifHeader)) {
+                return ".gif";
+            }
+        }
+        if (header.length >= 2 && header[0] == 0x42 && header[1] == 0x4D) {
+            return ".bmp";
+        }
+        if (header.length >= 12) {
+            String riffHeader = new String(header, 0, 4, StandardCharsets.US_ASCII);
+            String webpHeader = new String(header, 8, 4, StandardCharsets.US_ASCII);
+            if ("RIFF".equals(riffHeader) && "WEBP".equals(webpHeader)) {
+                return ".webp";
+            }
+        }
+        return normalizeExtension(currentExtension);
     }
 
     private String probeContentType(Path target, String fallbackMimeType) throws IOException {

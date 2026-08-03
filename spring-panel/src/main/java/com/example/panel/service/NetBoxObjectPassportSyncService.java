@@ -375,6 +375,12 @@ public class NetBoxObjectPassportSyncService {
                 if ("title".equals(photo.get("category"))) {
                     titleAssignedToImported = true;
                 }
+            } catch (IllegalArgumentException ex) {
+                log.warn("Skipping unsupported NetBox site photo: attachmentId={}, sourceUrl={}, reason={}",
+                        attachmentId,
+                        firstNonBlank(attachment.get("image"), attachment.get("url")),
+                        ex.getMessage());
+                continue;
             } catch (IOException ex) {
                 newStoredFiles.forEach(photoStorageService::deleteQuietly);
                 throw new IllegalStateException("Не удалось сохранить фото сайта NetBox #" + attachmentId, ex);
