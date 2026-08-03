@@ -1061,6 +1061,7 @@
     if (wasUnread && options.decrementCount !== false) {
       decrementUnreadCount(1);
     }
+    updateNotificationToolbarState();
   }
 
   function scheduleVisibleNotificationRead(itemEl) {
@@ -1081,7 +1082,7 @@
         const marked = await markNotificationAsRead(notificationId);
         if (marked) {
           applyNotificationReadState(itemEl);
-          scheduleNotificationListReload();
+          requestNotificationsDropdownPosition();
         }
       } catch (_error) {
         // ignore read marker errors
@@ -1304,11 +1305,94 @@
     bellDropdown.innerHTML = renderNotificationItems(combineNotificationItems(unreadItems, readItems));
   }
 
+  function renderNotificationToolbarContent(unreadCount) {
+    const hasUnread = Number(unreadCount || 0) > 0;
+    return `<div class="notif-toolbar-title">Оповещения</div>${hasUnread
+      ? `<button type="button" class="notif-read-all-btn" data-notifications-read-all>
+          ${NOTIFICATION_READ_ALL_LABEL}
+        </button>`
+      : '<span class="notif-toolbar-spacer" aria-hidden="true"></span>'}`;
+  }
+
+  function renderNotificationToolbar(unreadCount) {
+    return `
+      <div class="notif-toolbar">
+        ${renderNotificationToolbarContent(unreadCount)}
+      </div>
+    `;
+  }
+
+  function renderNotificationItems(items, emptyLabel = NOTIFICATION_EMPTY_LABEL) {
+    if (!items.length) {
+      return `<div class="notif-item text-muted">${emptyLabel}</div>`;
+    }
+    const unreadCount = items.reduce((count, item) => count + (item?.is_read ? 0 : 1), 0);
+    const markup = items.map((item) => {
+      const text = escapeHtml(item.text || NOTIFICATION_ITEM_FALLBACK);
+      const url = (item.url || '').trim();
+      const dateStr = formatNotificationTime(item.created_at);
+      const linkStart = url ? `<a class="stretched-link" data-notification-link href="${escapeHtml(url)}" rel="noopener">` : '';
+      const linkEnd = url ? '</a>' : '';
+      const classes = ['notif-item', 'position-relative', item.is_read ? 'notif-item-read' : 'notif-item-unread'];
+      return `
+        <div class="${classes.join(' ')}" data-id="${item.id ?? ''}" data-read="${item.is_read ? 'true' : 'false'}">
+          ${linkStart}<div class="notif-text">${text}</div>${linkEnd}
+          ${dateStr ? `<div class="notif-time">${escapeHtml(dateStr)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+    return `${renderNotificationToolbar(unreadCount)}${markup}`;
+  }
+
+  function countRenderedUnreadNotifications() {
+    if (!bellDropdown) return 0;
+    return bellDropdown.querySelectorAll('.notif-item-unread[data-id]').length;
+  }
+
+  function updateNotificationToolbarState(unreadCount = null) {
+    if (!bellDropdown) return;
+    const toolbar = bellDropdown.querySelector('.notif-toolbar');
+    if (!toolbar) return;
+    const nextUnreadCount = unreadCount == null
+      ? countRenderedUnreadNotifications()
+      : Math.max(0, Number(unreadCount) || 0);
+    toolbar.innerHTML = renderNotificationToolbarContent(nextUnreadCount);
+  }
+
+  function syncRenderedNotificationStates(items) {
+    if (!bellDropdown) return false;
+    const renderedItems = Array.from(bellDropdown.querySelectorAll('.notif-item[data-id]'));
+    const normalizedItems = Array.isArray(items) ? items.filter(Boolean) : [];
+    if (!renderedItems.length || renderedItems.length !== normalizedItems.length) {
+      return false;
+    }
+    for (let index = 0; index < renderedItems.length; index += 1) {
+      const renderedId = String(renderedItems[index].dataset.id || '');
+      const nextId = String(normalizedItems[index]?.id ?? '');
+      if (!renderedId || renderedId !== nextId) {
+        return false;
+      }
+    }
+    normalizedItems.forEach((item, index) => {
+      const itemEl = renderedItems[index];
+      if (!itemEl) return;
+      itemEl.dataset.read = item.is_read ? 'true' : 'false';
+      itemEl.classList.toggle('notif-item-unread', !item.is_read);
+      itemEl.classList.toggle('notif-item-read', item.is_read);
+    });
+    updateNotificationToolbarState(normalizedItems.reduce((count, item) => count + (item?.is_read ? 0 : 1), 0));
+    requestNotificationsDropdownPosition();
+    return true;
+  }
+
   async function loadNotificationsSafe() {
     if (!bellDropdown) return;
+    const hadRenderedItems = bellDropdown.querySelector('.notif-item[data-id]') !== null;
     resetNotificationVisibilityTracking();
     bellDropdown.hidden = false;
-    bellDropdown.innerHTML = `<div class="notif-item text-muted">${NOTIFICATION_LOADING_LABEL}</div>`;
+    if (!hadRenderedItems) {
+      bellDropdown.innerHTML = `<div class="notif-item text-muted">${NOTIFICATION_LOADING_LABEL}</div>`;
+    }
     notificationsOpen = true;
     if (bellBtn) bellBtn.setAttribute('aria-expanded', 'true');
     requestNotificationsDropdownPosition();
@@ -1320,7 +1404,10 @@
       if (!response.ok) throw new Error('Failed to load notifications');
       const data = await response.json();
       const payload = normalizeNotificationPayload(data);
-      renderNotificationsSafe(payload.unread, payload.read);
+      const items = combineNotificationItems(payload.unread, payload.read);
+      if (!syncRenderedNotificationStates(items)) {
+        renderNotificationsSafe(payload.unread, payload.read);
+      }
       hasInitialUnread = true;
       setBellCount(payload.unread.length);
       lastUnreadCount = payload.unread.length;
@@ -1377,9 +1464,13 @@
           const result = await markAllNotificationsAsRead();
           if (result && result.success) {
             resetNotificationVisibilityTracking();
+            Array.from(bellDropdown.querySelectorAll('.notif-item-unread[data-id]')).forEach((itemEl) => {
+              applyNotificationReadState(itemEl, { decrementCount: false });
+            });
             lastUnreadCount = 0;
             setBellCount(0);
-            await loadNotificationsSafe();
+            updateNotificationToolbarState(0);
+            requestNotificationsDropdownPosition();
             return;
           }
         } catch (_error) {
@@ -1444,8 +1535,10 @@
       }
       lastUnreadCount = newCount;
       hasInitialUnread = true;
-      if (notificationsOpen && newCount !== previousCount) {
+      if (notificationsOpen && newCount > previousCount) {
         await loadNotificationsSafe();
+      } else if (notificationsOpen) {
+        updateNotificationToolbarState(newCount);
       }
     } catch (error) {
       /* ignore */
@@ -1470,8 +1563,10 @@
       }
       lastUnreadCount = newCount;
       hasInitialUnread = true;
-      if (notificationsOpen && newCount !== previousCount) {
+      if (notificationsOpen && newCount > previousCount) {
         await loadNotificationsSafe();
+      } else if (notificationsOpen) {
+        updateNotificationToolbarState(newCount);
       }
     } catch (_error) {
       /* ignore */
