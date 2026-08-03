@@ -12,6 +12,36 @@
       .replace(/'/g, '&#39;');
   }
 
+  function normalizeSiteIdList(source) {
+    if (!Array.isArray(source)) {
+      return [];
+    }
+    const result = [];
+    const seen = new Set();
+    source.forEach((item) => {
+      const normalized = String(item ?? '').trim();
+      if (!normalized || seen.has(normalized)) {
+        return;
+      }
+      seen.add(normalized);
+      result.push(normalized);
+    });
+    return result;
+  }
+
+  function normalizeSiteCatalog(source) {
+    if (!Array.isArray(source)) {
+      return [];
+    }
+    return source
+      .map((item) => ({
+        id: String(item?.id ?? '').trim(),
+        name: String(item?.name ?? item?.display ?? '').trim(),
+        status: String(item?.status ?? '').trim(),
+      }))
+      .filter((item) => item.id && item.name);
+  }
+
   function sanitizeSettings(source) {
     const normalized = source && typeof source === 'object' ? source : {};
     const enabled = typeof normalized.enabled === 'boolean' ? normalized.enabled : false;
@@ -28,6 +58,7 @@
       enabled,
       interval_minutes: Number.isFinite(intervalRaw) ? Math.min(10080, Math.max(5, intervalRaw)) : 60,
       full_overwrite_pending: normalized.full_overwrite_pending !== false && normalized.fullOverwritePending !== false,
+      selected_site_ids: normalizeSiteIdList(normalized.selected_site_ids ?? normalized.selectedSiteIds),
     };
   }
 
@@ -59,6 +90,8 @@
     let netBoxSyncStatusState = normalizeStatus(
       readConfigObject(config, 'netBoxSyncStatus') || options.initialStatus
     );
+    let siteCatalogState = normalizeSiteCatalog(options.initialSiteCatalog);
+    let siteCatalogLoading = false;
     let settingsLoaded = Boolean(Object.keys(netBoxSyncSettingsState).length);
     let loadingPromise = null;
     let statusPollTimer = null;
@@ -135,6 +168,7 @@
         enabled: Boolean(current.enabled),
         interval_minutes: Number(current.interval_minutes || 60),
         full_overwrite_pending: Boolean(current.full_overwrite_pending),
+        selected_site_ids: normalizeSiteIdList(current.selected_site_ids),
       };
     }
 
@@ -184,6 +218,69 @@
       if (overwriteBadge instanceof HTMLElement) {
         overwriteBadge.classList.toggle('d-none', !netBoxSyncSettingsState.full_overwrite_pending);
       }
+      renderSiteCatalog();
+    }
+
+    function resolveSiteStatusBadgeClass(status) {
+      const normalized = String(status || '').trim().toLowerCase();
+      if (normalized.includes('active') || normalized.includes('актив')) {
+        return 'text-bg-success-subtle border border-success-subtle text-success-emphasis';
+      }
+      if (normalized.includes('planned') || normalized.includes('plan') || normalized.includes('заплан')) {
+        return 'text-bg-info-subtle border border-info-subtle text-info-emphasis';
+      }
+      if (normalized.includes('offline') || normalized.includes('retired') || normalized.includes('decom') || normalized.includes('неактив')) {
+        return 'text-bg-secondary-subtle border border-secondary-subtle text-secondary-emphasis';
+      }
+      return 'text-bg-light border text-body-secondary';
+    }
+
+    function renderSiteCatalog() {
+      const catalog = document.getElementById('netBoxSyncSiteCatalog');
+      const badge = document.getElementById('netBoxSyncSelectedSitesBadge');
+      const state = document.getElementById('netBoxSyncSitesState');
+      const selectedIds = normalizeSiteIdList(netBoxSyncSettingsState.selected_site_ids);
+      if (badge instanceof HTMLElement) {
+        badge.textContent = `Выбрано ${selectedIds.length} sites`;
+      }
+      if (state instanceof HTMLElement) {
+        if (siteCatalogLoading) {
+          state.textContent = 'Загружаем список sites из NetBox...';
+        } else if (siteCatalogState.length) {
+          state.textContent = `Загружено ${siteCatalogState.length} sites из NetBox.`;
+        } else {
+          state.textContent = 'Список sites ещё не загружен.';
+        }
+      }
+      if (!(catalog instanceof HTMLElement)) {
+        return;
+      }
+      if (siteCatalogLoading) {
+        catalog.innerHTML = '<div class="small text-muted p-3">Загружаем список sites из NetBox...</div>';
+        return;
+      }
+      if (!siteCatalogState.length) {
+        catalog.innerHTML = '<div class="small text-muted p-3">Список sites ещё не загружен.</div>';
+        return;
+      }
+      const selectedSet = new Set(selectedIds);
+      catalog.innerHTML = siteCatalogState.map((site) => `
+        <label class="d-flex align-items-start justify-content-between gap-3 p-3 border-bottom mb-0" data-netbox-site-row="${escapeHtml(site.id)}">
+          <span class="d-flex align-items-start gap-2">
+            <input
+              class="form-check-input mt-1"
+              type="checkbox"
+              data-netbox-site-id="${escapeHtml(site.id)}"
+              ${selectedSet.has(site.id) ? 'checked' : ''}
+            />
+            <span>
+              <span class="d-block fw-semibold">${escapeHtml(site.name)}</span>
+              <span class="d-block small text-muted">site id: ${escapeHtml(site.id)}</span>
+            </span>
+          </span>
+          <span class="badge ${resolveSiteStatusBadgeClass(site.status)}">${escapeHtml(site.status || '—')}</span>
+        </label>
+      `).join('');
     }
 
     function formatTimestamp(value) {
@@ -299,9 +396,43 @@
         if (next.clear_api_token) {
           next.api_token = '';
         }
+      } else if (field === 'selected_site_ids') {
+        next.selected_site_ids = normalizeSiteIdList(value);
       }
       netBoxSyncSettingsState = sanitizeSettings(next);
       renderSettings();
+    }
+
+    async function loadSiteCatalog() {
+      const loadButton = document.getElementById('netBoxSyncLoadSitesBtn');
+      if (loadButton instanceof HTMLButtonElement) {
+        loadButton.disabled = true;
+      }
+      siteCatalogLoading = true;
+      renderSiteCatalog();
+      try {
+        const response = await fetch('/api/settings/netbox-sync/sites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            netbox_sync: serializeNetBoxSyncSettings(),
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || 'Не удалось загрузить список sites из NetBox');
+        }
+        siteCatalogState = normalizeSiteCatalog(data.sites);
+        showPopup(`Список sites из NetBox загружен: ${siteCatalogState.length}.`, 'success');
+      } catch (error) {
+        showPopup(`Не удалось загрузить список sites из NetBox: ${error.message}`, 'error');
+      } finally {
+        siteCatalogLoading = false;
+        renderSiteCatalog();
+        if (loadButton instanceof HTMLButtonElement) {
+          loadButton.disabled = false;
+        }
+      }
     }
 
     async function loadStatus() {
@@ -466,10 +597,50 @@
         saveButton.dataset.netBoxSyncBound = 'true';
         saveButton.addEventListener('click', () => saveSettings());
       }
+      const loadSitesButton = document.getElementById('netBoxSyncLoadSitesBtn');
+      if (loadSitesButton instanceof HTMLButtonElement && !loadSitesButton.dataset.netBoxSyncBound) {
+        loadSitesButton.dataset.netBoxSyncBound = 'true';
+        loadSitesButton.addEventListener('click', () => loadSiteCatalog());
+      }
+      const selectAllSitesButton = document.getElementById('netBoxSyncSelectAllSitesBtn');
+      if (selectAllSitesButton instanceof HTMLButtonElement && !selectAllSitesButton.dataset.netBoxSyncBound) {
+        selectAllSitesButton.dataset.netBoxSyncBound = 'true';
+        selectAllSitesButton.addEventListener('click', () => {
+          updateSetting('selected_site_ids', siteCatalogState.map((site) => site.id));
+        });
+      }
+      const clearSitesButton = document.getElementById('netBoxSyncClearSitesBtn');
+      if (clearSitesButton instanceof HTMLButtonElement && !clearSitesButton.dataset.netBoxSyncBound) {
+        clearSitesButton.dataset.netBoxSyncBound = 'true';
+        clearSitesButton.addEventListener('click', () => {
+          updateSetting('selected_site_ids', []);
+        });
+      }
       const runButton = document.getElementById('netBoxSyncRunBtn');
       if (runButton instanceof HTMLButtonElement && !runButton.dataset.netBoxSyncBound) {
         runButton.dataset.netBoxSyncBound = 'true';
         runButton.addEventListener('click', () => runSync());
+      }
+      const siteCatalog = document.getElementById('netBoxSyncSiteCatalog');
+      if (siteCatalog instanceof HTMLElement && !siteCatalog.dataset.netBoxSyncBound) {
+        siteCatalog.dataset.netBoxSyncBound = 'true';
+        siteCatalog.addEventListener('change', (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') {
+            return;
+          }
+          const siteId = String(target.dataset.netboxSiteId || '').trim();
+          if (!siteId) {
+            return;
+          }
+          const next = new Set(normalizeSiteIdList(netBoxSyncSettingsState.selected_site_ids));
+          if (target.checked) {
+            next.add(siteId);
+          } else {
+            next.delete(siteId);
+          }
+          updateSetting('selected_site_ids', Array.from(next));
+        });
       }
     }
 
@@ -487,6 +658,7 @@
       serializeNetBoxSyncSettings,
       markNetBoxSyncSettingsSaved,
       saveSettings,
+      loadSiteCatalog,
     };
   }
 

@@ -1,8 +1,11 @@
 package com.example.panel.service;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -24,7 +27,8 @@ public class NetBoxSyncSettingsService {
         boolean enabled = parseBoolean(readValue(map, "enabled"), false);
         int intervalMinutes = normalizeInterval(readValue(map, "interval_minutes", "intervalMinutes"));
         boolean fullOverwritePending = parseBoolean(readValue(map, "full_overwrite_pending", "fullOverwritePending"), true);
-        return new NetBoxSyncSettings(baseUrl, apiToken, enabled, intervalMinutes, fullOverwritePending);
+        List<String> selectedSiteIds = normalizeSiteIds(readValue(map, "selected_site_ids", "selectedSiteIds"));
+        return new NetBoxSyncSettings(baseUrl, apiToken, enabled, intervalMinutes, fullOverwritePending, selectedSiteIds);
     }
 
     public Map<String, Object> loadForClient(Map<String, Object> settings) {
@@ -37,6 +41,7 @@ public class NetBoxSyncSettingsService {
         payload.put("enabled", loaded.enabled());
         payload.put("interval_minutes", loaded.intervalMinutes());
         payload.put("full_overwrite_pending", loaded.fullOverwritePending());
+        payload.put("selected_site_ids", loaded.selectedSiteIds());
         return payload;
     }
 
@@ -64,6 +69,12 @@ public class NetBoxSyncSettingsService {
                     "full_overwrite_pending",
                     parseBoolean(readValue(map, "full_overwrite_pending", "fullOverwritePending"), existing.fullOverwritePending())
             );
+            normalized.put(
+                    "selected_site_ids",
+                    map.containsKey("selected_site_ids") || map.containsKey("selectedSiteIds")
+                            ? normalizeSiteIds(readValue(map, "selected_site_ids", "selectedSiteIds"))
+                            : existing.selectedSiteIds()
+            );
         } else {
             normalized.putAll(existing.toMap());
         }
@@ -85,7 +96,7 @@ public class NetBoxSyncSettingsService {
     }
 
     public NetBoxSyncSettings defaults() {
-        return new NetBoxSyncSettings("", "", false, DEFAULT_INTERVAL_MINUTES, true);
+        return new NetBoxSyncSettings("", "", false, DEFAULT_INTERVAL_MINUTES, true, List.of());
     }
 
     public boolean hasUsableApiToken(String rawToken) {
@@ -172,11 +183,26 @@ public class NetBoxSyncSettingsService {
         return normalized.contains("api token netbox");
     }
 
+    private List<String> normalizeSiteIds(Object raw) {
+        if (!(raw instanceof List<?> list)) {
+            return List.of();
+        }
+        Set<String> values = new LinkedHashSet<>();
+        for (Object item : list) {
+            String normalized = item == null ? "" : String.valueOf(item).trim();
+            if (StringUtils.hasText(normalized)) {
+                values.add(normalized);
+            }
+        }
+        return List.copyOf(values);
+    }
+
     public record NetBoxSyncSettings(String baseUrl,
                                      String apiToken,
                                      boolean enabled,
                                      int intervalMinutes,
-                                     boolean fullOverwritePending) {
+                                     boolean fullOverwritePending,
+                                     List<String> selectedSiteIds) {
 
         public Map<String, Object> toMap() {
             Map<String, Object> payload = new LinkedHashMap<>();
@@ -185,6 +211,7 @@ public class NetBoxSyncSettingsService {
             payload.put("enabled", enabled);
             payload.put("interval_minutes", intervalMinutes);
             payload.put("full_overwrite_pending", fullOverwritePending);
+            payload.put("selected_site_ids", selectedSiteIds == null ? List.of() : selectedSiteIds);
             return payload;
         }
     }

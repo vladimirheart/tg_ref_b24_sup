@@ -5309,6 +5309,38 @@
                         </div>
                       </div>
                     </div>
+                    <div class="border rounded-3 p-3 mt-4 bg-body-tertiary">
+                      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-3">
+                        <div>
+                          <div class="fw-semibold">Состав синхронизации</div>
+                          <div class="small text-muted" id="netBoxSyncSiteSelectionHint">
+                            Загрузите список sites из NetBox и отметьте нужные объекты. Если ничего не выбрано, sync импортирует все доступные sites.
+                          </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                          <button class="btn btn-outline-secondary btn-sm" type="button" id="netBoxSyncLoadSitesBtn">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Загрузить sites
+                          </button>
+                          <button class="btn btn-outline-secondary btn-sm" type="button" id="netBoxSyncSelectAllSitesBtn">
+                            Выбрать все
+                          </button>
+                          <button class="btn btn-outline-secondary btn-sm" type="button" id="netBoxSyncClearSitesBtn">
+                            Снять выбор
+                          </button>
+                        </div>
+                      </div>
+                      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <span class="badge text-bg-light border" id="netBoxSyncSelectedSitesBadge">Выбрано 0 sites</span>
+                        <span class="small text-muted" id="netBoxSyncSitesState">Список sites ещё не загружен.</span>
+                      </div>
+                      <div
+                        class="border rounded-3 bg-white overflow-auto"
+                        id="netBoxSyncSiteCatalog"
+                        style="max-height: 320px; min-height: 160px;"
+                      >
+                        <div class="small text-muted p-3">Список sites ещё не загружен.</div>
+                      </div>
+                    </div>
                     <div class="mt-4">
                       <div class="d-flex justify-content-between align-items-center mb-2">
                         <div class="fw-semibold">Статус синхронизации</div>

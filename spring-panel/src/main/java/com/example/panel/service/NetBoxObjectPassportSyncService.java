@@ -109,6 +109,28 @@ public class NetBoxObjectPassportSyncService {
         return status.withSettings(settings, nextRunAtUtc);
     }
 
+    public List<NetBoxSiteOption> loadAvailableSites(NetBoxSyncSettings settings) {
+        validateSettings(settings);
+        List<Map<String, Object>> sites = netBoxApiService.fetchSites(settings);
+        List<NetBoxSiteOption> options = new ArrayList<>();
+        for (Map<String, Object> site : sites) {
+            String siteId = stringValue(site.get("id"));
+            if (!StringUtils.hasText(siteId)) {
+                continue;
+            }
+            options.add(new NetBoxSiteOption(
+                    siteId,
+                    firstNonBlank(site.get("name"), site.get("display"), siteId),
+                    resolveLabeledValue(site.get("status"))
+            ));
+        }
+        options.sort((left, right) -> {
+            int byName = left.name().compareToIgnoreCase(right.name());
+            return byName != 0 ? byName : left.id().compareToIgnoreCase(right.id());
+        });
+        return List.copyOf(options);
+    }
+
     @PreDestroy
     void shutdownExecutor() {
         executorService.shutdownNow();
@@ -138,7 +160,7 @@ public class NetBoxObjectPassportSyncService {
             validateSettings(settings);
 
             updateProgress(15, "Запрашиваем сайты из NetBox");
-            List<Map<String, Object>> sites = netBoxApiService.fetchSites(settings);
+            List<Map<String, Object>> sites = filterSelectedSites(netBoxApiService.fetchSites(settings), settings);
             updateProgress(30, "Готовим паспорта объектов и оборудование");
 
             SyncAccumulator accumulator = new SyncAccumulator();
@@ -165,7 +187,7 @@ public class NetBoxObjectPassportSyncService {
                     trigger,
                     startedAt,
                     accumulator.toSummary(),
-                    List.of(),
+                    accumulator.warnings(),
                     accumulator.changed(),
                     settings.fullOverwritePending(),
                     settings.enabled(),
@@ -209,11 +231,24 @@ public class NetBoxObjectPassportSyncService {
             index += 1;
             updateProgress(30 + Math.min(40, (index * 40) / Math.max(1, sites.size())),
                     "Готовим сайт " + index + " из " + sites.size());
-            PassportBuildResult buildResult = buildPassportPayload(settings, site, null);
-            passports.add(buildResult.payload());
-            newStoredFiles.addAll(buildResult.newStoredFiles());
-            accumulator.registerSite(buildResult.payload());
-            accumulator.registerCreated();
+            try {
+                PassportBuildResult buildResult = buildPassportPayload(settings, site, null, accumulator);
+                passports.add(buildResult.payload());
+                newStoredFiles.addAll(buildResult.newStoredFiles());
+                accumulator.registerSite(buildResult.payload());
+                accumulator.registerCreated();
+            } catch (RuntimeException ex) {
+                String siteId = stringValue(site.get("id"));
+                String siteName = firstNonBlank(site.get("name"), site.get("display"), siteId);
+                String warning = "NetBox site " + siteName + " (#" + siteId + ") skipped: "
+                        + firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName());
+                accumulator.addWarning(warning);
+                log.warn("Skipping NetBox site during full overwrite: siteId={}, siteName={}, reason={}",
+                        siteId,
+                        siteName,
+                        ex.getMessage(),
+                        ex);
+            }
         }
         return new FullOverwritePayload(passports, newStoredFiles);
     }
@@ -228,31 +263,44 @@ public class NetBoxObjectPassportSyncService {
                     "Синхронизируем сайт " + index + " из " + sites.size());
             String siteId = stringValue(site.get("id"));
             Map<String, Object> existing = objectPassportService.findPassportByNetBoxSiteId(siteId);
-            PassportBuildResult buildResult = buildPassportPayload(settings, site, existing);
-            boolean created = existing == null || existing.isEmpty();
             try {
-                objectPassportService.upsertPassportByNetBoxSiteId(siteId, buildResult.payload());
-                buildResult.obsoleteStoredFiles().forEach(photoStorageService::deleteQuietly);
-                accumulator.registerSite(buildResult.payload());
-                if (created) {
-                    accumulator.registerCreated();
-                } else {
-                    accumulator.registerUpdated();
+                PassportBuildResult buildResult = buildPassportPayload(settings, site, existing, accumulator);
+                boolean created = existing == null || existing.isEmpty();
+                try {
+                    objectPassportService.upsertPassportByNetBoxSiteId(siteId, buildResult.payload());
+                    buildResult.obsoleteStoredFiles().forEach(photoStorageService::deleteQuietly);
+                    accumulator.registerSite(buildResult.payload());
+                    if (created) {
+                        accumulator.registerCreated();
+                    } else {
+                        accumulator.registerUpdated();
+                    }
+                } catch (RuntimeException ex) {
+                    buildResult.newStoredFiles().forEach(photoStorageService::deleteQuietly);
+                    throw ex;
                 }
             } catch (RuntimeException ex) {
-                buildResult.newStoredFiles().forEach(photoStorageService::deleteQuietly);
-                throw ex;
+                String siteName = firstNonBlank(site.get("name"), site.get("display"), siteId);
+                String warning = "NetBox site " + siteName + " (#" + siteId + ") skipped: "
+                        + firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName());
+                accumulator.addWarning(warning);
+                log.warn("Skipping NetBox site during incremental sync: siteId={}, siteName={}, reason={}",
+                        siteId,
+                        siteName,
+                        ex.getMessage(),
+                        ex);
             }
         }
     }
 
     private PassportBuildResult buildPassportPayload(NetBoxSyncSettings settings,
                                                      Map<String, Object> site,
-                                                     Map<String, Object> existingPassport) {
+                                                     Map<String, Object> existingPassport,
+                                                     SyncAccumulator accumulator) {
         String siteId = stringValue(site.get("id"));
         List<Map<String, Object>> devices = netBoxApiService.fetchDevices(settings, siteId);
         List<Map<String, Object>> circuits = netBoxApiService.fetchCircuits(settings, siteId);
-        List<Map<String, Object>> images = netBoxApiService.fetchSiteImages(settings, siteId);
+        List<Map<String, Object>> images = fetchSiteImagesSafely(settings, site, accumulator);
 
         LinkedHashMap<String, Object> payload = new LinkedHashMap<>();
         payload.put("netbox_site_id", siteId);
@@ -275,6 +323,26 @@ public class NetBoxObjectPassportSyncService {
         PhotoMergeResult photoMergeResult = mergeSitePhotos(settings, images, existingPassport);
         payload.put("photos", photoMergeResult.photos());
         return new PassportBuildResult(payload, photoMergeResult.newStoredFiles(), photoMergeResult.obsoleteStoredFiles());
+    }
+
+    private List<Map<String, Object>> fetchSiteImagesSafely(NetBoxSyncSettings settings,
+                                                            Map<String, Object> site,
+                                                            SyncAccumulator accumulator) {
+        String siteId = stringValue(site.get("id"));
+        String siteName = firstNonBlank(site.get("name"), site.get("display"), siteId);
+        try {
+            return netBoxApiService.fetchSiteImages(settings, siteId);
+        } catch (RuntimeException ex) {
+            String warning = "NetBox site " + siteName + " (#" + siteId + ") imported without photos: "
+                    + firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName());
+            accumulator.addWarning(warning);
+            log.warn("NetBox site images unavailable, importing site without photos: siteId={}, siteName={}, reason={}",
+                    siteId,
+                    siteName,
+                    ex.getMessage(),
+                    ex);
+            return List.of();
+        }
     }
 
     private List<Map<String, Object>> buildEquipment(List<Map<String, Object>> devices) {
@@ -676,6 +744,20 @@ public class NetBoxObjectPassportSyncService {
         }
     }
 
+    private List<Map<String, Object>> filterSelectedSites(List<Map<String, Object>> sites, NetBoxSyncSettings settings) {
+        if (sites == null || sites.isEmpty() || settings == null || settings.selectedSiteIds() == null || settings.selectedSiteIds().isEmpty()) {
+            return sites == null ? List.of() : sites;
+        }
+        Set<String> selectedIds = new LinkedHashSet<>(settings.selectedSiteIds());
+        List<Map<String, Object>> filtered = new ArrayList<>();
+        for (Map<String, Object> site : sites) {
+            if (selectedIds.contains(stringValue(site.get("id")))) {
+                filtered.add(site);
+            }
+        }
+        return filtered;
+    }
+
     private void updateProgress(int progressPercent, String message) {
         SyncStatusSnapshot current = status;
         updateStatus(new SyncStatusSnapshot(
@@ -870,6 +952,7 @@ public class NetBoxObjectPassportSyncService {
         private int equipmentItems;
         private int photos;
         private final Set<DesiredItConnectionParameter> itParameters = new LinkedHashSet<>();
+        private final List<String> warnings = new ArrayList<>();
 
         void registerSite(Map<String, Object> payload) {
             totalSites += 1;
@@ -904,6 +987,16 @@ public class NetBoxObjectPassportSyncService {
 
         Set<DesiredItConnectionParameter> itParameters() {
             return itParameters;
+        }
+
+        List<String> warnings() {
+            return List.copyOf(warnings);
+        }
+
+        void addWarning(String warning) {
+            if (StringUtils.hasText(warning) && !warnings.contains(warning)) {
+                warnings.add(warning);
+            }
         }
 
         SyncResultSummary toSummary() {
@@ -945,6 +1038,11 @@ public class NetBoxObjectPassportSyncService {
                                     int updatedPassports,
                                     int importedEquipmentItems,
                                     int importedPhotos) {
+    }
+
+    public record NetBoxSiteOption(String id,
+                                   String name,
+                                   String status) {
     }
 
     public record SyncStatusSnapshot(String state,

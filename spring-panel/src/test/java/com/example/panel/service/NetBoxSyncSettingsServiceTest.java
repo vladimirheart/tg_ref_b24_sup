@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -54,5 +55,23 @@ class NetBoxSyncSettingsServiceTest {
     void recognizesTrimmedNetBoxTokenAsUsable() {
         assertTrue(service.hasUsableApiToken("  c8c2bb8a04f8014b483f3a0834fd35cc76cc8f0b  "));
         assertFalse(service.hasUsableApiToken("broken token with spaces"));
+    }
+
+    @Test
+    void applyPayloadPersistsDistinctSelectedSiteIds() {
+        Map<String, Object> settings = new LinkedHashMap<>();
+        Map<String, Object> payload = Map.of(
+                "netbox_sync", Map.of(
+                        "base_url", "https://netbox.example.com",
+                        "selected_site_ids", List.of("296", "117", "296", " ")
+                )
+        );
+
+        boolean modified = service.applyPayload(payload, settings);
+
+        assertTrue(modified);
+        NetBoxSyncSettingsService.NetBoxSyncSettings loaded = service.load(settings);
+        assertEquals(List.of("296", "117"), loaded.selectedSiteIds());
+        assertEquals(List.of("296", "117"), service.loadForClient(settings).get("selected_site_ids"));
     }
 }

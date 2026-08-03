@@ -69,6 +69,16 @@ public class SettingsNetBoxSyncController {
         );
     }
 
+    @PostMapping("/sites")
+    public Map<String, Object> sites(@RequestBody(required = false) Map<String, Object> payload) {
+        NetBoxSyncSettingsService.NetBoxSyncSettings effectiveSettings = resolveEffectiveSettings(payload);
+        return Map.of(
+                "success", true,
+                "sites", syncService.loadAvailableSites(effectiveSettings),
+                "selectedSiteIds", effectiveSettings.selectedSiteIds()
+        );
+    }
+
     private void persistNetBoxSyncSettings(Map<String, Object> payload) {
         if (payload == null || !payload.containsKey("netbox_sync")) {
             return;
@@ -82,6 +92,14 @@ public class SettingsNetBoxSyncController {
 
     private Map<String, Object> loadSavedSettingsForClient() {
         return netBoxSyncSettingsService.loadForClient(sharedConfigService.loadSettings());
+    }
+
+    private NetBoxSyncSettingsService.NetBoxSyncSettings resolveEffectiveSettings(Map<String, Object> payload) {
+        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        if (payload != null && payload.containsKey("netbox_sync")) {
+            settingsTopLevelUpdateService.applyTopLevelUpdates(payload, settings);
+        }
+        return netBoxSyncSettingsService.load(settings);
     }
 
     @SuppressWarnings("unchecked")
@@ -98,12 +116,15 @@ public class SettingsNetBoxSyncController {
         Object clearToken = map.get("clear_api_token");
         Object enabled = map.get("enabled");
         Object interval = map.get("interval_minutes");
+        Object selectedSiteIds = map.get("selected_site_ids");
         int tokenLength = apiToken == null ? 0 : String.valueOf(apiToken).trim().length();
+        int selectedCount = selectedSiteIds instanceof java.util.List<?> list ? list.size() : 0;
         return "base_url=" + String.valueOf(baseUrl)
                 + ", token_length=" + tokenLength
                 + ", clear_api_token=" + String.valueOf(clearToken)
                 + ", enabled=" + String.valueOf(enabled)
-                + ", interval_minutes=" + String.valueOf(interval);
+                + ", interval_minutes=" + String.valueOf(interval)
+                + ", selected_site_ids=" + selectedCount;
     }
 
     private String summarizeSavedSettings(Map<String, Object> settings) {
@@ -115,10 +136,13 @@ public class SettingsNetBoxSyncController {
         Object enabled = settings.get("enabled");
         Object interval = settings.get("interval_minutes");
         Object overwritePending = settings.get("full_overwrite_pending");
+        Object selectedSiteIds = settings.get("selected_site_ids");
+        int selectedCount = selectedSiteIds instanceof java.util.List<?> list ? list.size() : 0;
         return "base_url=" + String.valueOf(baseUrl)
                 + ", api_token_saved=" + String.valueOf(tokenSaved)
                 + ", enabled=" + String.valueOf(enabled)
                 + ", interval_minutes=" + String.valueOf(interval)
-                + ", full_overwrite_pending=" + String.valueOf(overwritePending);
+                + ", full_overwrite_pending=" + String.valueOf(overwritePending)
+                + ", selected_site_ids=" + selectedCount;
     }
 }
