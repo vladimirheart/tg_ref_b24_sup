@@ -1229,6 +1229,81 @@
     bellDropdown.innerHTML = parts.filter(Boolean).join('');
   }
 
+  function renderNotificationToolbar(unreadCount) {
+    const hasUnread = Number(unreadCount || 0) > 0;
+    return `
+      <div class="notif-toolbar">
+        <div class="notif-toolbar-title">Оповещения</div>
+        ${hasUnread
+          ? `<button type="button" class="notif-read-all-btn" data-notifications-read-all>
+              ${NOTIFICATION_READ_ALL_LABEL}
+            </button>`
+          : '<span class="notif-toolbar-spacer" aria-hidden="true"></span>'}
+      </div>
+    `;
+  }
+
+  function notificationTimestamp(value) {
+    if (!value) return Number.NEGATIVE_INFINITY;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? Number.NEGATIVE_INFINITY : date.getTime();
+  }
+
+  function combineNotificationItems(unreadItems, readItems) {
+    const unread = Array.isArray(unreadItems) ? unreadItems.filter(Boolean) : [];
+    const read = Array.isArray(readItems) ? readItems.filter(Boolean) : [];
+    return unread.concat(read)
+      .map((item, index) => ({ item, index }))
+      .sort((left, right) => {
+        const timeDiff = notificationTimestamp(right.item.created_at) - notificationTimestamp(left.item.created_at);
+        if (timeDiff !== 0) {
+          return timeDiff;
+        }
+        const leftId = Number(left.item.id);
+        const rightId = Number(right.item.id);
+        if (Number.isFinite(leftId) && Number.isFinite(rightId) && rightId !== leftId) {
+          return rightId - leftId;
+        }
+        return left.index - right.index;
+      })
+      .map((entry) => entry.item);
+  }
+
+  function renderNotificationItems(items, emptyLabel = NOTIFICATION_EMPTY_LABEL) {
+    if (!items.length) {
+      return `<div class="notif-item text-muted">${emptyLabel}</div>`;
+    }
+    const unreadCount = items.reduce((count, item) => count + (item?.is_read ? 0 : 1), 0);
+    const markup = items.map((item) => {
+      const text = escapeHtml(item.text || NOTIFICATION_ITEM_FALLBACK);
+      const url = (item.url || '').trim();
+      const dateStr = formatNotificationTime(item.created_at);
+      const linkStart = url ? `<a class="stretched-link" data-notification-link href="${escapeHtml(url)}" rel="noopener">` : '';
+      const linkEnd = url ? '</a>' : '';
+      const classes = ['notif-item', 'position-relative', item.is_read ? 'notif-item-read' : 'notif-item-unread'];
+      return `
+        <div class="${classes.join(' ')}" data-id="${item.id ?? ''}" data-read="${item.is_read ? 'true' : 'false'}">
+          ${linkStart}<div class="notif-text">${text}</div>${linkEnd}
+          ${dateStr ? `<div class="notif-time">${escapeHtml(dateStr)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+    return `${renderNotificationToolbar(unreadCount)}${markup}`;
+  }
+
+  function renderNotifications(unreadItems, readItems) {
+    if (!bellDropdown) return;
+    bellDropdown.innerHTML = renderNotificationItems(
+      combineNotificationItems(unreadItems, readItems),
+      'Новых уведомлений нет'
+    );
+  }
+
+  function renderNotificationsSafe(unreadItems, readItems) {
+    if (!bellDropdown) return;
+    bellDropdown.innerHTML = renderNotificationItems(combineNotificationItems(unreadItems, readItems));
+  }
+
   async function loadNotificationsSafe() {
     if (!bellDropdown) return;
     resetNotificationVisibilityTracking();

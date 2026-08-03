@@ -1,0 +1,22 @@
+# 2026-08-03 10:44:10 - sidebar notifications and rms queue persistence
+
+- Затронутые области:
+  - `spring-panel/src/main/resources/static/js/sidebar.js`
+  - `spring-panel/src/main/resources/static/css/sidebar.css`
+  - `spring-panel/src/main/java/com/example/panel/service/RmsLicenseMonitoringService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/MonitoringDatabaseBootstrapService.java`
+  - `spring-panel/src/main/java/com/example/panel/repository/RmsRefreshQueueRepository.java`
+  - `ai-context/tasks/task-list.md`
+  - `ai-context/tasks/task-details/01-169.md`
+- Промпты пользователя:
+  - `- в сайдбаре оповещения после прочтения начинают подниматься вверх. оставь последовательность как есть. то есть при прочтении отобрадённых сообщений, список оповещений не должен подниматься вверх.`
+  - `- есть очередь обновления в контроле RMS. эта очередь не должна сбрасываться при перезапуске панели`
+- Что сделано:
+  - sidebar-оповещения переведены на единый хронологический рендер без секционного переноса между `unread/read`, поэтому прочитанные элементы меняют только состояние оформления, а не позицию в списке;
+  - в dropdown оповещений добавлен стабильный toolbar-placeholder, чтобы верхняя часть списка не подпрыгивала, когда заканчиваются непрочитанные сообщения;
+  - для RMS refresh добавлена persistent-очередь `rms_refresh_queue` в `monitoring.db` с хранением типа задачи, monitor scope, флага уведомлений, статуса и времени запроса;
+  - `RmsLicenseMonitoringService` теперь сохраняет refresh-задачи в БД, помечает их как `running`, удаляет после завершения и автоматически восстанавливает незавершённые записи после `ApplicationReadyEvent`;
+  - задача `01-169` оформлена и переведена в статус `🟣` после локальной проверки.
+- Проверки:
+  - `node --check spring-panel/src/main/resources/static/js/sidebar.js` - success
+  - `spring-panel\mvnw.cmd -q -DskipTests compile` - success

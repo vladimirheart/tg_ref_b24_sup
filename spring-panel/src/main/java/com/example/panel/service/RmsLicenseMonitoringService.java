@@ -5,10 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.panel.entity.RmsLicenseMonitor;
 import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.repository.RmsLicenseMonitorRepository;
+import com.example.panel.repository.RmsRefreshQueueRepository;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -110,6 +113,7 @@ public class RmsLicenseMonitoringService {
     private final RmsLicenseMonitorRepository repository;
     private final MonitoringCheckHistoryRepository historyRepository;
     private final NotificationService notificationService;
+    private final RmsRefreshQueueRepository refreshQueueRepository;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final ExecutorService licenseRefreshExecutor;
@@ -132,10 +136,12 @@ public class RmsLicenseMonitoringService {
     public RmsLicenseMonitoringService(RmsLicenseMonitorRepository repository,
                                        MonitoringCheckHistoryRepository historyRepository,
                                        NotificationService notificationService,
+                                       RmsRefreshQueueRepository refreshQueueRepository,
                                        ObjectMapper objectMapper) {
         this.repository = repository;
         this.historyRepository = historyRepository;
         this.notificationService = notificationService;
+        this.refreshQueueRepository = refreshQueueRepository;
         this.objectMapper = objectMapper;
         this.httpClient = buildUnsafeHttpClient();
         this.licenseRefreshExecutor = Executors.newSingleThreadExecutor(namedThreadFactory("rms-license-refresh"));
@@ -146,6 +152,12 @@ public class RmsLicenseMonitoringService {
     void shutdownExecutors() {
         licenseRefreshExecutor.shutdownNow();
         networkRefreshExecutor.shutdownNow();
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void restoreQueuedRefreshTasks() {
+        schedulePersistedLicenseRefreshIfNeeded();
+        schedulePersistedNetworkRefreshIfNeeded();
     }
 
     @Transactional(transactionManager = "monitoringTransactionManager", readOnly = true)
@@ -287,23 +299,52 @@ public class RmsLicenseMonitoringService {
     }
 
     private RefreshRequestResult queueLicenseRefresh(Long monitorId, boolean withNotifications) {
-        lastLicenseRefreshRequestedAt.set(OffsetDateTime.now(ZoneOffset.UTC));
+        OffsetDateTime requestedAt = OffsetDateTime.now(ZoneOffset.UTC);
         if (!licenseRefreshPending.compareAndSet(false, true)) {
             return new RefreshRequestResult("already_queued", currentRefreshState());
         }
-        pendingLicenseTask.set(new LicenseRefreshTask(monitorId, withNotifications));
-        licenseRefreshExecutor.submit(this::runQueuedLicenseRefresh);
-        return new RefreshRequestResult("queued", currentRefreshState());
+        try {
+            RmsRefreshQueueRepository.RefreshQueueEntry queuedTask = refreshQueueRepository.enqueue(
+                RmsRefreshQueueRepository.KIND_LICENSE,
+                monitorId,
+                withNotifications,
+                requestedAt
+            );
+            lastLicenseRefreshRequestedAt.set(requestedAt);
+            pendingLicenseTask.set(new LicenseRefreshTask(
+                queuedTask.id(),
+                monitorId,
+                withNotifications,
+                requestedAt
+            ));
+            licenseRefreshExecutor.submit(this::runQueuedLicenseRefresh);
+            return new RefreshRequestResult("queued", currentRefreshState());
+        } catch (RuntimeException ex) {
+            licenseRefreshPending.set(false);
+            throw ex;
+        }
     }
 
     private RefreshRequestResult queueNetworkRefresh(Long monitorId) {
-        lastNetworkRefreshRequestedAt.set(OffsetDateTime.now(ZoneOffset.UTC));
+        OffsetDateTime requestedAt = OffsetDateTime.now(ZoneOffset.UTC);
         if (!networkRefreshPending.compareAndSet(false, true)) {
             return new RefreshRequestResult("already_queued", currentRefreshState());
         }
-        pendingNetworkTask.set(new NetworkRefreshTask(monitorId));
-        networkRefreshExecutor.submit(this::runQueuedNetworkRefresh);
-        return new RefreshRequestResult("queued", currentRefreshState());
+        try {
+            RmsRefreshQueueRepository.RefreshQueueEntry queuedTask = refreshQueueRepository.enqueue(
+                RmsRefreshQueueRepository.KIND_NETWORK,
+                monitorId,
+                false,
+                requestedAt
+            );
+            lastNetworkRefreshRequestedAt.set(requestedAt);
+            pendingNetworkTask.set(new NetworkRefreshTask(queuedTask.id(), monitorId, requestedAt));
+            networkRefreshExecutor.submit(this::runQueuedNetworkRefresh);
+            return new RefreshRequestResult("queued", currentRefreshState());
+        } catch (RuntimeException ex) {
+            networkRefreshPending.set(false);
+            throw ex;
+        }
     }
 
     @Transactional(transactionManager = "monitoringTransactionManager", readOnly = true)
@@ -416,6 +457,61 @@ public class RmsLicenseMonitoringService {
                 networkQueueTracker.totalCount(),
                 networkQueueTracker.completedCount()
             )
+        );
+    }
+
+    private void schedulePersistedLicenseRefreshIfNeeded() {
+        if (licenseRefreshRunning.get()) {
+            return;
+        }
+        if (!licenseRefreshPending.compareAndSet(false, true)) {
+            return;
+        }
+        Optional<RmsRefreshQueueRepository.RefreshQueueEntry> nextTask =
+            refreshQueueRepository.findNextActive(RmsRefreshQueueRepository.KIND_LICENSE);
+        if (nextTask.isEmpty()) {
+            licenseRefreshPending.set(false);
+            return;
+        }
+        LicenseRefreshTask task = toLicenseRefreshTask(nextTask.get());
+        pendingLicenseTask.set(task);
+        lastLicenseRefreshRequestedAt.set(task.requestedAt());
+        licenseRefreshExecutor.submit(this::runQueuedLicenseRefresh);
+    }
+
+    private void schedulePersistedNetworkRefreshIfNeeded() {
+        if (networkRefreshRunning.get()) {
+            return;
+        }
+        if (!networkRefreshPending.compareAndSet(false, true)) {
+            return;
+        }
+        Optional<RmsRefreshQueueRepository.RefreshQueueEntry> nextTask =
+            refreshQueueRepository.findNextActive(RmsRefreshQueueRepository.KIND_NETWORK);
+        if (nextTask.isEmpty()) {
+            networkRefreshPending.set(false);
+            return;
+        }
+        NetworkRefreshTask task = toNetworkRefreshTask(nextTask.get());
+        pendingNetworkTask.set(task);
+        lastNetworkRefreshRequestedAt.set(task.requestedAt());
+        networkRefreshExecutor.submit(this::runQueuedNetworkRefresh);
+    }
+
+    private LicenseRefreshTask toLicenseRefreshTask(RmsRefreshQueueRepository.RefreshQueueEntry entry) {
+        return new LicenseRefreshTask(
+            entry.id(),
+            entry.monitorId(),
+            entry.withNotifications(),
+            entry.requestedAt()
+        );
+    }
+
+    private NetworkRefreshTask toNetworkRefreshTask(RmsRefreshQueueRepository.RefreshQueueEntry entry) {
+        return new NetworkRefreshTask(
+            entry.id(),
+            entry.monitorId(),
+            entry.requestedAt()
         );
     }
 
@@ -611,10 +707,15 @@ public class RmsLicenseMonitoringService {
     private void runQueuedLicenseRefresh() {
         LicenseRefreshTask task = pendingLicenseTask.getAndSet(null);
         licenseRefreshPending.set(false);
+        if (task == null) {
+            schedulePersistedLicenseRefreshIfNeeded();
+            return;
+        }
         licenseRefreshRunning.set(true);
         try {
-            if (task == null || task.monitorId() == null) {
-                refreshAllLicensesInternal(task == null || task.withNotifications());
+            refreshQueueRepository.markRunning(task.queueEntryId());
+            if (task.monitorId() == null) {
+                refreshAllLicensesInternal(task.withNotifications());
             } else {
                 RmsLicenseMonitor monitor = requireMonitor(task.monitorId());
                 licenseQueueTracker.start(List.of(monitor.getId()));
@@ -626,17 +727,24 @@ public class RmsLicenseMonitoringService {
         } catch (Exception ex) {
             log.warn("RMS license refresh queue failed", ex);
         } finally {
+            refreshQueueRepository.delete(task.queueEntryId());
             licenseQueueTracker.finish();
             licenseRefreshRunning.set(false);
+            schedulePersistedLicenseRefreshIfNeeded();
         }
     }
 
     private void runQueuedNetworkRefresh() {
         NetworkRefreshTask task = pendingNetworkTask.getAndSet(null);
         networkRefreshPending.set(false);
+        if (task == null) {
+            schedulePersistedNetworkRefreshIfNeeded();
+            return;
+        }
         networkRefreshRunning.set(true);
         try {
-            if (task == null || task.monitorId() == null) {
+            refreshQueueRepository.markRunning(task.queueEntryId());
+            if (task.monitorId() == null) {
                 refreshAllNetworkStatesInternal();
             } else {
                 RmsLicenseMonitor monitor = requireMonitor(task.monitorId());
@@ -649,8 +757,10 @@ public class RmsLicenseMonitoringService {
         } catch (Exception ex) {
             log.warn("RMS network refresh queue failed", ex);
         } finally {
+            refreshQueueRepository.delete(task.queueEntryId());
             networkQueueTracker.finish();
             networkRefreshRunning.set(false);
+            schedulePersistedNetworkRefreshIfNeeded();
         }
     }
 
@@ -2327,10 +2437,15 @@ public class RmsLicenseMonitoringService {
                                        double availabilityPercent) {
     }
 
-    private record LicenseRefreshTask(Long monitorId, boolean withNotifications) {
+    private record LicenseRefreshTask(long queueEntryId,
+                                      Long monitorId,
+                                      boolean withNotifications,
+                                      OffsetDateTime requestedAt) {
     }
 
-    private record NetworkRefreshTask(Long monitorId) {
+    private record NetworkRefreshTask(long queueEntryId,
+                                      Long monitorId,
+                                      OffsetDateTime requestedAt) {
     }
 
     private record EndpointTarget(String normalizedAddress, String scheme, String host, int port) {

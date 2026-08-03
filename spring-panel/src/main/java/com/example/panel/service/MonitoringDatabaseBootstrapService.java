@@ -133,6 +133,20 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             CREATE INDEX IF NOT EXISTS idx_rms_license_monitors_enabled
             ON rms_license_monitors(enabled)
             """);
+        monitoringJdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS rms_refresh_queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                queue_kind TEXT NOT NULL,
+                monitor_id INTEGER,
+                with_notifications INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'queued',
+                requested_at TEXT NOT NULL
+            )
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_rms_refresh_queue_kind_status
+            ON rms_refresh_queue(queue_kind, status, requested_at, id)
+            """);
         ensureColumn(
             "rms_license_monitors",
             "license_monitoring_enabled",
