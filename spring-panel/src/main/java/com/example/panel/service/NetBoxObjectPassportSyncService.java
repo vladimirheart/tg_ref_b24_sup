@@ -320,7 +320,7 @@ public class NetBoxObjectPassportSyncService {
         payload.put("network_tunnel", mainCircuit == null ? "" : mainCircuit.tunnelType());
         payload.put("network_connection_params", buildNetworkConnectionParams(site, circuits));
 
-        PhotoMergeResult photoMergeResult = mergeSitePhotos(settings, images, existingPassport);
+        PhotoMergeResult photoMergeResult = mergeSitePhotosSafely(settings, site, images, existingPassport, accumulator);
         payload.put("photos", photoMergeResult.photos());
         return new PassportBuildResult(payload, photoMergeResult.newStoredFiles(), photoMergeResult.obsoleteStoredFiles());
     }
@@ -342,6 +342,32 @@ public class NetBoxObjectPassportSyncService {
                     ex.getMessage(),
                     ex);
             return List.of();
+        }
+    }
+
+    private PhotoMergeResult mergeSitePhotosSafely(NetBoxSyncSettings settings,
+                                                   Map<String, Object> site,
+                                                   List<Map<String, Object>> imageAttachments,
+                                                   Map<String, Object> existingPassport,
+                                                   SyncAccumulator accumulator) {
+        String siteId = stringValue(site.get("id"));
+        String siteName = firstNonBlank(site.get("name"), site.get("display"), siteId);
+        try {
+            return mergeSitePhotos(settings, imageAttachments, existingPassport);
+        } catch (RuntimeException ex) {
+            String warning = "NetBox site " + siteName + " (#" + siteId + ") imported without photo refresh: "
+                    + firstNonBlank(ex.getMessage(), ex.getClass().getSimpleName());
+            accumulator.addWarning(warning);
+            log.warn("NetBox site photo merge failed, preserving object without refreshed photos: siteId={}, siteName={}, reason={}",
+                    siteId,
+                    siteName,
+                    ex.getMessage(),
+                    ex);
+            return new PhotoMergeResult(
+                    normalizePhotoList(existingPassport == null ? null : existingPassport.get("photos")),
+                    List.of(),
+                    List.of()
+            );
         }
     }
 

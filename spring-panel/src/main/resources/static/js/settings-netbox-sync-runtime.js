@@ -403,6 +403,36 @@
       renderSettings();
     }
 
+    async function readApiResponse(response, fallbackMessage) {
+      const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+      if (contentType.includes('application/json')) {
+        return response.json();
+      }
+      const text = await response.text();
+      const compact = text.replace(/\s+/g, ' ').trim();
+      const snippet = compact ? compact.slice(0, 220) : '';
+      throw new Error(snippet || fallbackMessage || `HTTP ${response.status}`);
+    }
+
+    async function fetchSiteCatalogResponse() {
+      const payload = JSON.stringify({
+        netbox_sync: serializeNetBoxSyncSettings(),
+      });
+      try {
+        const response = await fetch('/api/settings/netbox-sync/sites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+        });
+        const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+        if (response.ok || contentType.includes('application/json')) {
+          return response;
+        }
+      } catch (postError) {
+      }
+      return fetch('/api/settings/netbox-sync/sites', { cache: 'no-store' });
+    }
+
     async function loadSiteCatalog() {
       const loadButton = document.getElementById('netBoxSyncLoadSitesBtn');
       if (loadButton instanceof HTMLButtonElement) {
@@ -411,14 +441,8 @@
       siteCatalogLoading = true;
       renderSiteCatalog();
       try {
-        const response = await fetch('/api/settings/netbox-sync/sites', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            netbox_sync: serializeNetBoxSyncSettings(),
-          }),
-        });
-        const data = await response.json();
+        const response = await fetchSiteCatalogResponse();
+        const data = await readApiResponse(response, 'Не удалось загрузить список sites из NetBox');
         if (!response.ok || data.success === false) {
           throw new Error(data.error || 'Не удалось загрузить список sites из NetBox');
         }
@@ -438,10 +462,10 @@
     async function loadStatus() {
       try {
         const response = await fetch('/api/settings/netbox-sync/status', { cache: 'no-store' });
+        const data = await readApiResponse(response, `HTTP ${response.status}`);
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(data.error || `HTTP ${response.status}`);
         }
-        const data = await response.json();
         renderStatus(data);
         return data;
       } catch (error) {
@@ -467,7 +491,7 @@
             netbox_sync: serializeNetBoxSyncSettings(),
           }),
         });
-        const data = await response.json();
+        const data = await readApiResponse(response, 'Не удалось сохранить конфигурацию NetBox');
         if (!response.ok || data.success === false) {
           throw new Error(data.error || 'Не удалось сохранить конфигурацию NetBox');
         }
@@ -503,7 +527,7 @@
             netbox_sync: serializeNetBoxSyncSettings(),
           }),
         });
-        const data = await response.json();
+        const data = await readApiResponse(response, 'Не удалось запустить sync');
         if (!response.ok || data.success === false) {
           throw new Error(data.error || 'Не удалось запустить sync');
         }

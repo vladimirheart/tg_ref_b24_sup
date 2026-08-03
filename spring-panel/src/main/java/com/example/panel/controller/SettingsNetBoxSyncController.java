@@ -9,6 +9,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -69,14 +71,26 @@ public class SettingsNetBoxSyncController {
         );
     }
 
-    @PostMapping("/sites")
-    public Map<String, Object> sites(@RequestBody(required = false) Map<String, Object> payload) {
-        NetBoxSyncSettingsService.NetBoxSyncSettings effectiveSettings = resolveEffectiveSettings(payload);
-        return Map.of(
-                "success", true,
-                "sites", syncService.loadAvailableSites(effectiveSettings),
-                "selectedSiteIds", effectiveSettings.selectedSiteIds()
-        );
+    @GetMapping({"/sites", "/sites/"})
+    public ResponseEntity<Map<String, Object>> sites() {
+        return buildSitesResponseSafely(null);
+    }
+
+    @PostMapping({"/sites", "/sites/"})
+    public ResponseEntity<Map<String, Object>> sites(@RequestBody(required = false) Map<String, Object> payload) {
+        return buildSitesResponseSafely(payload);
+    }
+
+    private ResponseEntity<Map<String, Object>> buildSitesResponseSafely(Map<String, Object> payload) {
+        try {
+            return ResponseEntity.ok(buildSitesResponse(resolveEffectiveSettings(payload)));
+        } catch (RuntimeException ex) {
+            log.warn("NetBox sites load failed: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "success", false,
+                    "error", firstNonBlank(ex.getMessage(), "Не удалось загрузить список sites из NetBox")
+            ));
+        }
     }
 
     private void persistNetBoxSyncSettings(Map<String, Object> payload) {
@@ -100,6 +114,14 @@ public class SettingsNetBoxSyncController {
             settingsTopLevelUpdateService.applyTopLevelUpdates(payload, settings);
         }
         return netBoxSyncSettingsService.load(settings);
+    }
+
+    private Map<String, Object> buildSitesResponse(NetBoxSyncSettingsService.NetBoxSyncSettings effectiveSettings) {
+        return Map.of(
+                "success", true,
+                "sites", syncService.loadAvailableSites(effectiveSettings),
+                "selectedSiteIds", effectiveSettings.selectedSiteIds()
+        );
     }
 
     @SuppressWarnings("unchecked")
@@ -144,5 +166,17 @@ public class SettingsNetBoxSyncController {
                 + ", interval_minutes=" + String.valueOf(interval)
                 + ", full_overwrite_pending=" + String.valueOf(overwritePending)
                 + ", selected_site_ids=" + selectedCount;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+        return "";
     }
 }
