@@ -248,12 +248,11 @@ public class ManagementController {
         Map<String, String> parameterTypes = settingsCatalogService.getParameterTypes();
         Map<String, List<String>> parameterDependencies = settingsCatalogService.getParameterDependencies();
         Map<String, Object> settings = sharedConfigService.loadSettings();
-        IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
-        Map<String, Object> effectiveLocationsPayload = locationCatalogService.buildEffectiveLocationsPayload(effectiveCatalog);
-        Map<String, Object> effectiveLocationTree = normalizeObjectMap(effectiveLocationsPayload.get("tree"));
+        Map<String, Object> passportLocationsPayload = loadPassportLocationsPayload();
+        Map<String, Object> passportLocationTree = normalizeObjectMap(passportLocationsPayload.get("tree"));
 
         Map<String, List<Map<String, Object>>> parameterValuesPayload =
-                buildPassportParameterPayload(parameterTypes.keySet(), settings, effectiveLocationsPayload);
+                buildPassportParameterPayload(parameterTypes.keySet(), settings, passportLocationsPayload);
         Map<String, List<String>> parameterValues = buildPassportParameterValues(parameterValuesPayload);
 
         List<String> statuses = toStringList(settings.get("object_statuses"));
@@ -340,8 +339,21 @@ public class ManagementController {
         model.addAttribute("networkSupportPhoneOptions", toStringList(settings.get("network_support_phone_options")));
         model.addAttribute("networkSpeedOptions", toStringList(settings.get("network_speed_options")));
         model.addAttribute("networkLegalEntityOptions", toStringList(settings.get("network_legal_entity_options")));
-        model.addAttribute("cities", settingsCatalogService.collectCities(effectiveLocationTree));
+        model.addAttribute("cities", settingsCatalogService.collectCities(passportLocationTree));
         model.addAttribute("passportPayloadJson", passportPayloadJson);
+    }
+
+    private Map<String, Object> loadPassportLocationsPayload() {
+        JsonNode configuredLocations = sharedConfigService.loadLocations();
+        Map<String, Object> configuredPayload = configuredLocations != null && configuredLocations.isObject()
+                ? normalizeObjectMap(objectMapper.convertValue(configuredLocations, Map.class))
+                : Map.of();
+        if (!normalizeObjectMap(configuredPayload.get("tree")).isEmpty()) {
+            return configuredPayload;
+        }
+
+        IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
+        return locationCatalogService.buildEffectiveLocationsPayload(effectiveCatalog);
     }
 
     private Map<String, List<Map<String, Object>>> buildPassportParameterPayload(Set<String> parameterKeys,

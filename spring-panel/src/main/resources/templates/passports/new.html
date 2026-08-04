@@ -1126,29 +1126,30 @@
           ? derived
           : (parameterValues[key] || []);
       } else {
-        const dependencyKeys = Array.isArray(PARAMETER_DEPENDENCIES[key]) ? PARAMETER_DEPENDENCIES[key] : [];
-        values = items
-          .filter((item) => itemMatchesSelections(item, selections, dependencyKeys))
-          .map((item) => item.value);
-        if (key === 'city' && !values.length) {
-          values = items
-            .filter((item) => itemMatchesSelections(item, selections, ['country', 'partner_type']))
-            .map((item) => item.value);
-        }
-        if (key === 'city' && !values.length) {
-          values = items.map((item) => item.value);
-        }
-        if (key === 'department' && !values.length) {
-          if (selections.business) {
-            values = items
-              .filter((item) => itemMatchesSelections(item, selections, ['business', 'city']))
-              .map((item) => item.value);
-          }
-        }
-        if (key === 'department' && !values.length && preserveCurrent) {
-          values = currentValue
+        if (key === 'department' && (!selections.partner_type || !selections.business)) {
+          values = preserveCurrent && currentValue
             ? [currentValue]
             : [];
+        } else {
+          const dependencyKeys = key === 'department'
+            ? ['country', 'partner_type', 'business']
+            : (Array.isArray(PARAMETER_DEPENDENCIES[key]) ? PARAMETER_DEPENDENCIES[key] : []);
+          values = items
+            .filter((item) => itemMatchesSelections(item, selections, dependencyKeys))
+            .map((item) => item.value);
+          if (key === 'city' && !values.length) {
+            values = items
+              .filter((item) => itemMatchesSelections(item, selections, ['country', 'partner_type']))
+              .map((item) => item.value);
+          }
+          if (key === 'city' && !values.length) {
+            values = items.map((item) => item.value);
+          }
+          if (key === 'department' && !values.length && preserveCurrent) {
+            values = currentValue
+              ? [currentValue]
+              : [];
+          }
         }
       }
       const unique = Array.from(new Set(values.filter(Boolean)));
