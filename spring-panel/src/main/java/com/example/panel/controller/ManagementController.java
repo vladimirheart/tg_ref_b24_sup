@@ -42,6 +42,14 @@ import java.util.Set;
 public class ManagementController {
 
     private static final Logger log = LoggerFactory.getLogger(ManagementController.class);
+    private static final List<String> DEFAULT_OBJECT_PASSPORT_STATUSES = List.of(
+            "Новый",
+            "Active",
+            "Стройка",
+            "Закрыт",
+            "Заморожен",
+            "Форс-мажор"
+    );
 
     private final NavigationService navigationService;
     private final TaskRepository taskRepository;
@@ -251,6 +259,14 @@ public class ManagementController {
         List<String> statuses = toStringList(settings.get("object_statuses"));
         if (statuses.isEmpty()) {
             statuses = toStringList(settings.get("client_statuses"));
+        }
+        if (statuses.isEmpty()) {
+            statuses = DEFAULT_OBJECT_PASSPORT_STATUSES;
+        } else {
+            LinkedHashSet<String> mergedStatuses = new LinkedHashSet<>();
+            mergedStatuses.addAll(DEFAULT_OBJECT_PASSPORT_STATUSES);
+            mergedStatuses.addAll(statuses);
+            statuses = List.copyOf(mergedStatuses);
         }
         List<String> statusesRequiringTask = toStringList(settings.get("statuses_requiring_task"));
 

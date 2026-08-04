@@ -1124,6 +1124,19 @@
         values = items
           .filter((item) => itemMatchesSelections(item, selections, dependencyKeys))
           .map((item) => item.value);
+        if (key === 'department' && !values.length) {
+          values = items
+            .filter((item) => itemMatchesSelections(item, selections, ['country', 'partner_type', 'city']))
+            .map((item) => item.value);
+        }
+        if (key === 'department' && !values.length) {
+          values = items
+            .filter((item) => itemMatchesSelections(item, selections, ['city']))
+            .map((item) => item.value);
+        }
+        if (key === 'department' && !values.length) {
+          values = items.map((item) => item.value);
+        }
       }
       const unique = Array.from(new Set(values.filter(Boolean)));
       const currentValue = normalizeCatalogValue(
