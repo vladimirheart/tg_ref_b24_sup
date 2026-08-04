@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -23,6 +24,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,13 +36,16 @@ public class ObjectPassportService {
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
     private final ObjectPassportPhotoStorageService photoStorageService;
     private final DataSource objectsDataSource;
 
     public ObjectPassportService(@Qualifier("objectsDataSource") DataSource objectsDataSource,
+                                 JdbcTemplate jdbcTemplate,
                                  ObjectMapper objectMapper,
                                  ObjectPassportPhotoStorageService photoStorageService) {
         this.objectsDataSource = objectsDataSource;
+        this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.photoStorageService = photoStorageService;
     }
@@ -170,6 +175,7 @@ public class ObjectPassportService {
                 LEFT JOIN objects o ON o.id = p.object_id
                 ORDER BY p.id DESC
                 """;
+        Map<String, Long> appealsCountByLocation = loadAppealCountsByLocation();
         try (Connection connection = openConnection();
              PreparedStatement statement = connection.prepareStatement(sql);
              ResultSet rs = statement.executeQuery()) {
@@ -187,6 +193,7 @@ public class ObjectPassportService {
                 item.put("location_address", firstNonBlank(normalized.get("location_address"), rs.getString("object_address")));
                 item.put("passport_number", firstNonBlank(normalized.get("department"), rs.getString("passport_number")));
                 item.put("object_name", firstNonBlank(rs.getString("object_name"), normalized.get("department")));
+                item.put("appeals_count", appealsCountByLocation.getOrDefault(buildLocationKey(normalized), 0L));
                 item.put("photos", normalized.get("photos"));
                 items.add(item);
             }
@@ -197,12 +204,19 @@ public class ObjectPassportService {
     }
 
     public Map<String, Object> getEmptyCasesPayload(long passportId) {
-        ensurePassportExists(passportId);
-        return Map.of(
-                "success", true,
-                "items", List.of(),
-                "total_minutes", 0,
-                "total_display", "0 мин");
+        try (Connection connection = openConnection()) {
+            StoredPassportRecord existing = loadStoredPassport(connection, passportId);
+            Map<String, Object> normalized = normalizePayload(Map.of(), existing.payload(), passportId);
+            List<Map<String, Object>> items = loadCases(normalized);
+            return Map.of(
+                    "success", true,
+                    "items", items,
+                    "total_count", items.size(),
+                    "total_minutes", 0,
+                    "total_display", "0 мин");
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Не удалось загрузить обращения паспорта объекта", ex);
+        }
     }
 
     public Map<String, Object> getEmptyTasksPayload(long passportId) {
@@ -696,6 +710,99 @@ public class ObjectPassportService {
             return department;
         }
         return buildObjectName(payload);
+    }
+
+    private Map<String, Long> loadAppealCountsByLocation() {
+        return jdbcTemplate.query(
+                """
+                        SELECT lower(trim(replace(replace(COALESCE(business, ''), 'Ё', 'Е'), 'ё', 'е'))) AS business_key,
+                               lower(trim(replace(replace(COALESCE(city, ''), 'Ё', 'Е'), 'ё', 'е'))) AS city_key,
+                               lower(trim(replace(replace(COALESCE(location_name, ''), 'Ё', 'Е'), 'ё', 'е'))) AS department_key,
+                               COUNT(*) AS total
+                        FROM messages
+                        WHERE trim(COALESCE(ticket_id, '')) <> ''
+                        GROUP BY business_key, city_key, department_key
+                        """,
+                rs -> {
+                    Map<String, Long> result = new LinkedHashMap<>();
+                    while (rs.next()) {
+                        String key = buildLocationKey(
+                                rs.getString("business_key"),
+                                rs.getString("city_key"),
+                                rs.getString("department_key"));
+                        result.put(key, rs.getLong("total"));
+                    }
+                    return result;
+                }
+        );
+    }
+
+    private List<Map<String, Object>> loadCases(Map<String, Object> payload) {
+        String businessKey = normalizeLookupValue(payload.get("business"));
+        String cityKey = normalizeLookupValue(payload.get("city"));
+        String departmentKey = normalizeLookupValue(payload.get("department"));
+        if (!StringUtils.hasText(businessKey) && !StringUtils.hasText(cityKey) && !StringUtils.hasText(departmentKey)) {
+            return List.of();
+        }
+
+        StringBuilder sql = new StringBuilder("""
+                SELECT ticket_id, business, city, problem, created_at
+                FROM messages
+                WHERE trim(COALESCE(ticket_id, '')) <> ''
+                """);
+        List<Object> params = new ArrayList<>();
+        appendNormalizedMatch(sql, params, "business", businessKey);
+        appendNormalizedMatch(sql, params, "city", cityKey);
+        appendNormalizedMatch(sql, params, "location_name", departmentKey);
+        sql.append(" ORDER BY COALESCE(created_at, '') DESC, ticket_id DESC");
+
+        return jdbcTemplate.query(
+                sql.toString(),
+                (rs, rowNum) -> {
+                    LinkedHashMap<String, Object> item = new LinkedHashMap<>();
+                    item.put("ticket_id", rs.getString("ticket_id"));
+                    item.put("business", rs.getString("business"));
+                    item.put("city", rs.getString("city"));
+                    item.put("problem", rs.getString("problem"));
+                    item.put("created_at", rs.getString("created_at"));
+                    return item;
+                },
+                params.toArray()
+        );
+    }
+
+    private void appendNormalizedMatch(StringBuilder sql, List<Object> params, String column, String value) {
+        if (!StringUtils.hasText(value)) {
+            return;
+        }
+        sql.append(" AND lower(trim(replace(replace(COALESCE(")
+                .append(column)
+                .append(", ''), 'Ё', 'Е'), 'ё', 'е'))) = ?");
+        params.add(value);
+    }
+
+    private String buildLocationKey(Map<String, Object> payload) {
+        return buildLocationKey(
+                normalizeLookupValue(payload.get("business")),
+                normalizeLookupValue(payload.get("city")),
+                normalizeLookupValue(payload.get("department"))
+        );
+    }
+
+    private String buildLocationKey(String business, String city, String department) {
+        return String.join("::", normalizeLookupValue(business), normalizeLookupValue(city), normalizeLookupValue(department));
+    }
+
+    private String normalizeLookupValue(Object raw) {
+        String value = stringValue(raw);
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        return value
+                .replace('Ё', 'Е')
+                .replace('ё', 'е')
+                .trim()
+                .toLowerCase(Locale.ROOT);
     }
 
     private String stringValue(Object raw) {

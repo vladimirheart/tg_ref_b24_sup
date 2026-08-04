@@ -9,6 +9,32 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <style>
+        .passport-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 1015;
+            background: var(--bs-body-bg, #fff);
+        }
+        .passport-sortable {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .passport-sortable .sort-indicator {
+            opacity: 0.55;
+            font-size: 0.85em;
+        }
+        .passport-summary-badge {
+            font-size: 0.95rem;
+        }
+        .passport-table tbody tr[data-passport-row] {
+            transition: background-color 0.15s ease;
+        }
+        .passport-table tbody tr[data-passport-row]:hover {
+            background: rgba(13, 110, 253, 0.04);
+        }
+    </style>
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="passports">
 <div th:replace="~{fragments/navbar :: navbar('passports')}"></div>
@@ -16,31 +42,97 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h1 class="h3 mb-1">Паспорта объектов</h1>
-            <p class="text-muted mb-0">Список сохранённых паспортов объектов и их текущих статусов.</p>
+            <p class="text-muted mb-0">Поиск, фильтрация и сортировка по сохранённым паспортам объектов.</p>
         </div>
         <div class="d-flex gap-2" th:if="${canViewSettings}">
             <a class="btn btn-primary" th:href="@{/object-passports/new}">Создать паспорт</a>
         </div>
     </div>
 
+    <div class="card shadow-sm mb-3 passport-toolbar">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-xl-4">
+                    <label class="form-label" for="passportsSearchInput">Поиск по всем столбцам</label>
+                    <input id="passportsSearchInput" type="search" class="form-control" placeholder="Департамент, город, адрес, статус, обращения...">
+                </div>
+                <div class="col-6 col-md-3 col-xl-2">
+                    <label class="form-label" for="departmentFilter">Департамент</label>
+                    <select id="departmentFilter" class="form-select">
+                        <option value="">Все</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3 col-xl-2">
+                    <label class="form-label" for="cityFilter">Город</label>
+                    <select id="cityFilter" class="form-select">
+                        <option value="">Все</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3 col-xl-2">
+                    <label class="form-label" for="businessFilter">Бизнес</label>
+                    <select id="businessFilter" class="form-select">
+                        <option value="">Все</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3 col-xl-2">
+                    <label class="form-label" for="statusFilter">Статус</label>
+                    <select id="statusFilter" class="form-select">
+                        <option value="">Все</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-8 col-xl-4">
+                    <label class="form-label" for="addressFilter">Адрес</label>
+                    <input id="addressFilter" type="search" class="form-control" placeholder="Фильтр по адресу">
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <label class="form-label" for="appealsMinFilter">Обращений не меньше</label>
+                    <input id="appealsMinFilter" type="number" min="0" step="1" class="form-control" placeholder="0">
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <button id="passportsResetFiltersBtn" type="button" class="btn btn-outline-secondary w-100">Сбросить</button>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                <span class="badge text-bg-primary passport-summary-badge">
+                    Всего: <span id="passportsTotalCount" th:text="${#lists.size(items)}">0</span>
+                </span>
+                <span class="badge text-bg-light border passport-summary-badge">
+                    Показано: <span id="passportsShownCount" th:text="${#lists.size(items)}">0</span>
+                </span>
+                <span class="text-muted small" id="passportsSummaryText">Сортировка по департаменту, городу, бизнесу, статусу, адресу и числу обращений доступна по клику на заголовок столбца.</span>
+            </div>
+        </div>
+    </div>
+
     <div class="card shadow-sm">
         <div class="table-responsive">
-            <table class="table align-middle mb-0">
+            <table class="table align-middle mb-0 passport-table" id="passportsTable">
                 <thead class="table-light">
                 <tr>
-                    <th>Департамент</th>
-                    <th>Город</th>
-                    <th>Бизнес</th>
-                    <th>Статус</th>
-                    <th>Адрес</th>
+                    <th class="passport-sortable" data-sort-key="department" data-sort-type="text">Департамент <span class="sort-indicator">↕</span></th>
+                    <th class="passport-sortable" data-sort-key="city" data-sort-type="text">Город <span class="sort-indicator">↕</span></th>
+                    <th class="passport-sortable" data-sort-key="business" data-sort-type="text">Бизнес <span class="sort-indicator">↕</span></th>
+                    <th class="passport-sortable" data-sort-key="status" data-sort-type="text">Статус <span class="sort-indicator">↕</span></th>
+                    <th class="passport-sortable" data-sort-key="location_address" data-sort-type="text">Адрес <span class="sort-indicator">↕</span></th>
+                    <th class="passport-sortable text-center" data-sort-key="appeals_count" data-sort-type="number">Обращения <span class="sort-indicator">↕</span></th>
                     <th></th>
                 </tr>
                 </thead>
-                <tbody>
+                <tbody id="passportsTableBody">
                 <tr th:if="${#lists.isEmpty(items)}">
-                    <td colspan="6" class="text-center text-muted py-4">Каталог пуст</td>
+                    <td colspan="7" class="text-center text-muted py-4">Каталог пуст</td>
                 </tr>
-                <tr th:each="item : ${items}">
+                <tr id="passportsNoResultsRow" class="d-none">
+                    <td colspan="7" class="text-center text-muted py-4">По текущим фильтрам ничего не найдено</td>
+                </tr>
+                <tr th:each="item : ${items}"
+                    data-passport-row
+                    th:attr="data-department=${item.department != null ? item.department : ''},
+                             data-city=${item.city != null ? item.city : ''},
+                             data-business=${item.business != null ? item.business : ''},
+                             data-status=${item.status != null ? item.status : ''},
+                             data-location-address=${item.location_address != null ? item.location_address : ''},
+                             data-appeals-count=${item.appeals_count != null ? item.appeals_count : 0}">
                     <td th:text="${item.department} ?: '—'"></td>
                     <td th:text="${item.city} ?: '—'"></td>
                     <td th:text="${item.business} ?: '—'"></td>
@@ -48,6 +140,9 @@
                         <span class="badge text-bg-light border" th:text="${item.status} ?: '—'"></span>
                     </td>
                     <td th:text="${item.location_address} ?: '—'"></td>
+                    <td class="text-center">
+                        <span class="badge text-bg-secondary" th:text="${item.appeals_count} ?: 0">0</span>
+                    </td>
                     <td class="text-end">
                         <a class="btn btn-outline-primary btn-sm" th:href="@{'/object-passports/' + ${item.id}}">Открыть</a>
                     </td>
@@ -58,5 +153,214 @@
     </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script>
+    (() => {
+        const tableBody = document.getElementById('passportsTableBody');
+        const rows = Array.from(document.querySelectorAll('[data-passport-row]'));
+        if (!tableBody || !rows.length) {
+            return;
+        }
+
+        const searchInput = document.getElementById('passportsSearchInput');
+        const departmentFilter = document.getElementById('departmentFilter');
+        const cityFilter = document.getElementById('cityFilter');
+        const businessFilter = document.getElementById('businessFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const addressFilter = document.getElementById('addressFilter');
+        const appealsMinFilter = document.getElementById('appealsMinFilter');
+        const resetFiltersBtn = document.getElementById('passportsResetFiltersBtn');
+        const shownCount = document.getElementById('passportsShownCount');
+        const summaryText = document.getElementById('passportsSummaryText');
+        const noResultsRow = document.getElementById('passportsNoResultsRow');
+        const sortHeaders = Array.from(document.querySelectorAll('[data-sort-key]'));
+
+        const state = {
+            sortKey: 'department',
+            sortDirection: 'asc',
+        };
+
+        function normalize(value) {
+            return String(value || '').trim().toLowerCase().replace(/ё/g, 'е');
+        }
+
+        function escapeSelectorValue(value) {
+            return String(value || '').trim();
+        }
+
+        function readRowValue(row, key) {
+            switch (key) {
+                case 'location_address':
+                    return row.dataset.locationAddress || '';
+                case 'appeals_count':
+                    return row.dataset.appealsCount || '0';
+                default:
+                    return row.dataset[key] || '';
+            }
+        }
+
+        function buildSearchableText(row) {
+            return normalize([
+                readRowValue(row, 'department'),
+                readRowValue(row, 'city'),
+                readRowValue(row, 'business'),
+                readRowValue(row, 'status'),
+                readRowValue(row, 'location_address'),
+                readRowValue(row, 'appeals_count'),
+            ].join(' '));
+        }
+
+        function buildOptions(select, values) {
+            if (!select) return;
+            const current = select.value;
+            select.innerHTML = '<option value="">Все</option>';
+            values.forEach((value) => {
+                const option = document.createElement('option');
+                option.value = escapeSelectorValue(value);
+                option.textContent = escapeSelectorValue(value);
+                select.appendChild(option);
+            });
+            if (Array.from(select.options).some((option) => option.value === current)) {
+                select.value = current;
+            }
+        }
+
+        function populateFilters() {
+            const collect = (key) => Array.from(new Set(
+                rows.map((row) => readRowValue(row, key)).filter((value) => String(value || '').trim())
+            )).sort((a, b) => a.localeCompare(b, 'ru', { sensitivity: 'base' }));
+
+            buildOptions(departmentFilter, collect('department'));
+            buildOptions(cityFilter, collect('city'));
+            buildOptions(businessFilter, collect('business'));
+            buildOptions(statusFilter, collect('status'));
+        }
+
+        function matchesFilters(row) {
+            const searchNeedle = normalize(searchInput ? searchInput.value : '');
+            const addressNeedle = normalize(addressFilter ? addressFilter.value : '');
+            const departmentValue = normalize(departmentFilter ? departmentFilter.value : '');
+            const cityValue = normalize(cityFilter ? cityFilter.value : '');
+            const businessValue = normalize(businessFilter ? businessFilter.value : '');
+            const statusValue = normalize(statusFilter ? statusFilter.value : '');
+            const minAppealsRaw = appealsMinFilter ? appealsMinFilter.value : '';
+            const minAppeals = minAppealsRaw === '' ? null : Number(minAppealsRaw);
+
+            const searchable = buildSearchableText(row);
+            const department = normalize(readRowValue(row, 'department'));
+            const city = normalize(readRowValue(row, 'city'));
+            const business = normalize(readRowValue(row, 'business'));
+            const status = normalize(readRowValue(row, 'status'));
+            const address = normalize(readRowValue(row, 'location_address'));
+            const appeals = Number(readRowValue(row, 'appeals_count') || 0);
+
+            if (searchNeedle && !searchable.includes(searchNeedle)) return false;
+            if (departmentValue && department !== departmentValue) return false;
+            if (cityValue && city !== cityValue) return false;
+            if (businessValue && business !== businessValue) return false;
+            if (statusValue && status !== statusValue) return false;
+            if (addressNeedle && !address.includes(addressNeedle)) return false;
+            if (minAppeals != null && !Number.isNaN(minAppeals) && appeals < minAppeals) return false;
+            return true;
+        }
+
+        function compareRows(left, right) {
+            const header = sortHeaders.find((item) => item.dataset.sortKey === state.sortKey);
+            const sortType = header ? header.dataset.sortType : 'text';
+            const leftValue = readRowValue(left, state.sortKey);
+            const rightValue = readRowValue(right, state.sortKey);
+
+            let result = 0;
+            if (sortType === 'number') {
+                result = Number(leftValue || 0) - Number(rightValue || 0);
+            } else {
+                result = String(leftValue || '').localeCompare(String(rightValue || ''), 'ru', { sensitivity: 'base' });
+            }
+
+            if (result === 0) {
+                result = String(readRowValue(left, 'department') || '').localeCompare(
+                    String(readRowValue(right, 'department') || ''),
+                    'ru',
+                    { sensitivity: 'base' }
+                );
+            }
+            return state.sortDirection === 'asc' ? result : -result;
+        }
+
+        function updateSortIndicators() {
+            sortHeaders.forEach((header) => {
+                const indicator = header.querySelector('.sort-indicator');
+                if (!indicator) return;
+                if (header.dataset.sortKey !== state.sortKey) {
+                    indicator.textContent = '↕';
+                    return;
+                }
+                indicator.textContent = state.sortDirection === 'asc' ? '↑' : '↓';
+            });
+        }
+
+        function applyState() {
+            const filteredRows = rows.filter(matchesFilters).sort(compareRows);
+            rows.forEach((row) => {
+                row.classList.add('d-none');
+                tableBody.appendChild(row);
+            });
+            filteredRows.forEach((row) => {
+                row.classList.remove('d-none');
+                tableBody.appendChild(row);
+            });
+
+            if (shownCount) {
+                shownCount.textContent = String(filteredRows.length);
+            }
+            if (summaryText) {
+                const sortLabel = sortHeaders.find((header) => header.dataset.sortKey === state.sortKey)?.textContent?.replace(/[↕↑↓]/g, '').trim() || 'Департамент';
+                summaryText.textContent = `Показано ${filteredRows.length} из ${rows.length} · Сортировка: ${sortLabel} (${state.sortDirection === 'asc' ? 'по возрастанию' : 'по убыванию'})`;
+            }
+            if (noResultsRow) {
+                noResultsRow.classList.toggle('d-none', filteredRows.length > 0);
+            }
+            updateSortIndicators();
+        }
+
+        function bindFilterEvents() {
+            [searchInput, departmentFilter, cityFilter, businessFilter, statusFilter, addressFilter, appealsMinFilter]
+                .filter(Boolean)
+                .forEach((element) => {
+                    element.addEventListener('input', applyState);
+                    element.addEventListener('change', applyState);
+                });
+
+            if (resetFiltersBtn) {
+                resetFiltersBtn.addEventListener('click', () => {
+                    if (searchInput) searchInput.value = '';
+                    if (departmentFilter) departmentFilter.value = '';
+                    if (cityFilter) cityFilter.value = '';
+                    if (businessFilter) businessFilter.value = '';
+                    if (statusFilter) statusFilter.value = '';
+                    if (addressFilter) addressFilter.value = '';
+                    if (appealsMinFilter) appealsMinFilter.value = '';
+                    applyState();
+                });
+            }
+
+            sortHeaders.forEach((header) => {
+                header.addEventListener('click', () => {
+                    const nextKey = header.dataset.sortKey || 'department';
+                    if (state.sortKey === nextKey) {
+                        state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        state.sortKey = nextKey;
+                        state.sortDirection = header.dataset.sortType === 'number' ? 'desc' : 'asc';
+                    }
+                    applyState();
+                });
+            });
+        }
+
+        populateFilters();
+        bindFilterEvents();
+        applyState();
+    })();
+</script>
 </body>
 </html>
