@@ -997,6 +997,22 @@
       : JSON.parse(JSON.stringify(parameterValuesInitial));
     const parameterKeys = Object.keys(parameterValuesInitial || {});
     let parameterValues = {};
+    const BUSINESS_NAME_ALIASES = Object.freeze({
+      'СушиВесла': 'СушиВёсла',
+    });
+
+    function normalizeBusinessName(value) {
+      const normalized = normalizeCatalogValue(value);
+      return BUSINESS_NAME_ALIASES[normalized] || normalized;
+    }
+
+    function normalizeLocationDependencyValue(key, value) {
+      const normalizedKey = normalizeCatalogValue(key);
+      if (normalizedKey === 'business') {
+        return normalizeBusinessName(value);
+      }
+      return normalizeCatalogValue(value);
+    }
 
     function normalizeParameterDependencies(raw) {
       const result = {};
@@ -1005,7 +1021,7 @@
       }
       Object.entries(raw).forEach(([key, value]) => {
         const normalizedKey = normalizeCatalogValue(key);
-        const normalizedValue = normalizeCatalogValue(value);
+        const normalizedValue = normalizeLocationDependencyValue(normalizedKey, value);
         if (normalizedKey && normalizedValue) {
           result[normalizedKey] = normalizedValue;
         }
@@ -1022,7 +1038,9 @@
           .filter((item) => item && typeof item === 'object')
           .map((item) => ({
             id: item.id ?? null,
-            value: normalizeCatalogValue(item.value),
+            value: key === 'business'
+              ? normalizeBusinessName(item.value)
+              : normalizeCatalogValue(item.value),
             is_deleted: Boolean(item.is_deleted),
             dependencies: normalizeParameterDependencies(item.dependencies),
             extra: item.extra && typeof item.extra === 'object' ? item.extra : {},
@@ -1046,10 +1064,10 @@
 
     function getCurrentLocationSelections() {
       return {
-        country: normalizeCatalogValue(countrySelect ? countrySelect.value : ''),
-        partner_type: normalizeCatalogValue(partnerTypeSelect ? partnerTypeSelect.value : ''),
-        business: normalizeCatalogValue(businessSelect ? businessSelect.value : ''),
-        city: normalizeCatalogValue(cityInput ? cityInput.value : ''),
+        country: normalizeLocationDependencyValue('country', countrySelect ? countrySelect.value : ''),
+        partner_type: normalizeLocationDependencyValue('partner_type', partnerTypeSelect ? partnerTypeSelect.value : ''),
+        business: normalizeLocationDependencyValue('business', businessSelect ? businessSelect.value : ''),
+        city: normalizeLocationDependencyValue('city', cityInput ? cityInput.value : ''),
       };
     }
 
@@ -1058,12 +1076,15 @@
       const deps = item.dependencies && typeof item.dependencies === 'object' ? item.dependencies : {};
       const keys = Array.isArray(dependencyKeys) ? dependencyKeys : [];
       return keys.every((depKey) => {
-        const selectedValue = normalizeCatalogValue(selections[depKey]);
+        const selectedValue = normalizeLocationDependencyValue(depKey, selections[depKey]);
         if (!selectedValue) {
           return true;
         }
-        const candidateValue = normalizeCatalogValue(deps[depKey]);
-        return candidateValue && candidateValue === selectedValue;
+        const candidateValue = normalizeLocationDependencyValue(depKey, deps[depKey]);
+        if (!candidateValue) {
+          return true;
+        }
+        return candidateValue === selectedValue;
       });
     }
 
@@ -1077,10 +1098,10 @@
       ['city', 'department'].forEach((key) => {
         const items = Array.isArray(parameterItemsByType[key]) ? parameterItemsByType[key] : [];
         items.forEach((item) => {
-          if (!itemMatchesSelections(item, selections, ['country', 'partner_type'])) {
+          if (!itemMatchesSelections(item, selections, ['country', 'partner_type', 'city'])) {
             return;
           }
-          const businessValue = normalizeCatalogValue(item.dependencies && item.dependencies.business);
+          const businessValue = normalizeLocationDependencyValue('business', item.dependencies && item.dependencies.business);
           if (businessValue) {
             derived.add(businessValue);
           }
@@ -2589,8 +2610,9 @@
       ensureSelectHasOption(departmentSelect, data.department || '');
       departmentSelect.value = data.department || '';
       refreshSearchableSelect(departmentSelect);
-      ensureSelectHasOption(businessSelect, data.business || '');
-      businessSelect.value = data.business || '';
+      const normalizedBusinessValue = normalizeBusinessName(data.business || '');
+      ensureSelectHasOption(businessSelect, normalizedBusinessValue);
+      businessSelect.value = normalizedBusinessValue;
       refreshSearchableSelect(businessSelect);
       ensureSelectHasOption(partnerTypeSelect, data.partner_type || '');
       partnerTypeSelect.value = data.partner_type || '';
@@ -2666,7 +2688,7 @@
     function collectFormData() {
       return {
         department: departmentSelect.value.trim(),
-        business: businessSelect.value.trim(),
+        business: normalizeBusinessName(businessSelect.value.trim()),
         partner_type: partnerTypeSelect.value.trim(),
         country: countrySelect.value.trim(),
         legal_entity: legalEntitySelect.value.trim(),
