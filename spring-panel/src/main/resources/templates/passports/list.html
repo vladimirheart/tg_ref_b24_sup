@@ -10,12 +10,6 @@
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <style>
-        .passport-toolbar {
-            position: sticky;
-            top: 0;
-            z-index: 1015;
-            background: var(--bs-body-bg, #fff);
-        }
         .passport-sortable {
             cursor: pointer;
             user-select: none;
@@ -34,6 +28,10 @@
         .passport-table tbody tr[data-passport-row]:hover {
             background: rgba(13, 110, 253, 0.04);
         }
+        .passport-quick-search {
+            min-width: 18rem;
+            max-width: 24rem;
+        }
     </style>
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="passports">
@@ -44,54 +42,15 @@
             <h1 class="h3 mb-1">Паспорта объектов</h1>
             <p class="text-muted mb-0">Поиск, фильтрация и сортировка по сохранённым паспортам объектов.</p>
         </div>
-        <div class="d-flex gap-2" th:if="${canViewSettings}">
-            <a class="btn btn-primary" th:href="@{/object-passports/new}">Создать паспорт</a>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <a class="btn btn-primary" th:if="${canViewSettings}" th:href="@{/object-passports/new}">Создать паспорт</a>
+            <button class="btn btn-outline-primary" id="passportsFiltersBtn" type="button" data-bs-toggle="modal" data-bs-target="#passportsFiltersModal">Фильтры</button>
+            <input id="passportsSearchInput" type="search" class="form-control passport-quick-search" placeholder="Поиск по всем полям">
         </div>
     </div>
 
-    <div class="card shadow-sm mb-3 passport-toolbar">
+    <div class="card shadow-sm mb-3">
         <div class="card-body">
-            <div class="row g-3 align-items-end">
-                <div class="col-12 col-xl-4">
-                    <label class="form-label" for="passportsSearchInput">Поиск по всем столбцам</label>
-                    <input id="passportsSearchInput" type="search" class="form-control" placeholder="Департамент, город, адрес, статус, обращения...">
-                </div>
-                <div class="col-6 col-md-3 col-xl-2">
-                    <label class="form-label" for="departmentFilter">Департамент</label>
-                    <select id="departmentFilter" class="form-select">
-                        <option value="">Все</option>
-                    </select>
-                </div>
-                <div class="col-6 col-md-3 col-xl-2">
-                    <label class="form-label" for="cityFilter">Город</label>
-                    <select id="cityFilter" class="form-select">
-                        <option value="">Все</option>
-                    </select>
-                </div>
-                <div class="col-6 col-md-3 col-xl-2">
-                    <label class="form-label" for="businessFilter">Бизнес</label>
-                    <select id="businessFilter" class="form-select">
-                        <option value="">Все</option>
-                    </select>
-                </div>
-                <div class="col-6 col-md-3 col-xl-2">
-                    <label class="form-label" for="statusFilter">Статус</label>
-                    <select id="statusFilter" class="form-select">
-                        <option value="">Все</option>
-                    </select>
-                </div>
-                <div class="col-12 col-md-8 col-xl-4">
-                    <label class="form-label" for="addressFilter">Адрес</label>
-                    <input id="addressFilter" type="search" class="form-control" placeholder="Фильтр по адресу">
-                </div>
-                <div class="col-6 col-md-4 col-xl-2">
-                    <label class="form-label" for="appealsMinFilter">Обращений не меньше</label>
-                    <input id="appealsMinFilter" type="number" min="0" step="1" class="form-control" placeholder="0">
-                </div>
-                <div class="col-6 col-md-4 col-xl-2">
-                    <button id="passportsResetFiltersBtn" type="button" class="btn btn-outline-secondary w-100">Сбросить</button>
-                </div>
-            </div>
             <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                 <span class="badge text-bg-primary passport-summary-badge">
                     Всего: <span id="passportsTotalCount" th:text="${#lists.size(items)}">0</span>
@@ -151,6 +110,57 @@
             </table>
         </div>
     </div>
+
+    <div class="modal fade" id="passportsFiltersModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Фильтры паспортов</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="departmentFilter">Департамент</label>
+                            <select id="departmentFilter" class="form-select">
+                                <option value="">Все</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="cityFilter">Город</label>
+                            <select id="cityFilter" class="form-select">
+                                <option value="">Все</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="businessFilter">Бизнес</label>
+                            <select id="businessFilter" class="form-select">
+                                <option value="">Все</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="statusFilter">Статус</label>
+                            <select id="statusFilter" class="form-select">
+                                <option value="">Все</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-8">
+                            <label class="form-label" for="addressFilter">Адрес</label>
+                            <input id="addressFilter" type="search" class="form-control" placeholder="Фильтр по адресу">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="appealsMinFilter">Обращений не меньше</label>
+                            <input id="appealsMinFilter" type="number" min="0" step="1" class="form-control" placeholder="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="passportsResetFiltersBtn" type="button" class="btn btn-outline-secondary me-auto">Сбросить</button>
+                    <button id="passportsApplyFiltersBtn" type="button" class="btn btn-primary" data-bs-dismiss="modal">Применить</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <script>
@@ -169,6 +179,7 @@
         const addressFilter = document.getElementById('addressFilter');
         const appealsMinFilter = document.getElementById('appealsMinFilter');
         const resetFiltersBtn = document.getElementById('passportsResetFiltersBtn');
+        const applyFiltersBtn = document.getElementById('passportsApplyFiltersBtn');
         const shownCount = document.getElementById('passportsShownCount');
         const summaryText = document.getElementById('passportsSummaryText');
         const noResultsRow = document.getElementById('passportsNoResultsRow');
@@ -329,6 +340,10 @@
                     element.addEventListener('input', applyState);
                     element.addEventListener('change', applyState);
                 });
+
+            if (applyFiltersBtn) {
+                applyFiltersBtn.addEventListener('click', applyState);
+            }
 
             if (resetFiltersBtn) {
                 resetFiltersBtn.addEventListener('click', () => {

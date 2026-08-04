@@ -38,8 +38,13 @@ public class RestExceptionHandler {
     }
 
     @ExceptionHandler(IOException.class)
-    public ResponseEntity<ApiErrorResponse> handleIo(IOException ex, HttpServletRequest request) {
-        log.warn("I/O exception: {}", ex.getMessage());
+    public ResponseEntity<?> handleIo(IOException ex, HttpServletRequest request) {
+        String message = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+        if (isClientAbort(ex) || isBinaryRequest(request)) {
+            log.info("Client connection aborted on {}: {}", request != null ? request.getRequestURI() : "unknown", message);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+        log.warn("I/O exception: {}", message);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Не удалось обработать файл", "FILE_IO_ERROR", request);
     }
 
@@ -145,5 +150,35 @@ public class RestExceptionHandler {
         }
         String uri = request.getRequestURI();
         return uri != null && uri.contains("/api/events/stream");
+    }
+
+    private boolean isBinaryRequest(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        String accept = request.getHeader("Accept");
+        if (accept != null) {
+            String normalized = accept.toLowerCase();
+            if (normalized.startsWith("image/")
+                    || normalized.startsWith("video/")
+                    || normalized.startsWith("audio/")
+                    || normalized.contains("application/octet-stream")) {
+                return true;
+            }
+        }
+        String uri = request.getRequestURI();
+        return uri != null && (uri.contains("/photos/file/") || uri.contains("/attachments/"));
+    }
+
+    private boolean isClientAbort(IOException ex) {
+        String message = ex.getMessage();
+        if (message == null) {
+            return false;
+        }
+        String normalized = message.toLowerCase();
+        return normalized.contains("broken pipe")
+                || normalized.contains("connection reset")
+                || normalized.contains("forcibly closed")
+                || normalized.contains("разорвала установленное подключение");
     }
 }
