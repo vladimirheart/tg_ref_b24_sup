@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -25,6 +27,8 @@ public class NetBoxApiService {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
     private static final TypeReference<LinkedHashMap<String, Object>> MAP_TYPE = new TypeReference<>() { };
+    private static final Pattern HTML_TITLE_PATTERN = Pattern.compile("<title>(.*?)</title>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
@@ -131,11 +135,37 @@ public class NetBoxApiService {
         if (statusCode >= 200 && statusCode < 300) {
             return;
         }
-        String snippet = body == null ? "" : body.trim();
-        if (snippet.length() > 300) {
-            snippet = snippet.substring(0, 300);
-        }
+        String snippet = summarizeErrorBody(body);
         throw new IllegalStateException("NetBox вернул HTTP " + statusCode + " для " + url + (snippet.isEmpty() ? "" : ": " + snippet));
+    }
+
+    String summarizeErrorBody(String body) {
+        String snippet = body == null ? "" : body.trim();
+        if (!StringUtils.hasText(snippet)) {
+            return "";
+        }
+        String htmlTitle = extractHtmlTitle(snippet);
+        if (StringUtils.hasText(htmlTitle)) {
+            return htmlTitle;
+        }
+        snippet = HTML_TAG_PATTERN.matcher(snippet).replaceAll(" ");
+        snippet = snippet.replace('\u00A0', ' ').replaceAll("\\s+", " ").trim();
+        if (snippet.length() > 220) {
+            snippet = snippet.substring(0, 220).trim();
+        }
+        return snippet;
+    }
+
+    private String extractHtmlTitle(String body) {
+        Matcher matcher = HTML_TITLE_PATTERN.matcher(body);
+        if (!matcher.find()) {
+            return "";
+        }
+        String title = matcher.group(1);
+        if (!StringUtils.hasText(title)) {
+            return "";
+        }
+        return title.replaceAll("\\s+", " ").trim();
     }
 
     private URI resolveUri(String baseUrl, String pathOrUrl) {
