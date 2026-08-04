@@ -1,0 +1,71 @@
+/* Shared form controls: single source of truth for global field styling */
+:root {
+    --ui-form-border: color-mix(in srgb, var(--ui-border) 78%, transparent);
+    --ui-form-border-strong: color-mix(in srgb, var(--ui-border) 88%, transparent);
+    --ui-form-bg:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--ui-surface) 96%, white),
+            color-mix(in srgb, var(--muted) 24%, var(--ui-surface))
+        );
+    --ui-form-addon-bg: color-mix(in srgb, var(--muted) 78%, var(--ui-surface));
+    --ui-form-focus-border: color-mix(in srgb, var(--ui-primary) 45%, #fff);
+    --ui-form-focus-shadow:
+        0 0 0 0.2rem color-mix(in srgb, var(--ui-primary) 16%, transparent),
+        0 14px 26px rgba(18, 33, 23, 0.08);
+    --ui-form-inset-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.form-control,
+.form-select,
+.input-group-text,
+.searchable-select .dropdown-toggle {
+    color: inherit;
+    border-radius: calc(var(--ui-radius) * 0.6) !important;
+    border-color: var(--ui-form-border) !important;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.form-control,
+.form-select {
+    padding: 0.62rem 0.88rem;
+    background: var(--ui-form-bg);
+    box-shadow: var(--ui-form-inset-shadow);
+}
+
+.input-group-text {
+    background: var(--ui-form-addon-bg);
+}
+
+.searchable-select .dropdown-toggle {
+    background: color-mix(in srgb, var(--ui-surface) 96%, white) !important;
+}
+
+.form-control:hover,
+.form-select:hover,
+.input-group-text:hover,
+.searchable-select .dropdown-toggle:hover,
+.searchable-select .dropdown-toggle:active {
+    border-color: var(--ui-form-border) !important;
+    box-shadow: none !important;
+    background-color: inherit;
+    color: inherit !important;
+    transform: none !important;
+    filter: none !important;
+}
+
+.searchable-select .dropdown-toggle:hover,
+.searchable-select .dropdown-toggle:active {
+    background: color-mix(in srgb, var(--ui-surface) 96%, white) !important;
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-control:focus-visible,
+.form-select:focus-visible,
+.searchable-select .dropdown-toggle:focus,
+.searchable-select .dropdown-toggle:focus-visible {
+    border-color: var(--ui-form-focus-border) !important;
+    box-shadow: var(--ui-form-focus-shadow) !important;
+    outline: none;
+}

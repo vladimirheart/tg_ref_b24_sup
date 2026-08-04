@@ -103,10 +103,7 @@ body {
 }
 
 .btn,
-.form-control,
-.form-select,
-.form-check-input,
-.input-group-text {
+.form-check-input {
     border-radius: calc(var(--ui-radius) * 0.6) !important;
     border-color: var(--ui-border) !important;
 }
@@ -534,18 +531,12 @@ body {
 .modal-content,
 .table,
 .list-group-item,
-.form-control,
-.form-select,
-.input-group-text,
 .dropdown-menu {
     border-color: var(--ui-border-soft) !important;
 }
 
 .card:hover,
 .modal-content:hover,
-.form-control:hover,
-.form-select:hover,
-.input-group-text:hover,
 .dropdown-menu:hover {
     border-color: var(--ui-border-soft) !important;
 }
@@ -733,9 +724,6 @@ body {
   .btn:active,
   .card:hover,
   .modal-content:hover,
-  .form-control:hover,
-  .form-select:hover,
-  .input-group-text:hover,
   .nav-link:hover,
   .dropdown-item:hover,
   .list-group-item:hover,

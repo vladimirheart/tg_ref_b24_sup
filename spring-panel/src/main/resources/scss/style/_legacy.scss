@@ -655,9 +655,7 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 .list-group-item,
 .page-link,
 .table,
-.card,
-.form-control,
-.form-select {
+.card {
     transition: none !important;
 }
 
@@ -669,11 +667,6 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
     --bs-btn-active-border-color: var(--bs-btn-border-color);
 }
 
-.form-control,
-.form-select {
-    --bs-form-control-bg: var(--bs-body-bg);
-}
-
 @media (hover: hover) {
     .btn:hover,
     .btn:active,
@@ -683,8 +676,6 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
     .page-link:hover,
     .card:hover,
     .modal-content:hover,
-    .form-control:hover,
-    .form-select:hover,
     .gradient-border-hover:hover,
     .gradient-border-stop-hover:hover,
     .settings-tile:hover,
