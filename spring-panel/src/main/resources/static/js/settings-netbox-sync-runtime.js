@@ -222,17 +222,56 @@
     }
 
     function resolveSiteStatusBadgeClass(status) {
-      const normalized = String(status || '').trim().toLowerCase();
-      if (normalized.includes('active') || normalized.includes('актив')) {
+      const normalized = normalizeSiteStatus(status);
+      if (isRetiredSiteStatus(normalized)) {
+        return 'text-bg-secondary-subtle border border-secondary-subtle text-secondary-emphasis';
+      }
+      if (isActiveSiteStatus(normalized)) {
         return 'text-bg-success-subtle border border-success-subtle text-success-emphasis';
       }
       if (normalized.includes('planned') || normalized.includes('plan') || normalized.includes('заплан')) {
         return 'text-bg-info-subtle border border-info-subtle text-info-emphasis';
       }
-      if (normalized.includes('offline') || normalized.includes('retired') || normalized.includes('decom') || normalized.includes('неактив')) {
-        return 'text-bg-secondary-subtle border border-secondary-subtle text-secondary-emphasis';
-      }
       return 'text-bg-light border text-body-secondary';
+    }
+
+    function normalizeSiteStatus(status) {
+      return String(status || '').trim().toLowerCase();
+    }
+
+    function isRetiredSiteStatus(normalizedStatus) {
+      const normalized = normalizeSiteStatus(normalizedStatus);
+      return normalized.includes('offline')
+        || normalized.includes('retired')
+        || normalized.includes('retried')
+        || normalized.includes('decom')
+        || normalized.includes('неактив');
+    }
+
+    function isActiveSiteStatus(normalizedStatus) {
+      const normalized = normalizeSiteStatus(normalizedStatus);
+      if (!normalized) {
+        return false;
+      }
+      if (isRetiredSiteStatus(normalized)) {
+        return false;
+      }
+      return normalized === 'active'
+        || normalized.includes(' active')
+        || normalized.startsWith('active ')
+        || normalized.endsWith(' active')
+        || normalized === 'активен'
+        || normalized.startsWith('актив')
+        || normalized.includes('действ');
+    }
+
+    function selectSitesByPredicate(predicate) {
+      updateSetting(
+        'selected_site_ids',
+        siteCatalogState
+          .filter((site) => predicate(site))
+          .map((site) => site.id)
+      );
     }
 
     function renderSiteCatalog() {
@@ -631,6 +670,20 @@
         selectAllSitesButton.dataset.netBoxSyncBound = 'true';
         selectAllSitesButton.addEventListener('click', () => {
           updateSetting('selected_site_ids', siteCatalogState.map((site) => site.id));
+        });
+      }
+      const selectActiveSitesButton = document.getElementById('netBoxSyncSelectActiveSitesBtn');
+      if (selectActiveSitesButton instanceof HTMLButtonElement && !selectActiveSitesButton.dataset.netBoxSyncBound) {
+        selectActiveSitesButton.dataset.netBoxSyncBound = 'true';
+        selectActiveSitesButton.addEventListener('click', () => {
+          selectSitesByPredicate((site) => isActiveSiteStatus(site.status));
+        });
+      }
+      const selectRetiredSitesButton = document.getElementById('netBoxSyncSelectRetiredSitesBtn');
+      if (selectRetiredSitesButton instanceof HTMLButtonElement && !selectRetiredSitesButton.dataset.netBoxSyncBound) {
+        selectRetiredSitesButton.dataset.netBoxSyncBound = 'true';
+        selectRetiredSitesButton.addEventListener('click', () => {
+          selectSitesByPredicate((site) => isRetiredSiteStatus(site.status));
         });
       }
       const clearSitesButton = document.getElementById('netBoxSyncClearSitesBtn');

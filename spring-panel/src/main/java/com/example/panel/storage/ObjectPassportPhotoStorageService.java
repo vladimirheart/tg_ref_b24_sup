@@ -134,7 +134,7 @@ public class ObjectPassportPhotoStorageService {
     }
 
     public void delete(String storedName) throws IOException {
-        Path resolved = resolveStoredPhoto(storedName);
+        Path resolved = resolveStoredPhotoForDeletion(storedName);
         Files.deleteIfExists(resolved);
     }
 
@@ -144,7 +144,7 @@ public class ObjectPassportPhotoStorageService {
         }
         try {
             delete(storedName);
-        } catch (IOException ex) {
+        } catch (IOException | IllegalArgumentException ex) {
             log.warn("Failed to delete passport photo {}", storedName, ex);
         }
     }
@@ -163,6 +163,17 @@ public class ObjectPassportPhotoStorageService {
         }
         Path resolved = passportPhotosRoot.resolve(StringUtils.cleanPath(storedName)).normalize();
         if (!resolved.startsWith(passportPhotosRoot) || !Files.exists(resolved) || !Files.isRegularFile(resolved)) {
+            throw new IllegalArgumentException("Файл не найден");
+        }
+        return resolved;
+    }
+
+    private Path resolveStoredPhotoForDeletion(String storedName) {
+        if (!StringUtils.hasText(storedName)) {
+            throw new IllegalArgumentException("Файл не найден");
+        }
+        Path resolved = passportPhotosRoot.resolve(StringUtils.cleanPath(storedName)).normalize();
+        if (!resolved.startsWith(passportPhotosRoot)) {
             throw new IllegalArgumentException("Файл не найден");
         }
         return resolved;
