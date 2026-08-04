@@ -288,25 +288,6 @@
           <div class="card-body">
           <div class="row g-3">
             <div class="col-sm-6 col-xl-4">
-              <label class="form-label">Департамент<span class="text-danger">*</span></label>
-              <div class="searchable-select dropdown" data-select-id="departmentSelect" data-force-custom-dropdown>
-                <select class="form-select d-none" id="departmentSelect">
-                  <option value="">Не выбрано</option>
-                  <option th:each="value : ${parameterValues['department']}" th:value="${value}" th:text="${value}"></option>
-                </select>
-                <div class="input-group input-group-sm">
-                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-                    <span class="searchable-select-label">Не выбрано</span>
-                  </button>
-                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="department" data-target="departmentSelect">+</button>
-                </div>
-                <div class="dropdown-menu p-2 shadow-sm">
-                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
-                  <div class="searchable-select-options" role="listbox"></div>
-                </div>
-              </div>
-            </div>
-            <div class="col-sm-6 col-xl-4">
               <label class="form-label">Бизнес</label>
               <div class="searchable-select dropdown" data-select-id="businessSelect" data-force-custom-dropdown>
                 <select class="form-select d-none" id="businessSelect">
@@ -324,6 +305,26 @@
                   <div class="searchable-select-options" role="listbox"></div>
                 </div>
               </div>
+            </div>
+            <div class="col-sm-6 col-xl-4">
+              <label class="form-label">Департамент<span class="text-danger">*</span></label>
+              <div class="searchable-select dropdown" data-select-id="departmentSelect" data-force-custom-dropdown>
+                <select class="form-select d-none" id="departmentSelect">
+                  <option value="">Не выбрано</option>
+                  <option th:each="value : ${parameterValues['department']}" th:value="${value}" th:text="${value}"></option>
+                </select>
+                <div class="input-group input-group-sm">
+                  <button class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                    <span class="searchable-select-label">Не выбрано</span>
+                  </button>
+                  <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="department" data-target="departmentSelect">+</button>
+                </div>
+                <div class="dropdown-menu p-2 shadow-sm">
+                  <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
+                  <div class="searchable-select-options" role="listbox"></div>
+                </div>
+              </div>
+              <div class="form-text">Список департаментов зависит от выбранного бизнеса.</div>
             </div>
             <div class="col-sm-6 col-xl-4">
               <label class="form-label">Тип партнёра</label>
@@ -1113,6 +1114,11 @@
     function getFilteredParameterValues(key, { preserveCurrent = false } = {}) {
       const items = Array.isArray(parameterItemsByType[key]) ? parameterItemsByType[key] : [];
       const selections = getCurrentLocationSelections();
+      const currentValue = normalizeCatalogValue(
+        key === 'city'
+          ? (cityInput ? cityInput.value : '')
+          : (document.getElementById(`${key === 'partner_type' ? 'partnerType' : key === 'legal_entity' ? 'legalEntity' : key}Select`) || {}).value,
+      );
       let values = [];
       if (key === 'business') {
         const derived = collectDerivedBusinessValues(selections);
@@ -1133,25 +1139,19 @@
           values = items.map((item) => item.value);
         }
         if (key === 'department' && !values.length) {
-          values = items
-            .filter((item) => itemMatchesSelections(item, selections, ['country', 'partner_type', 'city']))
-            .map((item) => item.value);
+          if (selections.business) {
+            values = items
+              .filter((item) => itemMatchesSelections(item, selections, ['business', 'city']))
+              .map((item) => item.value);
+          }
         }
-        if (key === 'department' && !values.length) {
-          values = items
-            .filter((item) => itemMatchesSelections(item, selections, ['city']))
-            .map((item) => item.value);
-        }
-        if (key === 'department' && !values.length) {
-          values = items.map((item) => item.value);
+        if (key === 'department' && !values.length && preserveCurrent) {
+          values = currentValue
+            ? [currentValue]
+            : [];
         }
       }
       const unique = Array.from(new Set(values.filter(Boolean)));
-      const currentValue = normalizeCatalogValue(
-        key === 'city'
-          ? (cityInput ? cityInput.value : '')
-          : (document.getElementById(`${key === 'partner_type' ? 'partnerType' : key === 'legal_entity' ? 'legalEntity' : key}Select`) || {}).value,
-      );
       if (preserveCurrent && currentValue && !unique.includes(currentValue)) {
         unique.push(currentValue);
       }
@@ -2627,24 +2627,24 @@
     function populateForm() {
       pausePassportDirtyTracking();
       const data = passportData || {};
+      const normalizedBusinessValue = normalizeBusinessName(data.business || '');
+      ensureSelectHasOption(countrySelect, data.country || '');
+      countrySelect.value = data.country || '';
+      refreshSearchableSelect(countrySelect);
+      ensureSelectHasOption(partnerTypeSelect, data.partner_type || '');
+      partnerTypeSelect.value = data.partner_type || '';
+      refreshSearchableSelect(partnerTypeSelect);
+      ensureSelectHasOption(businessSelect, normalizedBusinessValue);
+      businessSelect.value = normalizedBusinessValue;
+      refreshSearchableSelect(businessSelect);
+      cityInput.value = data.city || '';
       refreshLocationParameterOptions({ preserveCurrent: true });
       ensureSelectHasOption(departmentSelect, data.department || '');
       departmentSelect.value = data.department || '';
       refreshSearchableSelect(departmentSelect);
-      const normalizedBusinessValue = normalizeBusinessName(data.business || '');
-      ensureSelectHasOption(businessSelect, normalizedBusinessValue);
-      businessSelect.value = normalizedBusinessValue;
-      refreshSearchableSelect(businessSelect);
-      ensureSelectHasOption(partnerTypeSelect, data.partner_type || '');
-      partnerTypeSelect.value = data.partner_type || '';
-      refreshSearchableSelect(partnerTypeSelect);
-      ensureSelectHasOption(countrySelect, data.country || '');
-      countrySelect.value = data.country || '';
-      refreshSearchableSelect(countrySelect);
       ensureSelectHasOption(legalEntitySelect, data.legal_entity || '');
       legalEntitySelect.value = data.legal_entity || '';
       refreshSearchableSelect(legalEntitySelect);
-      cityInput.value = data.city || '';
       refreshLocationParameterOptions({ preserveCurrent: true });
       if (locationAddressInput) {
         locationAddressInput.value = data.location_address || '';
