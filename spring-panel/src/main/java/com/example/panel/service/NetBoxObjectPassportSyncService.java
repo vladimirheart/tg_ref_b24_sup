@@ -685,23 +685,37 @@ public class NetBoxObjectPassportSyncService {
                 "SELECT id, value, state, is_deleted, extra_json FROM settings_parameters WHERE param_type = ?",
                 "it_connection"
         );
-        Map<String, ExistingItConnectionParameter> existingByKey = new LinkedHashMap<>();
+        Map<String, ExistingItConnectionParameter> existingByValue = new LinkedHashMap<>();
         for (Map<String, Object> row : existingRows) {
             Map<String, Object> extra = parseExtraJson(row.get("extra_json"));
             String category = stringValue(extra.get("category"));
             String value = stringValue(row.get("value"));
-            if (!StringUtils.hasText(category) || !StringUtils.hasText(value)) {
+            if (!StringUtils.hasText(value)) {
                 continue;
             }
-            existingByKey.put(buildItParameterKey(category, value), new ExistingItConnectionParameter(asLong(row.get("id")), category, value));
+            existingByValue.put(buildItParameterValueKey(value), new ExistingItConnectionParameter(asLong(row.get("id")), category, value));
+        }
+
+        LinkedHashMap<String, DesiredItConnectionParameter> desiredByValue = new LinkedHashMap<>();
+        for (DesiredItConnectionParameter desired : desiredParameters) {
+            String valueKey = buildItParameterValueKey(desired.value());
+            if (!StringUtils.hasText(valueKey)) {
+                continue;
+            }
+            DesiredItConnectionParameter previous = desiredByValue.putIfAbsent(valueKey, desired);
+            if (previous != null && !previous.category().equals(desired.category())) {
+                log.warn("NetBox IT connection value appears in multiple categories, keeping first category: value='{}', keptCategory='{}', skippedCategory='{}'",
+                        desired.value(),
+                        previous.category(),
+                        desired.category());
+            }
         }
 
         Map<String, String> categoryLabels = settingsCatalogService.getDefaultItConnectionCategories();
-        for (DesiredItConnectionParameter desired : desiredParameters) {
-            String key = buildItParameterKey(desired.category(), desired.value());
+        for (DesiredItConnectionParameter desired : desiredByValue.values()) {
             Map<String, Object> extra = buildItConnectionExtra(desired, categoryLabels.getOrDefault(desired.category(), desired.category()));
             String extraJson = writeJson(extra);
-            ExistingItConnectionParameter existing = existingByKey.get(key);
+            ExistingItConnectionParameter existing = existingByValue.get(buildItParameterValueKey(desired.value()));
             if (existing != null && existing.id() != null) {
                 jdbcTemplate.update(
                         "UPDATE settings_parameters SET value = ?, state = ?, is_deleted = 0, deleted_at = NULL, extra_json = ? WHERE id = ?",
@@ -845,6 +859,10 @@ public class NetBoxObjectPassportSyncService {
 
     private String buildItParameterKey(String category, String value) {
         return category.trim().toLowerCase(Locale.ROOT) + "::" + value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String buildItParameterValueKey(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private Map<String, Object> parseExtraJson(Object raw) {
