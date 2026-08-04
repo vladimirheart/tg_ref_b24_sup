@@ -468,6 +468,7 @@
       getParameterData,
       initialize,
       isParametersLoaded,
+      loadItEquipment,
       loadParameters,
       renderCityCard,
       renderCurrentParameterModal,
@@ -492,6 +493,9 @@
 
   window.SettingsParametersShellRuntime = Object.freeze({
     ...api,
+    loadItEquipment(...args) {
+      return window.__settingsParametersShellRuntime?.loadItEquipment?.(...args);
+    },
     loadParameters(...args) {
       return window.__settingsParametersShellRuntime?.loadParameters?.(...args);
     },

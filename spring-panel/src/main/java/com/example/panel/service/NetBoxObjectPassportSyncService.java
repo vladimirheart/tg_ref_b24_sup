@@ -170,6 +170,7 @@ public class NetBoxObjectPassportSyncService {
                 try {
                     objectPassportService.replaceAllPassports(overwritePayload.passports());
                     syncItConnectionParameters(accumulator.itParameters());
+                    syncItEquipmentCatalog(accumulator.equipmentCatalogItems());
                     settingsService.markFullOverwriteComplete(sharedSettings);
                     sharedConfigService.saveSettings(sharedSettings);
                 } catch (RuntimeException ex) {
@@ -179,6 +180,7 @@ public class NetBoxObjectPassportSyncService {
             } else {
                 upsertPassports(settings, sites, accumulator);
                 syncItConnectionParameters(accumulator.itParameters());
+                syncItEquipmentCatalog(accumulator.equipmentCatalogItems());
             }
 
             updateProgress(95, "Финализируем результат синхронизации");
@@ -747,6 +749,49 @@ public class NetBoxObjectPassportSyncService {
         return extra;
     }
 
+    private void syncItEquipmentCatalog(Set<DesiredItEquipmentCatalogItem> desiredItems) {
+        if (desiredItems.isEmpty()) {
+            return;
+        }
+        List<Map<String, Object>> existingRows = jdbcTemplate.queryForList(
+                "SELECT equipment_type, equipment_vendor, equipment_model FROM it_equipment_catalog"
+        );
+        Set<String> existingKeys = new LinkedHashSet<>();
+        for (Map<String, Object> row : existingRows) {
+            String key = buildEquipmentCatalogKey(
+                    stringValue(row.get("equipment_type")),
+                    stringValue(row.get("equipment_vendor")),
+                    stringValue(row.get("equipment_model"))
+            );
+            if (StringUtils.hasText(key)) {
+                existingKeys.add(key);
+            }
+        }
+
+        for (DesiredItEquipmentCatalogItem desired : desiredItems) {
+            String key = buildEquipmentCatalogKey(
+                    desired.equipmentType(),
+                    desired.equipmentVendor(),
+                    desired.equipmentModel()
+            );
+            if (!StringUtils.hasText(key) || existingKeys.contains(key)) {
+                continue;
+            }
+            jdbcTemplate.update(
+                    "INSERT INTO it_equipment_catalog(" +
+                            "equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories, created_at, updated_at" +
+                            ") VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+                    desired.equipmentType(),
+                    desired.equipmentVendor(),
+                    desired.equipmentModel(),
+                    "",
+                    "",
+                    ""
+            );
+            existingKeys.add(key);
+        }
+    }
+
     private SyncTriggerResponse triggerAsync(String trigger) {
         if (!running.compareAndSet(false, true)) {
             return new SyncTriggerResponse(false, getStatus());
@@ -863,6 +908,16 @@ public class NetBoxObjectPassportSyncService {
 
     private String buildItParameterValueKey(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String buildEquipmentCatalogKey(String equipmentType, String equipmentVendor, String equipmentModel) {
+        String type = stringValue(equipmentType).toLowerCase(Locale.ROOT);
+        String vendor = stringValue(equipmentVendor).toLowerCase(Locale.ROOT);
+        String model = stringValue(equipmentModel).toLowerCase(Locale.ROOT);
+        if (type.isBlank() || vendor.isBlank() || model.isBlank()) {
+            return "";
+        }
+        return type + "|" + vendor + "|" + model;
     }
 
     private Map<String, Object> parseExtraJson(Object raw) {
@@ -986,6 +1041,11 @@ public class NetBoxObjectPassportSyncService {
     private record DesiredItConnectionParameter(String category, String value) {
     }
 
+    private record DesiredItEquipmentCatalogItem(String equipmentType,
+                                                 String equipmentVendor,
+                                                 String equipmentModel) {
+    }
+
     private record ExistingItConnectionParameter(Long id, String category, String value) {
     }
 
@@ -996,6 +1056,7 @@ public class NetBoxObjectPassportSyncService {
         private int equipmentItems;
         private int photos;
         private final Set<DesiredItConnectionParameter> itParameters = new LinkedHashSet<>();
+        private final Set<DesiredItEquipmentCatalogItem> equipmentCatalogItems = new LinkedHashSet<>();
         private final List<String> warnings = new ArrayList<>();
 
         void registerSite(Map<String, Object> payload) {
@@ -1033,6 +1094,10 @@ public class NetBoxObjectPassportSyncService {
             return itParameters;
         }
 
+        Set<DesiredItEquipmentCatalogItem> equipmentCatalogItems() {
+            return equipmentCatalogItems;
+        }
+
         List<String> warnings() {
             return List.copyOf(warnings);
         }
@@ -1055,10 +1120,22 @@ public class NetBoxObjectPassportSyncService {
                 if (!(item instanceof Map<?, ?> map)) {
                     continue;
                 }
-                registerItParameter("equipment_type", localStringValue(map.get("equipment_type")));
-                registerItParameter("equipment_vendor", localStringValue(map.get("vendor")));
-                registerItParameter("equipment_model", localStringValue(map.get("model")));
+                String equipmentType = localStringValue(map.get("equipment_type"));
+                String equipmentVendor = localStringValue(map.get("vendor"));
+                String equipmentModel = localStringValue(map.get("model"));
+                registerItParameter("equipment_type", equipmentType);
+                registerItParameter("equipment_vendor", equipmentVendor);
+                registerItParameter("equipment_model", equipmentModel);
                 registerItParameter("equipment_status", localStringValue(map.get("status")));
+                if (StringUtils.hasText(equipmentType)
+                        && StringUtils.hasText(equipmentVendor)
+                        && StringUtils.hasText(equipmentModel)) {
+                    equipmentCatalogItems.add(new DesiredItEquipmentCatalogItem(
+                            equipmentType,
+                            equipmentVendor,
+                            equipmentModel
+                    ));
+                }
             }
         }
 

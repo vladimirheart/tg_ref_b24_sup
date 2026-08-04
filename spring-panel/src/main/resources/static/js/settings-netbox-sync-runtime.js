@@ -95,6 +95,7 @@
     let settingsLoaded = Boolean(Object.keys(netBoxSyncSettingsState).length);
     let loadingPromise = null;
     let statusPollTimer = null;
+    let refreshAfterSyncPending = false;
 
     function applyPageData(section) {
       netBoxSyncSettingsState = sanitizeSettings(section?.netBoxSyncSettings);
@@ -182,6 +183,25 @@
         clear_api_token: false,
       });
       renderSettings();
+    }
+
+    async function reloadSettingsDataAfterSync() {
+      const tasks = [];
+      if (typeof options.reloadParameters === 'function') {
+        tasks.push(options.reloadParameters());
+      }
+      if (typeof options.reloadItEquipment === 'function') {
+        tasks.push(options.reloadItEquipment());
+      }
+      if (!tasks.length) {
+        return;
+      }
+      const results = await Promise.allSettled(tasks);
+      const rejected = results.find((result) => result.status === 'rejected');
+      if (rejected) {
+        const reason = rejected.reason && rejected.reason.message ? rejected.reason.message : rejected.reason;
+        console.warn('NetBox sync finished, but settings data refresh failed:', reason);
+      }
     }
 
     function renderSettings() {
@@ -579,6 +599,10 @@
         if (data.status) {
           renderStatus(data.status);
         }
+        refreshAfterSyncPending = Boolean(
+          data.started ||
+          Boolean(data.status && String(data.status.state || '').toLowerCase() === 'running')
+        );
         showPopup(data.started ? 'Синхронизация NetBox поставлена в очередь.' : 'Синхронизация NetBox уже выполняется.', data.started ? 'success' : 'warning');
         startStatusPolling();
       } catch (error) {
@@ -606,6 +630,11 @@
         const state = String(status?.state || '').toLowerCase();
         if (state && state !== 'running') {
           stopStatusPolling();
+          const shouldRefresh = refreshAfterSyncPending && state === 'success';
+          refreshAfterSyncPending = false;
+          if (shouldRefresh) {
+            await reloadSettingsDataAfterSync();
+          }
         }
       }, 3000);
     }
@@ -614,7 +643,10 @@
       await ensureLoaded();
       renderSettings();
       renderStatus(netBoxSyncStatusState);
-      await loadStatus().catch(() => null);
+      const status = await loadStatus().catch(() => null);
+      if (String(status?.state || '').toLowerCase() === 'running') {
+        refreshAfterSyncPending = true;
+      }
       startStatusPolling();
     }
 

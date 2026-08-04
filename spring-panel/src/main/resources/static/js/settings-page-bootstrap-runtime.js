@@ -116,6 +116,8 @@
       config: locations,
       showPopup: (message, type) => showPopup(message, type),
       escapeHtml,
+      reloadParameters: () => settingsParametersShellRuntime?.loadParameters?.(),
+      reloadItEquipment: () => settingsParametersShellRuntime?.loadItEquipment?.(),
     }) || null;
 
     settingsLocationsTreeRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationsTreeRuntime', {
