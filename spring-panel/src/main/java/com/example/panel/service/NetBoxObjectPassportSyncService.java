@@ -41,8 +41,21 @@ public class NetBoxObjectPassportSyncService {
     private static final List<String> SCHEDULE_DAYS = List.of("mon", "tue", "wed", "thu", "fri", "sat", "sun");
     private static final Pattern WORK_TIME_PATTERN = Pattern.compile("(?<from>\\d{1,2}:\\d{2})\\s*[-–]\\s*(?<to>\\d{1,2}:\\d{2})");
     private static final Pattern CITY_PATTERN = Pattern.compile("^(?:г\\.?|город)\\s*([^,]+)", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    private static final Pattern CITY_ADDRESS_PATTERN = Pattern.compile(
+            "^(?:г\\.?|город)\\s*([^,\\d]+?)(?=\\s+(?:ул\\.?|улица|пр-кт|проспект|шоссе|б-р|бул\\.?|пер\\.?|пл\\.?|наб\\.?|мкр\\.?|д\\.?|дом)\\b|,|$)",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
+    );
     private static final String NETBOX_PHOTO_SOURCE = "netbox";
     private static final String STATUS_ACTIVE = "Активен";
+    private static final Map<String, String> NETBOX_BUSINESS_ALIASES = Map.of(
+            "СушиВесла", "СушиВёсла",
+            "SV-Povolzhye", "СушиВёсла",
+            "SV-Ulyanovsk", "СушиВёсла",
+            "SV-Kursk", "СушиВёсла",
+            "OOO SV Joshkar-Ola", "СушиВёсла",
+            "BlinBerri", "БлинБери",
+            "BB Joshkor Ola", "БлинБери"
+    );
 
     private final SharedConfigService sharedConfigService;
     private final NetBoxSyncSettingsService settingsService;
@@ -307,7 +320,7 @@ public class NetBoxObjectPassportSyncService {
         LinkedHashMap<String, Object> payload = new LinkedHashMap<>();
         payload.put("netbox_site_id", siteId);
         payload.put("department", firstNonBlank(site.get("name"), site.get("display"), siteId));
-        payload.put("business", nestedString(site, "tenant", "name"));
+        payload.put("business", resolveBusiness(site));
         payload.put("city", resolveCity(site));
         payload.put("location_address", stringValue(site.get("physical_address")));
         payload.put("status", resolveLabeledValue(site.get("status")));
@@ -630,6 +643,10 @@ public class NetBoxObjectPassportSyncService {
     private String resolveCity(Map<String, Object> site) {
         String address = stringValue(site.get("physical_address"));
         if (StringUtils.hasText(address)) {
+            Matcher cityAddressMatcher = CITY_ADDRESS_PATTERN.matcher(address);
+            if (cityAddressMatcher.find()) {
+                return cityAddressMatcher.group(1).trim();
+            }
             Matcher matcher = CITY_PATTERN.matcher(address);
             if (matcher.find()) {
                 return matcher.group(1).trim();
@@ -643,6 +660,24 @@ public class NetBoxObjectPassportSyncService {
             }
         }
         return firstNonBlank(nestedString(site, "region", "name"), nestedString(site, "region", "display"));
+    }
+
+    private String resolveBusiness(Map<String, Object> site) {
+        String siteName = firstNonBlank(site.get("name"), site.get("display"));
+        if (StringUtils.hasText(siteName)) {
+            String normalizedSiteName = siteName.trim().toUpperCase(Locale.ROOT);
+            if (normalizedSiteName.startsWith("SV")) {
+                return "СушиВёсла";
+            }
+            if (normalizedSiteName.startsWith("BB")) {
+                return "БлинБери";
+            }
+        }
+        String tenantName = nestedString(site, "tenant", "name");
+        if (!StringUtils.hasText(tenantName)) {
+            return tenantName;
+        }
+        return NETBOX_BUSINESS_ALIASES.getOrDefault(tenantName.trim(), tenantName.trim());
     }
 
     private String resolveCustomField(Map<String, Object> source, String key) {

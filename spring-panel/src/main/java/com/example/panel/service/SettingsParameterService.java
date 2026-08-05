@@ -20,7 +20,13 @@ public class SettingsParameterService {
 
     private static final Logger log = LoggerFactory.getLogger(SettingsParameterService.class);
     private static final Map<String, String> BUSINESS_NAME_ALIASES = Map.of(
-            "СушиВесла", "СушиВёсла"
+            "СушиВесла", "СушиВёсла",
+            "SV-Povolzhye", "СушиВёсла",
+            "SV-Ulyanovsk", "СушиВёсла",
+            "SV-Kursk", "СушиВёсла",
+            "OOO SV Joshkar-Ola", "СушиВёсла",
+            "BlinBerri", "БлинБери",
+            "BB Joshkor Ola", "БлинБери"
     );
 
     private final JdbcTemplate jdbcTemplate;

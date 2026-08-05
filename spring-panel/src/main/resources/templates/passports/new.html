@@ -998,9 +998,15 @@
       : JSON.parse(JSON.stringify(parameterValuesInitial));
     const parameterKeys = Object.keys(parameterValuesInitial || {});
     let parameterValues = {};
-    const BUSINESS_NAME_ALIASES = Object.freeze({
-      'СушиВесла': 'СушиВёсла',
-    });
+      const BUSINESS_NAME_ALIASES = Object.freeze({
+        'СушиВесла': 'СушиВёсла',
+        'SV-Povolzhye': 'СушиВёсла',
+        'SV-Ulyanovsk': 'СушиВёсла',
+        'SV-Kursk': 'СушиВёсла',
+        'OOO SV Joshkar-Ola': 'СушиВёсла',
+        'BlinBerri': 'БлинБери',
+        'BB Joshkor Ola': 'БлинБери',
+      });
 
     function normalizeBusinessName(value) {
       const normalized = normalizeCatalogValue(value);
@@ -1111,6 +1117,77 @@
       return Array.from(derived);
     }
 
+    function findDepartmentCatalogMatches({ departmentValue, businessValue, partnerTypeValue = '', countryValue = '' }) {
+      const selectedDepartment = normalizeCatalogValue(departmentValue);
+      const selectedBusiness = normalizeLocationDependencyValue('business', businessValue);
+      const selectedPartnerType = normalizeLocationDependencyValue('partner_type', partnerTypeValue);
+      const selectedCountry = normalizeLocationDependencyValue('country', countryValue);
+      if (!selectedDepartment || !selectedBusiness) {
+        return [];
+      }
+      const items = Array.isArray(parameterItemsByType.department) ? parameterItemsByType.department : [];
+      return items.filter((item) => {
+        if (!item || item.is_deleted) return false;
+        if (normalizeCatalogValue(item.value) !== selectedDepartment) return false;
+        const dependencies = item.dependencies && typeof item.dependencies === 'object' ? item.dependencies : {};
+        const candidateBusiness = normalizeLocationDependencyValue('business', dependencies.business);
+        if (candidateBusiness && candidateBusiness !== selectedBusiness) return false;
+        const candidatePartnerType = normalizeLocationDependencyValue('partner_type', dependencies.partner_type);
+        if (selectedPartnerType && candidatePartnerType && candidatePartnerType !== selectedPartnerType) return false;
+        const candidateCountry = normalizeLocationDependencyValue('country', dependencies.country);
+        if (selectedCountry && candidateCountry && candidateCountry !== selectedCountry) return false;
+        return true;
+      });
+    }
+
+    function applyDepartmentSelectionContext() {
+      if (!departmentSelect || !businessSelect) return;
+      const departmentValue = normalizeCatalogValue(departmentSelect.value);
+      const businessValue = normalizeCatalogValue(businessSelect.value);
+      if (!departmentValue || !businessValue) return;
+      const matches = findDepartmentCatalogMatches({
+        departmentValue,
+        businessValue,
+        partnerTypeValue: partnerTypeSelect ? partnerTypeSelect.value : '',
+        countryValue: countrySelect ? countrySelect.value : '',
+      });
+      if (!matches.length) return;
+
+      const collectDependencyValues = (key) => Array.from(new Set(matches
+        .map((item) => normalizeLocationDependencyValue(key, item.dependencies && item.dependencies[key]))
+        .filter(Boolean)));
+
+      const partnerTypes = collectDependencyValues('partner_type');
+      const countries = collectDependencyValues('country');
+      const cities = collectDependencyValues('city');
+      let changed = false;
+
+      if (countrySelect && !normalizeCatalogValue(countrySelect.value) && countries.length === 1) {
+        ensureSelectHasOption(countrySelect, countries[0]);
+        countrySelect.value = countries[0];
+        refreshSearchableSelect(countrySelect);
+        changed = true;
+      }
+      if (partnerTypeSelect && !normalizeCatalogValue(partnerTypeSelect.value) && partnerTypes.length === 1) {
+        ensureSelectHasOption(partnerTypeSelect, partnerTypes[0]);
+        partnerTypeSelect.value = partnerTypes[0];
+        refreshSearchableSelect(partnerTypeSelect);
+        changed = true;
+      }
+      if (cityInput) {
+        const currentCity = normalizeCatalogValue(cityInput.value);
+        const currentCityIsMatched = currentCity && cities.includes(currentCity);
+        if ((!currentCity || !currentCityIsMatched) && cities.length === 1) {
+          cityInput.value = cities[0];
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        refreshLocationParameterOptions({ preserveCurrent: true });
+      }
+    }
+
     function getFilteredParameterValues(key, { preserveCurrent = false } = {}) {
       const items = Array.isArray(parameterItemsByType[key]) ? parameterItemsByType[key] : [];
       const selections = getCurrentLocationSelections();
@@ -1126,13 +1203,15 @@
           ? derived
           : (parameterValues[key] || []);
       } else {
-        if (key === 'department' && (!selections.partner_type || !selections.business)) {
+        if (key === 'department' && !selections.business) {
           values = preserveCurrent && currentValue
             ? [currentValue]
             : [];
         } else {
           const dependencyKeys = key === 'department'
-            ? ['country', 'partner_type', 'business']
+            ? (selections.partner_type
+              ? ['country', 'partner_type', 'business']
+              : ['country', 'business'])
             : (Array.isArray(PARAMETER_DEPENDENCIES[key]) ? PARAMETER_DEPENDENCIES[key] : []);
           values = items
             .filter((item) => itemMatchesSelections(item, selections, dependencyKeys))
@@ -2643,6 +2722,7 @@
       ensureSelectHasOption(departmentSelect, data.department || '');
       departmentSelect.value = data.department || '';
       refreshSearchableSelect(departmentSelect);
+      applyDepartmentSelectionContext();
       ensureSelectHasOption(legalEntitySelect, data.legal_entity || '');
       legalEntitySelect.value = data.legal_entity || '';
       refreshSearchableSelect(legalEntitySelect);
@@ -4059,9 +4139,15 @@
         updateObjectTitle();
       });
     }
-    [businessSelect, departmentSelect].forEach((select) => {
-      select.addEventListener('change', updateObjectTitle);
-    });
+    if (businessSelect) {
+      businessSelect.addEventListener('change', updateObjectTitle);
+    }
+    if (departmentSelect) {
+      departmentSelect.addEventListener('change', () => {
+        applyDepartmentSelectionContext();
+        updateObjectTitle();
+      });
+    }
     if (toggleItBlockBtn && itBlock) {
       toggleItBlockBtn.addEventListener('click', () => {
         const hiddenNow = itBlock.classList.toggle('d-none');

@@ -102,6 +102,9 @@ public class IikoDepartmentLocationsSyncService {
             IikoDepartmentLocationCatalogService.LocationCatalogSnapshot snapshot = locationCatalogService.loadCatalog(forceRefresh);
 
             if (snapshot == null || !"iiko_api".equals(snapshot.source()) || snapshot.tree().isEmpty()) {
+                String message = snapshot != null && snapshot.warnings() != null && !snapshot.warnings().isEmpty()
+                        ? snapshot.warnings().get(0)
+                        : "Live-структура из iiko не получена";
                 SyncStatusSnapshot result = finish(
                         "skipped",
                         trigger,
@@ -109,7 +112,7 @@ public class IikoDepartmentLocationsSyncService {
                         false,
                         snapshot != null ? snapshot.warnings() : List.of(),
                         null,
-                        "Live-структура из iiko не получена"
+                        message
                 );
                 return result;
             }

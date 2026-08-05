@@ -129,7 +129,7 @@ public class IikoDepartmentLocationCatalogService {
     private LocationCatalogSnapshot loadLiveCatalog(LocationCatalogSnapshot fallback) {
         List<ApiCredential> credentials = loadCredentials();
         if (credentials.isEmpty()) {
-            return fallback;
+            return fallback.withWarnings(List.of("В блоке «Синхронизация iikoServer» не настроен ни один включённый API-источник"));
         }
 
         Set<String> locationNames = new LinkedHashSet<>();
