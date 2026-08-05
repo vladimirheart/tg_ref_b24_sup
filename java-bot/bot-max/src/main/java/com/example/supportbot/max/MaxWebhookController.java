@@ -161,7 +161,11 @@ public class MaxWebhookController {
             return ResponseEntity.ok(Map.of("ok", true, "cancelled", true));
         }
 
-        Optional<TicketActive> active = ticketService.findActiveTicketForUser(userId, clientProfile.identity());
+        Optional<TicketActive> active = ticketService.findActiveTicketForUser(
+                userId,
+                clientProfile.identity(),
+                channel != null ? channel.getId() : null
+        );
         if (active.isPresent() && isStaleActiveTicket(active.get().getTicketId())) {
             ticketService.clearTicketActivity(active.get().getTicketId());
             active = Optional.empty();

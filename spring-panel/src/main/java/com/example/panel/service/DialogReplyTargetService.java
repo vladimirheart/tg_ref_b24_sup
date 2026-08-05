@@ -1,12 +1,11 @@
 package com.example.panel.service;
 
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 
@@ -95,28 +94,31 @@ public class DialogReplyTargetService {
                                           Long telegramMessageId,
                                           Long replyToTelegramId) {
         String timestamp = OffsetDateTime.now().toString();
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            PreparedStatement statement = connection.prepareStatement("""
+        Long chatHistoryId = jdbcTemplate.execute(connection -> {
+            try (PreparedStatement insert = connection.prepareStatement("""
                     INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, PreparedStatement.RETURN_GENERATED_KEYS);
-            statement.setLong(1, target.userId());
-            statement.setString(2, "operator");
-            statement.setString(3, caption != null ? caption : "");
-            statement.setString(4, timestamp);
-            statement.setString(5, ticketId);
-            statement.setString(6, messageType);
-            statement.setString(7, storedName);
-            statement.setLong(8, target.channelId());
-            statement.setObject(9, telegramMessageId);
-            statement.setObject(10, replyToTelegramId);
-            return statement;
-        }, keyHolder);
-        Number generatedId = keyHolder.getKey();
-        if (generatedId != null) {
+                    """)) {
+                insert.setLong(1, target.userId());
+                insert.setString(2, "operator");
+                insert.setString(3, caption != null ? caption : "");
+                insert.setString(4, timestamp);
+                insert.setString(5, ticketId);
+                insert.setString(6, messageType);
+                insert.setString(7, storedName);
+                insert.setLong(8, target.channelId());
+                insert.setObject(9, telegramMessageId);
+                insert.setObject(10, replyToTelegramId);
+                insert.executeUpdate();
+            }
+            try (PreparedStatement selectId = connection.prepareStatement("SELECT last_insert_rowid()");
+                 ResultSet rs = selectId.executeQuery()) {
+                return rs.next() ? rs.getLong(1) : null;
+            }
+        });
+        if (chatHistoryId != null && chatHistoryId > 0) {
             chatAttachmentMetadataService.upsertForChatHistory(
-                    generatedId.longValue(),
+                    chatHistoryId,
                     ticketId,
                     target.channelId(),
                     storedName,

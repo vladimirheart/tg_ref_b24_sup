@@ -222,6 +222,11 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public Optional<TicketActive> findActiveTicketForUser(Long userId, String username) {
+        return findActiveTicketForUser(userId, username, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<TicketActive> findActiveTicketForUser(Long userId, String username, Long channelId) {
         List<String> identities = new ArrayList<>();
         if (userId != null && userId > 0) {
             identities.add(userId.toString());
@@ -232,7 +237,9 @@ public class TicketService {
         if (identities.isEmpty()) {
             return Optional.empty();
         }
-        List<TicketActive> active = ticketActiveRepository.findByUserInOrderByLastSeenDesc(identities);
+        List<TicketActive> active = channelId != null
+                ? ticketActiveRepository.findByUserInOrderByLastSeenDescAndChannelId(identities, channelId)
+                : ticketActiveRepository.findByUserInOrderByLastSeenDesc(identities);
         return active.isEmpty() ? Optional.empty() : Optional.of(active.get(0));
     }
 

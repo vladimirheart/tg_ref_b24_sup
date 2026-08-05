@@ -668,6 +668,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "document", stored.toString(), document.getFileName());
+                acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент приложил документ");
             } else {
                 handleActiveAttachment(message, "document", stored.toString(), document.getFileName(), message.getCaption(), true);
             }
@@ -688,6 +689,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "photo", stored.toString(), null);
+                acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент приложил фото");
             } else {
                 handleActiveAttachment(message, "photo", stored.toString(), null, message.getCaption(), true);
             }
@@ -707,6 +709,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "video", stored.toString(), null);
+                acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент приложил видео");
             } else {
                 handleActiveAttachment(message, "video", stored.toString(), null, message.getCaption(), true);
             }
@@ -727,6 +730,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "voice", stored.toString(), null);
+                acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент отправил голосовое сообщение");
             } else {
                 handleActiveAttachment(message, "voice", stored.toString(), null, message.getCaption(), true);
             }
@@ -748,6 +752,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "audio", stored.toString(), audio.getFileName());
+                acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент приложил аудио");
             } else {
                 handleActiveAttachment(message, "audio", stored.toString(), audio.getFileName(), message.getCaption(), true);
             }
@@ -769,6 +774,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "animation", stored.toString(), animation.getFileName());
+                acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент приложил анимацию");
             } else {
                 handleActiveAttachment(message, "animation", stored.toString(), animation.getFileName(), message.getCaption(), true);
             }
@@ -791,6 +797,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "sticker", stored.toString(), null);
+                acceptAttachmentAsSessionAnswer(message, session, null, "Клиент отправил стикер");
             } else {
                 handleActiveAttachment(message, "sticker", stored.toString(), null, null, true);
             }
@@ -810,11 +817,42 @@ public class SupportBot extends TelegramLongPollingBot {
             if (session != null) {
                 session.addAttachment(stored);
                 session.addHistoryEvent(message, "video_note", stored.toString(), null);
+                acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент отправил видеосообщение");
             } else {
                 handleActiveAttachment(message, "video_note", stored.toString(), null, message.getCaption(), true);
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store video note", e);
+        }
+    }
+
+    private void acceptAttachmentAsSessionAnswer(Message message,
+                                                 ConversationSession session,
+                                                 String rawAnswer,
+                                                 String fallbackAnswer) {
+        if (session == null) {
+            return;
+        }
+        QuestionFlowItemDto current = session.currentQuestion();
+        if (current == null || isChoiceQuestion(current)) {
+            return;
+        }
+        String resolvedAnswer = Optional.ofNullable(rawAnswer)
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .orElse(fallbackAnswer);
+        String answerKey = answerKeyFor(current);
+        if (answerKey != null) {
+            session.answers.put(answerKey, session.mergeAnswerWithBootstrap(answerKey, resolvedAnswer));
+        }
+        int answeredIndex = session.currentIndex;
+        session.visitedQuestionIndexes.add(answeredIndex);
+        session.currentIndex = resolveNextQuestionIndex(answeredIndex, current, resolvedAnswer);
+        log.info("Recorded attachment answer for user {} at step {}", session.userId(), answeredIndex + 1);
+        if (session.isComplete()) {
+            finalizeConversation(session);
+        } else {
+            askCurrentQuestion(session);
         }
     }
 
@@ -976,7 +1014,8 @@ public class SupportBot extends TelegramLongPollingBot {
         User user = message.getFrom();
         Long userId = user != null ? user.getId() : null;
         String username = user != null ? user.getUserName() : null;
-        return ticketService.findActiveTicketForUser(userId, username).map(TicketActive::getTicketId);
+        Long channelId = Optional.ofNullable(getChannel()).map(Channel::getId).orElse(null);
+        return ticketService.findActiveTicketForUser(userId, username, channelId).map(TicketActive::getTicketId);
     }
 
     private void relayActiveMessageToOperators(String ticketId,

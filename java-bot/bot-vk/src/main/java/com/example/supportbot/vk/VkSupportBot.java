@@ -779,7 +779,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private Optional<String> resolveActiveTicketId(Message message, VkClientProfile clientProfile) {
         Long userId = message != null ? message.getFromId() : null;
         String username = clientProfile != null ? clientProfile.identity() : (userId != null ? userId.toString() : null);
-        return ticketService.findActiveTicketForUser(userId, username).map(TicketActive::getTicketId);
+        Long channelId = Optional.ofNullable(getChannel()).map(Channel::getId).orElse(null);
+        return ticketService.findActiveTicketForUser(userId, username, channelId).map(TicketActive::getTicketId);
     }
 
     private void relayActiveMessageToOperators(GroupActor actor,
