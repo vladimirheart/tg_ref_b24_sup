@@ -196,7 +196,7 @@ public class IikoDepartmentLocationCatalogService {
         if (payload == null || !payload.isObject()) {
             return new LinkedHashMap<>();
         }
-        return objectMapper.convertValue(payload, Map.class);
+        return sanitizeLocationsPayload(objectMapper.convertValue(payload, Map.class));
     }
 
     Map<String, Object> mergeCatalogIntoPayload(Map<String, Object> basePayload,
@@ -226,6 +226,49 @@ public class IikoDepartmentLocationCatalogService {
         }
 
         return merged;
+    }
+
+    private Map<String, Object> sanitizeLocationsPayload(Map<String, Object> rawPayload) {
+        LinkedHashMap<String, Object> sanitized = new LinkedHashMap<>();
+        if (rawPayload != null && !rawPayload.isEmpty()) {
+            sanitized.putAll(rawPayload);
+        }
+
+        Map<String, Object> sanitizedTree = sanitizeLocationTree(toStringObjectMap(rawPayload == null ? null : rawPayload.get("tree")));
+        sanitized.put("tree", sanitizedTree);
+        sanitized.put("statuses", sanitizeStatuses(rawPayload == null ? null : rawPayload.get("statuses"), sanitizedTree));
+        sanitized.put("city_meta", sanitizeGeneratedMeta(buildCityMetaFromTree(sanitizedTree), rawPayload == null ? null : rawPayload.get("city_meta")));
+        sanitized.put("location_meta", sanitizeGeneratedMeta(buildLocationMetaFromTree(sanitizedTree), rawPayload == null ? null : rawPayload.get("location_meta")));
+        return sanitized;
+    }
+
+    private Map<String, Object> sanitizeLocationTree(Map<String, Object> rawTree) {
+        Map<String, Map<String, Map<String, Set<String>>>> sanitized = new LinkedHashMap<>();
+        forEachLocation(rawTree, (business, locationType, city, locationName) -> {
+            if (isLegacyFallbackGroupLocation(locationName)) {
+                return;
+            }
+            addLocation(sanitized, business, locationType, city, locationName);
+        });
+        return sortTree(sanitized);
+    }
+
+    private Map<String, Object> sanitizeStatuses(Object existingRaw,
+                                                 Map<String, Object> sanitizedTree) {
+        LinkedHashMap<String, Object> sanitized = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : toStringObjectMap(existingRaw).entrySet()) {
+            if (!isLocationStatusKey(entry.getKey())) {
+                sanitized.put(entry.getKey(), entry.getValue());
+            }
+        }
+        Set<String> validLocationKeys = new LinkedHashSet<>();
+        forEachLocation(sanitizedTree, (business, locationType, city, locationName) ->
+                validLocationKeys.add(makeStatusKey("location", business, locationType, city, locationName)));
+        for (String key : validLocationKeys) {
+            Object value = toStringObjectMap(existingRaw).get(key);
+            sanitized.put(key, value != null ? value : STATUS_ACTIVE);
+        }
+        return sanitized;
     }
 
     private Map<String, Object> buildTree(Collection<String> departmentNames, List<String> knownCities) {
@@ -600,11 +643,19 @@ public class IikoDepartmentLocationCatalogService {
 
     private Map<String, Object> mergeGeneratedMeta(Map<String, Object> generated,
                                                    Object existingRaw) {
+        return sanitizeGeneratedMeta(generated, existingRaw);
+    }
+
+    private Map<String, Object> sanitizeGeneratedMeta(Map<String, Object> generated,
+                                                      Object existingRaw) {
         LinkedHashMap<String, Object> merged = new LinkedHashMap<>();
         for (Map.Entry<String, Object> entry : toStringObjectMap(generated).entrySet()) {
             merged.put(entry.getKey(), new LinkedHashMap<>(toStringObjectMap(entry.getValue())));
         }
         for (Map.Entry<String, Object> entry : toStringObjectMap(existingRaw).entrySet()) {
+            if (!merged.containsKey(entry.getKey())) {
+                continue;
+            }
             LinkedHashMap<String, Object> attrs = new LinkedHashMap<>(toStringObjectMap(merged.get(entry.getKey())));
             attrs.putAll(toStringObjectMap(entry.getValue()));
             merged.put(entry.getKey(), attrs);
