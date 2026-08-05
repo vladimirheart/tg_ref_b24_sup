@@ -393,19 +393,20 @@ public class TicketService {
         return new AutoCloseRunResult(checked, closed);
     }
 
-    @Transactional
     public void registerActivity(String ticketId, String username) {
-        OffsetDateTime now = OffsetDateTime.now();
-        TicketActive active = ticketActiveRepository.findById(ticketId).orElseGet(() -> {
-            TicketActive placeholder = new TicketActive();
-            placeholder.setTicketId(ticketId);
-            return placeholder;
+        SqliteBusyRetrySupport.run(() -> {
+            OffsetDateTime now = OffsetDateTime.now();
+            TicketActive active = ticketActiveRepository.findById(ticketId).orElseGet(() -> {
+                TicketActive placeholder = new TicketActive();
+                placeholder.setTicketId(ticketId);
+                return placeholder;
+            });
+            active.setLastSeen(now);
+            if (active.getUser() == null || active.getUser().isBlank()) {
+                active.setUser(username);
+            }
+            ticketActiveRepository.save(active);
         });
-        active.setLastSeen(now);
-        if (active.getUser() == null || active.getUser().isBlank()) {
-            active.setUser(username);
-        }
-        ticketActiveRepository.save(active);
     }
 
     @Transactional

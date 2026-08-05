@@ -1947,38 +1947,60 @@ public class SupportBot extends TelegramLongPollingBot {
                 session.userId(),
                 session.attachments().size());
         String summary = session.buildSummary(ticket.ticketId());
-
-        for (HistoryEvent event : session.historyEvents()) {
-            chatHistoryService.storeEntry(
-                    event.userId(),
-                    event.telegramMessageId(),
-                    channel,
-                    ticket.ticketId(),
-                    event.text(),
-                    event.messageType(),
-                    event.attachmentPath(),
-                    event.attachmentName(),
-                    null,
-                    null
-            );
-        }
-
-        ticketService.registerActivity(ticket.ticketId(), Optional.ofNullable(session.user()).map(User::getUserName).orElse(null));
-
-        if (properties.getChannelId() != null && properties.getChannelId() > 0) {
-            SendMessage toChannel = SendMessage.builder()
-                    .chatId(properties.getChannelId())
-                    .text(summary)
-                    .build();
-            try {
-                execute(toChannel);
-            } catch (TelegramApiException e) {
-                log.error("Failed to send ticket to operator channel", e);
-            }
-        }
+        sendTicketSummaryToOperatorChannel(summary);
 
         String requestNumber = Optional.ofNullable(ticketService.resolveClientTicketNumber(ticket))
                 .orElse(Optional.ofNullable(ticket.ticketId()).orElse("—"));
+        sendConversationConfirmation(session, requestNumber);
+
+        for (HistoryEvent event : session.historyEvents()) {
+            try {
+                chatHistoryService.storeEntry(
+                        event.userId(),
+                        event.telegramMessageId(),
+                        channel,
+                        ticket.ticketId(),
+                        event.text(),
+                        event.messageType(),
+                        event.attachmentPath(),
+                        event.attachmentName(),
+                        null,
+                        null
+                );
+            } catch (RuntimeException ex) {
+                log.warn("Failed to store conversation history for ticket {} message {}: {}",
+                        ticket.ticketId(),
+                        event.telegramMessageId(),
+                        ex.getMessage());
+            }
+        }
+
+        try {
+            ticketService.registerActivity(ticket.ticketId(), username);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to refresh ticket activity after conversation finalize: ticketId={}, userId={}, reason={}",
+                    ticket.ticketId(),
+                    session.userId(),
+                    ex.getMessage());
+        }
+    }
+
+    private void sendTicketSummaryToOperatorChannel(String summary) {
+        if (properties.getChannelId() == null || properties.getChannelId() <= 0 || summary == null || summary.isBlank()) {
+            return;
+        }
+        SendMessage toChannel = SendMessage.builder()
+                .chatId(properties.getChannelId())
+                .text(summary)
+                .build();
+        try {
+            execute(toChannel);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send ticket to operator channel", e);
+        }
+    }
+
+    private void sendConversationConfirmation(ConversationSession session, String requestNumber) {
         SendMessage confirmation = SendMessage.builder()
                 .chatId(session.chatId())
                 .text("Спасибо! Ваше обращение №" + requestNumber + " отправлено оператору. Мы свяжемся с вами после обработки.")
