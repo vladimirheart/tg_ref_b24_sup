@@ -4,6 +4,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.OffsetDateTime;
@@ -94,7 +97,7 @@ public class DialogReplyTargetService {
                                           Long telegramMessageId,
                                           Long replyToTelegramId) {
         String timestamp = OffsetDateTime.now().toString();
-        Long chatHistoryId = jdbcTemplate.execute(connection -> {
+        Long chatHistoryId = jdbcTemplate.execute((Connection connection) -> {
             try (PreparedStatement insert = connection.prepareStatement("""
                     INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

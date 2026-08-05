@@ -67,9 +67,9 @@ app:
     startup-readiness-timeout: ${APP_BOT_STARTUP_READINESS_TIMEOUT:45s}
     startup-poll-interval: ${APP_BOT_STARTUP_POLL_INTERVAL:250ms}
   storage:
-    attachments: ${APP_STORAGE_ATTACHMENTS:../attachments}
-    knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
-    avatars: ${APP_STORAGE_AVATARS:${APP_STORAGE_ATTACHMENTS:../attachments}/avatars}
+    attachments: ${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}
+    knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}/knowledge_base}
+    avatars: ${APP_STORAGE_AVATARS:${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}/avatars}
   admin:
     python-executable: ${APP_ADMIN_PYTHON_EXECUTABLE:python}
     repository-root: ${APP_ADMIN_REPOSITORY_ROOT:}

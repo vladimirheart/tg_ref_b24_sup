@@ -841,13 +841,13 @@ public class SupportBot extends TelegramLongPollingBot {
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .orElse(fallbackAnswer);
-        String answerKey = answerKeyFor(current);
+        String answerKey = session.answerKeyFor(current);
         if (answerKey != null) {
             session.answers.put(answerKey, session.mergeAnswerWithBootstrap(answerKey, resolvedAnswer));
         }
         int answeredIndex = session.currentIndex;
         session.visitedQuestionIndexes.add(answeredIndex);
-        session.currentIndex = resolveNextQuestionIndex(answeredIndex, current, resolvedAnswer);
+        session.currentIndex = session.resolveNextQuestionIndex(answeredIndex, current, resolvedAnswer);
         log.info("Recorded attachment answer for user {} at step {}", session.userId(), answeredIndex + 1);
         if (session.isComplete()) {
             finalizeConversation(session);
