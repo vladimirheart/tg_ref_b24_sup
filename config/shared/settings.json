@@ -161,7 +161,7 @@
     "sla_critical_auto_assign_governance_review_ttl_hours" : 168,
     "sla_critical_auto_assign_governance_dry_run_ticket_required" : false,
     "sla_critical_auto_assign_governance_decision_required" : false,
-    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-08-03T13:28:23.571578Z",
+    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-08-05T10:51:40.267814500Z",
     "sla_critical_operator_skills" : { },
     "sla_critical_operator_queues" : { },
     "sla_critical_escalation_webhook_enabled" : false,
@@ -517,7 +517,21 @@
     "direction_subtype_property" : "Поднаправление",
     "status_property" : "Статус"
   },
-  "locations_iiko_server_sources" : [ ],
+  "locations_iiko_server_sources" : [ {
+    "id" : "iiko-source-msfysmt3-1mim4q",
+    "name" : "СушиВёсла",
+    "base_url" : "https://gk-sv.iiko.it",
+    "api_login" : "SinicinVV",
+    "api_secret" : "0d3e58bb9e6b6af02f4689f843b936c8588b91f0",
+    "enabled" : true
+  }, {
+    "id" : "iiko-source-msfyu2ln-n78xi2",
+    "name" : "БлинБери",
+    "base_url" : "https://bb-chain.iiko.it",
+    "api_login" : "SinicinVV",
+    "api_secret" : "0d3e58bb9e6b6af02f4689f843b936c8588b91f0",
+    "enabled" : true
+  } ],
   "locations_iiko_sync" : {
     "enabled" : true,
     "interval_minutes" : 5
@@ -575,11 +589,11 @@
     }
   } ],
   "netbox_sync" : {
-    "base_url" : "https://netbox.sushivesla.su",
+    "base_url" : "",
     "api_token" : "c8c2bb8a04f8014b483f3a0834fd35cc76cc8f0b",
     "enabled" : false,
     "interval_minutes" : 60,
-    "full_overwrite_pending" : false,
-    "selected_site_ids" : [ "362", "324", "331", "374", "375", "333", "323", "56", "300", "57", "301", "369", "361", "392", "368", "402", "365", "339", "66", "65", "371", "396", "340", "342", "380", "357", "71", "69", "70", "68", "67", "101", "75", "364", "88", "109", "97", "366", "103", "90", "79", "113", "114", "85", "72", "117", "381", "95", "111", "297", "310", "359", "89", "92", "98", "118", "76", "93", "99", "94", "110", "115", "84", "116", "86", "73", "105", "421", "329", "337", "316", "317", "120", "385", "319", "348", "410", "397", "403", "404", "394", "326", "336", "122", "382", "123", "124", "304", "328", "406", "125", "291", "408", "295", "354", "389", "416", "344", "367", "131", "133", "308", "412", "144", "363", "210", "373", "387", "388", "170", "356", "197", "330", "179", "206", "353", "202", "176", "190", "186", "188", "198", "182", "181", "415", "193", "207", "395", "178", "200", "204", "205", "211", "418", "390", "378", "400", "383", "214", "220", "358", "218", "217", "225", "370", "239", "251", "249", "245", "298", "309", "322", "228", "243", "250", "296", "244", "226", "240", "238", "248", "222", "233", "334", "247", "420", "398", "414", "259", "386", "321", "341", "377", "411", "261", "263", "405", "393", "266", "268", "267", "407", "399", "391", "271", "327", "276", "274", "275", "277", "409", "280", "283", "284", "355", "282", "281", "338", "417", "285", "413" ]
+    "full_overwrite_pending" : true,
+    "selected_site_ids" : [ ]
   }
 }
