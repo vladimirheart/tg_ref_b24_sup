@@ -7,8 +7,6 @@ import org.springframework.util.StringUtils;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 

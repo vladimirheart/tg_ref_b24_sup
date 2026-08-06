@@ -1,120 +1,33 @@
-2026-08-05 08:46:43.798+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-08-05 08:46:43.843+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 16540 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-08-05 08:46:43.844+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-08-05 08:46:44.313+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-08-05 08:46:44.419+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 98 ms. Found 29 JPA repository interfaces.
-2026-08-05 08:46:45.013+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-08-05 08:46:45.023+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 08:46:45.024+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-08-05 08:46:45.025+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-08-05 08:46:45.074+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-08-05 08:46:45.075+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1188 ms
-2026-08-05 08:46:45.310+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-08-05 08:46:45.347+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-08-05 08:46:45.371+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-08-05 08:46:45.569+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-08-05 08:46:46.891+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-08-05 08:46:46.894+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-08-05 08:46:47.431+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-08-05 08:46:48.290+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-08-05 08:46:48.609+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-08-05 08:46:48.610+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 08:46:48.629+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-08-05 08:46:48.644+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 5.303 seconds (process running for 5.606)
-2026-08-05 08:50:00.041+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T07:50:00.041439800+03:00
-2026-08-05 08:50:00.046+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
-2026-08-05 11:37:04.347+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-08-05 11:37:04.415+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 18472 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-08-05 11:37:04.416+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-08-05 11:37:05.063+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-08-05 11:37:05.221+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 149 ms. Found 29 JPA repository interfaces.
-2026-08-05 11:37:06.109+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-08-05 11:37:06.121+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 11:37:06.124+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-08-05 11:37:06.124+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-08-05 11:37:06.181+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-08-05 11:37:06.181+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1704 ms
-2026-08-05 11:37:06.770+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-08-05 11:37:06.873+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-08-05 11:37:06.940+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-08-05 11:37:07.431+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-08-05 11:37:10.146+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-08-05 11:37:10.152+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-08-05 11:37:11.245+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-08-05 11:37:13.155+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-08-05 11:37:14.052+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-08-05 11:37:14.054+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 11:37:14.075+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-08-05 11:37:14.102+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 10.319 seconds (process running for 10.718)
-2026-08-05 11:40:00.075+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T10:40:00.075017400+03:00
-2026-08-05 11:40:00.079+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
-2026-08-05 11:50:00.036+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T10:50:00.036168800+03:00
-2026-08-05 11:50:00.037+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
-2026-08-05 13:49:17.948+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-08-05 13:49:17.997+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 37540 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-08-05 13:49:17.998+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-08-05 13:49:18.507+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-08-05 13:49:18.610+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 97 ms. Found 29 JPA repository interfaces.
-2026-08-05 13:49:19.252+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-08-05 13:49:19.261+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 13:49:19.264+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-08-05 13:49:19.264+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-08-05 13:49:19.317+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-08-05 13:49:19.317+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1277 ms
-2026-08-05 13:49:19.578+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-08-05 13:49:19.627+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-08-05 13:49:19.653+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-08-05 13:49:19.856+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-08-05 13:49:22.107+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-08-05 13:49:22.114+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-08-05 13:49:23.230+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-08-05 13:49:24.817+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-08-05 13:49:25.324+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-08-05 13:49:25.325+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 13:49:25.346+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-08-05 13:49:25.364+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 7.844 seconds (process running for 8.102)
-2026-08-05 13:50:00.102+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T12:50:00.102355300+03:00
-2026-08-05 13:50:00.116+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
-2026-08-05 14:00:00.060+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T13:00:00.060798200+03:00
-2026-08-05 14:00:00.072+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
-2026-08-05 14:10:00.074+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T13:10:00.074475900+03:00
-2026-08-05 14:10:00.080+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
-2026-08-05 14:20:00.062+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T13:20:00.062323900+03:00
-2026-08-05 14:20:00.069+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
-2026-08-05 14:30:00.047+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T13:30:00.047802800+03:00
-2026-08-05 14:30:00.049+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
-2026-08-05 14:46:28.311+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-08-05 14:46:28.429+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 21580 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-08-05 14:46:28.431+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-08-05 14:46:29.043+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-08-05 14:46:29.167+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 116 ms. Found 29 JPA repository interfaces.
-2026-08-05 14:46:29.850+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-08-05 14:46:29.859+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 14:46:29.861+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-08-05 14:46:29.861+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-08-05 14:46:29.909+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-08-05 14:46:29.909+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1406 ms
-2026-08-05 14:46:30.177+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-08-05 14:46:30.222+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-08-05 14:46:30.248+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-08-05 14:46:30.604+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-08-05 14:46:33.269+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-08-05 14:46:33.274+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-08-05 14:46:34.156+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-08-05 14:46:35.740+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-08-05 14:46:36.280+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-08-05 14:46:36.281+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 14:46:36.308+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-08-05 14:46:36.328+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 8.614 seconds (process running for 8.939)
-2026-08-05 14:50:00.086+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T13:50:00.086070100+03:00
-2026-08-05 14:50:00.133+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
-2026-08-05 14:54:00.043+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+2026-08-06 14:55:51.428+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-08-06 14:55:51.481+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 31028 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
+2026-08-06 14:55:51.482+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
+2026-08-06 14:55:52.063+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-08-06 14:55:52.231+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 158 ms. Found 29 JPA repository interfaces.
+2026-08-06 14:55:52.991+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
+2026-08-06 14:55:53.005+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
+2026-08-06 14:55:53.006+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-08-06 14:55:53.007+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-08-06 14:55:53.062+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-08-06 14:55:53.063+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1534 ms
+2026-08-06 14:55:53.329+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-08-06 14:55:53.367+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-08-06 14:55:53.394+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-08-06 14:55:53.575+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-08-06 14:55:54.620+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-08-06 14:55:54.621+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-08-06 14:55:55.029+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-08-06 14:55:55.689+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-08-06 14:55:55.896+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
+2026-08-06 14:55:55.898+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
+2026-08-06 14:55:55.907+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
+2026-08-06 14:55:55.915+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 4.89 seconds (process running for 5.213)
+2026-08-06 14:56:00.111+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
 org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
 	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
 	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
 	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
 	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
-	at com.example.supportbot.entity.Channel$HibernateProxy$x1QJrv7o.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
 	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
 	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
 	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
@@ -133,80 +46,765 @@ org.hibernate.LazyInitializationException: could not initialize proxy [com.examp
 	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
 	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
 	at java.base/java.lang.Thread.run(Thread.java:1474)
-2026-08-05 15:00:00.071+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T14:00:00.071463300+03:00
-2026-08-05 15:00:00.102+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
-2026-08-05 16:53:20.336+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-08-05 16:53:20.383+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 27608 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-08-05 16:53:20.383+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-08-05 16:53:20.851+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-08-05 16:53:20.958+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 100 ms. Found 29 JPA repository interfaces.
-2026-08-05 16:53:21.567+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-08-05 16:53:21.576+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 16:53:21.577+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-08-05 16:53:21.578+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-08-05 16:53:21.621+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-08-05 16:53:21.622+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1195 ms
-2026-08-05 16:53:21.874+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-08-05 16:53:21.915+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-08-05 16:53:21.939+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-08-05 16:53:22.123+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-08-05 16:53:23.126+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-08-05 16:53:23.129+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-08-05 16:53:23.550+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-08-05 16:53:24.234+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-08-05 16:53:24.461+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-08-05 16:53:24.462+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 16:53:24.473+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-08-05 16:53:24.493+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 4.597 seconds (process running for 4.979)
-2026-08-05 17:00:00.102+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T16:00:00.102033600+03:00
-2026-08-05 17:00:00.169+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
-2026-08-05 17:16:45.490+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-08-05 17:16:45.542+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 8600 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-08-05 17:16:45.543+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-08-05 17:16:46.073+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-08-05 17:16:46.193+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 111 ms. Found 29 JPA repository interfaces.
-2026-08-05 17:16:46.794+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-08-05 17:16:46.804+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 17:16:46.806+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-08-05 17:16:46.806+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-08-05 17:16:46.850+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-08-05 17:16:46.851+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1256 ms
-2026-08-05 17:16:47.093+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-08-05 17:16:47.133+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-08-05 17:16:47.154+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-08-05 17:16:47.335+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-08-05 17:16:48.478+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-08-05 17:16:48.483+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-08-05 17:16:48.985+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-08-05 17:16:49.828+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-08-05 17:16:50.072+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-08-05 17:16:50.072+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 17:16:50.083+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-08-05 17:16:50.094+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 5.022 seconds (process running for 5.31)
-2026-08-05 17:20:00.085+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T16:20:00.085574400+03:00
-2026-08-05 17:20:00.136+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
-2026-08-05 17:28:31.107+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-08-05 17:28:31.179+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 30372 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-08-05 17:28:31.180+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-08-05 17:28:31.821+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-08-05 17:28:31.984+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 155 ms. Found 29 JPA repository interfaces.
-2026-08-05 17:28:32.904+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-08-05 17:28:32.917+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 17:28:32.919+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-08-05 17:28:32.919+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-08-05 17:28:32.977+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-08-05 17:28:32.978+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1726 ms
-2026-08-05 17:28:33.440+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-08-05 17:28:33.539+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-08-05 17:28:33.600+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-08-05 17:28:34.076+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-08-05 17:28:36.926+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-08-05 17:28:36.937+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-08-05 17:28:38.107+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-08-05 17:28:40.368+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-08-05 17:28:41.237+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-08-05 17:28:41.247+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-08-05 17:28:41.305+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-08-05 17:28:41.333+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 10.806 seconds (process running for 11.22)
-2026-08-05 17:30:00.153+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-05T16:30:00.153289500+03:00
-2026-08-05 17:30:00.209+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 1 active tickets and closed 0
+2026-08-06 14:58:00.016+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:00:00.023+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-06T14:00:00.023255700+03:00
+2026-08-06 15:00:00.029+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-08-06 15:00:00.043+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:02:00.016+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:04:00.009+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:06:00.010+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:08:00.013+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:10:00.009+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:10:00.015+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-06T14:10:00.015927+03:00
+2026-08-06 15:10:00.018+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-08-06 15:12:00.017+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:14:00.016+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:16:00.021+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:18:00.017+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:20:00.012+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-06T14:20:00.012433800+03:00
+2026-08-06 15:20:00.014+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-08-06 15:20:00.035+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:22:00.022+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:24:00.025+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:26:00.308+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:28:00.122+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:30:00.053+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-06T14:30:00.049893800+03:00
+2026-08-06 15:30:00.090+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-08-06 15:30:00.195+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:32:00.134+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:34:00.070+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:36:00.074+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:38:00.121+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:40:00.136+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:40:00.215+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-06T14:40:00.215422700+03:00
+2026-08-06 15:40:00.249+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-08-06 15:42:00.095+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:44:00.078+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:46:00.168+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:48:00.074+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:50:00.123+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:50:00.155+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close default config selected: source=auto_close_config.active_template, templateId=auto-u97pii-mowx65uu, hours=1, threshold=2026-08-06T14:50:00.155948200+03:00
+2026-08-06 15:50:00.170+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-close scheduler checked 0 active tickets and closed 0
+2026-08-06 15:52:00.149+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:54:00.051+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+2026-08-06 15:56:00.155+03:00 ERROR [scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler - Unexpected error occurred in scheduled task
+org.hibernate.LazyInitializationException: could not initialize proxy [com.example.supportbot.entity.Channel#1] - no Session
+	at org.hibernate.proxy.AbstractLazyInitializer.initialize(AbstractLazyInitializer.java:165)
+	at org.hibernate.proxy.AbstractLazyInitializer.getImplementation(AbstractLazyInitializer.java:314)
+	at org.hibernate.proxy.pojo.bytebuddy.ByteBuddyInterceptor.intercept(ByteBuddyInterceptor.java:44)
+	at org.hibernate.proxy.ProxyConfiguration$InterceptorDispatcher.intercept(ProxyConfiguration.java:102)
+	at com.example.supportbot.entity.Channel$HibernateProxy$SM0mLrny.getQuestionsCfg(Unknown Source)
+	at com.example.supportbot.settings.BotSettingsService.mergeChannelTemplateSelection(BotSettingsService.java:246)
+	at com.example.supportbot.settings.BotSettingsService.loadFromChannel(BotSettingsService.java:99)
+	at com.example.supportbot.service.EngagementTasks.buildRatingPrompt(EngagementTasks.java:67)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:59)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)

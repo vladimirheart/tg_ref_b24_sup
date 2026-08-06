@@ -334,36 +334,22 @@ public class SupportBot extends TelegramLongPollingBot {
             }
         }
 
-        if (message.hasDocument() && !message.hasAnimation()) {
-			handleDocument(message, session);
-		}
-
-        if (message.hasPhoto()) {
-            handlePhoto(message, session);
-        }
-
-        if (message.hasVideo()) {
-            handleVideo(message, session);
-        }
-
-        if (message.hasVoice()) {
-            handleVoice(message, session);
-        }
-
-        if (message.hasAudio()) {
-            handleAudio(message, session);
-        }
-
         if (message.hasAnimation()) {
             handleAnimation(message, session);
-        }
-
-        if (message.getSticker() != null) {
+        } else if (message.getSticker() != null) {
             handleSticker(message, session);
-        }
-
-        if (message.getVideoNote() != null) {
+        } else if (message.getVideoNote() != null) {
             handleVideoNote(message, session);
+        } else if (message.hasPhoto()) {
+            handlePhoto(message, session);
+        } else if (message.hasVideo()) {
+            handleVideo(message, session);
+        } else if (message.hasVoice()) {
+            handleVoice(message, session);
+        } else if (message.hasAudio()) {
+            handleAudio(message, session);
+        } else if (message.hasDocument()) {
+            handleDocument(message, session);
         }
     }
 
