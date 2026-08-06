@@ -334,9 +334,9 @@ public class SupportBot extends TelegramLongPollingBot {
             }
         }
 
-        if (message.hasDocument()) {
-            handleDocument(message, session);
-        }
+        if (message.hasDocument() && !message.hasAnimation()) {
+			handleDocument(message, session);
+		}
 
         if (message.hasPhoto()) {
             handlePhoto(message, session);
