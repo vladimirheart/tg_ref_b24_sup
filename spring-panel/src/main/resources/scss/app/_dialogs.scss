@@ -7,15 +7,25 @@
 }
 
 .chat-history-archive-section {
-    border: 1px solid color-mix(in srgb, #94a3b8 28%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
     border-radius: 0.9rem;
-    background: linear-gradient(180deg, color-mix(in srgb, #f8fafc 96%, white), color-mix(in srgb, #e2e8f0 84%, white));
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--color-surface) 96%, var(--color-bg)),
+            color-mix(in srgb, var(--color-bg-muted) 72%, var(--color-surface))
+        );
     padding: 0.9rem;
     margin-bottom: 1rem;
 }
 
 .chat-history-archive-head {
-    border-left: 3px solid color-mix(in srgb, #64748b 58%, transparent);
+    border-left:
+        3px solid color-mix(
+            in srgb,
+            var(--color-text-muted) 58%,
+            transparent
+        );
     padding-left: 0.75rem;
 }
 
@@ -24,7 +34,7 @@
     justify-content: space-between;
     gap: 0.75rem;
     font-size: 0.85rem;
-    color: #6c757d;
+    color: var(--color-text-muted);
 }
 
 .chat-media {
@@ -40,8 +50,8 @@
 .chat-media-preview {
     max-width: 220px;
     border-radius: 0.5rem;
-    border: 1px solid #dee2e6;
-    background: #fff;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     object-fit: cover;
     display: block;
 }
@@ -68,7 +78,7 @@
 
 .chat-media-file-name {
     font-size: 0.85rem;
-    color: #495057;
+    color: var(--color-text-muted);
 }
 
 .chat-media-file-tile {
@@ -77,9 +87,17 @@
     min-height: 2.75rem;
     padding: 0.65rem 0.85rem;
     border-radius: 0.75rem;
-    border: 1px solid color-mix(in srgb, #94a3b8 28%, transparent);
-    background: color-mix(in srgb, #f8fafc 90%, white);
-    color: #334155;
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--color-border) 78%,
+            transparent
+        );
+
+    background: var(--color-surface-soft);
+    color: var(--color-text);
+
     font-size: 0.9rem;
     font-weight: 600;
 }
@@ -96,14 +114,14 @@
     font-size: 0.84rem;
     font-weight: 600;
     line-height: 1.35;
-    color: #1f2937;
+    color: var(--color-text);
     overflow-wrap: anywhere;
 }
 
 .chat-media-meta-details {
     font-size: 0.76rem;
     line-height: 1.35;
-    color: #64748b;
+    color: var(--color-text-muted);
     overflow-wrap: anywhere;
 }
 
@@ -122,17 +140,34 @@
 .chat-media-info-toggle {
     width: 1.75rem;
     height: 1.75rem;
-    border: 1px solid color-mix(in srgb, #94a3b8 26%, transparent);
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--color-border) 76%,
+            transparent
+        );
+
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.92);
-    color: #475569;
+
+    background:
+        color-mix(
+            in srgb,
+            var(--color-surface) 92%,
+            transparent
+        );
+
+    color: var(--color-text-muted);
+
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
     font-size: 0.78rem;
     font-weight: 700;
     line-height: 1;
-    box-shadow: 0 0.2rem 0.5rem rgba(15, 23, 42, 0.08);
+
+    box-shadow: 0 0.2rem 0.5rem rgba(16, 46, 57, 0.08);
 }
 
 .chat-media-info-panel {
@@ -143,9 +178,22 @@
     max-width: 15rem;
     padding: 0.65rem;
     border-radius: 0.8rem;
-    border: 1px solid color-mix(in srgb, #94a3b8 28%, transparent);
-    background: rgba(255, 255, 255, 0.97);
-    box-shadow: 0 0.6rem 1.5rem rgba(15, 23, 42, 0.12);
+    border:
+		1px solid color-mix(
+			in srgb,
+			var(--color-border) 78%,
+			transparent
+		);
+
+	background:
+		color-mix(
+			in srgb,
+			var(--color-surface) 97%,
+			transparent
+		);
+
+	box-shadow:
+    0 0.6rem 1.5rem rgba(16, 46, 57, 0.12);
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
@@ -202,9 +250,9 @@
 }
 
 .dialog-category-badge.is-selected {
-    background: #0d6efd !important;
-    color: #fff !important;
-    border-color: #0d6efd !important;
+    background: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+    border-color: var(--primary) !important;
 }
 
 .dialog-details-categories {
@@ -238,7 +286,7 @@
 }
 
 .dialog-summary-value-link:hover {
-    color: #0d6efd;
+    color: var(--primary);
 }
 
 .dialog-summary-badge {
@@ -249,8 +297,17 @@
     font-size: 0.75rem;
     font-weight: 600;
     line-height: 1.4;
-    background-color: #f1f3f5;
-    color: #1f2937;
+
+    background-color: var(--color-surface-soft);
+    color: var(--color-text);
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--color-border) 72%,
+            transparent
+        );
+
     white-space: nowrap;
 }
 .dialog-composer-tools {
@@ -284,23 +341,40 @@
 }
 
 .dialog-template-icon {
-    border: 1px solid #ced4da;
-    background: #fff;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+
     border-radius: 0.5rem;
     width: 32px;
     height: 32px;
+
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
     font-size: 1rem;
     cursor: pointer;
     position: relative;
-    opacity: 0.7;
+    opacity: 0.78;
 }
 
 .dialog-template-icon:hover {
-    background: #e7f1ff;
-    border-color: #86b7fe;
+    background:
+        color-mix(
+            in srgb,
+            var(--primary) 10%,
+            var(--color-surface)
+        );
+
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 38%,
+            var(--color-border)
+        );
+
+    color: var(--primary);
     opacity: 1;
 }
 
@@ -310,8 +384,8 @@
     top: calc(100% + 6px);
     left: 50%;
     transform: translateX(-50%);
-    background: #212529;
-    color: #fff;
+    background: var(--color-ink-panel);
+    color: var(--color-on-ink);
     padding: 0.25rem 0.5rem;
     border-radius: 0.4rem;
     font-size: 0.75rem;
@@ -327,10 +401,10 @@
 }
 
 .dialog-template-panel {
-    border: 1px solid #e9ecef;
+    border: 1px solid var(--color-border);
     border-radius: 0.75rem;
     padding: 0.75rem;
-    background: #f8f9fa;
+    background: var(--color-surface-soft);
     display: none;
 }
 
@@ -361,7 +435,7 @@
 
 .dialog-templates-caret {
     font-size: 0.9rem;
-    color: #6c757d;
+    color: var(--color-text-muted);
 }
 
 .dialog-templates-menu {
@@ -415,8 +489,8 @@
     overflow: hidden;
     flex: 0 0 auto;
     box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
-    background: #fff;
-    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: var(--color-surface);
+	border: 1px solid var(--color-border);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -436,7 +510,7 @@
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    color: #fff;
+    color: var(--primary-foreground);
     background: linear-gradient(135deg, var(--chart-2), var(--primary));
 }
 
@@ -447,15 +521,25 @@
     display: inline-block;
 }
 
-.dialog-table .dot-primary { background: #0d6efd; }
-.dialog-table .dot-success { background: #198754; }
+.dialog-table .dot-primary {
+    background: var(--primary);
+}
+
+.dialog-table .dot-success {
+    background: var(--state-success);
+}
 
 .dialog-table .dialog-row-odd {
-    background-color: #f8fafc;
+    background-color:
+        color-mix(
+            in srgb,
+            var(--color-surface-soft) 62%,
+            var(--color-surface)
+        );
 }
 
 .dialog-table .dialog-row-even {
-    background-color: #ffffff;
+    background-color: var(--color-surface);
 }
 
 body[data-ui-page='dialogs'] .dialogs-toolbar-card,
@@ -697,7 +781,7 @@ body[data-ui-page='dialogs'] .dialog-table th[data-column-key='actions'] {
     min-width: 0;
     padding: 0.2rem 0.6rem;
     border-radius: 999px;
-    background-color: #f1f3f5;
+    background-color: var(--color-surface-soft);
     font-weight: 500;
 }
 
@@ -829,44 +913,61 @@ body[data-ui-page='dialogs'] .dialog-table th[data-column-key='actions'] {
 }
 
 .dialog-status-badge.status-new {
-  background-color: #e7f1ff;
-  border-color: #b6d4fe;
-  color: #084298;
+  background: var(--color-info-bg);
+  border-color: color-mix(in srgb, var(--state-system) 32%, transparent);
+  color: var(--state-system);
 }
 
 .dialog-status-badge.status-waiting-operator {
-  background-color: #fff3cd;
-  border-color: #ffe69c;
-  color: #664d03;
+  background: var(--color-warning-bg);
+  border-color: color-mix(in srgb, var(--state-warning) 32%, transparent);
+  color: var(--state-warning);
 }
 
 .dialog-status-badge.status-waiting-client {
-  background-color: #cff4fc;
-  border-color: #9eeaf9;
-  color: #055160;
+  background:
+    color-mix(
+      in srgb,
+      var(--secondary) 14%,
+      var(--color-surface)
+    );
+
+  border-color:
+    color-mix(
+      in srgb,
+      var(--secondary) 30%,
+      transparent
+    );
+
+  color:
+    color-mix(
+      in srgb,
+      var(--secondary) 72%,
+      var(--color-text)
+    );
 }
 
 .dialog-status-badge.status-closed {
-  background-color: #d1e7dd;
-  border-color: #a3cfbb;
-  color: #0f5132;
+  background: var(--color-success-bg);
+  border-color: color-mix(in srgb, var(--state-success) 30%, transparent);
+  color: var(--state-success);
 }
 
 .dialog-status-badge.status-auto-closed {
-  background-color: #e2e3e5;
-  border-color: #c6c8ca;
-  color: #41464b;
+  background: var(--color-bg-muted);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
 }
 
 .dialog-status-badge.status-auto-processing {
-  background-color: #e8f4ff;
-  border-color: #9ecbff;
-  color: #0b5cad;
+  background: var(--color-info-bg);
+  border-color: color-mix(in srgb, var(--state-system) 30%, transparent);
+  color: var(--state-system);
 }
 
 .dialog-unread-count {
-  background-color: #dc3545;
-  color: #fff;
+  background-color: var(--destructive);
+  color: var(--destructive-foreground);
 }
 
 .dialog-sla-cell {
@@ -888,27 +989,59 @@ body[data-ui-page='dialogs'] .dialog-table th[data-column-key='actions'] {
 
 
 .dialog-sla-badge.dialog-sla-safe {
-  background: linear-gradient(135deg, #1f6b4f, #2f8b6d);
-  border-color: color-mix(in srgb, #1f6b4f 44%, transparent);
-  color: #fff;
+  background:
+    linear-gradient(
+      135deg,
+      var(--state-success),
+      color-mix(in srgb, var(--state-success) 72%, var(--chart-2))
+    );
+
+  border-color:
+    color-mix(in srgb, var(--state-success) 44%, transparent);
+
+  color: #ffffff;
 }
 
 .dialog-sla-badge.dialog-sla-risk {
-  background: linear-gradient(135deg, #c88d1d, #e1ab3c);
-  border-color: color-mix(in srgb, #c88d1d 44%, transparent);
-  color: #fffdf7;
+  background:
+    linear-gradient(
+      135deg,
+      var(--state-warning),
+      var(--accent)
+    );
+
+  border-color:
+    color-mix(in srgb, var(--state-warning) 44%, transparent);
+
+  color: #ffffff;
 }
 
 .dialog-sla-badge.dialog-sla-overdue {
-  background: linear-gradient(135deg, #b44343, #da6666);
-  border-color: color-mix(in srgb, #b44343 42%, transparent);
-  color: #fff;
+  background:
+    linear-gradient(
+      135deg,
+      var(--state-danger),
+      color-mix(in srgb, var(--state-danger) 72%, var(--chart-4))
+    );
+
+  border-color:
+    color-mix(in srgb, var(--state-danger) 42%, transparent);
+
+  color: #ffffff;
 }
 
 .dialog-sla-badge.dialog-sla-closed {
-  background: linear-gradient(135deg, #60716a, #7c8d86);
-  border-color: color-mix(in srgb, #60716a 40%, transparent);
-  color: #fff;
+  background:
+    linear-gradient(
+      135deg,
+      var(--state-neutral),
+      color-mix(in srgb, var(--state-neutral) 72%, var(--color-text-muted))
+    );
+
+  border-color:
+    color-mix(in srgb, var(--state-neutral) 40%, transparent);
+
+  color: #ffffff;
 }
 
 .dialog-sla-badge.is-pinned {
@@ -920,15 +1053,15 @@ body[data-ui-page='dialogs'] .dialog-table th[data-column-key='actions'] {
 }
 
 .dialog-table tbody tr.dialog-priority-breached {
-  border-left: 3px solid #dc3545;
+  border-left: 3px solid var(--state-danger);
 }
 
 .dialog-table tbody tr.dialog-priority-at-risk {
-  border-left: 3px solid #fd7e14;
+  border-left: 3px solid var(--state-warning);
 }
 
 .dialog-table tbody tr.dialog-priority-normal {
-  border-left: 3px solid #198754;
+  border-left: 3px solid var(--state-success);
 }
 
 .dialog-table tbody tr.dialog-priority-pinned {
@@ -1001,7 +1134,7 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 
 .dialog-actions .btn:focus-visible,
 [data-dialog-view]:focus-visible {
-  outline: 2px solid #0d6efd;
+  outline: 2px solid var(--ring);
   outline-offset: 1px;
 }
 
@@ -1050,9 +1183,9 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 
 .dialog-bulk-toolbar {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
-  background: #f8f9fa;
+  background: var(--color-surface-soft);
 }
 
 .dialog-select-column {
@@ -1118,7 +1251,7 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 
 .dialog-details-client-link:hover,
 .dialog-details-client-link:focus-visible {
-  color: #0d6efd;
+  color: var(--primary);
   text-decoration: underline;
 }
 
@@ -1140,8 +1273,8 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #f1f3f5;
-  color: #495057;
+  background: var(--color-surface-soft);
+  color: var(--color-text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1231,9 +1364,10 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 }
 
 .dialog-details-section {
-  background: #fff;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 0.75rem;
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.06);
+  box-shadow: 0 0.125rem 0.25rem rgba(16, 46, 57, 0.06);
   padding: 1rem;
 }
 
@@ -1290,12 +1424,87 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 
 .dialog-my-dialog-item {
   width: 100%;
-  border: 1px solid rgba(13, 110, 253, 0.14);
+
+  border:
+    1px solid color-mix(
+      in srgb,
+      var(--primary) 16%,
+      var(--color-border)
+    );
+
   border-radius: 0.75rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+
+  background:
+    linear-gradient(
+      180deg,
+      var(--color-surface) 0%,
+      color-mix(
+        in srgb,
+        var(--primary) 3%,
+        var(--color-surface)
+      ) 100%
+    );
+
   padding: 0.7rem 0.8rem;
   text-align: left;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.dialog-my-dialog-item:hover,
+.dialog-my-dialog-item:focus-visible {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--primary) 42%,
+      var(--color-border)
+    );
+
+  box-shadow:
+    0 0.35rem 0.85rem
+    color-mix(
+      in srgb,
+      var(--primary) 12%,
+      transparent
+    );
+
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.dialog-my-dialog-item.is-active {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--state-success) 48%,
+      var(--color-border)
+    );
+
+  box-shadow:
+    0 0.45rem 1rem
+    color-mix(
+      in srgb,
+      var(--state-success) 14%,
+      transparent
+    );
+
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--state-success) 5%,
+        var(--color-surface)
+      ),
+      color-mix(
+        in srgb,
+        var(--state-success) 10%,
+        var(--color-surface)
+      )
+    );
 }
 
 .dialog-my-dialog-item:hover,
@@ -1322,14 +1531,14 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 
 .dialog-my-dialog-item-title {
   font-weight: 700;
-  color: #212529;
+  color: var(--color-text);
   min-width: 0;
 }
 
 .dialog-my-dialog-item-meta,
 .dialog-my-dialog-item-last {
   font-size: 0.85rem;
-  color: #6c757d;
+  color: var(--color-text-muted);
   line-height: 1.35;
 }
 
@@ -1396,12 +1605,20 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 }
 
 .dialog-details-problem {
-  background: #f8f9fa;
-  border-left: 4px solid #0d6efd;
-  padding: 0.75rem 0.75rem;
+  background:
+    color-mix(
+      in srgb,
+      var(--primary) 6%,
+      var(--color-surface)
+    );
+
+  border-left: 4px solid var(--primary);
+
+  padding: 0.75rem;
   border-radius: 0.5rem;
+
   font-size: 0.95rem;
-  color: #212529;
+  color: var(--color-text);
   word-break: break-word;
 }
 
@@ -1421,7 +1638,12 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
   left: 7px;
   width: 2px;
   height: 80%;
-  background: rgba(13, 110, 253, 0.25);
+  background:
+  color-mix(
+    in srgb,
+    var(--primary) 28%,
+    transparent
+  );
   border-radius: 2px;
 }
 
@@ -1431,11 +1653,11 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
   gap: 8px;
   padding: 0.35rem 0.5rem;
   border-radius: 0.5rem;
-  background: #f8f9fa;
+  background: var(--color-surface-soft);
 }
 
 .dialog-metric-item span:last-child {
-  color: #212529;
+  color: var(--color-text);
   font-weight: 500;
 }
 
@@ -1445,7 +1667,7 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
   font-weight: 600;
-  color: #212529;
+  color: var(--color-text);
 }
 
 @media (max-width: 991.98px) {
@@ -1552,7 +1774,7 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 }
 
 .client-avatar-ring.status-has-color {
-    color: var(--status-color, #0d6efd);
+    color: var(--status-color, var(--primary))
 }
 
 .client-avatar-ring.status-has-color::before,
@@ -1565,13 +1787,13 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 }
 
 .client-avatar-ring.status-has-color::before {
-    border: 3px solid var(--status-color, #0d6efd);
+    border: 3px solid var(--status-color, var(--primary))
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.12);
     z-index: 1;
 }
 
 .client-avatar-ring.status-has-color::after {
-    border: 3px solid var(--status-color, #0d6efd);
+    border: 3px solid var(--status-color, var(--primary))
     opacity: 0;
     transform: scale(0.95);
     z-index: 0;
@@ -1607,7 +1829,14 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
     align-items: stretch;
     gap: 0.25rem;
     height: 14px;
-    background: rgba(13, 110, 253, 0.08);
+
+    background:
+        color-mix(
+            in srgb,
+            var(--primary) 8%,
+            transparent
+        );
+
     border-radius: 999px;
     overflow: hidden;
 }
@@ -1617,12 +1846,45 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
     transition: width 0.3s ease;
 }
 
-.stats-chart-resolved {
-    background: #198754;
+.rating-chart-label {
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
 }
 
-.stats-chart-pending {
-    background: #ffc107;
+.rating-chart-bar {
+    height: 8px;
+
+    background:
+        color-mix(
+            in srgb,
+            var(--primary) 12%,
+            transparent
+        );
+
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.rating-chart-fill {
+    height: 100%;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--primary),
+            var(--chart-2)
+        );
+
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.rating-chart-value {
+    font-weight: 600;
+    text-align: right;
+    color: var(--color-text);
+    font-size: 0.9rem;
 }
 
 .rating-chart {
@@ -1640,20 +1902,34 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 
 .rating-chart-label {
     font-weight: 600;
-    color: #495057;
+    color: var(--color-text-muted);
     font-size: 0.9rem;
 }
 
 .rating-chart-bar {
     height: 8px;
-    background: rgba(13, 110, 253, 0.12);
+
+    background:
+        color-mix(
+            in srgb,
+            var(--primary) 12%,
+            transparent
+        );
+
     border-radius: 999px;
     overflow: hidden;
 }
 
 .rating-chart-fill {
     height: 100%;
-    background: linear-gradient(90deg, #0d6efd, #20c997);
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--primary),
+            var(--chart-2)
+        );
+
     border-radius: 999px;
     transition: width 0.3s ease;
 }
@@ -1661,7 +1937,7 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 .rating-chart-value {
     font-weight: 600;
     text-align: right;
-    color: #212529;
+    color: var(--color-text);
     font-size: 0.9rem;
 }
 
@@ -1670,11 +1946,17 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
     text-align: left;
     padding: 0.75rem 1rem;
     font-weight: 600;
-    color: #0d6efd;
+    color: var(--primary);
 }
 
 .searchable-collapse .card-header button:hover {
-    background-color: rgba(13, 110, 253, 0.08);
+    background-color:
+        color-mix(
+            in srgb,
+            var(--primary) 8%,
+            transparent
+        );
+
     text-decoration: none;
 }
 
@@ -1705,14 +1987,22 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 .dialog-reply-target {
     margin-top: 0.5rem;
     padding: 0.5rem 0.75rem;
-    border-left: 3px solid #0d6efd;
-    background: #f8f9fa;
+
+    border-left: 3px solid var(--primary);
+
+    background:
+        color-mix(
+            in srgb,
+            var(--primary) 6%,
+            var(--color-surface)
+        );
+
     border-radius: 0.4rem;
 }
 
 .dialog-reply-target-text {
     font-size: 0.9rem;
-    color: #495057;
+    color: var(--color-text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

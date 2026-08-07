@@ -107,13 +107,31 @@
     }
 
     .metrics-panel {
-      background:
-        radial-gradient(circle at top right, color-mix(in srgb, var(--chart-2) 18%, transparent), transparent 34%),
-        linear-gradient(145deg, #143126, #10271e 54%, #0d2018);
-      color: #f5faf6;
-      border-color: rgba(255, 255, 255, 0.06);
-      box-shadow: 0 28px 48px rgba(11, 26, 18, 0.28);
-    }
+	  background:
+		radial-gradient(
+		  circle at top right,
+		  color-mix(in srgb, var(--chart-2) 18%, transparent),
+		  transparent 34%
+		),
+		linear-gradient(
+		  145deg,
+		  var(--color-ink-panel),
+		  var(--color-ink-panel-mid) 54%,
+		  var(--color-ink-panel-deep)
+		);
+
+	  color: var(--color-on-ink);
+
+	  border-color:
+		color-mix(in srgb, var(--color-on-ink) 8%, transparent);
+
+	  box-shadow:
+		0 28px 48px color-mix(
+		  in srgb,
+		  var(--color-ink-panel-deep) 32%,
+		  transparent
+		);
+	}
 
     .metrics-panel .panel-head p,
     .metrics-panel .section-kicker {

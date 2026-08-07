@@ -3,12 +3,22 @@
   --sidebar-w: 286px;
   --sidebar-w-collapsed: 80px;
   --sidebar-z: 1040;
-  --sidebar-surface: color-mix(in srgb, var(--color-surface) 96%, rgba(255, 255, 255, 0.98));
-  --sidebar-surface-strong: color-mix(in srgb, var(--color-surface) 92%, rgba(255, 255, 255, 1));
-  --sidebar-stroke: color-mix(in srgb, var(--color-border) 62%, white);
-  --sidebar-shadow: 12px 0 28px rgba(21, 34, 23, 0.06);
-  --sidebar-nav-active: linear-gradient(180deg, color-mix(in srgb, var(--primary) 10%, white), color-mix(in srgb, var(--secondary) 6%, white));
-  --sidebar-nav-hover: color-mix(in srgb, var(--primary) 5%, white);
+  --sidebar-surface:
+    color-mix(in srgb, var(--sidebar) 94%, var(--color-surface));
+  --sidebar-surface-strong:
+    color-mix(in srgb, var(--sidebar) 98%, var(--color-surface));
+  --sidebar-stroke:
+    var(--sidebar-border);
+  --sidebar-shadow:
+    12px 0 30px rgba(16, 46, 57, 0.08);
+  --sidebar-nav-active:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--primary) 14%, var(--color-surface)),
+      color-mix(in srgb, var(--secondary) 9%, var(--color-surface))
+    );
+  --sidebar-nav-hover:
+    color-mix(in srgb, var(--primary) 7%, var(--color-surface));
 }
 
 body.with-sidebar {
