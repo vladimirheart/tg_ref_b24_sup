@@ -69,7 +69,7 @@ app:
   storage:
     attachments: ${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}/knowledge_base}
-    avatars: ${APP_STORAGE_AVATARS:${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}/avatars}
+    avatars: ${APP_STORAGE_AVATARS:../attachments/avatars}
   admin:
     python-executable: ${APP_ADMIN_PYTHON_EXECUTABLE:python}
     repository-root: ${APP_ADMIN_REPOSITORY_ROOT:}

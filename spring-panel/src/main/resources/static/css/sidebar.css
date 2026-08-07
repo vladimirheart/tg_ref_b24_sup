@@ -187,11 +187,15 @@ body.with-sidebar.sidebar-hovering {
 }
 
 .sidebar .brand-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 0;
   box-shadow: none;
-  background: color-mix(in srgb, white 90%, var(--color-surface));
+  background: transparent;
 }
 
 .sidebar-brand-description {
