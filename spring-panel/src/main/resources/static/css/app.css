@@ -2115,8 +2115,6 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   object-fit: cover;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: var(--color-surface);
 }
 
 .client-profile-avatar {
@@ -2126,8 +2124,6 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   object-fit: cover;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  background: var(--color-surface);
 }
 
 .client-profile-avatar.zoomable-avatar {
@@ -2155,33 +2151,6 @@ body[data-ui-page=dialogs] .dialog-open-btn {
 
 .stats-chart-pending {
   background: var(--state-warning);
-}
-
-.rating-chart-label {
-  font-weight: 600;
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-}
-
-.rating-chart-bar {
-  height: 8px;
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.rating-chart-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary), var(--chart-2));
-  border-radius: 999px;
-  transition: width 0.3s ease;
-}
-
-.rating-chart-value {
-  font-weight: 600;
-  text-align: right;
-  color: var(--color-text);
-  font-size: 0.9rem;
 }
 
 .rating-chart {

@@ -19,3 +19,11 @@ attachments/
 *.bak
 *.tmp
 *.temp
+
+# local runtime databases
+**/panel_runtime.db
+**/settings.db
+*.db
+*.db-shm
+*.db-wal
+
