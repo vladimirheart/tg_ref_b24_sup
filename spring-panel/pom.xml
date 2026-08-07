@@ -144,7 +144,6 @@
                     <loadPaths>
                         <loadPath>src/main/resources/scss</loadPath>
                     </loadPaths>
-                    <errorCss>false</errorCss>
                     <noCharset>true</noCharset>
                     <noSourceMap>true</noSourceMap>
                     <stopOnError>true</stopOnError>

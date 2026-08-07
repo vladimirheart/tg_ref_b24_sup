@@ -39,23 +39,41 @@
   right: 0;
   width: 5px;
   height: 100%;
-  background-color: #ddd;
+
+  background-color:
+    color-mix(
+      in srgb,
+      var(--color-border) 82%,
+      var(--color-text-muted)
+    );
+
   cursor: col-resize;
   user-select: none;
 }
 
 .resize-handle:hover {
-  background-color: #aaa;
+  background-color: var(--primary);
 }
 
 .clickable-client {
   cursor: pointer;
-  color: #0d6efd;
+  color: var(--primary);
   text-decoration: underline;
+  text-decoration-color:
+    color-mix(
+      in srgb,
+      var(--primary) 45%,
+      transparent
+    );
 }
 
 .clickable-client:hover {
-  color: #0a58ca;
+  color:
+    color-mix(
+      in srgb,
+      var(--primary) 78%,
+      var(--color-text)
+    );
 }
 
 .column-toggle {
@@ -195,7 +213,7 @@ table[data-column-reorderable] th.dragging {
 }
 
 .client-analytics-row:hover {
-  background-color: rgba(13, 110, 253, 0.08);
+  background-color: var(--surface-selected);
 }
 
 @media (max-width: 576px) {
@@ -255,7 +273,7 @@ table[data-column-reorderable] th.dragging {
   border-radius: 0.75rem;
   min-height: 42px;
   border-color: var(--color-border);
-  background: color-mix(in srgb, var(--color-surface) 90%, white);
+  background: var(--surface-raised);
   padding: 4px 6px;
 }
 
@@ -266,7 +284,7 @@ table[data-column-reorderable] th.dragging {
 
 .select2-container--default .select2-selection--multiple .select2-selection__choice {
   border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent) 12%, white);
+  background: var(--surface-interactive);
   color: var(--color-text);
   border-radius: 999px;
   padding: 2px 8px;
@@ -334,10 +352,10 @@ table[data-column-reorderable] th.dragging {
 }
 
 .category-selector .selected-categories {
-  background-color: #f8f9fa;
+  background-color: var(--surface-interactive);
   padding: 0.5rem;
-  border-radius: 0.25rem;
-  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
 }
 /* Системная подрезка «пустоты» над заголовками */
 h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
@@ -393,23 +411,26 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
   background: transparent;
   cursor: pointer;
   padding: 0.15rem;
-  color: var(--bs-secondary-color, #6c757d);
+  color: var(--color-text-muted);
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+  border-radius: 0.4rem;
+
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .copy-icon-btn:hover,
 .copy-icon-btn:focus {
-  color: var(--bs-body-color, #212529);
-  background-color: rgba(108, 117, 125, 0.12);
+  color: var(--color-text);
+  background-color: var(--surface-interactive);
 }
 
 .copy-icon-btn:focus-visible {
-  outline: 2px solid var(--bs-primary, #0d6efd);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -419,11 +440,11 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 }
 
 .copy-icon-btn[data-copy-state='copied'] {
-  color: var(--bs-success, #198754);
+  color: var(--state-success);
 }
 
 .copy-icon-btn[data-copy-state='error'] {
-  color: var(--bs-danger, #dc3545);
+  color: var(--state-danger);
 }
 
 .role-card {
@@ -477,19 +498,37 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 }
 
 .auth-user-photo-dropzone {
-  border: 2px dashed rgba(13, 110, 253, 0.35);
+  border:
+    2px dashed color-mix(
+      in srgb,
+      var(--primary) 35%,
+      var(--color-border)
+    );
+
   border-radius: 1rem;
   padding: 1.5rem;
-  background: rgba(13, 110, 253, 0.05);
+
+  background:
+    color-mix(
+      in srgb,
+      var(--primary) 5%,
+      var(--surface-card)
+    );
+
   text-align: center;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+
   cursor: pointer;
   position: relative;
 }
 
 .auth-user-photo-dropzone.has-photo {
   border-style: solid;
-  background: #fff;
+  background: var(--surface-card);
   padding: 1.25rem;
 }
 
@@ -504,9 +543,22 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 }
 
 .auth-user-photo-dropzone.is-dragover {
-  border-color: rgba(13, 110, 253, 0.8);
-  background: rgba(13, 110, 253, 0.12);
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.2);
+  border-color: var(--primary);
+
+  background:
+    color-mix(
+      in srgb,
+      var(--primary) 12%,
+      var(--surface-card)
+    );
+
+  box-shadow:
+    0 0 0 0.25rem
+    color-mix(
+      in srgb,
+      var(--primary) 20%,
+      transparent
+    );
 }
 
 .auth-user-photo-placeholder {
@@ -519,7 +571,7 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 
 .auth-user-photo-icon {
   font-size: 2.5rem;
-  color: #0d6efd;
+  color: var(--primary);
 }
 
 .auth-user-photo-preview {
@@ -533,7 +585,13 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
   height: 160px;
   object-fit: cover;
   border-radius: 1.25rem;
-  box-shadow: 0 0.75rem 1.5rem rgba(13, 110, 253, 0.18);
+  box-shadow:
+	  0 0.75rem 1.5rem
+	  color-mix(
+		in srgb,
+		var(--primary) 18%,
+		transparent
+	  );
 }
 
 .auth-user-photo-img[data-auth-user-photo-preview-trigger] {
@@ -572,8 +630,8 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(13, 110, 253, 0.12);
-  color: #0d6efd;
+  background: var(--surface-selected);
+  color: var(--primary);
   font-weight: 600;
   font-size: 1rem;
   flex-shrink: 0;
@@ -607,10 +665,21 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 }
 
 .bot-question-option {
-  background-color: #ffffff;
-  border: 1px solid rgba(13, 110, 253, 0.12);
+  background-color: var(--surface-card);
+
+  border:
+    1px solid color-mix(
+      in srgb,
+      var(--primary) 12%,
+      var(--color-border)
+    );
+
   border-radius: 0.75rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .bot-question-option__header .form-check-input {
@@ -618,34 +687,73 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 }
 
 .bot-question-option[data-bot-question-option-active='true'] {
-  border-color: rgba(13, 110, 253, 0.45);
-  box-shadow: 0 0.75rem 1.25rem rgba(13, 110, 253, 0.12);
-  background-color: rgba(13, 110, 253, 0.05);
+  border-color:
+    color-mix(
+      in srgb,
+      var(--primary) 45%,
+      var(--color-border)
+    );
+
+  box-shadow:
+    0 0.75rem 1.25rem
+    color-mix(
+      in srgb,
+      var(--primary) 12%,
+      transparent
+    );
+
+  background-color: var(--surface-selected);
 }
 
 .bot-question-option__dependencies {
-  background: rgba(13, 110, 253, 0.04);
-  border-left: 3px solid rgba(13, 110, 253, 0.35);
+  background: var(--surface-interactive);
+
+  border-left:
+    3px solid color-mix(
+      in srgb,
+      var(--primary) 42%,
+      var(--color-border)
+    );
+
   border-radius: 0.5rem;
   margin-left: 1.75rem;
   padding: 0.75rem 1rem;
 }
 
 .bot-question-option__dependencies-title {
-  color: #0d6efd;
+  color: var(--primary);
 }
 
 .bot-question-preview {
-  background: linear-gradient(135deg, rgba(13, 110, 253, 0.12), rgba(13, 110, 253, 0.04));
-  border-color: rgba(13, 110, 253, 0.18) !important;
+  background:
+    linear-gradient(
+      135deg,
+      var(--surface-selected),
+      var(--surface-interactive)
+    );
+
+  border-color:
+    color-mix(
+      in srgb,
+      var(--primary) 18%,
+      var(--color-border)
+    ) !important;
+
   border-radius: 1rem;
 }
 
 .bot-question-preview__badge {
   font-weight: 500;
-  background: rgba(13, 110, 253, 0.1);
-  color: #0d6efd;
-  border-color: rgba(13, 110, 253, 0.25) !important;
+
+  background: var(--surface-selected);
+  color: var(--primary);
+
+  border-color:
+    color-mix(
+      in srgb,
+      var(--primary) 28%,
+      var(--color-border)
+    ) !important;
 }
 
 /* Global no-hover mode requested for operator workspace */

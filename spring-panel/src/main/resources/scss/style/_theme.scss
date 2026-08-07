@@ -17,12 +17,26 @@
   --ui-panel-padding-lg: 1.1rem;
   --ui-panel-shadow: 0 10px 28px rgba(16, 46, 57, 0.07);
   --ui-panel-bg:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--card) 99%, white),
-      color-mix(in srgb, var(--secondary) 3%, white)
-    );
-  --ui-panel-border: color-mix(in srgb, var(--color-border) 72%, white);
+	  linear-gradient(
+		180deg,
+		color-mix(
+		  in srgb,
+		  var(--card) 99%,
+		  var(--background)
+		),
+		color-mix(
+		  in srgb,
+		  var(--secondary) 3%,
+		  var(--card)
+		)
+	  );
+
+	--ui-panel-border:
+	  color-mix(
+		in srgb,
+		var(--color-border) 82%,
+		transparent
+	  );
 
   --card: #fffdf8;
   --ring: #1f9d8a;
@@ -85,6 +99,31 @@
 
   --color-surface: var(--card);
   --color-surface-soft: color-mix(in srgb, var(--primary) 7%, var(--card));
+  
+  /* Iguana surface hierarchy */
+	--surface-page: var(--color-bg);
+	--surface-card: var(--color-surface);
+
+	--surface-raised:
+	  color-mix(
+		in srgb,
+		var(--color-surface) 96%,
+		var(--secondary)
+	  );
+
+	--surface-interactive:
+	  color-mix(
+		in srgb,
+		var(--color-surface) 94%,
+		var(--primary)
+	  );
+
+	--surface-selected:
+	  color-mix(
+		in srgb,
+		var(--color-surface) 86%,
+		var(--primary)
+	  );
 
   --color-text: var(--foreground);
   --color-text-muted: var(--muted-foreground);
@@ -129,9 +168,31 @@
   --color-warning-bg: #fff0d3;
   --color-danger-bg: #f7dfdc;
   --color-info-bg: #e0eff3;
-  --border-animation-duration: 10s;
-  color-scheme: light;
-}
+  
+  /* Semantic component states */
+	--state-info-bg: var(--color-info-bg);
+	--state-info-text: var(--state-system);
+
+	--state-success-bg: var(--color-success-bg);
+	--state-success-text: var(--state-success);
+
+	--state-warning-bg: var(--color-warning-bg);
+	--state-warning-text: var(--state-warning);
+
+	--state-danger-bg: var(--color-danger-bg);
+	--state-danger-text: var(--state-danger);
+
+	--state-ai-bg:
+	  color-mix(
+		in srgb,
+		var(--state-ai) 12%,
+		var(--color-surface)
+	  );
+
+	--state-ai-text: var(--state-ai);
+	  --border-animation-duration: 10s;
+	  color-scheme: light;
+	}
 
 body[data-ui-density='compact'] {
   --ui-page-gap: 1rem;

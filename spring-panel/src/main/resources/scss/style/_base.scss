@@ -16,9 +16,25 @@ body {
   overflow-y: auto;
   line-height: 1.45;
   background-image:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--sidebar) 70%, transparent) 0%, transparent 32%),
-    radial-gradient(circle at top right, color-mix(in srgb, var(--accent) 65%, transparent) 0%, transparent 28%),
-    linear-gradient(180deg, color-mix(in srgb, var(--background) 90%, white), var(--background));
+	  radial-gradient(
+		circle at top left,
+		color-mix(in srgb, var(--sidebar) 62%, transparent) 0%,
+		transparent 32%
+	  ),
+	  radial-gradient(
+		circle at top right,
+		color-mix(in srgb, var(--accent) 18%, transparent) 0%,
+		transparent 28%
+	  ),
+	  linear-gradient(
+		180deg,
+		color-mix(
+		  in srgb,
+		  var(--background) 94%,
+		  var(--card)
+		),
+		var(--background)
+	  );
 }
 
 body, html {
@@ -29,21 +45,28 @@ body, html {
   position: relative;
   margin-bottom: 1.5rem;
   padding: 1.35rem 1.5rem;
-  border: 1px solid transparent;
-  border-radius: 1.35rem;
-  background:
-    linear-gradient(color-mix(in srgb, var(--card) 95%, white), color-mix(in srgb, var(--secondary) 24%, white)),
-    conic-gradient(
-      from var(--gradient-angle),
-      color-mix(in srgb, var(--gradient-primary) 55%, transparent),
-      color-mix(in srgb, var(--gradient-secondary) 42%, transparent),
-      color-mix(in srgb, var(--gradient-accent) 52%, transparent),
-      color-mix(in srgb, var(--gradient-primary) 55%, transparent)
+
+  border:
+    1px solid color-mix(
+      in srgb,
+      var(--color-border) 88%,
+      transparent
     );
-  background-origin: padding-box, border-box;
-  background-clip: padding-box, border-box;
-  box-shadow: var(--color-shadow);
-  animation: gradient-rotate 14s linear infinite;
+
+  border-radius: 1.35rem;
+
+  background:
+    linear-gradient(
+      135deg,
+      var(--surface-card),
+      color-mix(
+        in srgb,
+        var(--secondary) 7%,
+        var(--surface-card)
+      )
+    );
+
+  box-shadow: var(--ui-panel-shadow);
 }
 
 .page-kicker {
@@ -51,7 +74,12 @@ body, html {
   align-items: center;
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 78%, white);
+  background:
+	  color-mix(
+		in srgb,
+		var(--accent) 22%,
+		var(--surface-card)
+	  );
   color: var(--accent-foreground);
   font-size: 0.78rem;
   font-weight: 700;
@@ -74,8 +102,15 @@ body, html {
 }
 
 .surface-soft {
-  background: color-mix(in srgb, var(--color-surface-soft) 85%, white);
-  border: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent);
+  background: var(--surface-interactive);
+
+  border:
+    1px solid color-mix(
+      in srgb,
+      var(--color-border) 78%,
+      transparent
+    );
+
   border-radius: 1rem;
 }
 
@@ -99,31 +134,24 @@ body, html {
 .dropdown-menu,
 .list-group-item,
 .accordion-item {
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--color-shadow);
-  background-image:
-    linear-gradient(var(--gradient-surface), var(--gradient-surface)),
-    conic-gradient(
-      from var(--gradient-angle),
-      var(--gradient-primary) 0deg,
-      var(--gradient-secondary) 90deg,
-      var(--gradient-accent) 150deg,
-      var(--gradient-secondary) 210deg,
-      var(--gradient-primary) 360deg
-    );
-  background-origin: padding-box, border-box;
-  background-clip: padding-box, border-box;
-  animation: gradient-rotate var(--border-animation-duration) linear infinite;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+
+  background: var(--surface-card);
+
+  box-shadow: var(--ui-panel-shadow);
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .card:hover,
 .modal-content:hover,
 .accordion-item:hover,
 .dropdown-menu:hover {
-  transform: translateY(-2px);
-  filter: saturate(1.03);
+  transform: none;
+  filter: none;
 }
 
 .gradient-border-auto {
@@ -185,7 +213,13 @@ body, html {
   border-radius: 999px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  box-shadow: 0 14px 22px rgba(18, 33, 23, 0.08);
+  box-shadow:
+	  0 10px 20px
+	  color-mix(
+		in srgb,
+		var(--shadow-color) 8%,
+		transparent
+	  );
 }
 
 .btn-primary {
@@ -214,8 +248,14 @@ body, html {
 .btn-outline-secondary,
 .btn-outline-dark,
 .btn-outline-light {
-  border-color: color-mix(in srgb, var(--color-border) 16%, transparent);
-  background: color-mix(in srgb, var(--color-surface) 82%, white);
+  border-color:
+    color-mix(
+      in srgb,
+      var(--color-border) 82%,
+      transparent
+    );
+
+  background: var(--surface-raised);
 }
 
 .btn-outline-primary:hover,
@@ -227,8 +267,14 @@ body, html {
 .btn-outline-dark:focus-visible,
 .btn-outline-light:focus-visible {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--color-accent) 10%, white);
-  border-color: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  background: var(--surface-selected);
+
+	border-color:
+	  color-mix(
+		in srgb,
+		var(--color-accent) 32%,
+		var(--color-border)
+	  );
 }
 
 .text-muted {
@@ -312,15 +358,27 @@ a:not([class]) {
   border-radius: 999px;
   color: var(--color-text-muted);
   font-weight: 700;
-  background: rgba(255, 255, 255, 0.52);
+  background: var(--surface-raised);
 }
 
 .nav-tabs .nav-link.active,
 .nav-tabs .nav-item.show .nav-link {
   color: var(--color-text);
   border-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 14%, white), rgba(255, 255, 255, 0.92));
-  box-shadow: 0 14px 24px rgba(18, 33, 23, 0.08);
+  background:
+	  linear-gradient(
+		135deg,
+		var(--surface-selected),
+		var(--surface-card)
+	  );
+
+	box-shadow:
+	  0 10px 22px
+	  color-mix(
+		in srgb,
+		var(--shadow-color) 8%,
+		transparent
+	  );
 }
 
 .table {
@@ -341,17 +399,29 @@ a:not([class]) {
 }
 
 .modal-content {
-  border: 1px solid color-mix(in srgb, var(--color-border) 14%, transparent);
+  border: 1px solid var(--color-border);
   border-radius: 1.25rem;
+
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 96%, white), color-mix(in srgb, var(--color-bg-muted) 18%, white));
-  box-shadow: 0 24px 48px rgba(18, 33, 23, 0.18);
+    linear-gradient(
+      180deg,
+      var(--surface-card),
+      var(--surface-raised)
+    );
+
+  box-shadow:
+    0 24px 48px
+    color-mix(
+      in srgb,
+      var(--shadow-color) 18%,
+      transparent
+    );
 }
 
 .modal-header,
 .modal-footer {
-  border-color: color-mix(in srgb, var(--color-border) 12%, transparent);
-  background: color-mix(in srgb, var(--color-surface-soft) 82%, white);
+  border-color: var(--color-border);
+  background: var(--surface-raised);
 }
 
 .modal-header {
@@ -373,8 +443,8 @@ a:not([class]) {
 
 .btn-close {
   border-radius: 999px;
-  background-color: color-mix(in srgb, var(--color-surface) 86%, white);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  background-color: var(--surface-interactive);
+  box-shadow: none;
 }
 
 [data-theme='dark'] .bg-light {
