@@ -24,7 +24,7 @@
 .btn,
 .form-control,
 .form-select {
-    min-height: 2.15rem;
+    min-height: var(--control-height);
 }
 
 /* Density mode (global) */
@@ -77,7 +77,6 @@ body[data-ui-density='compact'] .page-title {
 
 body {
     letter-spacing: var(--letter-spacing, normal);
-    background-image: none !important;
 }
 
 .page-header-card {
@@ -92,26 +91,39 @@ body {
 .modal-content,
 .dropdown-menu,
 .accordion-item,
-.workspace-panel-block,
-.sidebar,
-.sidebar-user-card {
-    background: var(--ui-surface) !important;
-    border: 1px solid var(--ui-border) !important;
-    border-radius: var(--ui-radius) !important;
-    box-shadow: var(--ui-shadow) !important;
+.workspace-panel-block {
+    background: var(--surface-card) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--ui-panel-radius) !important;
+    box-shadow: var(--ui-panel-shadow) !important;
     animation: none !important;
 }
 
-.btn,
+.btn {
+    border-radius: var(--control-radius) !important;
+    border-color: var(--color-border) !important;
+}
+
 .form-check-input {
-    border-radius: calc(var(--ui-radius) * 0.6) !important;
-    border-color: var(--ui-border) !important;
+    border-color: var(--color-border) !important;
 }
 
 .btn-primary {
-    background: var(--ui-primary) !important;
-    border-color: var(--ui-primary) !important;
     color: var(--primary-foreground) !important;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--color-accent),
+            var(--color-accent-strong)
+        ) !important;
+
+    border-color:
+        color-mix(
+            in srgb,
+            var(--color-accent) 72%,
+            var(--color-ink-panel)
+        ) !important;
 }
 
 .btn-outline-primary,
@@ -121,9 +133,21 @@ body {
 .btn-outline-success,
 .btn-outline-dark,
 .btn-outline-light {
-    color: var(--ui-text) !important;
-    border-color: var(--ui-border) !important;
-    background: color-mix(in srgb, var(--ui-surface) 96%, white) !important;
+    border-color: var(--color-border) !important;
+    background: var(--surface-raised) !important;
+}
+
+.btn-outline-primary {
+    color: var(--primary) !important;
+}
+
+.btn-outline-secondary,
+.btn-outline-warning,
+.btn-outline-danger,
+.btn-outline-success,
+.btn-outline-dark,
+.btn-outline-light {
+    color: var(--color-text) !important;
 }
 
 .btn-outline-primary:hover,
@@ -133,7 +157,7 @@ body {
 .btn-outline-success:hover,
 .btn-outline-dark:hover,
 .btn-outline-light:hover {
-    background: color-mix(in srgb, var(--ui-primary) 12%, var(--ui-surface)) !important;
+    background: var(--surface-selected) !important;
 }
 
 .table {
@@ -242,26 +266,71 @@ body {
     color: var(--primary-foreground);
 }
 
-/* Tokenized status and helper colors */
+/* Component state aliases.
+   Base colors come from style/_theme.scss. */
 :root {
-    --state-info-bg: color-mix(in srgb, var(--state-system) 12%, var(--ui-surface));
-    --state-info-border: color-mix(in srgb, var(--state-system) 30%, var(--ui-border));
-    --state-info-fg: var(--ui-text);
-    --state-warn-bg: color-mix(in srgb, var(--state-warning) 16%, var(--ui-surface));
-    --state-warn-border: color-mix(in srgb, var(--state-warning) 36%, var(--ui-border));
-    --state-warn-fg: var(--ui-text);
-    --state-success-bg: color-mix(in srgb, var(--state-success) 14%, var(--ui-surface));
-    --state-success-border: color-mix(in srgb, var(--state-success) 32%, var(--ui-border));
-    --state-success-fg: var(--ui-text);
-    --state-danger-bg: color-mix(in srgb, var(--state-danger) 14%, var(--ui-surface));
-    --state-danger-border: color-mix(in srgb, var(--state-danger) 32%, var(--ui-border));
-    --state-danger-fg: var(--ui-text);
-    --state-neutral-bg: color-mix(in srgb, var(--muted) 65%, var(--ui-surface));
-    --state-neutral-border: color-mix(in srgb, var(--muted-foreground) 30%, var(--ui-border));
-    --state-neutral-fg: var(--ui-text);
-    --state-ai-bg: color-mix(in srgb, var(--state-ai) 14%, var(--ui-surface));
-    --state-ai-border: color-mix(in srgb, var(--state-ai) 30%, var(--ui-border));
-    --state-ai-fg: color-mix(in srgb, var(--state-ai) 76%, var(--ui-text));
+    --state-info-border:
+        color-mix(
+            in srgb,
+            var(--state-system) 30%,
+            var(--color-border)
+        );
+
+    --state-info-fg: var(--state-info-text);
+
+    --state-warn-bg: var(--state-warning-bg);
+
+    --state-warn-border:
+        color-mix(
+            in srgb,
+            var(--state-warning) 36%,
+            var(--color-border)
+        );
+
+    --state-warn-fg: var(--state-warning-text);
+
+    --state-success-border:
+        color-mix(
+            in srgb,
+            var(--state-success) 32%,
+            var(--color-border)
+        );
+
+    --state-success-fg: var(--state-success-text);
+
+    --state-danger-border:
+        color-mix(
+            in srgb,
+            var(--state-danger) 32%,
+            var(--color-border)
+        );
+
+    --state-danger-fg: var(--state-danger-text);
+
+    --state-neutral-bg:
+        color-mix(
+            in srgb,
+            var(--muted) 65%,
+            var(--surface-card)
+        );
+
+    --state-neutral-border:
+        color-mix(
+            in srgb,
+            var(--muted-foreground) 30%,
+            var(--color-border)
+        );
+
+    --state-neutral-fg: var(--color-text);
+
+    --state-ai-border:
+        color-mix(
+            in srgb,
+            var(--state-ai) 30%,
+            var(--color-border)
+        );
+
+    --state-ai-fg: var(--state-ai-text);
 }
 
 .table-light,
