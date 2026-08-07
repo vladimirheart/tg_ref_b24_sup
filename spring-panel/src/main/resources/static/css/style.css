@@ -124,8 +124,29 @@
     var(--shadow-blur)
     var(--shadow-spread)
     hsl(0 0% 0% / var(--shadow-opacity));
+  /* Iguana geometry */
+  --radius-xs: 0.4rem;
+  --radius-sm: 0.55rem;
   --radius-md: 0.75rem;
   --radius-lg: 0.9rem;
+  --radius-xl: 1.25rem;
+  --radius-pill: 999px;
+  /* Iguana controls */
+  --control-height-sm: 32px;
+  --control-height: 40px;
+  --control-height-lg: 46px;
+  --control-radius: 0.7rem;
+  /* Iguana typography */
+  --font-size-xs: 0.78rem;
+  --font-size-sm: 0.88rem;
+  --font-size-base: 1rem;
+  --font-size-md: 1.08rem;
+  --font-size-lg: 1.18rem;
+  --font-size-xl: 1.4rem;
+  --font-size-2xl: 1.8rem;
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.45;
+  --line-height-relaxed: 1.6;
   --gradient-primary: var(--primary);
   --gradient-secondary: var(--secondary);
   --gradient-accent: var(--accent);
@@ -230,6 +251,7 @@ body[data-ui-page=public] {
   --secondary: #68afcb;
   --sidebar: #0c242c;
   --background: #081a21;
+  --shadow-color: #000000;
   --foreground: #f3f7f5;
   --destructive: #e47b74;
   --sidebar-ring: #45c7b2;
@@ -518,12 +540,34 @@ body {
   min-height: var(--page-min-height);
   overflow-x: hidden;
   overflow-y: auto;
-  line-height: 1.45;
+  line-height: var(--line-height-normal);
   background-image: radial-gradient(circle at top left, color-mix(in srgb, var(--sidebar) 62%, transparent) 0%, transparent 32%), radial-gradient(circle at top right, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 28%), linear-gradient(180deg, color-mix(in srgb, var(--background) 94%, var(--card)), var(--background));
 }
 
 body, html {
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--color-text);
+  font-weight: 700;
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.02em;
+}
+
+h4,
+h5,
+h6 {
+  color: var(--color-text);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+p {
+  line-height: var(--line-height-normal);
 }
 
 .page-header-card {
@@ -542,8 +586,8 @@ body, html {
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 22%, var(--surface-card));
-  color: var(--accent-foreground);
-  font-size: 0.78rem;
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -552,15 +596,18 @@ body, html {
 .page-title {
   margin: 0.75rem 0 0.25rem;
   font-family: var(--font-serif);
-  font-size: clamp(1.8rem, 2.6vw, 2.6rem);
-  line-height: 1.08;
+  font-size: clamp(1.8rem, 2.4vw, 2.35rem);
+  font-weight: 700;
+  line-height: var(--line-height-tight);
   letter-spacing: -0.025em;
 }
 
 .page-subtitle {
   margin: 0;
-  color: var(--color-text-muted);
   max-width: 70ch;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-relaxed);
 }
 
 .surface-soft {
@@ -596,6 +643,31 @@ body, html {
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
+.card-header,
+.card-footer {
+  padding: 0.8rem 1rem;
+  border-color: var(--color-border);
+  background: var(--surface-raised);
+}
+
+.card-body {
+  padding: 1rem;
+}
+
+.card-title {
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  line-height: var(--line-height-tight);
+}
+
+.card-subtitle {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
 .card:hover,
 .modal-content:hover,
 .accordion-item:hover,
@@ -624,8 +696,10 @@ body, html {
 .table thead th {
   background-color: color-mix(in srgb, var(--color-bg-muted) 82%, var(--color-surface));
   border-bottom: 1px solid var(--color-border);
-  font-weight: 600;
   color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  line-height: 1.25;
   letter-spacing: 0.01em;
 }
 
@@ -650,7 +724,6 @@ body, html {
   border-color: var(--color-border);
 }
 
-.btn,
 .badge,
 .nav-link,
 .alert {
@@ -658,23 +731,28 @@ body, html {
 }
 
 .btn {
-  min-height: 40px;
-  padding: 0.52rem 0.92rem;
-  border-radius: 999px;
+  min-height: var(--control-height);
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--control-radius);
+  color: var(--color-text);
+  font-size: var(--font-size-base);
   font-weight: 700;
-  letter-spacing: -0.01em;
-  box-shadow: 0 10px 20px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--shadow-color) 7%, transparent);
 }
 
 .btn-primary {
+  color: var(--primary-foreground);
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent-strong));
   border-color: color-mix(in srgb, var(--color-accent) 72%, var(--color-ink-panel));
 }
 
 .btn-primary:hover,
 .btn-primary:focus-visible {
+  color: var(--primary-foreground);
   filter: brightness(1.03);
-  transform: translateY(-1px);
+  transform: none;
 }
 
 .btn-outline-primary,
@@ -683,6 +761,16 @@ body, html {
 .btn-outline-light {
   border-color: color-mix(in srgb, var(--color-border) 82%, transparent);
   background: var(--surface-raised);
+}
+
+.btn-outline-primary {
+  color: var(--primary);
+}
+
+.btn-outline-secondary,
+.btn-outline-dark,
+.btn-outline-light {
+  color: var(--color-text);
 }
 
 .btn-outline-primary:hover,
@@ -696,6 +784,91 @@ body, html {
   transform: translateY(-1px);
   background: var(--surface-selected);
   border-color: color-mix(in srgb, var(--color-accent) 32%, var(--color-border));
+}
+
+/* Iguana form controls */
+.form-label {
+  margin-bottom: 0.4rem;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.form-control,
+.form-select {
+  min-height: var(--control-height);
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  background-color: var(--surface-card);
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  line-height: 1.35;
+  box-shadow: none;
+}
+
+.form-control::placeholder {
+  color: color-mix(in srgb, var(--color-text-muted) 72%, transparent);
+  opacity: 1;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--color-border));
+  background-color: var(--surface-card);
+  color: var(--color-text);
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  background-color: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  opacity: 0.75;
+}
+
+.form-control-sm,
+.form-select-sm {
+  min-height: var(--control-height-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.form-control-lg,
+.form-select-lg {
+  min-height: var(--control-height-lg);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+}
+
+.input-group-text {
+  min-height: var(--control-height);
+  border-color: var(--color-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.form-text {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.form-check-input {
+  border-color: var(--color-border);
+  background-color: var(--surface-card);
+}
+
+.form-check-input:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
 .text-muted {
@@ -731,9 +904,13 @@ a:not([class]) {
 }
 
 [data-theme=dark] .btn-outline-secondary,
-[data-theme=dark] .btn-outline-primary,
 [data-theme=dark] .btn-outline-light {
   color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+[data-theme=dark] .btn-outline-primary {
+  color: var(--primary);
   border-color: var(--color-border);
 }
 
@@ -791,7 +968,17 @@ a:not([class]) {
 }
 
 .table {
-  border-color: color-mix(in srgb, var(--color-border) 12%, transparent);
+  margin-bottom: 0;
+  border-color: var(--color-border);
+}
+
+.table > :not(caption) > * > * {
+  padding: 0.68rem 0.75rem;
+  vertical-align: middle;
+}
+
+.table-sm > :not(caption) > * > * {
+  padding: 0.44rem 0.55rem;
 }
 
 .modal-backdrop.show {
@@ -886,8 +1073,11 @@ a:not([class]) {
 }
 
 .badge {
-  border-radius: 999px;
+  padding: 0.34rem 0.56rem;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .chat-bubble {
@@ -921,12 +1111,18 @@ a:not([class]) {
   padding: 10px;
 }
 
-.badge {
-  font-size: 100%;
+.btn-sm {
+  min-height: var(--control-height-sm);
+  padding: 0.34rem 0.64rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
 }
 
-.btn-sm {
-  font-size: 0.8rem;
+.btn-lg {
+  min-height: var(--control-height-lg);
+  padding: 0.62rem 1.05rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
 }
 
 /* Universal back button style */

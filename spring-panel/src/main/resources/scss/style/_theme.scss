@@ -142,8 +142,32 @@
     var(--shadow-spread)
     hsl(0 0% 0% / var(--shadow-opacity));
 
-  --radius-md: 0.75rem;
-  --radius-lg: 0.9rem;
+/* Iguana geometry */
+--radius-xs: 0.4rem;
+--radius-sm: 0.55rem;
+--radius-md: 0.75rem;
+--radius-lg: 0.9rem;
+--radius-xl: 1.25rem;
+--radius-pill: 999px;
+
+/* Iguana controls */
+--control-height-sm: 32px;
+--control-height: 40px;
+--control-height-lg: 46px;
+--control-radius: 0.7rem;
+
+/* Iguana typography */
+--font-size-xs: 0.78rem;
+--font-size-sm: 0.88rem;
+--font-size-base: 1rem;
+--font-size-md: 1.08rem;
+--font-size-lg: 1.18rem;
+--font-size-xl: 1.4rem;
+--font-size-2xl: 1.8rem;
+
+--line-height-tight: 1.2;
+--line-height-normal: 1.45;
+--line-height-relaxed: 1.6;
 
   --gradient-primary: var(--primary);
   --gradient-secondary: var(--secondary);
@@ -262,6 +286,7 @@ body[data-ui-page='public'] {
 
   --sidebar: #0c242c;
   --background: #081a21;
+  --shadow-color: #000000;
 
   --foreground: #f3f7f5;
   --destructive: #e47b74;
