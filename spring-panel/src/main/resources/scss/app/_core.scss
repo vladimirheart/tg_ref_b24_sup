@@ -463,18 +463,66 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
     display: block;
 }
 
-.chat-message.user { background: color-mix(in srgb, var(--secondary) 70%, white); margin-right: auto; }
-.chat-message.support { background: color-mix(in srgb, var(--accent) 75%, white); margin-right: auto; }
-.chat-message.system { background: color-mix(in srgb, var(--muted) 85%, white); margin-right: auto; }
+.chat-message.user {
+    margin-right: auto;
+
+    background: var(--surface-interactive);
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--secondary) 18%,
+            var(--color-border)
+        );
+
+    color: var(--color-text);
+}
+
+.chat-message.support {
+    margin-right: auto;
+
+    background:
+        color-mix(
+            in srgb,
+            var(--primary) 14%,
+            var(--surface-card)
+        );
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--primary) 30%,
+            var(--color-border)
+        );
+
+    color: var(--color-text);
+}
+
+.chat-message.system {
+    margin-right: auto;
+
+    background: var(--color-bg-muted);
+    border: 1px solid var(--color-border);
+
+    color: var(--color-text-muted);
+}
 
 .chat-message-row.is-archived-history .chat-message-avatar,
 .chat-message-avatar.is-archived-history {
-    background: color-mix(in srgb, #cbd5e1 82%, white);
+    background: var(--color-bg-muted);
 }
 
 .chat-message.is-archived-history {
-    background: color-mix(in srgb, #e2e8f0 82%, white);
-    border: 1px solid color-mix(in srgb, #94a3b8 35%, transparent);
+    background:
+        color-mix(
+            in srgb,
+            var(--color-bg-muted) 78%,
+            var(--surface-card)
+        );
+
+    border: 1px solid var(--color-border);
+
+    color: var(--color-text-muted);
 }
 
 
@@ -506,8 +554,15 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
 
 .chat-message-menu-toggle {
     border: none;
-    background: rgba(108, 117, 125, 0.1);
-    color: #343a40;
+
+	background:
+		color-mix(
+			in srgb,
+			var(--color-text-muted) 10%,
+			transparent
+		);
+
+	color: var(--color-text-muted);
     width: 28px;
     height: 28px;
     border-radius: 0.5rem;
@@ -529,17 +584,28 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
 .chat-message-menu-toggle:hover,
 .chat-message-menu-toggle:focus,
 .chat-message-menu.is-open .chat-message-menu-toggle {
-    background: rgba(108, 117, 125, 0.2);
+    background:
+    color-mix(
+        in srgb,
+        var(--color-text-muted) 18%,
+        transparent
+    );
 }
 
 .chat-message-menu-list {
     position: absolute;
     top: calc(100% + 0.35rem);
     right: 0;
-    background: #fff;
-    border: 1px solid #e9ecef;
+    background: var(--surface-card);
+    border: 1px solid var(--color-border);
     border-radius: 0.5rem;
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.12);
+    box-shadow:
+		0 0.4rem 1rem
+		color-mix(
+			in srgb,
+			var(--shadow-color) 12%,
+			transparent
+		);
     padding: 0.35rem;
     display: flex;
     flex-direction: column;

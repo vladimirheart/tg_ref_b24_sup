@@ -157,13 +157,23 @@
 	}
 
     .metrics-panel .panel-head p,
-    .metrics-panel .section-kicker {
-      color: rgba(245, 250, 246, 0.72);
-    }
+	.metrics-panel .section-kicker {
+	  color:
+		color-mix(
+		  in srgb,
+		  var(--color-on-ink) 72%,
+		  transparent
+		);
+	}
 
-    .metrics-panel .section-kicker {
-      background: rgba(255, 255, 255, 0.12);
-    }
+	.metrics-panel .section-kicker {
+	  background:
+		color-mix(
+		  in srgb,
+		  var(--color-on-ink) 12%,
+		  transparent
+		);
+	}
 
     .filter-panel,
     .metrics-panel,
@@ -222,25 +232,44 @@
     }
 
     .panel-info-button {
-      position: relative;
-      z-index: 5;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      margin-top: 0.25rem;
-      border: 0;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--color-border) 22%, white);
-      color: var(--color-text-muted);
-      font-size: 0.76rem;
-      font-weight: 800;
-      line-height: 1;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-      cursor: help;
-      transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
-    }
+	  position: relative;
+	  z-index: 5;
+
+	  display: inline-flex;
+	  align-items: center;
+	  justify-content: center;
+
+	  width: 24px;
+	  height: 24px;
+	  margin-top: 0.25rem;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-pill);
+
+	  background: var(--surface-raised);
+	  color: var(--color-text-muted);
+
+	  font-size: 0.76rem;
+	  font-weight: 800;
+	  line-height: 1;
+
+	  box-shadow: none;
+
+	  cursor: help;
+
+	  transition:
+		background-color 0.18s ease,
+		color 0.18s ease,
+		transform 0.18s ease;
+	}
+
+	.panel-info-button:hover,
+	.panel-info-button:focus-visible {
+	  background: var(--surface-selected);
+	  color: var(--primary);
+	  transform: translateY(-1px);
+	  outline: none;
+	}
 
     .panel-info-button:hover,
     .panel-info-button:focus-visible {
@@ -258,12 +287,23 @@
       width: min(280px, 70vw);
       padding: 0.72rem 0.82rem;
       border-radius: 0.95rem;
-      background: rgba(18, 33, 23, 0.94);
-      color: rgba(245, 250, 246, 0.92);
+      background:
+		  color-mix(
+			in srgb,
+			var(--color-ink-panel) 96%,
+			transparent
+		  );
+	  color: var(--color-on-ink);
       font-size: 0.78rem;
       line-height: 1.45;
       text-align: left;
-      box-shadow: 0 18px 34px rgba(10, 20, 14, 0.24);
+      bbox-shadow:
+		  0 18px 34px
+		  color-mix(
+			in srgb,
+			var(--color-ink-panel-deep) 35%,
+			transparent
+		  );
       opacity: 0;
       visibility: hidden;
       transform: translate(-50%, 6px);
@@ -304,14 +344,31 @@
     }
 
     .section-kicker {
-      background: color-mix(in srgb, var(--chart-3) 16%, white);
-      color: color-mix(in srgb, var(--accent-foreground) 88%, var(--color-text));
-    }
+	  background:
+		color-mix(
+		  in srgb,
+		  var(--chart-3) 16%,
+		  var(--surface-card)
+		);
 
-    .section-chip {
-      background: color-mix(in srgb, var(--primary) 12%, white);
-      color: var(--color-accent);
-    }
+	  color:
+		color-mix(
+		  in srgb,
+		  var(--accent-foreground) 88%,
+		  var(--color-text)
+		);
+	}
+
+	.section-chip {
+	  background:
+		color-mix(
+		  in srgb,
+		  var(--primary) 12%,
+		  var(--surface-card)
+		);
+
+	  color: var(--primary);
+	}
 
     .filter-grid {
       display: grid;
@@ -376,8 +433,8 @@
       padding: 0 0.62rem;
       border-radius: 999px;
       border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--color-border));
-      background: color-mix(in srgb, var(--card) 94%, white);
-      color: var(--color-accent);
+      background: var(--surface-raised);
+	  color: var(--primary);
       font-size: 0.72rem;
       font-weight: 800;
       white-space: nowrap;
@@ -413,21 +470,29 @@
     }
 
     .period-preset-btn {
-      padding: 0.42rem 0.7rem;
-      border-radius: 999px;
-      border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
-      background: rgba(255, 255, 255, 0.78);
-      color: var(--color-text);
-      cursor: pointer;
-      font-size: 0.72rem;
-      font-weight: 700;
-      transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
-    }
+	  padding: 0.42rem 0.7rem;
 
-    .period-preset-btn:hover {
-      transform: translateY(-1px);
-      background: color-mix(in srgb, var(--secondary) 10%, white);
-    }
+	  border-radius: var(--radius-pill);
+	  border: 1px solid var(--color-border);
+
+	  background: var(--surface-raised);
+	  color: var(--color-text);
+
+	  cursor: pointer;
+
+	  font-size: var(--font-size-xs);
+	  font-weight: 700;
+
+	  transition:
+		transform 0.18s ease,
+		background-color 0.18s ease,
+		border-color 0.18s ease;
+	}
+
+	.period-preset-btn:hover {
+	  transform: translateY(-1px);
+	  background: var(--surface-selected);
+	}
 
     .period-preset-btn.active {
       background: linear-gradient(135deg, var(--primary), var(--chart-2));
@@ -464,16 +529,21 @@
     }
 
     .filter-panel .select2-container--default .select2-selection--multiple {
-      display: flex;
-      align-items: center;
-      min-height: 42px;
-      padding: 0.18rem 0.6rem;
-      border-radius: 0.9rem;
-      border-color: color-mix(in srgb, var(--color-border) 16%, transparent);
-      background: rgba(255, 255, 255, 0.78);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-      overflow: hidden;
-    }
+	  display: flex;
+	  align-items: center;
+
+	  min-height: var(--control-height);
+	  padding: 0.18rem 0.6rem;
+
+	  border-radius: var(--control-radius);
+	  border-color: var(--color-border);
+
+	  background: var(--surface-card);
+
+	  box-shadow: none;
+
+	  overflow: hidden;
+	}
 
     .filter-panel .select2-container--default .select2-selection--multiple .select2-selection__rendered {
       display: flex;
@@ -511,9 +581,15 @@
     }
 
     .filter-block--restaurants .select2-container--default .select2-selection--multiple {
-      border-color: color-mix(in srgb, var(--primary) 18%, var(--color-border));
-      background: rgba(255, 255, 255, 0.92);
-    }
+	  border-color:
+		color-mix(
+		  in srgb,
+		  var(--primary) 18%,
+		  var(--color-border)
+		);
+
+	  background: var(--surface-card);
+	}
 
     .metrics-headline {
       position: relative;
