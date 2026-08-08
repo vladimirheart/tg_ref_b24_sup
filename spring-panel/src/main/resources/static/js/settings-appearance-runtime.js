@@ -4,7 +4,7 @@
   }
 
   const STATUS_FILTER_BASE_URL = '/clients';
-  const STATUS_COLOR_FALLBACK = '#0d6efd';
+  const STATUS_COLOR_FALLBACK = '#167d73';
   const BUSINESS_ICON_ALLOWED_PREFIXES = ['http://', 'https://', '/', 'data:image/'];
   const BUSINESS_ICON_MAX_FILE_SIZE = 16 * 1024;
 

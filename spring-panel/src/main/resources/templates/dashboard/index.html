@@ -271,14 +271,6 @@
 	  outline: none;
 	}
 
-    .panel-info-button:hover,
-    .panel-info-button:focus-visible {
-      background: color-mix(in srgb, var(--primary) 16%, white);
-      color: var(--color-accent);
-      transform: translateY(-1px);
-      outline: none;
-    }
-
     .panel-info-tooltip {
       position: absolute;
       top: calc(100% + 10px);
@@ -297,7 +289,7 @@
       font-size: 0.78rem;
       line-height: 1.45;
       text-align: left;
-      bbox-shadow:
+		box-shadow:
 		  0 18px 34px
 		  color-mix(
 			in srgb,
@@ -608,9 +600,26 @@
       min-height: 28px;
       padding: 0 0.72rem;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: rgba(245, 250, 246, 0.9);
+      background:
+		  color-mix(
+			in srgb,
+			var(--color-on-ink) 12%,
+			transparent
+		  );
+
+		border:
+		  1px solid color-mix(
+			in srgb,
+			var(--color-on-ink) 8%,
+			transparent
+		  );
+
+		color:
+		  color-mix(
+			in srgb,
+			var(--color-on-ink) 90%,
+			transparent
+		  );
       font-size: 0.7rem;
       font-weight: 800;
       text-transform: uppercase;
