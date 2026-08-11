@@ -5,6 +5,7 @@ import com.example.panel.model.dialog.DialogPreviousHistoryBatch;
 import com.example.panel.model.dialog.DialogPreviousHistoryPage;
 import com.example.panel.storage.AttachmentService;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
+import com.example.panel.support.PanelTimestampSqlSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -31,10 +32,14 @@ public class DialogConversationReadService {
 
     private final JdbcTemplate jdbcTemplate;
     private final AttachmentService attachmentService;
+    private final PanelTimestampSqlSupport timestampSqlSupport;
 
-    public DialogConversationReadService(JdbcTemplate jdbcTemplate, AttachmentService attachmentService) {
+    public DialogConversationReadService(JdbcTemplate jdbcTemplate,
+                                         AttachmentService attachmentService,
+                                         PanelTimestampSqlSupport timestampSqlSupport) {
         this.jdbcTemplate = jdbcTemplate;
         this.attachmentService = attachmentService;
+        this.timestampSqlSupport = timestampSqlSupport;
     }
 
     public List<ChatMessageDto> loadHistory(String ticketId, Long channelId) {
@@ -154,6 +159,7 @@ public class DialogConversationReadService {
             return Optional.empty();
         }
         try {
+            String messageCreatedOrder = timestampSqlSupport.orderByTimestampDesc("m2.created_at") + ", m2.group_msg_id DESC";
             String sql = """
                     SELECT
                         m.ticket_id,
@@ -181,16 +187,15 @@ public class DialogConversationReadService {
                               FROM messages m2
                              WHERE m2.ticket_id = ?
                                AND m2.user_id IS NOT NULL
-                             ORDER BY substr(m2.created_at, 1, 19) DESC,
-                                      m2.group_msg_id DESC
+                             ORDER BY %s
                              LIMIT 1
                         )
                        AND m.ticket_id <> ?
                      GROUP BY m.ticket_id, COALESCE(t.status, 'pending')
-                     ORDER BY MAX(substr(COALESCE(m.created_at, t.created_at), 1, 19)) DESC,
+                     ORDER BY MAX(COALESCE(m.created_at, t.created_at)) DESC,
                               m.ticket_id DESC
                      LIMIT 2 OFFSET ?
-                    """;
+                    """.formatted(messageCreatedOrder);
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, ticketId.trim(), ticketId.trim(), offset);
             List<DialogPreviousHistoryBatch> batches = new ArrayList<>();
             for (Map<String, Object> row : rows) {
@@ -473,7 +478,9 @@ public class DialogConversationReadService {
         if (filterByChannelId) {
             sql.append(" AND ch.channel_id = ?");
         }
-        sql.append(" ORDER BY substr(ch.timestamp,1,19) ASC, COALESCE(ch.tg_message_id, 0) ASC, ch.rowid ASC");
+        sql.append(" ORDER BY ")
+                .append(timestampSqlSupport.orderByTimestampAsc("ch.timestamp"))
+                .append(", COALESCE(ch.tg_message_id, 0) ASC, ch.id ASC");
         return sql.toString();
     }
 

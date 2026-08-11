@@ -6,8 +6,13 @@ import com.example.panel.config.PanelDatabaseRuntimeMode;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -61,6 +66,35 @@ public class PanelTimestampSqlSupport {
                 : expression + " ASC NULLS LAST";
     }
 
+    public String dateBucketExpression(String expression) {
+        return isSqliteMode()
+                ? "substr(" + sortableTimestampExpression(expression) + ", 1, 10)"
+                : "to_char(" + expression + ", 'YYYY-MM-DD')";
+    }
+
+    public String stringAggregationExpression(String valueExpression, String delimiterLiteral, String orderExpression) {
+        if (isSqliteMode()) {
+            return "GROUP_CONCAT(" + valueExpression + ", " + delimiterLiteral + ")";
+        }
+        return "string_agg(" + valueExpression + ", " + delimiterLiteral + " ORDER BY " + orderExpression + ")";
+    }
+
+    public Object comparableTimestampParam(String rawValue) {
+        if (isSqliteMode()) {
+            return normalizeComparableTimestamp(rawValue);
+        }
+        Instant instant = parseInstant(rawValue);
+        return instant != null ? Timestamp.from(instant) : rawValue;
+    }
+
+    public String normalizeComparableTimestamp(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim().replace(' ', 'T');
+        return normalized.length() > 19 ? normalized.substring(0, 19) : normalized;
+    }
+
     public SqlCondition since(String expression, Duration lookback) {
         if (isSqliteMode()) {
             return new SqlCondition(
@@ -111,6 +145,29 @@ public class PanelTimestampSqlSupport {
 
     private String unitName(long value, String baseName) {
         return Math.abs(value) == 1L ? baseName : baseName + "s";
+    }
+
+    private Instant parseInstant(String rawValue) {
+        if (!StringUtils.hasText(rawValue)) {
+            return null;
+        }
+        String raw = rawValue.trim();
+        try {
+            return Instant.parse(raw);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return OffsetDateTime.parse(raw).toInstant();
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            String compact = raw.replace(' ', 'T');
+            if (compact.length() == 19) {
+                return LocalDateTime.parse(compact).toInstant(ZoneOffset.UTC);
+            }
+        } catch (DateTimeParseException ignored) {
+        }
+        return null;
     }
 
     public record SqlCondition(String sql, Object[] params) {

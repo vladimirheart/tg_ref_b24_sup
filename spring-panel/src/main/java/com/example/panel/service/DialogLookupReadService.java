@@ -5,6 +5,7 @@ import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.support.JdbcSchemaInspector;
+import com.example.panel.support.PanelTimestampSqlSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -40,13 +41,41 @@ public class DialogLookupReadService {
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
     private final PanelUserPhotoService panelUserPhotoService;
+    private final PanelTimestampSqlSupport timestampSqlSupport;
 
     public DialogLookupReadService(JdbcTemplate jdbcTemplate,
                                    @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
-                                   PanelUserPhotoService panelUserPhotoService) {
+                                   PanelUserPhotoService panelUserPhotoService,
+                                   PanelTimestampSqlSupport timestampSqlSupport) {
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.panelUserPhotoService = panelUserPhotoService;
+        this.timestampSqlSupport = timestampSqlSupport;
+    }
+
+    private String latestMessageOrderSql(String alias) {
+        return timestampSqlSupport.orderByTimestampDesc(alias + ".created_at") + ", " + alias + ".group_msg_id DESC";
+    }
+
+    private String latestChatHistoryOrderSql(String alias) {
+        return timestampSqlSupport.orderByTimestampDesc(alias + ".timestamp")
+                + ", COALESCE(" + alias + ".tg_message_id, 0) DESC, " + alias + ".id DESC";
+    }
+
+    private String categoryAggregationSql(String alias) {
+        return timestampSqlSupport.stringAggregationExpression(alias + ".category", "', '", alias + ".category");
+    }
+
+    private String unreadBoundarySql(String ticketAlias) {
+        String lastOperatorReply = """
+                (
+                    SELECT MAX(op.timestamp)
+                      FROM chat_history op
+                     WHERE op.ticket_id = %s.ticket_id
+                       AND lower(op.sender) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                )
+                """.formatted(ticketAlias);
+        return "COALESCE(tr.last_read_at, " + lastOperatorReply + ")";
     }
 
     public DialogSummary loadSummary() {
@@ -74,6 +103,23 @@ public class DialogLookupReadService {
             boolean feedbackHasTicketId = feedbackColumns.contains("ticket_id");
             boolean feedbackHasId = feedbackColumns.contains("id");
             String feedbackOrderBy = feedbackHasTicketId ? "f.timestamp DESC, f.id DESC" : "f.timestamp DESC";
+            String latestMessageOrder = latestMessageOrderSql("m3");
+            String latestMessageSnapshotOrder = latestMessageOrderSql("m2");
+            String latestHistoryOrder = latestChatHistoryOrderSql("ch");
+            String unreadBoundary = unreadBoundarySql("t");
+            String categoriesAggregation = categoryAggregationSql("tc");
+            String lastActivityExpression = """
+                    COALESCE(
+                        (
+                            SELECT timestamp
+                              FROM chat_history ch
+                             WHERE ch.ticket_id = t.ticket_id
+                             ORDER BY %s
+                             LIMIT 1
+                        ),
+                        COALESCE(m.created_at, t.created_at)
+                    )
+                    """.formatted(latestHistoryOrder);
             String ratingSelect = feedbackHasTicketId
                     ? """
                        (
@@ -96,8 +142,7 @@ public class DialogLookupReadService {
                                      FROM messages m3
                                     WHERE m3.ticket_id = t.ticket_id
                                       AND m3.user_id IS NOT NULL
-                                    ORDER BY substr(m3.created_at, 1, 19) DESC,
-                                             m3.group_msg_id DESC
+                                    ORDER BY %s
                                     LIMIT 1
                                )
                            ) AS user_id,
@@ -110,30 +155,26 @@ public class DialogLookupReadService {
                            t.status, t.resolved_by, t.resolved_at,
                            COALESCE(tas.is_processing, 0) AS ai_processing,
                            tr.responsible AS responsible,
-                           COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
-                           COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+                           m.created_date AS created_date,
+                           m.created_time AS created_time,
                            cs.status AS client_status,
                            %s
                            (
                                SELECT sender
                                  FROM chat_history ch
                                 WHERE ch.ticket_id = t.ticket_id
-                                ORDER BY substr(ch.timestamp, 1, 19) DESC,
-                                         COALESCE(ch.tg_message_id, 0) DESC,
-                                         ch.id DESC
+                                ORDER BY %s
                                 LIMIT 1
                            ) AS last_sender,
                            (
                                SELECT timestamp
                                  FROM chat_history ch
                                 WHERE ch.ticket_id = t.ticket_id
-                                ORDER BY substr(ch.timestamp, 1, 19) DESC,
-                                         COALESCE(ch.tg_message_id, 0) DESC,
-                                         ch.id DESC
+                                ORDER BY %s
                                 LIMIT 1
                            ) AS last_sender_time,
                            (
-                               SELECT GROUP_CONCAT(tc.category, ', ')
+                               SELECT %s
                                  FROM ticket_categories tc
                                 WHERE tc.ticket_id = t.ticket_id
                            ) AS categories,
@@ -143,16 +184,7 @@ public class DialogLookupReadService {
                                      FROM chat_history ch
                                     WHERE ch.ticket_id = t.ticket_id
                                       AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
-                                      AND ch.timestamp > COALESCE(
-                                          tr.last_read_at,
-                                          (
-                                              SELECT MAX(op.timestamp)
-                                                FROM chat_history op
-                                               WHERE op.ticket_id = t.ticket_id
-                                                 AND lower(op.sender) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
-                                          ),
-                                          ''
-                                      )
+                                      AND (%s IS NULL OR ch.timestamp > %s)
                                )
                                ELSE 0
                            END AS unread_count
@@ -161,8 +193,7 @@ public class DialogLookupReadService {
                           SELECT m2.group_msg_id
                             FROM messages m2
                            WHERE m2.ticket_id = t.ticket_id
-                           ORDER BY substr(m2.created_at, 1, 19) DESC,
-                                    m2.group_msg_id DESC
+                           ORDER BY %s
                            LIMIT 1
                       )
                       LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
@@ -176,8 +207,7 @@ public class DialogLookupReadService {
                                      FROM messages m3
                                     WHERE m3.ticket_id = t.ticket_id
                                       AND m3.user_id IS NOT NULL
-                                    ORDER BY substr(m3.created_at, 1, 19) DESC,
-                                             m3.group_msg_id DESC
+                                    ORDER BY %s
                                     LIMIT 1
                                )
                            )
@@ -190,26 +220,26 @@ public class DialogLookupReadService {
                                          FROM messages m3
                                         WHERE m3.ticket_id = t.ticket_id
                                           AND m3.user_id IS NOT NULL
-                                        ORDER BY substr(m3.created_at, 1, 19) DESC,
-                                                 m3.group_msg_id DESC
+                                        ORDER BY %s
                                         LIMIT 1
                                    )
                                )
                            )
-                      ORDER BY substr(COALESCE(
-                                   (
-                                       SELECT timestamp
-                                         FROM chat_history ch
-                                        WHERE ch.ticket_id = t.ticket_id
-                                        ORDER BY substr(ch.timestamp, 1, 19) DESC,
-                                                 COALESCE(ch.tg_message_id, 0) DESC,
-                                                 ch.id DESC
-                                        LIMIT 1
-                                   ),
-                                   COALESCE(m.created_at, t.created_at)
-                               ), 1, 19) DESC,
+                      ORDER BY %s,
                                t.ticket_id DESC
-                    """.formatted(ratingSelect);
+                    """.formatted(
+                    latestMessageOrder,
+                    ratingSelect,
+                    latestHistoryOrder,
+                    latestHistoryOrder,
+                    categoriesAggregation,
+                    unreadBoundary,
+                    unreadBoundary,
+                    latestMessageSnapshotOrder,
+                    latestMessageOrder,
+                    latestMessageOrder,
+                    timestampSqlSupport.orderByTimestampDesc(lastActivityExpression)
+            );
             List<DialogListItem> items = jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(
                     rs.getString("ticket_id"),
                     rs.getString("request_number"),
@@ -228,8 +258,8 @@ public class DialogLookupReadService {
                     rs.getString("resolved_by"),
                     rs.getString("resolved_at"),
                     rs.getString("responsible"),
-                    rs.getString("created_date"),
-                    rs.getString("created_time"),
+                    resolveCreatedDate(rs.getString("created_date"), rs.getString("created_at")),
+                    resolveCreatedTime(rs.getString("created_time"), rs.getString("created_at")),
                     rs.getString("client_status"),
                     rs.getString("last_sender"),
                     rs.getString("last_sender_time"),
@@ -285,6 +315,11 @@ public class DialogLookupReadService {
             boolean feedbackHasTicketId = feedbackColumns.contains("ticket_id");
             boolean feedbackHasId = feedbackColumns.contains("id");
             String feedbackOrderBy = feedbackHasTicketId ? "f.timestamp DESC, f.id DESC" : "f.timestamp DESC";
+            String latestMessageOrder = latestMessageOrderSql("m3");
+            String latestMessageSnapshotOrder = latestMessageOrderSql("m2");
+            String latestHistoryOrder = latestChatHistoryOrderSql("ch");
+            String unreadBoundary = unreadBoundarySql("t");
+            String categoriesAggregation = categoryAggregationSql("tc");
             String ratingSelect = feedbackHasTicketId
                     ? """
                        (
@@ -307,8 +342,7 @@ public class DialogLookupReadService {
                                      FROM messages m3
                                     WHERE m3.ticket_id = t.ticket_id
                                       AND m3.user_id IS NOT NULL
-                                    ORDER BY substr(m3.created_at, 1, 19) DESC,
-                                             m3.group_msg_id DESC
+                                    ORDER BY %s
                                     LIMIT 1
                                )
                            ) AS user_id,
@@ -321,30 +355,26 @@ public class DialogLookupReadService {
                            t.status, t.resolved_by, t.resolved_at,
                            COALESCE(tas.is_processing, 0) AS ai_processing,
                            tr.responsible AS responsible,
-                           COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
-                           COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+                           m.created_date AS created_date,
+                           m.created_time AS created_time,
                            cs.status AS client_status,
                            %s
                            (
                                SELECT sender
                                  FROM chat_history ch
                                 WHERE ch.ticket_id = t.ticket_id
-                                ORDER BY substr(ch.timestamp, 1, 19) DESC,
-                                         COALESCE(ch.tg_message_id, 0) DESC,
-                                         ch.id DESC
+                                ORDER BY %s
                                 LIMIT 1
                            ) AS last_sender,
                            (
                                SELECT timestamp
                                  FROM chat_history ch
                                 WHERE ch.ticket_id = t.ticket_id
-                                ORDER BY substr(ch.timestamp, 1, 19) DESC,
-                                         COALESCE(ch.tg_message_id, 0) DESC,
-                                         ch.id DESC
+                                ORDER BY %s
                                 LIMIT 1
                            ) AS last_sender_time,
                            (
-                               SELECT GROUP_CONCAT(tc.category, ', ')
+                               SELECT %s
                                  FROM ticket_categories tc
                                 WHERE tc.ticket_id = t.ticket_id
                            ) AS categories,
@@ -354,16 +384,7 @@ public class DialogLookupReadService {
                                      FROM chat_history ch
                                     WHERE ch.ticket_id = t.ticket_id
                                       AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
-                                      AND ch.timestamp > COALESCE(
-                                          tr.last_read_at,
-                                          (
-                                              SELECT MAX(op.timestamp)
-                                                FROM chat_history op
-                                               WHERE op.ticket_id = t.ticket_id
-                                                 AND lower(op.sender) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
-                                          ),
-                                          ''
-                                      )
+                                      AND (%s IS NULL OR ch.timestamp > %s)
                                )
                                ELSE 0
                            END AS unread_count
@@ -372,8 +393,7 @@ public class DialogLookupReadService {
                           SELECT m2.group_msg_id
                             FROM messages m2
                            WHERE m2.ticket_id = t.ticket_id
-                           ORDER BY substr(m2.created_at, 1, 19) DESC,
-                                    m2.group_msg_id DESC
+                           ORDER BY %s
                            LIMIT 1
                       )
                       LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
@@ -387,8 +407,7 @@ public class DialogLookupReadService {
                                      FROM messages m3
                                     WHERE m3.ticket_id = t.ticket_id
                                       AND m3.user_id IS NOT NULL
-                                    ORDER BY substr(m3.created_at, 1, 19) DESC,
-                                             m3.group_msg_id DESC
+                                    ORDER BY %s
                                     LIMIT 1
                                )
                            )
@@ -401,14 +420,24 @@ public class DialogLookupReadService {
                                          FROM messages m3
                                         WHERE m3.ticket_id = t.ticket_id
                                           AND m3.user_id IS NOT NULL
-                                        ORDER BY substr(m3.created_at, 1, 19) DESC,
-                                                 m3.group_msg_id DESC
+                                        ORDER BY %s
                                         LIMIT 1
                                    )
                                )
                            )
                      WHERE t.ticket_id = ?
-                    """.formatted(ratingSelect);
+                    """.formatted(
+                    latestMessageOrder,
+                    ratingSelect,
+                    latestHistoryOrder,
+                    latestHistoryOrder,
+                    categoriesAggregation,
+                    unreadBoundary,
+                    unreadBoundary,
+                    latestMessageSnapshotOrder,
+                    latestMessageOrder,
+                    latestMessageOrder
+            );
             List<DialogListItem> items = jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(
                     rs.getString("ticket_id"),
                     rs.getString("request_number"),
@@ -427,8 +456,8 @@ public class DialogLookupReadService {
                     rs.getString("resolved_by"),
                     rs.getString("resolved_at"),
                     rs.getString("responsible"),
-                    rs.getString("created_date"),
-                    rs.getString("created_time"),
+                    resolveCreatedDate(rs.getString("created_date"), rs.getString("created_at")),
+                    resolveCreatedTime(rs.getString("created_time"), rs.getString("created_at")),
                     rs.getString("client_status"),
                     rs.getString("last_sender"),
                     rs.getString("last_sender_time"),
@@ -530,21 +559,31 @@ public class DialogLookupReadService {
         if (seed == null || ticketId == null) {
             return item;
         }
-        String comparableCreatedAt = normalizeComparableTimestamp(seed.sortKey());
+        String comparableCreatedAt = timestampSqlSupport.normalizeComparableTimestamp(seed.sortKey());
         if (comparableCreatedAt == null) {
             return item;
         }
-        String createdAtExpr = normalizedTicketCreatedAtSql("t");
+        String createdAtExpr = comparableTicketCreatedAtSql("t");
         String sql = """
                 SELECT COUNT(*)
                   FROM tickets t
-                 WHERE substr(%1$s, 1, 10) = ?
+                 WHERE %2$s = ?
                    AND (
                         %1$s < ?
                         OR (%1$s = ? AND t.ticket_id <= ?)
                    )
-                """.formatted(createdAtExpr);
-        Long count = jdbcTemplate.queryForObject(sql, Long.class, seed.isoDate(), comparableCreatedAt, comparableCreatedAt, ticketId);
+                """.formatted(createdAtExpr, timestampSqlSupport.dateBucketExpression(createdAtExpr));
+        Object comparableCreatedAtParam = timestampSqlSupport.isSqliteMode()
+                ? comparableCreatedAt
+                : timestampSqlSupport.comparableTimestampParam(comparableCreatedAt);
+        Long count = jdbcTemplate.queryForObject(
+                sql,
+                Long.class,
+                seed.isoDate(),
+                comparableCreatedAtParam,
+                comparableCreatedAtParam,
+                ticketId
+        );
         int sequence = count != null && count > 0 ? count.intValue() : 1;
         return item.withRequestNumber(formatRequestNumber(seed.displayDate(), sequence));
     }
@@ -602,7 +641,7 @@ public class DialogLookupReadService {
         if (item == null) {
             return null;
         }
-        String createdAt = normalizeComparableTimestamp(item.createdAt());
+        String createdAt = timestampSqlSupport.normalizeComparableTimestamp(item.createdAt());
         if (createdAt != null) {
             return createdAt.length() > 19 ? createdAt.substring(0, 19) : createdAt;
         }
@@ -617,11 +656,27 @@ public class DialogLookupReadService {
         return date.format(REQUEST_NUMBER_ISO_DATE_FORMAT) + "T" + timePart;
     }
 
-    private String normalizedTicketCreatedAtSql(String ticketAlias) {
-        return "replace(" + ticketCreatedAtSql(ticketAlias) + ", ' ', 'T')";
+    private String comparableTicketCreatedAtSql(String ticketAlias) {
+        if (timestampSqlSupport.isSqliteMode()) {
+            return "replace(" + ticketCreatedAtSql(ticketAlias) + ", ' ', 'T')";
+        }
+        return ticketCreatedAtSql(ticketAlias);
     }
 
     private String ticketCreatedAtSql(String ticketAlias) {
+        if (!timestampSqlSupport.isSqliteMode()) {
+            return """
+                    COALESCE(
+                        (
+                            SELECT MIN(m0.created_at)
+                              FROM messages m0
+                             WHERE m0.ticket_id = %1$s.ticket_id
+                               AND m0.created_at IS NOT NULL
+                        ),
+                        %1$s.created_at
+                    )
+                    """.formatted(ticketAlias);
+        }
         return """
                 COALESCE(
                     (
@@ -635,17 +690,26 @@ public class DialogLookupReadService {
                 """.formatted(ticketAlias);
     }
 
-    private String normalizeComparableTimestamp(String value) {
-        String normalized = trimToNull(value);
-        if (normalized == null) {
-            return null;
-        }
-        normalized = normalized.replace(' ', 'T');
-        return normalized.length() > 19 ? normalized.substring(0, 19) : normalized;
-    }
-
     private String formatRequestNumber(String displayDate, int sequence) {
         return displayDate + "-" + String.format("%03d", sequence);
+    }
+
+    private String resolveCreatedDate(String createdDate, String createdAt) {
+        String explicit = trimToNull(createdDate);
+        if (explicit != null) {
+            return explicit;
+        }
+        String normalized = timestampSqlSupport.normalizeComparableTimestamp(createdAt);
+        return normalized != null && normalized.length() >= 10 ? normalized.substring(0, 10) : null;
+    }
+
+    private String resolveCreatedTime(String createdTime, String createdAt) {
+        String explicit = trimToNull(createdTime);
+        if (explicit != null) {
+            return explicit.length() > 8 ? explicit.substring(0, 8) : explicit;
+        }
+        String normalized = timestampSqlSupport.normalizeComparableTimestamp(createdAt);
+        return normalized != null && normalized.length() >= 19 ? normalized.substring(11, 19) : null;
     }
 
     private Map<String, ResponsibleProfile> loadResponsibleProfiles(List<DialogListItem> items) {

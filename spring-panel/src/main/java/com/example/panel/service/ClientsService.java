@@ -13,7 +13,12 @@ import com.example.panel.model.clients.ClientProfileTicket;
 import com.example.panel.model.clients.ClientUsernameEntry;
 import com.example.panel.repository.ClientUsernameRepository;
 import java.time.OffsetDateTime;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -199,10 +204,7 @@ public class ClientsService {
                     m.problem,
                     m.created_at,
                     t.status,
-                    CASE
-                        WHEN t.resolved_at IS NOT NULL THEN datetime(t.resolved_at)
-                        ELSE NULL
-                    END AS resolved_at,
+                    t.resolved_at AS resolved_at,
                     m.category,
                     m.client_status,
                     m.channel_id,
@@ -379,22 +381,13 @@ public class ClientsService {
     }
 
     private int loadTotalMinutes(long userId) {
-        Integer total = jdbcTemplate.queryForObject(
+        List<TicketTimingRow> rows = jdbcTemplate.query(
             """
-                SELECT
-                    SUM(
-                        CASE
-                            WHEN t.status = 'resolved' AND t.resolved_at IS NOT NULL
-                                 AND ch.first_response_time IS NOT NULL
-                            THEN CAST(
-                                (julianday(t.resolved_at)
-                                 - julianday(replace(substr(ch.first_response_time,1,19),'T',' ')))
-                                 * 24 * 60
-                                 AS INTEGER
-                            )
-                            ELSE 0
-                        END
-                    ) as total_minutes
+                SELECT DISTINCT
+                    t.ticket_id,
+                    t.status,
+                    t.resolved_at,
+                    ch.first_response_time
                 FROM messages m
                 JOIN tickets t ON m.ticket_id = t.ticket_id
                 LEFT JOIN (
@@ -407,10 +400,27 @@ public class ClientsService {
                 ) ch ON t.ticket_id = ch.ticket_id
                 WHERE m.user_id = ?
                 """,
-            Integer.class,
+            (rs, rowNum) -> new TicketTimingRow(
+                rs.getString("ticket_id"),
+                rs.getString("status"),
+                rs.getString("resolved_at"),
+                rs.getString("first_response_time")
+            ),
             userId
         );
-        return total != null ? total : 0;
+        int total = 0;
+        for (TicketTimingRow row : rows) {
+            if (!isResolvedStatus(row.status())) {
+                continue;
+            }
+            Instant resolvedAt = parseInstant(row.resolvedAt());
+            Instant firstResponseAt = parseInstant(row.firstResponseTime());
+            if (resolvedAt == null || firstResponseAt == null || resolvedAt.isBefore(firstResponseAt)) {
+                continue;
+            }
+            total += Math.toIntExact(Duration.between(firstResponseAt, resolvedAt).toMinutes());
+        }
+        return Math.max(0, total);
     }
 
     private ClientBlacklistInfo loadClientBlacklist(long userId) {
@@ -640,6 +650,33 @@ public class ClientsService {
         return DISPLAY_DATE_FORMAT.format(value);
     }
 
+    private boolean isResolvedStatus(String status) {
+        return StringUtils.hasText(status) && "resolved".equalsIgnoreCase(status.trim());
+    }
+
+    private Instant parseInstant(String rawValue) {
+        if (!StringUtils.hasText(rawValue)) {
+            return null;
+        }
+        String raw = rawValue.trim();
+        try {
+            return Instant.parse(raw);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return OffsetDateTime.parse(raw).toInstant();
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            String compact = raw.replace(' ', 'T');
+            if (compact.length() == 19) {
+                return LocalDateTime.parse(compact).toInstant(ZoneOffset.UTC);
+            }
+        } catch (DateTimeParseException ignored) {
+        }
+        return null;
+    }
+
     private String generatePanelId(Long userId) {
         if (userId == null) {
             return "CL-" + Base64.getEncoder().encodeToString(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)).substring(0, 8).toUpperCase();
@@ -687,5 +724,13 @@ public class ClientsService {
     }
 
     private record BlacklistInfo(boolean blacklisted, boolean unblockRequested) {
+    }
+
+    private record TicketTimingRow(
+            String ticketId,
+            String status,
+            String resolvedAt,
+            String firstResponseTime
+    ) {
     }
 }

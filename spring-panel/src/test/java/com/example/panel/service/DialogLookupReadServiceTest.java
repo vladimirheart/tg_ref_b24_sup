@@ -1,7 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.config.DatabaseMode;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
+import com.example.panel.support.PanelTimestampSqlSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -30,7 +32,12 @@ class DialogLookupReadServiceTest {
         DataSource usersDataSource = new DriverManagerDataSource("jdbc:sqlite:" + usersDbFile.toAbsolutePath());
         jdbcTemplate = new JdbcTemplate(panelDataSource);
         usersJdbcTemplate = new JdbcTemplate(usersDataSource);
-        service = new DialogLookupReadService(jdbcTemplate, usersJdbcTemplate, new PanelUserPhotoService(avatarsDir.toString()));
+        service = new DialogLookupReadService(
+                jdbcTemplate,
+                usersJdbcTemplate,
+                new PanelUserPhotoService(avatarsDir.toString()),
+                new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
+        );
         createPanelSchema();
         createUsersSchema();
     }
