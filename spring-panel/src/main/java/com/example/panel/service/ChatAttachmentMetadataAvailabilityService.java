@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.storage.AttachmentService;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
 import org.slf4j.Logger;
@@ -19,11 +20,14 @@ public class ChatAttachmentMetadataAvailabilityService {
 
     private final JdbcTemplate jdbcTemplate;
     private final AttachmentService attachmentService;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
     public ChatAttachmentMetadataAvailabilityService(JdbcTemplate jdbcTemplate,
-                                                     AttachmentService attachmentService) {
+                                                     AttachmentService attachmentService,
+                                                     PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.jdbcTemplate = jdbcTemplate;
         this.attachmentService = attachmentService;
+        this.databaseRuntimeMode = databaseRuntimeMode;
     }
 
     @PostConstruct
@@ -91,6 +95,9 @@ public class ChatAttachmentMetadataAvailabilityService {
     }
 
     private void ensureColumn() {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return;
+        }
         try {
             jdbcTemplate.execute("""
                     ALTER TABLE chat_attachment_metadata
