@@ -7,6 +7,7 @@ import org.springframework.util.StringUtils;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 
@@ -99,7 +100,7 @@ public class DialogReplyTargetService {
             try (PreparedStatement insert = connection.prepareStatement("""
                     INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """)) {
+                    """, Statement.RETURN_GENERATED_KEYS)) {
                 insert.setLong(1, target.userId());
                 insert.setString(2, "operator");
                 insert.setString(3, caption != null ? caption : "");
@@ -111,10 +112,9 @@ public class DialogReplyTargetService {
                 insert.setObject(9, telegramMessageId);
                 insert.setObject(10, replyToTelegramId);
                 insert.executeUpdate();
-            }
-            try (PreparedStatement selectId = connection.prepareStatement("SELECT last_insert_rowid()");
-                 ResultSet rs = selectId.executeQuery()) {
-                return rs.next() ? rs.getLong(1) : null;
+                try (ResultSet rs = insert.getGeneratedKeys()) {
+                    return rs.next() ? rs.getLong(1) : null;
+                }
             }
         });
         if (chatHistoryId != null && chatHistoryId > 0) {

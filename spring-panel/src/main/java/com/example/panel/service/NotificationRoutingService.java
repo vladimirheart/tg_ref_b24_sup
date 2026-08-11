@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.support.JdbcSchemaInspector;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -249,10 +250,7 @@ public class NotificationRoutingService {
 
     private Set<String> loadUsersTableColumns(JdbcTemplate source) {
         try {
-            return new HashSet<>(source.query(
-                    "PRAGMA table_info(users)",
-                    (rs, rowNum) -> rs.getString("name").toLowerCase(Locale.ROOT)
-            ));
+            return new HashSet<>(JdbcSchemaInspector.loadColumnNames(source, "users"));
         } catch (DataAccessException ex) {
             return Set.of();
         }

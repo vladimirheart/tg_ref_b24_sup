@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.support.JdbcSchemaInspector;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -251,10 +252,7 @@ public class AlertQueueService {
 
     private Set<String> loadUsersTableColumns() {
         try {
-            return new HashSet<>(usersJdbcTemplate.query(
-                    "PRAGMA table_info(users)",
-                    (rs, rowNum) -> rs.getString("name").toLowerCase(Locale.ROOT)
-            ));
+            return new HashSet<>(JdbcSchemaInspector.loadColumnNames(usersJdbcTemplate, "users"));
         } catch (DataAccessException ex) {
             log.warn("Unable to inspect users schema for alert routing: {}", ex.getMessage());
             return Set.of();

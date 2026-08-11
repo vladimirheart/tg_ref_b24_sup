@@ -5,9 +5,12 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +38,7 @@ public class RmsRefreshQueueRepository {
                                      boolean withNotifications,
                                      OffsetDateTime requestedAt) {
         OffsetDateTime safeRequestedAt = requestedAt != null ? requestedAt : OffsetDateTime.now(java.time.ZoneOffset.UTC);
+        KeyHolder keyHolder = new GeneratedKeyHolder();
         runWithBusyRetry(() -> jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                 """
@@ -45,7 +49,8 @@ public class RmsRefreshQueueRepository {
                     status,
                     requested_at
                 ) VALUES (?, ?, ?, ?, ?)
-                """
+                """,
+                Statement.RETURN_GENERATED_KEYS
             );
             ps.setString(1, queueKind);
             if (monitorId != null) {
@@ -57,8 +62,8 @@ public class RmsRefreshQueueRepository {
             ps.setString(4, STATUS_QUEUED);
             ps.setString(5, formatOffsetDateTime(safeRequestedAt));
             return ps;
-        }));
-        Number key = jdbcTemplate.queryForObject("SELECT last_insert_rowid()", Number.class);
+        }, keyHolder));
+        Number key = keyHolder.getKey();
         long id = key != null ? key.longValue() : -1L;
         return new RefreshQueueEntry(id, queueKind, monitorId, withNotifications, STATUS_QUEUED, safeRequestedAt);
     }

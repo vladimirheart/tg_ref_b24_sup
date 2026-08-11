@@ -9,6 +9,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -361,18 +362,18 @@ public class ObjectPassportService {
 
     private long insertObject(Connection connection, Map<String, Object> payload) throws SQLException {
         String sql = "INSERT INTO objects(name, address, created_at) VALUES (?, ?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             statement.setString(1, buildObjectName(payload));
             statement.setString(2, stringValue(payload.get("location_address")));
             statement.setString(3, nowText());
             statement.executeUpdate();
-            return fetchLastInsertRowId(connection);
+            return readGeneratedKey(statement, "objects");
         }
     }
 
     private boolean updateObject(Connection connection, long objectId, Map<String, Object> payload) throws SQLException {
         String sql = "UPDATE objects SET name = ?, address = ? WHERE id = ?";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             statement.setString(1, buildObjectName(payload));
             statement.setString(2, stringValue(payload.get("location_address")));
             statement.setLong(3, objectId);
@@ -388,8 +389,17 @@ public class ObjectPassportService {
             statement.setString(3, writeJson(normalizePayload(Map.of(), payload, null)));
             statement.setString(4, nowText());
             statement.executeUpdate();
-            return fetchLastInsertRowId(connection);
+            return readGeneratedKey(statement, "object_passports");
         }
+    }
+
+    private long readGeneratedKey(PreparedStatement statement, String tableName) throws SQLException {
+        try (ResultSet rs = statement.getGeneratedKeys()) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        }
+        throw new SQLException("Failed to read generated key for " + tableName);
     }
 
     private long fetchLastInsertRowId(Connection connection) throws SQLException {

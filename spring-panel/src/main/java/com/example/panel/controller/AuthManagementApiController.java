@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.support.JdbcSchemaInspector;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.service.SharedConfigService;
@@ -720,14 +721,8 @@ public class AuthManagementApiController {
             return cached;
         }
         try {
-            List<Map<String, Object>> rows = usersJdbcTemplate.queryForList("PRAGMA table_info(users)");
             Set<String> columns = new LinkedHashSet<>();
-            for (Map<String, Object> row : rows) {
-                Object name = row.get("name");
-                if (name != null) {
-                    columns.add(name.toString());
-                }
-            }
+            columns.addAll(JdbcSchemaInspector.loadColumnNames(usersJdbcTemplate, "users"));
             this.userColumns = columns;
             return columns;
         } catch (Exception ex) {

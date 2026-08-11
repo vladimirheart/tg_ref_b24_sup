@@ -4,11 +4,11 @@ import com.example.panel.model.dialog.DialogChannelStat;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
+import com.example.panel.support.JdbcSchemaInspector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -694,24 +694,7 @@ public class DialogLookupReadService {
 
     private Set<String> loadUsersTableColumns() {
         try {
-            return usersJdbcTemplate.execute((ConnectionCallback<Set<String>>) connection -> {
-                Set<String> columns = new java.util.HashSet<>();
-                var metaData = connection.getMetaData();
-                try (var resultSet = metaData.getColumns(null, null, "users", null)) {
-                    while (resultSet.next()) {
-                        columns.add(resultSet.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
-                    }
-                }
-                if (!columns.isEmpty()) {
-                    return columns;
-                }
-                try (var resultSet = metaData.getColumns(null, null, "USERS", null)) {
-                    while (resultSet.next()) {
-                        columns.add(resultSet.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
-                    }
-                }
-                return columns;
-            });
+            return JdbcSchemaInspector.loadColumnNames(usersJdbcTemplate, "users");
         } catch (DataAccessException ex) {
             log.warn("Unable to inspect users table columns: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Set.of();
@@ -720,24 +703,7 @@ public class DialogLookupReadService {
 
     private Set<String> loadTableColumns(String tableName) {
         try {
-            return jdbcTemplate.execute((ConnectionCallback<Set<String>>) connection -> {
-                Set<String> columns = new java.util.HashSet<>();
-                var metaData = connection.getMetaData();
-                try (var resultSet = metaData.getColumns(null, null, tableName, null)) {
-                    while (resultSet.next()) {
-                        columns.add(resultSet.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
-                    }
-                }
-                if (!columns.isEmpty()) {
-                    return columns;
-                }
-                try (var resultSet = metaData.getColumns(null, null, tableName.toUpperCase(Locale.ROOT), null)) {
-                    while (resultSet.next()) {
-                        columns.add(resultSet.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
-                    }
-                }
-                return columns;
-            });
+            return JdbcSchemaInspector.loadColumnNames(jdbcTemplate, tableName);
         } catch (DataAccessException ex) {
             log.warn("Unable to inspect {} columns: {}", tableName, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Set.of();

@@ -7,9 +7,12 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -109,6 +112,7 @@ public class SslCertificateMonitorRepository {
     }
 
     private SslCertificateMonitor insert(SslCertificateMonitor item) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
         runWithBusyRetry(() -> jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                 """
@@ -117,12 +121,13 @@ public class SslCertificateMonitorRepository {
                     monitor_status, error_message, days_left, expires_at,
                     last_checked_at, last_notified_at, created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
+                """,
+                Statement.RETURN_GENERATED_KEYS
             );
             bindCommon(ps, item);
             return ps;
-        }));
-        Number key = jdbcTemplate.queryForObject("SELECT last_insert_rowid()", Number.class);
+        }, keyHolder));
+        Number key = keyHolder.getKey();
         if (key != null) {
             item.setId(key.longValue());
         }

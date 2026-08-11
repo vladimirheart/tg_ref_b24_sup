@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogOperatorOption;
 import com.example.panel.model.dialog.DialogParticipantDto;
+import com.example.panel.support.JdbcSchemaInspector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -245,10 +246,8 @@ public class DialogParticipantService {
 
     private Set<String> loadUserColumns() {
         try {
-            return usersJdbcTemplate.query(
-                    "PRAGMA table_info(users)",
-                    (rs, rowNum) -> rs.getString("name")
-            ).stream().collect(Collectors.toCollection(LinkedHashSet::new));
+            return JdbcSchemaInspector.loadColumnNames(usersJdbcTemplate, "users").stream()
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
         } catch (DataAccessException ex) {
             log.warn("Unable to inspect users schema: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Set.of();

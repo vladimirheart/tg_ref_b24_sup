@@ -4,6 +4,7 @@ import com.example.panel.entity.Notification;
 import com.example.panel.model.notification.NotificationDto;
 import com.example.panel.model.notification.NotificationSummary;
 import com.example.panel.repository.NotificationRepository;
+import com.example.panel.support.JdbcSchemaInspector;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -224,10 +225,7 @@ public class NotificationService {
 
     private Set<String> loadUsersTableColumns(JdbcTemplate source) {
         try {
-            return new HashSet<>(source.query(
-                    "PRAGMA table_info(users)",
-                    (rs, rowNum) -> rs.getString("name")
-            ));
+            return new HashSet<>(JdbcSchemaInspector.loadColumnNames(source, "users"));
         } catch (Exception ex) {
             return Set.of();
         }

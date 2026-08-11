@@ -6,10 +6,13 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -99,6 +102,7 @@ public class IikoApiMonitorRepository {
     }
 
     private IikoApiMonitor insert(IikoApiMonitor item) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                 """
@@ -108,12 +112,13 @@ public class IikoApiMonitorRepository {
                     last_checked_at, last_token_checked_at, last_response_excerpt, last_response_summary_json,
                     consecutive_failures, created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
+                """,
+                Statement.RETURN_GENERATED_KEYS
             );
             bindCommon(ps, item);
             return ps;
-        });
-        Number key = jdbcTemplate.queryForObject("SELECT last_insert_rowid()", Number.class);
+        }, keyHolder);
+        Number key = keyHolder.getKey();
         if (key != null) {
             item.setId(key.longValue());
         }
