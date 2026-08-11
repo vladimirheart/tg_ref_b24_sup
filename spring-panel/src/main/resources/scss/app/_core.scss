@@ -448,11 +448,11 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, var(--muted) 82%, white);
-    color: var(--foreground);
+    background: var(--surface-interactive);
+	color: var(--color-text);
     font-size: 0.82rem;
     font-weight: 700;
-    border: 1px solid color-mix(in srgb, var(--color-border) 86%, transparent);
+    border: 1px solid var(--color-border);
     overflow: hidden;
 }
 
