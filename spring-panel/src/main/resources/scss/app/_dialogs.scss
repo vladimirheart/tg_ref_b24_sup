@@ -1475,25 +1475,40 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 }
 
 .dialog-details-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
-  flex-wrap: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+
+    flex: 0 1 auto;
+    flex-wrap: wrap;
 }
 
 .dialog-details-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--color-surface-soft);
-  color: var(--color-text-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 1.1rem;
-  overflow: hidden;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--primary) 28%,
+            var(--color-border)
+        );
+
+    border-radius: 50%;
+
+    background: var(--surface-interactive);
+    color: var(--primary);
+
+    font-size: 1rem;
+    font-weight: 700;
 }
 
 .dialog-details-avatar-img {
@@ -1576,6 +1591,24 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
   min-height: 0;
 }
 
+.dialog-details-history-card {
+    flex: 1 1 auto;
+    min-height: 0;
+
+    overflow: hidden;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-card);
+
+    box-shadow: none;
+}
+
+.dialog-details-history-card > .card-body {
+    background: var(--surface-card);
+}
+
 .dialog-details-section {
     padding: 1rem;
 
@@ -1654,18 +1687,9 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
       var(--color-border)
     );
 
-  border-radius: 0.75rem;
+  border-radius: var(--radius-lg);
 
-  background:
-    linear-gradient(
-      180deg,
-      var(--color-surface) 0%,
-      color-mix(
-        in srgb,
-        var(--primary) 3%,
-        var(--color-surface)
-      ) 100%
-    );
+  background: var(--surface-raised);
 
   padding: 0.7rem 0.8rem;
   text-align: left;
@@ -1678,55 +1702,36 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 
 .dialog-my-dialog-item:hover,
 .dialog-my-dialog-item:focus-visible {
-  border-color:
-    color-mix(
-      in srgb,
-      var(--primary) 42%,
-      var(--color-border)
-    );
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 42%,
+            var(--color-border)
+        );
 
-  box-shadow:
-    0 0.35rem 0.85rem
-    color-mix(
-      in srgb,
-      var(--primary) 12%,
-      transparent
-    );
+    background: var(--surface-interactive);
 
-  transform: translateY(-1px);
-  outline: none;
+    box-shadow: none;
+    outline: none;
 }
 
 .dialog-my-dialog-item.is-active {
-  border-color:
-    color-mix(
-      in srgb,
-      var(--state-success) 48%,
-      var(--color-border)
-    );
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 42%,
+            var(--color-border)
+        );
 
-  box-shadow:
-    0 0.45rem 1rem
-    color-mix(
-      in srgb,
-      var(--state-success) 14%,
-      transparent
-    );
+    background: var(--surface-selected);
 
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(
-        in srgb,
-        var(--state-success) 5%,
-        var(--color-surface)
-      ),
-      color-mix(
-        in srgb,
-        var(--state-success) 10%,
-        var(--color-surface)
-      )
-    );
+    box-shadow:
+        0 0 0 1px
+        color-mix(
+            in srgb,
+            var(--primary) 12%,
+            transparent
+        );
 }
 
 .dialog-my-dialog-item-head {
@@ -1768,6 +1773,21 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
   padding-top: 0.75rem;
 }
 
+.dialog-composer-input {
+    align-items: stretch;
+}
+
+.dialog-composer-textarea textarea {
+    min-height: 72px;
+}
+
+.dialog-composer-input > .btn-primary {
+    min-width: 112px;
+    align-self: stretch;
+
+    box-shadow: none;
+}
+
 .dialog-details-composer textarea {
     resize: vertical;
     min-height: 60px;
@@ -1795,15 +1815,43 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 }
 
 #dialogDetailsModal .modal-content {
-  height: 100%;
+    height: 100%;
+
+    overflow: hidden;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+
+    background: var(--surface-page);
+
+    box-shadow:
+        0 24px 64px
+        color-mix(
+            in srgb,
+            var(--shadow-color) 18%,
+            transparent
+        );
+}
+
+#dialogDetailsModal .modal-header {
+    flex: 0 0 auto;
+
+    border-bottom: 1px solid var(--color-border);
+
+    background: var(--surface-card);
 }
 
 #dialogDetailsModal .modal-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+
+    min-height: 0;
+    overflow: hidden;
+
+    padding: 1rem;
+
+    background: var(--surface-page);
 }
 
 #dialogDetailsModal .chat-history {
@@ -1813,21 +1861,24 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 }
 
 .dialog-details-problem {
-  background:
-    color-mix(
-      in srgb,
-      var(--primary) 6%,
-      var(--color-surface)
-    );
+    padding: 0.75rem;
 
-  border-left: 4px solid var(--primary);
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--primary) 22%,
+            var(--color-border)
+        );
 
-  padding: 0.75rem;
-  border-radius: 0.5rem;
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius-md);
 
-  font-size: 0.95rem;
-  color: var(--color-text);
-  word-break: break-word;
+    background: var(--surface-interactive);
+
+    color: var(--color-text);
+
+    font-size: 0.95rem;
+    word-break: break-word;
 }
 
 .dialog-details-resize-handle {
@@ -1856,12 +1907,16 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 }
 
 .dialog-metric-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0.35rem 0.5rem;
-  border-radius: 0.5rem;
-  background: var(--color-surface-soft);
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+
+    padding: 0.45rem 0.55rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+
+    background: var(--surface-raised);
 }
 
 .dialog-metric-item span:last-child {
@@ -2161,18 +2216,20 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
 
 .dialog-reply-target {
     margin-top: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.6rem 0.75rem;
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--primary) 22%,
+            var(--color-border)
+        );
 
     border-left: 3px solid var(--primary);
 
-    background:
-        color-mix(
-            in srgb,
-            var(--primary) 6%,
-            var(--color-surface)
-        );
+    border-radius: var(--radius-md);
 
-    border-radius: 0.4rem;
+    background: var(--surface-interactive);
 }
 
 .dialog-reply-target-text {
