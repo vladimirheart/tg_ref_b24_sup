@@ -2,11 +2,14 @@ package com.example.panel.security;
 
 import org.springframework.dao.DataAccessException;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.sql.ResultSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -45,23 +48,17 @@ public class SecurityBootstrap {
      */
     private void ensureAuthoritiesTable() {
         try {
-            Integer exists = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='user_authorities'",
-                    Integer.class
-            );
-            if (exists != null && exists > 0) {
-                return;
-            }
+            jdbcTemplate.queryForObject("SELECT COUNT(*) FROM user_authorities", Integer.class);
+            return;
         } catch (DataAccessException ignored) {
-            // если sqlite_master недоступен/другой диалект — всё равно попробуем CREATE IF NOT EXISTS ниже
+            // таблицы ещё нет или доступ к ним пока не поднят
         }
 
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS user_authorities (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
+                user_id BIGINT NOT NULL,
                 authority TEXT NOT NULL,
-                UNIQUE(user_id, authority),
+                PRIMARY KEY(user_id, authority),
                 FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
             );
         """);
@@ -142,7 +139,7 @@ public class SecurityBootstrap {
         for (String auth : required) {
             if (!existing.contains(auth)) {
                 jdbcTemplate.update(
-                        "INSERT OR IGNORE INTO user_authorities(user_id, authority) VALUES(?, ?)",
+                        "INSERT INTO user_authorities(user_id, authority) VALUES(?, ?)",
                         userId, auth
                 );
             }
@@ -175,11 +172,18 @@ public class SecurityBootstrap {
 
     private boolean hasUsersColumn(String columnName) {
         try {
-            List<String> columns = jdbcTemplate.query(
-                    "PRAGMA table_info(users)",
-                    (rs, rowNum) -> rs.getString("name")
-            );
-            return columns.stream().anyMatch(columnName::equalsIgnoreCase);
+            return jdbcTemplate.execute((ConnectionCallback<Boolean>) connection -> {
+                try (ResultSet resultSet = connection.getMetaData().getColumns(null, null, null, null)) {
+                    while (resultSet.next()) {
+                        String tableName = resultSet.getString("TABLE_NAME");
+                        String foundColumn = resultSet.getString("COLUMN_NAME");
+                        if ("users".equalsIgnoreCase(tableName) && columnName.equalsIgnoreCase(foundColumn)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            });
         } catch (DataAccessException ex) {
             return false;
         }

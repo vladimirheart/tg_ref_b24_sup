@@ -4,6 +4,7 @@ import com.example.panel.config.BotProcessProperties;
 import com.example.panel.config.ClientsSqliteDataSourceProperties;
 import com.example.panel.config.KnowledgeSqliteDataSourceProperties;
 import com.example.panel.config.ObjectsSqliteDataSourceProperties;
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SettingsSqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
@@ -33,6 +34,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     private final DataSource knowledgeDataSource;
     private final DataSource objectsDataSource;
     private final SqliteSchemaBootstrapSupport schemaBootstrapSupport;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
     public DatabaseBootstrapService(ClientsSqliteDataSourceProperties clientsProperties,
                                     KnowledgeSqliteDataSourceProperties knowledgeProperties,
@@ -44,7 +46,8 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                                     @Qualifier("clientsDataSource") DataSource clientsDataSource,
                                     @Qualifier("knowledgeDataSource") DataSource knowledgeDataSource,
                                     @Qualifier("objectsDataSource") DataSource objectsDataSource,
-                                    SqliteSchemaBootstrapSupport schemaBootstrapSupport) {
+                                    SqliteSchemaBootstrapSupport schemaBootstrapSupport,
+                                    PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.clientsProperties = clientsProperties;
         this.knowledgeProperties = knowledgeProperties;
         this.objectsProperties = objectsProperties;
@@ -56,10 +59,15 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         this.knowledgeDataSource = knowledgeDataSource;
         this.objectsDataSource = objectsDataSource;
         this.schemaBootstrapSupport = schemaBootstrapSupport;
+        this.databaseRuntimeMode = databaseRuntimeMode;
     }
 
     @Override
     public void run(ApplicationArguments args) {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            log.info("Skipping SQLite bootstrap because spring-panel runs in external {} mode", databaseRuntimeMode.modeLabel());
+            return;
+        }
         initializeClientsDatabase();
         initializeKnowledgeDatabase();
         initializeObjectsDatabase();

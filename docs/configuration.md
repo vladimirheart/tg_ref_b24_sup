@@ -9,6 +9,7 @@
 ```
 TELEGRAM_BOT_TOKEN=123:ABC
 GROUP_CHAT_ID=-1001234567890
+APP_DB_MODE=sqlite
 APP_DB_PANEL_RUNTIME=/srv/iguana/panel_runtime.db
 APP_DB_PANEL_IDENTITY=/srv/iguana/panel_identity.db
 APP_DB_BOT_RUNTIME=/srv/iguana/bot_runtime.db
@@ -23,11 +24,29 @@ APP_BOT_DATABASE_DIR=/srv/iguana/bots
 
 - `TELEGRAM_BOT_TOKEN` — токен Telegram-бота.
 - `GROUP_CHAT_ID` — ID рабочей группы/чата для уведомлений (можно оставить пустым и сохранить в панели).
+- `APP_DB_MODE` — явный режим БД: `auto`, `sqlite`, `postgresql`; для `spring-panel` режим `mysql` остаётся только как legacy-compatible external option.
 - `APP_DB_PANEL_RUNTIME`, `APP_DB_PANEL_IDENTITY`, `APP_DB_BOT_RUNTIME` — канонические пути к основным SQLite-контурам.
 - `APP_DB_TICKETS`, `APP_DB_USERS`, `APP_DB_BOT` — legacy aliases, которые пока остаются поддержаны.
 - `APP_DB_*` для secondary-баз задают пути к клиентам, knowledge, объектам и registry-контуру.
 - `APP_BOT_DATABASE_DIR` — каталог, в котором будут храниться отдельные базы для каждого бота.
-- `DATABASE_URL` — опционально, строка подключения к PostgreSQL/MySQL вместо SQLite.
+- `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` — preferred-конфиг для external DB.
+- `DATABASE_URL` — compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL.
+
+Для целевого production-перехода по `01-181` используйте явный режим external DB:
+
+```bash
+APP_DB_MODE=postgresql
+SPRING_DATASOURCE_URL=jdbc:postgresql://db.example.local:5432/iguana
+SPRING_DATASOURCE_USERNAME=iguana
+SPRING_DATASOURCE_PASSWORD=secret
+```
+
+Важно:
+
+- `spring-panel` в external DB-режиме теперь сам выбирает vendor-specific Flyway migrations, а не SQLite-папку по умолчанию.
+- `spring-panel` в external DB-режиме поднимает secondary/user/bot/settings datasources поверх primary JDBC-контура и не пытается создавать отдельные SQLite-файлы для этих ролей.
+- `java-bot` в external PostgreSQL-режиме принудительно отключает schema ownership через `spring.sql.init.mode=never`; это intentional boundary, чтобы бот не становился владельцем business schema.
+- runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели, а SQLite-пути используются только в явном `sqlite`-режиме.
 
 > 💡 ID группы поддержки для Telegram можно сохранить в панели администратора в разделе «Каналы (боты)». Если оставить пустым, бот запишет ID автоматически после добавления в чат.
 

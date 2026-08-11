@@ -42,6 +42,7 @@ spring:
 
 app:
   datasource:
+    mode: ${APP_DB_MODE:auto}
     sqlite:
       path: ${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:panel_runtime.db}}
     monitoring-sqlite:

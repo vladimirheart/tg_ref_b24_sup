@@ -20,6 +20,7 @@ support-bot:
   username: ${TELEGRAM_BOT_USERNAME:your_bot_username}
   channel-id: ${GROUP_CHAT_ID:0}
   database:
+    mode: ${APP_DB_MODE:auto}
     path: ${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:${APP_DB_BOT_RUNTIME:${APP_DB_BOT:../panel_runtime.db}}}}
   attachments-dir: ${APP_STORAGE_ATTACHMENTS:../attachments}
   knowledge-base-dir: ${APP_STORAGE_KB:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}

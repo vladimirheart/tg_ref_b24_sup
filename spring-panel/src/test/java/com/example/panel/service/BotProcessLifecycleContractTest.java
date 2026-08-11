@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +21,7 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.mock.env.MockEnvironment;
 
 class BotProcessLifecycleContractTest {
 
@@ -48,11 +50,14 @@ class BotProcessLifecycleContractTest {
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
         IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());
+        MockEnvironment environment = new MockEnvironment().withProperty("app.datasource.mode", "sqlite");
         BotRuntimeContractService contractService = new BotRuntimeContractService(
             sqliteProperties,
             properties,
             integrationNetworkService,
-            new ObjectMapper()
+            new ObjectMapper(),
+            new PanelDatabaseRuntimeMode(environment),
+            environment
         );
 
         LifecycleTestBotProcessService service = new LifecycleTestBotProcessService(

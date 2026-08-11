@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +17,7 @@ import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.mock.env.MockEnvironment;
 
 class BotRuntimeContractServiceTest {
 
@@ -147,6 +149,7 @@ class BotRuntimeContractServiceTest {
             .containsEntry("MAX_CHANNEL_ID", "17")
             .containsEntry("MAX_SUPPORT_CHAT_ID", "support-room")
             .containsEntry("MAX_WEBHOOK_SECRET", "max-secret")
+            .containsEntry("APP_DB_MODE", "sqlite")
             .containsEntry("APP_DB_PANEL_RUNTIME", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("APP_DB_TICKETS", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("panel_runtime.db").toString())
@@ -235,6 +238,7 @@ class BotRuntimeContractServiceTest {
         );
 
         assertThat(env)
+            .containsEntry("APP_DB_MODE", "sqlite")
             .containsEntry("APP_DB_PANEL_RUNTIME", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("APP_DB_TICKETS", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("panel_runtime.db").toString())
@@ -273,6 +277,7 @@ class BotRuntimeContractServiceTest {
         );
 
         assertThat(env)
+            .containsEntry("APP_DB_MODE", "sqlite")
             .containsEntry("APP_NETWORK_MODE", "vpn")
             .containsEntry("APP_NETWORK_VPN_NAME", "corp-vpn")
             .doesNotContainKeys("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY");
@@ -304,6 +309,7 @@ class BotRuntimeContractServiceTest {
         );
 
         assertThat(env)
+            .containsEntry("APP_DB_MODE", "sqlite")
             .containsEntry("APP_NETWORK_MODE", "proxy")
             .containsEntry("APP_NETWORK_PROXY_SCHEME", "vless")
             .containsEntry("APP_NETWORK_PROXY_TOKEN", "vless-token")
@@ -357,9 +363,42 @@ class BotRuntimeContractServiceTest {
         );
 
         assertThat(env)
+            .containsEntry("APP_DB_MODE", "sqlite")
             .containsEntry("GROUP_CHAT_ID", "0")
             .containsEntry("VK_BOT_ENABLED", "false")
             .containsEntry("MAX_BOT_ENABLED", "false");
+    }
+
+    @Test
+    void buildEnvironmentForExternalPostgresUsesDatasourceContract() {
+        BotRuntimeContractService service = createService(
+            "auto",
+            Map.of(),
+            Map.of(),
+            Map.of(
+                "APP_DB_MODE", "postgresql",
+                "SPRING_DATASOURCE_URL", "jdbc:postgresql://db.example.local:5432/iguana",
+                "SPRING_DATASOURCE_USERNAME", "iguana",
+                "SPRING_DATASOURCE_PASSWORD", "secret"
+            )
+        );
+        Channel channel = new Channel();
+        channel.setId(41L);
+        channel.setPlatform("telegram");
+
+        Map<String, String> env = service.buildEnvironment(
+            channel,
+            new com.example.panel.model.channel.BotCredential(11L, "tg", "telegram", "tg-token", true),
+            tempDir.resolve("telegram-postgres.log")
+        );
+
+        assertThat(env)
+            .containsEntry("APP_DB_MODE", "postgresql")
+            .containsEntry("SPRING_DATASOURCE_URL", "jdbc:postgresql://db.example.local:5432/iguana")
+            .containsEntry("SPRING_DATASOURCE_USERNAME", "iguana")
+            .containsEntry("SPRING_DATASOURCE_PASSWORD", "secret")
+            .containsEntry("SPRING_SQL_INIT_MODE", "never")
+            .doesNotContainKeys("APP_DB_PANEL_RUNTIME", "APP_DB_TICKETS", "SUPPORT_BOT_DATABASE_PATH");
     }
 
     @Test
@@ -523,6 +562,13 @@ class BotRuntimeContractServiceTest {
     private BotRuntimeContractService createService(String launchMode,
                                                     Map<String, String> executableJars,
                                                     Map<String, Object> settings) {
+        return createService(launchMode, executableJars, settings, Map.of());
+    }
+
+    private BotRuntimeContractService createService(String launchMode,
+                                                    Map<String, String> executableJars,
+                                                    Map<String, Object> settings,
+                                                    Map<String, String> environmentOverrides) {
         SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
         sqliteProperties.setPath(tempDir.resolve("panel_runtime.db").toString());
         BotProcessProperties properties = new BotProcessProperties();
@@ -531,6 +577,16 @@ class BotRuntimeContractServiceTest {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(settings);
         IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());
-        return new BotRuntimeContractService(sqliteProperties, properties, integrationNetworkService, new ObjectMapper());
+        MockEnvironment environment = new MockEnvironment();
+        environmentOverrides.forEach(environment::setProperty);
+        PanelDatabaseRuntimeMode databaseRuntimeMode = new PanelDatabaseRuntimeMode(environment);
+        return new BotRuntimeContractService(
+            sqliteProperties,
+            properties,
+            integrationNetworkService,
+            new ObjectMapper(),
+            databaseRuntimeMode,
+            environment
+        );
     }
 }

@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.config.MonitoringSqliteDataSourceProperties;
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import com.example.panel.entity.RmsLicenseMonitor;
@@ -36,6 +37,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
     private final MonitoringCredentialsCryptoService credentialsCryptoService;
     private final SqliteDataSourceProperties primaryProperties;
     private final MonitoringSqliteDataSourceProperties monitoringProperties;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
     public MonitoringDatabaseBootstrapService(JdbcTemplate primaryJdbcTemplate,
                                               @Qualifier("monitoringJdbcTemplate") JdbcTemplate monitoringJdbcTemplate,
@@ -44,7 +46,8 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                                               RmsLicenseMonitorRepository rmsRepository,
                                               MonitoringCredentialsCryptoService credentialsCryptoService,
                                               SqliteDataSourceProperties primaryProperties,
-                                              MonitoringSqliteDataSourceProperties monitoringProperties) {
+                                              MonitoringSqliteDataSourceProperties monitoringProperties,
+                                              PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.primaryJdbcTemplate = primaryJdbcTemplate;
         this.monitoringJdbcTemplate = monitoringJdbcTemplate;
         this.iikoApiMonitorRepository = iikoApiMonitorRepository;
@@ -53,10 +56,15 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
         this.credentialsCryptoService = credentialsCryptoService;
         this.primaryProperties = primaryProperties;
         this.monitoringProperties = monitoringProperties;
+        this.databaseRuntimeMode = databaseRuntimeMode;
     }
 
     @Override
     public void run(ApplicationArguments args) {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            log.info("Skipping SQLite monitoring bootstrap because spring-panel runs in external {} mode", databaseRuntimeMode.modeLabel());
+            return;
+        }
         ensureSchema();
         migrateFromPrimaryDatabase();
         migrateEncryptedRmsCredentials();

@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteConnectionConfigSupport;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,18 +24,25 @@ public class BotDatabaseRegistry {
     private final BotSqliteDataSourceProperties botSqliteProperties;
     private final DataSource settingsDataSource;
     private final SqliteSchemaBootstrapSupport schemaBootstrapSupport;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
     public BotDatabaseRegistry(BotProcessProperties botProcessProperties,
                                BotSqliteDataSourceProperties botSqliteProperties,
                                @Qualifier("settingsDataSource") DataSource settingsDataSource,
-                               SqliteSchemaBootstrapSupport schemaBootstrapSupport) {
+                               SqliteSchemaBootstrapSupport schemaBootstrapSupport,
+                               PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.botProcessProperties = botProcessProperties;
         this.botSqliteProperties = botSqliteProperties;
         this.settingsDataSource = settingsDataSource;
         this.schemaBootstrapSupport = schemaBootstrapSupport;
+        this.databaseRuntimeMode = databaseRuntimeMode;
     }
 
     public void ensureSettingsSchema() {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            log.info("Skipping settings.db schema bootstrap in external {} mode", databaseRuntimeMode.modeLabel());
+            return;
+        }
         schemaBootstrapSupport.initializeSchema(settingsDataSource, java.util.List.of(
             "CREATE TABLE IF NOT EXISTS database_registry (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -62,6 +70,9 @@ public class BotDatabaseRegistry {
     }
 
     public void registerDatabase(String type, String path) {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return;
+        }
         String sql = "INSERT INTO database_registry (db_type, db_path, updated_at) VALUES (?, ?, datetime('now')) " +
             "ON CONFLICT(db_type) DO UPDATE SET db_path = excluded.db_path, updated_at = excluded.updated_at";
         try (Connection connection = settingsDataSource.getConnection();
@@ -75,6 +86,9 @@ public class BotDatabaseRegistry {
     }
 
     public void registerDatabaseLink(String sourceType, String sourceId, String targetType, String targetId) {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return;
+        }
         String sql = "INSERT OR IGNORE INTO database_links " +
             "(source_type, source_id, target_type, target_id, created_at) " +
             "VALUES (?, ?, ?, ?, datetime('now'))";
@@ -92,6 +106,10 @@ public class BotDatabaseRegistry {
 
     public Path ensureBotDatabase(Long channelId, String platform) {
         Path dbPath = resolveBotDatabasePath(channelId);
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            log.info("Skipping per-channel SQLite bot database bootstrap for channel {} in external {} mode", channelId, databaseRuntimeMode.modeLabel());
+            return dbPath;
+        }
         ensureDatabaseFile(dbPath);
         ensureBotSchema(dbPath);
         registerBotInstance(channelId, platform, dbPath);

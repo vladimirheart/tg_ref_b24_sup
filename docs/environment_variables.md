@@ -16,7 +16,11 @@
 | `MAX_BOT_ENABLED` | включить MAX-бота (`true/false`) | Java-бот |
 | `MAX_BOT_TOKEN` | токен MAX | Java-бот |
 | `MAX_SUPPORT_CHAT_ID` | чат операторов MAX | Java-бот |
-| `DATABASE_URL` | строка подключения PostgreSQL/MySQL | Панель и бот (если используете внешнюю БД) |
+| `APP_DB_MODE` | режим БД: `auto`, `sqlite`, `postgresql` (для панели ещё `mysql`) | Панель и бот |
+| `DATABASE_URL` | compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL | Панель и бот |
+| `SPRING_DATASOURCE_URL` | явный JDBC URL для external DB | Панель и бот |
+| `SPRING_DATASOURCE_USERNAME` | пользователь external DB | Панель и бот |
+| `SPRING_DATASOURCE_PASSWORD` | пароль external DB | Панель и бот |
 
 ## Базы данных
 
@@ -50,9 +54,21 @@
 
 ```bash
 export TELEGRAM_BOT_TOKEN="123:ABC"
+export APP_DB_MODE="sqlite"
 export APP_DB_PANEL_RUNTIME="/srv/iguana/panel_runtime.db"
 export APP_DB_PANEL_IDENTITY="/srv/iguana/panel_identity.db"
 export APP_DB_BOT_RUNTIME="/srv/iguana/bot_runtime.db"
 export APP_DB_CLIENTS="/srv/iguana/clients.db"
 export APP_BOT_DATABASE_DIR="/srv/iguana/bots"
 ```
+
+Для external PostgreSQL-режима рекомендуется явно фиксировать режим и стандартные Spring datasource-поля:
+
+```bash
+export APP_DB_MODE="postgresql"
+export SPRING_DATASOURCE_URL="jdbc:postgresql://db.example.local:5432/iguana"
+export SPRING_DATASOURCE_USERNAME="iguana"
+export SPRING_DATASOURCE_PASSWORD="secret"
+```
+
+В этом режиме `spring-panel` использует единый primary datasource для runtime/user/bot/settings контуров, а `java-bot` получает тот же JDBC-контракт через переменные окружения и не должен инициализировать схему самостоятельно.

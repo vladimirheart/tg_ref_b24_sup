@@ -1,6 +1,9 @@
 package com.example.panel.service;
 
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.DatabaseMode;
+import com.example.panel.config.ExternalDatabaseSettings;
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
@@ -20,6 +23,7 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -35,15 +39,21 @@ public class BotRuntimeContractService {
     private final BotProcessProperties botProcessProperties;
     private final IntegrationNetworkService integrationNetworkService;
     private final ObjectMapper objectMapper;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
+    private final Environment environment;
 
     public BotRuntimeContractService(SqliteDataSourceProperties ticketsDbProperties,
                                      BotProcessProperties botProcessProperties,
                                      IntegrationNetworkService integrationNetworkService,
-                                     ObjectMapper objectMapper) {
+                                     ObjectMapper objectMapper,
+                                     PanelDatabaseRuntimeMode databaseRuntimeMode,
+                                     Environment environment) {
         this.ticketsDbProperties = ticketsDbProperties;
         this.botProcessProperties = botProcessProperties;
         this.integrationNetworkService = integrationNetworkService;
         this.objectMapper = objectMapper;
+        this.databaseRuntimeMode = databaseRuntimeMode;
+        this.environment = environment;
     }
 
     public String resolveBotModule(Channel channel) {
@@ -71,6 +81,12 @@ public class BotRuntimeContractService {
         if (launchMode == BotProcessProperties.LaunchMode.AUTO && executableJar == null) {
             warnings.add("Для модуля не найден jar, будет использован fallback на Maven launcher.");
         }
+        databaseRuntimeMode.externalSettings()
+            .filter(settings -> settings.vendor() != DatabaseMode.POSTGRESQL)
+            .ifPresent(settings -> warnings.add(
+                "Для целевого production-переезда бот-runtime сейчас поддерживает только PostgreSQL external DB, а не "
+                    + settings.vendor().name().toLowerCase() + "."
+            ));
         if (executableJar != null && !"explicit-config".equals(executableJar.source())) {
             warnings.add("Для production лучше явно задать app.bots.executable-jars вместо target scan.");
         }
@@ -122,11 +138,7 @@ public class BotRuntimeContractService {
 
     public Map<String, String> buildEnvironment(Channel channel, BotCredential credential, Path logFile) {
         Map<String, String> env = new LinkedHashMap<>();
-        String panelRuntimeDbPath = ticketsDbProperties.getNormalizedPath().toString();
-        env.put("APP_DB_PANEL_RUNTIME", panelRuntimeDbPath);
-        env.put("APP_DB_TICKETS", panelRuntimeDbPath);
-        env.put("SUPPORT_BOT_DATABASE_PATH", panelRuntimeDbPath);
-        env.put("SPRING_SQL_INIT_MODE", "always");
+        applyDatabaseEnvironment(env);
         env.put("TELEGRAM_BOT_TOKEN", credential.token());
         env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
         env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
@@ -245,7 +257,6 @@ public class BotRuntimeContractService {
 
     private List<String> requiredEnvironmentKeys(Channel channel) {
         List<String> keys = new ArrayList<>(List.of(
-            "APP_DB_PANEL_RUNTIME",
             "TELEGRAM_BOT_TOKEN",
             "TELEGRAM_BOT_USERNAME",
             "GROUP_CHAT_ID",
@@ -253,6 +264,11 @@ public class BotRuntimeContractService {
             "SPRING_PROFILES_ACTIVE",
             "JAVA_TOOL_OPTIONS"
         ));
+        if (databaseRuntimeMode.isSqliteMode()) {
+            keys.addAll(List.of("APP_DB_PANEL_RUNTIME", "SPRING_SQL_INIT_MODE"));
+        } else {
+            keys.addAll(List.of("APP_DB_MODE", "SPRING_DATASOURCE_URL", "SPRING_SQL_INIT_MODE"));
+        }
         String platform = normalizePlatform(channel);
         if ("vk".equals(platform)) {
             keys.addAll(List.of("VK_BOT_ENABLED", "VK_BOT_TOKEN", "VK_OPERATOR_CHAT_ID", "VK_WEBHOOK_ENABLED"));
@@ -273,6 +289,11 @@ public class BotRuntimeContractService {
 
     private List<String> optionalEnvironmentKeys(Channel channel) {
         List<String> keys = new ArrayList<>();
+        if (databaseRuntimeMode.isSqliteMode()) {
+            keys.addAll(List.of("APP_DB_TICKETS", "SUPPORT_BOT_DATABASE_PATH"));
+        } else {
+            keys.addAll(List.of("SPRING_DATASOURCE_USERNAME", "SPRING_DATASOURCE_PASSWORD", "DATABASE_URL"));
+        }
         String platform = normalizePlatform(channel);
         if ("vk".equals(platform)) {
             keys.addAll(List.of("VK_GROUP_ID", "VK_CONFIRMATION_TOKEN", "VK_WEBHOOK_SECRET"));
@@ -286,6 +307,42 @@ public class BotRuntimeContractService {
 
         keys.addAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)).keySet());
         return keys;
+    }
+
+    private void applyDatabaseEnvironment(Map<String, String> env) {
+        if (databaseRuntimeMode.isSqliteMode()) {
+            String panelRuntimeDbPath = ticketsDbProperties.getNormalizedPath().toString();
+            env.put("APP_DB_MODE", "sqlite");
+            env.put("APP_DB_PANEL_RUNTIME", panelRuntimeDbPath);
+            env.put("APP_DB_TICKETS", panelRuntimeDbPath);
+            env.put("SUPPORT_BOT_DATABASE_PATH", panelRuntimeDbPath);
+            env.put("SPRING_SQL_INIT_MODE", "always");
+            return;
+        }
+
+        ExternalDatabaseSettings settings = databaseRuntimeMode.externalSettings()
+            .orElseThrow(() -> new IllegalStateException("External database mode was selected but datasource settings are absent."));
+        if (settings.vendor() != DatabaseMode.POSTGRESQL) {
+            throw new IllegalStateException(
+                "Bot runtime external DB contract currently supports only PostgreSQL. Resolved vendor: "
+                    + settings.vendor().name().toLowerCase()
+            );
+        }
+        env.put("APP_DB_MODE", "postgresql");
+        env.put("SPRING_SQL_INIT_MODE", "never");
+        env.put("SPRING_DATASOURCE_URL", settings.jdbcUrl());
+        putIfHasText(env, "SPRING_DATASOURCE_USERNAME", settings.username());
+        putIfHasText(env, "SPRING_DATASOURCE_PASSWORD", settings.password());
+        String rawDatabaseUrl = environment.getProperty("DATABASE_URL");
+        if (StringUtils.hasText(rawDatabaseUrl)) {
+            env.put("DATABASE_URL", rawDatabaseUrl);
+        }
+    }
+
+    private void putIfHasText(Map<String, String> env, String key, String value) {
+        if (StringUtils.hasText(value)) {
+            env.put(key, value);
+        }
     }
 
     private BotProductionContract productionContract(Path botWorkingDir,
@@ -310,6 +367,12 @@ public class BotRuntimeContractService {
         if (configuredLaunchMode == BotProcessProperties.LaunchMode.MAVEN) {
             blockers.add("app.bots.launch-mode=maven подходит только как controlled dev fallback.");
         }
+        databaseRuntimeMode.externalSettings()
+            .filter(settings -> settings.vendor() != DatabaseMode.POSTGRESQL)
+            .ifPresent(settings -> blockers.add(
+                "External DB vendor " + settings.vendor().name().toLowerCase()
+                    + " не поддержан bot runtime contract; целевой режим для миграции — PostgreSQL."
+            ));
         boolean readyForProduction = blockers.isEmpty();
         return new BotProductionContract(
             preferredLauncher,

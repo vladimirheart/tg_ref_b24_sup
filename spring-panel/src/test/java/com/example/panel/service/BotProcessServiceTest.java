@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.mock.env.MockEnvironment;
 
 class BotProcessServiceTest {
 
@@ -351,11 +353,14 @@ class BotProcessServiceTest {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
         IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());
+        MockEnvironment environment = new MockEnvironment().withProperty("app.datasource.mode", "sqlite");
         BotRuntimeContractService botRuntimeContractService = new BotRuntimeContractService(
             sqliteProperties,
             properties,
             integrationNetworkService,
-            new ObjectMapper()
+            new ObjectMapper(),
+            new PanelDatabaseRuntimeMode(environment),
+            environment,
         );
         return new BotProcessService(
                 null,
@@ -421,7 +426,15 @@ class BotProcessServiceTest {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
         IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());
-        return new BotRuntimeContractService(sqliteProperties, properties, integrationNetworkService, new ObjectMapper());
+        MockEnvironment environment = new MockEnvironment().withProperty("app.datasource.mode", "sqlite");
+        return new BotRuntimeContractService(
+            sqliteProperties,
+            properties,
+            integrationNetworkService,
+            new ObjectMapper(),
+            new PanelDatabaseRuntimeMode(environment),
+            environment
+        );
     }
 
     public static final class ProcessProbe {
