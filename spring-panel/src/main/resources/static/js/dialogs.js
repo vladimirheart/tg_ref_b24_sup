@@ -2215,7 +2215,7 @@
         </td>
         <td class="dialog-actions" data-column-key="actions">
           <div class="dialog-actions-inline">
-            <a href="${escapeHtml(openHref)}" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
+            <a href="${escapeHtml(openHref)}" class="btn btn-sm btn-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
             <div class="dialog-actions-dropdown" data-dialog-actions>
               <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false" aria-label="Действия" title="Действия">⋯</button>
               <div class="dialog-actions-menu" data-dialog-actions-menu>

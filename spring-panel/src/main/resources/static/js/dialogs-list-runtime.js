@@ -769,7 +769,15 @@
       if (!checkbox || !ticketId) {
         return;
       }
-      checkbox.checked = getSelectedTicketIds().has(ticketId);
+      const selected =
+		  getSelectedTicketIds().has(ticketId);
+
+		checkbox.checked = selected;
+
+		row.classList.toggle(
+		  'dialog-row-selected',
+		  selected
+		);
     }
 
     function selectedRows() {

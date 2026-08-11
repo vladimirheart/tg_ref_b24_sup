@@ -957,17 +957,17 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
 }
 
 .dialog-table .dialog-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  overflow: hidden;
-  flex: 0 0 auto;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--surface-card);
+  box-shadow: none;
 }
 
 .dialog-table .dialog-avatar-img {
@@ -977,15 +977,16 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
 }
 
 .dialog-table .avatar-circle {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--color-border));
+  background: var(--surface-interactive);
+  color: var(--primary);
   font-weight: 700;
-  color: var(--primary-foreground);
-  background: linear-gradient(135deg, var(--chart-2), var(--primary));
 }
 
 .dialog-table .dot {
@@ -1003,12 +1004,34 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
   background: var(--state-success);
 }
 
-.dialog-table .dialog-row-odd {
-  background-color: color-mix(in srgb, var(--color-surface-soft) 62%, var(--color-surface));
+.dialog-table tbody tr > * {
+  border-bottom-color: var(--color-border);
+  transition: background-color 0.16s ease, border-color 0.16s ease;
 }
 
-.dialog-table .dialog-row-even {
-  background-color: var(--color-surface);
+.dialog-table tbody tr.dialog-row-odd > * {
+  background: var(--surface-raised);
+}
+
+.dialog-table tbody tr.dialog-row-even > * {
+  background: var(--surface-card);
+}
+
+.dialog-table tbody tr.dialog-row-selected > * {
+  background: var(--surface-interactive);
+}
+
+.dialog-table tbody tr.dialog-row-active > * {
+  background: var(--surface-selected);
+}
+
+.dialog-table tbody tr.dialog-row-active > * {
+  border-top-color: color-mix(in srgb, var(--primary) 24%, var(--color-border));
+  border-bottom-color: color-mix(in srgb, var(--primary) 24%, var(--color-border));
+}
+
+.dialog-table tbody tr.dialog-row-selected.dialog-row-active > * {
+  background: var(--surface-selected);
 }
 
 body[data-ui-page=dialogs] .dialogs-toolbar-card,
@@ -1107,21 +1130,16 @@ body[data-ui-page=dialogs] .dialogs-table-card .table-responsive {
   gap: 10px;
 }
 
-.dialog-table .dialog-avatar,
-.dialog-table .avatar-circle {
-  width: 38px;
-  height: 38px;
-}
-
-.dialog-table .dialog-avatar {
-  box-shadow: none;
-  border-color: var(--ui-panel-border);
-}
-
 .dialog-table .dialog-open-btn {
   background: var(--primary);
   border-color: var(--primary);
   color: var(--primary-foreground);
+  box-shadow: none;
+}
+
+.dialog-table .dialog-actions-toggle,
+.dialog-actions-menu .btn {
+  box-shadow: none;
 }
 
 .dialog-table .dialog-actions-inline {
@@ -1169,12 +1187,6 @@ body[data-ui-page=dialogs] .dialogs-table-card .table-responsive {
 .dialog-table > :not(caption) > * > * {
   padding: 0.55rem 0.55rem;
   vertical-align: middle;
-}
-
-.dialog-table .dialog-avatar,
-.dialog-table .avatar-circle {
-  width: 36px;
-  height: 36px;
 }
 
 .dialog-table .dialog-channel-pill,
@@ -1253,21 +1265,24 @@ body[data-ui-page=dialogs] .dialog-table th[data-column-key=actions] {
   gap: 0.5rem;
   max-width: 100%;
   min-width: 0;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  background-color: var(--color-surface-soft);
-  font-weight: 500;
+  min-height: 30px;
+  padding: 0 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .dialog-channel-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
-  padding: 0 0.82rem;
-  border-radius: 999px;
+  min-height: 30px;
+  padding: 0 0.72rem;
   border: 1px solid transparent;
-  font-size: 0.78rem;
-  font-weight: 800;
+  border-radius: var(--radius-pill);
+  font-size: 0.74rem;
+  font-weight: 700;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
@@ -1275,31 +1290,31 @@ body[data-ui-page=dialogs] .dialog-table th[data-column-key=actions] {
 .dialog-channel-pill.channel-tone-telegram {
   background: color-mix(in srgb, #2aabee 18%, var(--surface-card));
   border-color: color-mix(in srgb, #2aabee 32%, transparent);
-  color: #0f4e78;
+  color: var(--color-text);
 }
 
 .dialog-channel-pill.channel-tone-vk {
   background: color-mix(in srgb, #2787f5 18%, var(--surface-card));
   border-color: color-mix(in srgb, #2787f5 34%, transparent);
-  color: #0d4ea6;
+  color: var(--color-text);
 }
 
 .dialog-channel-pill.channel-tone-max {
   background: color-mix(in srgb, #ff8b2b 18%, var(--surface-card));
   border-color: color-mix(in srgb, #ff8b2b 34%, transparent);
-  color: #8f430d;
+  color: var(--color-text);
 }
 
 .dialog-channel-pill.channel-tone-form {
   background: color-mix(in srgb, var(--chart-5) 16%, var(--surface-card));
   border-color: color-mix(in srgb, var(--chart-5) 28%, transparent);
-  color: #345d19;
+  color: var(--color-text);
 }
 
 .dialog-channel-pill.channel-tone-custom {
   background: color-mix(in srgb, var(--chart-2) 14%, var(--surface-card));
   border-color: color-mix(in srgb, var(--chart-2) 26%, transparent);
-  color: color-mix(in srgb, var(--primary) 82%, #0f172a);
+  color: var(--color-text);
 }
 
 .dialog-business-icon img {
@@ -1382,31 +1397,32 @@ body[data-ui-page=dialogs] .dialog-table th[data-column-key=actions] {
 }
 
 .dialog-status-badge {
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
   font-weight: 700;
 }
 
 .dialog-status-badge.status-new {
-  background: var(--color-info-bg);
-  border-color: color-mix(in srgb, var(--state-system) 32%, transparent);
+  background: var(--state-info-bg);
+  border-color: color-mix(in srgb, var(--state-system) 32%, var(--color-border));
   color: var(--state-system);
 }
 
 .dialog-status-badge.status-waiting-operator {
-  background: var(--color-warning-bg);
-  border-color: color-mix(in srgb, var(--state-warning) 32%, transparent);
+  background: var(--state-warning-bg);
+  border-color: color-mix(in srgb, var(--state-warning) 32%, var(--color-border));
   color: var(--state-warning);
 }
 
 .dialog-status-badge.status-waiting-client {
-  background: color-mix(in srgb, var(--secondary) 14%, var(--color-surface));
-  border-color: color-mix(in srgb, var(--secondary) 30%, transparent);
+  background: color-mix(in srgb, var(--secondary) 14%, var(--surface-card));
+  border-color: color-mix(in srgb, var(--secondary) 30%, var(--color-border));
   color: color-mix(in srgb, var(--secondary) 72%, var(--color-text));
 }
 
 .dialog-status-badge.status-closed {
-  background: var(--color-success-bg);
-  border-color: color-mix(in srgb, var(--state-success) 30%, transparent);
+  background: var(--state-success-bg);
+  border-color: color-mix(in srgb, var(--state-success) 30%, var(--color-border));
   color: var(--state-success);
 }
 
@@ -1417,8 +1433,8 @@ body[data-ui-page=dialogs] .dialog-table th[data-column-key=actions] {
 }
 
 .dialog-status-badge.status-auto-processing {
-  background: var(--color-info-bg);
-  border-color: color-mix(in srgb, var(--state-system) 30%, transparent);
+  background: var(--state-info-bg);
+  border-color: color-mix(in srgb, var(--state-system) 30%, var(--color-border));
   color: var(--state-system);
 }
 
@@ -1475,16 +1491,12 @@ body[data-ui-page=dialogs] .dialog-table th[data-column-key=actions] {
   position: relative;
 }
 
-.dialog-table tbody tr.dialog-priority-breached {
-  border-left: 3px solid var(--state-danger);
+.dialog-table tbody tr.dialog-priority-breached > *:first-child {
+  box-shadow: inset 3px 0 0 var(--state-danger);
 }
 
-.dialog-table tbody tr.dialog-priority-at-risk {
-  border-left: 3px solid var(--state-warning);
-}
-
-.dialog-table tbody tr.dialog-priority-normal {
-  border-left: 3px solid var(--state-success);
+.dialog-table tbody tr.dialog-priority-at-risk > *:first-child {
+  box-shadow: inset 3px 0 0 var(--state-warning);
 }
 
 .dialog-table tbody tr.dialog-priority-pinned {
