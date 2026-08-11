@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.service.PermissionService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,13 +32,16 @@ public class PasswordResetRequestApiController {
     private final JdbcTemplate usersJdbcTemplate;
     private final PasswordEncoder passwordEncoder;
     private final PermissionService permissionService;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
     public PasswordResetRequestApiController(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                                              PasswordEncoder passwordEncoder,
-                                             PermissionService permissionService) {
+                                             PermissionService permissionService,
+                                             PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.passwordEncoder = passwordEncoder;
         this.permissionService = permissionService;
+        this.databaseRuntimeMode = databaseRuntimeMode;
     }
 
     @PostMapping("/public")
@@ -195,6 +199,9 @@ public class PasswordResetRequestApiController {
     }
 
     private void ensureRequestsTable() {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return;
+        }
         usersJdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS password_reset_requests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

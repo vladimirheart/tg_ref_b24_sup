@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import jakarta.annotation.PostConstruct;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,12 +16,15 @@ public class UiEventOutboxWatcher {
 
     private final JdbcTemplate jdbcTemplate;
     private final DialogRealtimeEventService dialogRealtimeEventService;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
     private final AtomicLong lastProcessedId = new AtomicLong(0L);
 
     public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate,
-                                DialogRealtimeEventService dialogRealtimeEventService) {
+                                DialogRealtimeEventService dialogRealtimeEventService,
+                                PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogRealtimeEventService = dialogRealtimeEventService;
+        this.databaseRuntimeMode = databaseRuntimeMode;
         ensureSchema();
     }
 
@@ -97,6 +101,9 @@ public class UiEventOutboxWatcher {
     }
 
     private void ensureSchema() {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return;
+        }
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS ui_event_outbox (
                     id BIGINT PRIMARY KEY,

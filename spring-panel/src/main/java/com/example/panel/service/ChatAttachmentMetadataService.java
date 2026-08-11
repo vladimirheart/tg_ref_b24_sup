@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -11,9 +12,12 @@ import java.time.OffsetDateTime;
 public class ChatAttachmentMetadataService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
-    public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate) {
+    public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate,
+                                         PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.jdbcTemplate = jdbcTemplate;
+        this.databaseRuntimeMode = databaseRuntimeMode;
         ensureSchema();
     }
 
@@ -79,6 +83,9 @@ public class ChatAttachmentMetadataService {
     }
 
     private void ensureSchema() {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return;
+        }
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS chat_attachment_metadata (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

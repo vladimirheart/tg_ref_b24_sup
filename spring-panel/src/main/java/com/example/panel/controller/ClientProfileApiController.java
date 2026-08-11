@@ -8,6 +8,7 @@ import com.example.panel.repository.ClientPhoneRepository;
 import com.example.panel.repository.ClientStatusRepository;
 import com.example.panel.service.BotDatabaseRegistry;
 import com.example.panel.service.NotificationService;
+import com.example.panel.support.JdbcSchemaInspector;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
@@ -484,16 +485,7 @@ public class ClientProfileApiController {
 
     private Set<String> loadTableColumns(JdbcTemplate template, String table) {
         try {
-            return template.query(
-                "PRAGMA table_info(" + table + ")",
-                rs -> {
-                    Set<String> columns = new HashSet<>();
-                    while (rs.next()) {
-                        columns.add(rs.getString("name"));
-                    }
-                    return columns;
-                }
-            );
+            return new HashSet<>(JdbcSchemaInspector.loadColumnNames(template, table));
         } catch (DataAccessException ex) {
             log.debug("Failed to read table info for {}: {}", table, ex.getMessage());
             return Set.of();

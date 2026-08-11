@@ -1,5 +1,6 @@
 package com.example.supportbot.service;
 
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -15,9 +16,12 @@ import java.util.Locale;
 public class ChatAttachmentMetadataService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final Environment environment;
 
-    public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate) {
+    public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate,
+                                         Environment environment) {
         this.jdbcTemplate = jdbcTemplate;
+        this.environment = environment;
         ensureSchema();
     }
 
@@ -83,6 +87,9 @@ public class ChatAttachmentMetadataService {
     }
 
     private void ensureSchema() {
+        if (isExternalDatabaseConfigured()) {
+            return;
+        }
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS chat_attachment_metadata (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,6 +130,15 @@ public class ChatAttachmentMetadataService {
                     """);
         } catch (Exception ignored) {
         }
+    }
+
+    private boolean isExternalDatabaseConfigured() {
+        String mode = environment.getProperty("support-bot.database.mode", "auto");
+        if ("sqlite".equalsIgnoreCase(mode)) {
+            return false;
+        }
+        return StringUtils.hasText(environment.getProperty("spring.datasource.url"))
+                || StringUtils.hasText(environment.getProperty("DATABASE_URL"));
     }
 
     private String normalizeStorageKey(String ticketId, String rawAttachment) {

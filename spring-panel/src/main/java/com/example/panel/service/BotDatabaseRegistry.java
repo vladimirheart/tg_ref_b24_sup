@@ -89,9 +89,10 @@ public class BotDatabaseRegistry {
         if (!databaseRuntimeMode.isSqliteMode()) {
             return;
         }
-        String sql = "INSERT OR IGNORE INTO database_links " +
+        String sql = "INSERT INTO database_links " +
             "(source_type, source_id, target_type, target_id, created_at) " +
-            "VALUES (?, ?, ?, ?, datetime('now'))";
+            "VALUES (?, ?, ?, ?, datetime('now')) " +
+            "ON CONFLICT(source_type, source_id, target_type, target_id) DO NOTHING";
         try (Connection connection = settingsDataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, sourceType);

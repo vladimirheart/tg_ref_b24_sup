@@ -1,13 +1,13 @@
 package com.example.supportbot.config;
 
+import com.example.supportbot.support.JdbcSchemaInspector;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 @Component
 @ConditionalOnProperty(name = "spring.sql.init.platform", havingValue = "sqlite", matchIfMissing = true)
@@ -59,15 +59,15 @@ public class SqliteTriggerInitializer implements ApplicationRunner {
     }
 
     private void ensureFeedbacksSchema() {
-        List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(feedbacks)");
+        Set<String> columns = JdbcSchemaInspector.loadColumnNames(jdbcTemplate, "feedbacks");
         if (columns.isEmpty()) {
             jdbcTemplate.execute(CREATE_FEEDBACKS_TABLE_SQL);
             return;
         }
 
-        boolean hasId = hasColumn(columns, "id");
-        boolean hasTicketId = hasColumn(columns, "ticket_id");
-        boolean hasChannelId = hasColumn(columns, "channel_id");
+        boolean hasId = columns.contains("id");
+        boolean hasTicketId = columns.contains("ticket_id");
+        boolean hasChannelId = columns.contains("channel_id");
 
         if (hasId && hasTicketId && hasChannelId) {
             return;
@@ -89,9 +89,5 @@ public class SqliteTriggerInitializer implements ApplicationRunner {
                 """);
         jdbcTemplate.execute("DROP TABLE feedbacks;");
         jdbcTemplate.execute("ALTER TABLE feedbacks_new RENAME TO feedbacks;");
-    }
-
-    private boolean hasColumn(List<Map<String, Object>> columns, String name) {
-        return columns.stream().anyMatch(column -> name.equalsIgnoreCase(String.valueOf(column.get("name"))));
     }
 }

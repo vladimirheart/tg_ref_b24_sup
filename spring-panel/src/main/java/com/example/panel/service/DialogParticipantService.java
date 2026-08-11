@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.model.dialog.DialogOperatorOption;
 import com.example.panel.model.dialog.DialogParticipantDto;
 import com.example.panel.support.JdbcSchemaInspector;
@@ -7,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -29,11 +31,14 @@ public class DialogParticipantService {
 
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
     public DialogParticipantService(JdbcTemplate jdbcTemplate,
-                                    @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate) {
+                                    @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
+                                    PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
+        this.databaseRuntimeMode = databaseRuntimeMode;
         ensureSchema();
     }
 
@@ -130,13 +135,23 @@ public class DialogParticipantService {
         try {
             return jdbcTemplate.update(
                     """
-                    INSERT OR IGNORE INTO ticket_participants(ticket_id, username, added_at, added_by)
-                    VALUES(?, ?, CURRENT_TIMESTAMP, ?)
+                    INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                    SELECT ?, ?, CURRENT_TIMESTAMP, ?
+                     WHERE NOT EXISTS (
+                         SELECT 1
+                           FROM ticket_participants
+                          WHERE ticket_id = ?
+                            AND username = ?
+                     )
                     """,
                     normalizedTicketId,
                     normalizedUsername,
-                    actor
+                    actor,
+                    normalizedTicketId,
+                    normalizedUsername
             ) > 0;
+        } catch (DuplicateKeyException ex) {
+            return false;
         } catch (DataAccessException ex) {
             log.warn("Unable to add participant {} to ticket {}: {}", normalizedUsername, normalizedTicketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return false;
@@ -255,6 +270,9 @@ public class DialogParticipantService {
     }
 
     private void ensureSchema() {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return;
+        }
         try {
             jdbcTemplate.execute("""
                     CREATE TABLE IF NOT EXISTS ticket_participants (

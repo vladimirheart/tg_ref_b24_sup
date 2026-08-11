@@ -1,11 +1,10 @@
 package com.example.supportbot.diagnostics;
 
+import com.example.supportbot.support.JdbcSchemaInspector;
 import java.sql.Connection;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,45 +31,30 @@ public class SchemaDiagnosticsRunner implements ApplicationRunner {
             String jdbcUrl = connection.getMetaData().getURL();
             String product = connection.getMetaData().getDatabaseProductName();
             log.info("DB diagnostics enabled. JDBC URL: {}. Product: {}", jdbcUrl, product);
-            if (jdbcUrl != null && jdbcUrl.toLowerCase(Locale.ROOT).startsWith("jdbc:sqlite:")) {
-                inspectSqliteSchema(connection);
-            } else {
-                log.info("DB diagnostics skipped: unsupported JDBC URL {}", jdbcUrl);
-            }
+            inspectSchema(connection);
         } catch (Exception ex) {
             log.warn("DB diagnostics failed: {}", ex.getMessage(), ex);
         }
     }
 
-    private void inspectSqliteSchema(Connection connection) throws Exception {
-        List<String> tables = new ArrayList<>();
-        try (Statement statement = connection.createStatement();
-             ResultSet rs = statement.executeQuery("SELECT name FROM sqlite_master WHERE type='table'")) {
-            while (rs.next()) {
-                String table = rs.getString("name");
-                if (table != null && !table.isBlank()) {
-                    tables.add(table);
-                }
-            }
-        }
+    private void inspectSchema(Connection connection) throws Exception {
+        List<String> tables = new ArrayList<>(JdbcSchemaInspector.loadTableNames(connection));
         if (tables.isEmpty()) {
-            log.warn("DB diagnostics: no tables found in sqlite_master.");
+            log.warn("DB diagnostics: no tables found via JDBC metadata.");
             return;
         }
         for (String table : tables) {
-            inspectSqliteTable(connection, table);
+            inspectTable(connection, table);
         }
     }
 
-    private void inspectSqliteTable(Connection connection, String table) throws Exception {
+    private void inspectTable(Connection connection, String table) throws Exception {
         boolean anomaly = false;
         List<String> issues = new ArrayList<>();
-        String sql = "PRAGMA table_info('" + table.replace("'", "''") + "')";
-        try (Statement statement = connection.createStatement();
-             ResultSet rs = statement.executeQuery(sql)) {
+        try (ResultSet rs = connection.getMetaData().getColumns(null, null, table, null)) {
             while (rs.next()) {
-                String name = rs.getString("name");
-                String type = rs.getString("type");
+                String name = rs.getString("COLUMN_NAME");
+                String type = rs.getString("TYPE_NAME");
                 if (name == null || name.isBlank()) {
                     anomaly = true;
                     issues.add("column with empty name");
@@ -83,20 +67,7 @@ public class SchemaDiagnosticsRunner implements ApplicationRunner {
         }
         if (anomaly) {
             log.warn("DB diagnostics: anomalies in table {}: {}", table, String.join("; ", issues));
-            log.warn("DB diagnostics: schema for {} -> {}", table, loadSqliteTableDefinition(connection, table));
+            log.warn("DB diagnostics: unable to resolve a clean metadata view for table {}", table);
         }
-    }
-
-    private String loadSqliteTableDefinition(Connection connection, String table) {
-        String sql = "SELECT sql FROM sqlite_master WHERE type='table' AND name='" + table.replace("'", "''") + "'";
-        try (Statement statement = connection.createStatement();
-             ResultSet rs = statement.executeQuery(sql)) {
-            if (rs.next()) {
-                return rs.getString("sql");
-            }
-        } catch (Exception ex) {
-            return "failed to read table definition: " + ex.getMessage();
-        }
-        return "<not found>";
     }
 }
