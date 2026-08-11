@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>UI Kit — iguana</title>
+
+  <link rel="icon"
+        type="image/png"
+        sizes="32x32"
+        th:href="@{/favicon-32x32.png?v=2}">
+
+  <link rel="icon"
+        type="image/png"
+        sizes="16x16"
+        th:href="@{/favicon-16x16.png?v=2}">
+
+  <link rel="shortcut icon"
+        type="image/x-icon"
+        th:href="@{/favicon.ico?v=2}">
+
+  <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+
+  <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet">
+
+  <link th:href="@{/css/style.css}" rel="stylesheet" />
+  <link th:href="@{/css/app.css}" rel="stylesheet" />
+  <link th:href="@{/css/sidebar.css}" rel="stylesheet" />
+
+  <script th:src="@{/js/common.js}"></script>
+</head>
+
+<body
+    class="with-sidebar sidebar-pinned"
+    data-ui-page="ui-kit">
+
+  <div th:replace="~{fragments/navbar :: navbar('settings')}"></div>
+
+  <main class="page-shell ui-kit-shell">
+
+    <section class="page-header-card">
+      <span class="page-kicker">Design system</span>
+
+      <h1 class="page-title">IGUANA UI Kit</h1>
+
+      <p class="page-subtitle">
+        Эталонная страница компонентов, состояний и визуальных токенов панели.
+      </p>
+    </section>
+
+    <section class="ui-kit-toolbar">
+      <div class="ui-kit-toolbar-group">
+        <span class="ui-kit-toolbar-label">Тема</span>
+
+        <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            data-ui-kit-theme="light">
+          Светлая
+        </button>
+
+        <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            data-ui-kit-theme="dark">
+          Тёмная
+        </button>
+
+        <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            data-ui-kit-theme="auto">
+          Авто
+        </button>
+      </div>
+
+      <div class="ui-kit-toolbar-group">
+        <span class="ui-kit-toolbar-label">Палитра</span>
+
+        <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            data-ui-kit-palette="neo">
+          Iguana
+        </button>
+
+        <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            data-ui-kit-palette="catppuccin">
+          Catppuccin
+        </button>
+
+        <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            data-ui-kit-palette="amber-minimal">
+          Amber
+        </button>
+      </div>
+    </section>
+
+    <section class="ui-kit-section">
+      <div class="ui-kit-section-head">
+        <div>
+          <h2 class="ui-kit-section-title">Поверхности</h2>
+          <p class="ui-kit-section-copy">
+            Базовая иерархия фоновых слоёв.
+          </p>
+        </div>
+      </div>
+
+      <div class="ui-kit-surface-grid">
+        <div class="ui-kit-surface ui-kit-surface--page">
+          <strong>Page</strong>
+          <span>--surface-page</span>
+        </div>
+
+        <div class="ui-kit-surface ui-kit-surface--card">
+          <strong>Card</strong>
+          <span>--surface-card</span>
+        </div>
+
+        <div class="ui-kit-surface ui-kit-surface--raised">
+          <strong>Raised</strong>
+          <span>--surface-raised</span>
+        </div>
+
+        <div class="ui-kit-surface ui-kit-surface--interactive">
+          <strong>Interactive</strong>
+          <span>--surface-interactive</span>
+        </div>
+
+        <div class="ui-kit-surface ui-kit-surface--selected">
+          <strong>Selected</strong>
+          <span>--surface-selected</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="ui-kit-section">
+      <div class="ui-kit-section-head">
+        <div>
+          <h2 class="ui-kit-section-title">Цветовые токены</h2>
+          <p class="ui-kit-section-copy">
+            Значения ниже считываются непосредственно из текущей темы.
+          </p>
+        </div>
+      </div>
+
+      <div class="ui-kit-token-grid">
+
+        <article class="ui-kit-token-card">
+          <div class="ui-kit-swatch"
+               style="--ui-kit-swatch: var(--primary)"></div>
+          <div class="ui-kit-token-meta">
+            <span class="ui-kit-token-name">Primary</span>
+            <code class="ui-kit-token-value" data-ui-token="--primary"></code>
+          </div>
+        </article>
+
+        <article class="ui-kit-token-card">
+          <div class="ui-kit-swatch"
+               style="--ui-kit-swatch: var(--secondary)"></div>
+          <div class="ui-kit-token-meta">
+            <span class="ui-kit-token-name">Secondary</span>
+            <code class="ui-kit-token-value" data-ui-token="--secondary"></code>
+          </div>
+        </article>
+
+        <article class="ui-kit-token-card">
+          <div class="ui-kit-swatch"
+               style="--ui-kit-swatch: var(--accent)"></div>
+          <div class="ui-kit-token-meta">
+            <span class="ui-kit-token-name">Accent</span>
+            <code class="ui-kit-token-value" data-ui-token="--accent"></code>
+          </div>
+        </article>
+
+        <article class="ui-kit-token-card">
+          <div class="ui-kit-swatch"
+               style="--ui-kit-swatch: var(--state-success)"></div>
+          <div class="ui-kit-token-meta">
+            <span class="ui-kit-token-name">Success</span>
+            <code class="ui-kit-token-value" data-ui-token="--state-success"></code>
+          </div>
+        </article>
+
+        <article class="ui-kit-token-card">
+          <div class="ui-kit-swatch"
+               style="--ui-kit-swatch: var(--state-warning)"></div>
+          <div class="ui-kit-token-meta">
+            <span class="ui-kit-token-name">Warning</span>
+            <code class="ui-kit-token-value" data-ui-token="--state-warning"></code>
+          </div>
+        </article>
+
+        <article class="ui-kit-token-card">
+          <div class="ui-kit-swatch"
+               style="--ui-kit-swatch: var(--state-danger)"></div>
+          <div class="ui-kit-token-meta">
+            <span class="ui-kit-token-name">Danger</span>
+            <code class="ui-kit-token-value" data-ui-token="--state-danger"></code>
+          </div>
+        </article>
+
+        <article class="ui-kit-token-card">
+          <div class="ui-kit-swatch"
+               style="--ui-kit-swatch: var(--state-ai)"></div>
+          <div class="ui-kit-token-meta">
+            <span class="ui-kit-token-name">AI</span>
+            <code class="ui-kit-token-value" data-ui-token="--state-ai"></code>
+          </div>
+        </article>
+
+        <article class="ui-kit-token-card">
+          <div class="ui-kit-swatch"
+               style="--ui-kit-swatch: var(--color-border)"></div>
+          <div class="ui-kit-token-meta">
+            <span class="ui-kit-token-name">Border</span>
+            <code class="ui-kit-token-value" data-ui-token="--color-border"></code>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <section class="ui-kit-section">
+      <div class="ui-kit-section-head">
+        <div>
+          <h2 class="ui-kit-section-title">Типографика</h2>
+        </div>
+      </div>
+
+      <div class="ui-kit-typography">
+        <div class="ui-kit-type-row">
+          <span class="ui-kit-type-label">page-title</span>
+          <span class="page-title">Заголовок раздела</span>
+        </div>
+
+        <div class="ui-kit-type-row">
+          <span class="ui-kit-type-label">h2</span>
+          <h2 class="mb-0">Заголовок второго уровня</h2>
+        </div>
+
+        <div class="ui-kit-type-row">
+          <span class="ui-kit-type-label">body</span>
+          <span>Основной текст рабочего интерфейса.</span>
+        </div>
+
+        <div class="ui-kit-type-row">
+          <span class="ui-kit-type-label">muted</span>
+          <span class="text-muted">
+            Дополнительная информация и пояснения.
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <section class="ui-kit-section">
+      <div class="ui-kit-section-head">
+        <div>
+          <h2 class="ui-kit-section-title">Кнопки</h2>
+        </div>
+      </div>
+
+      <div class="ui-kit-demo-row">
+        <button class="btn btn-primary">Основная</button>
+        <button class="btn btn-secondary">Вторичная</button>
+        <button class="btn btn-outline-primary">Outline</button>
+        <button class="btn btn-outline-secondary">Нейтральная</button>
+        <button class="btn btn-outline-danger">Удалить</button>
+
+        <button class="btn btn-primary" disabled>
+          Недоступна
+        </button>
+      </div>
+
+      <div class="ui-kit-demo-row mt-3">
+        <button class="btn btn-primary btn-sm">Small</button>
+        <button class="btn btn-primary">Default</button>
+        <button class="btn btn-primary btn-lg">Large</button>
+      </div>
+    </section>
+
+    <section class="ui-kit-section">
+      <div class="ui-kit-section-head">
+        <div>
+          <h2 class="ui-kit-section-title">Формы</h2>
+        </div>
+      </div>
+
+      <div class="ui-kit-form-grid">
+        <div>
+          <label class="form-label" for="uiKitText">
+            Текстовое поле
+          </label>
+          <input
+              id="uiKitText"
+              class="form-control"
+              type="text"
+              placeholder="Введите значение">
+        </div>
+
+        <div>
+          <label class="form-label" for="uiKitSelect">
+            Список
+          </label>
+          <select id="uiKitSelect" class="form-select">
+            <option>Первый вариант</option>
+            <option>Второй вариант</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label" for="uiKitDisabled">
+            Disabled
+          </label>
+          <input
+              id="uiKitDisabled"
+              class="form-control"
+              value="Недоступное поле"
+              disabled>
+        </div>
+      </div>
+
+      <div class="ui-kit-demo-row mt-3">
+        <div class="form-check">
+          <input
+              class="form-check-input"
+              type="checkbox"
+              id="uiKitCheck"
+              checked>
+          <label class="form-check-label" for="uiKitCheck">
+            Checkbox
+          </label>
+        </div>
+
+        <div class="form-check form-switch">
+          <input
+              class="form-check-input"
+              type="checkbox"
+              role="switch"
+              id="uiKitSwitch"
+              checked>
+          <label class="form-check-label" for="uiKitSwitch">
+            Switch
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="ui-kit-section">
+      <div class="ui-kit-section-head">
+        <div>
+          <h2 class="ui-kit-section-title">Состояния</h2>
+        </div>
+      </div>
+
+      <div class="ui-kit-demo-row">
+        <span class="ui-kit-state ui-kit-state--info">Информация</span>
+        <span class="ui-kit-state ui-kit-state--success">Успешно</span>
+        <span class="ui-kit-state ui-kit-state--warning">Внимание</span>
+        <span class="ui-kit-state ui-kit-state--danger">Ошибка</span>
+        <span class="ui-kit-state ui-kit-state--ai">AI</span>
+      </div>
+    </section>
+
+    <section class="ui-kit-section">
+      <div class="ui-kit-section-head">
+        <div>
+          <h2 class="ui-kit-section-title">Статусы клиентов</h2>
+        </div>
+      </div>
+
+      <div class="ui-kit-demo-row">
+        <span class="ui-kit-status" style="--status-color: #3a87a6">
+          Сотрудник локации
+        </span>
+
+        <span class="ui-kit-status" style="--status-color: #6d6aae">
+          Менеджер
+        </span>
+
+        <span class="ui-kit-status" style="--status-color: #e6a23c">
+          VIP
+        </span>
+
+        <span class="ui-kit-status" style="--status-color: #2d8b69">
+          Постоянный клиент
+        </span>
+
+        <span class="ui-kit-status" style="--status-color: #c85d58">
+          Проблемный клиент
+        </span>
+      </div>
+    </section>
+
+    <section class="ui-kit-section">
+      <div class="ui-kit-section-head">
+        <div>
+          <h2 class="ui-kit-section-title">Сообщения</h2>
+          <p class="ui-kit-section-copy">
+            Используются реальные классы рабочего пространства диалогов.
+          </p>
+        </div>
+      </div>
+
+      <div class="ui-kit-message-grid">
+        <div class="chat-message user">
+          Сообщение клиента. Не работает касса на объекте.
+        </div>
+
+        <div class="chat-message support">
+          Ответ оператора. Проверяем подключение и состояние оборудования.
+        </div>
+
+        <div class="chat-message system">
+          Системное сообщение: диалог назначен оператору.
+        </div>
+      </div>
+    </section>
+
+    <section class="ui-kit-section">
+      <div class="ui-kit-section-head">
+        <div>
+          <h2 class="ui-kit-section-title">Приоритеты инцидентов</h2>
+        </div>
+      </div>
+
+      <div class="ui-kit-demo-row">
+        <span class="ui-kit-priority ui-kit-priority--p1">
+          P1 · Критический
+        </span>
+
+        <span class="ui-kit-priority ui-kit-priority--p2">
+          P2 · Высокий
+        </span>
+
+        <span class="ui-kit-priority ui-kit-priority--p3">
+          P3 · Средний
+        </span>
+
+        <span class="ui-kit-priority ui-kit-priority--p4">
+          P4 · Низкий
+        </span>
+      </div>
+    </section>
+
+    <section class="ui-kit-section">
+      <div class="ui-kit-section-head">
+        <div>
+          <h2 class="ui-kit-section-title">Modal</h2>
+        </div>
+      </div>
+
+      <button
+          type="button"
+          class="btn btn-primary"
+          data-bs-toggle="modal"
+          data-bs-target="#uiKitModal">
+        Открыть тестовую модалку
+      </button>
+    </section>
+
+  </main>
+
+  <div
+      class="modal fade"
+      id="uiKitModal"
+      tabindex="-1"
+      aria-hidden="true">
+
+    <div class="modal-dialog">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title">
+            Тестовое окно
+          </h5>
+
+          <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Закрыть">
+          </button>
+        </div>
+
+        <div class="modal-body">
+          Модальное окно использует те же global tokens,
+          что и рабочие экраны.
+        </div>
+
+        <div class="modal-footer">
+          <button
+              type="button"
+              class="btn btn-outline-secondary"
+              data-bs-dismiss="modal">
+            Закрыть
+          </button>
+
+          <button type="button" class="btn btn-primary">
+            Сохранить
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
+  </script>
+
+  <script th:src="@{/js/sidebar.js}"></script>
+  <script th:src="@{/js/ui-kit.js}"></script>
+  <script th:src="@{/js/modal-transitions.js}"></script>
+
+</body>
+</html>

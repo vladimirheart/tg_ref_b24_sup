@@ -24,6 +24,12 @@
       panel: 'sheet',
       detail: 'stacked',
     }),
+	'ui-kit': Object.freeze({
+	  density: 'comfortable',
+	  hero: 'workspace',
+	  shell: 'admin',
+	  panel: 'surface',
+	}),
     dialogs: Object.freeze({
       density: 'comfortable',
       hero: 'desk',

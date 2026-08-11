@@ -828,12 +828,12 @@
 	}
 
     .positive-change {
-      color: var(--chart-5);
-    }
+	  color: var(--state-success);
+	}
 
-    .negative-change {
-      color: var(--destructive);
-    }
+	.negative-change {
+	  color: var(--state-danger);
+	}
 
     .chart-panel--wide {
       grid-column: span 2;
@@ -1218,7 +1218,7 @@
       bottom: 3px;
       height: 2px;
       border-radius: 999px;
-      background: color-mix(in srgb, var(--chart-5) 88%, var(--surface-card))
+      background: color-mix(in srgb, var(--chart-5) 88%, var(--surface-card));
       opacity: 0.85;
     }
 
@@ -1238,12 +1238,27 @@
     }
 
     .activity-heatmap-legend__swatch {
-      width: 84px;
-      height: 12px;
-      border-radius: 999px;
-      background: linear-gradient(90deg, rgba(224, 239, 242, 0.52), color-mix(in srgb, var(--chart-2) 82%, white));
-      border: 1px solid rgba(255, 255, 255, 0.68);
-    }
+	  width: 84px;
+	  height: 12px;
+	  border-radius: var(--radius-pill);
+
+	  background:
+		linear-gradient(
+		  90deg,
+		  color-mix(
+			in srgb,
+			var(--secondary) 14%,
+			var(--surface-card)
+		  ),
+		  color-mix(
+			in srgb,
+			var(--chart-2) 82%,
+			var(--surface-card)
+		  )
+		);
+
+	  border: 1px solid var(--color-border);
+	}
 
     .activity-heatmap-legend__hours {
       display: inline-flex;
@@ -1255,7 +1270,7 @@
       width: 54px;
       height: 3px;
       border-radius: 999px;
-      background: color-mix(in srgb, var(--chart-5) 88%, var(--surface-card))
+      background: color-mix(in srgb, var(--chart-5) 88%, var(--surface-card));
     }
 
     .pie-chart-container {
@@ -1515,19 +1530,47 @@
     }
 
     .notification {
-      min-width: 320px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 0.95rem 1rem;
-      margin-bottom: 0.85rem;
-      border-radius: 1.1rem;
-      background: color-mix(in srgb, var(--color-surface) 92%, white);
-      border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
-      box-shadow: 0 24px 40px rgba(18, 33, 23, 0.14);
-      backdrop-filter: blur(10px);
-    }
+	  min-width: 320px;
+
+	  display: flex;
+	  align-items: center;
+	  justify-content: space-between;
+	  gap: 1rem;
+
+	  padding: 0.95rem 1rem;
+	  margin-bottom: 0.85rem;
+
+	  border-radius: var(--radius-lg);
+	  border: 1px solid var(--color-border);
+
+	  background: var(--surface-card);
+
+	  box-shadow:
+		0 24px 40px
+		color-mix(
+		  in srgb,
+		  var(--shadow-color) 14%,
+		  transparent
+		);
+
+	  backdrop-filter: blur(10px);
+	}
+
+	.notification.success {
+	  border-left: 4px solid var(--state-success);
+	}
+
+	.notification.error {
+	  border-left: 4px solid var(--state-danger);
+	}
+
+	.notification.warning {
+	  border-left: 4px solid var(--state-warning);
+	}
+
+	.notification.info {
+	  border-left: 4px solid var(--state-system);
+	}
 
     .notification.success {
       border-left: 4px solid var(--chart-5);
