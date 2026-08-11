@@ -5,7 +5,21 @@ chcp 65001 >nul
 set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 set "ORIGINAL_DIR=%CD%"
+for %%I in ("%SCRIPT_DIR%\..") do set "WORKSPACE_ROOT=%%~fI"
 pushd "%SCRIPT_DIR%" >nul
+
+set "BOOTSTRAP_REASON="
+if not exist "%WORKSPACE_ROOT%\.env" set "BOOTSTRAP_REASON=missing .env"
+if /I "%IGUANA_RUN_BOOTSTRAP%"=="1" set "BOOTSTRAP_REASON=IGUANA_RUN_BOOTSTRAP=1"
+if /I "%IGUANA_RUN_BOOTSTRAP%"=="true" set "BOOTSTRAP_REASON=IGUANA_RUN_BOOTSTRAP=true"
+if defined BOOTSTRAP_REASON (
+    echo [INFO] Running first-run bootstrap because %BOOTSTRAP_REASON%.
+    powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%WORKSPACE_ROOT%\scripts\bootstrap-first-run.ps1"
+    if errorlevel 1 (
+        echo [ERROR] First-run bootstrap failed.
+        exit /b 1
+    )
+)
 
 set "JAVA_EXE="
 if defined JAVA_HOME_17 if exist "%JAVA_HOME_17%\bin\java.exe" (

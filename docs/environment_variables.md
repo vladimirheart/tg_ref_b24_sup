@@ -21,6 +21,8 @@
 | `SPRING_DATASOURCE_URL` | явный JDBC URL для external DB | Панель и бот |
 | `SPRING_DATASOURCE_USERNAME` | пользователь external DB | Панель и бот |
 | `SPRING_DATASOURCE_PASSWORD` | пароль external DB | Панель и бот |
+| `IGUANA_BOOTSTRAP_DB_MODE` | режим first-run bootstrap: `auto`, `sqlite`, `postgresql` | bootstrap scripts |
+| `APP_POSTGRES_PORT` | локальный порт для dockerized PostgreSQL bootstrap | bootstrap scripts |
 
 ## Базы данных
 

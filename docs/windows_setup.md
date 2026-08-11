@@ -22,6 +22,19 @@ The repository ships with a helper script that works in *cmd.exe* and PowerShell
 PS> .\run-windows.bat
 ```
 
+On a fresh clone the script now runs a first-run bootstrap automatically when the repository root does not yet contain `.env`:
+
+- creates `.env`;
+- prepares `attachments`, `logs` and `bot_databases`;
+- starts local PostgreSQL through `docker compose`, if Docker is available;
+- otherwise keeps the project in SQLite dev mode so the first start still succeeds without manual SQL preparation.
+
+If you want to rerun the same setup manually, use:
+
+```powershell
+PS> ..\scripts\bootstrap-first-run.ps1 -Force
+```
+
 The script now bundles the Maven Wrapper (`mvnw.cmd`), so Maven will be downloaded automatically on the first run. If you have Maven installed globally it will be used as a fallback.
 
 After the dependencies download the panel becomes available at <http://localhost:8080/>. The default admin credentials are `admin` / `admin`.

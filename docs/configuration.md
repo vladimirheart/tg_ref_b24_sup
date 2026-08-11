@@ -4,7 +4,9 @@
 
 ## .env и переменные окружения
 
-Создайте файл `.env` по примеру ниже и дополните его нужными значениями:
+На свежем клоне можно не собирать `.env` вручную: `spring-panel/run-windows.bat`, `spring-panel/run-linux.sh` и скрипты `scripts/bootstrap-first-run.ps1` / `scripts/bootstrap-first-run.sh` теперь умеют создать его сами.
+
+Если нужен ручной контроль, создайте файл `.env` по примеру ниже и дополните его нужными значениями:
 
 ```
 TELEGRAM_BOT_TOKEN=123:ABC
@@ -19,6 +21,23 @@ APP_DB_OBJECTS=/srv/iguana/objects.db
 APP_DB_SETTINGS=/srv/iguana/settings.db
 APP_BOT_DATABASE_DIR=/srv/iguana/bots
 ```
+
+Для локального PostgreSQL-first старта bootstrap теперь использует такой базовый шаблон:
+
+```bash
+IGUANA_BOOTSTRAP_DB_MODE=auto
+APP_POSTGRES_PORT=5432
+APP_DB_MODE=postgresql
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/iguana
+SPRING_DATASOURCE_USERNAME=iguana
+SPRING_DATASOURCE_PASSWORD=iguana
+```
+
+Поведение bootstrap:
+
+- `IGUANA_BOOTSTRAP_DB_MODE=auto` — предпочитает локальный PostgreSQL через Docker, но если Docker недоступен, откатывается на SQLite dev mode;
+- `IGUANA_BOOTSTRAP_DB_MODE=postgresql` — требует Docker и поднимает `docker-compose.local-postgres.yml`;
+- `IGUANA_BOOTSTRAP_DB_MODE=sqlite` — оставляет локальный dev-path без Docker.
 
 Ключевые переменные:
 

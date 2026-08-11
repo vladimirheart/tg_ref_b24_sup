@@ -3,8 +3,21 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ORIGINAL_DIR="$(pwd)"
+WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${SCRIPT_DIR}"
+
+BOOTSTRAP_REASON=""
+if [[ ! -f "${WORKSPACE_ROOT}/.env" ]]; then
+  BOOTSTRAP_REASON="missing .env"
+fi
+if [[ "${IGUANA_RUN_BOOTSTRAP:-}" == "1" || "${IGUANA_RUN_BOOTSTRAP:-}" == "true" ]]; then
+  BOOTSTRAP_REASON="IGUANA_RUN_BOOTSTRAP=${IGUANA_RUN_BOOTSTRAP}"
+fi
+if [[ -n "${BOOTSTRAP_REASON}" ]]; then
+  echo "[INFO] Running first-run bootstrap because ${BOOTSTRAP_REASON}." >&2
+  bash "${WORKSPACE_ROOT}/scripts/bootstrap-first-run.sh"
+fi
 
 # Choose a port if the default one is busy and the user has not explicitly set APP_HTTP_PORT.
 DEFAULT_PORT="${APP_HTTP_PORT:-8080}"

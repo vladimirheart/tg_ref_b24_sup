@@ -66,6 +66,15 @@ cd spring-panel
 .\run-windows.bat
 ```
 
+На свежем клоне `run-windows.bat` теперь сам запускает first-run bootstrap:
+
+- создаёт корневой `.env`, если его ещё нет;
+- подготавливает `attachments/`, `logs/` и `bot_databases/`;
+- если на машине доступен Docker с `docker compose`, поднимает локальный PostgreSQL и переводит старт в `APP_DB_MODE=postgresql`;
+- если Docker недоступен, сохраняет рабочий dev-path через `APP_DB_MODE=sqlite`, чтобы проект всё равно можно было поднять без ручной подготовки.
+
+Для ручного повторного bootstrap используйте `scripts/bootstrap-first-run.ps1` или `scripts/bootstrap-first-run.sh`.
+
 Если порт `8080` занят, `run-windows.bat` пытается подобрать свободный HTTP-порт автоматически.
 
 Пример запуска с параметрами:
