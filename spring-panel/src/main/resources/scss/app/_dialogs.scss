@@ -831,47 +831,97 @@ body[data-ui-page='dialogs'] .dialog-table th[data-column-key='actions'] {
 
 .dialog-channel-pill.channel-tone-telegram {
     background:
-    color-mix(
-        in srgb,
-        #2aabee 18%,
-        var(--surface-card)
-    );
-    border-color: color-mix(in srgb, #2aabee 32%, transparent);
+        color-mix(
+            in srgb,
+            #2aabee 18%,
+            var(--surface-card)
+        );
+
+    border-color:
+        color-mix(
+            in srgb,
+            #2aabee 32%,
+            transparent
+        );
+
     color: #0f4e78;
 }
 
 .dialog-channel-pill.channel-tone-vk {
     background:
-    color-mix(
-        in srgb,
-        #2aabee 18%,
-        var(--surface-card)
-    );
-    border-color: color-mix(in srgb, #2787f5 34%, transparent);
+        color-mix(
+            in srgb,
+            #2787f5 18%,
+            var(--surface-card)
+        );
+
+    border-color:
+        color-mix(
+            in srgb,
+            #2787f5 34%,
+            transparent
+        );
+
     color: #0d4ea6;
 }
 
 .dialog-channel-pill.channel-tone-max {
     background:
-    color-mix(
-        in srgb,
-        #2aabee 18%,
-        var(--surface-card)
-    );
-    border-color: color-mix(in srgb, #ff8b2b 34%, transparent);
+        color-mix(
+            in srgb,
+            #ff8b2b 18%,
+            var(--surface-card)
+        );
+
+    border-color:
+        color-mix(
+            in srgb,
+            #ff8b2b 34%,
+            transparent
+        );
+
     color: #8f430d;
 }
 
 .dialog-channel-pill.channel-tone-form {
-    background: color-mix(in srgb, var(--chart-5) 16%, var(--surface-card)
-    border-color: color-mix(in srgb, var(--chart-5) 28%, transparent);
+    background:
+        color-mix(
+            in srgb,
+            var(--chart-5) 16%,
+            var(--surface-card)
+        );
+
+    border-color:
+        color-mix(
+            in srgb,
+            var(--chart-5) 28%,
+            transparent
+        );
+
     color: #345d19;
 }
 
 .dialog-channel-pill.channel-tone-custom {
-    background: color-mix(in srgb, var(--chart-2) 14%, var(--surface-card)
-    border-color: color-mix(in srgb, var(--chart-2) 26%, transparent);
-    color: color-mix(in srgb, var(--primary) 82%, #0f172a);
+    background:
+        color-mix(
+            in srgb,
+            var(--chart-2) 14%,
+            var(--surface-card)
+        );
+
+    border-color:
+        color-mix(
+            in srgb,
+            var(--chart-2) 26%,
+            transparent
+        );
+
+    color:
+        color-mix(
+            in srgb,
+            var(--primary) 82%,
+            #0f172a
+        );
 }
 
 .dialog-business-icon img {
