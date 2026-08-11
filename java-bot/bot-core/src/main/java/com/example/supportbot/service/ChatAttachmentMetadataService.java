@@ -1,6 +1,6 @@
 package com.example.supportbot.service;
 
-import org.springframework.core.env.Environment;
+import com.example.supportbot.config.BotDatabaseRuntimeMode;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -16,12 +16,12 @@ import java.util.Locale;
 public class ChatAttachmentMetadataService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final Environment environment;
+    private final BotDatabaseRuntimeMode databaseRuntimeMode;
 
     public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate,
-                                         Environment environment) {
+                                         BotDatabaseRuntimeMode databaseRuntimeMode) {
         this.jdbcTemplate = jdbcTemplate;
-        this.environment = environment;
+        this.databaseRuntimeMode = databaseRuntimeMode;
         ensureSchema();
     }
 
@@ -87,7 +87,7 @@ public class ChatAttachmentMetadataService {
     }
 
     private void ensureSchema() {
-        if (isExternalDatabaseConfigured()) {
+        if (!databaseRuntimeMode.isSqliteMode()) {
             return;
         }
         jdbcTemplate.execute("""
@@ -130,15 +130,6 @@ public class ChatAttachmentMetadataService {
                     """);
         } catch (Exception ignored) {
         }
-    }
-
-    private boolean isExternalDatabaseConfigured() {
-        String mode = environment.getProperty("support-bot.database.mode", "auto");
-        if ("sqlite".equalsIgnoreCase(mode)) {
-            return false;
-        }
-        return StringUtils.hasText(environment.getProperty("spring.datasource.url"))
-                || StringUtils.hasText(environment.getProperty("DATABASE_URL"));
     }
 
     private String normalizeStorageKey(String ticketId, String rawAttachment) {

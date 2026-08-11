@@ -1,5 +1,6 @@
 package com.example.supportbot.service;
 
+import com.example.supportbot.config.BotDatabaseRuntimeMode;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,9 +12,12 @@ import org.springframework.util.StringUtils;
 public class TicketAttributeService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final BotDatabaseRuntimeMode databaseRuntimeMode;
 
-    public TicketAttributeService(JdbcTemplate jdbcTemplate) {
+    public TicketAttributeService(JdbcTemplate jdbcTemplate,
+                                  BotDatabaseRuntimeMode databaseRuntimeMode) {
         this.jdbcTemplate = jdbcTemplate;
+        this.databaseRuntimeMode = databaseRuntimeMode;
         ensureSchema();
     }
 
@@ -78,6 +82,9 @@ public class TicketAttributeService {
     }
 
     private void ensureSchema() {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return;
+        }
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS ticket_attributes (
                     ticket_id TEXT NOT NULL,

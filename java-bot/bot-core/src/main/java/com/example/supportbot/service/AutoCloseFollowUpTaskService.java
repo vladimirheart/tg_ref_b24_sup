@@ -1,5 +1,6 @@
 package com.example.supportbot.service;
 
+import com.example.supportbot.config.BotDatabaseRuntimeMode;
 import com.example.supportbot.entity.Task;
 import com.example.supportbot.entity.TicketMessage;
 import com.example.supportbot.entity.TicketResponsible;
@@ -43,12 +44,14 @@ public class AutoCloseFollowUpTaskService {
                                         TicketResponsibleRepository ticketResponsibleRepository,
                                         TicketMessageRepository ticketMessageRepository,
                                         JdbcTemplate jdbcTemplate,
-                                        PlatformTransactionManager transactionManager) {
+                                        PlatformTransactionManager transactionManager,
+                                        BotDatabaseRuntimeMode databaseRuntimeMode) {
         this(taskService,
                 ticketResponsibleRepository,
                 ticketMessageRepository,
                 jdbcTemplate,
-                buildRequiresNewTransactionOperations(transactionManager));
+                buildRequiresNewTransactionOperations(transactionManager),
+                databaseRuntimeMode);
     }
 
     AutoCloseFollowUpTaskService(TaskService taskService,
@@ -56,12 +59,42 @@ public class AutoCloseFollowUpTaskService {
                                  TicketMessageRepository ticketMessageRepository,
                                  JdbcTemplate jdbcTemplate,
                                  TransactionOperations isolatedTransactionOperations) {
+        this(taskService,
+                ticketResponsibleRepository,
+                ticketMessageRepository,
+                jdbcTemplate,
+                isolatedTransactionOperations,
+                true);
+    }
+
+    AutoCloseFollowUpTaskService(TaskService taskService,
+                                 TicketResponsibleRepository ticketResponsibleRepository,
+                                 TicketMessageRepository ticketMessageRepository,
+                                 JdbcTemplate jdbcTemplate,
+                                 TransactionOperations isolatedTransactionOperations,
+                                 BotDatabaseRuntimeMode databaseRuntimeMode) {
+        this(taskService,
+                ticketResponsibleRepository,
+                ticketMessageRepository,
+                jdbcTemplate,
+                isolatedTransactionOperations,
+                databaseRuntimeMode.isSqliteMode());
+    }
+
+    private AutoCloseFollowUpTaskService(TaskService taskService,
+                                         TicketResponsibleRepository ticketResponsibleRepository,
+                                         TicketMessageRepository ticketMessageRepository,
+                                         JdbcTemplate jdbcTemplate,
+                                         TransactionOperations isolatedTransactionOperations,
+                                         boolean sqliteMode) {
         this.taskService = taskService;
         this.ticketResponsibleRepository = ticketResponsibleRepository;
         this.ticketMessageRepository = ticketMessageRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.isolatedTransactionOperations = isolatedTransactionOperations;
-        ensureParticipantSchema();
+        if (sqliteMode) {
+            ensureParticipantSchema();
+        }
     }
 
     public void createTaskForAutoClosedDialog(String ticketId) {

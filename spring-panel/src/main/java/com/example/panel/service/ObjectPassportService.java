@@ -383,7 +383,7 @@ public class ObjectPassportService {
 
     private long insertPassport(Connection connection, long objectId, Map<String, Object> payload) throws SQLException {
         String sql = "INSERT INTO object_passports(object_id, passport_number, details, created_at) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             statement.setLong(1, objectId);
             statement.setString(2, buildPassportNumber(payload));
             statement.setString(3, writeJson(normalizePayload(Map.of(), payload, null)));

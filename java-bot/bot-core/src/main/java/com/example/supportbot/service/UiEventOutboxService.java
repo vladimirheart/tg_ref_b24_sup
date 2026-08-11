@@ -1,5 +1,6 @@
 package com.example.supportbot.service;
 
+import com.example.supportbot.config.BotDatabaseRuntimeMode;
 import com.example.supportbot.entity.Channel;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -15,11 +16,14 @@ public class UiEventOutboxService {
     private static final int MAX_COUNTER_VALUE = 999;
 
     private final JdbcTemplate jdbcTemplate;
+    private final BotDatabaseRuntimeMode databaseRuntimeMode;
     private final long nodeId;
     private final AtomicInteger counter = new AtomicInteger(0);
 
-    public UiEventOutboxService(JdbcTemplate jdbcTemplate) {
+    public UiEventOutboxService(JdbcTemplate jdbcTemplate,
+                                BotDatabaseRuntimeMode databaseRuntimeMode) {
         this.jdbcTemplate = jdbcTemplate;
+        this.databaseRuntimeMode = databaseRuntimeMode;
         this.nodeId = resolveNodeId();
         ensureSchema();
     }
@@ -100,6 +104,9 @@ public class UiEventOutboxService {
     }
 
     private void ensureSchema() {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return;
+        }
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS ui_event_outbox (
                     id BIGINT PRIMARY KEY,
