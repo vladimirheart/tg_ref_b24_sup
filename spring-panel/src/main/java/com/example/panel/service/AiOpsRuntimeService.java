@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.panel.support.PanelTimestampSqlSupport;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -31,6 +32,7 @@ public class AiOpsRuntimeService {
     private final AiOfflineEvaluationService aiOfflineEvaluationService;
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
+    private final PanelTimestampSqlSupport timestampSqlSupport;
 
     public AiOpsRuntimeService(JdbcTemplate jdbcTemplate,
                                DialogAiAssistantService dialogAiAssistantService,
@@ -41,7 +43,8 @@ public class AiOpsRuntimeService {
                                AiControlledLlmService aiControlledLlmService,
                                AiOfflineEvaluationService aiOfflineEvaluationService,
                                ObjectMapper objectMapper,
-                               SharedConfigService sharedConfigService) {
+                               SharedConfigService sharedConfigService,
+                               PanelTimestampSqlSupport timestampSqlSupport) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogAiAssistantService = dialogAiAssistantService;
         this.aiIntentService = aiIntentService;
@@ -52,6 +55,7 @@ public class AiOpsRuntimeService {
         this.aiOfflineEvaluationService = aiOfflineEvaluationService;
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
+        this.timestampSqlSupport = timestampSqlSupport;
     }
 
     public Map<String, Object> loadDecisionTrace(String ticketId, Integer limit) {
@@ -269,7 +273,9 @@ public class AiOpsRuntimeService {
             sql.append(" AND lower(COALESCE(ku.status,'')) = ?");
             params.add(normalizedStatus.toLowerCase(Locale.ROOT));
         }
-        sql.append(" ORDER BY datetime(substr(COALESCE(ku.updated_at,''),1,19)) DESC, ku.id DESC LIMIT ?");
+        sql.append(" ORDER BY ")
+                .append(timestampSqlSupport.orderByTimestampDesc("COALESCE(ku.updated_at, ku.created_at)"))
+                .append(", ku.id DESC LIMIT ?");
         params.add(safeLimit);
         try {
             return jdbcTemplate.queryForList(sql.toString(), params.toArray());

@@ -1,6 +1,8 @@
 package com.example.panel.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.panel.config.DatabaseMode;
+import com.example.panel.support.PanelTimestampSqlSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -34,7 +36,12 @@ class DialogAiAssistantConfigServiceTest {
         settings.put("dialog_config", Map.of("ai_agent_enabled", "off"));
         when(sharedConfigService.loadSettings()).thenReturn(settings);
 
-        DialogAiAssistantConfigService service = new DialogAiAssistantConfigService(jdbcTemplate, sharedConfigService, persistenceService);
+        DialogAiAssistantConfigService service = new DialogAiAssistantConfigService(
+                jdbcTemplate,
+                sharedConfigService,
+                persistenceService,
+                new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
+        );
 
         assertThat(service.isAgentEnabled()).isFalse();
     }
@@ -54,7 +61,12 @@ class DialogAiAssistantConfigServiceTest {
         settings.put("dialog_config", Map.of("ai_agent_mode", "strange"));
         when(sharedConfigService.loadSettings()).thenReturn(settings);
 
-        DialogAiAssistantConfigService service = new DialogAiAssistantConfigService(jdbcTemplate, sharedConfigService, persistenceService);
+        DialogAiAssistantConfigService service = new DialogAiAssistantConfigService(
+                jdbcTemplate,
+                sharedConfigService,
+                persistenceService,
+                new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
+        );
 
         assertThat(service.resolveAgentMode()).isEqualTo("auto_reply");
     }
@@ -84,7 +96,12 @@ class DialogAiAssistantConfigServiceTest {
         )));
         when(persistenceService.parseInstant("2026-05-12T10:00:00Z")).thenReturn(Instant.now().minusSeconds(30));
 
-        DialogAiAssistantConfigService service = new DialogAiAssistantConfigService(jdbcTemplate, sharedConfigService, persistenceService);
+        DialogAiAssistantConfigService service = new DialogAiAssistantConfigService(
+                jdbcTemplate,
+                sharedConfigService,
+                persistenceService,
+                new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
+        );
 
         DialogAiAssistantConfigService.AutoReplyGuard guard = service.evaluateAutoReplyGuard("T-1");
 

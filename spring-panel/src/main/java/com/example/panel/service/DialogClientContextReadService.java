@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.support.PanelTimestampSqlSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -7,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,9 +21,12 @@ public class DialogClientContextReadService {
     private static final Logger log = LoggerFactory.getLogger(DialogClientContextReadService.class);
 
     private final JdbcTemplate jdbcTemplate;
+    private final PanelTimestampSqlSupport timestampSqlSupport;
 
-    public DialogClientContextReadService(JdbcTemplate jdbcTemplate) {
+    public DialogClientContextReadService(JdbcTemplate jdbcTemplate,
+                                          PanelTimestampSqlSupport timestampSqlSupport) {
         this.jdbcTemplate = jdbcTemplate;
+        this.timestampSqlSupport = timestampSqlSupport;
     }
 
     public List<Map<String, Object>> loadClientDialogHistory(Long userId, String currentTicketId, int limit) {
@@ -29,6 +34,7 @@ public class DialogClientContextReadService {
             return List.of();
         }
         try {
+            String createdAtOrder = timestampSqlSupport.orderByTimestampDesc("m.created_at");
             String sql = """
                     SELECT m.ticket_id, COALESCE(t.status, 'pending') AS status, m.created_at,
                            COALESCE(m.problem, '') AS problem
@@ -36,9 +42,9 @@ public class DialogClientContextReadService {
                       LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
                      WHERE m.user_id = ?
                        AND (? IS NULL OR m.ticket_id <> ?)
-                     ORDER BY substr(m.created_at, 1, 19) DESC
+                     ORDER BY %s
                      LIMIT ?
-                    """;
+                    """.formatted(createdAtOrder);
             return jdbcTemplate.query(sql, (rs, rowNum) -> {
                 Map<String, Object> historyItem = new LinkedHashMap<>();
                 historyItem.put("ticket_id", rs.getString("ticket_id"));
@@ -58,6 +64,8 @@ public class DialogClientContextReadService {
             return Map.of();
         }
         try {
+            PanelTimestampSqlSupport.SqlCondition recentResolvedCondition =
+                    timestampSqlSupport.since("COALESCE(t.resolved_at, t.created_at, m.created_at)", Duration.ofDays(30));
             String sql = """
                     SELECT COUNT(DISTINCT m.ticket_id) AS total_dialogs,
                            COUNT(DISTINCT CASE
@@ -65,7 +73,7 @@ public class DialogClientContextReadService {
                            END) AS open_dialogs,
                            COUNT(DISTINCT CASE
                                WHEN lower(COALESCE(t.status, 'pending')) IN ('resolved', 'closed')
-                                    AND datetime(substr(COALESCE(t.resolved_at, t.created_at, m.created_at), 1, 19)) >= datetime('now', '-30 day')
+                                    AND %s
                                THEN m.ticket_id
                            END) AS resolved_30d,
                            MIN(m.created_at) AS first_seen_at,
@@ -73,7 +81,7 @@ public class DialogClientContextReadService {
                       FROM messages m
                       LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
                      WHERE m.user_id = ?
-                    """;
+                    """.formatted(recentResolvedCondition.sql());
             return jdbcTemplate.query(sql, rs -> {
                 if (!rs.next()) {
                     return Map.<String, Object>of();
@@ -85,7 +93,7 @@ public class DialogClientContextReadService {
                 enrichment.put("first_seen_at", rs.getString("first_seen_at"));
                 enrichment.put("last_ticket_activity_at", rs.getString("last_ticket_activity_at"));
                 return enrichment;
-            }, userId);
+            }, recentResolvedCondition.bind(userId));
         } catch (DataAccessException ex) {
             log.warn("Unable to load client profile enrichment for user {}: {}", userId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Map.of();
@@ -140,6 +148,7 @@ public class DialogClientContextReadService {
         if (!StringUtils.hasText(ticketId) || limit <= 0) {
             return List.of();
         }
+        String eventOrderBy = timestampSqlSupport.orderByTimestampDesc("event_at") + ", COALESCE(sort_id, 0) DESC";
         try {
             String sqlWithAudit = """
                     SELECT actor, event_at, event_type, action, result, detail
@@ -179,9 +188,9 @@ public class DialogClientContextReadService {
                               FROM dialog_action_audit
                              WHERE ticket_id = ?
                        ) events
-                     ORDER BY substr(event_at, 1, 19) DESC, COALESCE(sort_id, 0) DESC
+                     ORDER BY %s
                      LIMIT ?
-                    """;
+                    """.formatted(eventOrderBy);
             return mapRelatedEvents(sqlWithAudit, ticketId, ticketId, ticketId, limit);
         } catch (DataAccessException ex) {
             log.warn("Unable to load related events with audit trail for ticket {}: {}. Fallback to legacy events.", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
@@ -214,9 +223,9 @@ public class DialogClientContextReadService {
                                  WHERE tl.ticket_id = ?
                                    AND COALESCE(trim(th.text), '') <> ''
                            ) events
-                         ORDER BY substr(event_at, 1, 19) DESC, COALESCE(sort_id, 0) DESC
+                         ORDER BY %s
                          LIMIT ?
-                        """;
+                        """.formatted(eventOrderBy);
                 return mapRelatedEvents(sql, ticketId, ticketId, limit);
             } catch (DataAccessException fallbackEx) {
                 log.warn("Unable to load related events for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(fallbackEx));

@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.support.PanelTimestampSqlSupport;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -30,10 +31,14 @@ public class AiRetrievalService {
 
     private final JdbcTemplate jdbcTemplate;
     private final AiIntentService aiIntentService;
+    private final PanelTimestampSqlSupport timestampSqlSupport;
 
-    public AiRetrievalService(JdbcTemplate jdbcTemplate, AiIntentService aiIntentService) {
+    public AiRetrievalService(JdbcTemplate jdbcTemplate,
+                              AiIntentService aiIntentService,
+                              PanelTimestampSqlSupport timestampSqlSupport) {
         this.jdbcTemplate = jdbcTemplate;
         this.aiIntentService = aiIntentService;
+        this.timestampSqlSupport = timestampSqlSupport;
     }
 
     public RetrievalResult retrieve(String ticketId, String query, int limit) {
@@ -169,16 +174,16 @@ public class AiRetrievalService {
                            ), 0) AS linked_evidence_count
                       FROM ai_agent_solution_memory m
                       LEFT JOIN ai_agent_memory_link ml ON ml.query_key = m.query_key
-                      LEFT JOIN ai_agent_knowledge_unit ku
+                     LEFT JOIN ai_agent_knowledge_unit ku
                              ON ku.id = ml.knowledge_unit_id
                             AND lower(COALESCE(ku.status, 'active')) = 'active'
                      WHERE COALESCE(m.review_required, 0) = 0
                        AND trim(COALESCE(m.solution_text, '')) <> ''
                        AND lower(COALESCE(m.status, 'approved')) = 'approved'
-                     ORDER BY substr(COALESCE(m.updated_at, ''), 1, 19) DESC,
+                     ORDER BY %s,
                               m.query_key DESC
                      LIMIT ?
-                    """,
+                    """.formatted(timestampSqlSupport.orderByTimestampDesc("COALESCE(m.updated_at, m.created_at)")),
                     (rs, rowNum) -> mapMemoryVector(rs.getString("query_key"),
                             rs.getString("query_text"),
                             rs.getString("solution_text"),
@@ -277,10 +282,10 @@ public class AiRetrievalService {
                       FROM ai_agent_knowledge_unit ku
                      WHERE lower(COALESCE(ku.status, 'active')) = 'active'
                        AND trim(COALESCE(ku.body_text, '')) <> ''
-                     ORDER BY substr(COALESCE(ku.updated_at, ''), 1, 19) DESC,
+                     ORDER BY %s,
                               ku.unit_key DESC
                      LIMIT ?
-                    """,
+                    """.formatted(timestampSqlSupport.orderByTimestampDesc("COALESCE(ku.updated_at, ku.created_at)")),
                     (rs, rowNum) -> buildVector(
                             "knowledge",
                             firstNonBlank(trim(rs.getString("title")), titleForIntent(rs.getString("intent_key"), "Knowledge")),

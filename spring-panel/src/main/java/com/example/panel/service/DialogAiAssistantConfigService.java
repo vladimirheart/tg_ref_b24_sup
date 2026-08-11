@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.support.PanelTimestampSqlSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -29,13 +30,16 @@ public class DialogAiAssistantConfigService {
     private final JdbcTemplate jdbcTemplate;
     private final SharedConfigService sharedConfigService;
     private final DialogAiAssistantPersistenceService persistenceService;
+    private final PanelTimestampSqlSupport timestampSqlSupport;
 
     public DialogAiAssistantConfigService(JdbcTemplate jdbcTemplate,
                                           SharedConfigService sharedConfigService,
-                                          DialogAiAssistantPersistenceService persistenceService) {
+                                          DialogAiAssistantPersistenceService persistenceService,
+                                          PanelTimestampSqlSupport timestampSqlSupport) {
         this.jdbcTemplate = jdbcTemplate;
         this.sharedConfigService = sharedConfigService;
         this.persistenceService = persistenceService;
+        this.timestampSqlSupport = timestampSqlSupport;
     }
 
     public boolean isAgentEnabled() {
@@ -79,14 +83,13 @@ public class DialogAiAssistantConfigService {
         int maxReplies = resolveDialogConfigInt("ai_agent_max_auto_replies_per_dialog", MAX_AUTO_REPLIES_PER_DIALOG_DEFAULT, 1, 20);
         int windowMinutes = resolveDialogConfigInt("ai_agent_auto_reply_window_minutes", AUTO_REPLY_WINDOW_MINUTES_DEFAULT, 1, 1440);
         int cooldownSeconds = resolveDialogConfigInt("ai_agent_auto_reply_cooldown_seconds", AUTO_REPLY_COOLDOWN_SECONDS_DEFAULT, 0, 3600);
-        String windowExpr = "-" + windowMinutes + " minutes";
+        PanelTimestampSqlSupport.SqlCondition windowCondition = timestampSqlSupport.since("timestamp", Duration.ofMinutes(windowMinutes));
         Integer replyCount = null;
         try {
             replyCount = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM chat_history WHERE ticket_id = ? AND lower(COALESCE(sender,'')) = 'ai_agent' AND datetime(substr(COALESCE(timestamp,''),1,19)) >= datetime('now', ?)",
+                    "SELECT COUNT(*) FROM chat_history WHERE ticket_id = ? AND lower(COALESCE(sender,'')) = 'ai_agent' AND " + windowCondition.sql(),
                     Integer.class,
-                    ticketId,
-                    windowExpr
+                    windowCondition.bind(ticketId)
             );
         } catch (Exception ignored) {
         }

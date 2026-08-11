@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.panel.support.PanelTimestampSqlSupport;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -23,52 +24,62 @@ public class AiMonitoringService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final AiOfflineEvaluationService aiOfflineEvaluationService;
+    private final PanelTimestampSqlSupport timestampSqlSupport;
 
     public AiMonitoringService(JdbcTemplate jdbcTemplate,
                                ObjectMapper objectMapper,
-                               AiOfflineEvaluationService aiOfflineEvaluationService) {
+                               AiOfflineEvaluationService aiOfflineEvaluationService,
+                               PanelTimestampSqlSupport timestampSqlSupport) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.aiOfflineEvaluationService = aiOfflineEvaluationService;
+        this.timestampSqlSupport = timestampSqlSupport;
     }
 
     public Map<String, Object> loadMonitoringSummary(Integer days) {
         int safeDays = Math.max(1, Math.min(days != null ? days : 7, 90));
-        String sinceExpr = "-" + safeDays + " days";
-        String previousSinceExpr = "-" + (safeDays * 2) + " days";
+        Duration currentWindow = Duration.ofDays(safeDays);
+        Duration previousWindow = Duration.ofDays(safeDays * 2L);
 
-        int inboundMessages = queryCount(
-                "SELECT COUNT(*) FROM chat_history WHERE lower(COALESCE(sender,'')) NOT IN ('operator','support','admin','system','ai_agent') AND datetime(substr(COALESCE(timestamp,''),1,19)) >= datetime('now', ?)",
-                sinceExpr
+        int inboundMessages = queryCountSince(
+                "SELECT COUNT(*) FROM chat_history WHERE lower(COALESCE(sender,'')) NOT IN ('operator','support','admin','system','ai_agent')",
+                "timestamp",
+                currentWindow
         );
-        int autoReplies = queryCount(
-                "SELECT COUNT(*) FROM chat_history WHERE lower(COALESCE(sender,'')) = 'ai_agent' AND datetime(substr(COALESCE(timestamp,''),1,19)) >= datetime('now', ?)",
-                sinceExpr
+        int autoReplies = queryCountSince(
+                "SELECT COUNT(*) FROM chat_history WHERE lower(COALESCE(sender,'')) = 'ai_agent'",
+                "timestamp",
+                currentWindow
         );
-        int suggestOnly = queryCount(
-                "SELECT COUNT(*) FROM ticket_ai_agent_state WHERE lower(COALESCE(last_action,'')) = 'suggest_only' AND datetime(substr(COALESCE(updated_at,''),1,19)) >= datetime('now', ?)",
-                sinceExpr
+        int suggestOnly = queryCountSince(
+                "SELECT COUNT(*) FROM ticket_ai_agent_state WHERE lower(COALESCE(last_action,'')) = 'suggest_only'",
+                "updated_at",
+                currentWindow
         );
-        int escalations = queryCount(
-                "SELECT COUNT(*) FROM ticket_ai_agent_state WHERE lower(COALESCE(decision_type,'')) = 'escalate' AND datetime(substr(COALESCE(updated_at,''),1,19)) >= datetime('now', ?)",
-                sinceExpr
+        int escalations = queryCountSince(
+                "SELECT COUNT(*) FROM ticket_ai_agent_state WHERE lower(COALESCE(decision_type,'')) = 'escalate'",
+                "updated_at",
+                currentWindow
         );
-        int operatorCorrections = queryCount(
-                "SELECT COUNT(*) FROM ticket_ai_agent_state WHERE lower(COALESCE(last_action,'')) = 'operator_correction_requested' AND datetime(substr(COALESCE(updated_at,''),1,19)) >= datetime('now', ?)",
-                sinceExpr
+        int operatorCorrections = queryCountSince(
+                "SELECT COUNT(*) FROM ticket_ai_agent_state WHERE lower(COALESCE(last_action,'')) = 'operator_correction_requested'",
+                "updated_at",
+                currentWindow
         );
-        int rejectedSuggestions = queryCount(
-                "SELECT COUNT(*) FROM ai_agent_suggestion_feedback WHERE lower(COALESCE(decision,'')) = 'rejected' AND datetime(substr(COALESCE(created_at,''),1,19)) >= datetime('now', ?)",
-                sinceExpr
+        int rejectedSuggestions = queryCountSince(
+                "SELECT COUNT(*) FROM ai_agent_suggestion_feedback WHERE lower(COALESCE(decision,'')) = 'rejected'",
+                "created_at",
+                currentWindow
         );
-        int acceptedSuggestions = queryCount(
-                "SELECT COUNT(*) FROM ai_agent_suggestion_feedback WHERE lower(COALESCE(decision,'')) = 'accepted' AND datetime(substr(COALESCE(created_at,''),1,19)) >= datetime('now', ?)",
-                sinceExpr
+        int acceptedSuggestions = queryCountSince(
+                "SELECT COUNT(*) FROM ai_agent_suggestion_feedback WHERE lower(COALESCE(decision,'')) = 'accepted'",
+                "created_at",
+                currentWindow
         );
 
-        List<Map<String, Object>> recentEvents = loadMonitoringEventsWithColumns(sinceExpr, 1500, null, null, null, true);
+        List<Map<String, Object>> recentEvents = loadMonitoringEventsWithColumns(currentWindow, 1500, null, null, null, true);
         RuntimeMetrics runtimeMetrics = buildRuntimeMetrics(recentEvents);
-        ReviewQueueMetrics reviewQueueMetrics = buildReviewQueueMetrics(safeDays, sinceExpr, previousSinceExpr);
+        ReviewQueueMetrics reviewQueueMetrics = buildReviewQueueMetrics(safeDays, currentWindow, previousWindow);
 
         double autoReplyRate = safeRate(autoReplies, inboundMessages);
         double assistUsageRate = safeRate(suggestOnly, inboundMessages);
@@ -138,22 +149,22 @@ public class AiMonitoringService {
                                                           String actor) {
         int safeDays = Math.max(1, Math.min(days != null ? days : 7, 90));
         int safeLimit = Math.max(1, Math.min(limit != null ? limit : 50, 200));
-        String sinceExpr = "-" + safeDays + " days";
+        Duration currentWindow = Duration.ofDays(safeDays);
         String ticket = trim(ticketId);
         String event = trim(eventType);
         String who = trim(actor);
         try {
-            return loadMonitoringEventsWithColumns(sinceExpr, safeLimit, ticket, event, who, true);
+            return loadMonitoringEventsWithColumns(currentWindow, safeLimit, ticket, event, who, true);
         } catch (Exception fallback) {
             try {
-                return loadMonitoringEventsWithColumns(sinceExpr, safeLimit, ticket, event, who, false);
+                return loadMonitoringEventsWithColumns(currentWindow, safeLimit, ticket, event, who, false);
             } catch (Exception ex) {
                 return List.of();
             }
         }
     }
 
-    private List<Map<String, Object>> loadMonitoringEventsWithColumns(String sinceExpr,
+    private List<Map<String, Object>> loadMonitoringEventsWithColumns(Duration lookback,
                                                                       int safeLimit,
                                                                       String ticket,
                                                                       String event,
@@ -163,12 +174,13 @@ public class AiMonitoringService {
         String selectColumns = extendedColumns
                 ? "id, ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, policy_stage, policy_outcome, intent_key, sensitive_topic, top_candidate_trust, top_candidate_source_type, created_at"
                 : "id, ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, created_at";
+        PanelTimestampSqlSupport.SqlCondition lookbackCondition = timestampSqlSupport.since("created_at", lookback);
         StringBuilder sql = new StringBuilder("""
                 SELECT %s
                   FROM ai_agent_event_log
-                 WHERE datetime(substr(COALESCE(created_at,''),1,19)) >= datetime('now', ?)
-                """.formatted(selectColumns));
-        params.add(sinceExpr);
+                 WHERE %s
+                """.formatted(selectColumns, lookbackCondition.sql()));
+        params.addAll(List.of(lookbackCondition.params()));
         if (ticket != null) {
             sql.append(" AND ticket_id = ?");
             params.add(ticket);
@@ -247,7 +259,7 @@ public class AiMonitoringService {
         );
     }
 
-    private ReviewQueueMetrics buildReviewQueueMetrics(int windowDays, String sinceExpr, String previousSinceExpr) {
+    private ReviewQueueMetrics buildReviewQueueMetrics(int windowDays, Duration currentWindow, Duration previousWindow) {
         List<Double> agesHours = new ArrayList<>();
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
@@ -269,27 +281,26 @@ public class AiMonitoringService {
         }
         agesHours.sort(Double::compareTo);
         double p95 = percentile(agesHours, 0.95d);
-        int currentQueue = queryCount(
+        int currentQueue = queryCountSince(
                 """
                 SELECT COUNT(*)
                   FROM ai_agent_solution_memory
                  WHERE COALESCE(review_required,0) = 1
                    AND trim(COALESCE(pending_solution_text,'')) <> ''
-                   AND datetime(substr(COALESCE(updated_at, created_at, ''),1,19)) >= datetime('now', ?)
                 """,
-                sinceExpr
+                "COALESCE(updated_at, created_at)",
+                currentWindow
         );
-        int previousQueue = queryCount(
+        int previousQueue = queryCountBetween(
                 """
                 SELECT COUNT(*)
                   FROM ai_agent_solution_memory
                  WHERE COALESCE(review_required,0) = 1
                    AND trim(COALESCE(pending_solution_text,'')) <> ''
-                   AND datetime(substr(COALESCE(updated_at, created_at, ''),1,19)) >= datetime('now', ?)
-                   AND datetime(substr(COALESCE(updated_at, created_at, ''),1,19)) < datetime('now', ?)
                 """,
-                previousSinceExpr,
-                sinceExpr
+                "COALESCE(updated_at, created_at)",
+                previousWindow,
+                currentWindow
         );
         double growthRate = (currentQueue - previousQueue) / (double) Math.max(1, previousQueue);
         return new ReviewQueueMetrics(Math.round(p95 * 100d) / 100d, Math.round(growthRate * 10000d) / 10000d, windowDays);
@@ -349,6 +360,20 @@ public class AiMonitoringService {
         } catch (Exception ex) {
             return 0;
         }
+    }
+
+    private int queryCountSince(String baseSql, String timestampExpression, Duration lookback) {
+        PanelTimestampSqlSupport.SqlCondition lookbackCondition = timestampSqlSupport.since(timestampExpression, lookback);
+        return queryCount(baseSql + " AND " + lookbackCondition.sql(), lookbackCondition.params());
+    }
+
+    private int queryCountBetween(String baseSql,
+                                  String timestampExpression,
+                                  Duration olderInclusive,
+                                  Duration newerExclusive) {
+        PanelTimestampSqlSupport.SqlCondition windowCondition =
+                timestampSqlSupport.between(timestampExpression, olderInclusive, newerExclusive);
+        return queryCount(baseSql + " AND " + windowCondition.sql(), windowCondition.params());
     }
 
     private Map<String, Object> parseJson(Object rawValue) {

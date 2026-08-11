@@ -1,6 +1,8 @@
 package com.example.panel.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.panel.config.DatabaseMode;
+import com.example.panel.support.PanelTimestampSqlSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -47,7 +49,11 @@ class AiOfflineEvaluationServiceTest {
         ObjectMapper objectMapper = new ObjectMapper();
         SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, sharedDir.toString());
         AiIntentService aiIntentService = new AiIntentService(jdbcTemplate, objectMapper);
-        AiRetrievalService aiRetrievalService = new AiRetrievalService(jdbcTemplate, aiIntentService);
+        AiRetrievalService aiRetrievalService = new AiRetrievalService(
+                jdbcTemplate,
+                aiIntentService,
+                new PanelTimestampSqlSupport(DatabaseMode.POSTGRESQL)
+        );
         service = new AiOfflineEvaluationService(jdbcTemplate, aiIntentService, aiRetrievalService, sharedConfigService, objectMapper);
     }
 
