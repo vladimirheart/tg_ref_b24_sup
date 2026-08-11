@@ -24,7 +24,7 @@
 
 - По умолчанию `bot-core` всё ещё читает/пишет в `panel_runtime.db` через `support-bot.database.path`, а не в `bot_runtime.db` как в единственный transport runtime.
 - Для SQLite-режима бот продолжает инициализировать локальную схему через `schema-sqlite.sql`.
-- Для external PostgreSQL-режима после текущего шага `01-181` бот больше не должен владеть схемой через `spring.sql.init`; этот режим теперь принудительно переводится в `spring.sql.init.mode=never`.
+- Для external PostgreSQL-режима после текущего шага `01-181` бот больше не должен владеть схемой вообще: production-path должен подключаться только к уже подготовленной PostgreSQL-схеме, а локальный SQLite bootstrap остаётся отдельным dev-only механизмом.
 
 ## 2. Текущие DB readers
 
@@ -105,7 +105,7 @@
 
 - Добавлен явный `APP_DB_MODE` / `app.datasource.mode` для `spring-panel` и `support-bot.database.mode` для `java-bot` с режимами `auto`, `sqlite`, `postgresql` (для панели также `mysql` как legacy-compatible external mode).
 - `spring-panel` теперь при external DB выбирает корректный `spring.flyway.locations` под vendor вместо молчаливого использования SQLite migrations.
-- `java-bot` в external PostgreSQL-режиме теперь принудительно работает с `spring.sql.init.mode=never`, чтобы transport worker не выступал владельцем business schema.
+- `java-bot` в external PostgreSQL-режиме теперь не использует `spring.sql.init` вовсе, чтобы transport worker не выступал владельцем business schema.
 
 ## 10. Фазовый план
 

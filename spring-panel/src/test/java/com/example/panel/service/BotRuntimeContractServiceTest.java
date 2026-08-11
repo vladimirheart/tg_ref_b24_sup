@@ -153,7 +153,6 @@ class BotRuntimeContractServiceTest {
             .containsEntry("APP_DB_PANEL_RUNTIME", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("APP_DB_TICKETS", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("panel_runtime.db").toString())
-            .containsEntry("SPRING_SQL_INIT_MODE", "always")
             .containsEntry("SPRING_MAIN_WEB_APPLICATION_TYPE", "servlet");
     }
 
@@ -242,7 +241,6 @@ class BotRuntimeContractServiceTest {
             .containsEntry("APP_DB_PANEL_RUNTIME", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("APP_DB_TICKETS", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("panel_runtime.db").toString())
-            .containsEntry("SPRING_SQL_INIT_MODE", "always")
             .containsEntry("TELEGRAM_BOT_TOKEN", "tg-token")
             .containsEntry("TELEGRAM_BOT_USERNAME", "support_bot")
             .containsEntry("GROUP_CHAT_ID", "ops-room")
@@ -397,7 +395,6 @@ class BotRuntimeContractServiceTest {
             .containsEntry("SPRING_DATASOURCE_URL", "jdbc:postgresql://db.example.local:5432/iguana")
             .containsEntry("SPRING_DATASOURCE_USERNAME", "iguana")
             .containsEntry("SPRING_DATASOURCE_PASSWORD", "secret")
-            .containsEntry("SPRING_SQL_INIT_MODE", "never")
             .doesNotContainKeys("APP_DB_PANEL_RUNTIME", "APP_DB_TICKETS", "SUPPORT_BOT_DATABASE_PATH");
     }
 

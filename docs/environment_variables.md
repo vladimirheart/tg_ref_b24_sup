@@ -72,3 +72,8 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 ```
 
 В этом режиме `spring-panel` использует единый primary datasource для runtime/user/bot/settings контуров, а `java-bot` получает тот же JDBC-контракт через переменные окружения и не должен инициализировать схему самостоятельно.
+
+Для `java-bot` действует явная граница:
+
+- в `APP_DB_MODE=sqlite` runtime сам поднимает local schema через `SqliteSchemaInitializer`;
+- в `APP_DB_MODE=postgresql` runtime получает готовый PostgreSQL datasource-контракт и не несёт `SPRING_SQL_INIT_MODE`/`schema-sqlite.sql` в production-path.

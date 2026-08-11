@@ -45,8 +45,9 @@ SPRING_DATASOURCE_PASSWORD=secret
 
 - `spring-panel` в external DB-режиме теперь сам выбирает vendor-specific Flyway migrations, а не SQLite-папку по умолчанию.
 - `spring-panel` в external DB-режиме поднимает secondary/user/bot/settings datasources поверх primary JDBC-контура и не пытается создавать отдельные SQLite-файлы для этих ролей.
-- `java-bot` в external PostgreSQL-режиме принудительно отключает schema ownership через `spring.sql.init.mode=never`; это intentional boundary, чтобы бот не становился владельцем business schema.
-- runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели, а SQLite-пути используются только в явном `sqlite`-режиме.
+- `java-bot` больше не использует Spring Boot `sql.init` как runtime-механику владения схемой: в external PostgreSQL-режиме бот просто подключается к готовой схеме, а не пытается инициализировать её сам.
+- `java-bot` в SQLite-режиме теперь поднимает local schema явным `SqliteSchemaInitializer`, который исполняет `schema-sqlite.sql` только для local/dev-контура.
+- runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели, а SQLite-пути используются только в явном `sqlite`-режиме без дополнительных `SPRING_SQL_INIT_*` флагов.
 
 > 💡 ID группы поддержки для Telegram можно сохранить в панели администратора в разделе «Каналы (боты)». Если оставить пустым, бот запишет ID автоматически после добавления в чат.
 

@@ -265,9 +265,9 @@ public class BotRuntimeContractService {
             "JAVA_TOOL_OPTIONS"
         ));
         if (databaseRuntimeMode.isSqliteMode()) {
-            keys.addAll(List.of("APP_DB_PANEL_RUNTIME", "SPRING_SQL_INIT_MODE"));
+            keys.add("APP_DB_PANEL_RUNTIME");
         } else {
-            keys.addAll(List.of("APP_DB_MODE", "SPRING_DATASOURCE_URL", "SPRING_SQL_INIT_MODE"));
+            keys.addAll(List.of("APP_DB_MODE", "SPRING_DATASOURCE_URL"));
         }
         String platform = normalizePlatform(channel);
         if ("vk".equals(platform)) {
@@ -316,7 +316,6 @@ public class BotRuntimeContractService {
             env.put("APP_DB_PANEL_RUNTIME", panelRuntimeDbPath);
             env.put("APP_DB_TICKETS", panelRuntimeDbPath);
             env.put("SUPPORT_BOT_DATABASE_PATH", panelRuntimeDbPath);
-            env.put("SPRING_SQL_INIT_MODE", "always");
             return;
         }
 
@@ -329,7 +328,6 @@ public class BotRuntimeContractService {
             );
         }
         env.put("APP_DB_MODE", "postgresql");
-        env.put("SPRING_SQL_INIT_MODE", "never");
         env.put("SPRING_DATASOURCE_URL", settings.jdbcUrl());
         putIfHasText(env, "SPRING_DATASOURCE_USERNAME", settings.username());
         putIfHasText(env, "SPRING_DATASOURCE_PASSWORD", settings.password());

@@ -36,9 +36,7 @@ public class DataSourceConfig {
         Optional<ExternalDatabaseSettings> externalDatabaseSettings = ExternalDatabaseSettingsResolver.resolve(environment);
         if (externalDatabaseSettings.isPresent()) {
             ExternalDatabaseSettings settings = externalDatabaseSettings.get();
-            registerRuntimeProperty(environment, "spring.jpa.database-platform", settings.hibernateDialect());
-            registerRuntimeProperty(environment, "spring.sql.init.platform", settings.schemaPlatform());
-            registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
+            applyExternalRuntimeProperties(environment, settings);
 
             DataSourceBuilder<?> builder = DataSourceBuilder.create();
             if (StringUtils.hasText(settings.driverClassName())) {
@@ -58,10 +56,18 @@ public class DataSourceConfig {
         Path normalized = resolveSqlitePath(configuredPath);
         SQLiteDataSource dataSource = buildSqliteDataSource(normalized);
 
-        registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
-        registerRuntimeProperty(environment, "spring.jpa.hibernate.ddl-auto", "none");
-        registerRuntimeProperty(environment, "spring.sql.init.platform", "sqlite");
+        applySqliteRuntimeProperties(environment);
         return dataSource;
+    }
+
+    static void applyExternalRuntimeProperties(ConfigurableEnvironment environment, ExternalDatabaseSettings settings) {
+        registerRuntimePropertyOverride(environment, "spring.jpa.database-platform", settings.hibernateDialect());
+        registerRuntimePropertyOverride(environment, "spring.jpa.hibernate.ddl-auto", "none");
+    }
+
+    static void applySqliteRuntimeProperties(ConfigurableEnvironment environment) {
+        registerRuntimePropertyOverride(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
+        registerRuntimePropertyOverride(environment, "spring.jpa.hibernate.ddl-auto", "none");
     }
 
     private static SQLiteDataSource buildSqliteDataSource(Path dbPath) {
@@ -74,13 +80,6 @@ public class DataSourceConfig {
         SQLiteDataSource dataSource = new SQLiteDataSource(sqliteConfig);
         dataSource.setUrl("jdbc:sqlite:" + dbPath);
         return dataSource;
-    }
-
-    private static void registerRuntimeProperty(ConfigurableEnvironment env, String key, String value) {
-        if (StringUtils.hasText(env.getProperty(key))) {
-            return;
-        }
-        registerRuntimePropertyOverride(env, key, value);
     }
 
     private static void registerRuntimePropertyOverride(ConfigurableEnvironment env, String key, String value) {

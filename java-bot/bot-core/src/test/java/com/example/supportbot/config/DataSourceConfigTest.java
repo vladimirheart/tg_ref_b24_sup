@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.mock.env.MockEnvironment;
 
 class DataSourceConfigTest {
 
@@ -47,5 +48,39 @@ class DataSourceConfigTest {
         Path resolved = DataSourceConfig.resolveSqlitePath("", botCoreDir);
 
         assertEquals(panelRuntime.toAbsolutePath().normalize(), resolved);
+    }
+
+    @Test
+    void externalRuntimePropertiesOverrideLegacyDialectFlags() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect")
+                .withProperty("spring.jpa.hibernate.ddl-auto", "create");
+
+        DataSourceConfig.applyExternalRuntimeProperties(
+                environment,
+                new ExternalDatabaseSettings(
+                        "jdbc:postgresql://localhost:5432/supportbot",
+                        "bot",
+                        "secret",
+                        "org.postgresql.Driver",
+                        "org.hibernate.dialect.PostgreSQLDialect",
+                        "postgres"
+                )
+        );
+
+        assertEquals("org.hibernate.dialect.PostgreSQLDialect", environment.getProperty("spring.jpa.database-platform"));
+        assertEquals("none", environment.getProperty("spring.jpa.hibernate.ddl-auto"));
+    }
+
+    @Test
+    void sqliteRuntimePropertiesForceSqliteDialectFlags() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("spring.jpa.database-platform", "org.hibernate.dialect.PostgreSQLDialect")
+                .withProperty("spring.jpa.hibernate.ddl-auto", "create-drop");
+
+        DataSourceConfig.applySqliteRuntimeProperties(environment);
+
+        assertEquals("org.hibernate.community.dialect.SQLiteDialect", environment.getProperty("spring.jpa.database-platform"));
+        assertEquals("none", environment.getProperty("spring.jpa.hibernate.ddl-auto"));
     }
 }

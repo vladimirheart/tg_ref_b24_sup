@@ -9,9 +9,7 @@ spring:
         format_sql: true
   sql:
     init:
-      mode: ${SQL_INIT_MODE:never}
-      platform: ${SQL_INIT_PLATFORM:sqlite}
-      schema-locations: classpath:schema-${spring.sql.init.platform:sqlite}.sql
+      mode: never
   main:
     web-application-type: none
 

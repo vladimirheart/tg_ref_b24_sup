@@ -3,14 +3,14 @@ package com.example.supportbot.config;
 import com.example.supportbot.support.JdbcSchemaInspector;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Set;
 
 @Component
-@ConditionalOnProperty(name = "spring.sql.init.platform", havingValue = "sqlite", matchIfMissing = true)
+@Order(10)
 public class SqliteTriggerInitializer implements ApplicationRunner {
 
     private static final String CREATE_TRIGGER_SQL = """
@@ -44,16 +44,22 @@ public class SqliteTriggerInitializer implements ApplicationRunner {
                 ticket_id TEXT,
                 channel_id INTEGER REFERENCES channels(id)
             );
-            """;
+    """;
 
     private final JdbcTemplate jdbcTemplate;
+    private final BotDatabaseRuntimeMode databaseRuntimeMode;
 
-    public SqliteTriggerInitializer(JdbcTemplate jdbcTemplate) {
+    public SqliteTriggerInitializer(JdbcTemplate jdbcTemplate,
+                                    BotDatabaseRuntimeMode databaseRuntimeMode) {
         this.jdbcTemplate = jdbcTemplate;
+        this.databaseRuntimeMode = databaseRuntimeMode;
     }
 
     @Override
     public void run(ApplicationArguments args) {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return;
+        }
         ensureFeedbacksSchema();
         jdbcTemplate.execute(CREATE_TRIGGER_SQL);
     }
