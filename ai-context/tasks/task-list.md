@@ -199,4 +199,4 @@
 🟢 [01-178] Сделать импорт фото NetBox устойчивым к .jfif, octet-stream и вложениям без расширения
 🟡 [01-179] Сделать NetBox sync устойчивым к локальным сбоям по отдельному site и image-attachments
 🟡 [01-180] Добавить выбор импортируемых NetBox sites в настройках синхронизации с отображением Status
-🟡 [01-181] refactor
+🟡 [01-181] Перевести Iguana с legacy SQLite runtime на PostgreSQL-first architecture

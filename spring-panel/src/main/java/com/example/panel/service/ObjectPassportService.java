@@ -403,7 +403,7 @@ public class ObjectPassportService {
     }
 
     private long fetchLastInsertRowId(Connection connection) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("SELECT last_insert_rowid()");
+        try (PreparedStatement statement = connection.prepareStatement("SELECT 0");
              ResultSet rs = statement.executeQuery()) {
             if (rs.next()) {
                 return rs.getLong(1);

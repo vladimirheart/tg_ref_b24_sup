@@ -1,5 +1,6 @@
 package com.example.panel.security;
 
+import com.example.panel.config.PanelDatabaseRuntimeMode;
 import org.springframework.dao.DataAccessException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.ConnectionCallback;
@@ -18,13 +19,16 @@ public class SecurityBootstrap {
 
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
     public SecurityBootstrap(
             @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") ObjectProvider<JdbcTemplate> jdbcTemplate,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            PanelDatabaseRuntimeMode databaseRuntimeMode
     ) {
         this.jdbcTemplate = jdbcTemplate.getIfAvailable();
         this.passwordEncoder = passwordEncoder;
+        this.databaseRuntimeMode = databaseRuntimeMode;
     }
 
     public void ensureDefaultAdmin() {
@@ -47,6 +51,19 @@ public class SecurityBootstrap {
      * Это защищает "чистое развёртывание" и сценарий, когда panel identity DB ещё без user_authorities.
      */
     private void ensureAuthoritiesTable() {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            try {
+                jdbcTemplate.queryForObject("SELECT COUNT(*) FROM user_authorities", Integer.class);
+                return;
+            } catch (DataAccessException ex) {
+                throw new IllegalStateException(
+                        "user_authorities must be created by Flyway before spring-panel starts in external "
+                                + databaseRuntimeMode.modeLabel() + " mode",
+                        ex
+                );
+            }
+        }
+
         try {
             jdbcTemplate.queryForObject("SELECT COUNT(*) FROM user_authorities", Integer.class);
             return;
