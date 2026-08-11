@@ -109,7 +109,7 @@ public class SettingsParameterService {
             updates.append("is_deleted = ?,");
             params.add(Boolean.TRUE.equals(normalizedPayload.get("is_deleted")) ? 1 : 0);
             if (Boolean.TRUE.equals(normalizedPayload.get("is_deleted"))) {
-                updates.append("deleted_at = datetime('now'),");
+                updates.append("deleted_at = CURRENT_TIMESTAMP,");
             } else {
                 updates.append("deleted_at = NULL,");
             }
@@ -131,7 +131,7 @@ public class SettingsParameterService {
 
     public Map<String, Object> deleteParameter(long paramId) {
         int updated = jdbcTemplate.update(
-                "UPDATE settings_parameters SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?",
+                "UPDATE settings_parameters SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?",
                 paramId
         );
         if (updated == 0) {

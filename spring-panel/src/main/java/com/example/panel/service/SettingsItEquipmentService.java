@@ -43,7 +43,7 @@ public class SettingsItEquipmentService {
 
         jdbcTemplate.update(
                 "INSERT INTO it_equipment_catalog(equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories, created_at, updated_at) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+                        "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
                 type, vendor, model, photoUrl, serialNumber, accessories
         );
         notificationRoutingService.notify(
@@ -101,7 +101,7 @@ public class SettingsItEquipmentService {
         if (updates.length() == 0) {
             return Map.of("success", false, "error", "Нет данных для обновления");
         }
-        updates.append("updated_at = datetime('now')");
+        updates.append("updated_at = CURRENT_TIMESTAMP");
         params.add(itemId);
         jdbcTemplate.update("UPDATE it_equipment_catalog SET " + updates + " WHERE id = ?", params.toArray());
         notificationRoutingService.notify(

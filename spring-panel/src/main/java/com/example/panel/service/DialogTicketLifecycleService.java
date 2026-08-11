@@ -7,6 +7,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 
@@ -134,11 +136,15 @@ public class DialogTicketLifecycleService {
             return;
         }
         String source = isAutoCloseResolvedBy(resolvedBy) ? "auto_close" : "operator_close";
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        String createdAt = now.toString();
+        String expiresAt = now.plusDays(1).toString();
         try {
             int updated = jdbcTemplate.update(
                     "UPDATE pending_feedback_requests "
-                            + "SET expires_at = datetime('now', '+1 day'), source = ? "
+                            + "SET expires_at = ?, source = ? "
                             + "WHERE ticket_id = ?",
+                    expiresAt,
                     source,
                     ticketId
             );
@@ -158,11 +164,13 @@ public class DialogTicketLifecycleService {
             jdbcTemplate.update(
                     "INSERT INTO pending_feedback_requests "
                             + "(user_id, channel_id, ticket_id, source, created_at, expires_at) "
-                            + "VALUES(?, ?, ?, ?, CURRENT_TIMESTAMP, datetime('now', '+1 day'))",
+                            + "VALUES(?, ?, ?, ?, ?, ?)",
                     owner.userId,
                     owner.channelId,
                     ticketId,
-                    source
+                    source,
+                    createdAt,
+                    expiresAt
             );
         } catch (DataAccessException ex) {
             log.warn("Unable to ensure pending feedback request for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));

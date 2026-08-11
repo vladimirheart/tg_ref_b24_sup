@@ -95,6 +95,28 @@ class SettingsParameterServiceTest {
         assertEquals("Такая запись уже существует", duplicate.get("error"));
     }
 
+    @Test
+    void deleteParameterMarksRowDeletedWithTimestamp() {
+        service.createParameter(Map.of(
+                "param_type", "role",
+                "value", "Reviewer"
+        ));
+        Long id = jdbcTemplate.queryForObject(
+                "SELECT id FROM settings_parameters WHERE param_type = 'role' AND value = 'Reviewer'",
+                Long.class
+        );
+
+        Map<String, Object> result = service.deleteParameter(id);
+
+        assertEquals(true, result.get("success"));
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                "SELECT is_deleted, deleted_at FROM settings_parameters WHERE id = ?",
+                id
+        );
+        assertEquals(1, ((Number) row.get("is_deleted")).intValue());
+        assertTrue(row.get("deleted_at") != null);
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> castMap(Object value) {
         return (Map<String, Object>) value;

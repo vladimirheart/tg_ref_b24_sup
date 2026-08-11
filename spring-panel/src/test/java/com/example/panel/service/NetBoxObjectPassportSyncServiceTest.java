@@ -243,7 +243,7 @@ class NetBoxObjectPassportSyncServiceTest {
         verify(jdbcTemplate).update(
                 "INSERT INTO it_equipment_catalog(" +
                         "equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories, created_at, updated_at" +
-                        ") VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+                        ") VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
                 "Маршрутизатор",
                 "Cisco",
                 "ISR1000",
