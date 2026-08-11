@@ -1,14 +1,13 @@
 package com.example.panel.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogListItem;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class DialogWorkspaceParityServiceTest {
 
@@ -180,7 +179,7 @@ class DialogWorkspaceParityServiceTest {
                 401L,
                 1001L,
                 "client_username",
-                "Клиент",
+                "РљР»РёРµРЅС‚",
                 "sales",
                 44L,
                 "Telegram",
@@ -210,6 +209,9 @@ class DialogWorkspaceParityServiceTest {
                 null,
                 "2026-04-20T10:00:00Z",
                 "text",
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,

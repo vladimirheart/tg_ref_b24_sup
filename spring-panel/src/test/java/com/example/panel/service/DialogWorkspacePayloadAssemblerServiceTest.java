@@ -1,14 +1,13 @@
 package com.example.panel.service;
 
-import com.example.panel.model.dialog.ChatMessageDto;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import com.example.panel.model.dialog.ChatMessageDto;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class DialogWorkspacePayloadAssemblerServiceTest {
 
@@ -80,15 +79,18 @@ class DialogWorkspacePayloadAssemblerServiceTest {
         ChatMessageDto message = new ChatMessageDto(
                 "operator",
                 "",
-                "Изначальный ответ",
+                "РР·РЅР°С‡Р°Р»СЊРЅС‹Р№ РѕС‚РІРµС‚",
                 "2026-05-26T10:02:00Z",
                 "image",
                 "/api/attachments/tickets/T-WS-RICH/reply.png",
                 "reply.png",
                 962L,
+                null,
+                null,
+                null,
                 961L,
                 null,
-                "Изображение",
+                "РР·РѕР±СЂР°Р¶РµРЅРёРµ",
                 "2026-05-26T10:02:30Z",
                 "2026-05-26T10:03:30Z",
                 "lead"
@@ -101,7 +103,7 @@ class DialogWorkspacePayloadAssemblerServiceTest {
                 List.of(message),
                 null,
                 false,
-                Map.of("id", 910096L, "name", "Клиент Rich"),
+                Map.of("id", 910096L, "name", "РљР»РёРµРЅС‚ Rich"),
                 List.of(Map.of("ticket_id", "T-WS-PREV")),
                 Map.of("matches", List.of("crm")),
                 List.of(Map.of("type", "audit")),
@@ -150,10 +152,10 @@ class DialogWorkspacePayloadAssemblerServiceTest {
         assertThat(payload).containsEntry("contract_version", "workspace.v1");
         assertThat(payload).containsEntry("success", true);
         assertThat(items).hasSize(1);
-        assertThat(items.get(0).replyPreview()).isEqualTo("Изображение");
-        assertThat(items.get(0).originalMessage()).isEqualTo("Изначальный ответ");
+        assertThat(items.get(0).replyPreview()).isEqualTo("РР·РѕР±СЂР°Р¶РµРЅРёРµ");
+        assertThat(items.get(0).originalMessage()).isEqualTo("РР·РЅР°С‡Р°Р»СЊРЅС‹Р№ РѕС‚РІРµС‚");
         assertThat(items.get(0).deletedAt()).isEqualTo("2026-05-26T10:03:30Z");
-        assertThat(context).containsEntry("client", Map.of("id", 910096L, "name", "Клиент Rich"));
+        assertThat(context).containsEntry("client", Map.of("id", 910096L, "name", "РљР»РёРµРЅС‚ Rich"));
         assertThat(context).containsEntry("profile_match_candidates", Map.of("matches", List.of("crm")));
         assertThat(workflow).containsKey("responsible");
         assertThat(workflow).containsEntry("triage_preferences", Map.of("view", "sla_critical"));
@@ -171,6 +173,9 @@ class DialogWorkspacePayloadAssemblerServiceTest {
                 null,
                 timestamp,
                 "text",
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,

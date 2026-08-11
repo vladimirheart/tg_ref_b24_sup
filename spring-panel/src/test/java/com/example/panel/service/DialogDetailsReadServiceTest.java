@@ -1,18 +1,17 @@
 package com.example.panel.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
 import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogListItem;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.Test;
 
 class DialogDetailsReadServiceTest {
 
@@ -27,13 +26,13 @@ class DialogDetailsReadServiceTest {
                 500L,
                 42L,
                 "client42",
-                "Клиент",
+                "РљР»РёРµРЅС‚",
                 "Retail",
                 7L,
                 "Telegram",
-                "Москва",
-                "Офис",
-                "Проблема",
+                "РњРѕСЃРєРІР°",
+                "РћС„РёСЃ",
+                "РџСЂРѕР±Р»РµРјР°",
                 "2026-04-21T12:00:00Z",
                 "open",
                 false,
@@ -50,10 +49,13 @@ class DialogDetailsReadServiceTest {
         );
         List<ChatMessageDto> history = List.of(new ChatMessageDto(
                 "client",
-                "Сообщение клиента",
+                "РЎРѕРѕР±С‰РµРЅРёРµ РєР»РёРµРЅС‚Р°",
                 null,
                 "2026-04-21T12:01:00Z",
                 "text",
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,

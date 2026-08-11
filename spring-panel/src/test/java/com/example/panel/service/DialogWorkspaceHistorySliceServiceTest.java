@@ -1,11 +1,10 @@
 package com.example.panel.service;
 
-import com.example.panel.model.dialog.ChatMessageDto;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import com.example.panel.model.dialog.ChatMessageDto;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
 class DialogWorkspaceHistorySliceServiceTest {
 
@@ -34,6 +33,9 @@ class DialogWorkspaceHistorySliceServiceTest {
                 null,
                 timestamp,
                 "text",
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,

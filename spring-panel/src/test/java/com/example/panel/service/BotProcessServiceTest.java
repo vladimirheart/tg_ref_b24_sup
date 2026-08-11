@@ -360,7 +360,7 @@ class BotProcessServiceTest {
             integrationNetworkService,
             new ObjectMapper(),
             new PanelDatabaseRuntimeMode(environment),
-            environment,
+            environment
         );
         return new BotProcessService(
                 null,

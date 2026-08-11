@@ -31,6 +31,7 @@ class RmsLicenseMonitoringServiceTest {
                 repository,
                 null,
                 null,
+                null,
                 new ObjectMapper()
         );
 
@@ -68,6 +69,7 @@ class RmsLicenseMonitoringServiceTest {
 
         RmsLicenseMonitoringService service = new RmsLicenseMonitoringService(
                 repository,
+                null,
                 null,
                 null,
                 new ObjectMapper()
