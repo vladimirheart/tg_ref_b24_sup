@@ -2909,16 +2909,6 @@ body {
   border-bottom-color: var(--color-border);
 }
 
-.client-avatar-ring.status-has-color {
-  display: inline-flex;
-  padding: 2px;
-  border-radius: 999px;
-  background: linear-gradient(var(--card), var(--card)), conic-gradient(from var(--gradient-angle), var(--primary), var(--chart-2), var(--chart-4), var(--primary));
-  background-origin: padding-box, border-box;
-  background-clip: padding-box, border-box;
-  animation: gradient-rotate 9s linear infinite;
-}
-
 .client-avatar-img {
   border-radius: 999px;
   display: block;
@@ -3208,6 +3198,159 @@ body {
     --bs-table-accent-bg: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
     background-color: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
     color: inherit !important;
+  }
+}
+/* Client profile */
+.client-profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.client-profile-stat {
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.client-profile-stat__label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.client-profile-stat__value {
+  margin-top: 0.2rem;
+  color: var(--color-text);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: var(--line-height-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.client-profile-section {
+  overflow: hidden;
+}
+
+.client-profile-list {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.client-profile-list .list-group-item {
+  border-color: var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text);
+}
+
+.client-profile-table {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+.client-profile-table .table {
+  margin-bottom: 0;
+}
+
+.client-profile-table thead th {
+  background: var(--surface-raised) !important;
+  color: var(--color-text-muted) !important;
+  border-bottom-color: var(--color-border);
+  font-weight: 700;
+}
+
+.client-profile-add-panel {
+  margin-inline: 0;
+  padding: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: var(--surface-interactive);
+}
+
+.client-profile-collapse {
+  overflow: hidden;
+}
+
+.client-profile-collapse .card-header {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--surface-raised);
+}
+
+.client-profile-collapse-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+  font-weight: 700;
+  text-align: left;
+}
+
+.client-profile-collapse-toggle:hover,
+.client-profile-collapse-toggle:focus-visible {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+}
+
+.client-profile-tickets-accordion {
+  border-top: 1px solid var(--color-border);
+}
+
+.client-profile-tickets-accordion .accordion-item {
+  border-right: 0 !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.client-profile-tickets-accordion .accordion-item:last-child {
+  border-bottom: 0 !important;
+}
+
+.client-profile-tickets-accordion .accordion-button {
+  background: var(--surface-raised);
+  color: var(--color-text);
+}
+
+.client-profile-tickets-accordion .accordion-button:not(.collapsed) {
+  background: var(--surface-selected);
+  color: var(--primary);
+  box-shadow: none;
+}
+
+.client-profile-tickets-accordion .accordion-body {
+  background: var(--surface-card);
+}
+
+.client-profile-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.client-profile-history-item {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+@media (max-width: 767.98px) {
+  .client-profile-stats-grid {
+    grid-template-columns: 1fr;
   }
 }
 /* Shared form controls: single source of truth for global field styling */
