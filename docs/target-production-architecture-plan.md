@@ -155,10 +155,20 @@
 
 Этот слой больше не должен участвовать в external PostgreSQL runtime path. Для отдельной фиксации perimeter см. [docs/SQLITE_BOOTSTRAP_PERIMETER.md](SQLITE_BOOTSTRAP_PERIMETER.md).
 
-## 11. Рекомендуемый следующий технический шаг
+## 11. Текущий статус и следующий scope
 
-Следующим implementation-шагом после текущего среза нужно перевести `BotRuntimeContractService` и runtime launch model на явное разграничение:
+После уже выполненных шагов `01-181` ближайший recommended step больше не в том, чтобы ещё раз уточнять `BotRuntimeContractService`: это разграничение уже зафиксировано и в коде, и в runtime-диагностике.
 
-- SQLite local/dev path;
-- external PostgreSQL backend path без schema ownership у бота;
-- будущий queue/API transport path как целевой production режим.
+Практически readiness-часть на текущем этапе можно считать закрытой для fresh-start PostgreSQL-first запуска:
+
+- SQLite local/dev path явно отделён от external PostgreSQL path;
+- `BotRuntimeContractService` и `/api/bots/{channelId}/runtime-contract` больше не считают SQLite production-ready сценарием;
+- external PostgreSQL runtime больше не должен владеть схемой, запускать SQLite bootstrap или выполнять runtime DDL.
+
+Дальше разумнее открывать уже отдельный scope, а не продолжать смешивать его с readiness-срезом:
+
+- `SQLite -> PostgreSQL` migration/backfill utility;
+- transport/backend ownership split до целевой схемы `provider -> worker -> queue/api -> backend -> PostgreSQL`;
+- инфраструктурный production contour (`Redis`, `RabbitMQ`, `MinIO`, leases, multi-worker runtime).
+
+Итоговый close-out по readiness-части зафиксирован отдельно в [docs/POSTGRESQL_FIRST_READINESS_CLOSEOUT.md](POSTGRESQL_FIRST_READINESS_CLOSEOUT.md).
