@@ -1838,9 +1838,8 @@
 	  color: var(--color-text-muted);
 	}
     .partner-contact-card--summary .partner-contact-summary-meta {
-      font-size: 0.9rem;
-      color: #6c757d;
-    }
+	  font-size: 0.9rem;
+	}
     .partner-contact-card--summary .partner-contact-summary-label {
       letter-spacing: 0.08em;
       font-weight: 600;
@@ -1860,22 +1859,22 @@
       font-weight: 600;
     }
     .partner-contact-summary-contact-meta {
-      font-size: 0.85rem;
-      color: #6c757d;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      align-items: center;
-    }
+	  display: flex;
+	  flex-wrap: wrap;
+	  align-items: center;
+	  gap: 0.5rem;
+
+	  font-size: 0.85rem;
+	}
     .partner-contact-summary-empty {
 	  font-size: 0.9rem;
 	  color: var(--color-text-muted);
 	}
     .partner-contact-served-summary {
-      font-size: 0.85rem;
-      color: #6c757d;
-      margin-top: 0.25rem;
-    }
+	  margin-top: 0.25rem;
+
+	  font-size: 0.85rem;
+	}
     .partner-contact-served-summary:empty {
       display: none;
     }
@@ -2131,10 +2130,11 @@
     .location-node-meta .badge {
       font-weight: 500;
     }
-    .location-structure-row.status-default {
-      background-color: #f8f9fa;
-      border-color: #e9ecef;
-    }
+	.location-structure-row.status-default,
+	.location-structure-row.status-paused {
+	  border-color: var(--color-border);
+	  background: var(--color-bg-muted);
+	}
     .location-structure-row.status-active {
 	  border-color: var(--state-success-border);
 	  background: var(--state-success-bg);
@@ -2149,10 +2149,6 @@
 	  border-color: var(--state-warning-border);
 	  background: var(--state-warning-bg);
 	}
-    .location-structure-row.status-paused {
-      background-color: #f1f3f5;
-      border-color: #d3d7dc;
-    }
     .location-structure-row.status-frozen {
 	  border-color: var(--state-info-border);
 	  background: var(--state-info-bg);

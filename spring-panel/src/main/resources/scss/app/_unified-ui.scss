@@ -500,21 +500,58 @@ body {
     opacity: 1;
 }
 
+.clients-filter-panel {
+    padding: 1rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+}
+
 .clients-toolbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 1rem;
     align-items: end;
-    margin-bottom: 1rem;
+    gap: 1rem;
+
+    margin: 0;
 }
 
 .client-status-alert {
-    border-left: 4px solid var(--chart-2);
-    background: color-mix(in srgb, var(--accent) 55%, var(--ui-surface));
+    border: 1px solid var(--state-info-border);
+    border-left: 4px solid var(--state-system);
+    border-radius: var(--radius-lg);
+
+    background: var(--state-info-bg);
+    color: var(--state-info-text);
 }
 
 .clients-table-card {
     overflow: hidden;
+
+    border: 1px solid var(--color-border);
+
+    background: var(--surface-card);
+
+    box-shadow: var(--ui-panel-shadow);
+}
+
+.clients-table-card .table {
+    margin-bottom: 0;
+}
+
+.clients-table-card thead th {
+    background: var(--surface-raised) !important;
+    color: var(--color-text-muted) !important;
+
+    border-bottom-color: var(--color-border);
+
+    font-weight: 700;
+}
+
+.clients-table-card tbody td {
+    border-bottom-color: var(--color-border);
 }
 
 .client-avatar-ring.status-has-color {
@@ -540,6 +577,18 @@ body {
     display: inline-block;
 }
 
+.client-profile-kpi {
+    padding: 0.85rem 0.95rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+}
+
+.client-profile-kpi .h4 {
+    color: var(--color-text);
+}
 /* Analytics / AI Ops extracted inline styles */
 .analytics-control-auto {
     width: auto;
