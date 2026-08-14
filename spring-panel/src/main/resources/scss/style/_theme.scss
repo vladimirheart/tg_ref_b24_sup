@@ -217,7 +217,42 @@
 	  --border-animation-duration: 10s;
 	  color-scheme: light;
 	}
+	--state-info-border:
+	  color-mix(
+		in srgb,
+		var(--state-system) 32%,
+		var(--color-border)
+	  );
 
+	--state-success-border:
+	  color-mix(
+		in srgb,
+		var(--state-success) 32%,
+		var(--color-border)
+	  );
+
+	--state-warning-border:
+	  color-mix(
+		in srgb,
+		var(--state-warning) 34%,
+		var(--color-border)
+	  );
+
+	--state-warn-border: var(--state-warning-border);
+
+	--state-danger-border:
+	  color-mix(
+		in srgb,
+		var(--state-danger) 34%,
+		var(--color-border)
+	  );
+
+	--state-ai-border:
+	  color-mix(
+		in srgb,
+		var(--state-ai) 30%,
+		var(--color-border)
+	  );
 body[data-ui-density='compact'] {
   --ui-page-gap: 1rem;
   --ui-panel-radius: 0.8rem;
