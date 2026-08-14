@@ -107,24 +107,12 @@
 		font-size: 1.2rem;
 	}
 
-    .settings-overview {
-      border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
-      border-radius: 1.3rem;
-      background:
-        linear-gradient(140deg, color-mix(in srgb, var(--secondary) 20%, white), color-mix(in srgb, var(--card) 96%, white));
-      box-shadow: 0 0.75rem 1.8rem rgba(15, 23, 42, 0.08);
-    }
     .settings-overview__stats {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 0.75rem;
     }
-    .settings-overview__stat {
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-      border-radius: 1rem;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 14%, white));
-      padding: 0.82rem 0.92rem;
-    }
+    
     .settings-overview__stat-value {
       font-size: 1.15rem;
       font-weight: 700;
@@ -274,10 +262,16 @@
 	}
 
     .settings-overview--chromed {
-      position: relative;
-      overflow: hidden;
-      border-color: color-mix(in srgb, var(--secondary) 34%, var(--color-border));
-    }
+	  position: relative;
+	  overflow: hidden;
+
+	  border-color:
+		color-mix(
+		  in srgb,
+		  var(--primary) 22%,
+		  var(--color-border)
+		);
+	}
 
     .settings-overview--chromed > .card-body {
       position: relative;
@@ -592,7 +586,13 @@
       display: flex;
       flex-direction: column;
       border-radius: 1.5rem;
-      box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.22);
+      box-shadow:
+		  0 24px 64px
+		  color-mix(
+			in srgb,
+			var(--shadow-color) 20%,
+			transparent
+		  );
     }
 
     .settings-sheet-modal .modal-header,
@@ -633,18 +633,41 @@
     }
 
     .settings-sheet-toggle {
-      width: 2.3rem;
-      height: 2.3rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 999px;
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-      background: color-mix(in srgb, var(--card) 92%, white);
-      color: var(--color-text-muted);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-      transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
-    }
+	  width: 2.3rem;
+	  height: 2.3rem;
+
+	  display: inline-flex;
+	  align-items: center;
+	  justify-content: center;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-pill);
+
+	  background: var(--surface-raised);
+	  color: var(--color-text-muted);
+
+	  box-shadow: none;
+
+	  transition:
+		background-color 0.18s ease,
+		border-color 0.18s ease;
+	}
+
+	.settings-sheet-toggle:hover,
+	.settings-sheet-toggle:focus-visible {
+	  background: var(--surface-interactive);
+
+	  border-color:
+		color-mix(
+		  in srgb,
+		  var(--primary) 28%,
+		  var(--color-border)
+		);
+
+	  color: var(--primary);
+
+	  transform: none;
+	}
 
     .settings-sheet-toggle:hover,
     .settings-sheet-toggle:focus-visible {
@@ -812,7 +835,10 @@
     .parameter-card .param-items { min-height: 2.5rem; }
     .parameter-card .param-item .btn { min-width: 2.5rem; }
     .parameter-card .param-item input { min-width: 0; }
-    .parameter-card .param-items .empty-placeholder { font-size: 0.9rem; color: #6c757d; }
+    .parameter-card .param-items .empty-placeholder {
+	  font-size: 0.9rem;
+	  color: var(--color-text-muted);
+	}
     .parameter-card .card-header button[data-param-toggle] {
       border: 0;
       background: transparent;
@@ -822,8 +848,8 @@
       color: inherit;
     }
     .parameter-card.is-expanded .card-header {
-      background-color: #f8f9fa;
-    }
+	  background: var(--surface-selected);
+	}
     .param-entry--deleted .form-control {
       text-decoration: line-through;
     }
@@ -838,72 +864,101 @@
       transition: box-shadow 0.2s ease;
     }
     .partner-contact-card__title {
-      color: #0d6efd;
-    }
-    .partner-contact-card__subtitle {
-      color: #6c757d;
-    }
-    .partner-contact-card__header--state-active {
-      background-color: #e8f5e9;
-      border-bottom-color: #c7e8ce;
-    }
-    .partner-contact-card__header--state-active .partner-contact-card__title {
-      color: #1b5e20;
-    }
-    .partner-contact-card__header--state-active .partner-contact-card__subtitle {
-      color: #2e7d32;
-    }
-    .partner-contact-card__header--state-pending {
-      background-color: #fff4d6;
-      border-bottom-color: #ffe09f;
-    }
-    .partner-contact-card__header--state-pending .partner-contact-card__title {
-      color: #9a6700;
-    }
-    .partner-contact-card__header--state-pending .partner-contact-card__subtitle {
-      color: #b8860b;
-    }
-    .partner-contact-card__header--state-blocked,
-    .partner-contact-card__header--state-blacklist {
-      background-color: #fde2e4;
-      border-bottom-color: #f5b5bb;
-    }
-    .partner-contact-card__header--state-blocked .partner-contact-card__title,
-    .partner-contact-card__header--state-blacklist .partner-contact-card__title {
-      color: #a4133c;
-    }
-    .partner-contact-card__header--state-blocked .partner-contact-card__subtitle,
-    .partner-contact-card__header--state-blacklist .partner-contact-card__subtitle {
-      color: #c9184a;
-    }
-    .partner-contact-card__header--state-closed {
-      background-color: #f1f3f5;
-      border-bottom-color: #d0d5db;
-    }
-    .partner-contact-card__header--state-closed .partner-contact-card__title {
-      color: #495057;
-    }
-    .partner-contact-card__header--state-closed .partner-contact-card__subtitle {
-      color: #6c757d;
-    }
-    .partner-contact-details {
-      border: 1px solid #e9ecef;
-      border-radius: 0.75rem;
-      background-color: #fdfdfd;
-    }
+	  color: var(--color-text);
+	}
+
+	.partner-contact-card__subtitle {
+	  color: var(--color-text-muted);
+	}
+
+	.partner-contact-card__header--state-active {
+	  background: var(--state-success-bg);
+
+	  border-bottom-color:
+		color-mix(
+		  in srgb,
+		  var(--state-success) 28%,
+		  var(--color-border)
+		);
+	}
+
+	.partner-contact-card__header--state-active .partner-contact-card__title,
+	.partner-contact-card__header--state-active .partner-contact-card__subtitle {
+	  color: var(--state-success-text);
+	}
+
+	.partner-contact-card__header--state-pending {
+	  background: var(--state-warning-bg);
+
+	  border-bottom-color:
+		color-mix(
+		  in srgb,
+		  var(--state-warning) 30%,
+		  var(--color-border)
+		);
+	}
+
+	.partner-contact-card__header--state-pending .partner-contact-card__title,
+	.partner-contact-card__header--state-pending .partner-contact-card__subtitle {
+	  color: var(--state-warning-text);
+	}
+
+	.partner-contact-card__header--state-blocked,
+	.partner-contact-card__header--state-blacklist {
+	  background: var(--state-danger-bg);
+
+	  border-bottom-color:
+		color-mix(
+		  in srgb,
+		  var(--state-danger) 30%,
+		  var(--color-border)
+		);
+	}
+
+	.partner-contact-card__header--state-blocked .partner-contact-card__title,
+	.partner-contact-card__header--state-blacklist .partner-contact-card__title,
+	.partner-contact-card__header--state-blocked .partner-contact-card__subtitle,
+	.partner-contact-card__header--state-blacklist .partner-contact-card__subtitle {
+	  color: var(--state-danger-text);
+	}
+
+	.partner-contact-card__header--state-closed {
+	  background: var(--color-bg-muted);
+	  border-bottom-color: var(--color-border);
+	}
+
+	.partner-contact-card__header--state-closed .partner-contact-card__title {
+	  color: var(--color-text);
+	}
+
+	.partner-contact-card__header--state-closed .partner-contact-card__subtitle {
+	  color: var(--color-text-muted);
+	}
+
+	.partner-contact-details {
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-lg);
+
+	  background: var(--surface-raised);
+	}
     .business-style-preview {
-      position: relative;
-      border: 1px dashed #ced4da;
-      border-radius: 0.75rem;
-      padding: 16px;
-      min-height: 56px;
-      background-color: #f8f9fa;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      color: #212529;
-    }
+	  position: relative;
+
+	  min-height: 56px;
+	  padding: 16px;
+
+	  display: flex;
+	  align-items: center;
+	  justify-content: center;
+
+	  border: 1px dashed var(--color-border);
+	  border-radius: var(--radius-lg);
+
+	  background: var(--surface-raised);
+	  color: var(--color-text);
+
+	  font-weight: 600;
+	}
     .business-style-preview--with-icon {
       padding-left: 32px;
     }
@@ -931,9 +986,9 @@
       gap: 0.75rem;
     }
     .datamart-contract-preview__headline {
-      font-weight: 600;
-      color: #212529;
-    }
+	  font-weight: 600;
+	  color: var(--color-text);
+	}
     .datamart-contract-preview__chips,
     .datamart-contract-preview__field-groups {
       display: flex;
@@ -941,92 +996,129 @@
       gap: 0.5rem;
     }
     .datamart-contract-preview__chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.35rem 0.65rem;
-      border-radius: 999px;
-      border: 1px solid rgba(108, 117, 125, 0.2);
-      background: rgba(255, 255, 255, 0.7);
-      font-weight: 600;
-      line-height: 1.2;
-    }
+	  display: inline-flex;
+	  align-items: center;
+	  gap: 0.35rem;
+
+	  padding: 0.35rem 0.65rem;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-pill);
+
+	  background: var(--surface-raised);
+	  color: var(--color-text);
+
+	  font-weight: 600;
+	  line-height: 1.2;
+	}
     .datamart-contract-preview__chip--success {
-      color: #0f5132;
-      border-color: rgba(25, 135, 84, 0.25);
-      background: rgba(25, 135, 84, 0.12);
-    }
-    .datamart-contract-preview__chip--warning {
-      color: #664d03;
-      border-color: rgba(255, 193, 7, 0.35);
-      background: rgba(255, 193, 7, 0.14);
-    }
-    .datamart-contract-preview__chip--danger {
-      color: #842029;
-      border-color: rgba(220, 53, 69, 0.25);
-      background: rgba(220, 53, 69, 0.12);
-    }
-    .datamart-contract-preview__field-group {
-      min-width: min(100%, 16rem);
-      flex: 1 1 16rem;
-      border-radius: 0.75rem;
-      border: 1px solid rgba(108, 117, 125, 0.18);
-      background: rgba(255, 255, 255, 0.72);
-      padding: 0.75rem;
-    }
+	  color: var(--state-success-text);
+	  border-color: var(--state-success-border);
+	  background: var(--state-success-bg);
+	}
+
+	.datamart-contract-preview__chip--warning {
+	  color: var(--state-warning-text);
+	  border-color: var(--state-warn-border);
+	  background: var(--state-warning-bg);
+	}
+
+	.datamart-contract-preview__chip--danger {
+	  color: var(--state-danger-text);
+	  border-color: var(--state-danger-border);
+	  background: var(--state-danger-bg);
+	}
+
+	.datamart-contract-preview__field-group {
+	  min-width: min(100%, 16rem);
+	  flex: 1 1 16rem;
+
+	  padding: 0.75rem;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-lg);
+
+	  background: var(--surface-raised);
+	}
     .datamart-contract-preview__field-group-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-      color: #495057;
-    }
+	  display: flex;
+	  align-items: center;
+	  justify-content: space-between;
+	  gap: 0.5rem;
+
+	  margin-bottom: 0.5rem;
+
+	  font-weight: 600;
+	  color: var(--color-text);
+	}
     .datamart-contract-preview__field-badges {
       display: flex;
       flex-wrap: wrap;
       gap: 0.35rem;
     }
     .datamart-contract-preview__field-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.2rem 0.5rem;
-      border-radius: 999px;
-      background: #fff;
-      border: 1px solid rgba(108, 117, 125, 0.2);
-      font-family: var(--bs-font-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
-      font-size: 0.8rem;
-    }
-    .datamart-contract-preview__field-group--danger {
-      border-color: rgba(220, 53, 69, 0.28);
-      background: rgba(220, 53, 69, 0.08);
-    }
-    .datamart-contract-preview__field-group--warning {
-      border-color: rgba(255, 193, 7, 0.32);
-      background: rgba(255, 193, 7, 0.08);
-    }
-    .datamart-contract-preview__field-group--success {
-      border-color: rgba(25, 135, 84, 0.24);
-      background: rgba(25, 135, 84, 0.08);
-    }
+	  display: inline-flex;
+	  align-items: center;
+
+	  padding: 0.2rem 0.5rem;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-pill);
+
+	  background: var(--surface-card);
+	  color: var(--color-text);
+
+	  font-family:
+		var(
+		  --bs-font-monospace,
+		  SFMono-Regular,
+		  Menlo,
+		  Monaco,
+		  Consolas,
+		  'Liberation Mono',
+		  'Courier New',
+		  monospace
+		);
+
+	  font-size: 0.8rem;
+	}
+
+	.datamart-contract-preview__field-group--danger {
+	  border-color: var(--state-danger-border);
+	  background: var(--state-danger-bg);
+	}
+
+	.datamart-contract-preview__field-group--warning {
+	  border-color: var(--state-warn-border);
+	  background: var(--state-warning-bg);
+	}
+
+	.datamart-contract-preview__field-group--success {
+	  border-color: var(--state-success-border);
+	  background: var(--state-success-bg);
+	}
     .datamart-contract-preview__meta {
       color: #6c757d;
     }
-    .datamart-contract-preview__empty {
-      color: #6c757d;
-      font-style: italic;
-    }
+    .datamart-contract-preview__meta,
+	.datamart-contract-preview__empty {
+	  color: var(--color-text-muted);
+	}
+	
+	.datamart-contract-preview__empty {
+	  font-style: italic;
+	}
     .utc-timestamp-status {
       font-variant-numeric: tabular-nums;
     }
     .utc-timestamp-status.is-invalid {
-      color: #b02a37;
-      font-weight: 500;
-    }
-    .utc-timestamp-status.is-ready {
-      color: #0f5132;
-    }
+	  color: var(--state-danger-text);
+	  font-weight: 500;
+	}
+
+	.utc-timestamp-status.is-ready {
+	  color: var(--state-success-text);
+	}
 
     #authUserDetailsModal {
       --settings-child-left-offset: calc(var(--settings-sheet-sidebar-offset, var(--sidebar-w, 308px)) + 0.75rem);
@@ -1095,19 +1187,26 @@
     }
 
     .channel-editor-section {
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-      border-radius: 1.1rem;
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--card) 97%, white), color-mix(in srgb, var(--secondary) 12%, white));
-      padding: 1rem 1.05rem;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 0.45rem 1rem rgba(15, 23, 42, 0.05);
-    }
+	  padding: 1rem 1.05rem;
 
-    .channel-editor-section--accent {
-      border-color: color-mix(in srgb, var(--primary) 22%, var(--color-border));
-      background:
-        linear-gradient(140deg, color-mix(in srgb, var(--secondary) 28%, white), color-mix(in srgb, var(--card) 96%, white));
-    }
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-xl);
+
+	  background: var(--surface-card);
+
+	  box-shadow: none;
+	}
+
+	.channel-editor-section--accent {
+	  border-color:
+		color-mix(
+		  in srgb,
+		  var(--primary) 24%,
+		  var(--color-border)
+		);
+
+	  background: var(--surface-interactive);
+	}
 
     .channel-editor-section__head {
       display: flex;
@@ -1144,12 +1243,9 @@
     }
 
     .channel-editor-summary__item {
-      border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
-      border-radius: 0.95rem;
-      background: color-mix(in srgb, var(--card) 96%, white);
-      padding: 0.8rem 0.9rem;
-      min-width: 0;
-    }
+	  padding: 0.8rem 0.9rem;
+	  min-width: 0;
+	}
 
     .channel-editor-summary__label {
       font-size: 0.74rem;
@@ -1173,34 +1269,43 @@
       gap: 0.9rem;
     }
 
-    .channel-editor-switch {
-      border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
-      border-radius: 0.95rem;
-      background: color-mix(in srgb, var(--card) 96%, white);
-      padding: 0.85rem 0.95rem;
-    }
+    .channel-editor-summary__item,
+	.channel-editor-switch {
+	  padding: 0.85rem 0.95rem;
+	}
 
     .channel-editor-switch .form-check {
       margin-bottom: 0;
     }
 
     .channel-editor-inline-note {
-      border: 1px dashed color-mix(in srgb, var(--primary) 26%, var(--color-border));
-      border-radius: 0.9rem;
-      background: color-mix(in srgb, var(--secondary) 18%, white);
-      padding: 0.85rem 0.95rem;
-    }
+	  padding: 0.85rem 0.95rem;
 
-    .channel-editor-status-strip {
-      display: inline-flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.55rem 0.75rem;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--card) 92%, white);
-      border: 1px solid color-mix(in srgb, var(--color-border) 74%, transparent);
-    }
+	  border:
+		1px dashed color-mix(
+		  in srgb,
+		  var(--primary) 28%,
+		  var(--color-border)
+		);
+
+	  border-radius: var(--radius-lg);
+
+	  background: var(--surface-interactive);
+	}
+
+	.channel-editor-status-strip {
+	  display: inline-flex;
+	  flex-wrap: wrap;
+	  align-items: center;
+	  gap: 0.5rem;
+
+	  padding: 0.55rem 0.75rem;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-pill);
+
+	  background: var(--surface-raised);
+	}
 
     .channels-manage-shell {
       display: flex;
@@ -1215,23 +1320,31 @@
     }
 
     .channels-quick-card {
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-      border-radius: 1.15rem;
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--card) 97%, white), color-mix(in srgb, var(--secondary) 14%, white));
-      box-shadow: 0 0.5rem 1.2rem rgba(15, 23, 42, 0.06);
-      padding: 1rem 1.05rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-      min-width: 0;
-    }
+	  display: flex;
+	  flex-direction: column;
+	  gap: 0.85rem;
 
-    .channels-quick-card--accent {
-      border-color: color-mix(in srgb, var(--primary) 24%, var(--color-border));
-      background:
-        linear-gradient(140deg, color-mix(in srgb, var(--secondary) 28%, white), color-mix(in srgb, var(--card) 97%, white));
-    }
+	  min-width: 0;
+	  padding: 1rem 1.05rem;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-xl);
+
+	  background: var(--surface-card);
+
+	  box-shadow: none;
+	}
+
+	.channels-quick-card--accent {
+	  border-color:
+		color-mix(
+		  in srgb,
+		  var(--primary) 24%,
+		  var(--color-border)
+		);
+
+	  background: var(--surface-interactive);
+	}
 
     .channels-quick-card__head {
       display: flex;
@@ -1255,17 +1368,23 @@
     }
 
     .channels-quick-card__icon {
-      width: 2.4rem;
-      height: 2.4rem;
-      border-radius: 0.8rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      color: var(--primary);
-      background: color-mix(in srgb, var(--primary) 14%, white);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-    }
+	  width: 2.4rem;
+	  height: 2.4rem;
+
+	  display: inline-flex;
+	  align-items: center;
+	  justify-content: center;
+
+	  flex-shrink: 0;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-lg);
+
+	  background: var(--surface-interactive);
+	  color: var(--primary);
+
+	  box-shadow: none;
+	}
 
     .channels-quick-card__meta,
     .channels-quick-card__actions,
@@ -1280,23 +1399,29 @@
     }
 
     .channels-quick-card__pill {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-      background: color-mix(in srgb, var(--card) 94%, white);
-      color: var(--color-text-muted);
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 0.2rem 0.55rem;
-    }
+	  display: inline-flex;
+	  align-items: center;
 
-    .channels-manage-table-card {
-      border-radius: 1rem;
-      overflow: hidden;
-      background: color-mix(in srgb, var(--card) 97%, white);
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-    }
+	  padding: 0.2rem 0.55rem;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-pill);
+
+	  background: var(--surface-raised);
+	  color: var(--color-text-muted);
+
+	  font-size: 0.75rem;
+	  font-weight: 600;
+	}
+
+	.channels-manage-table-card {
+	  overflow: hidden;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-lg);
+
+	  background: var(--surface-card);
+	}
 
     .channels-manage-accordion {
       display: flex;
@@ -1305,23 +1430,27 @@
     }
 
     .channels-manage-accordion .accordion-item {
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent) !important;
-      border-radius: 1rem !important;
-      overflow: hidden;
-      background: color-mix(in srgb, var(--card) 97%, white);
-    }
+	  overflow: hidden;
 
-    .channels-manage-accordion .accordion-button {
-      align-items: flex-start;
-      gap: 0.75rem;
-      background:
-        linear-gradient(140deg, color-mix(in srgb, var(--secondary) 20%, white), color-mix(in srgb, var(--card) 96%, white));
-    }
+	  border: 1px solid var(--color-border) !important;
+	  border-radius: var(--radius-lg) !important;
+
+	  background: var(--surface-card);
+	}
+
+	.channels-manage-accordion .accordion-button {
+	  align-items: flex-start;
+	  gap: 0.75rem;
+
+	  background: var(--surface-raised);
+	  color: var(--color-text);
+	}
 
     .channels-manage-accordion .accordion-button:not(.collapsed) {
-      color: var(--primary);
-      box-shadow: none;
-    }
+	  color: var(--primary);
+	  background: var(--surface-selected);
+	  box-shadow: none;
+	}
 
     .channels-manage-accordion .accordion-button:focus {
       box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--primary) 18%, transparent);
@@ -1337,9 +1466,10 @@
     }
 
     .channels-manage-accordion .accordion-body {
-      padding: 1rem 1.05rem 1.1rem;
-      background: color-mix(in srgb, var(--card) 97%, white);
-    }
+	  padding: 1rem 1.05rem 1.1rem;
+
+	  background: var(--surface-card);
+	}
 
     @media (max-width: 991.98px) {
       .channels-quick-grid,
@@ -1428,12 +1558,14 @@
     }
 
     .org-tree-wrapper {
-      border: 1px solid #e9ecef;
-      border-radius: 0.75rem;
-      background: #ffffff;
-      padding: 1rem;
-      min-height: 6rem;
-    }
+	  min-height: 6rem;
+	  padding: 1rem;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-lg);
+
+	  background: var(--surface-raised);
+	}
 
     .org-tree {
       margin: 0;
@@ -2317,9 +2449,9 @@
 		background: var(--surface-raised);
 	}
     .settings-tiles .settings-tile {
-      box-shadow: none !important;
-      border-radius: var(--ui-panel-radius) !important;
-    }
+	  box-shadow: var(--ui-panel-shadow) !important;
+	  border-radius: var(--radius-xl) !important;
+	}
     .settings-tiles .settings-tile:hover {
       transform: none;
     }
