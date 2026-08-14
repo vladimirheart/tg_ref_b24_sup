@@ -30,12 +30,14 @@ class TicketServiceInboundTransportTest {
         TicketActiveRepository ticketActiveRepository = mock(TicketActiveRepository.class);
         ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
         InboundClientMessagePublisher publisher = mock(InboundClientMessagePublisher.class);
+        ConversationTicketCreatedPublisher ticketCreatedPublisher = mock(ConversationTicketCreatedPublisher.class);
 
         TicketService service = createService(
             messageRepository,
             ticketActiveRepository,
             chatHistoryService,
             publisher,
+            ticketCreatedPublisher,
             new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
         );
         Channel channel = new Channel();
@@ -71,6 +73,7 @@ class TicketServiceInboundTransportTest {
         TicketActiveRepository ticketActiveRepository = mock(TicketActiveRepository.class);
         ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
         InboundClientMessagePublisher publisher = mock(InboundClientMessagePublisher.class);
+        ConversationTicketCreatedPublisher ticketCreatedPublisher = mock(ConversationTicketCreatedPublisher.class);
         when(messageRepository.findByTicketId("T-202")).thenReturn(Optional.empty());
         when(ticketActiveRepository.findById("T-202")).thenReturn(Optional.empty());
 
@@ -79,6 +82,7 @@ class TicketServiceInboundTransportTest {
             ticketActiveRepository,
             chatHistoryService,
             publisher,
+            ticketCreatedPublisher,
             new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")
         );
         Channel channel = new Channel();
@@ -118,10 +122,52 @@ class TicketServiceInboundTransportTest {
         verify(ticketActiveRepository).save(any(TicketActive.class));
     }
 
+    @Test
+    void createConversationTicketPublishesBackendOwnedCreationEventInRabbitMode() {
+        TicketMessageRepository messageRepository = mock(TicketMessageRepository.class);
+        TicketActiveRepository ticketActiveRepository = mock(TicketActiveRepository.class);
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        InboundClientMessagePublisher publisher = mock(InboundClientMessagePublisher.class);
+        ConversationTicketCreatedPublisher ticketCreatedPublisher = mock(ConversationTicketCreatedPublisher.class);
+
+        TicketService service = createService(
+            messageRepository,
+            ticketActiveRepository,
+            chatHistoryService,
+            publisher,
+            ticketCreatedPublisher,
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
+        );
+        Channel channel = new Channel();
+        channel.setId(61L);
+        channel.setPlatform("telegram");
+
+        TicketService.TicketCreationResult created = service.createConversationTicket(
+            new ConversationTicketCreationCommand(
+                501L,
+                "tg-501",
+                "tg_user",
+                "Telegram User",
+                java.util.Map.of("problem", "Пропал интернет"),
+                java.util.List.of(),
+                java.util.List.of(new ConversationHistoryEntry(501L, "Пропал интернет", "text", null, null, "9001",
+                    OffsetDateTime.parse("2026-08-14T11:00:00Z"))),
+                channel,
+                OffsetDateTime.parse("2026-08-14T11:00:00Z")
+            )
+        );
+
+        verify(ticketCreatedPublisher).publish(any(), eq(created.ticketId()), eq(""), eq(""), eq(""), eq(""), eq("Пропал интернет"));
+        verify(messageRepository, never()).save(any());
+        verify(ticketActiveRepository, never()).save(any());
+        verify(chatHistoryService, never()).storeEntry(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
     private TicketService createService(TicketMessageRepository messageRepository,
                                         TicketActiveRepository ticketActiveRepository,
                                         ChatHistoryService chatHistoryService,
                                         InboundClientMessagePublisher publisher,
+                                        ConversationTicketCreatedPublisher ticketCreatedPublisher,
                                         MockEnvironment environment) {
         return new TicketService(
             mock(TicketRepository.class),
@@ -136,7 +182,8 @@ class TicketServiceInboundTransportTest {
             mock(UiEventOutboxService.class),
             mock(TicketAttributeService.class),
             publisher,
-            new BotIntegrationTransportMode(environment)
+            new BotIntegrationTransportMode(environment),
+            ticketCreatedPublisher
         );
     }
 }

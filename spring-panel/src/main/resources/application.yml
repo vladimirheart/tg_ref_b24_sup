@@ -83,11 +83,14 @@ app:
     rabbitmq:
       inbound-exchange: ${APP_INTEGRATION_RABBITMQ_INBOUND_EXCHANGE:iguana.integration.inbound}
       inbound-queue: ${APP_INTEGRATION_RABBITMQ_INBOUND_QUEUE:iguana.integration.inbound.panel}
+      ticket-created-queue: ${APP_INTEGRATION_RABBITMQ_TICKET_CREATED_QUEUE:iguana.integration.ticket-created.panel}
       inbound-dlx: ${APP_INTEGRATION_RABBITMQ_INBOUND_DLX:iguana.integration.inbound.dlx}
       inbound-dlq: ${APP_INTEGRATION_RABBITMQ_INBOUND_DLQ:iguana.integration.inbound.panel.dlq}
+      ticket-created-dlq: ${APP_INTEGRATION_RABBITMQ_TICKET_CREATED_DLQ:iguana.integration.ticket-created.panel.dlq}
       routing-telegram: ${APP_INTEGRATION_RABBITMQ_ROUTING_TELEGRAM:integration.inbound.telegram}
       routing-vk: ${APP_INTEGRATION_RABBITMQ_ROUTING_VK:integration.inbound.vk}
       routing-max: ${APP_INTEGRATION_RABBITMQ_ROUTING_MAX:integration.inbound.max}
+      routing-ticket-created: ${APP_INTEGRATION_RABBITMQ_ROUTING_TICKET_CREATED:integration.inbound.ticket.created}
   admin:
     python-executable: ${APP_ADMIN_PYTHON_EXECUTABLE:python}
     repository-root: ${APP_ADMIN_REPOSITORY_ROOT:}

@@ -9,7 +9,9 @@ import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
+import com.example.supportbot.service.ConversationHistoryEntry;
 import com.example.supportbot.service.ConversationProblemTextSupport;
+import com.example.supportbot.service.ConversationTicketCreationCommand;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.SharedConfigService;
 import com.example.supportbot.service.TicketService;
@@ -1963,13 +1965,28 @@ public class SupportBot extends TelegramLongPollingBot {
         conversations.remove(session.userId());
         Channel channel = getChannel();
         String username = Optional.ofNullable(session.user()).map(User::getUserName).orElse(null);
-        TicketService.TicketCreationResult ticket = ticketService.createTicket(
-                session.userId(),
-                username,
-                null,
-                session.answers(),
-                session.ticketAttributes(),
-                channel
+        TicketService.TicketCreationResult ticket = ticketService.createConversationTicket(
+                new ConversationTicketCreationCommand(
+                        session.userId(),
+                        username != null ? username : Long.toString(session.userId()),
+                        username,
+                        null,
+                        session.answers(),
+                        session.ticketAttributes(),
+                        session.historyEvents().stream()
+                                .map(event -> new ConversationHistoryEntry(
+                                        event.userId(),
+                                        event.text(),
+                                        event.messageType(),
+                                        event.attachmentPath(),
+                                        event.attachmentName(),
+                                        event.telegramMessageId() != null ? event.telegramMessageId().toString() : null,
+                                        session.startedAt()
+                                ))
+                                .toList(),
+                        channel,
+                        session.startedAt()
+                )
         );
         log.info("Created ticket {} for user {} with {} attachments",
                 ticket.ticketId(),
@@ -1982,36 +1999,6 @@ public class SupportBot extends TelegramLongPollingBot {
                 .orElse(Optional.ofNullable(ticket.ticketId()).orElse("—"));
         sendConversationConfirmation(session, requestNumber);
 
-        for (HistoryEvent event : session.historyEvents()) {
-            try {
-                chatHistoryService.storeEntry(
-                        event.userId(),
-                        event.telegramMessageId(),
-                        channel,
-                        ticket.ticketId(),
-                        event.text(),
-                        event.messageType(),
-                        event.attachmentPath(),
-                        event.attachmentName(),
-                        null,
-                        null
-                );
-            } catch (RuntimeException ex) {
-                log.warn("Failed to store conversation history for ticket {} message {}: {}",
-                        ticket.ticketId(),
-                        event.telegramMessageId(),
-                        ex.getMessage());
-            }
-        }
-
-        try {
-            ticketService.registerActivity(ticket.ticketId(), username);
-        } catch (RuntimeException ex) {
-            log.warn("Failed to refresh ticket activity after conversation finalize: ticketId={}, userId={}, reason={}",
-                    ticket.ticketId(),
-                    session.userId(),
-                    ex.getMessage());
-        }
     }
 
     private void sendTicketSummaryToOperatorChannel(String summary) {
@@ -2196,6 +2183,10 @@ public class SupportBot extends TelegramLongPollingBot {
 
         Map<String, String> answers() {
             return answers;
+        }
+
+        OffsetDateTime startedAt() {
+            return startedAt;
         }
 
         List<TicketService.TicketAttributeInput> ticketAttributes() {

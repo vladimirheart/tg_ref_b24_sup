@@ -48,7 +48,16 @@ public class InboundClientMessageIngestionService {
         if (event == null || !StringUtils.hasText(event.eventId())) {
             return;
         }
-        if (!inboxService.beginProcessing(event, routingKey)) {
+        if (!inboxService.beginProcessing(
+            event.eventId(),
+            event.eventKind(),
+            event.platform(),
+            event.channelId(),
+            event.ticketId(),
+            routingKey,
+            event,
+            event.occurredAt()
+        )) {
             return;
         }
         try {

@@ -41,13 +41,28 @@ public class RabbitIntegrationTransportConfig {
                 "x-dead-letter-routing-key", properties.getInboundDlq()
             )
         );
+        Queue ticketCreatedQueue = new Queue(
+            properties.getTicketCreatedQueue(),
+            true,
+            false,
+            false,
+            Map.of(
+                "x-dead-letter-exchange", properties.getInboundDlx(),
+                "x-dead-letter-routing-key", properties.getTicketCreatedDlq()
+            )
+        );
         Queue deadLetterQueue = new Queue(properties.getInboundDlq(), true);
+        Queue ticketCreatedDeadLetterQueue = new Queue(properties.getTicketCreatedDlq(), true);
         Binding telegramBinding = BindingBuilder.bind(inboundQueue).to(inboundExchange).with(properties.getRoutingTelegram());
         Binding vkBinding = BindingBuilder.bind(inboundQueue).to(inboundExchange).with(properties.getRoutingVk());
         Binding maxBinding = BindingBuilder.bind(inboundQueue).to(inboundExchange).with(properties.getRoutingMax());
+        Binding ticketCreatedBinding = BindingBuilder.bind(ticketCreatedQueue).to(inboundExchange).with(properties.getRoutingTicketCreated());
         Binding dlqBinding = BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(properties.getInboundDlq());
-        return new Declarables(inboundExchange, deadLetterExchange, inboundQueue, deadLetterQueue,
-            telegramBinding, vkBinding, maxBinding, dlqBinding);
+        Binding ticketCreatedDlqBinding = BindingBuilder.bind(ticketCreatedDeadLetterQueue)
+            .to(deadLetterExchange).with(properties.getTicketCreatedDlq());
+        return new Declarables(inboundExchange, deadLetterExchange, inboundQueue, ticketCreatedQueue, deadLetterQueue,
+            ticketCreatedDeadLetterQueue, telegramBinding, vkBinding, maxBinding, ticketCreatedBinding, dlqBinding,
+            ticketCreatedDlqBinding);
     }
 
     @Bean

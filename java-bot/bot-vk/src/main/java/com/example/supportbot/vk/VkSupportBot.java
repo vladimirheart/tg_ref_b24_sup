@@ -9,7 +9,9 @@ import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
+import com.example.supportbot.service.ConversationHistoryEntry;
 import com.example.supportbot.service.ConversationProblemTextSupport;
+import com.example.supportbot.service.ConversationTicketCreationCommand;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.SharedConfigService;
 import com.example.supportbot.service.TicketService;
@@ -819,19 +821,31 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private void finalizeConversation(GroupActor actor, ConversationSession session) {
         sessions.remove(session.userId());
         Channel channel = getChannel();
-        TicketService.TicketCreationResult result = ticketService.createTicket(
-                session.userId(),
-                session.username(),
-                session.clientName(),
-                session.answers(),
-                session.ticketAttributes(),
-                channel
+        TicketService.TicketCreationResult result = ticketService.createConversationTicket(
+                new ConversationTicketCreationCommand(
+                        session.userId(),
+                        session.username() != null ? session.username() : String.valueOf(session.userId()),
+                        session.username(),
+                        session.clientName(),
+                        session.answers(),
+                        session.ticketAttributes(),
+                        session.history().stream()
+                                .map(event -> new ConversationHistoryEntry(
+                                        event.userId(),
+                                        event.text(),
+                                        event.messageType(),
+                                        event.attachment(),
+                                        null,
+                                        null,
+                                        session.startedAt()
+                                ))
+                                .toList(),
+                        channel,
+                        session.startedAt()
+                )
         );
         String requestNumber = result.groupMessageId() != null ? result.groupMessageId().toString() : result.ticketId();
         log.info("Created VK ticket {} for user {}", result.ticketId(), session.userId());
-        for (HistoryEvent event : session.history()) {
-            chatHistoryService.storeEntry(event.userId(), null, channel, result.ticketId(), event.text(), event.messageType(), event.attachment(), null, null);
-        }
         sendText(actor, session.peerId(), "Спасибо! Ваше обращение №" + requestNumber + " отправлено оператору.");
         if (properties.getChannelId() != null && properties.getChannelId() > 0) {
             sendText(actor, properties.getChannelId().longValue(), session.buildSummary(result.ticketId()));
@@ -1311,6 +1325,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
         String clientName() {
             return clientName;
+        }
+
+        OffsetDateTime startedAt() {
+            return startedAt;
         }
 
         BotSettingsDto settings() {

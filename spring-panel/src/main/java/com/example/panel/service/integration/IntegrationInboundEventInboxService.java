@@ -2,6 +2,7 @@ package com.example.panel.service.integration;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.OffsetDateTime;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -21,7 +22,14 @@ public class IntegrationInboundEventInboxService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean beginProcessing(InboundClientMessageEvent event, String routingKey) {
+    public boolean beginProcessing(String eventId,
+                                   String eventKind,
+                                   String platform,
+                                   Long channelId,
+                                   String ticketId,
+                                   String routingKey,
+                                   Object payload,
+                                   OffsetDateTime receivedAt) {
         try {
             jdbcTemplate.update("""
                     INSERT INTO integration_inbound_event_inbox (
@@ -37,16 +45,16 @@ public class IntegrationInboundEventInboxService {
                         received_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                event.eventId(),
-                event.eventKind(),
-                event.platform(),
-                event.channelId(),
-                event.ticketId(),
+                eventId,
+                eventKind,
+                platform,
+                channelId,
+                ticketId,
                 "rabbitmq",
                 routingKey,
-                serialize(event),
+                serialize(payload),
                 "received",
-                event.occurredAt()
+                receivedAt
             );
             return true;
         } catch (DuplicateKeyException ex) {
@@ -75,11 +83,11 @@ public class IntegrationInboundEventInboxService {
                 """, "failed", truncateError(exception), eventId);
     }
 
-    private String serialize(InboundClientMessageEvent event) {
+    private String serialize(Object payload) {
         try {
-            return objectMapper.writeValueAsString(event);
+            return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Failed to serialize inbound client message event payload.", ex);
+            throw new IllegalStateException("Failed to serialize integration inbound event payload.", ex);
         }
     }
 

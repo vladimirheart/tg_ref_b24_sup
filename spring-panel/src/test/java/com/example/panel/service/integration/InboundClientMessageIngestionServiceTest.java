@@ -82,7 +82,16 @@ class InboundClientMessageIngestionServiceTest {
         ChatHistory persisted = new ChatHistory();
         persisted.setId(501L);
 
-        when(inboxService.beginProcessing(event, "integration.inbound.telegram")).thenReturn(true);
+        when(inboxService.beginProcessing(
+            eq("evt-1"),
+            eq("client_message.active_ticket"),
+            eq("telegram"),
+            eq(17L),
+            eq("T-17"),
+            eq("integration.inbound.telegram"),
+            eq(event),
+            eq(OffsetDateTime.parse("2026-08-14T10:15:00Z"))
+        )).thenReturn(true);
         when(channelRepository.findById(17L)).thenReturn(Optional.of(channel));
         when(ticketRepository.findByIdTicketId("T-17")).thenReturn(Optional.of(ticket));
         when(messageRepository.findFirstByTicketId("T-17")).thenReturn(Optional.of(rootMessage));
@@ -153,7 +162,16 @@ class InboundClientMessageIngestionServiceTest {
             null,
             OffsetDateTime.parse("2026-08-14T10:16:00Z")
         );
-        when(inboxService.beginProcessing(event, "integration.inbound.telegram")).thenReturn(false);
+        when(inboxService.beginProcessing(
+            eq("evt-dup"),
+            eq("client_message.active_ticket"),
+            eq("telegram"),
+            eq(1L),
+            eq("T-dup"),
+            eq("integration.inbound.telegram"),
+            eq(event),
+            eq(OffsetDateTime.parse("2026-08-14T10:16:00Z"))
+        )).thenReturn(false);
 
         service.ingest(event, "integration.inbound.telegram");
 

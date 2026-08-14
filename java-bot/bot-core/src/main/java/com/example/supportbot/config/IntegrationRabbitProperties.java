@@ -9,11 +9,14 @@ public class IntegrationRabbitProperties {
 
     private String inboundExchange;
     private String inboundQueue;
+    private String ticketCreatedQueue;
     private String inboundDlx;
     private String inboundDlq;
+    private String ticketCreatedDlq;
     private String routingTelegram;
     private String routingVk;
     private String routingMax;
+    private String routingTicketCreated;
 
     public String getInboundExchange() {
         return inboundExchange;
@@ -39,12 +42,28 @@ public class IntegrationRabbitProperties {
         this.inboundDlx = inboundDlx;
     }
 
+    public String getTicketCreatedQueue() {
+        return ticketCreatedQueue;
+    }
+
+    public void setTicketCreatedQueue(String ticketCreatedQueue) {
+        this.ticketCreatedQueue = ticketCreatedQueue;
+    }
+
     public String getInboundDlq() {
         return inboundDlq;
     }
 
     public void setInboundDlq(String inboundDlq) {
         this.inboundDlq = inboundDlq;
+    }
+
+    public String getTicketCreatedDlq() {
+        return ticketCreatedDlq;
+    }
+
+    public void setTicketCreatedDlq(String ticketCreatedDlq) {
+        this.ticketCreatedDlq = ticketCreatedDlq;
     }
 
     public String getRoutingTelegram() {
@@ -69,6 +88,14 @@ public class IntegrationRabbitProperties {
 
     public void setRoutingMax(String routingMax) {
         this.routingMax = routingMax;
+    }
+
+    public String getRoutingTicketCreated() {
+        return routingTicketCreated;
+    }
+
+    public void setRoutingTicketCreated(String routingTicketCreated) {
+        this.routingTicketCreated = routingTicketCreated;
     }
 
     public String routingKeyForPlatform(String platform) {

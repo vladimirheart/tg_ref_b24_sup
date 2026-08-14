@@ -8,7 +8,9 @@ import com.example.supportbot.service.ActiveInboundClientMessageCommand;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
+import com.example.supportbot.service.ConversationHistoryEntry;
 import com.example.supportbot.service.ConversationProblemTextSupport;
+import com.example.supportbot.service.ConversationTicketCreationCommand;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.MessagingService;
 import com.example.supportbot.service.SharedConfigService;
@@ -537,17 +539,29 @@ public class MaxWebhookController {
 
     private TicketService.TicketCreationResult finalizeConversation(Channel channel, ConversationSession session) {
         sessions.remove(session.userId());
-        TicketService.TicketCreationResult created = ticketService.createTicket(
-                session.userId(),
-                session.username(),
-                session.clientName(),
-                session.answers(),
-                session.ticketAttributes(),
-                channel
+        TicketService.TicketCreationResult created = ticketService.createConversationTicket(
+                new ConversationTicketCreationCommand(
+                        session.userId(),
+                        session.username() != null ? session.username() : String.valueOf(session.userId()),
+                        session.username(),
+                        session.clientName(),
+                        session.answers(),
+                        session.ticketAttributes(),
+                        session.history().stream()
+                                .map(event -> new ConversationHistoryEntry(
+                                        event.userId(),
+                                        event.text(),
+                                        event.messageType(),
+                                        null,
+                                        null,
+                                        null,
+                                        session.startedAt()
+                                ))
+                                .toList(),
+                        channel,
+                        session.startedAt()
+                )
         );
-        for (HistoryEvent event : session.history()) {
-            chatHistoryService.storeEntry(event.userId(), null, channel, created.ticketId(), event.text(), event.messageType(), null, null, null);
-        }
         String requestNumber = Optional.ofNullable(ticketService.resolveClientTicketNumber(created))
                 .orElse(Optional.ofNullable(created.ticketId()).orElse("—"));
         messagingService.sendToUser(channel, session.userId(), "Заявка создана. Номер: " + requestNumber);
@@ -1148,6 +1162,10 @@ public class MaxWebhookController {
 
         String clientName() {
             return clientName;
+        }
+
+        OffsetDateTime startedAt() {
+            return startedAt;
         }
 
         BotSettingsDto settings() {

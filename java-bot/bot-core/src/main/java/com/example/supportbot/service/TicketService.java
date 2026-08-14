@@ -58,6 +58,7 @@ public class TicketService {
     private final TicketAttributeService ticketAttributeService;
     private final InboundClientMessagePublisher inboundClientMessagePublisher;
     private final BotIntegrationTransportMode integrationTransportMode;
+    private final ConversationTicketCreatedPublisher conversationTicketCreatedPublisher;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketMessageRepository messageRepository,
@@ -71,7 +72,8 @@ public class TicketService {
                          UiEventOutboxService uiEventOutboxService,
                          TicketAttributeService ticketAttributeService,
                          InboundClientMessagePublisher inboundClientMessagePublisher,
-                         BotIntegrationTransportMode integrationTransportMode) {
+                         BotIntegrationTransportMode integrationTransportMode,
+                         ConversationTicketCreatedPublisher conversationTicketCreatedPublisher) {
         this.ticketRepository = ticketRepository;
         this.messageRepository = messageRepository;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
@@ -85,6 +87,7 @@ public class TicketService {
         this.ticketAttributeService = ticketAttributeService;
         this.inboundClientMessagePublisher = inboundClientMessagePublisher;
         this.integrationTransportMode = integrationTransportMode;
+        this.conversationTicketCreatedPublisher = conversationTicketCreatedPublisher;
     }
 
     @Transactional
@@ -137,6 +140,53 @@ public class TicketService {
                                              Map<String, String> answers,
                                              List<TicketAttributeInput> attributes,
                                              Channel channel) {
+        return createTicketDirect(userId, username, clientName, answers, attributes, channel);
+    }
+
+    @Transactional
+    public TicketCreationResult createConversationTicket(ConversationTicketCreationCommand command) {
+        if (command == null || command.channel() == null) {
+            throw new IllegalArgumentException("Conversation ticket creation requires a channel.");
+        }
+        if (integrationTransportMode.isRabbitMqMode()) {
+            String ticketId = UUID.randomUUID().toString();
+            List<TicketAttributeInput> attributes = command.attributes() != null ? command.attributes() : List.of();
+            Map<String, String> answers = command.answers() != null ? command.answers() : Map.of();
+            String business = resolvePromotedValue(attributes, answers, "business");
+            String locationType = resolvePromotedValue(attributes, answers, "location_type");
+            String city = resolvePromotedValue(attributes, answers, "city");
+            String locationName = resolvePromotedValue(attributes, answers, "location_name");
+            String problem = resolvePromotedValue(attributes, answers, "problem");
+            conversationTicketCreatedPublisher.publish(
+                command,
+                ticketId,
+                business,
+                locationType,
+                city,
+                locationName,
+                problem
+            );
+            return new TicketCreationResult(ticketId, null, "queued");
+        }
+        TicketCreationResult created = createTicketDirect(
+            command.userId(),
+            command.username(),
+            command.clientName(),
+            command.answers(),
+            command.attributes(),
+            command.channel()
+        );
+        storeConversationHistory(created.ticketId(), command.channel(), command.historyEntries());
+        registerActivity(created.ticketId(), command.userIdentity());
+        return created;
+    }
+
+    private TicketCreationResult createTicketDirect(long userId,
+                                                    String username,
+                                                    String clientName,
+                                                    Map<String, String> answers,
+                                                    List<TicketAttributeInput> attributes,
+                                                    Channel channel) {
         OffsetDateTime now = OffsetDateTime.now();
         String ticketId = UUID.randomUUID().toString();
         String normalizedUsername = normalizeUsername(username, userId);
@@ -190,6 +240,42 @@ public class TicketService {
         uiEventOutboxService.publishTicketCreated(ticketId, channel, message.getProblem());
 
         return new TicketCreationResult(ticketId, message.getId(), "open");
+    }
+
+    private void storeConversationHistory(String ticketId,
+                                          Channel channel,
+                                          List<ConversationHistoryEntry> historyEntries) {
+        if (!StringUtils.hasText(ticketId) || historyEntries == null || historyEntries.isEmpty()) {
+            return;
+        }
+        for (ConversationHistoryEntry entry : historyEntries) {
+            if (entry == null) {
+                continue;
+            }
+            chatHistoryService.storeEntry(
+                entry.userId(),
+                parseProviderMessageId(entry.providerMessageId()),
+                channel,
+                ticketId,
+                entry.text(),
+                entry.messageType(),
+                entry.attachmentPath(),
+                entry.attachmentName(),
+                null,
+                null
+            );
+        }
+    }
+
+    private Long parseProviderMessageId(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     @Transactional(readOnly = true)
