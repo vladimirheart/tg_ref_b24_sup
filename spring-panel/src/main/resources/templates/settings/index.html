@@ -10,61 +10,102 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />
-  <link href="/css/sidebar.css" rel="stylesheet" />
   <link href="/css/app.css" rel="stylesheet" />
+  <link href="/css/sidebar.css" rel="stylesheet" />
   <script src="/js/common.js"></script>
   <style>
     .settings-tiles .settings-tile {
-      position: relative;
-      overflow: hidden;
-      border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
-      border-radius: 1.05rem;
-      background: color-mix(in srgb, var(--card) 95%, white);
-      box-shadow: 0 0.45rem 1rem rgba(15, 23, 42, 0.06);
-      cursor: pointer;
-      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
-    }
+    position: relative;
+    overflow: hidden;
 
-    .settings-tiles .settings-tile::after {
-      content: '';
-      position: absolute;
-      inset: auto -10% -28% auto;
-      width: 8rem;
-      height: 8rem;
-      border-radius: 999px;
-      background: radial-gradient(circle at center, color-mix(in srgb, var(--secondary) 24%, white), transparent 72%);
-      pointer-events: none;
-      opacity: 0.8;
-    }
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
 
-    .settings-tiles .settings-tile--accent {
-      background: color-mix(in srgb, var(--secondary) 28%, white);
-      border-color: color-mix(in srgb, var(--secondary) 36%, var(--color-border));
-    }
+    background: var(--surface-card);
 
-    .settings-tiles .settings-tile.is-active {
-      border-color: color-mix(in srgb, var(--primary) 34%, var(--color-border));
-      box-shadow: 0 0.9rem 1.8rem rgba(18, 33, 23, 0.12);
-      background: color-mix(in srgb, var(--secondary) 42%, white);
-    }
+    box-shadow: var(--ui-panel-shadow);
 
-    .settings-tiles .settings-tile:hover {
-      border-color: color-mix(in srgb, var(--color-border) 88%, transparent);
-      box-shadow: 0 0.95rem 1.8rem rgba(15, 23, 42, 0.1);
-      transform: translateY(-3px);
-    }
+    cursor: pointer;
 
-    .settings-tiles .settings-tile .tile-icon {
-      width: 2.5rem;
-      height: 2.5rem;
-      border-radius: 0.8rem;
-      background: color-mix(in srgb, var(--primary) 14%, white);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-      flex-shrink: 0;
-    }
+    transition:
+        border-color 0.18s ease,
+        background-color 0.18s ease,
+        box-shadow 0.18s ease;
+	}
+
+	.settings-tiles .settings-tile::after {
+		content: none;
+	}
+
+	.settings-tiles .settings-tile--accent {
+		border-color:
+			color-mix(
+				in srgb,
+				var(--primary) 24%,
+				var(--color-border)
+			);
+
+		background: var(--surface-interactive);
+	}
+
+	.settings-tiles .settings-tile.is-active {
+		border-color:
+			color-mix(
+				in srgb,
+				var(--primary) 42%,
+				var(--color-border)
+			);
+
+		background: var(--surface-selected);
+
+		box-shadow:
+			0 0 0 1px
+			color-mix(
+				in srgb,
+				var(--primary) 10%,
+				transparent
+			);
+	}
+
+	.settings-tiles .settings-tile:hover {
+		border-color:
+			color-mix(
+				in srgb,
+				var(--primary) 30%,
+				var(--color-border)
+			);
+
+		background: var(--surface-interactive);
+
+		box-shadow: var(--ui-panel-shadow);
+
+		transform: none;
+	}
+
+	.settings-tiles .settings-tile .tile-icon {
+		width: 2.5rem;
+		height: 2.5rem;
+
+		display: flex;
+		align-items: center;
+		justify-content: center;
+
+		flex-shrink: 0;
+
+		border:
+			1px solid color-mix(
+				in srgb,
+				var(--primary) 22%,
+				var(--color-border)
+			);
+
+		border-radius: var(--radius-lg);
+
+		background: var(--surface-interactive);
+		color: var(--primary);
+
+		font-size: 1.2rem;
+	}
 
     .settings-overview {
       border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
@@ -83,7 +124,6 @@
       border-radius: 1rem;
       background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 14%, white));
       padding: 0.82rem 0.92rem;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
     }
     .settings-overview__stat-value {
       font-size: 1.15rem;
@@ -110,11 +150,13 @@
       gap: 0.75rem;
     }
     .settings-storage-inventory__stat {
-      border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-      border-radius: 0.95rem;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 10%, white));
-      padding: 0.8rem 0.9rem;
-    }
+	  padding: 0.8rem 0.9rem;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-lg);
+
+	  background: var(--surface-raised);
+	}
     .settings-storage-inventory__stat-value {
       font-size: 1.05rem;
       font-weight: 700;
@@ -131,11 +173,13 @@
       gap: 0.65rem;
     }
     .settings-storage-inventory__root-item {
-      border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
-      border-radius: 0.85rem;
-      padding: 0.75rem 0.85rem;
-      background: color-mix(in srgb, var(--card) 97%, white);
-    }
+	  padding: 0.75rem 0.85rem;
+
+	  border: 1px solid var(--color-border);
+	  border-radius: var(--radius-lg);
+
+	  background: var(--surface-card);
+	}
     .settings-storage-inventory__report {
       max-height: 30rem;
       overflow: auto;
@@ -146,32 +190,6 @@
     .settings-surface {
       position: relative;
       isolation: isolate;
-    }
-
-    .settings-surface::before,
-    .settings-surface::after {
-      content: '';
-      position: absolute;
-      z-index: -1;
-      pointer-events: none;
-      filter: blur(34px);
-      opacity: 0.58;
-    }
-
-    .settings-surface::before {
-      width: 16rem;
-      height: 16rem;
-      top: -3rem;
-      right: -3rem;
-      background: radial-gradient(circle at center, color-mix(in srgb, var(--secondary) 52%, white), transparent 70%);
-    }
-
-    .settings-surface::after {
-      width: 14rem;
-      height: 14rem;
-      bottom: -2rem;
-      left: -2rem;
-      background: radial-gradient(circle at center, color-mix(in srgb, var(--chart-2) 36%, white), transparent 72%);
     }
 
     :root {
@@ -187,48 +205,31 @@
     }
 
     .settings-page-hero {
-      position: relative;
-      isolation: isolate;
-      overflow: hidden;
-      border-radius: 1.45rem !important;
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent) !important;
-      background:
-        linear-gradient(145deg, color-mix(in srgb, var(--secondary) 24%, white), color-mix(in srgb, var(--card) 95%, white)) !important;
-      box-shadow: 0 1rem 2.2rem rgba(15, 23, 42, 0.12);
-    }
+		position: relative;
+		isolation: isolate;
+		overflow: hidden;
 
-    .settings-page-hero::before {
-      content: '';
-      position: absolute;
-      inset: -35% auto auto -8%;
-      width: 14rem;
-      height: 14rem;
-      border-radius: 999px;
-      background: radial-gradient(circle at center, color-mix(in srgb, var(--chart-3) 22%, white), transparent 72%);
-      pointer-events: none;
-      z-index: -1;
-    }
+		border: 1px solid var(--color-border) !important;
+		border-radius: var(--radius-xl) !important;
 
-    .settings-page-hero::after {
-      content: '';
-      position: absolute;
-      inset: auto -2rem -6rem auto;
-      width: 11rem;
-      height: 11rem;
-      border-radius: 999px;
-      background: radial-gradient(circle at center, color-mix(in srgb, var(--primary) 30%, transparent), transparent 68%);
-      pointer-events: none;
-    }
+		background: var(--surface-card) !important;
 
+		box-shadow: var(--ui-panel-shadow);
+	}
+	
     .settings-page-hero .page-kicker {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.35rem 0.7rem;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--card) 90%, white);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
-    }
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+
+		padding: 0.35rem 0.7rem;
+
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-pill);
+
+		background: var(--surface-raised);
+		color: var(--color-text-muted);
+	}
 
     .settings-page-hero .page-title,
     .settings-page-hero .page-subtitle {
@@ -262,25 +263,20 @@
     }
 
     .settings-hero-details-panel {
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-      border-radius: 1.05rem;
-      background: color-mix(in srgb, var(--card) 96%, white);
-      padding: 1rem 1.05rem;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-    }
+		padding: 1rem 1.05rem;
+
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+
+		background: var(--surface-raised);
+
+		box-shadow: none;
+	}
 
     .settings-overview--chromed {
       position: relative;
       overflow: hidden;
       border-color: color-mix(in srgb, var(--secondary) 34%, var(--color-border));
-    }
-
-    .settings-overview--chromed::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(120deg, color-mix(in srgb, var(--secondary) 18%, white), transparent 45%);
-      pointer-events: none;
     }
 
     .settings-overview--chromed > .card-body {
@@ -319,9 +315,9 @@
       flex-shrink: 0;
     }
     .settings-tiles .settings-tile--accent .tile-icon {
-      background: color-mix(in srgb, var(--primary) 18%, white);
-      color: var(--primary);
-    }
+		background: var(--surface-selected);
+		color: var(--primary);
+	}
 
     .settings-tiles .settings-tile .card-title {
       text-align: left;
@@ -345,16 +341,20 @@
       padding-top: 0.25rem;
     }
     .settings-tiles .settings-tile__tag {
-      display: inline-flex;
-      align-items: center;
-      border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-      border-radius: 999px;
-      padding: 0.12rem 0.48rem;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: var(--color-text-muted);
-      background: color-mix(in srgb, var(--card) 94%, white);
-    }
+		display: inline-flex;
+		align-items: center;
+
+		padding: 0.12rem 0.48rem;
+
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-pill);
+
+		background: var(--surface-raised);
+		color: var(--color-text-muted);
+
+		font-size: 0.7rem;
+		font-weight: 600;
+}
     .settings-tiles .settings-tile__footer {
       margin-top: 0.2rem;
       font-size: 0.74rem;
@@ -367,34 +367,36 @@
     }
 
     .modal .modal-content {
-      position: relative;
-      border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
-      border-radius: 1.35rem;
-      overflow: hidden;
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--card) 97%, white), color-mix(in srgb, var(--secondary) 12%, white));
-      box-shadow: 0 1.25rem 2.8rem rgba(15, 23, 42, 0.18);
-    }
-    .modal .modal-content::before {
-      content: '';
-      position: absolute;
-      inset: 0 0 auto;
-      height: 4px;
-      background: linear-gradient(90deg, var(--primary), var(--chart-2), var(--chart-3));
-      opacity: 0.95;
-      pointer-events: none;
-    }
+		position: relative;
+		overflow: hidden;
+
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xl);
+
+		background: var(--surface-card);
+
+		box-shadow:
+			0 24px 64px
+			color-mix(
+				in srgb,
+				var(--shadow-color) 18%,
+				transparent
+			);
+	}
 
     .modal .modal-header {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      border-bottom: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--secondary) 20%, white), color-mix(in srgb, var(--card) 96%, white));
-      padding: 1rem 1.15rem;
-      backdrop-filter: blur(12px);
-    }
+		position: sticky;
+		top: 0;
+		z-index: 2;
+
+		padding: 1rem 1.15rem;
+
+		border-bottom: 1px solid var(--color-border);
+
+		background: var(--surface-card);
+
+		backdrop-filter: blur(12px);
+	}
 
     .modal .modal-header .modal-title {
       color: var(--color-text);
@@ -403,50 +405,70 @@
     }
 
     .modal .modal-body {
-      background: color-mix(in srgb, var(--card) 97%, white);
-      padding: 1.1rem 1.15rem 1.25rem;
-      overscroll-behavior: contain;
-    }
+		padding: 1.1rem 1.15rem 1.25rem;
+
+		background: var(--surface-page);
+
+		overscroll-behavior: contain;
+	}
 
     .modal .modal-footer {
-      border-top: 1px solid color-mix(in srgb, var(--color-border) 74%, transparent);
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 14%, white));
-      padding: 0.95rem 1.15rem 1.05rem;
-      gap: 0.65rem;
-    }
+		padding: 0.95rem 1.15rem 1.05rem;
+		gap: 0.65rem;
+
+		border-top: 1px solid var(--color-border);
+
+		background: var(--surface-card);
+	}
 
     .modal .btn-close {
-      border-radius: 999px;
-      padding: 0.7rem;
-      background-color: color-mix(in srgb, var(--card) 92%, white);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-      opacity: 0.78;
-    }
+		padding: 0.7rem;
 
-    .modal .btn-close:hover,
-    .modal .btn-close:focus-visible {
-      opacity: 1;
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.72),
-        0 0 0 0.2rem color-mix(in srgb, var(--primary) 16%, transparent);
-    }
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-pill);
+
+		background-color: var(--surface-raised);
+
+		box-shadow: none;
+
+		opacity: 0.78;
+	}
+
+	.modal .btn-close:hover,
+	.modal .btn-close:focus-visible {
+		opacity: 1;
+
+		box-shadow:
+			0 0 0 0.2rem
+			color-mix(
+				in srgb,
+				var(--primary) 16%,
+				transparent
+			);
+	}
 
     .modal .card,
-    .modal .accordion-item,
-    .modal .table-responsive {
-      border-radius: 1rem !important;
-      overflow: hidden;
-      box-shadow: 0 0.55rem 1.2rem rgba(15, 23, 42, 0.06);
-    }
+	.modal .accordion-item,
+	.modal .table-responsive {
+		border: 1px solid var(--color-border) !important;
+		border-radius: var(--radius-lg) !important;
+
+		background: var(--surface-card) !important;
+
+		box-shadow: none;
+
+		overflow: hidden;
+	}
 
     .modal .modal-body > .nav-tabs {
-      padding: 0.35rem;
-      border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-      border-radius: 0.75rem;
-      background: color-mix(in srgb, var(--secondary) 20%, white);
-      gap: 0.25rem;
-    }
+		padding: 0.35rem;
+		gap: 0.25rem;
+
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+
+		background: var(--surface-raised);
+	}
 
     .modal .modal-body > .nav-tabs .nav-link {
       border-radius: 0.6rem;
@@ -455,10 +477,12 @@
     }
 
     .modal .modal-body > .nav-tabs .nav-link.active {
-      color: var(--primary);
-      background: color-mix(in srgb, var(--card) 96%, white);
-      box-shadow: 0 0.25rem 0.7rem rgba(15, 23, 42, 0.08);
-    }
+		color: var(--primary);
+
+		background: var(--surface-selected);
+
+		box-shadow: none;
+	}
 
     .settings-primary-modal .modal-dialog {
       width: min(1220px, calc(100vw - 1.7rem));
@@ -635,13 +659,16 @@
     }
 
     .settings-menu-tabs {
-      padding: 0.35rem;
-      border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-      border-radius: 0.95rem;
-      background: linear-gradient(130deg, color-mix(in srgb, var(--secondary) 26%, white), color-mix(in srgb, var(--card) 96%, white));
-      backdrop-filter: blur(6px);
-      gap: 0.35rem;
-    }
+		padding: 0.35rem;
+		gap: 0.35rem;
+
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+
+		background: var(--surface-raised);
+
+		backdrop-filter: blur(6px);
+	}
 
     .settings-menu-tabs .nav-link {
       border-radius: 0.8rem;
@@ -655,54 +682,69 @@
     }
 
     .settings-menu-tabs .nav-link.active {
-      color: var(--primary);
-      background: color-mix(in srgb, var(--card) 96%, white);
-      box-shadow: 0 0.25rem 0.7rem rgba(15, 23, 42, 0.08);
-      transform: translateY(-1px);
-    }
+		color: var(--primary);
+
+		background: var(--surface-selected);
+
+		box-shadow: none;
+		transform: none;
+	}
 
     .settings-tab-content {
       margin-top: 0.85rem;
     }
 
     .settings-tab-content > .tab-pane {
-      border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-      border-radius: 1.15rem;
-      background:
-        radial-gradient(circle at top right, color-mix(in srgb, var(--chart-3) 8%, transparent), transparent 28%),
-        linear-gradient(180deg, color-mix(in srgb, var(--secondary) 16%, white), color-mix(in srgb, var(--card) 97%, white) 52%);
-      padding: 1.2rem;
-      box-shadow: inset 0 1px 0 color-mix(in srgb, white 55%, transparent), 0 0.55rem 1.2rem rgba(15, 23, 42, 0.07);
-    }
+		padding: 1.2rem;
+
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xl);
+
+		background: var(--surface-card);
+
+		box-shadow: none;
+	}
 
     .settings-tab-content > .tab-pane > * + * {
       margin-top: 1rem;
       padding-top: 1rem;
-      border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+      border-top: 1px solid var(--color-border);
     }
 
     .settings-tab-content > .tab-pane .card,
-    .settings-tab-content > .tab-pane .accordion-item,
-    .settings-tab-content > .tab-pane .table-responsive {
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent) !important;
-      border-radius: 0.85rem !important;
-      box-shadow: 0 0.4rem 1rem rgba(15, 23, 42, 0.06);
-      background: color-mix(in srgb, var(--card) 98%, white) !important;
-    }
+	.settings-tab-content > .tab-pane .accordion-item,
+	.settings-tab-content > .tab-pane .table-responsive {
+		border: 1px solid var(--color-border) !important;
+		border-radius: var(--radius-lg) !important;
+
+		background: var(--surface-raised) !important;
+
+		box-shadow: none;
+	}
 
     .settings-modal-lead {
-      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-      border-radius: 1rem;
-      background:
-        linear-gradient(140deg, color-mix(in srgb, var(--secondary) 28%, white), color-mix(in srgb, var(--card) 96%, white));
-      color: var(--color-text-muted);
-      padding: 0.9rem 1rem;
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-      margin-bottom: 1rem;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-    }
+		display: flex;
+		align-items: flex-start;
+		gap: 0.75rem;
+
+		margin-bottom: 1rem;
+		padding: 0.9rem 1rem;
+
+		border:
+			1px solid color-mix(
+				in srgb,
+				var(--primary) 20%,
+				var(--color-border)
+			);
+
+		border-radius: var(--radius-lg);
+
+		background: var(--surface-interactive);
+
+		color: var(--color-text-muted);
+
+		box-shadow: none;
+	}
 
     .settings-modal-lead i {
       color: var(--primary);
@@ -714,29 +756,29 @@
     }
 
     .it-section-accordion .accordion-button {
-      background: color-mix(in srgb, var(--secondary) 34%, white);
-      color: var(--primary);
-      font-weight: 600;
-    }
+		background: var(--surface-selected);
+		color: var(--primary);
+		font-weight: 600;
+	}
 
-    .it-section-accordion .accordion-button.collapsed {
-      background: color-mix(in srgb, var(--card) 96%, white);
-      color: var(--primary);
-    }
+	.it-section-accordion .accordion-button.collapsed {
+		background: var(--surface-raised);
+		color: var(--color-text);
+	}
 
     .it-section-accordion .accordion-button:focus {
       box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--primary) 24%, transparent);
     }
 
     .it-section-accordion .accordion-body {
-      background-color: color-mix(in srgb, var(--card) 96%, white);
-    }
+		background: var(--surface-card);
+	}
 
     .it-section-accordion .table thead th {
-      background: color-mix(in srgb, var(--accent) 70%, white);
-      color: var(--primary);
-      border-bottom: 0;
-    }
+		background: var(--surface-selected);
+		color: var(--color-text-muted);
+		border-bottom: 1px solid var(--color-border);
+	}
 
     .it-section-accordion--nested .accordion-item {
       border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--color-border));
@@ -749,19 +791,19 @@
     }
 
     .it-section-accordion--nested .accordion-button {
-      background: color-mix(in srgb, var(--secondary) 30%, white);
-    }
+		background: var(--surface-interactive);
+	}
 
-    .it-section-accordion--nested .accordion-button.collapsed {
-      background: color-mix(in srgb, var(--card) 96%, white);
-    }
+	.it-section-accordion--nested .accordion-button.collapsed {
+		background: var(--surface-raised);
+	}
 
     .modal .card-header {
-      background:
-        linear-gradient(140deg, color-mix(in srgb, var(--secondary) 30%, white), color-mix(in srgb, var(--card) 96%, white));
-      color: var(--primary);
-      font-weight: 600;
-    }
+		background: var(--surface-raised);
+		color: var(--color-text);
+
+		font-weight: 600;
+	}
 
     .modal .card-header:not(.d-flex) {
       text-align: center;
@@ -2259,15 +2301,21 @@
       display: none !important;
     }
     .settings-overview {
-      border-radius: var(--ui-panel-radius);
-      box-shadow: none;
-      background: color-mix(in srgb, var(--card) 99%, white);
-    }
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xl);
+
+		background: var(--surface-card);
+
+		box-shadow: var(--ui-panel-shadow);
+	}
     .settings-overview__stat {
-      border-radius: calc(var(--ui-panel-radius) - 0.08rem);
-      box-shadow: none;
-      background: color-mix(in srgb, var(--card) 98%, white);
-    }
+		padding: 0.82rem 0.92rem;
+
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+
+		background: var(--surface-raised);
+	}
     .settings-tiles .settings-tile {
       box-shadow: none !important;
       border-radius: var(--ui-panel-radius) !important;
