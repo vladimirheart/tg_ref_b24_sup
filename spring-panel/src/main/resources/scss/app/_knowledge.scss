@@ -378,3 +378,241 @@
   background: #faf5ff;
   border-color: #d8b4fe;
 }
+/* Iguana knowledge semantic pass */
+
+[data-ui-page='knowledge'] .main-content {
+    background: var(--surface-page);
+    color: var(--color-text);
+}
+
+[data-ui-page='knowledge'] .page-shell {
+    max-width: 1520px;
+}
+
+[data-ui-page='knowledge'] .kb-page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+
+    border: 1px solid var(--color-border);
+
+    background: var(--surface-card);
+
+    box-shadow: var(--ui-panel-shadow) !important;
+}
+
+[data-ui-page='knowledge'] .kb-page-header__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+[data-ui-page='knowledge'] .kb-import-card,
+[data-ui-page='knowledge'] .kb-index-card,
+[data-ui-page='knowledge'] .kb-editor-main,
+[data-ui-page='knowledge'] .kb-editor-side {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-xl) !important;
+
+    background: var(--surface-card) !important;
+
+    box-shadow: none !important;
+}
+
+[data-ui-page='knowledge'] .kb-import-card .card-header,
+[data-ui-page='knowledge'] .kb-index-card .card-header,
+[data-ui-page='knowledge'] .kb-editor-main .card-header,
+[data-ui-page='knowledge'] .kb-editor-side .card-header,
+[data-ui-page='knowledge'] .kb-editor-side__header {
+    border-bottom: 1px solid var(--color-border);
+
+    background: var(--surface-raised) !important;
+    color: var(--color-text);
+}
+
+[data-ui-page='knowledge'] .kb-source-chip {
+    display: inline-flex;
+    align-items: center;
+
+    min-height: 1.7rem;
+    padding: 0 0.62rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+
+    background: var(--surface-raised);
+    color: var(--color-text-muted);
+
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+[data-ui-page='knowledge'] .kb-source-panel {
+    padding: 0.85rem 0.95rem;
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--primary) 22%,
+            var(--color-border)
+        );
+
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-interactive);
+    color: var(--color-text);
+}
+
+[data-ui-page='knowledge'] .kb-editor-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+[data-ui-page='knowledge'] .kb-editor-meta > * {
+    flex: 1 1 180px;
+}
+[data-ui-page='knowledge'] .kb-index-card .table,
+[data-ui-page='knowledge'] .kb-import-card .table {
+    margin-bottom: 0;
+
+    --bs-table-bg: var(--surface-card);
+    --bs-table-color: var(--color-text);
+    --bs-table-border-color: var(--color-border);
+}
+
+[data-ui-page='knowledge'] .kb-index-card .table thead th,
+[data-ui-page='knowledge'] .kb-import-card .table thead th {
+    background: var(--surface-raised) !important;
+    color: var(--color-text-muted) !important;
+
+    border-bottom: 1px solid var(--color-border);
+
+    font-weight: 700;
+}
+
+[data-ui-page='knowledge'] .kb-index-card .table td,
+[data-ui-page='knowledge'] .kb-import-card .table td {
+    vertical-align: top;
+
+    border-color: var(--color-border);
+}
+
+[data-ui-page='knowledge'] .kb-index-card .table td:first-child,
+[data-ui-page='knowledge'] .kb-import-card .table td:first-child {
+    min-width: 280px;
+}
+
+[data-ui-page='knowledge'] .kb-index-card .table-responsive,
+[data-ui-page='knowledge'] .kb-import-card .table-responsive {
+    overflow: hidden;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-card);
+}
+[data-ui-page='knowledge'] .knowledge-markdown {
+    color: var(--color-text);
+
+    line-height: var(--line-height-relaxed);
+}
+
+[data-ui-page='knowledge'] .knowledge-markdown blockquote {
+    margin-left: 0;
+    padding: 0.75rem 1rem;
+
+    border-left: 4px solid var(--primary);
+    border-radius:
+        0
+        var(--radius-lg)
+        var(--radius-lg)
+        0;
+
+    background: var(--surface-interactive);
+    color: var(--color-text);
+}
+
+[data-ui-page='knowledge'] .knowledge-markdown code {
+    color: var(--color-text);
+}
+
+[data-ui-page='knowledge'] .knowledge-markdown pre {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--color-ink-panel-deep);
+    color: var(--color-on-ink);
+}
+[data-ui-page='knowledge'] .knowledge-toc {
+    padding: 1rem 1.125rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+}
+
+[data-ui-page='knowledge'] .knowledge-toc__title {
+    color: var(--color-text);
+
+    font-weight: 700;
+}
+
+[data-ui-page='knowledge'] .knowledge-toc a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+}
+
+[data-ui-page='knowledge'] .knowledge-toc a:focus-visible {
+    color: var(--primary);
+
+    outline:
+        2px solid color-mix(
+            in srgb,
+            var(--primary) 28%,
+            transparent
+        );
+
+    outline-offset: 2px;
+}
+[data-ui-page='knowledge'] .knowledge-callout {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+}
+
+[data-ui-page='knowledge'] .knowledge-callout__icon {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+
+    background: var(--surface-card);
+    color: var(--primary);
+}
+
+[data-ui-page='knowledge'] .knowledge-callout__body > :last-child {
+    margin-bottom: 0;
+}
+@media (max-width: 767.98px) {
+    [data-ui-page='knowledge'] .kb-page-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    [data-ui-page='knowledge'] .kb-page-header__actions {
+        width: 100%;
+    }
+
+    [data-ui-page='knowledge'] .kb-page-header__actions .btn {
+        width: 100%;
+    }
+
+    [data-ui-page='knowledge'] .kb-index-card .table td:first-child,
+    [data-ui-page='knowledge'] .kb-import-card .table td:first-child {
+        min-width: 220px;
+    }
+}

@@ -14,17 +14,29 @@
 <body class="with-sidebar sidebar-pinned" data-ui-page="knowledge">
 <div th:replace="~{fragments/navbar :: navbar('knowledge')}"></div>
 <main class="main-content container-fluid py-4 page-shell">
-    <div class="page-header-card page-header-card--compact kb-page-header mb-4">
-        <div>
-            <h1 class="h3 mb-1">База знаний</h1>
-            <p class="text-muted mb-0">Подборка инструкций и регламентов службы поддержки.</p>
-        </div>
-        <div class="kb-page-header__actions">
-            <a class="btn btn-primary" th:if="${canCreate}" th:href="@{/knowledge-base/new}">Новая статья</a>
-        </div>
-    </div>
+    <div class="page-header-card kb-page-header mb-4">
+		<div>
+			<span class="page-kicker">Знания</span>
 
-    <div class="card shadow-sm mb-4 kb-import-card" id="notion-import">
+			<h1 class="page-title">
+				База знаний
+			</h1>
+
+			<p class="page-subtitle mb-0">
+				Инструкции, регламенты и рабочие материалы службы поддержки.
+			</p>
+		</div>
+
+		<div class="kb-page-header__actions">
+			<a class="btn btn-primary"
+			   th:if="${canCreate}"
+			   th:href="@{/knowledge-base/new}">
+				Новая статья
+			</a>
+		</div>
+	</div>
+
+    <div class="card mb-4 kb-import-card" id="notion-import">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
                 <div>
@@ -296,7 +308,7 @@
         </div>
     </div>
 
-    <div class="card shadow-sm kb-index-card">
+    <div class="card kb-index-card">
         <div class="card-body">
             <div class="input-group mb-3">
                 <span class="input-group-text" aria-hidden="true">🔎</span>
