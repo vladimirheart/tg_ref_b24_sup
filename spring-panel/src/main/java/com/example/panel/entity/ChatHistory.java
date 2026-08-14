@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Column;
 
 import java.time.OffsetDateTime;
 
@@ -40,6 +41,15 @@ public class ChatHistory {
     private Long tgMessageId;
 
     private Long replyToTgId;
+
+    @Column(name = "original_message")
+    private String originalMessage;
+
+    @Column(name = "forwarded_from")
+    private String forwardedFrom;
+
+    @Column(name = "file_name")
+    private String fileName;
 
     private OffsetDateTime editedAt;
 
@@ -147,5 +157,29 @@ public class ChatHistory {
 
     public void setDeletedAt(OffsetDateTime deletedAt) {
         this.deletedAt = deletedAt;
+    }
+
+    public String getOriginalMessage() {
+        return originalMessage;
+    }
+
+    public void setOriginalMessage(String originalMessage) {
+        this.originalMessage = originalMessage;
+    }
+
+    public String getForwardedFrom() {
+        return forwardedFrom;
+    }
+
+    public void setForwardedFrom(String forwardedFrom) {
+        this.forwardedFrom = forwardedFrom;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 }

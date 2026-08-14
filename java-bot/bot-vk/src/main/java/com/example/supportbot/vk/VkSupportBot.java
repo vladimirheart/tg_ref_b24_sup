@@ -4,6 +4,7 @@ import com.example.supportbot.config.VkBotProperties;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.PendingFeedbackRequest;
 import com.example.supportbot.entity.TicketActive;
+import com.example.supportbot.service.ActiveInboundClientMessageCommand;
 import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
@@ -758,20 +759,22 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return false;
         }
         String messageType = hasAttachments && (text == null || text.isBlank()) ? "attachment" : "text";
-        chatHistoryService.storeUserMessage(
+        ticketService.recordActiveClientMessage(new ActiveInboundClientMessageCommand(
                 userId,
-                null,
-                clientText,
+                username,
+                clientProfile != null ? clientProfile.username() : null,
+                clientProfile != null ? clientProfile.clientName() : null,
                 channel,
                 ticketId,
+                clientText,
                 messageType,
                 null,
                 null,
-                null
-        );
-        ticketService.updateClientProfile(ticketId, clientProfile != null ? clientProfile.username() : null,
-                clientProfile != null ? clientProfile.clientName() : null);
-        ticketService.registerActivity(ticketId, username);
+                null,
+                null,
+                null,
+                OffsetDateTime.now()
+        ));
         relayActiveMessageToOperators(actor, ticketId, clientText, userId, hasAttachments, clientProfile);
         return true;
     }

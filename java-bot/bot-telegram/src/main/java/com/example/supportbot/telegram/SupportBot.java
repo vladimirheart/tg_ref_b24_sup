@@ -4,6 +4,7 @@ import com.example.supportbot.config.BotProperties;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.PendingFeedbackRequest;
 import com.example.supportbot.entity.TicketActive;
+import com.example.supportbot.service.ActiveInboundClientMessageCommand;
 import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
@@ -895,26 +896,29 @@ public class SupportBot extends TelegramLongPollingBot {
                 messageType,
                 message.getMessageId(),
                 attachmentPath);
-        chatHistoryService.storeUserMessage(
+        ticketService.recordActiveClientMessage(new ActiveInboundClientMessageCommand(
                 userId,
-                message.getMessageId() != null ? message.getMessageId().longValue() : null,
-                text,
+                username != null ? username : (userId != null ? userId.toString() : null),
+                username,
+                null,
                 getChannel(),
                 ticketId,
+                text,
                 messageType,
                 attachmentPath,
                 attachmentName,
+                message.getMessageId() != null ? message.getMessageId().longValue() : null,
                 message.getReplyToMessage() != null && message.getReplyToMessage().getMessageId() != null
                         ? message.getReplyToMessage().getMessageId().longValue()
                         : null,
-                resolveForwardedFrom(message)
-        );
-        log.info("Stored client message in history: ticketId={} userId={} messageType={} attachment={}",
+                resolveForwardedFrom(message),
+                OffsetDateTime.now()
+        ));
+        log.info("Recorded client message via inbound transport: ticketId={} userId={} messageType={} attachment={}",
                 ticketId,
                 userId,
                 messageType,
                 attachmentPath);
-        ticketService.registerActivity(ticketId, username != null ? username : (userId != null ? userId.toString() : null));
         relayActiveMessageToOperators(ticketId, messageType, text, attachmentPath, username, userId);
         return true;
     }

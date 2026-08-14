@@ -1,6 +1,12 @@
 spring:
   application:
     name: support-bot
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:${APP_RABBITMQ_AMQP_PORT:5672}}
+    username: ${SPRING_RABBITMQ_USERNAME:iguana}
+    password: ${SPRING_RABBITMQ_PASSWORD:iguana}
+    virtual-host: ${SPRING_RABBITMQ_VHOST:/}
   jpa:
     hibernate:
       ddl-auto: none
@@ -23,6 +29,19 @@ support-bot:
   attachments-dir: ${APP_STORAGE_ATTACHMENTS:../attachments}
   knowledge-base-dir: ${APP_STORAGE_KB:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
   webforms-dir: ${APP_STORAGE_WEBFORMS:${APP_STORAGE_ATTACHMENTS:../attachments}/forms}
+
+app:
+  integration:
+    transport:
+      mode: ${APP_INTEGRATION_TRANSPORT_MODE:jdbc}
+    rabbitmq:
+      inbound-exchange: ${APP_INTEGRATION_RABBITMQ_INBOUND_EXCHANGE:iguana.integration.inbound}
+      inbound-queue: ${APP_INTEGRATION_RABBITMQ_INBOUND_QUEUE:iguana.integration.inbound.panel}
+      inbound-dlx: ${APP_INTEGRATION_RABBITMQ_INBOUND_DLX:iguana.integration.inbound.dlx}
+      inbound-dlq: ${APP_INTEGRATION_RABBITMQ_INBOUND_DLQ:iguana.integration.inbound.panel.dlq}
+      routing-telegram: ${APP_INTEGRATION_RABBITMQ_ROUTING_TELEGRAM:integration.inbound.telegram}
+      routing-vk: ${APP_INTEGRATION_RABBITMQ_ROUTING_VK:integration.inbound.vk}
+      routing-max: ${APP_INTEGRATION_RABBITMQ_ROUTING_MAX:integration.inbound.max}
 
 vk-bot:
   enabled: ${VK_BOT_ENABLED:false}

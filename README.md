@@ -70,8 +70,8 @@ cd spring-panel
 
 - создаёт корневой `.env`, если его ещё нет;
 - подготавливает `attachments/`, `logs/` и `bot_databases/`;
-- если на машине доступен Docker с `docker compose`, поднимает локальный PostgreSQL и переводит старт в `APP_DB_MODE=postgresql`;
-- если Docker недоступен, сохраняет рабочий dev-path через `APP_DB_MODE=sqlite`, чтобы проект всё равно можно было поднять без ручной подготовки.
+- если на машине доступен Docker с `docker compose`, поднимает локальные `PostgreSQL` и `RabbitMQ`, переводит старт в `APP_DB_MODE=postgresql` и включает `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
+- если Docker недоступен, сохраняет рабочий dev-path через `APP_DB_MODE=sqlite` и `APP_INTEGRATION_TRANSPORT_MODE=jdbc`, чтобы проект всё равно можно было поднять без ручной подготовки.
 
 Для ручного повторного bootstrap используйте `scripts/bootstrap-first-run.ps1` или `scripts/bootstrap-first-run.sh`.
 
@@ -104,6 +104,7 @@ export SPRING_OPTS="--server.port=8080"
 4. Каталог `attachments/`, если нужны вложения и пользовательские файлы.
 5. Корректные токены/секреты окружения для нужных каналов.
 6. JSON-конфиги в `config/shared/`.
+7. Для PostgreSQL-first transport path с ownership split нужен локальный или внешний `RabbitMQ`.
 
 Maven wrapper уже лежит в репозитории, поэтому отдельная установка Maven обычно не требуется.
 

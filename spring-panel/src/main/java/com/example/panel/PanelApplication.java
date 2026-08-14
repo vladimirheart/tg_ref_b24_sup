@@ -3,6 +3,7 @@ package com.example.panel;
 import com.example.panel.config.EnvDefaultsInitializer;
 import com.example.panel.security.SecurityBootstrap;
 import com.example.panel.service.AdditionalServicesHealthService;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
@@ -14,6 +15,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableCaching
 @EnableScheduling
+@EnableRabbit
 public class PanelApplication {
 
     public static void main(String[] args) {

@@ -1,6 +1,12 @@
 spring:
   application:
     name: panel
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:${APP_RABBITMQ_AMQP_PORT:5672}}
+    username: ${SPRING_RABBITMQ_USERNAME:iguana}
+    password: ${SPRING_RABBITMQ_PASSWORD:iguana}
+    virtual-host: ${SPRING_RABBITMQ_VHOST:/}
 
   jpa:
     hibernate:
@@ -71,6 +77,17 @@ app:
     attachments: ${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}/knowledge_base}
     avatars: ${APP_STORAGE_AVATARS:../attachments/avatars}
+  integration:
+    transport:
+      mode: ${APP_INTEGRATION_TRANSPORT_MODE:jdbc}
+    rabbitmq:
+      inbound-exchange: ${APP_INTEGRATION_RABBITMQ_INBOUND_EXCHANGE:iguana.integration.inbound}
+      inbound-queue: ${APP_INTEGRATION_RABBITMQ_INBOUND_QUEUE:iguana.integration.inbound.panel}
+      inbound-dlx: ${APP_INTEGRATION_RABBITMQ_INBOUND_DLX:iguana.integration.inbound.dlx}
+      inbound-dlq: ${APP_INTEGRATION_RABBITMQ_INBOUND_DLQ:iguana.integration.inbound.panel.dlq}
+      routing-telegram: ${APP_INTEGRATION_RABBITMQ_ROUTING_TELEGRAM:integration.inbound.telegram}
+      routing-vk: ${APP_INTEGRATION_RABBITMQ_ROUTING_VK:integration.inbound.vk}
+      routing-max: ${APP_INTEGRATION_RABBITMQ_ROUTING_MAX:integration.inbound.max}
   admin:
     python-executable: ${APP_ADMIN_PYTHON_EXECUTABLE:python}
     repository-root: ${APP_ADMIN_REPOSITORY_ROOT:}

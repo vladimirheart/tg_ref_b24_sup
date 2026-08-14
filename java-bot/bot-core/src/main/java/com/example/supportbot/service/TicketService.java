@@ -16,6 +16,7 @@ import com.example.supportbot.repository.TicketActiveRepository;
 import com.example.supportbot.repository.TicketMessageRepository;
 import com.example.supportbot.repository.TicketRepository;
 import com.example.supportbot.repository.TicketSpanRepository;
+import com.example.supportbot.config.BotIntegrationTransportMode;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -55,6 +56,8 @@ public class TicketService {
     private final AutoCloseFollowUpTaskService autoCloseFollowUpTaskService;
     private final UiEventOutboxService uiEventOutboxService;
     private final TicketAttributeService ticketAttributeService;
+    private final InboundClientMessagePublisher inboundClientMessagePublisher;
+    private final BotIntegrationTransportMode integrationTransportMode;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketMessageRepository messageRepository,
@@ -66,7 +69,9 @@ public class TicketService {
                          FeedbackRepository feedbackRepository,
                          AutoCloseFollowUpTaskService autoCloseFollowUpTaskService,
                          UiEventOutboxService uiEventOutboxService,
-                         TicketAttributeService ticketAttributeService) {
+                         TicketAttributeService ticketAttributeService,
+                         InboundClientMessagePublisher inboundClientMessagePublisher,
+                         BotIntegrationTransportMode integrationTransportMode) {
         this.ticketRepository = ticketRepository;
         this.messageRepository = messageRepository;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
@@ -78,6 +83,34 @@ public class TicketService {
         this.autoCloseFollowUpTaskService = autoCloseFollowUpTaskService;
         this.uiEventOutboxService = uiEventOutboxService;
         this.ticketAttributeService = ticketAttributeService;
+        this.inboundClientMessagePublisher = inboundClientMessagePublisher;
+        this.integrationTransportMode = integrationTransportMode;
+    }
+
+    @Transactional
+    public void recordActiveClientMessage(ActiveInboundClientMessageCommand command) {
+        if (command == null || !StringUtils.hasText(command.ticketId())) {
+            return;
+        }
+        if (integrationTransportMode.isRabbitMqMode()) {
+            inboundClientMessagePublisher.publish(command);
+            return;
+        }
+
+        chatHistoryService.storeUserMessage(
+            command.userId(),
+            command.providerMessageId(),
+            command.text(),
+            command.channel(),
+            command.ticketId(),
+            command.messageType(),
+            command.attachmentPath(),
+            command.attachmentName(),
+            command.replyToProviderMessageId(),
+            command.forwardedFrom()
+        );
+        updateClientProfile(command.ticketId(), command.username(), command.clientName());
+        registerActivity(command.ticketId(), command.userIdentity());
     }
 
     @Transactional

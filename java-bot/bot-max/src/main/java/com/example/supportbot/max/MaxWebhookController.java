@@ -4,6 +4,7 @@ import com.example.supportbot.config.MaxBotProperties;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.PendingFeedbackRequest;
 import com.example.supportbot.entity.TicketActive;
+import com.example.supportbot.service.ActiveInboundClientMessageCommand;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
@@ -176,9 +177,22 @@ public class MaxWebhookController {
             String clientText = !text.isBlank() ? text : "[вложение от клиента]";
             String messageType = hasAttachments ? normalizeAttachmentType(attachments.get(0).type()) : "text";
             String attachmentRef = hasAttachments ? attachments.get(0).urlOrName() : null;
-            chatHistoryService.storeUserMessage(userId, null, clientText, channel, ticketId, messageType, attachmentRef, null, null);
-            ticketService.updateClientProfile(ticketId, clientProfile.username(), clientProfile.clientName());
-            ticketService.registerActivity(ticketId, clientProfile.identity());
+            ticketService.recordActiveClientMessage(new ActiveInboundClientMessageCommand(
+                userId,
+                clientProfile.identity(),
+                clientProfile.username(),
+                clientProfile.clientName(),
+                channel,
+                ticketId,
+                clientText,
+                messageType,
+                attachmentRef,
+                null,
+                null,
+                null,
+                null,
+                OffsetDateTime.now()
+            ));
             notifyOperatorsAboutActiveMessage(channel, ticketId, clientProfile, clientText, messageType, attachmentRef, attachments.size());
             return ResponseEntity.ok(Map.of("ok", true, "ticket_id", ticketId));
         }

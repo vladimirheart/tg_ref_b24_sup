@@ -16,6 +16,24 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: iguana-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: iguana
+      RABBITMQ_DEFAULT_PASS: iguana
+    ports:
+      - "${APP_RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${APP_RABBITMQ_HTTP_PORT:-15672}:15672"
+    volumes:
+      - iguana-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
 volumes:
   iguana-postgres-data:
+  iguana-rabbitmq-data:
