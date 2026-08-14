@@ -3481,9 +3481,9 @@ body {
 [data-ui-page=knowledge] .kb-notion-status-card {
   min-width: 0;
   padding: 0.9rem 0.95rem;
-  border: 1px solid var(--ui-panel-border);
-  border-radius: calc(var(--ui-panel-radius) - 0.1rem);
-  background: color-mix(in srgb, var(--card) 98%, white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
 }
 
 [data-ui-page=knowledge] .kb-notion-status-label {
@@ -3509,19 +3509,6 @@ body {
   word-break: break-word;
 }
 
-[data-ui-page=knowledge] .kb-source-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.7rem;
-  padding: 0 0.62rem;
-  border-radius: 999px;
-  border: 1px solid var(--ui-panel-border);
-  background: color-mix(in srgb, var(--card) 97%, white);
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--color-text-muted);
-}
-
 [data-ui-page=knowledge] .kb-editor-meta {
   display: flex;
   flex-wrap: wrap;
@@ -3542,58 +3529,49 @@ body {
   vertical-align: top;
 }
 
-/* Modal render stability: prevent half-drawn states */
-.modal {
+/* Knowledge modal render stability */
+[data-ui-page=knowledge] .modal {
   z-index: 20000 !important;
-}
-
-.modal-backdrop {
-  z-index: 19990 !important;
-}
-
-.modal.fade .modal-dialog {
-  transform: translateY(8px) !important;
-  opacity: 0 !important;
-  transition: transform 0.18s ease, opacity 0.18s ease !important;
-}
-
-.modal.fade.show .modal-dialog,
-.modal.fade.showing .modal-dialog {
-  transform: translateY(0) !important;
-  opacity: 1 !important;
-}
-
-.modal.fade.modal-closing .modal-dialog {
-  transform: translateY(6px) !important;
-  opacity: 0 !important;
-}
-
-.modal-content {
-  opacity: 1 !important;
-  transform: none !important;
-  max-width: 100%;
-}
-
-/* Instant modal rendering to avoid lag */
-.modal.fade .modal-dialog,
-.modal.fade.show .modal-dialog,
-.modal.fade.showing .modal-dialog,
-.modal.fade.modal-closing .modal-dialog {
-  transform: none !important;
-  opacity: 1 !important;
-  transition: none !important;
-}
-
-.modal,
-.modal-backdrop {
   transition: none !important;
   animation: none !important;
 }
 
-.modal-header,
-.modal-body,
-.modal-footer {
-  background: var(--card) !important;
+[data-ui-page=knowledge] .modal-backdrop {
+  z-index: 19990 !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+[data-ui-page=knowledge] .modal.fade .modal-dialog,
+[data-ui-page=knowledge] .modal.fade.show .modal-dialog,
+[data-ui-page=knowledge] .modal.fade.showing .modal-dialog,
+[data-ui-page=knowledge] .modal.fade.modal-closing .modal-dialog {
+  transform: none !important;
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+[data-ui-page=knowledge] .modal-content {
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-card) !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+[data-ui-page=knowledge] .modal-header {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--surface-card) !important;
+}
+
+[data-ui-page=knowledge] .modal-body {
+  background: var(--surface-page) !important;
+}
+
+[data-ui-page=knowledge] .modal-footer {
+  border-top: 1px solid var(--color-border);
+  background: var(--surface-card) !important;
 }
 
 .knowledge-markdown {
@@ -3943,7 +3921,30 @@ body {
 }
 
 [data-ui-page=knowledge] .knowledge-markdown code {
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-interactive);
   color: var(--color-text);
+}
+
+[data-ui-page=knowledge] .knowledge-markdown pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+[data-ui-page=knowledge] .knowledge-markdown th,
+[data-ui-page=knowledge] .knowledge-markdown td {
+  border-color: var(--color-border);
+}
+
+[data-ui-page=knowledge] .knowledge-markdown th {
+  background: var(--surface-raised);
+  color: var(--color-text);
+}
+
+[data-ui-page=knowledge] .knowledge-markdown a {
+  color: var(--primary);
 }
 
 [data-ui-page=knowledge] .knowledge-markdown pre {
@@ -4010,6 +4011,154 @@ body {
     min-width: 220px;
   }
 }
+/* Knowledge semantic badges */
+[data-ui-page=knowledge] .badge.text-bg-light {
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised) !important;
+  color: var(--color-text-muted) !important;
+}
+
+[data-ui-page=knowledge] .badge.text-bg-primary {
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--color-border));
+  background: var(--surface-selected) !important;
+  color: var(--primary) !important;
+}
+
+[data-ui-page=knowledge] .badge.text-bg-secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-muted) !important;
+  color: var(--color-text-muted) !important;
+}
+
+[data-ui-page=knowledge] .badge.text-bg-success {
+  border: 1px solid var(--state-success-border);
+  background: var(--state-success-bg) !important;
+  color: var(--state-success-text) !important;
+}
+
+[data-ui-page=knowledge] .badge.text-bg-warning {
+  border: 1px solid var(--state-warning-border);
+  background: var(--state-warning-bg) !important;
+  color: var(--state-warning-text) !important;
+}
+
+[data-ui-page=knowledge] .badge.text-bg-danger {
+  border: 1px solid var(--state-danger-border);
+  background: var(--state-danger-bg) !important;
+  color: var(--state-danger-text) !important;
+}
+
+/* Notion workspace */
+[data-ui-page=knowledge] .kb-notion-sync-card {
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised);
+}
+
+[data-ui-page=knowledge] .kb-notion-metric {
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+[data-ui-page=knowledge] .kb-notion-preview {
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--color-border));
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised) !important;
+}
+
+[data-ui-page=knowledge] .kb-notion-preview-search {
+  max-width: 28rem;
+}
+
+[data-ui-page=knowledge] .kb-notion-preview-table {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+[data-ui-page=knowledge] .kb-editor-meta-card {
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+[data-ui-page=knowledge] .kb-article-content-card {
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised);
+}
+
+[data-ui-page=knowledge] .kb-article-content-card > .card-body {
+  background: transparent;
+}
+
+[data-ui-page=knowledge] .kb-edit-source-card {
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: var(--surface-interactive);
+  box-shadow: none;
+}
+
+[data-ui-page=knowledge] .kb-attachment-list {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+[data-ui-page=knowledge] .kb-attachment-list .list-group-item {
+  border-color: var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text);
+}
+
+[data-ui-page=knowledge] .kb-attachment-upload {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-interactive);
+}
+
+/* Semantic Notion callouts */
+[data-ui-page=knowledge] .knowledge-callout--gray-bg,
+[data-ui-page=knowledge] .knowledge-callout--default {
+  border-color: var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text);
+}
+
+[data-ui-page=knowledge] .knowledge-callout--blue-bg {
+  border-color: var(--state-info-border);
+  background: var(--state-info-bg);
+  color: var(--state-info-text);
+}
+
+[data-ui-page=knowledge] .knowledge-callout--green-bg {
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+}
+
+[data-ui-page=knowledge] .knowledge-callout--yellow-bg,
+[data-ui-page=knowledge] .knowledge-callout--orange-bg {
+  border-color: var(--state-warning-border);
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+}
+
+[data-ui-page=knowledge] .knowledge-callout--red-bg {
+  border-color: var(--state-danger-border);
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
+}
+
+[data-ui-page=knowledge] .knowledge-callout--purple-bg {
+  border-color: var(--state-ai-border);
+  background: var(--state-ai-bg);
+  color: var(--state-ai-text);
+}
+
 .ui-kit-shell {
   display: grid;
   gap: 1rem;
