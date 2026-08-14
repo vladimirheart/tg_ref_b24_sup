@@ -95,10 +95,10 @@
           const rawTitle = escapeHtml(String(item?.title || '').trim());
           const rawSnippet = escapeHtml(String(item?.snippet || '').trim());
           return `
-            <article class="border rounded p-2">
+            <article class="dialog-ai-suggestion">
               <div class="d-flex justify-content-between align-items-start gap-2">
                 <div class="fw-semibold">${title}</div>
-                <span class="badge text-bg-light border">${sourceBadge}</span>
+                <span class="badge dialog-ai-source-badge">${sourceBadge}</span>
               </div>
               ${snippet ? `<div class="small text-muted mt-1">${snippet}</div>` : ''}
               ${explain ? `<div class="small mt-1"><strong>Почему выбрано:</strong> ${explain}</div>` : ''}
@@ -157,7 +157,7 @@
           const reply = String(item?.reply || item?.snippet || '').trim();
           const replyEscaped = escapeHtml(reply);
           return `
-            <article class="border rounded p-2">
+            <article class="dialog-ai-suggestion">
               <div class="fw-semibold small mb-1">${title}</div>
               ${explain ? `<div class="small text-muted mb-1">${explain}</div>` : ''}
               <div class="small mb-2">${replyEscaped || '—'}</div>

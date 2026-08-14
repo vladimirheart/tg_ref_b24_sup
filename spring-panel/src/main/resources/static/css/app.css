@@ -552,11 +552,11 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
 }
 
 .chat-history-archive-section {
-  border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
-  border-radius: 0.9rem;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 96%, var(--color-bg)), color-mix(in srgb, var(--color-bg-muted) 72%, var(--color-surface)));
-  padding: 0.9rem;
   margin-bottom: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-muted) 72%, var(--surface-card));
 }
 
 .chat-history-archive-head {
@@ -586,7 +586,7 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
   max-width: 220px;
   border-radius: 0.5rem;
   border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--surface-raised);
   object-fit: cover;
   display: block;
 }
@@ -622,8 +622,8 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
   min-height: 2.75rem;
   padding: 0.65rem 0.85rem;
   border-radius: 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised);
   color: var(--color-text);
   font-size: 0.9rem;
   font-weight: 600;
@@ -667,9 +667,9 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
 .chat-media-info-toggle {
   width: 1.75rem;
   height: 1.75rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+  border: 1px solid var(--color-border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-card) 92%, transparent);
   color: var(--color-text-muted);
   display: inline-flex;
   align-items: center;
@@ -789,13 +789,13 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text);
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.4;
-  background-color: var(--color-surface-soft);
-  color: var(--color-text);
-  border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
   white-space: nowrap;
 }
 
@@ -2157,7 +2157,7 @@ body[data-ui-page=dialogs] .dialog-open-btn {
 
 .client-avatar-ring.status-has-color::before {
   border: 3px solid var(--status-color, var(--primary));
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--shadow-color) 12%, transparent);
   z-index: 1;
 }
 
@@ -2297,6 +2297,11 @@ body[data-ui-page=dialogs] .dialog-open-btn {
     transform: scale(1.45);
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .client-avatar-ring.status-has-color::after {
+    animation: none;
+  }
+}
 .chat-media-preview[data-image-src] {
   cursor: zoom-in;
 }
@@ -2359,6 +2364,32 @@ body[data-ui-page=dialogs] .dialog-open-btn {
 .workspace-message-body {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.workspace-ai-panel {
+  padding: 0.85rem;
+  border: 1px solid var(--state-ai-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--state-ai-bg) 72%, var(--surface-card));
+  color: var(--color-text);
+}
+
+.dialog-ai-suggestion {
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--state-ai) 24%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--state-ai) 6%, var(--surface-card));
+  color: var(--color-text);
+}
+
+.dialog-ai-suggestion + .dialog-ai-suggestion {
+  margin-top: 0.15rem;
+}
+
+.dialog-ai-source-badge {
+  border: 1px solid color-mix(in srgb, var(--state-ai) 28%, var(--color-border));
+  background: color-mix(in srgb, var(--state-ai) 11%, var(--surface-card));
+  color: var(--color-text);
 }
 
 /* Unified visual system */
