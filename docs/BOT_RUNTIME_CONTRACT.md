@@ -73,6 +73,11 @@ Platform-specific:
 - production readiness и blocking reasons;
 - lifecycle expectations (`running/stopped/error`, startup/timeout behavior).
 
+После шагов `01-181` diagnostic payload должен также явно показывать DB boundary:
+
+- в `APP_DB_MODE=sqlite` warnings/blockers обязаны сигнализировать, что это только local/dev bootstrap perimeter;
+- production-ready статус для bot runtime допустим только при external PostgreSQL contract (`APP_DB_MODE=postgresql` + `SPRING_DATASOURCE_URL`) и при готовом jar launcher path.
+
 ## Production Recipe
 
 Рекомендуемый production path сейчас такой:

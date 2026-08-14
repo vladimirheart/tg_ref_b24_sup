@@ -81,6 +81,11 @@ public class BotRuntimeContractService {
         if (launchMode == BotProcessProperties.LaunchMode.AUTO && executableJar == null) {
             warnings.add("Для модуля не найден jar, будет использован fallback на Maven launcher.");
         }
+        if (databaseRuntimeMode.isSqliteMode()) {
+            warnings.add(
+                "SQLite runtime contract остаётся только local/dev bootstrap perimeter: он допустим для первого запуска и fallback-сценариев, но не считается production ownership path."
+            );
+        }
         databaseRuntimeMode.externalSettings()
             .filter(settings -> settings.vendor() != DatabaseMode.POSTGRESQL)
             .ifPresent(settings -> warnings.add(
@@ -351,6 +356,11 @@ public class BotRuntimeContractService {
         String preferredLauncher = botProcessProperties.resolvePreferredProductionLauncher().name().toLowerCase();
         String recommendedArtifactPath = resolveRecommendedArtifactPath(botWorkingDir, botModule);
         List<String> blockers = new ArrayList<>();
+        if (databaseRuntimeMode.isSqliteMode()) {
+            blockers.add(
+                "SQLite runtime contract считается только local/dev bootstrap perimeter; production-ready bot runtime требует external PostgreSQL datasource contract."
+            );
+        }
         if (!"jar".equals(preferredLauncher)) {
             blockers.add("Для production пока рекомендуется launcher jar, а не " + preferredLauncher + ".");
         }

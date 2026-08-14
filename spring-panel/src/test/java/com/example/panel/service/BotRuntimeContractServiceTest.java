@@ -58,10 +58,44 @@ class BotRuntimeContractServiceTest {
         assertThat(contract.resolvedLauncherKind()).isEqualTo("jar");
         assertThat(contract.artifactSource()).isEqualTo("explicit-config");
         assertThat(contract.executableJarPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
-        assertThat(contract.warnings()).isEmpty();
-        assertThat(contract.production().readyForProduction()).isTrue();
+        assertThat(contract.warnings()).anyMatch(item -> item.contains("SQLite runtime contract"));
+        assertThat(contract.production().readyForProduction()).isFalse();
+        assertThat(contract.production().blockingReasons()).anyMatch(item -> item.contains("external PostgreSQL datasource contract"));
         assertThat(contract.production().recommendedArtifactPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
         assertThat(contract.lifecycle().runningStatus()).isEqualTo("running");
+    }
+
+    @Test
+    void describeMarksExplicitJarAsProductionReadyInExternalPostgresMode() throws Exception {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        Path jar = botWorkingDir.resolve("dist").resolve("bot-telegram-runtime.jar");
+        Files.createDirectories(jar.getParent());
+        Files.writeString(jar, "fake");
+
+        BotRuntimeContractService service = createService(
+            "auto",
+            Map.of("bot-telegram", "dist/bot-telegram-runtime.jar"),
+            Map.of(),
+            Map.of(
+                "app.datasource.mode", "postgresql",
+                "spring.datasource.url", "jdbc:postgresql://db.example.local:5432/iguana",
+                "spring.datasource.username", "iguana",
+                "spring.datasource.password", "secret"
+            )
+        );
+        Channel channel = new Channel();
+        channel.setId(116L);
+        channel.setPlatform("telegram");
+
+        BotRuntimeContractService.BotRuntimeContract contract = service.describe(channel, botWorkingDir);
+
+        assertThat(contract.resolvedLauncherKind()).isEqualTo("jar");
+        assertThat(contract.artifactSource()).isEqualTo("explicit-config");
+        assertThat(contract.requiredEnvironmentKeys()).contains("APP_DB_MODE", "SPRING_DATASOURCE_URL");
+        assertThat(contract.requiredEnvironmentKeys()).doesNotContain("APP_DB_PANEL_RUNTIME");
+        assertThat(contract.warnings()).noneMatch(item -> item.contains("SQLite runtime contract"));
+        assertThat(contract.production().readyForProduction()).isTrue();
+        assertThat(contract.production().blockingReasons()).isEmpty();
     }
 
     @Test
@@ -374,10 +408,10 @@ class BotRuntimeContractServiceTest {
             Map.of(),
             Map.of(),
             Map.of(
-                "APP_DB_MODE", "postgresql",
-                "SPRING_DATASOURCE_URL", "jdbc:postgresql://db.example.local:5432/iguana",
-                "SPRING_DATASOURCE_USERNAME", "iguana",
-                "SPRING_DATASOURCE_PASSWORD", "secret"
+                "app.datasource.mode", "postgresql",
+                "spring.datasource.url", "jdbc:postgresql://db.example.local:5432/iguana",
+                "spring.datasource.username", "iguana",
+                "spring.datasource.password", "secret"
             )
         );
         Channel channel = new Channel();
