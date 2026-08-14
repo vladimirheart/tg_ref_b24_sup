@@ -143,6 +143,18 @@
 - Убрать production-зависимость от business SQLite.
 - Свести SQLite к dev/bootstrap/runtime-spool обязанностям либо полностью убрать из production path.
 
+## 10.1. Текущий допустимый SQLite-only perimeter
+
+После уже сделанных шагов по `01-181` SQLite разрешён только как local/dev bootstrap слой.
+
+Сейчас к этому perimeter относятся:
+
+- `spring-panel`: `DatabaseBootstrapService`, `MonitoringDatabaseBootstrapService`, `BotDatabaseRegistry`, `SqliteSchemaBootstrapSupport`;
+- `java-bot`: `SqliteSchemaInitializer`, `SqliteTriggerInitializer`, `schema-sqlite.sql`;
+- first-run fallback bootstrap, который оставляет локальный запуск в `APP_DB_MODE=sqlite`, если на машине нет Docker для локального PostgreSQL.
+
+Этот слой больше не должен участвовать в external PostgreSQL runtime path. Для отдельной фиксации perimeter см. [docs/SQLITE_BOOTSTRAP_PERIMETER.md](SQLITE_BOOTSTRAP_PERIMETER.md).
+
 ## 11. Рекомендуемый следующий технический шаг
 
 Следующим implementation-шагом после текущего среза нужно перевести `BotRuntimeContractService` и runtime launch model на явное разграничение:

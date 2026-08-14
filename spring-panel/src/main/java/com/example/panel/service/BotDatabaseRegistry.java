@@ -17,6 +17,8 @@ import javax.sql.DataSource;
 
 @Service
 public class BotDatabaseRegistry {
+    // Legacy local/dev registry for settings.db and per-channel bot SQLite files.
+    // External PostgreSQL runtime must never rely on this service as schema owner.
 
     private static final Logger log = LoggerFactory.getLogger(BotDatabaseRegistry.class);
 

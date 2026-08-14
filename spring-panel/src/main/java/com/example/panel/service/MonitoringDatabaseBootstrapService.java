@@ -25,6 +25,7 @@ import java.util.List;
 @Service
 @Order(120)
 public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
+    // SQLite-only monitoring bootstrap/migration layer kept for local/dev compatibility.
 
     private static final Logger log = LoggerFactory.getLogger(MonitoringDatabaseBootstrapService.class);
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();

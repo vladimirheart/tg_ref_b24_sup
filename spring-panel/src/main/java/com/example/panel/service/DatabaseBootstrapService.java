@@ -20,6 +20,7 @@ import javax.sql.DataSource;
 
 @Service
 public class DatabaseBootstrapService implements ApplicationRunner {
+    // SQLite-only bootstrap for local secondary databases. Not part of the external PostgreSQL runtime path.
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseBootstrapService.class);
 

@@ -12,6 +12,7 @@ import java.util.Set;
 @Component
 @Order(10)
 public class SqliteTriggerInitializer implements ApplicationRunner {
+    // Local SQLite trigger/bootstrap layer. Must stay gated away from external PostgreSQL runtime.
 
     private static final String CREATE_TRIGGER_SQL = """
             CREATE TRIGGER IF NOT EXISTS trg_on_ticket_resolved

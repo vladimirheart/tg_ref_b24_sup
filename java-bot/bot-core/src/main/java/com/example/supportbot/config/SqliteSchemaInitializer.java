@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Order(0)
 public class SqliteSchemaInitializer implements ApplicationRunner {
+    // Local SQLite bootstrap only. External PostgreSQL runtime must connect to a prebuilt schema instead.
 
     private final DataSource dataSource;
     private final BotDatabaseRuntimeMode databaseRuntimeMode;

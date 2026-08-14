@@ -9,6 +9,7 @@ import java.util.List;
 
 @Component
 public class SqliteSchemaBootstrapSupport {
+    // Shared helper for local SQLite bootstrap. External PostgreSQL path must stay outside this helper.
 
     public void initializeSchema(DataSource dataSource, List<String> statements, String schemaName) {
         try (Connection connection = dataSource.getConnection();

@@ -199,6 +199,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 - [docs/ARCHITECTURE_AUDIT_2026-04-08.md](docs/ARCHITECTURE_AUDIT_2026-04-08.md)
 - [docs/ARCH_UI_REFACTORING_ROADMAP_2026-04-15.md](docs/ARCH_UI_REFACTORING_ROADMAP_2026-04-15.md)
 - [docs/REFACTORING_PLAN_2026.md](docs/REFACTORING_PLAN_2026.md)
+- [docs/SQLITE_BOOTSTRAP_PERIMETER.md](docs/SQLITE_BOOTSTRAP_PERIMETER.md)
 
 ## Перенос на другую машину
 
