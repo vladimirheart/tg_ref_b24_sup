@@ -577,27 +577,7 @@ body {
 .client-profile-kpi .h4 {
     color: var(--color-text);
 }
-/* Analytics / AI Ops extracted inline styles */
-.analytics-control-auto {
-    width: auto;
-}
-
-.analytics-control-sm {
-    max-width: 210px;
-}
-
-.analytics-control-md {
-    max-width: 220px;
-}
-
-.analytics-control-lg {
-    max-width: 230px;
-}
-
-.analytics-scroll-area {
-    max-height: 420px;
-    overflow-y: auto;
-}
+/* AI Ops extracted inline styles */
 
 .ai-ops-filter-input {
     max-width: 14rem;

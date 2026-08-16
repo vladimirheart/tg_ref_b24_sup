@@ -43,34 +43,32 @@
     color: var(--color-text);
 }
 
-[data-ui-page='analytics'] #analyticsBotRuntimeCard .border.rounded,
-[data-ui-page='analytics'] #workspaceTelemetryMetrics > div > .border.rounded {
-    padding: 0.75rem 0.8rem !important;
+[data-ui-page='analytics'] .analytics-metric-card {
+    min-width: 0;
+    padding: 0.75rem 0.8rem;
 
-    border: 1px solid var(--color-border) !important;
-    border-radius: var(--radius-lg) !important;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
 
     background: var(--surface-raised);
 }
 
-[data-ui-page='analytics']
-    #analyticsBotRuntimeCard
-    [data-bot-runtime-metric],
-[data-ui-page='analytics']
-    #workspaceTelemetryMetrics
-    [data-metric] {
+[data-ui-page='analytics'] .analytics-metric-card .text-muted {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+}
+
+[data-ui-page='analytics'] .analytics-metric-card .h5 {
     margin-top: 0.2rem;
 
     color: var(--color-text);
 
-    font-variant-numeric: tabular-nums;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
 }
 
-[data-ui-page='analytics'] .analytics-scroll-area {
-    overflow-y: auto;
-
-    max-height: 420px;
+[data-ui-page='analytics'] .analytics-table-shell {
+    overflow: hidden;
 
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
@@ -78,7 +76,12 @@
     background: var(--surface-card);
 }
 
-[data-ui-page='analytics'] .analytics-scroll-area .table {
+[data-ui-page='analytics'] .analytics-scroll-area {
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+[data-ui-page='analytics'] .analytics-table-shell .table {
     margin-bottom: 0;
 
     --bs-table-bg: var(--surface-card);
@@ -86,7 +89,7 @@
     --bs-table-border-color: var(--color-border);
 }
 
-[data-ui-page='analytics'] .analytics-scroll-area thead th {
+[data-ui-page='analytics'] .analytics-table-shell thead th {
     position: sticky;
     top: 0;
     z-index: 1;
@@ -120,4 +123,123 @@
     [data-ui-page='analytics'] .analytics-page-actions {
         width: 100%;
     }
+
+    [data-ui-page='analytics'] .analytics-bridge-body {
+        grid-template-columns: 1fr;
+    }
+
+    [data-ui-page='analytics'] .analytics-bridge-actions {
+        justify-content: flex-start;
+    }
+
+    [data-ui-page='analytics'] .analytics-filter-bar {
+        width: 100%;
+    }
+
+    [data-ui-page='analytics'] .analytics-control-sm,
+    [data-ui-page='analytics'] .analytics-control-md,
+    [data-ui-page='analytics'] .analytics-control-lg {
+        max-width: none;
+    }
+}
+/* Analytics controls */
+
+[data-ui-page='analytics'] .analytics-control-auto {
+    width: auto;
+}
+
+[data-ui-page='analytics'] .analytics-control-sm {
+    max-width: 210px;
+}
+
+[data-ui-page='analytics'] .analytics-control-md {
+    max-width: 220px;
+}
+
+[data-ui-page='analytics'] .analytics-control-lg {
+    max-width: 230px;
+}
+/* Analytics semantic badges */
+
+[data-ui-page='analytics'] .badge.text-bg-light {
+    border: 1px solid var(--color-border);
+
+    background: var(--surface-raised) !important;
+    color: var(--color-text-muted) !important;
+}
+
+[data-ui-page='analytics'] .badge.text-bg-secondary {
+    border: 1px solid var(--color-border);
+
+    background: var(--color-bg-muted) !important;
+    color: var(--color-text-muted) !important;
+}
+
+[data-ui-page='analytics'] .badge.text-bg-primary {
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--primary) 30%,
+            var(--color-border)
+        );
+
+    background: var(--surface-selected) !important;
+    color: var(--primary) !important;
+}
+
+[data-ui-page='analytics'] .badge.text-bg-success {
+    border: 1px solid var(--state-success-border);
+
+    background: var(--state-success-bg) !important;
+    color: var(--state-success-text) !important;
+}
+
+[data-ui-page='analytics'] .badge.text-bg-warning {
+    border: 1px solid var(--state-warning-border);
+
+    background: var(--state-warning-bg) !important;
+    color: var(--state-warning-text) !important;
+}
+
+[data-ui-page='analytics'] .badge.text-bg-danger {
+    border: 1px solid var(--state-danger-border);
+
+    background: var(--state-danger-bg) !important;
+    color: var(--state-danger-text) !important;
+}
+[data-ui-page='analytics'] .analytics-filter-bar {
+    padding: 0.65rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+}
+
+[data-ui-page='analytics'] .analytics-filter-bar .form-control,
+[data-ui-page='analytics'] .analytics-filter-bar .form-select {
+    background: var(--surface-card);
+}
+[data-ui-page='analytics'] .analytics-bridge-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+[data-ui-page='analytics'] .analytics-bridge-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+[data-ui-page='analytics'] .analytics-section-card > .card-header {
+    border-bottom: 1px solid var(--color-border);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+}
+
+[data-ui-page='analytics'] .analytics-section-card > .card-body {
+    background: var(--surface-card);
 }

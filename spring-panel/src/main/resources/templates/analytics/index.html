@@ -57,15 +57,15 @@
         </div>
         <div class="card-body">
             <div class="row g-3 mb-3">
-                <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Всего каналов</div><div class="h5 mb-0" data-bot-runtime-metric="total">—</div></div></div>
-                <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Активных</div><div class="h5 mb-0" data-bot-runtime-metric="active">—</div></div></div>
-                <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Запущено</div><div class="h5 mb-0 text-success" data-bot-runtime-metric="running">—</div></div></div>
-                <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Остановлено</div><div class="h5 mb-0" data-bot-runtime-metric="stopped">—</div></div></div>
-                <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Выключено</div><div class="h5 mb-0 text-warning" data-bot-runtime-metric="inactive">—</div></div></div>
-                <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Ошибки</div><div class="h5 mb-0 text-danger" data-bot-runtime-metric="error">—</div></div></div>
+                <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Всего каналов</div><div class="h5 mb-0" data-bot-runtime-metric="total">—</div></div></div>
+                <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Активных</div><div class="h5 mb-0" data-bot-runtime-metric="active">—</div></div></div>
+                <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Запущено</div><div class="h5 mb-0 text-success" data-bot-runtime-metric="running">—</div></div></div>
+                <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Остановлено</div><div class="h5 mb-0" data-bot-runtime-metric="stopped">—</div></div></div>
+                <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Выключено</div><div class="h5 mb-0 text-warning" data-bot-runtime-metric="inactive">—</div></div></div>
+                <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Ошибки</div><div class="h5 mb-0 text-danger" data-bot-runtime-metric="error">—</div></div></div>
             </div>
             <div class="alert alert-danger d-none" id="analyticsBotRuntimeError" role="alert"></div>
-            <div class="table-responsive analytics-scroll-area">
+            <div class="table-responsive analytics-table-shell analytics-scroll-area">
                 <table class="table table-striped align-middle">
                     <thead>
                     <tr>
@@ -87,7 +87,7 @@
     </div>
 
     <div class="card analytics-section-card mb-4">
-        <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+        <div class="card-body analytics-bridge-body">
             <div>
                 <h2 class="h5 mb-1">Кросс-продуктовые KPI дашборды</h2>
                 <p class="text-muted mb-2">Внешние BI-доски для omni-channel и финансовых метрик, подключаемые через настройки.</p>
@@ -115,7 +115,7 @@
                    th:if="${crossProductDependencyTicketFreshnessRequired and !#strings.isEmpty(crossProductDependencyTicketUpdatedAt)}"
                    th:text="${'Dependency ticket updated: ' + crossProductDependencyTicketUpdatedAt + ' · TTL: ' + crossProductDependencyTicketTtlHours + 'h'}">Dependency ticket updated: n/a</p>
             </div>
-            <div class="d-flex flex-wrap gap-2">
+            <div class="analytics-bridge-actions">
                 <a class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"
                    th:if="${!#strings.isEmpty(crossProductOmnichannelDashboardUrl)}"
                    th:href="${crossProductOmnichannelDashboardUrl}"
@@ -141,6 +141,7 @@
                         <small class="text-muted">Операционные алерты и KPI по `workspace_v1` из серверной telemetry.</small>
                     </div>
                     <div class="d-flex flex-wrap align-items-center gap-2">
+					<div class="analytics-filter-bar d-flex flex-wrap align-items-center gap-2">
                         <label class="small text-muted" for="workspaceTelemetryDays">Окно:</label>
                         <select class="form-select form-select-sm analytics-control-auto" id="workspaceTelemetryDays">
                             <option value="7" selected>7 дней</option>
@@ -164,31 +165,31 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3 mb-3" id="workspaceTelemetryMetrics">
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">События</div><div class="h5 mb-0" data-metric="events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Render error</div><div class="h5 mb-0" data-metric="render_errors">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Fallbacks</div><div class="h5 mb-0" data-metric="fallbacks">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Abandon</div><div class="h5 mb-0" data-metric="abandons">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Slow open</div><div class="h5 mb-0" data-metric="slow_open_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Avg open ms</div><div class="h5 mb-0" data-metric="avg_open_ms">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI FRT events</div><div class="h5 mb-0" data-metric="kpi_frt_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI TTR events</div><div class="h5 mb-0" data-metric="kpi_ttr_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI SLA breach events</div><div class="h5 mb-0" data-metric="kpi_sla_breach_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI Dialogs/shift events</div><div class="h5 mb-0" data-metric="kpi_dialogs_per_shift_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI CSAT events</div><div class="h5 mb-0" data-metric="kpi_csat_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Workspace opens</div><div class="h5 mb-0" data-metric="workspace_open_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Inline navigation</div><div class="h5 mb-0" data-metric="workspace_inline_navigation_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Manual legacy opens</div><div class="h5 mb-0" data-metric="manual_legacy_open_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Legacy opens blocked</div><div class="h5 mb-0" data-metric="workspace_open_legacy_blocked_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Context gaps</div><div class="h5 mb-0" data-metric="context_profile_gap_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Source gaps</div><div class="h5 mb-0" data-metric="context_source_gap_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Policy gaps</div><div class="h5 mb-0" data-metric="context_attribute_policy_gap_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Block gaps</div><div class="h5 mb-0" data-metric="context_block_gap_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Parity gaps</div><div class="h5 mb-0" data-metric="workspace_parity_gap_events">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Context ready %</div><div class="h5 mb-0" data-metric="context_profile_ready_rate">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Sources ready %</div><div class="h5 mb-0" data-metric="context_source_ready_rate">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Policy ready %</div><div class="h5 mb-0" data-metric="context_attribute_policy_ready_rate">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Blocks ready %</div><div class="h5 mb-0" data-metric="context_block_ready_rate">—</div></div></div>
-                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Parity ready %</div><div class="h5 mb-0" data-metric="workspace_parity_ready_rate">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">События</div><div class="h5 mb-0" data-metric="events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Render error</div><div class="h5 mb-0" data-metric="render_errors">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Fallbacks</div><div class="h5 mb-0" data-metric="fallbacks">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Abandon</div><div class="h5 mb-0" data-metric="abandons">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Slow open</div><div class="h5 mb-0" data-metric="slow_open_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Avg open ms</div><div class="h5 mb-0" data-metric="avg_open_ms">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">KPI FRT events</div><div class="h5 mb-0" data-metric="kpi_frt_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">KPI TTR events</div><div class="h5 mb-0" data-metric="kpi_ttr_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">KPI SLA breach events</div><div class="h5 mb-0" data-metric="kpi_sla_breach_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">KPI Dialogs/shift events</div><div class="h5 mb-0" data-metric="kpi_dialogs_per_shift_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">KPI CSAT events</div><div class="h5 mb-0" data-metric="kpi_csat_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Workspace opens</div><div class="h5 mb-0" data-metric="workspace_open_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Inline navigation</div><div class="h5 mb-0" data-metric="workspace_inline_navigation_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Manual legacy opens</div><div class="h5 mb-0" data-metric="manual_legacy_open_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Legacy opens blocked</div><div class="h5 mb-0" data-metric="workspace_open_legacy_blocked_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Context gaps</div><div class="h5 mb-0" data-metric="context_profile_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Source gaps</div><div class="h5 mb-0" data-metric="context_source_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Policy gaps</div><div class="h5 mb-0" data-metric="context_attribute_policy_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Block gaps</div><div class="h5 mb-0" data-metric="context_block_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Parity gaps</div><div class="h5 mb-0" data-metric="workspace_parity_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Context ready %</div><div class="h5 mb-0" data-metric="context_profile_ready_rate">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Sources ready %</div><div class="h5 mb-0" data-metric="context_source_ready_rate">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Policy ready %</div><div class="h5 mb-0" data-metric="context_attribute_policy_ready_rate">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Blocks ready %</div><div class="h5 mb-0" data-metric="context_block_ready_rate">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Parity ready %</div><div class="h5 mb-0" data-metric="workspace_parity_ready_rate">—</div></div></div>
                     </div>
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <span class="badge text-bg-success d-none" id="workspaceTelemetryGuardrailsOk">Guardrails: OK</span>
