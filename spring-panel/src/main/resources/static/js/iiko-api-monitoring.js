@@ -144,7 +144,7 @@
       const createdAt = entry.created_at || entry.createdAt;
       const status = normalizeStatus(entry.status || '');
       return `
-        <div class="border rounded-3 p-3 bg-body-tertiary">
+        <div class="analytics-timeline-card">
           <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
             <div>
               <div class="small text-muted">${escapeHtml(checkKind)}</div>

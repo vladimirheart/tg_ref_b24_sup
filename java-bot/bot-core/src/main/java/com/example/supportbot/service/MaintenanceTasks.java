@@ -1,5 +1,6 @@
 package com.example.supportbot.service;
 
+import com.example.supportbot.config.BotIntegrationTransportMode;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.ClientUnblockRequest;
 import com.example.supportbot.repository.ClientUnblockRequestRepository;
@@ -25,13 +26,16 @@ public class MaintenanceTasks {
     private final ClientUnblockRequestRepository unblockRequestRepository;
     private final TicketService ticketService;
     private final SharedConfigService sharedConfigService;
+    private final BotIntegrationTransportMode integrationTransportMode;
 
     public MaintenanceTasks(ClientUnblockRequestRepository unblockRequestRepository,
                            TicketService ticketService,
-                           SharedConfigService sharedConfigService) {
+                           SharedConfigService sharedConfigService,
+                           BotIntegrationTransportMode integrationTransportMode) {
         this.unblockRequestRepository = unblockRequestRepository;
         this.ticketService = ticketService;
         this.sharedConfigService = sharedConfigService;
+        this.integrationTransportMode = integrationTransportMode;
     }
 
     @Scheduled(cron = "0 0 * * * *")
@@ -61,6 +65,10 @@ public class MaintenanceTasks {
     @Scheduled(cron = "0 */10 * * * *")
     @Transactional
     public void autoCloseInactiveTickets() {
+        if (integrationTransportMode.isRabbitMqMode()) {
+            log.debug("Skipping bot-side auto-close scheduler because rabbitmq transport delegates ownership to spring-panel");
+            return;
+        }
         Map<String, Object> settings = sharedConfigService.loadSettings();
         AutoCloseSelection defaultSelection = resolveAutoCloseSelection(settings, null);
         if (defaultSelection.enabled() && defaultSelection.duration() != null) {

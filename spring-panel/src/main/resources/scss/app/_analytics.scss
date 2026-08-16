@@ -455,3 +455,483 @@
         padding: 0.7rem;
     }
 }
+/* Analytics child monitoring pages */
+
+[data-ui-page='analytics'].analytics-monitoring-page .main-content {
+    background: var(--surface-page);
+    color: var(--color-text);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-monitor-overview-panel {
+    min-width: 0;
+    padding: 1rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-monitor-overview-panel .h2 {
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page .sortable-th {
+    white-space: nowrap;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page .sortable-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+
+    padding: 0;
+    border: 0;
+
+    background: transparent;
+    color: inherit;
+
+    font: inherit;
+
+    cursor: pointer;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.sortable-button .sort-indicator {
+    color: var(--color-text-muted);
+    font-size: 0.85em;
+    line-height: 1;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.sortable-button.active {
+    color: var(--primary);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.sortable-button.active .sort-indicator {
+    color: var(--primary);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.overview-filter-button {
+    min-height: 32px;
+    padding: 0.3rem 0.7rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+
+    background: var(--surface-raised);
+    color: var(--color-text-muted);
+
+    font-size: var(--font-size-sm);
+
+    cursor: pointer;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.overview-filter-button:hover {
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 28%,
+            var(--color-border)
+        );
+
+    background: var(--surface-interactive);
+    color: var(--color-text);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.overview-filter-button.active {
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 42%,
+            var(--color-border)
+        );
+
+    background: var(--surface-selected);
+    color: var(--primary);
+
+    font-weight: 700;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.monitor-overview-progress,
+[data-ui-page='analytics'].analytics-monitoring-page
+.rms-overview-progress {
+    height: 1rem;
+    overflow: hidden;
+
+    border-radius: var(--radius-pill);
+
+    background: var(--color-bg-muted);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.monitor-overview-chip,
+[data-ui-page='analytics'].analytics-monitoring-page
+.rms-overview-chip {
+    display: inline-flex;
+    align-items: center;
+
+    min-height: 28px;
+    padding: 0.3rem 0.65rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+
+    background: var(--surface-raised);
+
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+}
+
+/* Progress states */
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.progress-bar.bg-success {
+    background: var(--state-success) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.progress-bar.bg-danger {
+    background: var(--state-danger) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.progress-bar.bg-secondary,
+[data-ui-page='analytics'].analytics-monitoring-page
+.progress-bar.bg-secondary-subtle,
+[data-ui-page='analytics'].analytics-monitoring-page
+.progress-bar.bg-dark-subtle {
+    background: var(--color-bg-muted) !important;
+    color: var(--color-text-muted) !important;
+}
+
+/* SSL monitoring cell states */
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.status-cell.status-ok,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.availability-cell.availability-up {
+    background: var(--state-success-bg) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.status-cell.status-warning {
+    background: var(--state-warning-bg) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.status-cell.status-critical,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.status-cell.status-expired,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.availability-cell.availability-down {
+    background: var(--state-danger-bg) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.status-cell.status-disabled,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.status-cell.status-error,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.availability-cell.availability-disabled,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.availability-cell.availability-unknown {
+    background: var(--color-bg-muted) !important;
+}
+
+/* RMS states */
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.license-cell.status-ok,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.rms-cell.status-up {
+    background: var(--state-success-bg) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.license-cell.status-warning {
+    background: var(--state-warning-bg) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.license-cell.status-critical,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.license-cell.status-expired,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.rms-cell.status-down {
+    background: var(--state-danger-bg) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.license-cell.status-error,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.license-cell.status-disabled,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.rms-cell.status-disabled,
+[data-ui-page='analytics'].analytics-monitoring-page
+td.rms-cell.status-unknown {
+    background: var(--color-bg-muted) !important;
+}
+
+/* iiko API states */
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.iiko-status-cell.status-ok {
+    background: var(--state-success-bg) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.iiko-status-cell.status-error {
+    background: var(--state-danger-bg) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+td.iiko-status-cell.status-disabled {
+    background: var(--color-bg-muted) !important;
+}
+
+/* Bootstrap subtle badges still generated by monitoring JS */
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.badge.bg-danger-subtle {
+    border-color: var(--state-danger-border) !important;
+    background: var(--state-danger-bg) !important;
+    color: var(--state-danger-text) !important;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.badge.text-bg-success-subtle {
+    border-color: var(--state-success-border) !important;
+    background: var(--state-success-bg) !important;
+    color: var(--state-success-text) !important;
+}
+
+/* RMS diagnostics / runtime indicators */
+
+[data-ui-page='analytics'].analytics-monitoring-page .font-mono {
+    font-family: var(--font-mono);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.diagnostics-summary-list {
+    display: grid;
+    gap: 0.5rem;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.diagnostics-summary-item,
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-timeline-card,
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-choice-card {
+    padding: 0.7rem 0.8rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-choice-card {
+    cursor: pointer;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.diagnostics-summary-label {
+    display: block;
+
+    margin-bottom: 0.125rem;
+
+    color: var(--color-text-muted);
+
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.diagnostics-pre,
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-code-panel {
+    max-height: 24rem;
+    padding: 0.85rem;
+
+    overflow: auto;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+
+    font-family: var(--font-mono);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-detail-key {
+    width: 35%;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.refresh-state-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+
+    padding: 0.125rem 0.5rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+
+    background: var(--surface-raised);
+    color: var(--color-text-muted);
+
+    font-size: var(--font-size-xs);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.refresh-state-chip.state-running {
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 38%,
+            var(--color-border)
+        );
+
+    background: var(--surface-selected);
+    color: var(--primary);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.refresh-state-chip.state-queued {
+    border-color: var(--state-warning-border);
+    background: var(--state-warning-bg);
+    color: var(--state-warning-text);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.refresh-state-chip.state-done {
+    border-color: var(--state-success-border);
+    background: var(--state-success-bg);
+    color: var(--state-success-text);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.rms-feature-icons {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.rms-feature-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+
+    background: var(--surface-raised);
+    color: var(--color-text-muted);
+
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.rms-feature-icon.is-enabled {
+    border-color: var(--state-success-border);
+    background: var(--state-success-bg);
+    color: var(--state-success-text);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.rms-feature-icon.is-disabled {
+    border-color: var(--color-border);
+    background: var(--color-bg-muted);
+    color: var(--color-text-muted);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+tr.rms-chain-row > td {
+    background:
+        color-mix(
+            in srgb,
+            var(--primary) 6%,
+            var(--surface-card)
+        ) !important;
+}
+
+/* iiko request-specific fields */
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.iiko-config-section[hidden] {
+    display: none !important;
+}
+
+/* Child page table treatment */
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-table-shell {
+    overflow-x: auto;
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-table-shell .table {
+    margin-bottom: 0;
+
+    --bs-table-bg: var(--surface-card);
+    --bs-table-color: var(--color-text);
+    --bs-table-border-color: var(--color-border);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-table-shell thead th {
+    background: var(--surface-raised) !important;
+    color: var(--color-text-muted) !important;
+
+    border-bottom: 1px solid var(--color-border);
+}
+
+[data-ui-page='analytics'].analytics-monitoring-page
+.analytics-table-shell tbody td {
+    border-color: var(--color-border);
+}
+
+/* Child monitoring mobile */
+
+@media (max-width: 575.98px) {
+    [data-ui-page='analytics'].analytics-monitoring-page
+    .overview-filter-button {
+        flex: 1 1 auto;
+    }
+
+    [data-ui-page='analytics'].analytics-monitoring-page
+    .analytics-monitor-overview-panel {
+        padding: 0.85rem;
+    }
+
+    [data-ui-page='analytics'].analytics-monitoring-page
+    .analytics-detail-key {
+        width: auto;
+    }
+}

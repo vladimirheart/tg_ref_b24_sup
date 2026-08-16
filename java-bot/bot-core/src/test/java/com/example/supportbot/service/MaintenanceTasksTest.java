@@ -2,6 +2,7 @@ package com.example.supportbot.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.mock.env.MockEnvironment;
 
 class MaintenanceTasksTest {
 
@@ -25,7 +27,8 @@ class MaintenanceTasksTest {
         MaintenanceTasks tasks = new MaintenanceTasks(
                 mock(ClientUnblockRequestRepository.class),
                 mock(TicketService.class),
-                sharedConfigService
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(new MockEnvironment())
         );
 
         assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(24));
@@ -48,7 +51,8 @@ class MaintenanceTasksTest {
         MaintenanceTasks tasks = new MaintenanceTasks(
                 mock(ClientUnblockRequestRepository.class),
                 mock(TicketService.class),
-                sharedConfigService
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(new MockEnvironment())
         );
 
         assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(1));
@@ -70,7 +74,8 @@ class MaintenanceTasksTest {
         MaintenanceTasks tasks = new MaintenanceTasks(
                 mock(ClientUnblockRequestRepository.class),
                 mock(TicketService.class),
-                sharedConfigService
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(new MockEnvironment())
         );
 
         assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(24));
@@ -87,7 +92,8 @@ class MaintenanceTasksTest {
         MaintenanceTasks tasks = new MaintenanceTasks(
                 mock(ClientUnblockRequestRepository.class),
                 mock(TicketService.class),
-                sharedConfigService
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(new MockEnvironment())
         );
 
         assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(24));
@@ -101,7 +107,8 @@ class MaintenanceTasksTest {
         MaintenanceTasks tasks = new MaintenanceTasks(
                 mock(ClientUnblockRequestRepository.class),
                 mock(TicketService.class),
-                sharedConfigService
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(new MockEnvironment())
         );
 
         assertThat(tasks.resolveAutoCloseDuration()).isEqualTo(Duration.ofHours(24));
@@ -118,7 +125,8 @@ class MaintenanceTasksTest {
         MaintenanceTasks tasks = new MaintenanceTasks(
                 mock(ClientUnblockRequestRepository.class),
                 ticketService,
-                sharedConfigService
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(new MockEnvironment())
         );
 
         tasks.autoCloseInactiveTickets();
@@ -147,7 +155,8 @@ class MaintenanceTasksTest {
         MaintenanceTasks tasks = new MaintenanceTasks(
                 mock(ClientUnblockRequestRepository.class),
                 ticketService,
-                sharedConfigService
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(new MockEnvironment())
         );
 
         tasks.autoCloseInactiveTickets();
@@ -181,7 +190,8 @@ class MaintenanceTasksTest {
         MaintenanceTasks tasks = new MaintenanceTasks(
                 mock(ClientUnblockRequestRepository.class),
                 ticketService,
-                sharedConfigService
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(new MockEnvironment())
         );
 
         tasks.autoCloseInactiveTickets();
@@ -218,7 +228,8 @@ class MaintenanceTasksTest {
         MaintenanceTasks tasks = new MaintenanceTasks(
                 mock(ClientUnblockRequestRepository.class),
                 ticketService,
-                sharedConfigService
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(new MockEnvironment())
         );
 
         tasks.autoCloseInactiveTickets();
@@ -243,11 +254,30 @@ class MaintenanceTasksTest {
         MaintenanceTasks tasks = new MaintenanceTasks(
                 mock(ClientUnblockRequestRepository.class),
                 ticketService,
-                sharedConfigService
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(new MockEnvironment())
         );
 
         tasks.autoCloseInactiveTickets();
 
         verify(ticketService).closeInactiveTickets(org.mockito.ArgumentMatchers.<Function<Ticket, TicketService.AutoClosePolicy>>any());
+    }
+
+    @Test
+    void autoCloseInactiveTicketsSkipsBotSideExecutionInRabbitMode() {
+        TicketService ticketService = mock(TicketService.class);
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+
+        MaintenanceTasks tasks = new MaintenanceTasks(
+                mock(ClientUnblockRequestRepository.class),
+                ticketService,
+                sharedConfigService,
+                new com.example.supportbot.config.BotIntegrationTransportMode(
+                        new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq"))
+        );
+
+        tasks.autoCloseInactiveTickets();
+
+        verify(ticketService, never()).closeInactiveTickets(org.mockito.ArgumentMatchers.<Function<Ticket, TicketService.AutoClosePolicy>>any());
     }
 }

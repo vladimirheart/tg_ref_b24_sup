@@ -443,7 +443,7 @@
     if (!exportColumnsEl) return;
     exportColumnsEl.innerHTML = RMS_EXPORT_COLUMNS.map((column) => `
       <div class="col-12 col-sm-6">
-        <label class="form-check border rounded-3 p-3 h-100">
+        <label class="form-check analytics-choice-card h-100">
           <input class="form-check-input me-2" type="checkbox" data-export-column="${escapeHtml(column.key)}" ${column.selected ? 'checked' : ''}>
           <span class="form-check-label">${escapeHtml(column.label)}</span>
         </label>
@@ -936,10 +936,10 @@
       if (item.state) important.push(`<span class="badge text-bg-light border">Статус: ${escapeHtml(item.state)}</span>`);
       const details = Object.entries(item)
         .filter(([key]) => !['title'].includes(key))
-        .map(([key, value]) => `<tr><th class="text-muted small" style="width: 35%;">${escapeHtml(key)}</th><td class="small">${escapeHtml(value)}</td></tr>`)
+        .map(([key, value]) => `<tr><th class="text-muted small analytics-detail-key">${escapeHtml(key)}</th><td class="small">${escapeHtml(value)}</td></tr>`)
         .join('');
       return `
-        <div class="card shadow-sm mb-3">
+        <div class="card analytics-monitor-card mb-3">
           <div class="card-body">
             <div class="d-flex flex-column gap-2">
               <div class="fw-semibold">${escapeHtml(titleText)}</div>
