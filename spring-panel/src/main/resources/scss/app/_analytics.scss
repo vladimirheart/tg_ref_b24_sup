@@ -78,7 +78,7 @@
 
 [data-ui-page='analytics'] .analytics-scroll-area {
     max-height: 420px;
-    overflow-y: auto;
+    overflow: auto;
 }
 
 [data-ui-page='analytics'] .analytics-table-shell .table {
@@ -208,6 +208,12 @@
     color: var(--state-danger-text) !important;
 }
 [data-ui-page='analytics'] .analytics-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+
     padding: 0.65rem;
 
     border: 1px solid var(--color-border);
@@ -250,14 +256,6 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 1rem;
-}
-
-[data-ui-page='analytics'] .analytics-filter-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 0.5rem;
 }
 
 [data-ui-page='analytics'] .analytics-monitor-card {
@@ -348,15 +346,6 @@
 
 [data-ui-page='analytics'] #workspaceTelemetryCard .table tbody td {
     border-color: var(--color-border);
-}
-
-[data-ui-page='analytics'] .analytics-table-shell {
-    overflow-x: auto;
-}
-
-[data-ui-page='analytics'] .analytics-scroll-area {
-    max-height: 420px;
-    overflow: auto;
 }
 
 [data-ui-page='analytics'] .analytics-client-list {

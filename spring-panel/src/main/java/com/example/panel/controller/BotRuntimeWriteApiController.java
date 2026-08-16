@@ -1,0 +1,89 @@
+package com.example.panel.controller;
+
+import com.example.panel.service.BotRuntimeTicketWriteService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+
+@RestController
+@RequestMapping("/internal/api/bot")
+public class BotRuntimeWriteApiController {
+
+    private static final String AUTH_HEADER = "X-Iguana-Bot-Api-Token";
+
+    private final BotRuntimeTicketWriteService ticketWriteService;
+    private final String expectedToken;
+
+    public BotRuntimeWriteApiController(BotRuntimeTicketWriteService ticketWriteService,
+                                        @Value("${app.bots.internal-api.token:iguana-internal-bot-token}") String expectedToken) {
+        this.ticketWriteService = ticketWriteService;
+        this.expectedToken = expectedToken;
+    }
+
+    @PutMapping("/tickets/{ticketId}/activity")
+    public BotRuntimeTicketWriteService.MutationResult registerActivity(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable String ticketId,
+        @RequestBody(required = false) TicketActivityRequest request
+    ) {
+        requireAuthorized(token);
+        return ticketWriteService.registerActivity(ticketId, request != null ? request.userIdentity() : null);
+    }
+
+    @DeleteMapping("/tickets/{ticketId}/activity")
+    public BotRuntimeTicketWriteService.MutationResult clearActivity(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable String ticketId
+    ) {
+        requireAuthorized(token);
+        return ticketWriteService.clearActivity(ticketId);
+    }
+
+    @PostMapping("/tickets/{ticketId}/reopen")
+    public BotRuntimeTicketWriteService.MutationResult reopenTicket(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable String ticketId
+    ) {
+        requireAuthorized(token);
+        return ticketWriteService.reopenTicket(ticketId);
+    }
+
+    @PostMapping("/tickets/{ticketId}/operator-relay")
+    public BotRuntimeTicketWriteService.MutationResult recordOperatorRelay(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable String ticketId,
+        @RequestBody OperatorRelayRequest request
+    ) {
+        requireAuthorized(token);
+        return ticketWriteService.recordOperatorRelay(
+            ticketId,
+            request != null ? request.message() : null,
+            request != null ? request.telegramMessageId() : null,
+            request != null ? request.replyToTelegramId() : null,
+            request != null ? request.operatorIdentity() : null
+        );
+    }
+
+    private void requireAuthorized(String token) {
+        if (token == null || token.isBlank() || !token.equals(expectedToken)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized internal bot API request");
+        }
+    }
+
+    public record TicketActivityRequest(String userIdentity) {
+    }
+
+    public record OperatorRelayRequest(String message,
+                                       Long telegramMessageId,
+                                       Long replyToTelegramId,
+                                       String operatorIdentity) {
+    }
+}

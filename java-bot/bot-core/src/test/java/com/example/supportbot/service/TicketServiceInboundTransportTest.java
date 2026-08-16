@@ -33,6 +33,7 @@ class TicketServiceInboundTransportTest {
         InboundClientMessagePublisher publisher = mock(InboundClientMessagePublisher.class);
         ConversationTicketCreatedPublisher ticketCreatedPublisher = mock(ConversationTicketCreatedPublisher.class);
         PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
 
         TicketService service = createService(
             messageRepository,
@@ -41,6 +42,7 @@ class TicketServiceInboundTransportTest {
             publisher,
             ticketCreatedPublisher,
             panelTicketReadClient,
+            panelTicketWriteClient,
             new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
         );
         Channel channel = new Channel();
@@ -78,6 +80,7 @@ class TicketServiceInboundTransportTest {
         InboundClientMessagePublisher publisher = mock(InboundClientMessagePublisher.class);
         ConversationTicketCreatedPublisher ticketCreatedPublisher = mock(ConversationTicketCreatedPublisher.class);
         PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
         when(messageRepository.findByTicketId("T-202")).thenReturn(Optional.empty());
         when(ticketActiveRepository.findById("T-202")).thenReturn(Optional.empty());
 
@@ -88,6 +91,7 @@ class TicketServiceInboundTransportTest {
             publisher,
             ticketCreatedPublisher,
             panelTicketReadClient,
+            panelTicketWriteClient,
             new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")
         );
         Channel channel = new Channel();
@@ -135,6 +139,7 @@ class TicketServiceInboundTransportTest {
         InboundClientMessagePublisher publisher = mock(InboundClientMessagePublisher.class);
         ConversationTicketCreatedPublisher ticketCreatedPublisher = mock(ConversationTicketCreatedPublisher.class);
         PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
 
         TicketService service = createService(
             messageRepository,
@@ -143,6 +148,7 @@ class TicketServiceInboundTransportTest {
             publisher,
             ticketCreatedPublisher,
             panelTicketReadClient,
+            panelTicketWriteClient,
             new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
         );
         Channel channel = new Channel();
@@ -173,6 +179,7 @@ class TicketServiceInboundTransportTest {
     @Test
     void findActiveTicketForUserUsesPanelReadClientInRabbitMode() {
         PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
         TicketActiveRepository ticketActiveRepository = mock(TicketActiveRepository.class);
         TicketActive active = new TicketActive();
         active.setTicketId("T-777");
@@ -188,6 +195,7 @@ class TicketServiceInboundTransportTest {
             mock(InboundClientMessagePublisher.class),
             mock(ConversationTicketCreatedPublisher.class),
             panelTicketReadClient,
+            panelTicketWriteClient,
             new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
         );
 
@@ -202,6 +210,7 @@ class TicketServiceInboundTransportTest {
     @Test
     void findRecentTicketsUsesPanelReadClientInRabbitMode() {
         PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
         when(panelTicketReadClient.isEnabled()).thenReturn(true);
         when(panelTicketReadClient.findRecentTickets(501L, 5)).thenReturn(java.util.List.of(
             new TicketService.TicketSummary(
@@ -225,6 +234,7 @@ class TicketServiceInboundTransportTest {
             mock(InboundClientMessagePublisher.class),
             mock(ConversationTicketCreatedPublisher.class),
             panelTicketReadClient,
+            panelTicketWriteClient,
             new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
         );
 
@@ -236,15 +246,143 @@ class TicketServiceInboundTransportTest {
         assertThat(recent.get(0).ticketId()).isEqualTo("T-501");
     }
 
+    @Test
+    void reopenTicketUsesPanelWriteClientInRabbitMode() {
+        PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
+        when(panelTicketWriteClient.isEnabled()).thenReturn(true);
+        when(panelTicketWriteClient.reopenTicket("T-901")).thenReturn(true);
+
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            mock(TicketActiveRepository.class),
+            mock(ChatHistoryService.class),
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            panelTicketReadClient,
+            panelTicketWriteClient,
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq"),
+            ticketRepository
+        );
+
+        boolean reopened = service.reopenTicket("T-901");
+
+        assertThat(reopened).isTrue();
+        verify(panelTicketWriteClient).reopenTicket("T-901");
+        verify(ticketRepository, never()).findByIdTicketId(any());
+    }
+
+    @Test
+    void registerAndClearActivityUsePanelWriteClientInRabbitMode() {
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
+        when(panelTicketWriteClient.isEnabled()).thenReturn(true);
+
+        TicketActiveRepository ticketActiveRepository = mock(TicketActiveRepository.class);
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            ticketActiveRepository,
+            mock(ChatHistoryService.class),
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),
+            panelTicketWriteClient,
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
+        );
+
+        service.registerActivity("T-777", "operator");
+        service.clearTicketActivity("T-777");
+
+        verify(panelTicketWriteClient).registerActivity("T-777", "operator");
+        verify(panelTicketWriteClient).clearActivity("T-777");
+        verify(ticketActiveRepository, never()).save(any(TicketActive.class));
+        verify(ticketActiveRepository, never()).findById(any());
+    }
+
+    @Test
+    void recordOperatorRelayUsesPanelWriteClientInRabbitMode() {
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
+        when(panelTicketWriteClient.isEnabled()).thenReturn(true);
+
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            mock(TicketActiveRepository.class),
+            chatHistoryService,
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),
+            panelTicketWriteClient,
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
+        );
+
+        Channel channel = new Channel();
+        channel.setId(11L);
+        service.recordOperatorRelay(1001L, "T-1001", "Operator reply", channel, 7001L, 6001L, "operator");
+
+        verify(panelTicketWriteClient).recordOperatorRelay("T-1001", "Operator reply", 7001L, 6001L, "operator");
+        verify(chatHistoryService, never()).storeOperatorMessage(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void recordOperatorRelayKeepsJdbcWritePathWhenRabbitTransportDisabled() {
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        TicketActiveRepository ticketActiveRepository = mock(TicketActiveRepository.class);
+        when(ticketActiveRepository.findById("T-303")).thenReturn(Optional.empty());
+
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            ticketActiveRepository,
+            chatHistoryService,
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),
+            panelTicketWriteClient,
+            new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")
+        );
+
+        Channel channel = new Channel();
+        channel.setId(22L);
+        service.recordOperatorRelay(303L, "T-303", "Reply from operator", channel, 8001L, 7999L, "operator");
+
+        verify(chatHistoryService).storeOperatorMessage(303L, "T-303", "Reply from operator", channel, 8001L, 7999L);
+        verify(ticketActiveRepository).save(any(TicketActive.class));
+        verify(panelTicketWriteClient, never()).recordOperatorRelay(any(), any(), any(), any(), any());
+    }
+
     private TicketService createService(TicketMessageRepository messageRepository,
                                         TicketActiveRepository ticketActiveRepository,
                                         ChatHistoryService chatHistoryService,
                                         InboundClientMessagePublisher publisher,
                                         ConversationTicketCreatedPublisher ticketCreatedPublisher,
                                         PanelTicketReadClient panelTicketReadClient,
+                                        PanelTicketWriteClient panelTicketWriteClient,
                                         MockEnvironment environment) {
+        return createService(
+            messageRepository,
+            ticketActiveRepository,
+            chatHistoryService,
+            publisher,
+            ticketCreatedPublisher,
+            panelTicketReadClient,
+            panelTicketWriteClient,
+            environment,
+            mock(TicketRepository.class)
+        );
+    }
+
+    private TicketService createService(TicketMessageRepository messageRepository,
+                                        TicketActiveRepository ticketActiveRepository,
+                                        ChatHistoryService chatHistoryService,
+                                        InboundClientMessagePublisher publisher,
+                                        ConversationTicketCreatedPublisher ticketCreatedPublisher,
+                                        PanelTicketReadClient panelTicketReadClient,
+                                        PanelTicketWriteClient panelTicketWriteClient,
+                                        MockEnvironment environment,
+                                        TicketRepository ticketRepository) {
         return new TicketService(
-            mock(TicketRepository.class),
+            ticketRepository,
             messageRepository,
             mock(PendingFeedbackRequestRepository.class),
             mock(TicketSpanRepository.class),
@@ -258,7 +396,8 @@ class TicketServiceInboundTransportTest {
             publisher,
             new BotIntegrationTransportMode(environment),
             ticketCreatedPublisher,
-            panelTicketReadClient
+            panelTicketReadClient,
+            panelTicketWriteClient
         );
     }
 }

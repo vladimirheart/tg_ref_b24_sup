@@ -133,24 +133,36 @@ public class DialogReplyTargetService {
     }
 
     public void touchTicketActivity(String ticketId, String operatorIdentity) {
-        String identity = normalizeOperatorIdentity(operatorIdentity);
-        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(identity)) {
+        if (!StringUtils.hasText(ticketId)) {
             return;
         }
+        String identity = normalizeOperatorIdentity(operatorIdentity);
         String timestamp = OffsetDateTime.now().toString();
-        int updated = jdbcTemplate.update("""
-                UPDATE ticket_active
-                   SET last_seen = ?,
-                       user_identity = CASE
-                           WHEN user_identity IS NULL OR trim(user_identity) = '' THEN ?
-                           ELSE user_identity
-                       END
-                 WHERE ticket_id = ?
-                """,
-                timestamp,
-                identity,
-                ticketId
-        );
+        int updated;
+        if (StringUtils.hasText(identity)) {
+            updated = jdbcTemplate.update("""
+                    UPDATE ticket_active
+                       SET last_seen = ?,
+                           user_identity = CASE
+                               WHEN user_identity IS NULL OR trim(user_identity) = '' THEN ?
+                               ELSE user_identity
+                           END
+                     WHERE ticket_id = ?
+                    """,
+                    timestamp,
+                    identity,
+                    ticketId
+            );
+        } else {
+            updated = jdbcTemplate.update("""
+                    UPDATE ticket_active
+                       SET last_seen = ?
+                     WHERE ticket_id = ?
+                    """,
+                    timestamp,
+                    ticketId
+            );
+        }
         if (updated == 0) {
             jdbcTemplate.update("""
                     INSERT INTO ticket_active(ticket_id, user_identity, last_seen)

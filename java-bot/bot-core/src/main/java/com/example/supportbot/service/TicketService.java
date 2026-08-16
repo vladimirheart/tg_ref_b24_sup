@@ -60,6 +60,7 @@ public class TicketService {
     private final BotIntegrationTransportMode integrationTransportMode;
     private final ConversationTicketCreatedPublisher conversationTicketCreatedPublisher;
     private final PanelTicketReadClient panelTicketReadClient;
+    private final PanelTicketWriteClient panelTicketWriteClient;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketMessageRepository messageRepository,
@@ -75,7 +76,8 @@ public class TicketService {
                          InboundClientMessagePublisher inboundClientMessagePublisher,
                          BotIntegrationTransportMode integrationTransportMode,
                          ConversationTicketCreatedPublisher conversationTicketCreatedPublisher,
-                         PanelTicketReadClient panelTicketReadClient) {
+                         PanelTicketReadClient panelTicketReadClient,
+                         PanelTicketWriteClient panelTicketWriteClient) {
         this.ticketRepository = ticketRepository;
         this.messageRepository = messageRepository;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
@@ -91,6 +93,7 @@ public class TicketService {
         this.integrationTransportMode = integrationTransportMode;
         this.conversationTicketCreatedPublisher = conversationTicketCreatedPublisher;
         this.panelTicketReadClient = panelTicketReadClient;
+        this.panelTicketWriteClient = panelTicketWriteClient;
     }
 
     @Transactional
@@ -387,10 +390,13 @@ public class TicketService {
     }
 
     @Transactional
-    public Optional<Ticket> reopenTicket(String ticketId) {
+    public boolean reopenTicket(String ticketId) {
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+            return panelTicketWriteClient.reopenTicket(ticketId);
+        }
         Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(ticketId);
         if (ticketOpt.isEmpty()) {
-            return Optional.empty();
+            return false;
         }
         Ticket ticket = ticketOpt.get();
         OffsetDateTime now = OffsetDateTime.now();
@@ -418,7 +424,7 @@ public class TicketService {
                 "Заявка переоткрыта оператором.");
         uiEventOutboxService.publishTicketReopened(ticketId, ticket.getChannel(), "Заявка переоткрыта оператором.");
 
-        return Optional.of(ticket);
+        return true;
     }
 
     @Transactional
@@ -538,6 +544,10 @@ public class TicketService {
     }
 
     public void registerActivity(String ticketId, String username) {
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+            panelTicketWriteClient.registerActivity(ticketId, username);
+            return;
+        }
         SqliteBusyRetrySupport.run(() -> {
             OffsetDateTime now = OffsetDateTime.now();
             TicketActive active = ticketActiveRepository.findById(ticketId).orElseGet(() -> {
@@ -596,7 +606,43 @@ public class TicketService {
         if (!StringUtils.hasText(ticketId)) {
             return;
         }
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+            panelTicketWriteClient.clearActivity(ticketId);
+            return;
+        }
         ticketActiveRepository.findById(ticketId).ifPresent(ticketActiveRepository::delete);
+    }
+
+    @Transactional
+    public void recordOperatorRelay(Long userId,
+                                    String ticketId,
+                                    String text,
+                                    Channel channel,
+                                    Long telegramMessageId,
+                                    Long replyToTelegramId,
+                                    String operatorIdentity) {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(text)) {
+            return;
+        }
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+            panelTicketWriteClient.recordOperatorRelay(
+                ticketId,
+                text,
+                telegramMessageId,
+                replyToTelegramId,
+                operatorIdentity
+            );
+            return;
+        }
+        chatHistoryService.storeOperatorMessage(
+            userId,
+            ticketId,
+            text,
+            channel,
+            telegramMessageId,
+            replyToTelegramId
+        );
+        registerActivity(ticketId, operatorIdentity);
     }
 
     @Transactional

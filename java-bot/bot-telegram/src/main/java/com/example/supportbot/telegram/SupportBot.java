@@ -550,14 +550,14 @@ public class SupportBot extends TelegramLongPollingBot {
                 .build();
         try {
             execute(toClient);
-            chatHistoryService.storeOperatorMessage(
+            ticketService.recordOperatorRelay(
                     ticket.userId(),
                     ticket.ticketId(),
                     ticketReference.outboundText,
                     getChannel(),
                     message.getMessageId() != null ? message.getMessageId().longValue() : null,
-                    ticketReference.replyToTelegramId);
-            ticketService.registerActivity(ticket.ticketId(), operatorUsername(message));
+                    ticketReference.replyToTelegramId,
+                    operatorUsername(message));
         } catch (TelegramApiException e) {
             log.error("Failed to relay operator reply to user {}", ticket.userId(), e);
         }
