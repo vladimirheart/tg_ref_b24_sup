@@ -34,6 +34,9 @@ app:
   integration:
     transport:
       mode: ${APP_INTEGRATION_TRANSPORT_MODE:jdbc}
+    panel-api:
+      base-url: ${APP_PANEL_INTERNAL_API_BASE_URL:http://127.0.0.1:8080}
+      token: ${APP_PANEL_INTERNAL_API_TOKEN:iguana-internal-bot-token}
     rabbitmq:
       inbound-exchange: ${APP_INTEGRATION_RABBITMQ_INBOUND_EXCHANGE:iguana.integration.inbound}
       inbound-queue: ${APP_INTEGRATION_RABBITMQ_INBOUND_QUEUE:iguana.integration.inbound.panel}

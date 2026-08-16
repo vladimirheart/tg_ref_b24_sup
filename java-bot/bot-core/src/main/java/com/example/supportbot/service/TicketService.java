@@ -59,6 +59,7 @@ public class TicketService {
     private final InboundClientMessagePublisher inboundClientMessagePublisher;
     private final BotIntegrationTransportMode integrationTransportMode;
     private final ConversationTicketCreatedPublisher conversationTicketCreatedPublisher;
+    private final PanelTicketReadClient panelTicketReadClient;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketMessageRepository messageRepository,
@@ -73,7 +74,8 @@ public class TicketService {
                          TicketAttributeService ticketAttributeService,
                          InboundClientMessagePublisher inboundClientMessagePublisher,
                          BotIntegrationTransportMode integrationTransportMode,
-                         ConversationTicketCreatedPublisher conversationTicketCreatedPublisher) {
+                         ConversationTicketCreatedPublisher conversationTicketCreatedPublisher,
+                         PanelTicketReadClient panelTicketReadClient) {
         this.ticketRepository = ticketRepository;
         this.messageRepository = messageRepository;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
@@ -88,6 +90,7 @@ public class TicketService {
         this.inboundClientMessagePublisher = inboundClientMessagePublisher;
         this.integrationTransportMode = integrationTransportMode;
         this.conversationTicketCreatedPublisher = conversationTicketCreatedPublisher;
+        this.panelTicketReadClient = panelTicketReadClient;
     }
 
     @Transactional
@@ -280,6 +283,9 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public Optional<TicketMessage> findLastMessage(long userId) {
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+            return panelTicketReadClient.findLastTicketContext(userId);
+        }
         return messageRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
     }
 
@@ -287,6 +293,9 @@ public class TicketService {
     public List<TicketSummary> findRecentTicketsForUser(long userId, int limit) {
         if (limit <= 0) {
             return List.of();
+        }
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+            return panelTicketReadClient.findRecentTickets(userId, limit);
         }
         List<TicketMessage> messages = messageRepository.findTop10ByUserIdOrderByCreatedAtDesc(userId);
         if (messages.isEmpty()) {
@@ -326,6 +335,9 @@ public class TicketService {
         if (!StringUtils.hasText(ticketId)) {
             return null;
         }
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+            return panelTicketReadClient.resolveRequestNumber(ticketId).orElse(ticketId);
+        }
         return messageRepository.findByTicketId(ticketId)
                 .map(this::resolveClientTicketNumber)
                 .orElse(ticketId);
@@ -346,6 +358,9 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public Optional<TicketActive> findActiveTicketForUser(Long userId, String username, Long channelId) {
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+            return panelTicketReadClient.findActiveTicket(userId, username, channelId);
+        }
         List<String> identities = new ArrayList<>();
         if (userId != null && userId > 0) {
             identities.add(userId.toString());
@@ -364,6 +379,9 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public Optional<TicketWithUser> findByTicketId(String ticketId) {
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+            return panelTicketReadClient.findTicket(ticketId);
+        }
         return ticketRepository.findByIdTicketId(ticketId)
                 .map(ticket -> new TicketWithUser(ticket.getUserId(), ticket.getTicketId(), ticket.getStatus()));
     }

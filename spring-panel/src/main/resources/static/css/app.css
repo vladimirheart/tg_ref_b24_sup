@@ -4138,7 +4138,7 @@ body {
 }
 
 [data-ui-page=analytics] .analytics-table-shell {
-  overflow: hidden;
+  overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--surface-card);
@@ -4291,6 +4291,195 @@ body {
   background: var(--surface-card);
 }
 
+/* Analytics telemetry + monitoring semantic pass */
+[data-ui-page=analytics] .analytics-telemetry-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+}
+
+[data-ui-page=analytics] .analytics-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+[data-ui-page=analytics] .analytics-monitor-card {
+  overflow: hidden;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface-raised) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=analytics] .analytics-monitor-card > .card-body {
+  background: var(--surface-raised);
+}
+
+[data-ui-page=analytics] .analytics-governance-card {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--color-text);
+}
+
+[data-ui-page=analytics] .analytics-governance-card > .fw-semibold {
+  margin-top: 0.15rem;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-ui-page=analytics] .analytics-review-panel {
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  color: var(--color-text);
+}
+
+[data-ui-page=analytics] .analytics-detail-panel {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-interactive);
+  color: var(--color-text);
+}
+
+[data-ui-page=analytics] .analytics-detail-panel > summary {
+  color: var(--color-text);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+[data-ui-page=analytics] #workspaceTelemetryCard .table-responsive {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+[data-ui-page=analytics] #workspaceTelemetryCard .table {
+  margin-bottom: 0;
+  --bs-table-bg: var(--surface-card);
+  --bs-table-color: var(--color-text);
+  --bs-table-border-color: var(--color-border);
+}
+
+[data-ui-page=analytics] #workspaceTelemetryCard .table thead th {
+  background: var(--surface-raised) !important;
+  color: var(--color-text-muted) !important;
+  border-bottom: 1px solid var(--color-border);
+}
+
+[data-ui-page=analytics] #workspaceTelemetryCard .table tbody td {
+  border-color: var(--color-border);
+}
+
+[data-ui-page=analytics] .analytics-table-shell {
+  overflow-x: auto;
+}
+
+[data-ui-page=analytics] .analytics-scroll-area {
+  max-height: 420px;
+  overflow: auto;
+}
+
+[data-ui-page=analytics] .analytics-client-list {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+[data-ui-page=analytics] .analytics-client-list .list-group-item {
+  border-color: var(--color-border);
+  background: var(--surface-card);
+  color: var(--color-text);
+}
+
+[data-ui-page=analytics] .analytics-client-list .list-group-item + .list-group-item {
+  border-top: 1px solid var(--color-border);
+}
+
+/* Dynamic JS states */
+[data-ui-page=analytics] .alert-secondary {
+  border-color: var(--state-neutral-border);
+  background: var(--state-neutral-bg);
+  color: var(--state-neutral-fg);
+}
+
+[data-ui-page=analytics] .alert-success {
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+}
+
+[data-ui-page=analytics] .alert-warning {
+  border-color: var(--state-warning-border);
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+}
+
+[data-ui-page=analytics] .alert-danger {
+  border-color: var(--state-danger-border);
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
+}
+
+[data-ui-page=analytics] #workspaceTelemetryCard .badge,
+[data-ui-page=analytics] #analyticsBotRuntimeCard .badge {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mobile */
+@media (max-width: 991.98px) {
+  [data-ui-page=analytics] .analytics-telemetry-header {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  [data-ui-page=analytics] .analytics-filter-bar {
+    justify-content: flex-start;
+    width: 100%;
+  }
+  [data-ui-page=analytics] .analytics-filter-bar .form-control,
+  [data-ui-page=analytics] .analytics-filter-bar .form-select,
+  [data-ui-page=analytics] .analytics-filter-bar .analytics-control-auto,
+  [data-ui-page=analytics] .analytics-filter-bar .analytics-control-sm,
+  [data-ui-page=analytics] .analytics-filter-bar .analytics-control-md,
+  [data-ui-page=analytics] .analytics-filter-bar .analytics-control-lg {
+    width: 100%;
+    max-width: none;
+  }
+  [data-ui-page=analytics] .analytics-filter-bar .btn {
+    flex: 1 1 10rem;
+  }
+  [data-ui-page=analytics] .analytics-governance-card,
+  [data-ui-page=analytics] .analytics-review-panel {
+    padding: 0.8rem;
+  }
+  [data-ui-page=analytics] .analytics-table-shell,
+  [data-ui-page=analytics] #workspaceTelemetryCard .table-responsive {
+    border-radius: var(--radius-md);
+  }
+}
+@media (max-width: 575.98px) {
+  [data-ui-page=analytics] .analytics-page-actions .btn,
+  [data-ui-page=analytics] .analytics-page-actions form,
+  [data-ui-page=analytics] .analytics-page-actions form .btn {
+    width: 100%;
+  }
+  [data-ui-page=analytics] .analytics-filter-bar .btn {
+    flex-basis: 100%;
+    width: 100%;
+  }
+  [data-ui-page=analytics] .analytics-metric-card {
+    padding: 0.7rem;
+  }
+}
 .ui-kit-shell {
   display: grid;
   gap: 1rem;

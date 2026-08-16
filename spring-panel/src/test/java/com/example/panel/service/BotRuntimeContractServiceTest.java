@@ -183,6 +183,8 @@ class BotRuntimeContractServiceTest {
             .containsEntry("MAX_CHANNEL_ID", "17")
             .containsEntry("MAX_SUPPORT_CHAT_ID", "support-room")
             .containsEntry("MAX_WEBHOOK_SECRET", "max-secret")
+            .containsEntry("APP_PANEL_INTERNAL_API_BASE_URL", "http://127.0.0.1:8080")
+            .containsEntry("APP_PANEL_INTERNAL_API_TOKEN", "iguana-internal-bot-token")
             .containsEntry("APP_DB_MODE", "sqlite")
             .containsEntry("APP_DB_PANEL_RUNTIME", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("APP_DB_TICKETS", tempDir.resolve("panel_runtime.db").toString())

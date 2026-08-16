@@ -73,6 +73,8 @@ app:
     recommended-artifact-directory: ${APP_BOT_RECOMMENDED_ARTIFACT_DIRECTORY:dist}
     startup-readiness-timeout: ${APP_BOT_STARTUP_READINESS_TIMEOUT:45s}
     startup-poll-interval: ${APP_BOT_STARTUP_POLL_INTERVAL:250ms}
+    internal-api:
+      token: ${APP_INTERNAL_BOT_API_TOKEN:iguana-internal-bot-token}
   storage:
     attachments: ${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}/knowledge_base}

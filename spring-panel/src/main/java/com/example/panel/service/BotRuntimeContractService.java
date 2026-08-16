@@ -209,6 +209,11 @@ public class BotRuntimeContractService {
         }
         env.putIfAbsent("SPRING_PROFILES_ACTIVE", "default");
         env.put("APP_BOT_LOG_PATH", logFile.toString());
+        env.put("APP_PANEL_INTERNAL_API_BASE_URL", resolveInternalBotApiBaseUrl());
+        env.put("APP_PANEL_INTERNAL_API_TOKEN", environment.getProperty(
+            "app.bots.internal-api.token",
+            "iguana-internal-bot-token"
+        ));
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dfile.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.jnu.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stdout.encoding=UTF-8");
@@ -346,6 +351,15 @@ public class BotRuntimeContractService {
         if (StringUtils.hasText(value)) {
             env.put(key, value);
         }
+    }
+
+    private String resolveInternalBotApiBaseUrl() {
+        String explicit = environment.getProperty("APP_INTERNAL_BOT_API_BASE_URL");
+        if (StringUtils.hasText(explicit)) {
+            return explicit.trim();
+        }
+        String port = environment.getProperty("APP_HTTP_PORT", environment.getProperty("server.port", "8080"));
+        return "http://127.0.0.1:" + port;
     }
 
     private BotProductionContract productionContract(Path botWorkingDir,

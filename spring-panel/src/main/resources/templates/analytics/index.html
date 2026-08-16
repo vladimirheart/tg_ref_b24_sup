@@ -66,7 +66,7 @@
             </div>
             <div class="alert alert-danger d-none" id="analyticsBotRuntimeError" role="alert"></div>
             <div class="table-responsive analytics-table-shell analytics-scroll-area">
-                <table class="table table-striped align-middle">
+                <table class="table align-middle">
                     <thead>
                     <tr>
                         <th>Канал</th>
@@ -135,34 +135,77 @@
     <div class="row g-4">
         <div class="col-12">
             <div class="card analytics-section-card" id="workspaceTelemetryCard">
-                <div class="card-header analytics-section-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
-                    <div>
-                        <h2 class="h5 mb-0">Workspace rollout guardrails</h2>
-                        <small class="text-muted">Операционные алерты и KPI по `workspace_v1` из серверной telemetry.</small>
-                    </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-					<div class="analytics-filter-bar d-flex flex-wrap align-items-center gap-2">
-                        <label class="small text-muted" for="workspaceTelemetryDays">Окно:</label>
-                        <select class="form-select form-select-sm analytics-control-auto" id="workspaceTelemetryDays">
-                            <option value="7" selected>7 дней</option>
-                            <option value="14">14 дней</option>
-                            <option value="30">30 дней</option>
-                        </select>
-                        <input type="text" class="form-control form-control-sm analytics-control-md" id="workspaceTelemetryExperiment" placeholder="experiment_name (опц.)">
-                        <input type="datetime-local" class="form-control form-control-sm analytics-control-sm" id="workspaceTelemetryFromUtc" aria-label="From UTC" title="Начало окна (UTC)">
-                        <input type="datetime-local" class="form-control form-control-sm analytics-control-sm" id="workspaceTelemetryToUtc" aria-label="To UTC" title="Конец окна (UTC)">
-                        <select class="form-select form-select-sm analytics-control-auto" id="workspaceTelemetryScope" aria-label="Срез guardrails">
-                            <option value="all" selected>Срез: все</option>
-                            <option value="global">Только global</option>
-                            <option value="shift">По сменам</option>
-                            <option value="team">По командам</option>
-                        </select>
-                        <input type="search" class="form-control form-control-sm analytics-control-lg" id="workspaceTelemetrySegment" placeholder="segment (напр. night/team-a)">
-                        <button class="btn btn-sm btn-outline-secondary" type="button" id="workspaceTelemetryResetWindow">Сбросить окно</button>
-                        <button class="btn btn-sm btn-outline-primary" type="button" id="workspaceTelemetryRefresh">Обновить</button>
-                        <button class="btn btn-sm btn-outline-secondary" type="button" id="workspaceTelemetryExportCsv">CSV guardrails</button>
-                    </div>
-                </div>
+                <div class="card-header analytics-section-header analytics-telemetry-header">
+					<div>
+						<h2 class="h5 mb-0">Workspace rollout guardrails</h2>
+						<small class="text-muted">
+							Операционные алерты и KPI по `workspace_v1` из серверной telemetry.
+						</small>
+					</div>
+
+					<div class="analytics-filter-bar">
+						<label class="small text-muted"
+							   for="workspaceTelemetryDays">
+							Окно:
+						</label>
+
+						<select class="form-select form-select-sm analytics-control-auto"
+								id="workspaceTelemetryDays">
+							<option value="7" selected>7 дней</option>
+							<option value="14">14 дней</option>
+							<option value="30">30 дней</option>
+						</select>
+
+						<input type="text"
+							   class="form-control form-control-sm analytics-control-md"
+							   id="workspaceTelemetryExperiment"
+							   placeholder="experiment_name (опц.)">
+
+						<input type="datetime-local"
+							   class="form-control form-control-sm analytics-control-sm"
+							   id="workspaceTelemetryFromUtc"
+							   aria-label="From UTC"
+							   title="Начало окна (UTC)">
+
+						<input type="datetime-local"
+							   class="form-control form-control-sm analytics-control-sm"
+							   id="workspaceTelemetryToUtc"
+							   aria-label="To UTC"
+							   title="Конец окна (UTC)">
+
+						<select class="form-select form-select-sm analytics-control-auto"
+								id="workspaceTelemetryScope"
+								aria-label="Срез guardrails">
+							<option value="all" selected>Срез: все</option>
+							<option value="global">Только global</option>
+							<option value="shift">По сменам</option>
+							<option value="team">По командам</option>
+						</select>
+
+						<input type="search"
+							   class="form-control form-control-sm analytics-control-lg"
+							   id="workspaceTelemetrySegment"
+							   placeholder="segment (напр. night/team-a)">
+
+						<button class="btn btn-sm btn-outline-secondary"
+								type="button"
+								id="workspaceTelemetryResetWindow">
+							Сбросить окно
+						</button>
+
+						<button class="btn btn-sm btn-outline-primary"
+								type="button"
+								id="workspaceTelemetryRefresh">
+							Обновить
+						</button>
+
+						<button class="btn btn-sm btn-outline-secondary"
+								type="button"
+								id="workspaceTelemetryExportCsv">
+							CSV guardrails
+						</button>
+					</div>
+				</div>
                 <div class="card-body">
                     <div class="row g-3 mb-3" id="workspaceTelemetryMetrics">
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">События</div><div class="h5 mb-0" data-metric="events">—</div></div></div>
@@ -198,7 +241,7 @@
                     </div>
                     <div class="alert d-none mb-2" id="workspaceTelemetryRolloutDecision" role="status"></div>
                     <div class="small text-muted mb-3" id="workspaceTelemetryKpiSignalState"></div>
-                    <div class="card border-0 bg-light-subtle mb-3" id="workspaceTelemetryScorecardCard">
+                    <div class="card analytics-monitor-card mb-3" id="workspaceTelemetryScorecardCard">
                         <div class="card-body">
                             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
                                 <div>
@@ -227,7 +270,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card border-0 bg-light-subtle mb-3" id="workspaceTelemetryPacketCard">
+                    <div class="card analytics-monitor-card mb-3" id="workspaceTelemetryPacketCard">
                         <div class="card-body">
                             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
                                 <div>
@@ -241,28 +284,28 @@
                             </div>
                             <div class="row g-3 mb-3">
                                 <div class="col-12 col-lg-4">
-                                    <div class="border rounded p-3 h-100">
+                                    <div class="analytics-governance-card h-100">
                                         <div class="text-muted small">Owner sign-off</div>
                                         <div class="fw-semibold" id="workspaceTelemetryPacketOwnerState">—</div>
                                         <div class="small text-muted" id="workspaceTelemetryPacketOwnerMeta"></div>
                                     </div>
                                 </div>
                                 <div class="col-12 col-lg-4">
-                                    <div class="border rounded p-3 h-100">
+                                    <div class="analytics-governance-card h-100">
                                         <div class="text-muted small">Parity snapshot</div>
                                         <div class="fw-semibold" id="workspaceTelemetryPacketParityState">—</div>
                                         <div class="small text-muted" id="workspaceTelemetryPacketParityMeta"></div>
                                     </div>
                                 </div>
                                 <div class="col-12 col-lg-4">
-                                    <div class="border rounded p-3 h-100">
+                                    <div class="analytics-governance-card h-100">
                                         <div class="text-muted small">Incident history</div>
                                         <div class="fw-semibold" id="workspaceTelemetryPacketIncidentState">—</div>
                                         <div class="small text-muted" id="workspaceTelemetryPacketIncidentMeta"></div>
                                     </div>
                                 </div>
                                 <div class="col-12 col-lg-4">
-                                    <div class="border rounded p-3 h-100">
+                                    <div class="analytics-governance-card h-100">
                                         <div class="text-muted small">Weekly review</div>
                                         <div class="fw-semibold" id="workspaceTelemetryPacketReviewState">—</div>
                                         <div class="small text-muted" id="workspaceTelemetryPacketReviewMeta"></div>
@@ -449,7 +492,7 @@
                                                 <textarea class="form-control form-control-sm font-monospace" id="workspaceTelemetryContextPlaybooks" rows="4" placeholder='{"mandatory_field:phone":{"label":"Как дозаполнить телефон","url":"https://wiki.company.local/playbooks/phone","summary":"Спросить клиента и обновить CRM"},"source_of_truth":{"label":"Source-of-truth guide","url":"https://wiki.company.local/playbooks/context-sources"}}'></textarea>
                                             </div>
                                             <div class="col-12">
-                                                <details class="border rounded p-2 bg-body-tertiary">
+                                                <details class="analytics-detail-panel">
                                                     <summary class="small">Advanced scenario overrides</summary>
                                                     <div class="row g-2 mt-2">
                                                         <div class="col-12">
@@ -508,7 +551,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card border-0 bg-light-subtle mb-3" id="workspaceTelemetrySlaPolicyAuditCard">
+                    <div class="card analytics-monitor-card mb-3" id="workspaceTelemetrySlaPolicyAuditCard">
                         <div class="card-body">
                             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
                                 <div>
@@ -545,7 +588,7 @@
                             </div>
                             <div class="alert alert-warning d-none mb-3" id="workspaceTelemetrySlaPolicyAuditIssueSummary"></div>
                             <div class="small text-muted mb-3" id="workspaceTelemetrySlaPolicyAuditSummaryCompact"></div>
-                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetrySlaPolicyReviewForm">
+                            <div class="analytics-review-panel mb-3" id="workspaceTelemetrySlaPolicyReviewForm">
                                 <div class="small text-muted mb-2">Governance review checkpoint (UTC)</div>
                                 <div class="row g-2">
                                     <div class="col-12 col-lg-3">
@@ -624,7 +667,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card border-0 bg-light-subtle mb-3" id="workspaceTelemetryMacroGovernanceCard">
+                    <div class="card analytics-monitor-card mb-3" id="workspaceTelemetryMacroGovernanceCard">
                         <div class="card-body">
                             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
                                 <div>
@@ -661,7 +704,7 @@
                             </div>
                             <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryMacroGovernanceIssueSummary"></div>
                             <div class="small text-muted mb-3" id="workspaceTelemetryMacroGovernanceSummaryCompact"></div>
-                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetryMacroGovernanceReviewForm">
+                            <div class="analytics-review-panel mb-3" id="workspaceTelemetryMacroGovernanceReviewForm">
                                 <div class="small text-muted mb-2">Governance review checkpoint (UTC)</div>
                                 <div class="row g-2">
                                     <div class="col-12 col-lg-3">
@@ -694,7 +737,7 @@
                                     <small class="text-muted" id="workspaceTelemetryMacroGovernanceActionState"></small>
                                 </div>
                             </div>
-                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetryMacroExternalCatalogPolicyForm">
+                            <div class="analytics-review-panel mb-3" id="workspaceTelemetryMacroExternalCatalogPolicyForm">
                                 <div class="small text-muted mb-2">External catalog compatibility checkpoint (UTC)</div>
                                 <div class="row g-2">
                                     <div class="col-12 col-lg-3">
@@ -735,7 +778,7 @@
                                     <small class="text-muted" id="workspaceTelemetryMacroExternalCatalogActionState"></small>
                                 </div>
                             </div>
-                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetryMacroDeprecationPolicyForm">
+                            <div class="analytics-review-panel mb-3" id="workspaceTelemetryMacroDeprecationPolicyForm">
                                 <div class="small text-muted mb-2">Deprecation policy checkpoint (UTC)</div>
                                 <div class="row g-2">
                                     <div class="col-12 col-lg-3">
@@ -907,7 +950,7 @@
                             <p class="small text-muted mb-3">Top причины, из-за которых workspace ещё не дотягивает до полного parity и customer context minimum profile.</p>
                             <div class="row g-3">
                                 <div class="col-12 col-xl-6">
-                                    <div class="card border-0 bg-light-subtle h-100">
+                                    <div class="card analytics-monitor-card h-100">
                                         <div class="card-body">
                                             <h4 class="h6 mb-2">Missing customer profile fields</h4>
                                             <div class="table-responsive">
@@ -931,7 +974,7 @@
                                     </div>
                                 </div>
                                 <div class="col-12 col-xl-6">
-                                    <div class="card border-0 bg-light-subtle h-100">
+                                    <div class="card analytics-monitor-card h-100">
                                         <div class="card-body">
                                             <h4 class="h6 mb-2">Blocking context sources</h4>
                                             <div class="table-responsive">
@@ -955,7 +998,7 @@
                                     </div>
                                 </div>
                                 <div class="col-12 col-xl-6">
-                                    <div class="card border-0 bg-light-subtle h-100">
+                                    <div class="card analytics-monitor-card h-100">
                                         <div class="card-body">
                                             <h4 class="h6 mb-2">Source / freshness policy gaps</h4>
                                             <div class="table-responsive">
@@ -979,7 +1022,7 @@
                                     </div>
                                 </div>
                                 <div class="col-12 col-xl-6">
-                                    <div class="card border-0 bg-light-subtle h-100">
+                                    <div class="card analytics-monitor-card h-100">
                                         <div class="card-body">
                                             <h4 class="h6 mb-2">Missing context blocks</h4>
                                             <div class="table-responsive">
@@ -1003,7 +1046,7 @@
                                     </div>
                                 </div>
                                 <div class="col-12 col-xl-6">
-                                    <div class="card border-0 bg-light-subtle h-100">
+                                    <div class="card analytics-monitor-card h-100">
                                         <div class="card-body">
                                             <h4 class="h6 mb-2">Parity gaps vs legacy</h4>
                                             <div class="table-responsive">
@@ -1033,15 +1076,17 @@
             </div>
         </div>
         <div class="col-12 col-lg-7">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <div>
-                        <h2 class="h5 mb-0">Заявки по направлениям</h2>
-                        <small class="text-muted">Группировка по бизнесу, городу и статусу.</small>
-                    </div>
-                </div>
+            <div class="card analytics-section-card h-100">
+				<div class="card-header analytics-section-header">
+					<div>
+						<h2 class="h5 mb-0">Заявки по направлениям</h2>
+						<small class="text-muted">
+							Группировка по бизнесу, городу и статусу.
+						</small>
+					</div>
+				</div>
                 <div class="card-body">
-                    <div class="table-responsive analytics-scroll-area">
+                    <div class="table-responsive analytics-table-shell analytics-scroll-area">
                         <table class="table align-middle">
                             <thead>
                             <tr>
@@ -1071,12 +1116,12 @@
             </div>
         </div>
         <div class="col-12 col-lg-5">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h2 class="h5 mb-0">Активные клиенты</h2>
-                </div>
+            <div class="card analytics-section-card h-100">
+				<div class="card-header analytics-section-header">
+					<h2 class="h5 mb-0">Активные клиенты</h2>
+				</div>
                 <div class="card-body">
-                    <div class="list-group list-group-flush analytics-scroll-area">
+                    <div class="list-group list-group-flush analytics-client-list analytics-scroll-area">
                         <div class="list-group-item text-muted" th:if="${#lists.isEmpty(clientSummary)}">Нет активных клиентов</div>
                         <div class="list-group-item" th:each="client : ${clientSummary}">
                             <div class="d-flex justify-content-between">
