@@ -35,7 +35,10 @@
                                   method="post"
                                   class="d-inline">
                                 <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-                                <button class="btn btn-outline-success" type="submit">Обновить из Notion</button>
+                                <button class="btn btn-outline-secondary"
+										type="submit">
+									Обновить из Notion
+								</button>
                             </form>
                             <button class="btn btn-outline-primary"
                                     type="button"
@@ -109,8 +112,9 @@
                         </div>
                     </div>
 
-                    <div class="card kb-edit-source-card">
-                        <div class="card border shadow-sm">
+                    <div class="collapse mt-4"
+							 id="knowledgeArticleEditPanel">
+							<div class="card kb-edit-source-card">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                                     <div>

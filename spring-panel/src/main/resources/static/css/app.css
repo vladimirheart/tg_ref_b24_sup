@@ -3617,24 +3617,15 @@ body {
 .knowledge-markdown blockquote {
   margin-left: 0;
   padding: 0.75rem 1rem;
-  border-left: 4px solid color-mix(in srgb, var(--primary) 45%, white);
-  background: color-mix(in srgb, var(--primary) 8%, white);
-  border-radius: 0 0.75rem 0.75rem 0;
 }
 
 .knowledge-markdown code {
   padding: 0.125rem 0.375rem;
-  border-radius: 0.375rem;
-  background: color-mix(in srgb, var(--bs-body-color) 10%, white);
-  color: inherit;
 }
 
 .knowledge-markdown pre {
   padding: 1rem;
   overflow-x: auto;
-  border-radius: 0.875rem;
-  background: #111827;
-  color: #f9fafb;
 }
 
 .knowledge-markdown pre code {
@@ -3651,17 +3642,11 @@ body {
 .knowledge-markdown th,
 .knowledge-markdown td {
   padding: 0.625rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--bs-border-color) 85%, white);
   vertical-align: top;
 }
 
 .knowledge-markdown th {
-  background: color-mix(in srgb, var(--bs-light) 72%, white);
   font-weight: 700;
-}
-
-.knowledge-markdown a {
-  color: var(--bs-link-color);
 }
 
 .knowledge-markdown img {
@@ -3680,10 +3665,6 @@ body {
 
 .knowledge-toc {
   margin: 0 0 1.25rem;
-  padding: 1rem 1.125rem;
-  border: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, white);
-  border-radius: 0.9rem;
-  background: color-mix(in srgb, var(--card) 97%, white);
 }
 
 .knowledge-toc__title {
@@ -3732,65 +3713,24 @@ body {
 .knowledge-callout {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.875rem;
   align-items: start;
+  gap: 0.875rem;
   margin: 0 0 1rem;
   padding: 1rem 1.125rem;
-  border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, var(--bs-border-color) 78%, white);
-  background: color-mix(in srgb, var(--bs-light) 68%, white);
 }
 
 .knowledge-callout__icon {
+  width: 2rem;
+  height: 2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.75rem;
   font-size: 1.1rem;
   line-height: 1;
-  background: color-mix(in srgb, var(--card) 92%, white);
 }
 
 .knowledge-callout__body > :last-child {
   margin-bottom: 0;
-}
-
-.knowledge-callout--gray-bg,
-.knowledge-callout--default {
-  background: #f3f4f6;
-  border-color: #d1d5db;
-}
-
-.knowledge-callout--blue-bg {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-}
-
-.knowledge-callout--green-bg {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-}
-
-.knowledge-callout--yellow-bg {
-  background: #fffbeb;
-  border-color: #fde68a;
-}
-
-.knowledge-callout--orange-bg {
-  background: #fff7ed;
-  border-color: #fdba74;
-}
-
-.knowledge-callout--red-bg {
-  background: #fef2f2;
-  border-color: #fca5a5;
-}
-
-.knowledge-callout--purple-bg {
-  background: #faf5ff;
-  border-color: #d8b4fe;
 }
 
 /* Iguana knowledge semantic pass */
@@ -4159,6 +4099,107 @@ body {
   color: var(--state-ai-text);
 }
 
+/* Analytics workspace */
+[data-ui-page=analytics] .main-content {
+  background: var(--surface-page);
+  color: var(--color-text);
+}
+
+[data-ui-page=analytics] .page-shell {
+  max-width: 1600px;
+}
+
+[data-ui-page=analytics] .analytics-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+[data-ui-page=analytics] .analytics-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+[data-ui-page=analytics] .analytics-section-card {
+  overflow: hidden;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-xl) !important;
+  background: var(--surface-card) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=analytics] .analytics-section-header {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--surface-raised) !important;
+  color: var(--color-text);
+}
+
+[data-ui-page=analytics] #analyticsBotRuntimeCard .border.rounded,
+[data-ui-page=analytics] #workspaceTelemetryMetrics > div > .border.rounded {
+  padding: 0.75rem 0.8rem !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface-raised);
+}
+
+[data-ui-page=analytics] #analyticsBotRuntimeCard [data-bot-runtime-metric],
+[data-ui-page=analytics] #workspaceTelemetryMetrics [data-metric] {
+  margin-top: 0.2rem;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+[data-ui-page=analytics] .analytics-scroll-area {
+  overflow-y: auto;
+  max-height: 420px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+[data-ui-page=analytics] .analytics-scroll-area .table {
+  margin-bottom: 0;
+  --bs-table-bg: var(--surface-card);
+  --bs-table-color: var(--color-text);
+  --bs-table-border-color: var(--color-border);
+}
+
+[data-ui-page=analytics] .analytics-scroll-area thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-raised) !important;
+  color: var(--color-text-muted) !important;
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 700;
+}
+
+[data-ui-page=analytics] .text-success {
+  color: var(--state-success-text) !important;
+}
+
+[data-ui-page=analytics] .text-warning {
+  color: var(--state-warning-text) !important;
+}
+
+[data-ui-page=analytics] .text-danger {
+  color: var(--state-danger-text) !important;
+}
+
+@media (max-width: 991.98px) {
+  [data-ui-page=analytics] .analytics-page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  [data-ui-page=analytics] .analytics-page-actions {
+    width: 100%;
+  }
+}
 .ui-kit-shell {
   display: grid;
   gap: 1rem;

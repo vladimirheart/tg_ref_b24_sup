@@ -3,34 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Аналитика — Support Panel</title>
+    <title>Аналитика — iguana</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/style.css}">
-    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
-    <link rel="stylesheet" th:href="@{/css/app.css}">
+	<link rel="stylesheet" th:href="@{/css/app.css}">
+	<link rel="stylesheet" th:href="@{/css/sidebar.css}">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="analytics">
-<div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>␊
-<main class="main-content container-fluid py-4">
-    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+<div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
+<main class="main-content container-fluid py-4 page-shell">
+    <div class="page-header-card analytics-page-header mb-4">
         <div>
-            <h1 class="h3 mb-1">Аналитика</h1>
-            <p class="text-muted mb-0">Сводка по обращениям и активности клиентов.</p>
+            <span class="page-kicker">
+                Операционная аналитика
+            </span>
+
+            <h1 class="page-title">
+                Аналитика
+            </h1>
+
+            <p class="page-subtitle mb-0">
+                Сводка по обращениям, сервисам,
+                интеграциям и активности клиентов.
+            </p>
         </div>
-        <div class="d-flex flex-wrap gap-2">
+
+        <div class="analytics-page-actions">
             <a class="btn btn-outline-primary" th:href="@{/analytics/certificates}">Мониторинг SSL</a>
             <a class="btn btn-outline-primary" th:href="@{/analytics/rms-control}">Контроль RMS</a>
             <a class="btn btn-outline-primary" th:href="@{/analytics/iiko-api-monitoring}">Мониторинг iiko API</a>
             <form method="post" th:action="@{/analytics/export}">
                 <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-                <button class="btn btn-success" type="submit">Экспорт CSV</button>
+                <button class="btn btn-outline-secondary"
+						type="submit">
+					Экспорт CSV
+				</button>
             </form>
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-4" id="analyticsBotRuntimeCard">
-        <div class="card-header bg-white d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+    <div class="card analytics-section-card mb-4"
+		id="analyticsBotRuntimeCard">
+        <div class="card-header analytics-section-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
             <div>
                 <h2 class="h5 mb-1">Bot Runtime Monitoring</h2>
                 <p class="text-muted mb-0">Фактический статус процессов ботов по каналам: какие из них реально запущены сейчас.</p>
@@ -71,7 +86,7 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="card analytics-section-card mb-4">
         <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
             <div>
                 <h2 class="h5 mb-1">Кросс-продуктовые KPI дашборды</h2>
@@ -105,11 +120,11 @@
                    th:if="${!#strings.isEmpty(crossProductOmnichannelDashboardUrl)}"
                    th:href="${crossProductOmnichannelDashboardUrl}"
                    th:text="${!#strings.isEmpty(crossProductOmnichannelDashboardLabel) ? crossProductOmnichannelDashboardLabel : 'Omni-channel KPI dashboard'}">Omni-channel KPI dashboard</a>
-                <a class="btn btn-outline-success" target="_blank" rel="noopener noreferrer"
+                <a class="btn btn-outline-secondary" target="_blank" rel="noopener noreferrer"
                    th:if="${!#strings.isEmpty(crossProductFinanceDashboardUrl)}"
                    th:href="${crossProductFinanceDashboardUrl}"
                    th:text="${!#strings.isEmpty(crossProductFinanceDashboardLabel) ? crossProductFinanceDashboardLabel : 'Финансовый KPI dashboard'}">Финансовый KPI dashboard</a>
-                <a class="btn btn-outline-dark" target="_blank" rel="noopener noreferrer"
+                <a class="btn btn-outline-secondary" target="_blank" rel="noopener noreferrer"
                    th:if="${!#strings.isEmpty(crossProductDependencyTicketUrl)}"
                    th:href="${crossProductDependencyTicketUrl}">Dependency ticket</a>
                 <a class="btn btn-outline-secondary" th:href="@{/settings#dialogSlaEscalationSection}">Открыть настройки BI bridge</a>
@@ -119,8 +134,8 @@
 
     <div class="row g-4">
         <div class="col-12">
-            <div class="card shadow-sm" id="workspaceTelemetryCard">
-                <div class="card-header bg-white d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+            <div class="card analytics-section-card" id="workspaceTelemetryCard">
+                <div class="card-header analytics-section-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
                     <div>
                         <h2 class="h5 mb-0">Workspace rollout guardrails</h2>
                         <small class="text-muted">Операционные алерты и KPI по `workspace_v1` из серверной telemetry.</small>
@@ -1026,7 +1041,7 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive analytics-scroll-area">
-                        <table class="table table-striped align-middle">
+                        <table class="table align-middle">
                             <thead>
                             <tr>
                                 <th>Бизнес</th>
