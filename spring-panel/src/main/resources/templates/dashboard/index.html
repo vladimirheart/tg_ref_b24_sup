@@ -204,10 +204,10 @@
               </div>
             </div>
             <div id="staffTimeStats" class="staff-time-stats">
-				<div class="text-center text-muted py-3 activity-heatmap-empty">
+				<div class="text-center text-muted py-3">
 					Нет данных
 				</div>
-            </div>
+			</div>
           </article>
 
           <article class="chart-panel chart-panel--wide data-panel" data-panel-id="activity-heatmap">
@@ -233,8 +233,10 @@
               </div>
               <div class="activity-heatmap-board">
                 <div id="activityHeatmap" class="activity-heatmap-grid">
-                  <div class="text-center text-muted py-3" style="grid-column: 1 / -1;">Нет данных</div>
-                </div>
+					<div class="text-center text-muted py-3 activity-heatmap-empty">
+						Нет данных
+					</div>
+				</div>
               </div>
               <div class="activity-heatmap-legend">
                 <span class="activity-heatmap-legend__scale">
@@ -403,8 +405,20 @@
       </div>
 
       <div class="tab-pane fade" id="reports-managers" role="tabpanel">
-        <div class="reports-subpanel">
-        <div class="card mb-3 gradient-border-hover">
+			<div class="reports-subpanel">
+
+				<div class="reports-subpanel-head">
+					<div>
+						<span class="section-kicker">Управляющие</span>
+						<h2 class="reports-subpanel-title">Отчёт по управляющим</h2>
+						<p class="reports-subpanel-copy">
+							Период, распределение обращений и сводка
+							по руководителям управляющих.
+						</p>
+					</div>
+				</div>
+
+				<div class="card reports-tool-card">
           <div class="card-body">
             <div class="row g-3 align-items-end">
               <div class="col-md-6">
@@ -420,19 +434,38 @@
             </div>
           </div>
         </div>
-        <div class="card gradient-border-hover">
-          <div class="card-body">
-            <h5 class="card-title">Срез по руководителям управляющих</h5>
-            <div id="supervisorSummary" class="text-muted">Нет данных</div>
-          </div>
-        </div>
+        <div class="card reports-summary-card">
+			<div class="card-body">
+				<span class="section-kicker">Руководители</span>
+				<h3 class="reports-card-title">
+					Срез по руководителям управляющих
+				</h3>
+
+				<div id="supervisorSummary"
+					 class="reports-summary-content text-muted">
+					Нет данных
+				</div>
+			</div>
+		</div>
         <div class="accordion mt-3" id="managerAccordion"></div>
         </div>
       </div>
 
       <div class="tab-pane fade" id="reports-olap" role="tabpanel">
-        <div class="reports-subpanel">
-        <div class="card gradient-border-hover">
+		<div class="reports-subpanel">
+
+			<div class="reports-subpanel-head">
+				<div>
+					<span class="section-kicker">OLAP</span>
+					<h2 class="reports-subpanel-title">Конструктор отчётов</h2>
+					<p class="reports-subpanel-copy">
+						Выберите измерение и источники данных,
+						чтобы собрать агрегированный срез.
+					</p>
+				</div>
+			</div>
+
+			<div class="card reports-builder-card">
           <div class="card-body">
             <div class="row g-3 align-items-end">
               <div class="col-md-4">
@@ -454,8 +487,8 @@
                 <button class="btn btn-primary w-100" id="buildOlap">Собрать</button>
               </div>
             </div>
-            <div class="table-responsive mt-3">
-              <table class="table table-sm table-striped">
+            <div class="table-responsive reports-table-shell mt-3">
+				<table class="table table-sm align-middle mb-0 reports-table">
                 <thead><tr><th>Измерение</th><th>Обращения</th><th>Задачи</th><th>Изменения системы</th></tr></thead>
                 <tbody id="olapTableBody"><tr><td colspan="4" class="text-muted">Нет данных</td></tr></tbody>
               </table>
