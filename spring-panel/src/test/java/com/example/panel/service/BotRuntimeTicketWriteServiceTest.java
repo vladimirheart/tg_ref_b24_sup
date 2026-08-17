@@ -111,6 +111,39 @@ class BotRuntimeTicketWriteServiceTest {
         )).isEqualTo("operator");
     }
 
+    @Test
+    void markClientMessageEditedUpdatesHistoryAndAppendsUiEvent() {
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(
+                    user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                88L, "client", "Initial text", "2026-08-16T19:00:00Z", "T-880", "text", 18L, 8100L
+        );
+
+        BotRuntimeTicketWriteService.MutationResult result = service.markClientMessageEdited(18L, 8100L, "Edited text");
+
+        assertThat(result.updated()).isTrue();
+        assertThat(result.exists()).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT message FROM chat_history WHERE ticket_id = ? AND tg_message_id = ?",
+                String.class,
+                "T-880",
+                8100L
+        )).isEqualTo("Edited text");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT original_message FROM chat_history WHERE ticket_id = ? AND tg_message_id = ?",
+                String.class,
+                "T-880",
+                8100L
+        )).isEqualTo("Initial text");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT event_type FROM ui_event_outbox WHERE ticket_id = ?",
+                String.class,
+                "T-880"
+        )).isEqualTo("client_message_edited");
+    }
+
     private void createSchema() {
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (

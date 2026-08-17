@@ -614,6 +614,19 @@ public class TicketService {
     }
 
     @Transactional
+    public boolean markClientMessageEdited(Long channelId,
+                                           Long telegramMessageId,
+                                           String text) {
+        if (channelId == null || telegramMessageId == null || !StringUtils.hasText(text)) {
+            return false;
+        }
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+            return panelTicketWriteClient.markClientMessageEdited(channelId, telegramMessageId, text);
+        }
+        return chatHistoryService.markClientMessageEdited(channelId, telegramMessageId, text);
+    }
+
+    @Transactional
     public void recordOperatorRelay(Long userId,
                                     String ticketId,
                                     String text,

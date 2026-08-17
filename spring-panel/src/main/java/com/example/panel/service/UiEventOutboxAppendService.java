@@ -25,6 +25,10 @@ public class UiEventOutboxAppendService {
         append("ticket_reopened", ticketId, channelId, text, null, null, null);
     }
 
+    public void publishClientMessageEdited(String ticketId, Long channelId, String text) {
+        append("client_message_edited", ticketId, channelId, text, null, null, null);
+    }
+
     public void publishTicketClosed(String ticketId, Long channelId, String text, boolean automatic) {
         append(automatic ? "ticket_closed_auto" : "ticket_closed", ticketId, channelId, text, null, null, null);
     }

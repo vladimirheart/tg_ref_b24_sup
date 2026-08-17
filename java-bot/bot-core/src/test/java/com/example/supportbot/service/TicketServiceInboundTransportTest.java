@@ -351,6 +351,55 @@ class TicketServiceInboundTransportTest {
         verify(panelTicketWriteClient, never()).recordOperatorRelay(any(), any(), any(), any(), any());
     }
 
+    @Test
+    void markClientMessageEditedUsesPanelWriteClientInRabbitMode() {
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
+        when(panelTicketWriteClient.isEnabled()).thenReturn(true);
+        when(panelTicketWriteClient.markClientMessageEdited(44L, 9001L, "Edited by client")).thenReturn(true);
+
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            mock(TicketActiveRepository.class),
+            chatHistoryService,
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),
+            panelTicketWriteClient,
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
+        );
+
+        boolean updated = service.markClientMessageEdited(44L, 9001L, "Edited by client");
+
+        assertThat(updated).isTrue();
+        verify(panelTicketWriteClient).markClientMessageEdited(44L, 9001L, "Edited by client");
+        verify(chatHistoryService, never()).markClientMessageEdited(any(), any(), any());
+    }
+
+    @Test
+    void markClientMessageEditedKeepsJdbcWritePathWhenRabbitTransportDisabled() {
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        when(chatHistoryService.markClientMessageEdited(45L, 9002L, "Edited fallback")).thenReturn(true);
+
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            mock(TicketActiveRepository.class),
+            chatHistoryService,
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),
+            panelTicketWriteClient,
+            new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")
+        );
+
+        boolean updated = service.markClientMessageEdited(45L, 9002L, "Edited fallback");
+
+        assertThat(updated).isTrue();
+        verify(chatHistoryService).markClientMessageEdited(45L, 9002L, "Edited fallback");
+        verify(panelTicketWriteClient, never()).markClientMessageEdited(any(), any(), any());
+    }
+
     private TicketService createService(TicketMessageRepository messageRepository,
                                         TicketActiveRepository ticketActiveRepository,
                                         ChatHistoryService chatHistoryService,

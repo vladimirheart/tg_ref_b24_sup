@@ -99,6 +99,36 @@ public class BotRuntimeTicketWriteService {
         return new MutationResult(true, true);
     }
 
+    @Transactional
+    public MutationResult markClientMessageEdited(Long channelId,
+                                                  Long telegramMessageId,
+                                                  String message) {
+        if (channelId == null || telegramMessageId == null || !StringUtils.hasText(message)) {
+            return new MutationResult(false, false);
+        }
+        ClientMessageSnapshot snapshot = loadClientMessage(channelId, telegramMessageId);
+        if (snapshot == null) {
+            return new MutationResult(false, false);
+        }
+        int updated = jdbcTemplate.update("""
+                UPDATE chat_history
+                   SET original_message = COALESCE(original_message, message),
+                       message = ?,
+                       edited_at = CURRENT_TIMESTAMP
+                 WHERE channel_id = ?
+                   AND tg_message_id = ?
+                   AND sender = 'client'
+                """,
+                message.trim(),
+                channelId,
+                telegramMessageId
+        );
+        if (updated > 0) {
+            uiEventOutboxAppendService.publishClientMessageEdited(snapshot.ticketId(), snapshot.channelId(), message);
+        }
+        return new MutationResult(updated > 0, true);
+    }
+
     private void storeSystemEvent(TicketSnapshot ticket, String text) {
         jdbcTemplate.update("""
                 INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id)
@@ -143,6 +173,27 @@ public class BotRuntimeTicketWriteService {
         return count != null && count > 0;
     }
 
+    private ClientMessageSnapshot loadClientMessage(Long channelId, Long telegramMessageId) {
+        return jdbcTemplate.query("""
+                SELECT ticket_id, channel_id
+                  FROM chat_history
+                 WHERE channel_id = ?
+                   AND tg_message_id = ?
+                   AND sender = 'client'
+                 ORDER BY id DESC
+                 LIMIT 1
+                """,
+                rs -> rs.next()
+                    ? new ClientMessageSnapshot(
+                        rs.getString("ticket_id"),
+                        rs.getObject("channel_id") != null ? rs.getLong("channel_id") : channelId
+                    )
+                    : null,
+                channelId,
+                telegramMessageId
+        );
+    }
+
     private boolean isClosedStatus(String status) {
         if (!StringUtils.hasText(status)) {
             return false;
@@ -158,6 +209,10 @@ public class BotRuntimeTicketWriteService {
         private String userIdentity() {
             return userId != null ? Long.toString(userId) : null;
         }
+    }
+
+    private record ClientMessageSnapshot(String ticketId,
+                                         Long channelId) {
     }
 
     public record MutationResult(boolean updated, boolean exists) {

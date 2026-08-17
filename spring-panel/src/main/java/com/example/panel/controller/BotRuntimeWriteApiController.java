@@ -72,6 +72,21 @@ public class BotRuntimeWriteApiController {
         );
     }
 
+    @PutMapping("/channels/{channelId}/messages/{telegramMessageId}/client-edit")
+    public BotRuntimeTicketWriteService.MutationResult markClientMessageEdited(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable Long channelId,
+        @PathVariable Long telegramMessageId,
+        @RequestBody ClientMessageEditRequest request
+    ) {
+        requireAuthorized(token);
+        return ticketWriteService.markClientMessageEdited(
+            channelId,
+            telegramMessageId,
+            request != null ? request.message() : null
+        );
+    }
+
     private void requireAuthorized(String token) {
         if (token == null || token.isBlank() || !token.equals(expectedToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized internal bot API request");
@@ -85,5 +100,8 @@ public class BotRuntimeWriteApiController {
                                        Long telegramMessageId,
                                        Long replyToTelegramId,
                                        String operatorIdentity) {
+    }
+
+    public record ClientMessageEditRequest(String message) {
     }
 }

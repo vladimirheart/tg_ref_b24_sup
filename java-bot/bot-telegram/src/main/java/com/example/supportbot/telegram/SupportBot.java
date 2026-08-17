@@ -974,7 +974,7 @@ public class SupportBot extends TelegramLongPollingBot {
         if (channelId == null) {
             return;
         }
-        boolean updated = chatHistoryService.markClientMessageEdited(channelId, editedMessage.getMessageId().longValue(), text);
+        boolean updated = ticketService.markClientMessageEdited(channelId, editedMessage.getMessageId().longValue(), text);
         if (updated) {
             log.info("Updated edited client message in history: telegramMessageId={} chatId={}", editedMessage.getMessageId(), chatId);
         }
