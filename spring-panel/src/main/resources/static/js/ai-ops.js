@@ -152,25 +152,41 @@
   }
 
   function renderAlerts(alerts) {
-    if (!alertsEl) return;
-    let html = '';
-    if (!Array.isArray(alerts) || !alerts.length) {
-      html = '<div class="text-muted">No alerts.</div>';
-      setHtmlIfChanged(alertsEl, html);
-      return;
-    }
-    html = alerts.map((a) => {
-      const severity = String(a?.severity || 'info');
-      const cls = severity === 'warning'
-        ? 'alert alert-warning py-2 px-3 mb-2'
-        : (severity === 'ok' ? 'alert alert-success py-2 px-3 mb-2' : 'alert alert-info py-2 px-3 mb-2');
-      return `<div class="${cls}">
-        <div>${escapeHtml(a?.message || 'AI alert')}</div>
-        <div class="small text-muted">value: ${formatRatePercent(a?.value)} | threshold: ${formatRatePercent(a?.threshold)}</div>
-      </div>`;
-    }).join('');
-    setHtmlIfChanged(alertsEl, html);
-  }
+	  if (!alertsEl) return;
+
+	  let html = '';
+
+	  if (!Array.isArray(alerts) || !alerts.length) {
+		html = '<div class="text-muted">Нет активных алертов.</div>';
+		setHtmlIfChanged(alertsEl, html);
+		return;
+	  }
+
+	  html = alerts.map((alert) => {
+		const severity = String(alert?.severity || 'info');
+
+		let tone = 'info';
+
+		if (severity === 'warning') {
+		  tone = 'warning';
+		} else if (severity === 'ok') {
+		  tone = 'success';
+		}
+
+		return `
+		  <div class="aiops-alert aiops-alert--${tone}">
+			<div>${escapeHtml(alert?.message || 'AI alert')}</div>
+
+			<div class="small aiops-alert-meta">
+			  value: ${formatRatePercent(alert?.value)}
+			  · threshold: ${formatRatePercent(alert?.threshold)}
+			</div>
+		  </div>
+		`;
+	  }).join('');
+
+	  setHtmlIfChanged(alertsEl, html);
+	}
 
   function renderRunbook(items) {
     if (!runbookEl) return;
@@ -194,7 +210,7 @@
     }
     html = items.slice(0, 20).map((item) => {
       const createdAt = formatUtcDate(item?.created_at);
-      return `<div class="border rounded p-2 mb-1">
+      return `<div class="aiops-stream-item">
         <div class="d-flex flex-wrap justify-content-between gap-2">
           <span class="fw-semibold">${escapeHtml(item?.event_type || 'event')}</span>
           <span class="text-muted">${escapeHtml(createdAt)}</span>
@@ -221,7 +237,7 @@
       const reviewRequired = Number(item?.review_required || 0) > 0;
       const updatedAt = formatUtcDate(item?.updated_at || item?.created_at);
       const stats = `used: ${Number(item?.times_used || 0)} | confirmed: ${Number(item?.times_confirmed || 0)} | corrected: ${Number(item?.times_corrected || 0)}`;
-      return `<div class="border rounded p-2 mb-2" data-memory-row="${key}">
+      return `<div class="aiops-memory-item" data-memory-row="${key}">
         <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
           <span class="fw-semibold">${queryText || '(empty query)'}</span>
           <span class="text-muted">${escapeHtml(updatedAt)}</span>
@@ -233,9 +249,9 @@
           <label class="form-check-label small">
             <input type="checkbox" class="form-check-input me-1" data-memory-review ${reviewRequired ? 'checked' : ''}> review required
           </label>
-          <button class="btn btn-sm btn-outline-primary" type="button" data-memory-save="${key}">Save</button>
-          <button class="btn btn-sm btn-outline-secondary" type="button" data-memory-history="${key}">History</button>
-          <button class="btn btn-sm btn-outline-danger" type="button" data-memory-delete="${key}">Delete</button>
+			<button class="btn btn-sm btn-ai-soft" type="button" data-memory-save="${key}">Сохранить</button>
+			<button class="btn btn-sm btn-outline-secondary" type="button" data-memory-history="${key}">История</button>
+			<button class="btn btn-sm btn-outline-danger" type="button" data-memory-delete="${key}">Удалить</button>
           <span class="small text-muted" data-memory-row-state></span>
         </div>
         <div class="small mt-2" data-memory-history-list></div>
@@ -267,7 +283,7 @@
         <td class="text-end">
           <div class="btn-group btn-group-sm" role="group">
             <button class="btn btn-outline-primary" type="button" data-ai-review-open ${ticketId ? '' : 'disabled'}>Открыть</button>
-            <button class="btn btn-success" type="button" data-ai-review-approve>Принять</button>
+            <button class="btn btn-primary" type="button" data-ai-review-approve>Принять</button>
             <button class="btn btn-outline-secondary" type="button" data-ai-review-reject>Отклонить</button>
           </div>
         </td>
@@ -316,7 +332,7 @@
           const expectedIntent = escapeHtml(String(item?.expected_intent || '').trim() || '—');
           const actualIntent = escapeHtml(String(item?.actual_intent || '').trim() || '—');
           const reason = escapeHtml(String(item?.consistency_reason || '').trim() || '—');
-          return `<div class="border rounded p-2">
+          return `<div class="aiops-stream-item aiops-stream-item--danger">
             <div class="fw-semibold">${message}</div>
             <div class="text-muted">expected: ${expectedIntent} | actual: ${actualIntent}</div>
             <div>${reason}</div>
@@ -598,7 +614,7 @@
         const action = escapeHtml(h?.change_action || 'update');
         const oldSolution = escapeHtml(h?.old_solution_text || '');
         const newSolution = escapeHtml(h?.new_solution_text || '');
-        return `<div class="border rounded p-2 mb-1" data-memory-history-row="${id}">
+        return `<div class="aiops-history-item" data-memory-history-row="${id}">
           <div class="d-flex flex-wrap justify-content-between gap-2">
             <span class="fw-semibold">#${id} ${action}</span>
             <span class="text-muted">${escapeHtml(createdAt)}</span>

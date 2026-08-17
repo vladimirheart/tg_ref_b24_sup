@@ -27,20 +27,27 @@ public class MaintenanceTasks {
     private final TicketService ticketService;
     private final SharedConfigService sharedConfigService;
     private final BotIntegrationTransportMode integrationTransportMode;
+    private final PanelBlacklistClient panelBlacklistClient;
 
     public MaintenanceTasks(ClientUnblockRequestRepository unblockRequestRepository,
                            TicketService ticketService,
                            SharedConfigService sharedConfigService,
-                           BotIntegrationTransportMode integrationTransportMode) {
+                           BotIntegrationTransportMode integrationTransportMode,
+                           PanelBlacklistClient panelBlacklistClient) {
         this.unblockRequestRepository = unblockRequestRepository;
         this.ticketService = ticketService;
         this.sharedConfigService = sharedConfigService;
         this.integrationTransportMode = integrationTransportMode;
+        this.panelBlacklistClient = panelBlacklistClient;
     }
 
     @Scheduled(cron = "0 0 * * * *")
     @Transactional
     public void expireOldUnblockRequests() {
+        if (integrationTransportMode.isRabbitMqMode()) {
+            log.debug("Skipping bot-side unblock request expiration because rabbitmq transport delegates ownership to spring-panel");
+            return;
+        }
         OffsetDateTime threshold = OffsetDateTime.now().minusDays(30);
         List<ClientUnblockRequest> requests = unblockRequestRepository.findAll();
         int updated = 0;

@@ -1,5 +1,6 @@
 package com.example.supportbot.service;
 
+import com.example.supportbot.config.BotIntegrationTransportMode;
 import com.example.supportbot.entity.ClientBlacklist;
 import com.example.supportbot.entity.ClientUnblockRequest;
 import com.example.supportbot.repository.ClientBlacklistRepository;
@@ -24,11 +25,17 @@ public class BlacklistService {
 
     private final ClientBlacklistRepository blacklistRepository;
     private final ClientUnblockRequestRepository unblockRequestRepository;
+    private final BotIntegrationTransportMode integrationTransportMode;
+    private final PanelBlacklistClient panelBlacklistClient;
 
     public BlacklistService(ClientBlacklistRepository blacklistRepository,
-                            ClientUnblockRequestRepository unblockRequestRepository) {
+                            ClientUnblockRequestRepository unblockRequestRepository,
+                            BotIntegrationTransportMode integrationTransportMode,
+                            PanelBlacklistClient panelBlacklistClient) {
         this.blacklistRepository = blacklistRepository;
         this.unblockRequestRepository = unblockRequestRepository;
+        this.integrationTransportMode = integrationTransportMode;
+        this.panelBlacklistClient = panelBlacklistClient;
     }
 
     @Transactional(readOnly = true)
@@ -38,6 +45,22 @@ public class BlacklistService {
 
     @Transactional(readOnly = true)
     public ResolvedBlacklistStatus resolveStatus(long userId, String... aliases) {
+        if (integrationTransportMode.isRabbitMqMode() && panelBlacklistClient.isEnabled()) {
+            List<String> aliasList = new java.util.ArrayList<>();
+            if (aliases != null) {
+                for (String alias : aliases) {
+                    if (StringUtils.hasText(alias)) {
+                        aliasList.add(alias.trim());
+                    }
+                }
+            }
+            return panelBlacklistClient.resolveStatus(userId, aliasList)
+                    .map(result -> new ResolvedBlacklistStatus(
+                            result.matchedUserId(),
+                            new BlacklistStatus(result.blacklisted(), result.unblockRequested())
+                    ))
+                    .orElse(new ResolvedBlacklistStatus(null, new BlacklistStatus(false, false)));
+        }
         Set<String> candidateKeys = new LinkedHashSet<>();
         if (userId > 0) {
             candidateKeys.add(String.valueOf(userId));
@@ -118,6 +141,11 @@ public class BlacklistService {
 
     @Transactional
     public UnblockRequestDecision requestUnblock(long userId, String reason, Long channelId, Duration cooldown) {
+        if (integrationTransportMode.isRabbitMqMode() && panelBlacklistClient.isEnabled()) {
+            return panelBlacklistClient.requestUnblock(userId, reason, channelId, cooldown)
+                    .map(result -> new UnblockRequestDecision(result.request(), result.created(), result.retryAfter()))
+                    .orElse(new UnblockRequestDecision(null, false, Duration.ZERO));
+        }
         String key = String.valueOf(userId);
         OffsetDateTime now = OffsetDateTime.now();
 

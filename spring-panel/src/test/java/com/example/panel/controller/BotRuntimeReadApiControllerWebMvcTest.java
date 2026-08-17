@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.service.BotRuntimeBlacklistService;
 import com.example.panel.service.BotRuntimeChannelService;
 import com.example.panel.service.BotRuntimeConfigService;
 import com.example.panel.service.BotRuntimeTicketReadService;
@@ -37,6 +38,9 @@ class BotRuntimeReadApiControllerWebMvcTest {
 
     @MockBean
     private BotRuntimeConfigService runtimeConfigService;
+
+    @MockBean
+    private BotRuntimeBlacklistService blacklistService;
 
     @Test
     void activeTicketReturnsLookupForAuthorizedInternalRequest() throws Exception {
@@ -169,5 +173,46 @@ class BotRuntimeReadApiControllerWebMvcTest {
             .andExpect(jsonPath("$.channelId").value(52L))
             .andExpect(jsonPath("$.botSettings.active_template_id").value("q-52"))
             .andExpect(jsonPath("$.presetDefinitions.locations.label").value("Структура локаций"));
+    }
+
+    @Test
+    void blacklistStatusReturnsLookupForAuthorizedInternalRequest() throws Exception {
+        when(blacklistService.resolveStatus(88L, List.of("vk_88"))).thenReturn(
+            new BotRuntimeBlacklistService.ResolvedBlacklistStatusLookup("vk_88", true, true)
+        );
+
+        mockMvc.perform(get("/internal/api/bot/blacklist/status")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .param("userId", "88")
+                .param("alias", "vk_88"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.matchedUserId").value("vk_88"))
+            .andExpect(jsonPath("$.blacklisted").value(true))
+            .andExpect(jsonPath("$.unblockRequested").value(true));
+    }
+
+    @Test
+    void pendingUnblockSummaryReturnsLookupForAuthorizedInternalRequest() throws Exception {
+        when(blacklistService.pendingSummary(2)).thenReturn(
+            new BotRuntimeBlacklistService.PendingUnblockSummaryLookup(
+                5L,
+                List.of(new BotRuntimeBlacklistService.PendingUnblockRequestLookup(
+                    1001L,
+                    "77",
+                    12L,
+                    "",
+                    OffsetDateTime.parse("2026-08-17T10:00:00Z"),
+                    "pending"
+                ))
+            )
+        );
+
+        mockMvc.perform(get("/internal/api/bot/unblock-requests/pending-summary")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .param("limit", "2"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.pendingCount").value(5L))
+            .andExpect(jsonPath("$.recentRequests[0].id").value(1001L))
+            .andExpect(jsonPath("$.recentRequests[0].userId").value("77"));
     }
 }

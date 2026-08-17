@@ -175,7 +175,7 @@
       const checked = selected.has(String(item.id || '')) ? 'checked' : '';
       const secondary = type === 'wallets' ? escapeHtml((item.wallet_names || []).join(', ')) : '';
       return `
-        <label class="border rounded p-2 mb-1 d-block">
+        <label class="aiops-catalog-item">
           <div class="form-check">
             <input class="form-check-input" type="checkbox" data-catalog-type="${type}" data-item-id="${escapeHtml(item.id)}" ${checked}>
             <span class="form-check-label fw-semibold">${escapeHtml(item.name)}</span>
@@ -194,7 +194,7 @@
       return;
     }
     previewEl.innerHTML = items.map((item) => `
-      <div class="border rounded p-2 mb-1">
+      <div class="aiops-stream-item">
         <div class="d-flex justify-content-between gap-2">
           <span class="fw-semibold">${escapeHtml(item.title || '(без названия)')}</span>
           <span class="text-muted">${escapeHtml(item.status)}</span>
@@ -233,7 +233,7 @@
         <div class="text-muted small">${escapeHtml(run.mode)} | ${escapeHtml(run.status)} | ${escapeHtml(run.summary || '')}</div>
       </div>
       ${items.map((item) => `
-        <div class="border rounded p-2 mb-1">
+        <div class="aiops-stream-item">
           <div class="d-flex justify-content-between gap-2">
             <span class="fw-semibold">${escapeHtml(item.title || '(без названия)')}</span>
             <span class="text-muted">${escapeHtml(item.status)}</span>

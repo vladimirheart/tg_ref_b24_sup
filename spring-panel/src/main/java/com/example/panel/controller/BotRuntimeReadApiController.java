@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.service.BotRuntimeBlacklistService;
 import com.example.panel.service.BotRuntimeChannelService;
 import com.example.panel.service.BotRuntimeConfigService;
 import com.example.panel.service.BotRuntimeTicketReadService;
@@ -25,15 +26,18 @@ public class BotRuntimeReadApiController {
     private final BotRuntimeTicketReadService ticketReadService;
     private final BotRuntimeChannelService channelService;
     private final BotRuntimeConfigService runtimeConfigService;
+    private final BotRuntimeBlacklistService blacklistService;
     private final String expectedToken;
 
     public BotRuntimeReadApiController(BotRuntimeTicketReadService ticketReadService,
                                        BotRuntimeChannelService channelService,
                                        BotRuntimeConfigService runtimeConfigService,
+                                       BotRuntimeBlacklistService blacklistService,
                                        @Value("${app.bots.internal-api.token:iguana-internal-bot-token}") String expectedToken) {
         this.ticketReadService = ticketReadService;
         this.channelService = channelService;
         this.runtimeConfigService = runtimeConfigService;
+        this.blacklistService = blacklistService;
         this.expectedToken = expectedToken;
     }
 
@@ -119,6 +123,25 @@ public class BotRuntimeReadApiController {
         requireAuthorized(token);
         return runtimeConfigService.findRuntimeConfig(channelId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Runtime config not found"));
+    }
+
+    @GetMapping("/blacklist/status")
+    public BotRuntimeBlacklistService.ResolvedBlacklistStatusLookup blacklistStatus(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @RequestParam(required = false) Long userId,
+        @RequestParam(name = "alias", required = false) List<String> aliases
+    ) {
+        requireAuthorized(token);
+        return blacklistService.resolveStatus(userId, aliases);
+    }
+
+    @GetMapping("/unblock-requests/pending-summary")
+    public BotRuntimeBlacklistService.PendingUnblockSummaryLookup pendingUnblockSummary(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @RequestParam(defaultValue = "3") int limit
+    ) {
+        requireAuthorized(token);
+        return blacklistService.pendingSummary(limit);
     }
 
     private void requireAuthorized(String token) {

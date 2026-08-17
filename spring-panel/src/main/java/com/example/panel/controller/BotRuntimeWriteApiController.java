@@ -1,8 +1,10 @@
 package com.example.panel.controller;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.service.BotRuntimeBlacklistService;
 import com.example.panel.service.BotRuntimeChannelService;
 import com.example.panel.service.BotRuntimeTicketWriteService;
+import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,13 +25,16 @@ public class BotRuntimeWriteApiController {
 
     private final BotRuntimeTicketWriteService ticketWriteService;
     private final BotRuntimeChannelService channelService;
+    private final BotRuntimeBlacklistService blacklistService;
     private final String expectedToken;
 
     public BotRuntimeWriteApiController(BotRuntimeTicketWriteService ticketWriteService,
                                         BotRuntimeChannelService channelService,
+                                        BotRuntimeBlacklistService blacklistService,
                                         @Value("${app.bots.internal-api.token:iguana-internal-bot-token}") String expectedToken) {
         this.ticketWriteService = ticketWriteService;
         this.channelService = channelService;
+        this.blacklistService = blacklistService;
         this.expectedToken = expectedToken;
     }
 
@@ -134,6 +139,23 @@ public class BotRuntimeWriteApiController {
         );
     }
 
+    @PostMapping("/blacklist/unblock-requests")
+    public BotRuntimeBlacklistService.UnblockRequestDecisionLookup requestUnblock(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @RequestBody(required = false) UnblockRequestCreateRequest request
+    ) {
+        requireAuthorized(token);
+        Duration cooldown = request != null && request.cooldownSeconds() != null
+            ? Duration.ofSeconds(Math.max(0L, request.cooldownSeconds()))
+            : Duration.ZERO;
+        return blacklistService.requestUnblock(
+            request != null ? request.userId() : null,
+            request != null ? request.reason() : null,
+            request != null ? request.channelId() : null,
+            cooldown
+        );
+    }
+
     private void requireAuthorized(String token) {
         if (token == null || token.isBlank() || !token.equals(expectedToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized internal bot API request");
@@ -162,6 +184,12 @@ public class BotRuntimeWriteApiController {
     }
 
     public record SupportChatUpdateRequest(String supportChatId) {
+    }
+
+    public record UnblockRequestCreateRequest(Long userId,
+                                              String reason,
+                                              Long channelId,
+                                              Long cooldownSeconds) {
     }
 
     public record ChannelResponse(Long id,

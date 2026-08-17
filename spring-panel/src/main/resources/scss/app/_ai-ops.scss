@@ -1,0 +1,387 @@
+/* AI Ops workspace */
+
+[data-ui-page='ai-ops'] .main-content {
+    background: var(--surface-page);
+    color: var(--color-text);
+}
+
+[data-ui-page='ai-ops'] .aiops-shell {
+    max-width: 1660px;
+}
+
+/* Header */
+
+[data-ui-page='ai-ops'] .aiops-page-header {
+    border-color:
+        color-mix(
+            in srgb,
+            var(--state-ai) 22%,
+            var(--color-border)
+        );
+}
+
+[data-ui-page='ai-ops'] .aiops-page-header .page-kicker {
+    border: 1px solid var(--state-ai-border);
+
+    background: var(--state-ai-bg);
+    color: var(--state-ai-fg);
+}
+
+/* Workspace tabs */
+
+[data-ui-page='ai-ops'] .aiops-tab-nav {
+    display: inline-flex;
+    gap: 0.35rem;
+
+    padding: 0.3rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-card);
+}
+
+[data-ui-page='ai-ops'] .aiops-tab-nav .nav-link {
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+
+    color: var(--color-text-muted);
+
+    font-weight: 700;
+}
+
+[data-ui-page='ai-ops'] .aiops-tab-nav .nav-link:hover {
+    border-color: var(--color-border);
+
+    background: var(--surface-interactive);
+    color: var(--color-text);
+}
+
+[data-ui-page='ai-ops'] .aiops-tab-nav .nav-link.active {
+    border-color: var(--state-ai-border);
+
+    background: var(--state-ai-bg);
+    color: var(--state-ai-fg);
+}
+
+/* Top runtime state */
+
+[data-ui-page='ai-ops'] .aiops-topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 0.75rem;
+
+    margin-bottom: 1rem;
+}
+
+[data-ui-page='ai-ops'] .aiops-action-status {
+    display: flex;
+    flex: 1 1 32rem;
+    align-items: center;
+
+    min-height: 2.75rem;
+    padding: 0.65rem 0.85rem;
+
+    border: 1px solid transparent;
+    border-radius: var(--radius-lg);
+
+    font-size: 0.86rem;
+
+    opacity: 0;
+    transform: translateY(2px);
+
+    pointer-events: none;
+
+    transition:
+        opacity 0.18s ease,
+        transform 0.18s ease,
+        border-color 0.18s ease,
+        background-color 0.18s ease;
+}
+
+[data-ui-page='ai-ops'] .aiops-action-status.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+[data-ui-page='ai-ops']
+.aiops-action-status[data-tone='info'] {
+    border-color: var(--state-info-border);
+
+    background: var(--state-info-bg);
+    color: var(--state-info-fg);
+}
+
+[data-ui-page='ai-ops']
+.aiops-action-status[data-tone='success'] {
+    border-color: var(--state-success-border);
+
+    background: var(--state-success-bg);
+    color: var(--state-success-fg);
+}
+
+[data-ui-page='ai-ops']
+.aiops-action-status[data-tone='error'] {
+    border-color: var(--state-danger-border);
+
+    background: var(--state-danger-bg);
+    color: var(--state-danger-fg);
+}
+
+[data-ui-page='ai-ops'] .aiops-refresh-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 2.75rem;
+    padding: 0.65rem 0.95rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+
+    background: var(--surface-raised);
+    color: var(--color-text-muted);
+
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+/* Main cards */
+
+[data-ui-page='ai-ops'] .aiops-section-card,
+[data-ui-page='ai-ops'] .aiops-automation-card {
+    overflow: hidden;
+
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-xl) !important;
+
+    background: var(--surface-card) !important;
+
+    box-shadow: none !important;
+}
+
+[data-ui-page='ai-ops'] .aiops-section-card > .card-header,
+[data-ui-page='ai-ops'] .aiops-automation-card > .card-header {
+    border-bottom: 1px solid var(--color-border);
+
+    background: var(--surface-raised) !important;
+    color: var(--color-text);
+}
+
+[data-ui-page='ai-ops'] .aiops-section-card > .card-body,
+[data-ui-page='ai-ops'] .aiops-automation-card > .card-body {
+    background: var(--surface-card);
+}
+
+/* Filters */
+
+[data-ui-page='ai-ops'] .aiops-filterbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+
+    margin-bottom: 0.75rem;
+}
+
+[data-ui-page='ai-ops'] .ai-ops-filter-input {
+    max-width: 14rem;
+}
+
+/* Alerts */
+
+[data-ui-page='ai-ops'] .aiops-alert {
+    padding: 0.65rem 0.8rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+}
+
+[data-ui-page='ai-ops'] .aiops-alert + .aiops-alert {
+    margin-top: 0.5rem;
+}
+
+[data-ui-page='ai-ops'] .aiops-alert--info {
+    border-color: var(--state-ai-border);
+
+    background: var(--state-ai-bg);
+    color: var(--state-ai-fg);
+}
+
+[data-ui-page='ai-ops'] .aiops-alert--warning {
+    border-color: var(--state-warning-border);
+
+    background: var(--state-warning-bg);
+    color: var(--state-warning-fg);
+}
+
+[data-ui-page='ai-ops'] .aiops-alert--success {
+    border-color: var(--state-success-border);
+
+    background: var(--state-success-bg);
+    color: var(--state-success-fg);
+}
+
+[data-ui-page='ai-ops'] .aiops-alert-meta {
+    margin-top: 0.25rem;
+
+    color: currentColor;
+
+    opacity: 0.72;
+}
+
+/* Streams / memory */
+
+[data-ui-page='ai-ops'] .aiops-stream,
+[data-ui-page='ai-ops'] .aiops-memory-stream {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+}
+
+[data-ui-page='ai-ops'] .aiops-runbook {
+    margin-bottom: 0;
+}
+
+[data-ui-page='ai-ops'] .aiops-stream-item,
+[data-ui-page='ai-ops'] .aiops-memory-item,
+[data-ui-page='ai-ops'] .aiops-history-item {
+    padding: 0.65rem 0.75rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+}
+
+[data-ui-page='ai-ops'] .aiops-memory-item {
+    padding: 0.8rem;
+}
+
+[data-ui-page='ai-ops'] .aiops-history-item {
+    margin-top: 0.4rem;
+
+    background: var(--surface-card);
+}
+
+[data-ui-page='ai-ops'] .aiops-stream-item--danger {
+    border-color: var(--state-danger-border);
+
+    background: var(--state-danger-bg);
+    color: var(--state-danger-fg);
+}
+
+/* Review table */
+
+[data-ui-page='ai-ops'] .aiops-table-shell {
+    overflow-x: auto;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-card);
+}
+
+[data-ui-page='ai-ops'] .aiops-table {
+    min-width: 720px;
+
+    --bs-table-bg: var(--surface-card);
+    --bs-table-color: var(--color-text);
+    --bs-table-border-color: var(--color-border);
+}
+
+[data-ui-page='ai-ops'] .aiops-table thead th {
+    background: var(--surface-raised) !important;
+    color: var(--color-text-muted) !important;
+
+    border-bottom: 1px solid var(--color-border);
+
+    white-space: nowrap;
+}
+
+[data-ui-page='ai-ops'] .aiops-table tbody td {
+    border-color: var(--color-border);
+}
+
+[data-ui-page='ai-ops'] .aiops-table tbody tr:hover > * {
+    background:
+        color-mix(
+            in srgb,
+            var(--state-ai) 4%,
+            var(--surface-card)
+        );
+}
+
+/* Automation workspace */
+
+[data-ui-page='ai-ops'] .aiops-subpanel {
+    padding: 1rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+}
+
+[data-ui-page='ai-ops'] .aiops-catalog-item {
+    display: block;
+
+    margin-bottom: 0.35rem;
+    padding: 0.65rem 0.75rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+
+    background: var(--surface-card);
+    color: var(--color-text);
+
+    cursor: pointer;
+}
+
+[data-ui-page='ai-ops'] .aiops-catalog-item:hover {
+    background: var(--surface-interactive);
+}
+
+/* Responsive */
+
+@media (max-width: 767.98px) {
+    [data-ui-page='ai-ops'] .aiops-tab-nav {
+        display: flex;
+
+        width: 100%;
+    }
+
+    [data-ui-page='ai-ops'] .aiops-tab-nav .nav-item {
+        flex: 1 1 0;
+    }
+
+    [data-ui-page='ai-ops'] .aiops-tab-nav .nav-link {
+        width: 100%;
+
+        text-align: center;
+    }
+
+    [data-ui-page='ai-ops'] .ai-ops-filter-input {
+        width: 100%;
+        max-width: none;
+    }
+
+    [data-ui-page='ai-ops'] .aiops-refresh-pill {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-ui-page='ai-ops'] .aiops-action-status {
+        transition: none;
+    }
+}

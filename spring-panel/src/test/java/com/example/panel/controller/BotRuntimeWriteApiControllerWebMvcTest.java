@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.service.BotRuntimeBlacklistService;
 import com.example.panel.service.BotRuntimeChannelService;
 import com.example.panel.service.BotRuntimeTicketWriteService;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,9 @@ class BotRuntimeWriteApiControllerWebMvcTest {
 
     @MockBean
     private BotRuntimeChannelService channelService;
+
+    @MockBean
+    private BotRuntimeBlacklistService blacklistService;
 
     @Test
     void registerActivityRequiresInternalToken() throws Exception {
@@ -179,5 +183,40 @@ class BotRuntimeWriteApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.updated").value(false))
             .andExpect(jsonPath("$.exists").value(true));
+    }
+
+    @Test
+    void unblockRequestDelegatesPayloadToBlacklistService() throws Exception {
+        when(blacklistService.requestUnblock(77L, "", 12L, java.time.Duration.ofMinutes(15)))
+            .thenReturn(new BotRuntimeBlacklistService.UnblockRequestDecisionLookup(
+                new BotRuntimeBlacklistService.PendingUnblockRequestLookup(
+                    901L,
+                    "77",
+                    12L,
+                    "",
+                    java.time.OffsetDateTime.parse("2026-08-17T10:00:00Z"),
+                    "pending"
+                ),
+                true,
+                java.time.Duration.ZERO
+            ));
+
+        mockMvc.perform(post("/internal/api/bot/blacklist/unblock-requests")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "userId": 77,
+                          "reason": "",
+                          "channelId": 12,
+                          "cooldownSeconds": 900
+                        }
+                        """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.created").value(true))
+            .andExpect(jsonPath("$.request.id").value(901L))
+            .andExpect(jsonPath("$.request.userId").value("77"));
+
+        verify(blacklistService).requestUnblock(77L, "", 12L, java.time.Duration.ofMinutes(15));
     }
 }
