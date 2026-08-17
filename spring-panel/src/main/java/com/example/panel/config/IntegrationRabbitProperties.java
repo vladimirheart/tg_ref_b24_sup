@@ -13,6 +13,8 @@ public class IntegrationRabbitProperties {
     private String inboundDlx;
     private String inboundDlq;
     private String ticketCreatedDlq;
+    private String outboundExchange;
+    private String outboundDlx;
     private String routingTelegram;
     private String routingVk;
     private String routingMax;
@@ -66,6 +68,22 @@ public class IntegrationRabbitProperties {
         this.ticketCreatedDlq = ticketCreatedDlq;
     }
 
+    public String getOutboundExchange() {
+        return outboundExchange;
+    }
+
+    public void setOutboundExchange(String outboundExchange) {
+        this.outboundExchange = outboundExchange;
+    }
+
+    public String getOutboundDlx() {
+        return outboundDlx;
+    }
+
+    public void setOutboundDlx(String outboundDlx) {
+        this.outboundDlx = outboundDlx;
+    }
+
     public String getRoutingTelegram() {
         return routingTelegram;
     }
@@ -96,5 +114,13 @@ public class IntegrationRabbitProperties {
 
     public void setRoutingTicketCreated(String routingTicketCreated) {
         this.routingTicketCreated = routingTicketCreated;
+    }
+
+    public String outboundFeedbackPromptRoutingKey(String platform, Long channelId) {
+        String normalizedPlatform = platform == null || platform.isBlank()
+            ? "telegram"
+            : platform.trim().toLowerCase();
+        long normalizedChannelId = channelId != null && channelId > 0 ? channelId : 0L;
+        return "integration.outbound.feedback.prompt." + normalizedPlatform + ".channel." + normalizedChannelId;
     }
 }

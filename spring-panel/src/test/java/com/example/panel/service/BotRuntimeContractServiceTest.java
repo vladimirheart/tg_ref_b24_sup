@@ -435,6 +435,36 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
+    void buildEnvironmentForRabbitModeIncludesOutboundFeedbackPromptContract() {
+        BotRuntimeContractService service = createService(
+            "auto",
+            Map.of(),
+            Map.of(),
+            Map.of(
+                "app.integration.transport.mode", "rabbitmq",
+                "app.integration.rabbitmq.outbound-exchange", "iguana.integration.outbound",
+                "app.integration.rabbitmq.outbound-dlx", "iguana.integration.outbound.dlx"
+            )
+        );
+        Channel channel = new Channel();
+        channel.setId(42L);
+        channel.setPlatform("telegram");
+
+        Map<String, String> env = service.buildEnvironment(
+            channel,
+            new com.example.panel.model.channel.BotCredential(12L, "tg", "telegram", "tg-token", true),
+            tempDir.resolve("telegram-rabbit.log")
+        );
+
+        assertThat(env)
+            .containsEntry("APP_INTEGRATION_RABBITMQ_OUTBOUND_EXCHANGE", "iguana.integration.outbound")
+            .containsEntry("APP_INTEGRATION_RABBITMQ_OUTBOUND_DLX", "iguana.integration.outbound.dlx")
+            .containsEntry("APP_INTEGRATION_RABBITMQ_OUTBOUND_QUEUE", "iguana.integration.outbound.feedback-prompt.telegram.channel.42.bot")
+            .containsEntry("APP_INTEGRATION_RABBITMQ_OUTBOUND_DLQ", "iguana.integration.outbound.feedback-prompt.telegram.channel.42.bot.dlq")
+            .containsEntry("APP_INTEGRATION_RABBITMQ_OUTBOUND_ROUTING_KEY", "integration.outbound.feedback.prompt.telegram.channel.42");
+    }
+
+    @Test
     void buildEnvironmentForTelegramIncludesCustomBotApiBaseUrl() {
         BotRuntimeContractService service = createService("auto", Map.of());
         Channel channel = new Channel();

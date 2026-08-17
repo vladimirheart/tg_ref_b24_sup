@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.panel.entity.Channel;
+import com.example.panel.service.BotRuntimeChannelService;
 import com.example.panel.service.BotRuntimeTicketReadService;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -28,6 +30,9 @@ class BotRuntimeReadApiControllerWebMvcTest {
 
     @MockBean
     private BotRuntimeTicketReadService ticketReadService;
+
+    @MockBean
+    private BotRuntimeChannelService channelService;
 
     @Test
     void activeTicketReturnsLookupForAuthorizedInternalRequest() throws Exception {
@@ -124,5 +129,22 @@ class BotRuntimeReadApiControllerWebMvcTest {
             .andExpect(jsonPath("$.id").value(901L))
             .andExpect(jsonPath("$.ticketId").value("T-901"))
             .andExpect(jsonPath("$.channelId").value(12L));
+    }
+
+    @Test
+    void channelReturnsLookupForAuthorizedInternalRequest() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(52L);
+        channel.setToken("bot-token");
+        channel.setPlatform("telegram");
+        channel.setSupportChatId("-10052");
+        when(channelService.findChannel(52L)).thenReturn(Optional.of(channel));
+
+        mockMvc.perform(get("/internal/api/bot/channels/52")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(52L))
+            .andExpect(jsonPath("$.platform").value("telegram"))
+            .andExpect(jsonPath("$.supportChatId").value("-10052"));
     }
 }

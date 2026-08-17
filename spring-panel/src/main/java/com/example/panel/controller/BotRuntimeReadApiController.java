@@ -1,5 +1,7 @@
 package com.example.panel.controller;
 
+import com.example.panel.entity.Channel;
+import com.example.panel.service.BotRuntimeChannelService;
 import com.example.panel.service.BotRuntimeTicketReadService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,11 +22,14 @@ public class BotRuntimeReadApiController {
     private static final String AUTH_HEADER = "X-Iguana-Bot-Api-Token";
 
     private final BotRuntimeTicketReadService ticketReadService;
+    private final BotRuntimeChannelService channelService;
     private final String expectedToken;
 
     public BotRuntimeReadApiController(BotRuntimeTicketReadService ticketReadService,
+                                       BotRuntimeChannelService channelService,
                                        @Value("${app.bots.internal-api.token:iguana-internal-bot-token}") String expectedToken) {
         this.ticketReadService = ticketReadService;
+        this.channelService = channelService;
         this.expectedToken = expectedToken;
     }
 
@@ -91,9 +96,62 @@ public class BotRuntimeReadApiController {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pending feedback request not found"));
     }
 
+    @GetMapping("/channels/{channelId}")
+    public ChannelLookup channel(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable Long channelId
+    ) {
+        requireAuthorized(token);
+        return channelService.findChannel(channelId)
+            .map(ChannelLookup::from)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Channel not found"));
+    }
+
     private void requireAuthorized(String token) {
         if (token == null || token.isBlank() || !token.equals(expectedToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized internal bot API request");
+        }
+    }
+
+    public record ChannelLookup(Long id,
+                                String token,
+                                String channelName,
+                                String questionsCfg,
+                                Integer maxQuestions,
+                                Boolean active,
+                                String botUsername,
+                                String questionTemplateId,
+                                String ratingTemplateId,
+                                String publicId,
+                                String autoActionTemplateId,
+                                String description,
+                                String filters,
+                                String deliverySettings,
+                                String platform,
+                                String platformConfig,
+                                Long credentialId,
+                                String supportChatId) {
+        static ChannelLookup from(Channel channel) {
+            return new ChannelLookup(
+                channel.getId(),
+                channel.getToken(),
+                channel.getChannelName(),
+                channel.getQuestionsCfg(),
+                channel.getMaxQuestions(),
+                channel.getActive(),
+                channel.getBotUsername(),
+                channel.getQuestionTemplateId(),
+                channel.getRatingTemplateId(),
+                channel.getPublicId(),
+                channel.getAutoActionTemplateId(),
+                channel.getDescription(),
+                channel.getFilters(),
+                channel.getDeliverySettings(),
+                channel.getPlatform(),
+                channel.getPlatformConfig(),
+                channel.getCredentialId(),
+                channel.getSupportChatId()
+            );
         }
     }
 }

@@ -13,6 +13,11 @@ public class IntegrationRabbitProperties {
     private String inboundDlx;
     private String inboundDlq;
     private String ticketCreatedDlq;
+    private String outboundExchange;
+    private String outboundDlx;
+    private String outboundQueue;
+    private String outboundDlq;
+    private String outboundRoutingKey;
     private String routingTelegram;
     private String routingVk;
     private String routingMax;
@@ -64,6 +69,46 @@ public class IntegrationRabbitProperties {
 
     public void setTicketCreatedDlq(String ticketCreatedDlq) {
         this.ticketCreatedDlq = ticketCreatedDlq;
+    }
+
+    public String getOutboundExchange() {
+        return outboundExchange;
+    }
+
+    public void setOutboundExchange(String outboundExchange) {
+        this.outboundExchange = outboundExchange;
+    }
+
+    public String getOutboundDlx() {
+        return outboundDlx;
+    }
+
+    public void setOutboundDlx(String outboundDlx) {
+        this.outboundDlx = outboundDlx;
+    }
+
+    public String getOutboundQueue() {
+        return outboundQueue;
+    }
+
+    public void setOutboundQueue(String outboundQueue) {
+        this.outboundQueue = outboundQueue;
+    }
+
+    public String getOutboundDlq() {
+        return outboundDlq;
+    }
+
+    public void setOutboundDlq(String outboundDlq) {
+        this.outboundDlq = outboundDlq;
+    }
+
+    public String getOutboundRoutingKey() {
+        return outboundRoutingKey;
+    }
+
+    public void setOutboundRoutingKey(String outboundRoutingKey) {
+        this.outboundRoutingKey = outboundRoutingKey;
     }
 
     public String getRoutingTelegram() {

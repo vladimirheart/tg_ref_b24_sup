@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}" />
   <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : 'X-XSRF-TOKEN'}" />
-  <title>Новый паспорт объекта — Support Panel</title>
+  <title>Паспорт объекта — iguana</title>
   <link rel="icon"
       type="image/png"
       sizes="32x32"
@@ -28,271 +28,67 @@
   <link rel="stylesheet" th:href="@{/css/style.css}" />
   <link rel="stylesheet" th:href="@{/css/sidebar.css}" />
   <link rel="stylesheet" th:href="@{/css/app.css}" />
-  <style>
-    body.with-sidebar .main-content {
-      background-color: var(--color-bg);
-      min-height: 100vh;
-    }
-    .passport-container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    .passport-overview,
-    .passport-card {
-      border: 1px solid transparent;
-      border-radius: 1rem;
-      background:
-        linear-gradient(color-mix(in srgb, var(--card) 95%, white), color-mix(in srgb, var(--secondary) 22%, white)),
-        conic-gradient(
-          from var(--gradient-angle),
-          color-mix(in srgb, var(--gradient-primary) 55%, transparent),
-          color-mix(in srgb, var(--gradient-secondary) 42%, transparent),
-          color-mix(in srgb, var(--gradient-accent) 50%, transparent),
-          color-mix(in srgb, var(--gradient-primary) 55%, transparent)
-        );
-      box-shadow: var(--color-shadow);
-      background-origin: padding-box, border-box;
-      background-clip: padding-box, border-box;
-    }
-    .passport-card {
-      box-shadow: var(--color-shadow);
-    }
-    .passport-overview .card-body {
-      padding: 1.75rem 2rem;
-    }
-    .passport-card .card-header {
-      background: linear-gradient(135deg, color-mix(in srgb, var(--secondary) 45%, white), color-mix(in srgb, var(--accent) 55%, white));
-      border: 0;
-      border-radius: 1rem 1rem 0 0;
-      padding: 1rem 1.5rem;
-      font-weight: 600;
-      color: var(--color-text);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .passport-card .card-body {
-      padding: 1.5rem;
-    }
-    .passport-card .card-body .row.g-3,
-    .passport-card .card-body .row.g-4 {
-      --bs-gutter-y: 0.75rem;
-      --bs-gutter-x: 0.75rem;
-    }
-    .card h5 { margin-bottom: 0; }
-    .schedule-table input[type="time"] { max-width: 120px; }
-    .photo-card img { object-fit: cover; height: 180px; }
-    .photo-card .card-body { font-size: 0.9rem; }
-    .equipment-card textarea { min-height: 80px; }
-    .equipment-card .card-header { flex-wrap: wrap; gap: 0.75rem; }
-    .equipment-card .equipment-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .equipment-card .card-header {
-      gap: 1rem;
-    }
-    .equipment-card .equipment-header-toggle {
-      border: 0;
-      background: transparent;
-      padding: 0;
-      margin: -0.25rem 0;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: inherit;
-      text-align: left;
-      flex: 1;
-      cursor: pointer;
-    }
-    .equipment-card .equipment-header-toggle:focus {
-      outline: none;
-      box-shadow: none;
-    }
-    .equipment-card .equipment-header-summary { display: flex; flex-direction: column; gap: 0.35rem; flex: 1; min-width: 0; }
-    .equipment-card .equipment-header-title {
-      font-weight: 600;
-      color: var(--color-text);
-      white-space: normal;
-      word-break: break-word;
-    }
-    .equipment-card .equipment-header-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.85rem; color: var(--color-text-muted); }
-    .equipment-card .equipment-header-meta strong { color: var(--color-text); font-weight: 600; }
-    .equipment-card .equipment-header-meta span { display: inline-flex; gap: 0.35rem; align-items: baseline; min-width: 0; }
-    .equipment-card .equipment-header-meta span span { white-space: normal; word-break: break-word; }
-    .equipment-card .equipment-header-icon { font-size: 0.65rem; transition: transform 0.2s ease; }
-    .equipment-card .equipment-header-toggle.collapsed .equipment-header-icon { transform: rotate(-90deg); }
-    .equipment-card .equipment-header-toggle[tabindex="0"]:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
-      border-radius: 0.5rem;
-    }
-    .equipment-card .equipment-fields-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 1rem;
-    }
-    .equipment-card .equipment-field { display: flex; flex-direction: column; gap: 0.35rem; }
-    .equipment-card .equipment-field-placeholder { visibility: hidden; }
-    .equipment-card .equipment-field-span-3 { grid-column: span 3; }
-    .equipment-photo img { object-fit: cover; height: 150px; }
-    .equipment-photo .card-body { font-size: 0.85rem; }
-    .form-control-plaintext { padding-left: 0; }
-    .object-title { font-size: 1.15rem; }
-    .title-photo-preview { width: 180px; height: 120px; border-radius: 0.75rem; overflow: hidden; background: color-mix(in srgb, var(--secondary) 38%, white); display: flex; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent); }
-    .title-photo-preview img { width: 100%; height: 100%; object-fit: cover; }
-    .section-collapse { display: none; }
-    .section-collapse.show { display: block; }
-    .card-toggle-btn { white-space: nowrap; border-radius: 999px; }
-    .table-row-link { cursor: pointer; }
-    .passport-card .card-body .form-label { font-weight: 600; font-size: 0.85rem; color: var(--color-text); }
-     #itBlock { border-top: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent); padding-top: 1.5rem; }
-    .it-equipment-list { border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent); border-radius: 0.75rem; padding: 0.75rem 1rem; background-color: color-mix(in srgb, var(--secondary) 20%, white); }
-    .it-equipment-item { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.9rem; padding: 0.25rem 0; }
-    .it-equipment-item + .it-equipment-item { border-top: 1px dashed rgba(15, 23, 42, 0.12); }
-    .it-equipment-name { font-weight: 600; color: var(--color-text); }
-    .it-equipment-ip { font-family: var(--font-mono); color: var(--color-text-muted); }
-    .it-equipment-empty { color: var(--color-text-muted); font-size: 0.9rem; }
-    .network-equipment-summary { border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent); border-radius: 0.75rem; padding: 0.75rem 1rem; background-color: color-mix(in srgb, var(--secondary) 20%, white); min-height: 3rem; display: flex; align-items: center; }
-    .network-equipment-list {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-      list-style: none;
-      margin: 0;
-      padding: 0;
-    }
-    .network-equipment-list li { width: 100%; }
-    .network-equipment-entry {
-      width: 100%;
-      display: flex;
-      justify-content: space-between;
-      gap: 0.5rem;
-      font-size: 0.9rem;
-      border: 0;
-      padding: 0.5rem 0.75rem;
-      border-radius: 0.5rem;
-      background: transparent;
-      color: inherit;
-      text-align: left;
-      cursor: pointer;
-      transition: background-color 0.15s ease, box-shadow 0.15s ease;
-    }
-    .network-equipment-entry:focus { outline: none; box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary) 20%, transparent); }
-    .network-equipment-list li:nth-child(odd) .network-equipment-entry { background: color-mix(in srgb, var(--card) 95%, white); }
-    .network-equipment-list li:nth-child(even) .network-equipment-entry { background: color-mix(in srgb, var(--secondary) 35%, white); }
-    .network-equipment-entry:hover { background: color-mix(in srgb, var(--accent) 55%, white); }
-    .network-equipment-name { font-weight: 600; color: var(--color-text); }
-    .network-equipment-ip { font-family: var(--font-mono); color: var(--color-text-muted); }
-    .network-equipment-separator { color: color-mix(in srgb, var(--color-text-muted) 70%, white); font-weight: 600; }
-    .network-equipment-empty { font-size: 0.9rem; }
-    .passport-card .form-control,
-    .passport-card .form-select { font-size: 0.9rem; }
-    .passport-card .form-select {
-      width: 100%;
-      max-width: 30ch;
-      min-width: 14ch;
-    }
-    .searchable-select .dropdown-toggle {
-      max-width: 30ch;
-      min-width: 14ch;
-    }
-    .searchable-select .dropdown-toggle .searchable-select-label { max-width: 100%; }
-    .form-control.auto-resize-input {
-      width: 100% !important;
-      display: block;
-      max-width: 100%;
-      min-width: 0;
-    }
-    .equipment-card.equipment-highlight {
-      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.2);
-      transition: box-shadow 0.3s ease;
-    }
-    .searchable-select.dropdown { width: 100%; }
-    .searchable-select .dropdown-toggle { text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-    .searchable-select .dropdown-toggle .searchable-select-label { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .searchable-select .dropdown-menu { width: 100%; max-height: 320px; overflow: hidden; }
-    .searchable-select .searchable-select-options { max-height: 240px; overflow-y: auto; }
-    .searchable-select .dropdown-item.active { background-color: color-mix(in srgb, var(--primary) 16%, white); color: var(--primary); }
-    .searchable-select .dropdown-item.active:hover { background-color: color-mix(in srgb, var(--primary) 24%, white); }
-    .searchable-select .dropdown-item { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
-    .select-search-wrapper { display: flex; flex-direction: column; gap: 0.25rem; }
-    .select-search-wrapper .input-group { flex-wrap: nowrap; }
-    .select-search-input { font-size: 0.85rem; }
-    .status-history-list { display: flex; flex-direction: column; gap: 0.75rem; }
-    .status-history-entry { padding: 0.75rem 1rem; border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent); border-radius: 0.75rem; background: color-mix(in srgb, var(--secondary) 20%, white); }
-    .status-history-entry .history-dates { font-weight: 600; }
-    .status-history-entry .history-duration { font-size: 0.85rem; color: #64748b; }
-    .title-photo-preview { cursor: zoom-in; }
-    .photo-card { position: relative; overflow: hidden; }
-    .photo-card .card-img-top { cursor: zoom-in; border-radius: 0.75rem 0.75rem 0 0; }
-    .photo-card .photo-toolbar { position: absolute; top: 0.5rem; right: 0.5rem; z-index: 2; }
-    .photo-card .title-indicator { position: absolute; top: 0.5rem; left: 0.5rem; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: rgba(25, 135, 84, 0.9); color: #fff; font-size: 1rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35); }
-    .photo-card .photo-caption-text { white-space: pre-wrap; word-break: break-word; }
-    .photo-card .photo-meta { font-size: 0.8rem; color: var(--color-text-muted); }
-    .photo-card .photo-edit-form { background-color: color-mix(in srgb, var(--secondary) 20%, white); border-radius: 0.75rem; padding: 0.75rem; }
-    .passport-photo { cursor: zoom-in; }
-    .equipment-photo img { cursor: zoom-in; }
-    .equipment-photos-toggle::after { content: '▼'; margin-left: 0.35rem; transition: transform 0.2s ease; font-size: 0.75rem; }
-    .equipment-photos-toggle.collapsed::after { transform: rotate(-90deg); }
-    #saveStatus {
-      position: fixed;
-      top: 1rem;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1080;
-      min-width: min(24rem, calc(100% - 2rem));
-      max-width: min(32rem, calc(100% - 2rem));
-      pointer-events: none;
-      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
-    }
-    @media (max-width: 992px) {
-      .equipment-card .equipment-fields-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-      .equipment-card .equipment-field-placeholder { display: none; }
-    }
-    @media (max-width: 576px) {
-      .equipment-card .equipment-fields-grid { grid-template-columns: 1fr; }
-      .title-photo-preview { width: 140px; height: 90px; }
-      .passport-overview .card-body { padding: 1.25rem; }
-      .passport-card .card-header { padding: 0.75rem 1rem; }
-      .passport-card .card-body { padding: 1rem; }
-      .form-control.auto-resize-input { width: 100% !important; }
-      .passport-card .form-select,
-      .searchable-select .dropdown-toggle { max-width: 100%; min-width: 0; }
-    }
-  </style>
 </head>
-<body class="with-sidebar sidebar-pinned" data-ui-page="passports">
+<body class="with-sidebar sidebar-pinned passport-editor-page" data-ui-page="passports">
   <div th:replace="~{fragments/navbar :: navbar('passports')}"></div>
-  <main class="main-content container-fluid">
-    <div class="passport-container container-xxl mt-4">
-      <div class="card passport-overview mb-4 gradient-border-stop-hover">
-        <div class="card-body">
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-            <div class="d-flex flex-wrap align-items-start gap-3">
-              <div>
-                <span class="page-kicker">Object Passport</span>
-                <h2 class="page-title mb-1">🗂 Паспорт объекта</h2>
-                <div class="text-muted object-title" id="objectTitle">—</div>
-                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                  <span class="badge bg-secondary status-badge" id="statusBadge">—</span>
-                  <span class="badge bg-secondary status-badge" id="networkBadge">Внутренняя сеть: —</span>
-                </div>
-              </div>
-              <div class="title-photo-preview d-none" id="titlePhotoPreview">
-                <img src="" alt="Титульное фото" id="titlePhotoImage" />
-              </div>
-            </div>
-            <div class="d-flex flex-wrap gap-2">
-              <a class="btn btn-outline-secondary" href="/object-passports" target="_self">← К списку</a>
-              <button class="btn btn-primary" id="savePassportBtn" type="button">💾 Сохранить</button>
-            </div>
-          </div>
-          <div class="alert d-none mt-3 mb-0" role="alert" id="saveStatus"></div>
+  <main class="main-content container-fluid py-4 page-shell passports-page-shell">
+    <div class="passport-container">
+      <div class="page-header-card passports-page-header passport-editor-header mb-4">
+			<div class="passport-editor-identity">
+				<div>
+					<span class="page-kicker">Инфраструктура объекта</span>
+
+					<h1 class="page-title">Паспорт объекта</h1>
+
+					<div class="page-subtitle object-title"
+						 id="objectTitle">
+						—
+					</div>
+
+					<div class="passport-editor-badges">
+						<span class="badge bg-secondary status-badge"
+							  id="statusBadge">
+							—
+						</span>
+
+						<span class="badge bg-secondary status-badge"
+							  id="networkBadge">
+							Внутренняя сеть: —
+						</span>
+					</div>
+				</div>
+
+				<div class="title-photo-preview d-none"
+					 id="titlePhotoPreview">
+					<img src=""
+						 alt="Титульное фото"
+						 id="titlePhotoImage">
+				</div>
+			</div>
+
+			<div class="passports-page-actions">
+				<a class="btn btn-outline-secondary"
+				   href="/object-passports"
+				   target="_self">
+					← К списку
+				</a>
+
+				<button class="btn btn-primary"
+						id="savePassportBtn"
+						type="button">
+					💾 Сохранить
+				</button>
+			</div>
+		</div>
+
+		<div class="alert d-none mb-4"
+			 role="alert"
+			 id="saveStatus">
+		</div>
         </div>
       </div>
 
-      <div class="card passport-card mb-4 gradient-border-hover" id="basicInfoCard">
+      <div class="card passport-card mb-4" id="basicInfoCard">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#basicInfoBody">
           <span>Основная информация</span>
           <div class="d-flex gap-2">
@@ -316,7 +112,7 @@
                   </button>
                   <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="business" data-target="businessSelect">+</button>
                 </div>
-                <div class="dropdown-menu p-2 shadow-sm">
+                <div class="dropdown-menu p-2 passport-select-menu">
                   <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
                   <div class="searchable-select-options" role="listbox"></div>
                 </div>
@@ -335,7 +131,7 @@
                   </button>
                   <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="department" data-target="departmentSelect">+</button>
                 </div>
-                <div class="dropdown-menu p-2 shadow-sm">
+                <div class="dropdown-menu p-2 passport-select-menu">
                   <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
                   <div class="searchable-select-options" role="listbox"></div>
                 </div>
@@ -355,7 +151,7 @@
                   </button>
                   <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="partner_type" data-target="partnerTypeSelect">+</button>
                 </div>
-                <div class="dropdown-menu p-2 shadow-sm">
+                <div class="dropdown-menu p-2 passport-select-menu">
                   <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
                   <div class="searchable-select-options" role="listbox"></div>
                 </div>
@@ -374,7 +170,7 @@
                   </button>
                   <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="country" data-target="countrySelect">+</button>
                 </div>
-                <div class="dropdown-menu p-2 shadow-sm">
+                <div class="dropdown-menu p-2 passport-select-menu">
                   <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
                   <div class="searchable-select-options" role="listbox"></div>
                 </div>
@@ -393,7 +189,7 @@
                   </button>
                   <button class="btn btn-outline-secondary" type="button" data-action="add-parameter" data-param-type="legal_entity" data-target="legalEntitySelect">+</button>
                 </div>
-                <div class="dropdown-menu p-2 shadow-sm">
+                <div class="dropdown-menu p-2 passport-select-menu">
                   <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
                   <div class="searchable-select-options" role="listbox"></div>
                 </div>
@@ -419,7 +215,7 @@
                 <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
                   <span class="searchable-select-label">Не выбрано</span>
                 </button>
-                <div class="dropdown-menu p-2 shadow-sm">
+                <div class="dropdown-menu p-2 passport-select-menu">
                   <input type="text" class="form-control form-control-sm mb-2 searchable-select-search" placeholder="Поиск..." />
                   <div class="searchable-select-options" role="listbox"></div>
                 </div>
@@ -514,7 +310,7 @@
       </div>
       </div>
 
-      <div class="card passport-card mb-4 gradient-border-hover" id="networkCard">
+      <div class="card passport-card mb-4" id="networkCard">
       <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#networkBody">
           <span>Информация о сети</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#networkBody" aria-expanded="false">Развернуть ▼</button>
@@ -613,7 +409,7 @@
         </div>
       </div>
 
-      <div class="card passport-card mb-4 gradient-border-hover" id="scheduleCard">
+      <div class="card passport-card mb-4" id="scheduleCard">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#scheduleBody">
           <span>Расписание</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#scheduleBody" aria-expanded="false">Развернуть ▼</button>
@@ -649,7 +445,7 @@
         </div>
       </div>
 
-      <div class="card passport-card mb-4 gradient-border-hover" id="casesCard">
+      <div class="card passport-card mb-4" id="casesCard">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#casesBody">
           <span>Обращения по локации</span>
           <div class="d-flex gap-2">
@@ -678,7 +474,7 @@
         </div>
       </div>
 
-      <div class="card passport-card mb-4 gradient-border-hover" id="tasksCard">
+      <div class="card passport-card mb-4" id="tasksCard">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#tasksBody">
           <span>Задачи по локации</span>
           <div class="d-flex gap-2">
@@ -708,7 +504,7 @@
         </div>
       </div>
 
-      <div class="card passport-card mb-4 gradient-border-hover" id="photosSection">
+      <div class="card passport-card mb-4" id="photosSection">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#photosBody">
           <span>Фотографии объекта</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#photosBody" aria-expanded="false">Развернуть ▼</button>
@@ -742,12 +538,12 @@
         </div>
       </div>
 
-      <div class="card passport-card mb-5 gradient-border-hover" id="equipmentSection">
+      <div class="card passport-card mb-5" id="equipmentSection">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#equipmentBody">
           <span>Структура оборудования</span>
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#equipmentBody" aria-expanded="false">Развернуть ▼</button>
-            <button class="btn btn-sm btn-outline-success" id="addEquipmentBtn" type="button">➕ Добавить оборудование</button>
+            <button class="btn btn-sm btn-outline-primary" id="addEquipmentBtn" type="button">
           </div>
         </div>
         <div class="section-collapse" id="equipmentBody">
@@ -789,7 +585,9 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
   <script th:src="@{/js/common.js}"></script>
   <script th:src="@{/js/edit-guard.js}"></script>
   <script id="passportData" type="application/json" th:utext="${passportPayloadJson}">{"is_new":true}</script>
@@ -3725,7 +3523,7 @@
               <span class="equipment-header-icon">▼</span>
             </div>
             <div class="equipment-actions">
-              <button class="btn btn-sm btn-success" data-action="save-equipment">💾 Сохранить</button>
+              <button class="btn btn-sm btn-primary" data-action="save-equipment">💾 Сохранить</button>
               ${isNew ? '<button class="btn btn-sm btn-outline-secondary" data-action="cancel-equipment">Отменить</button>' : '<button class="btn btn-sm btn-outline-danger" data-action="delete-equipment">Удалить</button>'}
             </div>
           </div>
@@ -3852,7 +3650,7 @@
                 <input type="text" class="form-control form-control-sm equipment-photo-caption" value="${escapeHtml(photo.caption || '')}" />
               </div>
               <div class="d-flex gap-2 flex-wrap">
-                <button class="btn btn-sm btn-success" data-action="save-equipment-photo">Сохранить</button>
+                <button class="btn btn-sm btn-primary" data-action="save-equipment-photo">Сохранить</button>
                 <button class="btn btn-sm btn-outline-danger" data-action="delete-equipment-photo">Удалить</button>
                 <a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(photo.url)}" download>Скачать</a>
               </div>
@@ -4271,7 +4069,6 @@
 
     ensurePassportDataLoaded();
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script th:src="@{/js/sidebar.js}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>
 </body>

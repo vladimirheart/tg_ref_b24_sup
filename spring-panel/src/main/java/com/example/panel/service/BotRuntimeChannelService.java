@@ -24,6 +24,14 @@ public class BotRuntimeChannelService {
         this.channelRepository = channelRepository;
     }
 
+    @Transactional(readOnly = true)
+    public Optional<Channel> findChannel(Long channelId) {
+        if (channelId == null || channelId <= 0) {
+            return Optional.empty();
+        }
+        return channelRepository.findById(channelId);
+    }
+
     @Transactional
     public Channel resolveConfiguredChannel(Long channelId, String token, String channelName, String platform) {
         if (channelId != null && channelId > 0) {

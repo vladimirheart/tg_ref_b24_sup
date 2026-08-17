@@ -31,6 +31,8 @@ public class RabbitIntegrationTransportConfig {
     public Declarables integrationInboundRabbitTopology(IntegrationRabbitProperties properties) {
         TopicExchange inboundExchange = new TopicExchange(properties.getInboundExchange(), true, false);
         TopicExchange deadLetterExchange = new TopicExchange(properties.getInboundDlx(), true, false);
+        TopicExchange outboundExchange = new TopicExchange(properties.getOutboundExchange(), true, false);
+        TopicExchange outboundDeadLetterExchange = new TopicExchange(properties.getOutboundDlx(), true, false);
         Queue inboundQueue = new Queue(
             properties.getInboundQueue(),
             true,
@@ -60,7 +62,8 @@ public class RabbitIntegrationTransportConfig {
         Binding dlqBinding = BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(properties.getInboundDlq());
         Binding ticketCreatedDlqBinding = BindingBuilder.bind(ticketCreatedDeadLetterQueue)
             .to(deadLetterExchange).with(properties.getTicketCreatedDlq());
-        return new Declarables(inboundExchange, deadLetterExchange, inboundQueue, ticketCreatedQueue, deadLetterQueue,
+        return new Declarables(inboundExchange, deadLetterExchange, outboundExchange, outboundDeadLetterExchange,
+            inboundQueue, ticketCreatedQueue, deadLetterQueue,
             ticketCreatedDeadLetterQueue, telegramBinding, vkBinding, maxBinding, ticketCreatedBinding, dlqBinding,
             ticketCreatedDlqBinding);
     }

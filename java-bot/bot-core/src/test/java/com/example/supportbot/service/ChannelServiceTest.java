@@ -65,6 +65,28 @@ class ChannelServiceTest {
     }
 
     @Test
+    void findByIdUsesPanelClientInRabbitMode() {
+        ChannelRepository repository = mock(ChannelRepository.class);
+        PanelChannelClient panelChannelClient = mock(PanelChannelClient.class);
+        when(panelChannelClient.isEnabled()).thenReturn(true);
+        Channel resolved = new Channel();
+        resolved.setId(14L);
+        when(panelChannelClient.findById(14L)).thenReturn(Optional.of(resolved));
+
+        ChannelService service = new ChannelService(
+            repository,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
+            panelChannelClient
+        );
+
+        Optional<Channel> result = service.findById(14L);
+
+        assertThat(result).contains(resolved);
+        verify(panelChannelClient).findById(14L);
+        verify(repository, never()).findById(14L);
+    }
+
+    @Test
     void resolveConfiguredChannelKeepsRepositoryFallbackInJdbcMode() {
         ChannelRepository repository = mock(ChannelRepository.class);
         PanelChannelClient panelChannelClient = mock(PanelChannelClient.class);

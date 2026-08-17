@@ -348,3 +348,870 @@
         transition: none;
     }
 }
+/* Object passport editor */
+
+[data-ui-page='passports'].passport-editor-page .main-content {
+    min-height: 100vh;
+
+    background: var(--surface-page);
+    color: var(--color-text);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-container {
+    width: 100%;
+    max-width: 1200px;
+
+    margin: 0 auto;
+}
+
+/* Editor header */
+
+[data-ui-page='passports'].passport-editor-page
+.passport-editor-header {
+    align-items: center;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-editor-identity {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+
+    min-width: 0;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.object-title {
+    margin-top: 0.3rem;
+
+    color: var(--color-text-muted);
+
+    font-size: 1rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-editor-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+
+    margin-top: 0.65rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.status-badge {
+    font-variant-numeric: tabular-nums;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.title-photo-preview {
+    width: 180px;
+    height: 120px;
+
+    flex: 0 0 auto;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+
+    cursor: zoom-in;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.title-photo-preview img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+/* Main editor sections */
+
+[data-ui-page='passports'].passport-editor-page
+.passport-card,
+[data-ui-page='passports'].passport-editor-page
+.equipment-card,
+[data-ui-page='passports'].passport-editor-page
+.photo-card {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-xl) !important;
+
+    background: var(--surface-card) !important;
+
+    box-shadow: none !important;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-card {
+    overflow: hidden;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-card > .card-header,
+[data-ui-page='passports'].passport-editor-page
+.equipment-card > .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+
+    padding: 0.9rem 1rem;
+
+    border: 0;
+    border-bottom: 1px solid var(--color-border);
+
+    background: var(--surface-raised) !important;
+    color: var(--color-text);
+
+    font-weight: 700;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-card > .card-body {
+    padding: 1rem;
+
+    background: var(--surface-card);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-card .card-body .row.g-3,
+[data-ui-page='passports'].passport-editor-page
+.passport-card .card-body .row.g-4 {
+    --bs-gutter-x: 0.75rem;
+    --bs-gutter-y: 0.75rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-card .card-body .form-label {
+    color: var(--color-text);
+
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.card h5 {
+    margin-bottom: 0;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.card-toggle-btn {
+    white-space: nowrap;
+
+    border-radius: var(--radius-pill) !important;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.section-collapse {
+    display: none;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.section-collapse.show {
+    display: block;
+}
+
+/* Forms */
+
+[data-ui-page='passports'].passport-editor-page
+.passport-card .form-control,
+[data-ui-page='passports'].passport-editor-page
+.passport-card .form-select {
+    font-size: 0.9rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-card .form-select {
+    width: 100%;
+    min-width: 14ch;
+    max-width: 30ch;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.form-control-plaintext {
+    padding-left: 0;
+
+    color: var(--color-text);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.form-control.auto-resize-input {
+    display: block;
+
+    width: 100% !important;
+    min-width: 0;
+    max-width: 100%;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.schedule-table input[type='time'] {
+    max-width: 120px;
+}
+
+/* Searchable selects */
+
+[data-ui-page='passports'].passport-editor-page
+.searchable-select.dropdown {
+    width: 100%;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.searchable-select .dropdown-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+
+    min-width: 14ch;
+    max-width: 30ch;
+
+    text-align: left;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.searchable-select .dropdown-toggle .searchable-select-label {
+    flex-grow: 1;
+
+    max-width: 100%;
+    overflow: hidden;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-select-menu,
+[data-ui-page='passports'].passport-editor-page
+.searchable-select .dropdown-menu {
+    width: 100%;
+    max-height: 320px;
+
+    overflow: hidden;
+
+    border: 1px solid var(--color-border);
+
+    background: var(--surface-card);
+    color: var(--color-text);
+
+    box-shadow: var(--ui-panel-shadow);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.searchable-select .searchable-select-options {
+    max-height: 240px;
+
+    overflow-y: auto;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.searchable-select .dropdown-item {
+    overflow: hidden;
+
+    color: var(--color-text);
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.searchable-select .dropdown-item.active {
+    background: var(--surface-selected);
+    color: var(--primary);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.searchable-select .dropdown-item.active:hover {
+    background:
+        color-mix(
+            in srgb,
+            var(--primary) 14%,
+            var(--surface-card)
+        );
+}
+
+[data-ui-page='passports'].passport-editor-page
+.select-search-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.select-search-wrapper .input-group {
+    flex-wrap: nowrap;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.select-search-input {
+    font-size: 0.85rem;
+}
+
+/* IT / network summary */
+
+[data-ui-page='passports'].passport-editor-page
+#itBlock {
+    padding-top: 1.5rem;
+
+    border-top: 1px solid var(--color-border);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.it-equipment-list,
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-summary {
+    padding: 0.75rem 1rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.it-equipment-list {
+    color: var(--color-text);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.it-equipment-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+
+    padding: 0.25rem 0;
+
+    font-size: 0.9rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.it-equipment-item + .it-equipment-item {
+    border-top: 1px dashed var(--color-border);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.it-equipment-name,
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-name {
+    color: var(--color-text);
+
+    font-weight: 700;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.it-equipment-ip,
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-ip {
+    color: var(--color-text-muted);
+
+    font-family: var(--font-mono);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.it-equipment-empty,
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-empty {
+    color: var(--color-text-muted);
+
+    font-size: 0.9rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-summary {
+    display: flex;
+    align-items: center;
+
+    min-height: 3rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    width: 100%;
+    margin: 0;
+    padding: 0;
+
+    list-style: none;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-list li {
+    width: 100%;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-entry {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+
+    border: 0;
+    border-radius: var(--radius-md);
+
+    background: transparent;
+    color: var(--color-text);
+
+    font-size: 0.9rem;
+    text-align: left;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-list li:nth-child(odd)
+.network-equipment-entry {
+    background: var(--surface-card);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-list li:nth-child(even)
+.network-equipment-entry {
+    background: var(--surface-interactive);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-entry:hover {
+    background: var(--surface-selected);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-entry:focus-visible {
+    outline: none;
+
+    box-shadow:
+        0 0 0 0.2rem
+        color-mix(
+            in srgb,
+            var(--primary) 22%,
+            transparent
+        );
+}
+
+[data-ui-page='passports'].passport-editor-page
+.network-equipment-separator {
+    color: var(--color-text-muted);
+
+    font-weight: 600;
+}
+
+/* Equipment */
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card textarea {
+    min-height: 80px;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .card-header {
+    flex-wrap: wrap;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-toggle {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 0.75rem;
+
+    margin: -0.25rem 0;
+    padding: 0;
+
+    border: 0;
+
+    background: transparent;
+    color: inherit;
+
+    text-align: left;
+
+    cursor: pointer;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-toggle:focus {
+    outline: none;
+
+    box-shadow: none;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-toggle:focus-visible {
+    border-radius: var(--radius-md);
+
+    outline: none;
+
+    box-shadow:
+        0 0 0 0.2rem
+        color-mix(
+            in srgb,
+            var(--primary) 22%,
+            transparent
+        );
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-summary {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.35rem;
+
+    min-width: 0;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-title {
+    color: var(--color-text);
+
+    font-weight: 700;
+
+    white-space: normal;
+    word-break: break-word;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+
+    color: var(--color-text-muted);
+
+    font-size: 0.85rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-meta strong {
+    color: var(--color-text);
+
+    font-weight: 700;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-meta span {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+
+    min-width: 0;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-meta span span {
+    white-space: normal;
+    word-break: break-word;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-icon {
+    font-size: 0.65rem;
+
+    transition: transform 0.2s ease;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-header-toggle.collapsed
+.equipment-header-icon {
+    transform: rotate(-90deg);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-field-placeholder {
+    visibility: hidden;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card .equipment-field-span-3 {
+    grid-column: span 3;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-card.equipment-highlight {
+    box-shadow:
+        0 0 0 0.2rem
+        color-mix(
+            in srgb,
+            var(--primary) 24%,
+            transparent
+        ) !important;
+}
+
+/* Status history */
+
+[data-ui-page='passports'].passport-editor-page
+.status-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.status-history-entry {
+    padding: 0.75rem 1rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.status-history-entry .history-dates {
+    font-weight: 700;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.status-history-entry .history-duration {
+    color: var(--color-text-muted);
+
+    font-size: 0.85rem;
+}
+
+/* Photos */
+
+[data-ui-page='passports'].passport-editor-page
+.photo-card {
+    position: relative;
+
+    overflow: hidden;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.photo-card img {
+    height: 180px;
+
+    object-fit: cover;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.photo-card .card-img-top {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+
+    cursor: zoom-in;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.photo-card .card-body {
+    font-size: 0.9rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.photo-card .photo-toolbar {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 2;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.photo-card .title-indicator {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 2;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 28px;
+    height: 28px;
+
+    border: 1px solid var(--state-success-border);
+    border-radius: var(--radius-pill);
+
+    background: var(--state-success-bg);
+    color: var(--state-success-text);
+
+    font-size: 1rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.photo-card .photo-caption-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.photo-card .photo-meta {
+    color: var(--color-text-muted);
+
+    font-size: 0.8rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.photo-card .photo-edit-form {
+    padding: 0.75rem;
+
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-photo,
+[data-ui-page='passports'].passport-editor-page
+.equipment-photo img {
+    cursor: zoom-in;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-photo img {
+    height: 150px;
+
+    object-fit: cover;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-photo .card-body {
+    font-size: 0.85rem;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-photos-toggle::after {
+    margin-left: 0.35rem;
+
+    content: '▼';
+
+    font-size: 0.75rem;
+
+    transition: transform 0.2s ease;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.equipment-photos-toggle.collapsed::after {
+    transform: rotate(-90deg);
+}
+
+/* Runtime save message */
+
+[data-ui-page='passports'].passport-editor-page
+#saveStatus {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    z-index: 1080;
+
+    width: auto;
+    min-width: min(24rem, calc(100% - 2rem));
+    max-width: min(32rem, calc(100% - 2rem));
+
+    transform: translateX(-50%);
+
+    pointer-events: none;
+
+    box-shadow: var(--ui-panel-shadow);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.table-row-link {
+    cursor: pointer;
+}
+
+/* Editor responsive */
+
+@media (max-width: 991.98px) {
+    [data-ui-page='passports'].passport-editor-page
+    .equipment-card .equipment-fields-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    [data-ui-page='passports'].passport-editor-page
+    .equipment-card .equipment-field-placeholder {
+        display: none;
+    }
+
+    [data-ui-page='passports'].passport-editor-page
+    .passport-editor-header {
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 575.98px) {
+    [data-ui-page='passports'].passport-editor-page
+    .equipment-card .equipment-fields-grid {
+        grid-template-columns: 1fr;
+    }
+
+    [data-ui-page='passports'].passport-editor-page
+    .title-photo-preview {
+        width: 140px;
+        height: 90px;
+    }
+
+    [data-ui-page='passports'].passport-editor-page
+    .passport-card > .card-header {
+        align-items: flex-start;
+        flex-direction: column;
+
+        padding: 0.75rem;
+    }
+
+    [data-ui-page='passports'].passport-editor-page
+    .passport-card > .card-body {
+        padding: 0.85rem;
+    }
+
+    [data-ui-page='passports'].passport-editor-page
+    .passport-card .form-select,
+    [data-ui-page='passports'].passport-editor-page
+    .searchable-select .dropdown-toggle {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    [data-ui-page='passports'].passport-editor-page
+    .passport-editor-identity {
+        flex-direction: column;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-ui-page='passports'].passport-editor-page
+    .network-equipment-entry,
+    [data-ui-page='passports'].passport-editor-page
+    .equipment-card .equipment-header-icon,
+    [data-ui-page='passports'].passport-editor-page
+    .equipment-photos-toggle::after {
+        transition: none;
+    }
+}

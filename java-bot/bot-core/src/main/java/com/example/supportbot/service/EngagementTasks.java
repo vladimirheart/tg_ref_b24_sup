@@ -1,5 +1,6 @@
 package com.example.supportbot.service;
 
+import com.example.supportbot.config.BotIntegrationTransportMode;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.Notification;
 import com.example.supportbot.entity.PendingFeedbackRequest;
@@ -27,23 +28,30 @@ public class EngagementTasks {
     private final BotSettingsService botSettingsService;
     private final MessagingService messagingService;
     private final TicketService ticketService;
+    private final BotIntegrationTransportMode integrationTransportMode;
 
     public EngagementTasks(PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
                            NotificationRepository notificationRepository,
                            ChannelRepository channelRepository,
                            BotSettingsService botSettingsService,
                            MessagingService messagingService,
-                           TicketService ticketService) {
+                           TicketService ticketService,
+                           BotIntegrationTransportMode integrationTransportMode) {
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.notificationRepository = notificationRepository;
         this.channelRepository = channelRepository;
         this.botSettingsService = botSettingsService;
         this.messagingService = messagingService;
         this.ticketService = ticketService;
+        this.integrationTransportMode = integrationTransportMode;
     }
 
     @Scheduled(cron = "0 */2 * * * *")
     public void dispatchPendingFeedbackRequests() {
+        if (integrationTransportMode.isRabbitMqMode()) {
+            log.debug("Skipping bot-side feedback prompt scheduler because rabbitmq transport delegates ownership to spring-panel");
+            return;
+        }
         OffsetDateTime now = OffsetDateTime.now();
         List<PendingFeedbackRequest> pending = pendingFeedbackRequestRepository
                 .findTop50BySentAtIsNullAndExpiresAtAfterOrderByCreatedAtAsc(now);

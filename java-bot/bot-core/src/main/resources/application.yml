@@ -44,6 +44,11 @@ app:
       inbound-dlx: ${APP_INTEGRATION_RABBITMQ_INBOUND_DLX:iguana.integration.inbound.dlx}
       inbound-dlq: ${APP_INTEGRATION_RABBITMQ_INBOUND_DLQ:iguana.integration.inbound.panel.dlq}
       ticket-created-dlq: ${APP_INTEGRATION_RABBITMQ_TICKET_CREATED_DLQ:iguana.integration.ticket-created.panel.dlq}
+      outbound-exchange: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_EXCHANGE:iguana.integration.outbound}
+      outbound-dlx: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_DLX:iguana.integration.outbound.dlx}
+      outbound-queue: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_QUEUE:iguana.integration.outbound.feedback-prompt.telegram.channel.0.bot}
+      outbound-dlq: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_DLQ:iguana.integration.outbound.feedback-prompt.telegram.channel.0.bot.dlq}
+      outbound-routing-key: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_ROUTING_KEY:integration.outbound.feedback.prompt.telegram.channel.0}
       routing-telegram: ${APP_INTEGRATION_RABBITMQ_ROUTING_TELEGRAM:integration.inbound.telegram}
       routing-vk: ${APP_INTEGRATION_RABBITMQ_ROUTING_VK:integration.inbound.vk}
       routing-max: ${APP_INTEGRATION_RABBITMQ_ROUTING_MAX:integration.inbound.max}

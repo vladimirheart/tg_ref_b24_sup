@@ -40,6 +40,13 @@ public class PanelChannelClient {
         return properties.isConfigured();
     }
 
+    public Optional<Channel> findById(Long channelId) {
+        if (!isEnabled() || channelId == null || channelId <= 0) {
+            return Optional.empty();
+        }
+        return send("/internal/api/bot/channels/" + channelId, "GET", null);
+    }
+
     public Optional<Channel> resolveConfiguredChannel(Long channelId,
                                                       String token,
                                                       String channelName,
@@ -68,13 +75,17 @@ public class PanelChannelClient {
     private Optional<Channel> send(String path, String method, Object body) {
         HttpRequest.Builder builder = HttpRequest.newBuilder(resolve(path))
             .timeout(Duration.ofSeconds(5))
-            .header(AUTH_HEADER, properties.getToken())
-            .header("Content-Type", "application/json");
+            .header(AUTH_HEADER, properties.getToken());
         try {
-            builder.method(method, HttpRequest.BodyPublishers.ofString(
-                objectMapper.writeValueAsString(body),
-                StandardCharsets.UTF_8
-            ));
+            if (body != null) {
+                builder.header("Content-Type", "application/json");
+                builder.method(method, HttpRequest.BodyPublishers.ofString(
+                    objectMapper.writeValueAsString(body),
+                    StandardCharsets.UTF_8
+                ));
+            } else {
+                builder.method(method, HttpRequest.BodyPublishers.noBody());
+            }
             HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("Internal panel channel API request {} {} failed with status {}", method, path, response.statusCode());

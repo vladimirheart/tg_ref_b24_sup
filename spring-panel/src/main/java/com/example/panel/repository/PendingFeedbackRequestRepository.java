@@ -17,4 +17,6 @@ public interface PendingFeedbackRequestRepository extends JpaRepository<PendingF
 
     Optional<PendingFeedbackRequest> findFirstByUserIdAndExpiresAtAfterOrderByCreatedAtDesc(Long userId,
                                                                                              OffsetDateTime expiresAt);
+
+    List<PendingFeedbackRequest> findTop50BySentAtIsNullAndExpiresAtAfterOrderByCreatedAtAsc(OffsetDateTime now);
 }

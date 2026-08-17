@@ -52,6 +52,9 @@ public class ChannelService {
         if (channelId == null || channelId <= 0) {
             return Optional.empty();
         }
+        if (integrationTransportMode.isRabbitMqMode() && panelChannelClient.isEnabled()) {
+            return panelChannelClient.findById(channelId);
+        }
         return channelRepository.findById(channelId);
     }
 

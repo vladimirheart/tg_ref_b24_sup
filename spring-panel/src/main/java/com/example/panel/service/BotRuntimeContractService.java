@@ -214,6 +214,19 @@ public class BotRuntimeContractService {
             "app.bots.internal-api.token",
             "iguana-internal-bot-token"
         ));
+        if (isRabbitMqTransportMode()) {
+            env.put("APP_INTEGRATION_RABBITMQ_OUTBOUND_EXCHANGE", environment.getProperty(
+                "app.integration.rabbitmq.outbound-exchange",
+                "iguana.integration.outbound"
+            ));
+            env.put("APP_INTEGRATION_RABBITMQ_OUTBOUND_DLX", environment.getProperty(
+                "app.integration.rabbitmq.outbound-dlx",
+                "iguana.integration.outbound.dlx"
+            ));
+            env.put("APP_INTEGRATION_RABBITMQ_OUTBOUND_QUEUE", resolveOutboundFeedbackPromptQueue(channel));
+            env.put("APP_INTEGRATION_RABBITMQ_OUTBOUND_DLQ", resolveOutboundFeedbackPromptDlq(channel));
+            env.put("APP_INTEGRATION_RABBITMQ_OUTBOUND_ROUTING_KEY", resolveOutboundFeedbackPromptRoutingKey(channel));
+        }
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dfile.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.jnu.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stdout.encoding=UTF-8");
@@ -314,9 +327,41 @@ public class BotRuntimeContractService {
         if ("telegram".equals(platform)) {
             keys.add("TELEGRAM_BOT_API_BASE_URL");
         }
+        if (isRabbitMqTransportMode()) {
+            keys.addAll(List.of(
+                "APP_INTEGRATION_RABBITMQ_OUTBOUND_EXCHANGE",
+                "APP_INTEGRATION_RABBITMQ_OUTBOUND_DLX",
+                "APP_INTEGRATION_RABBITMQ_OUTBOUND_QUEUE",
+                "APP_INTEGRATION_RABBITMQ_OUTBOUND_DLQ",
+                "APP_INTEGRATION_RABBITMQ_OUTBOUND_ROUTING_KEY"
+            ));
+        }
 
         keys.addAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)).keySet());
         return keys;
+    }
+
+    private boolean isRabbitMqTransportMode() {
+        return "rabbitmq".equalsIgnoreCase(environment.getProperty("app.integration.transport.mode", "jdbc"));
+    }
+
+    private String resolveOutboundFeedbackPromptQueue(Channel channel) {
+        return "iguana.integration.outbound.feedback-prompt." + normalizePlatform(channel)
+            + ".channel." + resolveChannelId(channel) + ".bot";
+    }
+
+    private String resolveOutboundFeedbackPromptDlq(Channel channel) {
+        return resolveOutboundFeedbackPromptQueue(channel) + ".dlq";
+    }
+
+    private String resolveOutboundFeedbackPromptRoutingKey(Channel channel) {
+        return "integration.outbound.feedback.prompt." + normalizePlatform(channel)
+            + ".channel." + resolveChannelId(channel);
+    }
+
+    private long resolveChannelId(Channel channel) {
+        Long channelId = channel != null ? channel.getId() : null;
+        return channelId != null && channelId > 0 ? channelId : 0L;
     }
 
     private void applyDatabaseEnvironment(Map<String, String> env) {
