@@ -13,7 +13,7 @@ import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.ConversationTicketCreationCommand;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.MessagingService;
-import com.example.supportbot.service.SharedConfigService;
+import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
@@ -69,7 +69,7 @@ public class MaxWebhookController {
     private final MessagingService messagingService;
     private final FeedbackService feedbackService;
     private final BotSettingsService botSettingsService;
-    private final SharedConfigService sharedConfigService;
+    private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
 
     private static String defaultFirstResponseTimeoutMessage() {
@@ -90,7 +90,7 @@ public class MaxWebhookController {
                                 MessagingService messagingService,
                                 FeedbackService feedbackService,
                                 BotSettingsService botSettingsService,
-                                SharedConfigService sharedConfigService,
+                                RuntimeConfigService runtimeConfigService,
                                 ObjectMapper objectMapper) {
         this.properties = properties;
         this.blacklistService = blacklistService;
@@ -100,7 +100,7 @@ public class MaxWebhookController {
         this.messagingService = messagingService;
         this.feedbackService = feedbackService;
         this.botSettingsService = botSettingsService;
-        this.sharedConfigService = sharedConfigService;
+        this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
     }
 
@@ -765,22 +765,10 @@ public class MaxWebhookController {
             if (isLocationCacheFresh()) {
                 return;
             }
-            JsonNode locations = sharedConfigService.loadLocations();
-            Map<String, Object> resolvedTree = new LinkedHashMap<>();
-            if (locations != null && !locations.isNull()) {
-                JsonNode treeNode = locations.get("tree");
-                Map<String, Object> converted = objectMapper.convertValue(
-                        treeNode != null && !treeNode.isNull() ? treeNode : locations,
-                        new TypeReference<>() {
-                        }
-                );
-                if (converted != null) {
-                    resolvedTree = converted;
-                }
-            }
-            Map<String, Object> baseDefinitions = sharedConfigService.presetDefinitions();
+            Map<String, Object> resolvedTree = runtimeConfigService.locationTree(getChannel());
+            Map<String, Object> baseDefinitions = runtimeConfigService.basePresetDefinitions(getChannel());
             Map<String, Object> mergedDefinitions = botSettingsService.buildLocationPresets(resolvedTree, baseDefinitions);
-            cachedLocationTree = resolvedTree;
+            cachedLocationTree = resolvedTree != null ? resolvedTree : new LinkedHashMap<>();
             cachedPresetDefinitions = mergedDefinitions != null ? mergedDefinitions : new LinkedHashMap<>();
             locationCacheUpdatedAt = Instant.now();
         }

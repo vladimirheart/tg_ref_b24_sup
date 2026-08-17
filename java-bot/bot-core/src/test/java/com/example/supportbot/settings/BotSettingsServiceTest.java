@@ -5,6 +5,7 @@ import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.example.supportbot.settings.dto.RatingResponseDto;
 import com.example.supportbot.settings.dto.RatingTemplateDto;
+import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.SharedConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.Mockito.mock;
 
 class BotSettingsServiceTest {
 
@@ -32,7 +34,7 @@ class BotSettingsServiceTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
-        service = new BotSettingsService(objectMapper, sharedConfigService);
+        service = new BotSettingsService(objectMapper, sharedConfigService, mock(RuntimeConfigService.class));
     }
 
     @Test

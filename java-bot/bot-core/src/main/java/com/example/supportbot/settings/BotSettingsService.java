@@ -2,6 +2,8 @@ package com.example.supportbot.settings;
 
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.settings.dto.BotSettingsDto;
+import com.example.supportbot.service.PanelRuntimeConfigClient;
+import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -38,10 +40,14 @@ public class BotSettingsService {
 
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
+    private final RuntimeConfigService runtimeConfigService;
 
-    public BotSettingsService(ObjectMapper objectMapper, SharedConfigService sharedConfigService) {
+    public BotSettingsService(ObjectMapper objectMapper,
+                              SharedConfigService sharedConfigService,
+                              RuntimeConfigService runtimeConfigService) {
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.sharedConfigService = Objects.requireNonNull(sharedConfigService, "sharedConfigService");
+        this.runtimeConfigService = Objects.requireNonNull(runtimeConfigService, "runtimeConfigService");
     }
 
     private static String defaultFirstResponseTimeoutMessage() {
@@ -89,12 +95,15 @@ public class BotSettingsService {
      */
     public BotSettingsDto loadFromChannel(Channel channel) {
         Map<String, Object> sharedSettings = sharedConfigService.loadSettings();
-        Map<String, Object> raw = canonicalBotSettingsFromSharedSettings(sharedSettings);
+        Optional<PanelRuntimeConfigClient.RuntimeConfigSnapshot> remoteConfig = runtimeConfigService.findChannelConfig(channel);
+        Map<String, Object> raw = remoteConfig.isPresent()
+                ? new LinkedHashMap<>(remoteConfig.get().botSettings())
+                : canonicalBotSettingsFromSharedSettings(sharedSettings);
         if (raw.isEmpty() && channel != null && channel.getQuestionsCfg() != null && !channel.getQuestionsCfg().isBlank()) {
             logger.warn("Ignoring deprecated channel.questions_cfg bot settings payload because runtime requires shared canonical bot_settings");
         }
         Map<String, Object> sanitized = sanitizeBotSettingsInternal(raw,
-                sharedConfigService.presetDefinitions(), 10);
+                runtimeConfigService.basePresetDefinitions(channel), 10);
         if (channel != null) {
             sanitized = mergeChannelTemplateSelection(sanitized, channel);
         }

@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.panel.entity.Channel;
 import com.example.panel.service.BotRuntimeChannelService;
+import com.example.panel.service.BotRuntimeConfigService;
 import com.example.panel.service.BotRuntimeTicketReadService;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -33,6 +34,9 @@ class BotRuntimeReadApiControllerWebMvcTest {
 
     @MockBean
     private BotRuntimeChannelService channelService;
+
+    @MockBean
+    private BotRuntimeConfigService runtimeConfigService;
 
     @Test
     void activeTicketReturnsLookupForAuthorizedInternalRequest() throws Exception {
@@ -146,5 +150,24 @@ class BotRuntimeReadApiControllerWebMvcTest {
             .andExpect(jsonPath("$.id").value(52L))
             .andExpect(jsonPath("$.platform").value("telegram"))
             .andExpect(jsonPath("$.supportChatId").value("-10052"));
+    }
+
+    @Test
+    void runtimeConfigReturnsLookupForAuthorizedInternalRequest() throws Exception {
+        when(runtimeConfigService.findRuntimeConfig(52L)).thenReturn(Optional.of(
+            new BotRuntimeConfigService.RuntimeConfigLookup(
+                52L,
+                java.util.Map.of("active_template_id", "q-52"),
+                java.util.Map.of("Retail", java.util.Map.of()),
+                java.util.Map.of("locations", java.util.Map.of("label", "Структура локаций"))
+            )
+        ));
+
+        mockMvc.perform(get("/internal/api/bot/channels/52/runtime-config")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.channelId").value(52L))
+            .andExpect(jsonPath("$.botSettings.active_template_id").value("q-52"))
+            .andExpect(jsonPath("$.presetDefinitions.locations.label").value("Структура локаций"));
     }
 }

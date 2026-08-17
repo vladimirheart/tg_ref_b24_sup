@@ -23,11 +23,16 @@
 	<link rel="apple-touch-icon"
       sizes="180x180"
       th:href="@{/favicon-180x180.png?v=2}">
-  <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" th:href="@{/css/style.css}" />
-  <link rel="stylesheet" th:href="@{/css/sidebar.css}" />
-  <link rel="stylesheet" th:href="@{/css/app.css}" />
+  <link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous">
+
+<th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+
+<link rel="stylesheet" th:href="@{/css/style.css}">
+<link rel="stylesheet" th:href="@{/css/app.css}">
+<link rel="stylesheet" th:href="@{/css/sidebar.css}">
 </head>
 <body class="with-sidebar sidebar-pinned passport-editor-page" data-ui-page="passports">
   <div th:replace="~{fragments/navbar :: navbar('passports')}"></div>
@@ -46,13 +51,15 @@
 					</div>
 
 					<div class="passport-editor-badges">
-						<span class="badge bg-secondary status-badge"
-							  id="statusBadge">
+						<span class="badge status-badge passport-object-status"
+							  id="statusBadge"
+							  data-state="neutral">
 							—
 						</span>
 
-						<span class="badge bg-secondary status-badge"
-							  id="networkBadge">
+						<span class="badge status-badge passport-network-badge"
+							  id="networkBadge"
+							  data-state="neutral">
 							Внутренняя сеть: —
 						</span>
 					</div>
@@ -85,8 +92,6 @@
 			 role="alert"
 			 id="saveStatus">
 		</div>
-        </div>
-      </div>
 
       <div class="card passport-card mb-4" id="basicInfoCard">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#basicInfoBody">
@@ -416,8 +421,9 @@
         </div>
         <div class="section-collapse" id="scheduleBody">
           <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-sm align-middle schedule-table" id="scheduleTable">
+          <div class="table-responsive passport-editor-table-shell">
+			  <table class="table table-sm align-middle schedule-table passport-editor-table"
+					 id="scheduleTable">
               <thead>
                 <tr>
                   <th>День недели</th>
@@ -455,8 +461,8 @@
         </div>
         <div class="section-collapse" id="casesBody">
           <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-sm table-striped">
+          <div class="table-responsive passport-editor-table-shell">
+			<table class="table table-sm passport-editor-table">
               <thead>
                 <tr>
                   <th>ID заявки</th>
@@ -484,8 +490,8 @@
         </div>
         <div class="section-collapse" id="tasksBody">
           <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-sm table-striped align-middle">
+          <div class="table-responsive passport-editor-table-shell">
+			<table class="table table-sm align-middle passport-editor-table">
               <thead>
                 <tr>
                   <th>№ задачи</th>
@@ -543,8 +549,7 @@
           <span>Структура оборудования</span>
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#equipmentBody" aria-expanded="false">Развернуть ▼</button>
-            <button class="btn btn-sm btn-outline-primary" id="addEquipmentBtn" type="button">
-          </div>
+            <button class="btn btn-sm btn-outline-primary" id="addEquipmentBtn" type="button">➕ Добавить оборудование</button>
         </div>
         <div class="section-collapse" id="equipmentBody">
           <div class="card-body">
@@ -579,7 +584,7 @@
         </div>
         <div class="modal-footer">
           <a href="#" class="btn btn-primary" id="photoPreviewDownload" download>Скачать</a>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
         </div>
       </div>
     </div>
@@ -2058,34 +2063,36 @@
     }
 
     function updateStatusBadge() {
-      const value = statusSelect.value || '—';
-      statusBadge.textContent = value || '—';
-      statusBadge.classList.remove('bg-success', 'bg-warning', 'bg-secondary', 'bg-dark', 'bg-info', 'text-dark');
-      if (value === 'Открыт') {
-        statusBadge.classList.add('bg-success');
-      } else if (value === 'Стройка') {
-        statusBadge.classList.add('bg-warning', 'text-dark');
-      } else if (value === 'Закрыт') {
-        statusBadge.classList.add('bg-dark');
-      } else if (value === 'Реконструкция') {
-        statusBadge.classList.add('bg-info', 'text-dark');
-      } else if (value === 'Заморожен') {
-        statusBadge.classList.add('bg-warning', 'text-dark');
-      } else {
-        statusBadge.classList.add('bg-secondary');
-      }
-    }
+	  const value = statusSelect.value || '—';
+
+	  statusBadge.textContent = value || '—';
+
+	  let state = 'neutral';
+
+	  if (value === 'Открыт') {
+		state = 'success';
+	  } else if (value === 'Стройка') {
+		state = 'warning';
+	  } else if (value === 'Закрыт') {
+		state = 'closed';
+	  } else if (value === 'Реконструкция') {
+		state = 'info';
+	  } else if (value === 'Заморожен') {
+		state = 'warning';
+	  }
+
+	  statusBadge.dataset.state = state;
+	}
     function updateNetworkBadge() {
-      const value = internalNetworkInput ? internalNetworkInput.value.trim() : '';
-      const display = value || '—';
-      networkBadge.textContent = `Внутренняя сеть: ${display}`;
-      networkBadge.classList.remove('bg-info', 'bg-secondary', 'text-dark');
-      if (value) {
-        networkBadge.classList.add('bg-info', 'text-dark');
-      } else {
-        networkBadge.classList.add('bg-secondary');
-      }
-    }
+	  const value = internalNetworkInput
+		? internalNetworkInput.value.trim()
+		: '';
+
+	  const display = value || '—';
+
+	  networkBadge.textContent = `Внутренняя сеть: ${display}`;
+	  networkBadge.dataset.state = value ? 'info' : 'neutral';
+	}
 
     function updatePageTitle() {
       const departmentName = departmentSelect ? (departmentSelect.value || '').trim() : '';
@@ -3012,13 +3019,24 @@
         const isActive = Boolean(item.is_active) || !endRaw;
         const periodText = endDisplay ? `с ${startDisplay} по ${endDisplay}` : `с ${startDisplay}`;
         entry.innerHTML = `
-          <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="badge bg-light text-dark">${statusLabel}</span>
-            ${isActive ? '<span class="badge bg-warning text-dark">Активно</span>' : ''}
-          </div>
-          <div class="history-dates">${periodText}</div>
-          <div class="history-duration">Длительность: ${durationDisplay}</div>
-        `;
+		  <div class="d-flex align-items-center gap-2 mb-2">
+			<span class="badge passport-history-status-badge">
+			  ${statusLabel}
+			</span>
+
+			${isActive
+			  ? '<span class="badge passport-history-active-badge">Активно</span>'
+			  : ''}
+		  </div>
+
+		  <div class="history-dates">
+			${periodText}
+		  </div>
+
+		  <div class="history-duration">
+			Длительность: ${durationDisplay}
+		  </div>
+		`;
         statusHistoryList.appendChild(entry);
       });
       if (statusHistoryEmpty) {
@@ -3065,8 +3083,14 @@
             <div class="position-relative">
               ${isTitleCategory ? '<span class="title-indicator">✔</span>' : ''}
               <div class="dropdown photo-toolbar">
-                <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">⋮</button>
-                <ul class="dropdown-menu dropdown-menu-end">
+				  <button class="btn btn-sm btn-outline-secondary passport-photo-menu-toggle"
+						  type="button"
+						  data-bs-toggle="dropdown"
+						  aria-expanded="false">
+					⋮
+				  </button>
+
+				  <ul class="dropdown-menu dropdown-menu-end passport-photo-menu">
                   <li><a class="dropdown-item" href="#" data-action="toggle-photo-edit">Редактировать</a></li>
                   <li><a class="dropdown-item" href="${escapeHtml(photo.url)}" download>Скачать</a></li>
                   <li><hr class="dropdown-divider"></li>
@@ -3077,7 +3101,10 @@
             </div>
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start mb-2">
-                <span class="badge bg-light text-dark">${categoryLabel}</span>
+                <span class="badge passport-photo-category-badge"
+					  data-photo-category="${isTitleCategory ? 'title' : 'archive'}">
+				  ${categoryLabel}
+				</span>
               </div>
               <div class="photo-caption-text">${captionHtml || '—'}</div>
               <form class="photo-edit-form mt-3 d-none">

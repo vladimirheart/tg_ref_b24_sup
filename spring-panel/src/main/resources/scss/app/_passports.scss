@@ -1215,3 +1215,159 @@
         transition: none;
     }
 }
+/* Passport editor — semantic runtime states */
+
+[data-ui-page='passports'].passport-editor-page
+.status-badge {
+    border: 1px solid var(--state-neutral-border);
+
+    background: var(--state-neutral-bg);
+    color: var(--state-neutral-fg);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.status-badge[data-state='success'] {
+    border-color: var(--state-success-border);
+
+    background: var(--state-success-bg);
+    color: var(--state-success-text);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.status-badge[data-state='warning'] {
+    border-color: var(--state-warning-border);
+
+    background: var(--state-warning-bg);
+    color: var(--state-warning-text);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.status-badge[data-state='info'] {
+    border-color: var(--state-info-border);
+
+    background: var(--state-info-bg);
+    color: var(--state-info-text);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.status-badge[data-state='closed'] {
+    border-color: var(--state-neutral-border);
+
+    background: var(--surface-interactive);
+    color: var(--color-text);
+}
+
+/* History badges */
+
+[data-ui-page='passports'].passport-editor-page
+.passport-history-status-badge {
+    border: 1px solid var(--state-neutral-border);
+
+    background: var(--state-neutral-bg);
+    color: var(--state-neutral-fg);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-history-active-badge {
+    border: 1px solid var(--state-warning-border);
+
+    background: var(--state-warning-bg);
+    color: var(--state-warning-text);
+}
+
+/* Embedded editor tables */
+
+[data-ui-page='passports'].passport-editor-page
+.passport-editor-table-shell {
+    overflow-x: auto;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-card);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-editor-table {
+    min-width: 720px;
+    margin-bottom: 0;
+
+    --bs-table-bg: var(--surface-card);
+    --bs-table-color: var(--color-text);
+    --bs-table-border-color: var(--color-border);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-editor-table thead th {
+    background: var(--surface-raised) !important;
+    color: var(--color-text-muted) !important;
+
+    border-bottom: 1px solid var(--color-border);
+
+    white-space: nowrap;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-editor-table tbody td {
+    border-color: var(--color-border);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-editor-table tbody tr:hover > * {
+    background:
+        color-mix(
+            in srgb,
+            var(--primary) 4%,
+            var(--surface-card)
+        );
+}
+
+/* Photo runtime surfaces */
+
+[data-ui-page='passports'].passport-editor-page
+.passport-photo-menu-toggle {
+    width: 34px;
+    padding-right: 0;
+    padding-left: 0;
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-photo-menu {
+    border: 1px solid var(--color-border);
+
+    background: var(--surface-card);
+    color: var(--color-text);
+
+    box-shadow: var(--ui-panel-shadow);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-photo-category-badge {
+    border: 1px solid var(--state-neutral-border);
+
+    background: var(--state-neutral-bg);
+    color: var(--state-neutral-fg);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-photo-category-badge[data-photo-category='title'] {
+    border-color: var(--state-success-border);
+
+    background: var(--state-success-bg);
+    color: var(--state-success-text);
+}
+
+[data-ui-page='passports'].passport-editor-page
+.passport-photo-category-badge[data-photo-category='archive'] {
+    border-color: var(--state-neutral-border);
+
+    background: var(--state-neutral-bg);
+    color: var(--state-neutral-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-ui-page='passports'].passport-editor-page
+    .passport-editor-table tbody tr {
+        transition: none;
+    }
+}

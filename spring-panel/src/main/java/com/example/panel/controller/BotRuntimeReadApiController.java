@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.entity.Channel;
 import com.example.panel.service.BotRuntimeChannelService;
+import com.example.panel.service.BotRuntimeConfigService;
 import com.example.panel.service.BotRuntimeTicketReadService;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,13 +24,16 @@ public class BotRuntimeReadApiController {
 
     private final BotRuntimeTicketReadService ticketReadService;
     private final BotRuntimeChannelService channelService;
+    private final BotRuntimeConfigService runtimeConfigService;
     private final String expectedToken;
 
     public BotRuntimeReadApiController(BotRuntimeTicketReadService ticketReadService,
                                        BotRuntimeChannelService channelService,
+                                       BotRuntimeConfigService runtimeConfigService,
                                        @Value("${app.bots.internal-api.token:iguana-internal-bot-token}") String expectedToken) {
         this.ticketReadService = ticketReadService;
         this.channelService = channelService;
+        this.runtimeConfigService = runtimeConfigService;
         this.expectedToken = expectedToken;
     }
 
@@ -105,6 +109,16 @@ public class BotRuntimeReadApiController {
         return channelService.findChannel(channelId)
             .map(ChannelLookup::from)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Channel not found"));
+    }
+
+    @GetMapping("/channels/{channelId}/runtime-config")
+    public BotRuntimeConfigService.RuntimeConfigLookup runtimeConfig(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable Long channelId
+    ) {
+        requireAuthorized(token);
+        return runtimeConfigService.findRuntimeConfig(channelId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Runtime config not found"));
     }
 
     private void requireAuthorized(String token) {

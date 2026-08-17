@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.settings.BotSettingsDefaults;
 import com.example.panel.model.channel.BotCredential;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -45,6 +46,25 @@ public class SharedConfigService {
 
     public JsonNode loadLocations() {
         return readAsTree("locations.json");
+    }
+
+    public Map<String, Object> presetDefinitions() {
+        Map<String, Object> settings = loadSettings();
+        if (!settings.isEmpty()) {
+            Object dialogConfig = settings.get("dialog_config");
+            if (dialogConfig instanceof Map<?, ?> dialogMap && dialogMap.get("preset_definitions") instanceof Map<?, ?> definitions) {
+                Map<String, Object> copy = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> entry : definitions.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() instanceof Map<?, ?> value) {
+                        copy.put(entry.getKey().toString(), new LinkedHashMap<>((Map<?, ?>) value));
+                    }
+                }
+                if (!copy.isEmpty()) {
+                    return copy;
+                }
+            }
+        }
+        return BotSettingsDefaults.defaultPresetDefinitions();
     }
 
     public void saveLocations(Object payload) {

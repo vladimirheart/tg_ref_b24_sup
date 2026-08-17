@@ -13,7 +13,7 @@ import com.example.supportbot.service.ConversationHistoryEntry;
 import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.ConversationTicketCreationCommand;
 import com.example.supportbot.service.FeedbackService;
-import com.example.supportbot.service.SharedConfigService;
+import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.service.UnblockRequestService;
 import com.example.supportbot.settings.BotSettingsService;
@@ -94,7 +94,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private final TicketService ticketService;
     private final ChatHistoryService chatHistoryService;
     private final FeedbackService feedbackService;
-    private final SharedConfigService sharedConfigService;
+    private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
     private final Gson gson;
     private final VkApiClient vkClient;
@@ -121,7 +121,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         TicketService ticketService,
                         ChatHistoryService chatHistoryService,
                         FeedbackService feedbackService,
-                        SharedConfigService sharedConfigService,
+                        RuntimeConfigService runtimeConfigService,
                         ObjectMapper objectMapper) {
         this.properties = properties;
         this.blacklistService = blacklistService;
@@ -132,7 +132,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         this.ticketService = ticketService;
         this.chatHistoryService = chatHistoryService;
         this.feedbackService = feedbackService;
-        this.sharedConfigService = sharedConfigService;
+        this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
         this.gson = new Gson();
         this.vkClient = new VkApiClient(new HttpTransportClient());
@@ -710,16 +710,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (cachedLocationTree != null) {
             return cachedLocationTree;
         }
-        JsonNode locations = sharedConfigService.loadLocations();
-        if (locations == null || locations.isNull()) {
-            cachedLocationTree = new LinkedHashMap<>();
-            return cachedLocationTree;
-        }
-        JsonNode treeNode = locations.get("tree");
-        Map<String, Object> resolved = objectMapper.convertValue(
-                treeNode != null && !treeNode.isNull() ? treeNode : locations,
-                new TypeReference<>() {}
-        );
+        Map<String, Object> resolved = runtimeConfigService.locationTree(getChannel());
         cachedLocationTree = resolved != null ? resolved : new LinkedHashMap<>();
         return cachedLocationTree;
     }
@@ -728,7 +719,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (cachedPresetDefinitions != null) {
             return cachedPresetDefinitions;
         }
-        Map<String, Object> baseDefinitions = sharedConfigService.presetDefinitions();
+        Map<String, Object> baseDefinitions = runtimeConfigService.basePresetDefinitions(getChannel());
         Map<String, Object> merged = botSettingsService.buildLocationPresets(locationTree(), baseDefinitions);
         cachedPresetDefinitions = merged != null ? merged : new LinkedHashMap<>();
         return cachedPresetDefinitions;
