@@ -1707,13 +1707,15 @@ body[data-ui-page='dashboard'] {
 	    /* Consolidated visual layer */
 
     .reports-page-header {
-        border-color:
-            color-mix(
-                in srgb,
-                var(--primary) 18%,
-                var(--color-border)
-            );
-    }
+		border-color:
+			color-mix(
+				in srgb,
+				var(--primary) 18%,
+				var(--color-border)
+			);
+
+		box-shadow: none;
+	}
 
     .reports-tab-nav {
         padding: 0.25rem;

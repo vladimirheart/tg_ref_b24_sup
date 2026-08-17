@@ -521,7 +521,7 @@
     let themeRedrawTimer = null;
 
     function withAlpha(color, alpha) {
-      if (!color) return `rgba(0,0,0,${alpha})`;
+      if (!color) return 'transparent';
       const s = color.toString().trim();
       if (s.startsWith('rgb')) {
         const parts = s.replace(/rgba?\(|\)|\s/g,'').split(',');
@@ -537,73 +537,103 @@
       return color;
     }
 
-    function getChartCssColor(token, fallback) {
-      const key = `${token}:${fallback}`;
-      if (chartPaletteCache[key]) {
-        return chartPaletteCache[key];
-      }
-      const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-      chartPaletteCache[key] = value || fallback;
-      return chartPaletteCache[key];
-    }
+    function getChartCssColor(token) {
+	  const key = token;
+
+	  if (chartPaletteCache[key]) {
+		return chartPaletteCache[key];
+	  }
+
+	  const rootStyles = getComputedStyle(document.documentElement);
+	  const value = rootStyles.getPropertyValue(token).trim();
+
+	  const fallbackSource =
+		document.body || document.documentElement;
+
+	  const fallbackColor =
+		getComputedStyle(fallbackSource).color;
+
+	  chartPaletteCache[key] =
+		value || fallbackColor || 'currentColor';
+
+	  return chartPaletteCache[key];
+	}
 
     function clearChartPaletteCache() {
       Object.keys(chartPaletteCache).forEach((key) => delete chartPaletteCache[key]);
     }
 
     function getChartProfile() {
-      const paletteName = document.documentElement.dataset.themePalette || 'neo';
-      const isDark = document.documentElement.dataset.theme === 'dark';
-      const base = {
-        paletteName,
-        isDark,
-        surface: getChartCssColor('--color-surface', isDark ? '#16221c' : '#ffffff'),
-        text: getChartCssColor('--color-text', isDark ? '#eff8f1' : '#132117'),
-        accent: getChartCssColor('--color-accent', '#d9a441'),
-        primary: getChartCssColor('--color-primary', '#1f6b4f'),
-        secondary: getChartCssColor('--color-secondary', '#1d8b88')
-      };
+	  const paletteName =
+		document.documentElement.dataset.themePalette || 'neo';
 
-      if (paletteName === 'catppuccin') {
-        return {
-          ...base,
-          doughnutCutout: '68%',
-          barStartAlpha: isDark ? 0.94 : 0.9,
-          barEndAlpha: isDark ? 0.38 : 0.2,
-          lineColor: getChartCssColor('--chart-2', '#89b4fa'),
-          lineFill: withAlpha(getChartCssColor('--chart-2', '#89b4fa'), isDark ? 0.22 : 0.12),
-          pointBorder: isDark ? '#1e1e2e' : '#eff1f5',
-          tooltipBackground: isDark ? withAlpha('#1e1e2e', 0.98) : withAlpha('#4c4f69', 0.94),
-          tooltipText: '#f9fbff'
-        };
-      }
+	  const isDark =
+		document.documentElement.dataset.theme === 'dark';
 
-      if (paletteName === 'amber-minimal') {
-        return {
-          ...base,
-          doughnutCutout: '70%',
-          barStartAlpha: isDark ? 0.94 : 0.92,
-          barEndAlpha: isDark ? 0.34 : 0.18,
-          lineColor: getChartCssColor('--chart-3', '#f3d49a'),
-          lineFill: withAlpha(getChartCssColor('--chart-3', '#f3d49a'), isDark ? 0.24 : 0.14),
-          pointBorder: isDark ? '#221b15' : '#fffdf8',
-          tooltipBackground: isDark ? withAlpha('#221b15', 0.98) : withAlpha('#3b2a18', 0.94),
-          tooltipText: '#fff8ef'
-        };
-      }
+	  const base = {
+		paletteName,
+		isDark,
+		surface: getChartCssColor('--color-surface'),
+		text: getChartCssColor('--color-text'),
+		accent: getChartCssColor('--color-accent'),
+		primary: getChartCssColor('--color-primary'),
+		secondary: getChartCssColor('--color-secondary')
+	  };
 
-      return {
-        ...base,
-        doughnutCutout: '64%',
-        barStartAlpha: isDark ? 0.92 : 0.9,
-        barEndAlpha: isDark ? 0.36 : 0.18,
-        lineColor: getChartCssColor('--chart-3', '#d9a441'),
-        lineFill: withAlpha(getChartCssColor('--chart-3', '#d9a441'), isDark ? 0.22 : 0.14),
-        pointBorder: isDark ? '#10231a' : '#ffffff',
-        tooltipBackground: isDark ? withAlpha('#132117', 0.98) : withAlpha('#132117', 0.94),
-        tooltipText: '#f4faf6'
-      };
-    }
+	  let doughnutCutout = '64%';
+	  let barStartAlpha = isDark ? 0.92 : 0.9;
+	  let barEndAlpha = isDark ? 0.36 : 0.18;
+
+	  let lineToken = '--chart-3';
+	  let lineFillAlpha = isDark ? 0.22 : 0.14;
+
+	  if (paletteName === 'catppuccin') {
+		doughnutCutout = '68%';
+		barStartAlpha = isDark ? 0.94 : 0.9;
+		barEndAlpha = isDark ? 0.38 : 0.2;
+
+		lineToken = '--chart-2';
+		lineFillAlpha = isDark ? 0.22 : 0.12;
+	  } else if (paletteName === 'amber-minimal') {
+		doughnutCutout = '70%';
+		barStartAlpha = isDark ? 0.94 : 0.92;
+		barEndAlpha = isDark ? 0.34 : 0.18;
+
+		lineToken = '--chart-3';
+		lineFillAlpha = isDark ? 0.24 : 0.14;
+	  }
+
+	  const lineColor =
+		getChartCssColor(lineToken);
+
+	  return {
+		...base,
+
+		doughnutCutout,
+		barStartAlpha,
+		barEndAlpha,
+
+		lineColor,
+
+		lineFill:
+		  withAlpha(
+			lineColor,
+			lineFillAlpha
+		  ),
+
+		pointBorder:
+		  getChartCssColor('--color-surface'),
+
+		tooltipBackground:
+		  withAlpha(
+			getChartCssColor('--color-ink-panel'),
+			isDark ? 0.98 : 0.94
+		  ),
+
+		tooltipText:
+		  getChartCssColor('--color-on-ink')
+	  };
+	}
 
     function buildCanvasGradient(canvas, color, direction = 'vertical') {
       const ctx = canvas?.getContext?.('2d');
@@ -626,16 +656,16 @@
     }
 
     function getChartPalette(variant = 'default') {
-      const base = [
-        getChartCssColor('--chart-1', '#1f6b4f'),
-        getChartCssColor('--chart-2', '#1d8b88'),
-        getChartCssColor('--chart-3', '#d9a441'),
-        getChartCssColor('--chart-4', '#d46a6a'),
-        getChartCssColor('--chart-5', '#7fa43a'),
-        getChartCssColor('--color-secondary', '#2f7bd1'),
-        getChartCssColor('--color-accent', '#ef8a25'),
-        getChartCssColor('--color-primary', '#c9557d')
-      ];
+	  const base = [
+		getChartCssColor('--chart-1'),
+		getChartCssColor('--chart-2'),
+		getChartCssColor('--chart-3'),
+		getChartCssColor('--chart-4'),
+		getChartCssColor('--chart-5'),
+		getChartCssColor('--color-secondary'),
+		getChartCssColor('--color-accent'),
+		getChartCssColor('--color-primary')
+	  ];
       if (variant === 'warm') {
         return [base[2], base[6], base[3], base[7], base[0], base[4], base[1], base[5]];
       }
@@ -646,16 +676,34 @@
     }
 
     function getChartTheme() {
-      const profile = getChartProfile();
-      return {
-        grid: withAlpha(getChartCssColor('--color-border', '#cad6c7'), profile.isDark ? 0.28 : 0.42),
-        text: getChartCssColor('--color-text', '#132117'),
-        muted: getChartCssColor('--color-text-muted', '#536055'),
-        border: withAlpha(getChartCssColor('--color-surface', '#ffffff'), profile.isDark ? 0.88 : 0.96),
-        tooltipBackground: profile.tooltipBackground,
-        tooltipText: profile.tooltipText
-      };
-    }
+	  const profile = getChartProfile();
+
+	  return {
+		grid:
+		  withAlpha(
+			getChartCssColor('--color-border'),
+			profile.isDark ? 0.28 : 0.42
+		  ),
+
+		text:
+		  getChartCssColor('--color-text'),
+
+		muted:
+		  getChartCssColor('--color-text-muted'),
+
+		border:
+		  withAlpha(
+			getChartCssColor('--color-surface'),
+			profile.isDark ? 0.88 : 0.96
+		  ),
+
+		tooltipBackground:
+		  profile.tooltipBackground,
+
+		tooltipText:
+		  profile.tooltipText
+	  };
+	}
 
     function buildAxisOptions(horizontal = false) {
       const theme = getChartTheme();

@@ -7899,6 +7899,7 @@ body[data-ui-page=dashboard] .reports-subpanel .card {
 }
 body[data-ui-page=dashboard] .reports-page-header {
   border-color: color-mix(in srgb, var(--primary) 18%, var(--color-border));
+  box-shadow: none;
 }
 body[data-ui-page=dashboard] .reports-tab-nav {
   padding: 0.25rem;
