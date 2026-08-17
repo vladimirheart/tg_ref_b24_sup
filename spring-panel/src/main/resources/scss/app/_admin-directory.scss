@@ -1,0 +1,154 @@
+/* Compact admin directory pages: channels + users */
+
+body[data-ui-page='channels'],
+body[data-ui-page='users'] {
+    background: var(--surface-page);
+    color: var(--color-text);
+
+    .admin-directory-shell {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .admin-directory-header {
+        box-shadow: none;
+    }
+
+    .admin-table-card {
+        overflow: hidden;
+
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-xl);
+
+        background: var(--surface-card);
+
+        box-shadow: none;
+    }
+
+    .admin-table-shell {
+        margin: 0;
+    }
+
+    .admin-table {
+        margin: 0;
+
+        --bs-table-bg: var(--surface-card);
+        --bs-table-color: var(--color-text);
+        --bs-table-border-color: var(--color-border);
+    }
+
+    .admin-table thead th {
+        padding: 0.75rem 0.9rem;
+
+        border-bottom: 1px solid var(--color-border);
+
+        background: var(--surface-raised);
+        color: var(--color-text-muted);
+
+        font-size: var(--font-size-xs);
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+
+        white-space: nowrap;
+    }
+
+    .admin-table tbody td {
+        padding: 0.78rem 0.9rem;
+
+        border-color: var(--color-border);
+
+        vertical-align: middle;
+    }
+
+    .admin-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .admin-table tbody tr:hover > * {
+        background:
+            color-mix(
+                in srgb,
+                var(--primary) 4%,
+                var(--surface-card)
+            );
+    }
+
+    .admin-primary-value {
+        color: var(--color-text);
+
+        font-weight: 700;
+    }
+
+    .admin-secondary-value {
+        color: var(--color-text-muted);
+
+        font-size: var(--font-size-xs);
+    }
+
+    .admin-platform-label {
+        display: inline-flex;
+        align-items: center;
+
+        min-height: 26px;
+        padding: 0 0.58rem;
+
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-pill);
+
+        background: var(--surface-raised);
+        color: var(--color-text-muted);
+
+        font-size: var(--font-size-xs);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .admin-status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        min-height: 26px;
+        padding: 0 0.62rem;
+
+        border: 1px solid transparent;
+        border-radius: var(--radius-pill);
+
+        font-size: var(--font-size-xs);
+        font-weight: 700;
+    }
+
+    .admin-status-badge--active {
+        border-color: var(--state-success-border);
+
+        background: var(--state-success-bg);
+        color: var(--state-success-text);
+    }
+
+    .admin-status-badge--inactive {
+        border-color: var(--color-border);
+
+        background: var(--surface-raised);
+        color: var(--color-text-muted);
+    }
+
+    .admin-empty-cell {
+        padding: 2rem 1rem !important;
+
+        color: var(--color-text-muted) !important;
+
+        text-align: center;
+    }
+
+    @media (max-width: 767.98px) {
+        .admin-table-card {
+            border-radius: var(--radius-lg);
+        }
+
+        .admin-table {
+            min-width: 760px;
+        }
+    }
+}

@@ -8174,3 +8174,129 @@ body[data-ui-page=dashboard] .flatpickr-calendar.arrowTop::after {
 body[data-ui-page=dashboard] .flatpickr-calendar.arrowBottom::after {
   border-top-color: var(--surface-card);
 }
+
+/* Compact admin directory pages: channels + users */
+body[data-ui-page=channels],
+body[data-ui-page=users] {
+  background: var(--surface-page);
+  color: var(--color-text);
+}
+body[data-ui-page=channels] .admin-directory-shell,
+body[data-ui-page=users] .admin-directory-shell {
+  display: grid;
+  gap: 1rem;
+}
+body[data-ui-page=channels] .admin-directory-header,
+body[data-ui-page=users] .admin-directory-header {
+  box-shadow: none;
+}
+body[data-ui-page=channels] .admin-table-card,
+body[data-ui-page=users] .admin-table-card {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+body[data-ui-page=channels] .admin-table-shell,
+body[data-ui-page=users] .admin-table-shell {
+  margin: 0;
+}
+body[data-ui-page=channels] .admin-table,
+body[data-ui-page=users] .admin-table {
+  margin: 0;
+  --bs-table-bg: var(--surface-card);
+  --bs-table-color: var(--color-text);
+  --bs-table-border-color: var(--color-border);
+}
+body[data-ui-page=channels] .admin-table thead th,
+body[data-ui-page=users] .admin-table thead th {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+body[data-ui-page=channels] .admin-table tbody td,
+body[data-ui-page=users] .admin-table tbody td {
+  padding: 0.78rem 0.9rem;
+  border-color: var(--color-border);
+  vertical-align: middle;
+}
+body[data-ui-page=channels] .admin-table tbody tr:last-child td,
+body[data-ui-page=users] .admin-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+body[data-ui-page=channels] .admin-table tbody tr:hover > *,
+body[data-ui-page=users] .admin-table tbody tr:hover > * {
+  background: color-mix(in srgb, var(--primary) 4%, var(--surface-card));
+}
+body[data-ui-page=channels] .admin-primary-value,
+body[data-ui-page=users] .admin-primary-value {
+  color: var(--color-text);
+  font-weight: 700;
+}
+body[data-ui-page=channels] .admin-secondary-value,
+body[data-ui-page=users] .admin-secondary-value {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+body[data-ui-page=channels] .admin-platform-label,
+body[data-ui-page=users] .admin-platform-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 0.58rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+body[data-ui-page=channels] .admin-status-badge,
+body[data-ui-page=users] .admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 0.62rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+body[data-ui-page=channels] .admin-status-badge--active,
+body[data-ui-page=users] .admin-status-badge--active {
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+}
+body[data-ui-page=channels] .admin-status-badge--inactive,
+body[data-ui-page=users] .admin-status-badge--inactive {
+  border-color: var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+}
+body[data-ui-page=channels] .admin-empty-cell,
+body[data-ui-page=users] .admin-empty-cell {
+  padding: 2rem 1rem !important;
+  color: var(--color-text-muted) !important;
+  text-align: center;
+}
+@media (max-width: 767.98px) {
+  body[data-ui-page=channels] .admin-table-card,
+  body[data-ui-page=users] .admin-table-card {
+    border-radius: var(--radius-lg);
+  }
+  body[data-ui-page=channels] .admin-table,
+  body[data-ui-page=users] .admin-table {
+    min-width: 760px;
+  }
+}
