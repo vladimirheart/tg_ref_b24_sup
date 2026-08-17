@@ -200,3 +200,4 @@
 🟡 [01-179] Сделать NetBox sync устойчивым к локальным сбоям по отдельному site и image-attachments
 🟡 [01-180] Добавить выбор импортируемых NetBox sites в настройках синхронизации с отображением Status
 🟣 [01-181] Перевести Iguana с legacy SQLite runtime на PostgreSQL-first architecture
+🟠 [01-182] Выпилить legacy business fallback из java-bot после завершения PostgreSQL-first boundary

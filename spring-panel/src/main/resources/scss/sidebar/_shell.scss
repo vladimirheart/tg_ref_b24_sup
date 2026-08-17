@@ -13,7 +13,12 @@
     var(--sidebar-border);
 
   --sidebar-shadow:
-    12px 0 30px rgba(16, 46, 57, 0.08);
+	  12px 0 30px
+	  color-mix(
+		in srgb,
+		var(--shadow-color) 8%,
+		transparent
+	  );
 
   --sidebar-nav-active:
     linear-gradient(

@@ -264,69 +264,6 @@
         </div>
     </div>
 
-    <style id="modal-animations-style">
-        .sidebar-bot-mini-indicators {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            min-height: 0.75rem;
-        }
-
-        .sidebar-bot-mini-dot {
-            width: 0.55rem;
-            height: 0.55rem;
-            border-radius: 999px;
-            background: #adb5bd;
-            border: 1px solid rgba(255, 255, 255, 0.7);
-            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
-            display: inline-block;
-        }
-
-        .sidebar-bot-mini-dot--running {
-            background: #16a34a;
-        }
-
-        .sidebar-bot-mini-dot--stopped {
-            background: #dc2626;
-        }
-
-        .sidebar-bot-mini-dot--inactive {
-            background: #94a3b8;
-        }
-
-        .sidebar-bot-mini-dot--error {
-            background: #d97706;
-        }
-
-        .sidebar-bot-mini-more {
-            font-size: 0.68rem;
-            color: #6c757d;
-            line-height: 1;
-        }
-
-        .modal.fade .modal-dialog {
-            transform: translateY(8px);
-            opacity: 0;
-            transform-origin: center;
-            transition: transform 0.18s ease, opacity 0.18s ease;
-        }
-
-        .modal.fade.show .modal-dialog,
-        .modal.fade.showing .modal-dialog {
-            transform: translateY(0);
-            opacity: 1;
-        }
-
-        .modal.fade.modal-closing .modal-dialog {
-            transform: translateY(6px);
-            opacity: 0;
-        }
-
-        .modal.fade.modal-closing {
-            pointer-events: none;
-        }
-    </style>
-
     <script th:src="@{/js/sidebar.js}"></script>
     <script th:src="@{/js/content-disclosure.js}"></script>
 </div>

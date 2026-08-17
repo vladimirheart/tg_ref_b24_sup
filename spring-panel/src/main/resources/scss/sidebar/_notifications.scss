@@ -9,8 +9,15 @@
   padding: 10px;
   border-radius: 22px;
   border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
-  background: color-mix(in srgb, var(--color-surface) 88%, white);
-  box-shadow: 0 26px 44px rgba(18, 34, 24, 0.16);
+  background: var(--surface-card);
+
+	box-shadow:
+	  0 26px 44px
+	  color-mix(
+		in srgb,
+		var(--shadow-color) 16%,
+		transparent
+	  );
   backdrop-filter: blur(18px);
   z-index: calc(var(--sidebar-z) + 40);
 }
@@ -107,9 +114,16 @@
   transform: translate(-50%, 12px);
   padding: 13px 18px;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--color-text) 92%, var(--color-surface));
-  color: #fff;
-  box-shadow: 0 20px 36px rgba(15, 23, 42, 0.24);
+  background: var(--color-ink-panel);
+	color: var(--color-on-ink);
+
+	box-shadow:
+	  0 20px 36px
+	  color-mix(
+		in srgb,
+		var(--shadow-color) 24%,
+		transparent
+	  );
   font-size: 0.92rem;
   z-index: calc(var(--sidebar-z) + 5);
   opacity: 0;
@@ -144,7 +158,12 @@
 .sidebar-mobile-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.38);
+  background:
+	  color-mix(
+		in srgb,
+		var(--color-ink-panel-deep) 38%,
+		transparent
+	  );
   backdrop-filter: blur(4px);
   z-index: calc(var(--sidebar-z) - 1);
   opacity: 0;
