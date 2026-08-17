@@ -155,6 +155,24 @@
 
 Этот слой больше не должен участвовать в external PostgreSQL runtime path. Для отдельной фиксации perimeter см. [docs/SQLITE_BOOTSTRAP_PERIMETER.md](SQLITE_BOOTSTRAP_PERIMETER.md).
 
+## 10.2. Текущий допустимый JDBC-only compatibility perimeter в `java-bot`
+
+После cleanup-среза `01-182` bot-side business fallback в `java-bot` допустим только как явный local/dev compatibility слой.
+
+Сейчас к этому perimeter относятся:
+
+- явные `runtime-mode` ветки в `TicketService`, которые продолжают обслуживать только legacy/local `jdbc`-маршрут;
+- `ChatHistoryService` как локальный compatibility write/edit path для этого же `jdbc`-режима;
+- `TaskService` и `AutoCloseFollowUpTaskService` только как `jdbc`-only beans, которые больше не поднимаются в `rabbitmq`-контуре.
+
+Что больше не допускается:
+
+- активный bot-side task/follow-up business path в `rabbitmq`-режиме;
+- неявное существование `TaskService` / `AutoCloseFollowUpTaskService` как production-like beans рядом с backend-owned transport path;
+- скрытое восприятие legacy bot-side task lifecycle как части целевой production-модели.
+
+В `rabbitmq`-контуре вместо старого follow-up business bean теперь допускается только явный no-op boundary, чтобы transport runtime не возвращал ownership задач обратно в `java-bot`.
+
 ## 11. Текущий статус и следующий scope
 
 После уже выполненных шагов `01-181` ближайший recommended step больше не в том, чтобы ещё раз уточнять `BotRuntimeContractService`: это разграничение уже зафиксировано и в коде, и в runtime-диагностике.

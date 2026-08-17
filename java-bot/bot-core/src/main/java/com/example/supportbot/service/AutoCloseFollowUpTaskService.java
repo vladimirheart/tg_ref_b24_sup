@@ -15,17 +15,19 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
-import org.springframework.transaction.PlatformTransactionManager;
 
 @Service
-public class AutoCloseFollowUpTaskService {
+@ConditionalOnProperty(name = "app.integration.transport.mode", havingValue = "jdbc", matchIfMissing = true)
+public class AutoCloseFollowUpTaskService implements AutoCloseFollowUpTaskSupport {
 
     private static final Logger log = LoggerFactory.getLogger(AutoCloseFollowUpTaskService.class);
     private static final String TASK_CREATOR = "auto_close";
@@ -97,6 +99,7 @@ public class AutoCloseFollowUpTaskService {
         }
     }
 
+    @Override
     public void createTaskForAutoClosedDialog(String ticketId) {
         String normalizedTicketId = trimToNull(ticketId);
         if (normalizedTicketId == null) {

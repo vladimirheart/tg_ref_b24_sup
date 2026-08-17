@@ -22,10 +22,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@ConditionalOnProperty(name = "app.integration.transport.mode", havingValue = "jdbc", matchIfMissing = true)
 public class TaskService {
 
     private static final int SEQUENCE_ROW_ID = 1;

@@ -488,7 +488,7 @@ class TicketServiceInboundTransportTest {
             mock(ChatHistoryRepository.class),
             chatHistoryService,
             mock(FeedbackRepository.class),
-            mock(AutoCloseFollowUpTaskService.class),
+            mock(AutoCloseFollowUpTaskSupport.class),
             mock(UiEventOutboxService.class),
             mock(TicketAttributeService.class),
             publisher,

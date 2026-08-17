@@ -53,7 +53,7 @@ public class TicketService {
     private final ChatHistoryRepository chatHistoryRepository;
     private final ChatHistoryService chatHistoryService;
     private final FeedbackRepository feedbackRepository;
-    private final AutoCloseFollowUpTaskService autoCloseFollowUpTaskService;
+    private final AutoCloseFollowUpTaskSupport autoCloseFollowUpTaskSupport;
     private final UiEventOutboxService uiEventOutboxService;
     private final TicketAttributeService ticketAttributeService;
     private final InboundClientMessagePublisher inboundClientMessagePublisher;
@@ -70,7 +70,7 @@ public class TicketService {
                          ChatHistoryRepository chatHistoryRepository,
                          ChatHistoryService chatHistoryService,
                          FeedbackRepository feedbackRepository,
-                         AutoCloseFollowUpTaskService autoCloseFollowUpTaskService,
+                         AutoCloseFollowUpTaskSupport autoCloseFollowUpTaskSupport,
                          UiEventOutboxService uiEventOutboxService,
                          TicketAttributeService ticketAttributeService,
                          InboundClientMessagePublisher inboundClientMessagePublisher,
@@ -86,7 +86,7 @@ public class TicketService {
         this.chatHistoryRepository = chatHistoryRepository;
         this.chatHistoryService = chatHistoryService;
         this.feedbackRepository = feedbackRepository;
-        this.autoCloseFollowUpTaskService = autoCloseFollowUpTaskService;
+        this.autoCloseFollowUpTaskSupport = autoCloseFollowUpTaskSupport;
         this.uiEventOutboxService = uiEventOutboxService;
         this.ticketAttributeService = ticketAttributeService;
         this.inboundClientMessagePublisher = inboundClientMessagePublisher;
@@ -538,7 +538,7 @@ public class TicketService {
             }
 
             if (closeTicket(active.getTicketId(), AUTO_CLOSE_RESOLVED_BY, "inactivity")) {
-                autoCloseFollowUpTaskService.createTaskForAutoClosedDialog(active.getTicketId());
+                autoCloseFollowUpTaskSupport.createTaskForAutoClosedDialog(active.getTicketId());
                 log.info("Auto-closed ticket {} using source={}, templateId={}, hours={}, threshold={}",
                         active.getTicketId(), policy.source(), policy.templateId(), policy.hours(), threshold);
                 closed++;
