@@ -50,7 +50,12 @@
 
 .notify-dropdown .notif-read-all-btn:hover,
 .notify-dropdown .notif-read-all-btn:focus-visible {
-  color: color-mix(in srgb, var(--color-accent) 76%, black);
+  color:
+  color-mix(
+    in srgb,
+    var(--primary) 82%,
+    var(--color-text)
+  );
   text-decoration: underline;
 }
 
@@ -68,7 +73,7 @@
 }
 
 .notify-dropdown .notif-item:hover {
-  background: color-mix(in srgb, var(--color-accent) 8%, white);
+  background: var(--surface-interactive);
   border-color: color-mix(in srgb, var(--color-accent) 16%, transparent);
 }
 
@@ -82,7 +87,7 @@
 }
 
 .notify-dropdown .notif-item-unread {
-  background: color-mix(in srgb, var(--color-accent) 11%, white);
+  background: var(--surface-selected);
   border-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
@@ -147,8 +152,15 @@
   justify-content: center;
   border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--color-surface) 90%, white);
-  box-shadow: 0 18px 28px rgba(18, 34, 24, 0.14);
+  background: var(--surface-card);
+
+	box-shadow:
+	  0 18px 28px
+	  color-mix(
+		in srgb,
+		var(--shadow-color) 14%,
+		transparent
+	  );
   font-size: 1.12rem;
   line-height: 1;
   cursor: pointer;

@@ -71,7 +71,7 @@ body.with-sidebar.sidebar-hovering {
   gap: 10px;
   overflow: visible;
   z-index: var(--sidebar-z);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--sidebar-surface) 98%, white), var(--sidebar-surface-strong));
+  background: linear-gradient(180deg, var(--surface-raised), var(--sidebar-surface-strong));
   border-right: 1px solid var(--sidebar-stroke);
   box-shadow: var(--sidebar-shadow);
   transition: width 0.28s ease, transform 0.28s ease, opacity 0.28s ease;
@@ -81,8 +81,8 @@ body.with-sidebar.sidebar-hovering {
   content: "";
   position: absolute;
   inset: 8px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, white 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 42%, transparent);
+  border-radius: var(--radius-xl);
   pointer-events: none;
   opacity: 0.56;
 }
@@ -146,9 +146,9 @@ body.with-sidebar.sidebar-hovering {
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  border-radius: 16px;
-  background: color-mix(in srgb, white 86%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--color-border) 68%, white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
   box-shadow: none;
 }
 
@@ -215,7 +215,7 @@ body.with-sidebar.sidebar-hovering {
 
 .sidebar-brand-description {
   margin: 0;
-  color: color-mix(in srgb, var(--color-text-muted) 92%, white);
+  color: var(--color-text-muted);
   font-size: 0.78rem;
   line-height: 1.45;
   max-width: 22ch;
@@ -231,9 +231,9 @@ body.with-sidebar.sidebar-hovering {
   justify-content: space-between;
   gap: 12px;
   padding: 9px 10px;
-  border-radius: 12px;
-  background: color-mix(in srgb, white 82%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--color-border) 68%, white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
 }
 
 .sidebar-runtime-copy {
@@ -254,7 +254,7 @@ body.with-sidebar.sidebar-hovering {
 .sidebar-runtime-meta {
   font-size: 0.77rem;
   line-height: 1.35;
-  color: color-mix(in srgb, var(--color-text-muted) 88%, white);
+  color: var(--color-text-muted);
 }
 
 .sidebar-actions {
@@ -274,8 +274,8 @@ body.with-sidebar.sidebar-hovering {
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--color-border) 64%, white);
-  background: color-mix(in srgb, white 82%, var(--color-surface));
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised);
   color: var(--color-text);
   cursor: pointer;
   font-size: 0.96rem;
@@ -288,8 +288,8 @@ body.with-sidebar.sidebar-hovering {
 .icon-btn:hover,
 .icon-btn:focus-visible {
   transform: none;
-  background: color-mix(in srgb, var(--color-accent) 6%, white);
-  border-color: color-mix(in srgb, var(--color-accent) 22%, white);
+  background: var(--surface-selected);
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
   box-shadow: none;
 }
 
@@ -298,7 +298,7 @@ body.with-sidebar.sidebar-hovering {
 }
 
 .notify-btn[aria-expanded=true] {
-  background: color-mix(in srgb, var(--color-accent) 12%, white);
+  background: var(--surface-selected);
 }
 
 .notify-count {
@@ -319,18 +319,19 @@ body.with-sidebar.sidebar-hovering {
   position: relative;
   z-index: 1;
   padding: 18px;
-  border-radius: 28px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 20%, white), color-mix(in srgb, var(--gradient-secondary) 24%, white));
-  color: color-mix(in srgb, var(--color-text) 84%, #0b1a10);
-  box-shadow: 0 22px 44px rgba(19, 32, 23, 0.12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(135deg, var(--surface-selected), var(--surface-raised));
+  color: var(--color-text);
+  box-shadow: 0 22px 44px color-mix(in srgb, var(--shadow-color) 12%, transparent);
 }
 
 .sidebar-overview-kicker {
   display: inline-flex;
   align-items: center;
   padding: 0.32rem 0.72rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-card) 72%, transparent);
   font-size: 0.7rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -349,7 +350,7 @@ body.with-sidebar.sidebar-hovering {
   margin: 10px 0 0;
   font-size: 0.88rem;
   line-height: 1.55;
-  color: color-mix(in srgb, var(--color-text) 72%, white);
+  color: var(--color-text-muted);
 }
 
 .sidebar-overview-chips {
@@ -364,8 +365,8 @@ body.with-sidebar.sidebar-hovering {
   align-items: center;
   min-height: 28px;
   padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.56);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-card) 68%, transparent);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -396,7 +397,7 @@ body.with-sidebar.sidebar-hovering {
 
 .sidebar-nav.editing-order {
   border-radius: 20px;
-  background: color-mix(in srgb, var(--color-accent) 7%, white);
+  background: var(--surface-selected);
   padding: 14px 10px 18px;
 }
 
@@ -442,7 +443,7 @@ body.with-sidebar.sidebar-hovering {
 .sidebar-nav .nav-link:hover,
 .sidebar-nav .nav-link:focus-visible {
   background: var(--sidebar-nav-hover);
-  border-color: color-mix(in srgb, var(--color-border) 58%, white);
+  border-color: var(--color-border);
   box-shadow: none;
 }
 
@@ -453,9 +454,9 @@ body.with-sidebar.sidebar-hovering {
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  background: color-mix(in srgb, white 88%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--color-border) 56%, white);
-  color: color-mix(in srgb, var(--color-text) 72%, black);
+  background: var(--surface-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
   font-size: 0.95rem;
   transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
@@ -506,35 +507,23 @@ body.with-sidebar.sidebar-hovering {
 
 .sidebar-nav .nav-link.active {
   background: var(--sidebar-nav-active);
-  border-color: color-mix(in srgb, var(--primary) 26%, var(--color-border));
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--primary) 82%, white);
-}
-
-.sidebar-nav .nav-link.active .icon {
-  background: color-mix(in srgb, var(--primary) 10%, white);
-  border-color: color-mix(in srgb, var(--primary) 26%, white);
-  color: color-mix(in srgb, var(--primary) 84%, var(--color-text));
-}
-
-.sidebar .nav-link .nav-badge {
-  font-size: 0.66rem;
-  line-height: 1.2;
-  padding: 0.22rem 0.44rem;
-  border-radius: 999px;
-  box-shadow: 0 8px 16px rgba(217, 119, 6, 0.16);
-}
-
-.sidebar-nav .nav-link.active {
-  background: var(--sidebar-nav-active);
-  border-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
-  box-shadow: 0 14px 26px rgba(20, 34, 24, 0.08);
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--primary) 82%, transparent);
 }
 
 .sidebar-nav .nav-link.active .icon {
   transform: scale(1.02);
-  background: color-mix(in srgb, var(--color-accent) 14%, white);
-  border-color: color-mix(in srgb, var(--color-accent) 20%, transparent);
-  color: color-mix(in srgb, var(--color-accent) 76%, #0d1c10);
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+.sidebar .nav-link .nav-badge {
+  padding: 0.22rem 0.44rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.66rem;
+  line-height: 1.2;
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--state-warning) 16%, transparent);
 }
 
 .sidebar.collapsed:not(.hovering) .nav-link {
@@ -577,16 +566,16 @@ body.with-sidebar.sidebar-hovering {
 .sidebar-footer {
   position: relative;
   z-index: 1;
-  margin-top: auto;
-  overflow: visible;
-  padding: 12px;
-  border-radius: 20px;
-  background: linear-gradient(180deg, color-mix(in srgb, white 80%, var(--color-surface)), color-mix(in srgb, var(--color-accent) 4%, white));
-  border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
-  box-shadow: 0 12px 28px rgba(18, 33, 23, 0.08);
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-top: auto;
+  padding: 12px;
+  overflow: visible;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(180deg, var(--surface-card), var(--surface-raised));
+  box-shadow: none;
 }
 
 .sidebar-footer-main {
@@ -625,8 +614,8 @@ body.with-sidebar.sidebar-hovering {
   min-height: 64px;
   padding: 10px;
   border-radius: 18px;
-  background: color-mix(in srgb, white 74%, var(--color-surface));
-  border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
+  background: var(--surface-card);
+  border: 1px solid var(--color-border);
 }
 
 .sidebar-user-avatar {
@@ -639,8 +628,8 @@ body.with-sidebar.sidebar-hovering {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--color-accent) 10%, white);
-  box-shadow: 0 10px 20px rgba(18, 34, 24, 0.12);
+  background: var(--surface-selected);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--shadow-color) 12%, transparent);
 }
 
 .sidebar-user-avatar-fallback {
@@ -649,7 +638,7 @@ body.with-sidebar.sidebar-hovering {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: color-mix(in srgb, var(--color-text) 58%, white);
+  color: var(--color-text-muted);
 }
 
 .sidebar-user-avatar-fallback svg {
@@ -732,19 +721,19 @@ body.with-sidebar.sidebar-hovering {
   min-width: 0;
   min-height: 44px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   text-decoration: none;
   font-weight: 700;
   white-space: nowrap;
-  box-shadow: 0 14px 28px rgba(18, 33, 23, 0.12);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--shadow-color) 12%, transparent);
   transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .sidebar-action-item,
 .sidebar-action-menu-trigger {
-  border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
-  background: color-mix(in srgb, white 72%, var(--color-surface));
-  color: inherit;
+  border: 1px solid var(--color-border);
+  background: var(--surface-card);
+  color: var(--color-text);
 }
 
 .sidebar-action-item {
@@ -754,28 +743,28 @@ body.with-sidebar.sidebar-hovering {
 .sidebar-action-item:hover,
 .sidebar-action-item:focus-visible {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--color-accent) 8%, white);
+  background: var(--surface-selected);
   border-color: color-mix(in srgb, var(--color-accent) 16%, transparent);
-  box-shadow: 0 16px 30px rgba(18, 33, 23, 0.16);
+  box-shadow: 0 16px 30px color-mix(in srgb, var(--shadow-color) 16%, transparent);
 }
 
 .sidebar-action-item--accent {
-  background: color-mix(in srgb, var(--color-accent) 15%, white);
-  border-color: color-mix(in srgb, var(--color-accent) 22%, transparent);
-  color: color-mix(in srgb, var(--color-accent) 76%, #0d1c10);
+  border-color: color-mix(in srgb, var(--primary) 26%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--primary);
 }
 
 .sidebar-action-item--danger {
-  border: 1px solid rgba(220, 38, 38, 0.14);
-  background: rgba(254, 242, 242, 0.88);
-  color: #b91c1c;
+  border: 1px solid var(--state-danger-border);
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
 }
 
 .sidebar-action-item--danger:hover,
 .sidebar-action-item--danger:focus-visible {
   transform: translateY(-1px);
-  background: rgba(254, 226, 226, 0.96);
-  color: #991b1b;
+  background: color-mix(in srgb, var(--state-danger) 16%, var(--surface-card));
+  color: var(--state-danger);
 }
 
 .sidebar-action-item .icon {
@@ -798,8 +787,8 @@ body.with-sidebar.sidebar-hovering {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  box-shadow: 0 18px 34px rgba(18, 33, 23, 0.16);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 18px 34px color-mix(in srgb, var(--shadow-color) 16%, transparent);
   cursor: pointer;
   overflow: hidden;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
@@ -808,7 +797,7 @@ body.with-sidebar.sidebar-hovering {
 .sidebar-action-menu-trigger:hover,
 .sidebar-action-menu-trigger:focus-visible {
   transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 20px 36px rgba(18, 33, 23, 0.2);
+  box-shadow: 0 20px 36px color-mix(in srgb, var(--shadow-color) 20%, transparent);
   border-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
@@ -827,7 +816,7 @@ body.with-sidebar.sidebar-hovering {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.92), transparent 40%), linear-gradient(135deg, color-mix(in srgb, var(--gradient-secondary) 26%, white), color-mix(in srgb, var(--color-accent) 22%, white));
+  background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--surface-card) 92%, transparent), transparent 40%), linear-gradient(135deg, color-mix(in srgb, var(--secondary) 18%, var(--surface-card)), color-mix(in srgb, var(--primary) 16%, var(--surface-card)));
 }
 
 @media (max-width: 640px) {
@@ -890,7 +879,7 @@ body.with-sidebar.sidebar-hovering {
 
 .notify-dropdown .notif-read-all-btn:hover,
 .notify-dropdown .notif-read-all-btn:focus-visible {
-  color: color-mix(in srgb, var(--color-accent) 76%, black);
+  color: color-mix(in srgb, var(--primary) 82%, var(--color-text));
   text-decoration: underline;
 }
 
@@ -908,7 +897,7 @@ body.with-sidebar.sidebar-hovering {
 }
 
 .notify-dropdown .notif-item:hover {
-  background: color-mix(in srgb, var(--color-accent) 8%, white);
+  background: var(--surface-interactive);
   border-color: color-mix(in srgb, var(--color-accent) 16%, transparent);
 }
 
@@ -922,7 +911,7 @@ body.with-sidebar.sidebar-hovering {
 }
 
 .notify-dropdown .notif-item-unread {
-  background: color-mix(in srgb, var(--color-accent) 11%, white);
+  background: var(--surface-selected);
   border-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
@@ -980,8 +969,8 @@ body.with-sidebar.sidebar-hovering {
   justify-content: center;
   border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--color-surface) 90%, white);
-  box-shadow: 0 18px 28px rgba(18, 34, 24, 0.14);
+  background: var(--surface-card);
+  box-shadow: 0 18px 28px color-mix(in srgb, var(--shadow-color) 14%, transparent);
   font-size: 1.12rem;
   line-height: 1;
   cursor: pointer;

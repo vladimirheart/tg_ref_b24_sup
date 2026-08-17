@@ -68,27 +68,55 @@ body.with-sidebar.sidebar-hovering {
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
+
   width: var(--sidebar-w);
   height: 100vh;
+
   padding: 10px 8px 12px;
+
   display: flex;
   flex-direction: column;
   gap: 10px;
+
   overflow: visible;
+
   z-index: var(--sidebar-z);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--sidebar-surface) 98%, white), var(--sidebar-surface-strong));
+
+  background:
+    linear-gradient(
+      180deg,
+      var(--surface-raised),
+      var(--sidebar-surface-strong)
+    );
+
   border-right: 1px solid var(--sidebar-stroke);
+
   box-shadow: var(--sidebar-shadow);
-  transition: width 0.28s ease, transform 0.28s ease, opacity 0.28s ease;
+
+  transition:
+    width 0.28s ease,
+    transform 0.28s ease,
+    opacity 0.28s ease;
 }
 
 .sidebar::before {
   content: "";
+
   position: absolute;
   inset: 8px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, white 24%, transparent);
+
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--color-border) 42%,
+      transparent
+    );
+
+  border-radius: var(--radius-xl);
+
   pointer-events: none;
+
   opacity: 0.56;
 }
 
