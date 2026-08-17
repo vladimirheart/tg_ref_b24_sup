@@ -1035,7 +1035,7 @@ body.sidebar-mobile-open .sidebar-mobile-overlay {
     padding-top: 72px;
   }
 }
-/* Sidebar runtime indicators + shared sidebar modal layer */
+/* Sidebar runtime indicators + password modal layer */
 .sidebar-bot-mini-indicators {
   display: inline-flex;
   align-items: center;
@@ -1073,29 +1073,6 @@ body.sidebar-mobile-open .sidebar-mobile-overlay {
   color: var(--color-text-muted);
   font-size: 0.68rem;
   line-height: 1;
-}
-
-/* Shared modal motion */
-.modal.fade .modal-dialog {
-  opacity: 0;
-  transform: translateY(8px);
-  transform-origin: center;
-  transition: transform 0.18s ease, opacity 0.18s ease;
-}
-
-.modal.fade.show .modal-dialog,
-.modal.fade.showing .modal-dialog {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.modal.fade.modal-closing .modal-dialog {
-  opacity: 0;
-  transform: translateY(6px);
-}
-
-.modal.fade.modal-closing {
-  pointer-events: none;
 }
 
 /* Password modal */

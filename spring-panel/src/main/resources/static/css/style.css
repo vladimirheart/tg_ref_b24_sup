@@ -1012,19 +1012,42 @@ a:not([class]) {
   padding: 0.44rem 0.55rem;
 }
 
+.modal-backdrop {
+  transition: opacity 0.2s ease;
+}
+
 .modal-backdrop.show {
   opacity: 0.48;
 }
 
 .modal.fade .modal-dialog {
-  transform: translateY(20px) scale(0.985);
-  transition: transform 0.2s ease;
+  opacity: 0;
+  transform: translateY(8px) scale(0.99);
+  transform-origin: center;
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
-.modal.show .modal-dialog {
+.modal.fade.show .modal-dialog,
+.modal.fade.showing .modal-dialog {
+  opacity: 1;
   transform: translateY(0) scale(1);
 }
 
+.modal.fade.modal-closing .modal-dialog {
+  opacity: 0;
+  transform: translateY(6px) scale(0.99);
+}
+
+.modal.fade.modal-closing {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal.fade .modal-dialog {
+    transition: none;
+  }
+}
 .modal-content {
   border: 1px solid var(--color-border);
   border-radius: 1.25rem;
@@ -1426,7 +1449,7 @@ table[data-column-reorderable] th.dragging {
   border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
   background: var(--surface-interactive);
   color: var(--color-text);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 2px 8px;
   margin-top: 4px;
 }
@@ -1456,7 +1479,7 @@ table[data-column-reorderable] th.dragging {
 }
 
 *::-webkit-scrollbar-thumb {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
 }
 
@@ -1468,10 +1491,6 @@ table[data-column-reorderable] th.dragging {
    сохраняя корректный порядок наложения для вложенных окон */
 .modal {
   z-index: var(--bs-modal-zindex, 1055);
-}
-
-.modal-backdrop {
-  z-index: var(--bs-backdrop-zindex, 1050);
 }
 
 .category-selector .dropdown-menu {
@@ -1509,26 +1528,9 @@ h1.page-title, .content h1, .container h1 {
   transition: opacity 0.25s ease;
 }
 
-.modal.fade .modal-dialog {
-  --modal-scale: 0.92;
-  transform: var(--modal-transform, scale(var(--modal-scale)));
-  opacity: 0;
-  transform-origin: center;
-  transition: transform 0.25s ease, opacity 0.25s ease;
-}
-
-.modal.fade.show .modal-dialog {
-  --modal-scale: 1;
-  opacity: 1;
-}
-
 .modal.fade.modal-closing .modal-dialog {
   --modal-scale: 0.9;
   opacity: 0;
-}
-
-.modal.fade.modal-closing {
-  pointer-events: none;
 }
 
 /* Автогенерируемые кнопки копирования */
@@ -1629,7 +1631,7 @@ h1.page-title, .content h1, .container h1 {
 
 .role-card__summary--empty {
   font-style: italic;
-  color: var(--bs-secondary-color, #6c757d);
+  color: var(--color-text-muted);
 }
 
 /* Пользовательские фото */
@@ -1720,7 +1722,8 @@ h1.page-title, .content h1, .container h1 {
 }
 
 .auth-user-photo-preview-modal {
-  background-color: #000;
+  background-color: var(--color-ink-panel-deep);
+  color: var(--color-on-ink);
 }
 
 .auth-user-photo-preview-modal .modal-body {

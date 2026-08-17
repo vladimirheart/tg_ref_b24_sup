@@ -596,17 +596,54 @@ a:not([class]) {
   padding: 0.44rem 0.55rem;
 }
 
+.modal-backdrop {
+  transition: opacity 0.2s ease;
+}
+
 .modal-backdrop.show {
   opacity: 0.48;
 }
 
 .modal.fade .modal-dialog {
-  transform: translateY(20px) scale(0.985);
-  transition: transform 0.2s ease;
+  opacity: 0;
+
+  transform:
+    translateY(8px)
+    scale(0.99);
+
+  transform-origin: center;
+
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
-.modal.show .modal-dialog {
-  transform: translateY(0) scale(1);
+.modal.fade.show .modal-dialog,
+.modal.fade.showing .modal-dialog {
+  opacity: 1;
+
+  transform:
+    translateY(0)
+    scale(1);
+}
+
+.modal.fade.modal-closing .modal-dialog {
+  opacity: 0;
+
+  transform:
+    translateY(6px)
+    scale(0.99);
+}
+
+.modal.fade.modal-closing {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal.fade .modal-dialog {
+    transition: none;
+  }
 }
 
 .modal-content {
