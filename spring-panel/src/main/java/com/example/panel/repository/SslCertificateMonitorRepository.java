@@ -5,12 +5,12 @@ import com.example.panel.entity.SslCertificateMonitor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.time.OffsetDateTime;
@@ -112,24 +112,15 @@ public class SslCertificateMonitorRepository {
     }
 
     private SslCertificateMonitor insert(SslCertificateMonitor item) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        runWithBusyRetry(() -> jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(
-                """
-                INSERT INTO ssl_certificate_monitors (
-                    site_name, endpoint_url, host, port, enabled,
-                    monitor_status, error_message, days_left, expires_at,
-                    last_checked_at, last_notified_at, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                Statement.RETURN_GENERATED_KEYS
-            );
-            bindCommon(ps, item);
-            return ps;
-        }, keyHolder));
-        Number key = keyHolder.getKey();
+        Long key = runWithBusyRetry(() -> jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
+            try (PreparedStatement ps = prepareInsertStatement(connection)) {
+                bindCommon(ps, item);
+                ps.executeUpdate();
+                return JdbcGeneratedKeySupport.extractGeneratedKey(ps, connection);
+            }
+        }));
         if (key != null) {
-            item.setId(key.longValue());
+            item.setId(key);
         }
         return item;
     }
@@ -232,6 +223,19 @@ public class SslCertificateMonitorRepository {
         ps.setString(11, formatOffsetDateTime(item.getLastNotifiedAt()));
         ps.setString(12, formatOffsetDateTime(item.getCreatedAt()));
         ps.setString(13, formatOffsetDateTime(item.getUpdatedAt()));
+    }
+
+    private PreparedStatement prepareInsertStatement(Connection connection) throws java.sql.SQLException {
+        return connection.prepareStatement(
+            """
+            INSERT INTO ssl_certificate_monitors (
+                site_name, endpoint_url, host, port, enabled,
+                monitor_status, error_message, days_left, expires_at,
+                last_checked_at, last_notified_at, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            Statement.RETURN_GENERATED_KEYS
+        );
     }
 
     private static int toInt(Boolean value) {

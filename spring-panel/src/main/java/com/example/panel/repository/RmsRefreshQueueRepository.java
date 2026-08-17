@@ -4,11 +4,11 @@ import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.time.OffsetDateTime;
@@ -38,33 +38,22 @@ public class RmsRefreshQueueRepository {
                                      boolean withNotifications,
                                      OffsetDateTime requestedAt) {
         OffsetDateTime safeRequestedAt = requestedAt != null ? requestedAt : OffsetDateTime.now(java.time.ZoneOffset.UTC);
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        runWithBusyRetry(() -> jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(
-                """
-                INSERT INTO rms_refresh_queue (
-                    queue_kind,
-                    monitor_id,
-                    with_notifications,
-                    status,
-                    requested_at
-                ) VALUES (?, ?, ?, ?, ?)
-                """,
-                Statement.RETURN_GENERATED_KEYS
-            );
-            ps.setString(1, queueKind);
-            if (monitorId != null) {
-                ps.setLong(2, monitorId);
-            } else {
-                ps.setObject(2, null);
+        Long key = runWithBusyRetry(() -> jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
+            try (PreparedStatement ps = prepareInsertStatement(connection)) {
+                ps.setString(1, queueKind);
+                if (monitorId != null) {
+                    ps.setLong(2, monitorId);
+                } else {
+                    ps.setObject(2, null);
+                }
+                ps.setInt(3, withNotifications ? 1 : 0);
+                ps.setString(4, STATUS_QUEUED);
+                ps.setString(5, formatOffsetDateTime(safeRequestedAt));
+                ps.executeUpdate();
+                return JdbcGeneratedKeySupport.extractGeneratedKey(ps, connection);
             }
-            ps.setInt(3, withNotifications ? 1 : 0);
-            ps.setString(4, STATUS_QUEUED);
-            ps.setString(5, formatOffsetDateTime(safeRequestedAt));
-            return ps;
-        }, keyHolder));
-        Number key = keyHolder.getKey();
-        long id = key != null ? key.longValue() : -1L;
+        }));
+        long id = key != null ? key : -1L;
         return new RefreshQueueEntry(id, queueKind, monitorId, withNotifications, STATUS_QUEUED, safeRequestedAt);
     }
 
@@ -205,6 +194,21 @@ public class RmsRefreshQueueRepository {
     private static Long readLongColumn(java.sql.ResultSet rs, String columnName) throws java.sql.SQLException {
         long value = rs.getLong(columnName);
         return rs.wasNull() ? null : value;
+    }
+
+    private PreparedStatement prepareInsertStatement(Connection connection) throws java.sql.SQLException {
+        return connection.prepareStatement(
+            """
+            INSERT INTO rms_refresh_queue (
+                queue_kind,
+                monitor_id,
+                with_notifications,
+                status,
+                requested_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            Statement.RETURN_GENERATED_KEYS
+        );
     }
 
     public record RefreshQueueEntry(long id,

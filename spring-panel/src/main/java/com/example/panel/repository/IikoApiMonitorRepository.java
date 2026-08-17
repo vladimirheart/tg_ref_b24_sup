@@ -4,12 +4,12 @@ import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import com.example.panel.entity.IikoApiMonitor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -102,25 +102,15 @@ public class IikoApiMonitorRepository {
     }
 
     private IikoApiMonitor insert(IikoApiMonitor item) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            PreparedStatement ps = connection.prepareStatement(
-                """
-                INSERT INTO iiko_api_monitors (
-                    monitor_name, base_url, api_login, request_type, request_config_json,
-                    enabled, locations_sync_enabled, last_status, last_http_status, last_error_message, last_duration_ms,
-                    last_checked_at, last_token_checked_at, last_response_excerpt, last_response_summary_json,
-                    consecutive_failures, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                Statement.RETURN_GENERATED_KEYS
-            );
-            bindCommon(ps, item);
-            return ps;
-        }, keyHolder);
-        Number key = keyHolder.getKey();
+        Long key = jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
+            try (PreparedStatement ps = prepareInsertStatement(connection)) {
+                bindCommon(ps, item);
+                ps.executeUpdate();
+                return JdbcGeneratedKeySupport.extractGeneratedKey(ps, connection);
+            }
+        });
         if (key != null) {
-            item.setId(key.longValue());
+            item.setId(key);
         }
         return item;
     }
@@ -190,6 +180,20 @@ public class IikoApiMonitorRepository {
         ps.setInt(16, item.getConsecutiveFailures() == null ? 0 : item.getConsecutiveFailures());
         ps.setString(17, formatOffsetDateTime(item.getCreatedAt()));
         ps.setString(18, formatOffsetDateTime(item.getUpdatedAt()));
+    }
+
+    private PreparedStatement prepareInsertStatement(Connection connection) throws java.sql.SQLException {
+        return connection.prepareStatement(
+            """
+            INSERT INTO iiko_api_monitors (
+                monitor_name, base_url, api_login, request_type, request_config_json,
+                enabled, locations_sync_enabled, last_status, last_http_status, last_error_message, last_duration_ms,
+                last_checked_at, last_token_checked_at, last_response_excerpt, last_response_summary_json,
+                consecutive_failures, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            Statement.RETURN_GENERATED_KEYS
+        );
     }
 
     private static int toInt(Boolean value) {
