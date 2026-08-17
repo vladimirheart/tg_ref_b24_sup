@@ -25,6 +25,8 @@ class BotRuntimeTicketWriteServiceTest {
 
     private JdbcTemplate jdbcTemplate;
     private BotRuntimeTicketWriteService service;
+    private DialogResponsibilityService dialogResponsibilityService;
+    private DialogParticipantService dialogParticipantService;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -35,9 +37,17 @@ class BotRuntimeTicketWriteServiceTest {
             jdbcTemplate,
             new ChatAttachmentMetadataService(jdbcTemplate, databaseRuntimeMode)
         );
+        dialogResponsibilityService = new DialogResponsibilityService(jdbcTemplate);
+        dialogParticipantService = new DialogParticipantService(
+            jdbcTemplate,
+            jdbcTemplate,
+            databaseRuntimeMode
+        );
         service = new BotRuntimeTicketWriteService(
             jdbcTemplate,
             dialogReplyTargetService,
+            dialogResponsibilityService,
+            dialogParticipantService,
             new UiEventOutboxAppendService(jdbcTemplate),
             mock(PendingFeedbackRequestRepository.class),
             mock(FeedbackRepository.class)
@@ -121,6 +131,53 @@ class BotRuntimeTicketWriteServiceTest {
                 String.class,
                 "T-700"
         )).isEqualTo("operator");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-700"
+        )).isEqualTo("operator");
+    }
+
+    @Test
+    void recordOperatorRelayAddsParticipantWhenResponsibleAlreadyAssignedToAnotherOperator() {
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, status, user_id, channel_id, reopen_count)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                "T-701", "open", 78L, 13L, 0
+        );
+        jdbcTemplate.update("""
+                INSERT INTO messages(id, user_id, ticket_id, channel_id, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                7011L, 78L, "T-701", 13L, "2026-08-16T20:00:00Z"
+        );
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by)
+                VALUES (?, ?, ?)
+                """,
+                "T-701", "lead_operator", "lead_operator"
+        );
+
+        BotRuntimeTicketWriteService.MutationResult result = service.recordOperatorRelay(
+            "T-701",
+            "Secondary operator reply",
+            8802L,
+            8702L,
+            "backup_operator"
+        );
+
+        assertThat(result.updated()).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-701"
+        )).isEqualTo("lead_operator");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT username FROM ticket_participants WHERE ticket_id = ?",
+                String.class,
+                "T-701"
+        )).isEqualTo("backup_operator");
     }
 
     @Test
@@ -168,6 +225,8 @@ class BotRuntimeTicketWriteServiceTest {
         BotRuntimeTicketWriteService feedbackService = new BotRuntimeTicketWriteService(
             jdbcTemplate,
             dialogReplyTargetService,
+            dialogResponsibilityService,
+            dialogParticipantService,
             new UiEventOutboxAppendService(jdbcTemplate),
             pendingFeedbackRequestRepository,
             feedbackRepository
@@ -265,6 +324,34 @@ class BotRuntimeTicketWriteServiceTest {
                     attachment TEXT,
                     rating INTEGER,
                     created_at TEXT NOT NULL
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE ticket_responsibles (
+                    ticket_id TEXT PRIMARY KEY,
+                    responsible TEXT,
+                    assigned_by TEXT,
+                    last_read_at TEXT
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS ticket_participants (
+                    ticket_id TEXT NOT NULL,
+                    username TEXT NOT NULL,
+                    added_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    added_by TEXT,
+                    PRIMARY KEY (ticket_id, username)
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE users (
+                    username TEXT PRIMARY KEY,
+                    full_name TEXT,
+                    photo TEXT,
+                    department TEXT,
+                    role TEXT,
+                    enabled INTEGER,
+                    is_blocked INTEGER
                 )
                 """);
     }

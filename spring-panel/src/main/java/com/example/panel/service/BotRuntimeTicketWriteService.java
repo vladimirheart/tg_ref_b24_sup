@@ -22,17 +22,23 @@ public class BotRuntimeTicketWriteService {
 
     private final JdbcTemplate jdbcTemplate;
     private final DialogReplyTargetService dialogReplyTargetService;
+    private final DialogResponsibilityService dialogResponsibilityService;
+    private final DialogParticipantService dialogParticipantService;
     private final UiEventOutboxAppendService uiEventOutboxAppendService;
     private final PendingFeedbackRequestRepository pendingFeedbackRequestRepository;
     private final FeedbackRepository feedbackRepository;
 
     public BotRuntimeTicketWriteService(JdbcTemplate jdbcTemplate,
                                         DialogReplyTargetService dialogReplyTargetService,
+                                        DialogResponsibilityService dialogResponsibilityService,
+                                        DialogParticipantService dialogParticipantService,
                                         UiEventOutboxAppendService uiEventOutboxAppendService,
                                         PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
                                         FeedbackRepository feedbackRepository) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogReplyTargetService = dialogReplyTargetService;
+        this.dialogResponsibilityService = dialogResponsibilityService;
+        this.dialogParticipantService = dialogParticipantService;
         this.uiEventOutboxAppendService = uiEventOutboxAppendService;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.feedbackRepository = feedbackRepository;
@@ -109,6 +115,7 @@ public class BotRuntimeTicketWriteService {
                 "operator"
         );
         dialogReplyTargetService.touchTicketActivity(normalizedTicketId, operatorIdentity);
+        syncOperatorWorkflowOwnership(normalizedTicketId, operatorIdentity);
         return new MutationResult(true, true);
     }
 
@@ -251,6 +258,21 @@ public class BotRuntimeTicketWriteService {
         }
         String normalized = status.trim().toLowerCase(Locale.ROOT);
         return "resolved".equals(normalized) || "closed".equals(normalized);
+    }
+
+    private void syncOperatorWorkflowOwnership(String ticketId, String operatorIdentity) {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(operatorIdentity)) {
+            return;
+        }
+        String normalizedOperator = operatorIdentity.trim().toLowerCase(Locale.ROOT);
+        if (!StringUtils.hasText(normalizedOperator)) {
+            return;
+        }
+        String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, normalizedOperator);
+        if (!StringUtils.hasText(responsible) || normalizedOperator.equalsIgnoreCase(responsible.trim())) {
+            return;
+        }
+        dialogParticipantService.addParticipant(ticketId, normalizedOperator, normalizedOperator);
     }
 
     private record TicketSnapshot(String ticketId,
