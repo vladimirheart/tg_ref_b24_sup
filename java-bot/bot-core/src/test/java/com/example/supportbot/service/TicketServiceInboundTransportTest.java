@@ -251,7 +251,7 @@ class TicketServiceInboundTransportTest {
         PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
         PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
         when(panelTicketWriteClient.isEnabled()).thenReturn(true);
-        when(panelTicketWriteClient.reopenTicket("T-901")).thenReturn(true);
+        when(panelTicketWriteClient.reopenTicket("T-901", null)).thenReturn(true);
 
         TicketRepository ticketRepository = mock(TicketRepository.class);
         TicketService service = createService(
@@ -269,7 +269,7 @@ class TicketServiceInboundTransportTest {
         boolean reopened = service.reopenTicket("T-901");
 
         assertThat(reopened).isTrue();
-        verify(panelTicketWriteClient).reopenTicket("T-901");
+        verify(panelTicketWriteClient).reopenTicket("T-901", null);
         verify(ticketRepository, never()).findByIdTicketId(any());
     }
 
@@ -398,6 +398,55 @@ class TicketServiceInboundTransportTest {
         assertThat(updated).isTrue();
         verify(chatHistoryService).markClientMessageEdited(45L, 9002L, "Edited fallback");
         verify(panelTicketWriteClient, never()).markClientMessageEdited(any(), any(), any());
+    }
+
+    @Test
+    void markOperatorMessageEditedUsesPanelWriteClientInRabbitMode() {
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
+        when(panelTicketWriteClient.isEnabled()).thenReturn(true);
+        when(panelTicketWriteClient.markOperatorMessageEdited("T-444", 9003L, "Edited operator text", "operator")).thenReturn(true);
+
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            mock(TicketActiveRepository.class),
+            chatHistoryService,
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),
+            panelTicketWriteClient,
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
+        );
+
+        boolean updated = service.markOperatorMessageEdited("T-444", 9003L, "Edited operator text", "operator");
+
+        assertThat(updated).isTrue();
+        verify(panelTicketWriteClient).markOperatorMessageEdited("T-444", 9003L, "Edited operator text", "operator");
+        verify(chatHistoryService, never()).markOperatorMessageEdited(any(), any(), any());
+    }
+
+    @Test
+    void markOperatorMessageEditedKeepsJdbcWritePathWhenRabbitTransportDisabled() {
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        when(chatHistoryService.markOperatorMessageEdited("T-445", 9004L, "Edited operator fallback")).thenReturn(true);
+
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            mock(TicketActiveRepository.class),
+            chatHistoryService,
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),
+            panelTicketWriteClient,
+            new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")
+        );
+
+        boolean updated = service.markOperatorMessageEdited("T-445", 9004L, "Edited operator fallback", "operator");
+
+        assertThat(updated).isTrue();
+        verify(chatHistoryService).markOperatorMessageEdited("T-445", 9004L, "Edited operator fallback");
+        verify(panelTicketWriteClient, never()).markOperatorMessageEdited(any(), any(), any(), any());
     }
 
     private TicketService createService(TicketMessageRepository messageRepository,

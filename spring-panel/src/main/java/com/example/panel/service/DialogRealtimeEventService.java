@@ -103,6 +103,15 @@ public class DialogRealtimeEventService {
         uiEventStreamService.publishDialogHistoryChanged(normalizedTicketId, channelId, "client_message_edited");
     }
 
+    public void handleOperatorMessageEdited(String ticketId, Long channelId) {
+        String normalizedTicketId = trimToNull(ticketId);
+        if (normalizedTicketId == null) {
+            return;
+        }
+        uiEventStreamService.publishDialogsChanged("operator_message_edited", normalizedTicketId);
+        uiEventStreamService.publishDialogHistoryChanged(normalizedTicketId, channelId, "operator_message_edited");
+    }
+
     public void handleFeedbackCreated(String ticketId, Integer rating) {
         String normalizedTicketId = trimToNull(ticketId);
         if (normalizedTicketId == null || rating == null) {

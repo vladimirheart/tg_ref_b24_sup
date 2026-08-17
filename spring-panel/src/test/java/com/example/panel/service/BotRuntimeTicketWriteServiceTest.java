@@ -64,7 +64,7 @@ class BotRuntimeTicketWriteServiceTest {
                 "T-500", "closed", 55L, 9L, 0
         );
 
-        BotRuntimeTicketWriteService.MutationResult result = service.reopenTicket("T-500");
+        BotRuntimeTicketWriteService.MutationResult result = service.reopenTicket("T-500", "operator");
 
         assertThat(result.updated()).isTrue();
         assertThat(result.exists()).isTrue();
@@ -72,12 +72,17 @@ class BotRuntimeTicketWriteServiceTest {
                 "SELECT status FROM tickets WHERE ticket_id = ?",
                 String.class,
                 "T-500"
-        )).isEqualTo("open");
+        )).isEqualTo("pending");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT user_identity FROM ticket_active WHERE ticket_id = ?",
                 String.class,
                 "T-500"
         )).isEqualTo("55");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-500"
+        )).isEqualTo("operator");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT message FROM chat_history WHERE ticket_id = ? AND message_type = 'system_event'",
                 String.class,
@@ -211,6 +216,55 @@ class BotRuntimeTicketWriteServiceTest {
                 String.class,
                 "T-880"
         )).isEqualTo("client_message_edited");
+    }
+
+    @Test
+    void markOperatorMessageEditedUpdatesHistoryAndAppendsUiEvent() {
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, status, user_id, channel_id, reopen_count)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                "T-881", "pending", 88L, 18L, 0
+        );
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(
+                    user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                88L, "operator", "Initial operator text", "2026-08-16T19:00:00Z", "T-881", "operator_message", 18L, 8101L
+        );
+
+        BotRuntimeTicketWriteService.MutationResult result = service.markOperatorMessageEdited(
+            "T-881",
+            8101L,
+            "Edited by operator",
+            "operator"
+        );
+
+        assertThat(result.updated()).isTrue();
+        assertThat(result.exists()).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT message FROM chat_history WHERE ticket_id = ? AND tg_message_id = ?",
+                String.class,
+                "T-881",
+                8101L
+        )).isEqualTo("Edited by operator");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT original_message FROM chat_history WHERE ticket_id = ? AND tg_message_id = ?",
+                String.class,
+                "T-881",
+                8101L
+        )).isEqualTo("Initial operator text");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT event_type FROM ui_event_outbox WHERE ticket_id = ? ORDER BY id DESC LIMIT 1",
+                String.class,
+                "T-881"
+        )).isEqualTo("operator_message_edited");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-881"
+        )).isEqualTo("operator");
     }
 
     @Test

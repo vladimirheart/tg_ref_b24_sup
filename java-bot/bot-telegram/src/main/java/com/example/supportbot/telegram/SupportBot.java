@@ -258,7 +258,7 @@ public class SupportBot extends TelegramLongPollingBot {
                 update.getChannelPost() != null);
         Message editedMessage = update.getEditedMessage();
         if (editedMessage != null) {
-            handleEditedClientMessage(editedMessage);
+            handleEditedMessage(editedMessage);
             return;
         }
 
@@ -540,8 +540,9 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         TicketService.TicketWithUser ticket = ticketOpt.get();
+        String operatorIdentity = operatorUsername(message);
         if (isClosedStatus(ticket.status())) {
-            ticketService.reopenTicket(ticket.ticketId());
+            ticketService.reopenTicket(ticket.ticketId(), operatorIdentity);
         }
         SendMessage toClient = SendMessage.builder()
                 .chatId(ticket.userId())
@@ -557,7 +558,7 @@ public class SupportBot extends TelegramLongPollingBot {
                     getChannel(),
                     message.getMessageId() != null ? message.getMessageId().longValue() : null,
                     ticketReference.replyToTelegramId,
-                    operatorUsername(message));
+                    operatorIdentity);
         } catch (TelegramApiException e) {
             log.error("Failed to relay operator reply to user {}", ticket.userId(), e);
         }
@@ -957,14 +958,22 @@ public class SupportBot extends TelegramLongPollingBot {
         }
     }
 
-    private void handleEditedClientMessage(Message editedMessage) {
+    private void handleEditedMessage(Message editedMessage) {
         if (editedMessage == null || editedMessage.getMessageId() == null) {
             return;
         }
         Long chatId = editedMessage.getChatId();
-        if (chatId == null || chatId.equals(properties.getChannelId())) {
+        if (chatId == null) {
             return;
         }
+        if (chatId.equals(properties.getChannelId())) {
+            handleEditedOperatorMessage(editedMessage);
+            return;
+        }
+        handleEditedClientMessage(editedMessage);
+    }
+
+    private void handleEditedClientMessage(Message editedMessage) {
         String text = editedMessage.getText();
         if (text == null) {
             return;
@@ -977,6 +986,30 @@ public class SupportBot extends TelegramLongPollingBot {
         boolean updated = ticketService.markClientMessageEdited(channelId, editedMessage.getMessageId().longValue(), text);
         if (updated) {
             log.info("Updated edited client message in history: telegramMessageId={} chatId={}", editedMessage.getMessageId(), chatId);
+        }
+    }
+
+    private void handleEditedOperatorMessage(Message editedMessage) {
+        String operatorText = Optional.ofNullable(editedMessage.getText()).orElse("").trim();
+        if (operatorText.isBlank()) {
+            return;
+        }
+        TicketReference ticketReference = resolveTicketReference(editedMessage, operatorText);
+        if (ticketReference.ticketId == null || ticketReference.outboundText.isBlank()) {
+            return;
+        }
+        boolean updated = ticketService.markOperatorMessageEdited(
+            ticketReference.ticketId,
+            editedMessage.getMessageId().longValue(),
+            ticketReference.outboundText,
+            operatorUsername(editedMessage)
+        );
+        if (updated) {
+            log.info(
+                "Updated edited operator message in history: telegramMessageId={} ticketId={}",
+                editedMessage.getMessageId(),
+                ticketReference.ticketId
+            );
         }
     }
 

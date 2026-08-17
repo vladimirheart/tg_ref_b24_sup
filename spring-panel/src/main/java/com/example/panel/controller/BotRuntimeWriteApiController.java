@@ -60,10 +60,11 @@ public class BotRuntimeWriteApiController {
     @PostMapping("/tickets/{ticketId}/reopen")
     public BotRuntimeTicketWriteService.MutationResult reopenTicket(
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
-        @PathVariable String ticketId
+        @PathVariable String ticketId,
+        @RequestBody(required = false) TicketActivityRequest request
     ) {
         requireAuthorized(token);
-        return ticketWriteService.reopenTicket(ticketId);
+        return ticketWriteService.reopenTicket(ticketId, request != null ? request.userIdentity() : null);
     }
 
     @PostMapping("/tickets/{ticketId}/operator-relay")
@@ -94,6 +95,22 @@ public class BotRuntimeWriteApiController {
             channelId,
             telegramMessageId,
             request != null ? request.message() : null
+        );
+    }
+
+    @PutMapping("/tickets/{ticketId}/operator-messages/{telegramMessageId}")
+    public BotRuntimeTicketWriteService.MutationResult markOperatorMessageEdited(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable String ticketId,
+        @PathVariable Long telegramMessageId,
+        @RequestBody OperatorMessageEditRequest request
+    ) {
+        requireAuthorized(token);
+        return ticketWriteService.markOperatorMessageEdited(
+            ticketId,
+            telegramMessageId,
+            request != null ? request.message() : null,
+            request != null ? request.operatorIdentity() : null
         );
     }
 
@@ -172,6 +189,10 @@ public class BotRuntimeWriteApiController {
     }
 
     public record ClientMessageEditRequest(String message) {
+    }
+
+    public record OperatorMessageEditRequest(String message,
+                                             String operatorIdentity) {
     }
 
     public record FeedbackSubmitRequest(Integer rating) {

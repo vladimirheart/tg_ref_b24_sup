@@ -90,6 +90,7 @@ public class UiEventOutboxWatcher {
             case "ticket_created" -> dialogRealtimeEventService.handleTicketCreated(ticketId, channelId, messageText);
             case "client_message_created" -> dialogRealtimeEventService.handleIncomingClientMessage(ticketId, channelId, messageText, messageType, attachment);
             case "client_message_edited" -> dialogRealtimeEventService.handleClientMessageEdited(ticketId, channelId);
+            case "operator_message_edited" -> dialogRealtimeEventService.handleOperatorMessageEdited(ticketId, channelId);
             case "feedback_created" -> dialogRealtimeEventService.handleFeedbackCreated(ticketId, rating);
             case "ticket_closed_auto" -> dialogRealtimeEventService.handleTicketAutoClosed(ticketId, channelId, messageText);
             case "ticket_closed" -> dialogRealtimeEventService.handleTicketClosed(ticketId, channelId);

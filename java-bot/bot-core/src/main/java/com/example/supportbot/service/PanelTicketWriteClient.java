@@ -40,13 +40,17 @@ public class PanelTicketWriteClient {
     }
 
     public boolean reopenTicket(String ticketId) {
+        return reopenTicket(ticketId, null);
+    }
+
+    public boolean reopenTicket(String ticketId, String operatorIdentity) {
         if (!isEnabled() || !StringUtils.hasText(ticketId)) {
             return false;
         }
         return sendMutation(
             "/internal/api/bot/tickets/" + encodePath(ticketId.trim()) + "/reopen",
             "POST",
-            null
+            StringUtils.hasText(operatorIdentity) ? new TicketActivityRequest(operatorIdentity.trim()) : null
         ).map(MutationResponse::updated).orElse(false);
     }
 
@@ -97,6 +101,20 @@ public class PanelTicketWriteClient {
             "/internal/api/bot/channels/" + channelId + "/messages/" + telegramMessageId + "/client-edit",
             "PUT",
             new ClientMessageEditRequest(message.trim())
+        ).map(MutationResponse::updated).orElse(false);
+    }
+
+    public boolean markOperatorMessageEdited(String ticketId,
+                                             Long telegramMessageId,
+                                             String message,
+                                             String operatorIdentity) {
+        if (!isEnabled() || !StringUtils.hasText(ticketId) || telegramMessageId == null || !StringUtils.hasText(message)) {
+            return false;
+        }
+        return sendMutation(
+            "/internal/api/bot/tickets/" + encodePath(ticketId.trim()) + "/operator-messages/" + telegramMessageId,
+            "PUT",
+            new OperatorMessageEditRequest(message.trim(), operatorIdentity)
         ).map(MutationResponse::updated).orElse(false);
     }
 
@@ -165,6 +183,10 @@ public class PanelTicketWriteClient {
     }
 
     private record ClientMessageEditRequest(String message) {
+    }
+
+    private record OperatorMessageEditRequest(String message,
+                                              String operatorIdentity) {
     }
 
     private record FeedbackSubmitRequest(Integer rating) {

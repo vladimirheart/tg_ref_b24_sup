@@ -29,6 +29,10 @@ public class UiEventOutboxAppendService {
         append("client_message_edited", ticketId, channelId, text, null, null, null);
     }
 
+    public void publishOperatorMessageEdited(String ticketId, Long channelId, String text) {
+        append("operator_message_edited", ticketId, channelId, text, null, null, null);
+    }
+
     public void publishFeedbackCreated(String ticketId, Long channelId, Integer rating) {
         append("feedback_created", ticketId, channelId, null, null, null, rating);
     }

@@ -164,6 +164,20 @@ public class ChatHistoryService {
     }
 
     @Transactional
+    public boolean markOperatorMessageEdited(String ticketId, Long telegramMessageId, String newText) {
+        int updated = jdbcTemplate.update("""
+                UPDATE chat_history
+                   SET original_message = COALESCE(original_message, message),
+                       message = ?,
+                       edited_at = CURRENT_TIMESTAMP
+                 WHERE ticket_id = ?
+                   AND tg_message_id = ?
+                   AND sender = 'operator'
+                """, newText, ticketId, telegramMessageId);
+        return updated > 0;
+    }
+
+    @Transactional
     public ChatHistory storeSystemEvent(Long userId, String ticketId, Channel channel, String text) {
         ChatHistory history = new ChatHistory();
         history.setUserId(userId);

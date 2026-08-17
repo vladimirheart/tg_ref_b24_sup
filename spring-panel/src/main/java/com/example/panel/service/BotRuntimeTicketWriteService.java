@@ -46,6 +46,11 @@ public class BotRuntimeTicketWriteService {
 
     @Transactional
     public MutationResult reopenTicket(String ticketId) {
+        return reopenTicket(ticketId, null);
+    }
+
+    @Transactional
+    public MutationResult reopenTicket(String ticketId, String operatorIdentity) {
         TicketSnapshot ticket = loadTicket(ticketId);
         if (ticket == null) {
             return new MutationResult(false, false);
@@ -55,7 +60,7 @@ public class BotRuntimeTicketWriteService {
         }
         int updated = jdbcTemplate.update("""
                 UPDATE tickets
-                   SET status = 'open',
+                   SET status = 'pending',
                        resolved_at = NULL,
                        resolved_by = NULL,
                        reopen_count = COALESCE(reopen_count, 0) + 1,
@@ -67,6 +72,7 @@ public class BotRuntimeTicketWriteService {
         );
         if (updated > 0) {
             dialogReplyTargetService.touchTicketActivity(ticket.ticketId(), ticket.userIdentity());
+            assignResponsibleIfPresent(ticket.ticketId(), operatorIdentity);
             storeSystemEvent(ticket, REOPEN_EVENT_TEXT);
             uiEventOutboxAppendService.publishTicketReopened(ticket.ticketId(), ticket.channelId(), REOPEN_EVENT_TEXT);
         }
@@ -147,6 +153,32 @@ public class BotRuntimeTicketWriteService {
             uiEventOutboxAppendService.publishClientMessageEdited(snapshot.ticketId(), snapshot.channelId(), message);
         }
         return new MutationResult(updated > 0, true);
+    }
+
+    @Transactional
+    public MutationResult markOperatorMessageEdited(String ticketId,
+                                                    Long telegramMessageId,
+                                                    String message,
+                                                    String operatorIdentity) {
+        if (!StringUtils.hasText(ticketId) || telegramMessageId == null || !StringUtils.hasText(message)) {
+            return new MutationResult(false, false);
+        }
+        String normalizedTicketId = ticketId.trim();
+        int updated = dialogReplyTargetService.markOperatorMessageEdited(
+            normalizedTicketId,
+            telegramMessageId,
+            message.trim()
+        );
+        if (updated > 0) {
+            assignResponsibleIfPresent(normalizedTicketId, operatorIdentity);
+            TicketSnapshot ticket = loadTicket(normalizedTicketId);
+            uiEventOutboxAppendService.publishOperatorMessageEdited(
+                normalizedTicketId,
+                ticket != null ? ticket.channelId() : null,
+                message
+            );
+        }
+        return new MutationResult(updated > 0, ticketExists(normalizedTicketId));
     }
 
     @Transactional
@@ -273,6 +305,17 @@ public class BotRuntimeTicketWriteService {
             return;
         }
         dialogParticipantService.addParticipant(ticketId, normalizedOperator, normalizedOperator);
+    }
+
+    private void assignResponsibleIfPresent(String ticketId, String operatorIdentity) {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(operatorIdentity)) {
+            return;
+        }
+        String normalizedOperator = operatorIdentity.trim().toLowerCase(Locale.ROOT);
+        if (!StringUtils.hasText(normalizedOperator)) {
+            return;
+        }
+        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, normalizedOperator);
     }
 
     private record TicketSnapshot(String ticketId,

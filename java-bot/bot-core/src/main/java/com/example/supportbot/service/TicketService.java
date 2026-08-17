@@ -391,8 +391,13 @@ public class TicketService {
 
     @Transactional
     public boolean reopenTicket(String ticketId) {
+        return reopenTicket(ticketId, null);
+    }
+
+    @Transactional
+    public boolean reopenTicket(String ticketId, String operatorIdentity) {
         if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
-            return panelTicketWriteClient.reopenTicket(ticketId);
+            return panelTicketWriteClient.reopenTicket(ticketId, operatorIdentity);
         }
         Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(ticketId);
         if (ticketOpt.isEmpty()) {
@@ -624,6 +629,20 @@ public class TicketService {
             return panelTicketWriteClient.markClientMessageEdited(channelId, telegramMessageId, text);
         }
         return chatHistoryService.markClientMessageEdited(channelId, telegramMessageId, text);
+    }
+
+    @Transactional
+    public boolean markOperatorMessageEdited(String ticketId,
+                                             Long telegramMessageId,
+                                             String text,
+                                             String operatorIdentity) {
+        if (!StringUtils.hasText(ticketId) || telegramMessageId == null || !StringUtils.hasText(text)) {
+            return false;
+        }
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+            return panelTicketWriteClient.markOperatorMessageEdited(ticketId, telegramMessageId, text, operatorIdentity);
+        }
+        return chatHistoryService.markOperatorMessageEdited(ticketId, telegramMessageId, text);
     }
 
     @Transactional

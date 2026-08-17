@@ -50,7 +50,7 @@ class BotRuntimeWriteApiControllerWebMvcTest {
 
     @Test
     void reopenTicketDelegatesToWriteService() throws Exception {
-        when(ticketWriteService.reopenTicket("T-200"))
+        when(ticketWriteService.reopenTicket("T-200", null))
             .thenReturn(new BotRuntimeTicketWriteService.MutationResult(true, true));
 
         mockMvc.perform(post("/internal/api/bot/tickets/T-200/reopen")
@@ -58,6 +58,26 @@ class BotRuntimeWriteApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.updated").value(true))
             .andExpect(jsonPath("$.exists").value(true));
+    }
+
+    @Test
+    void reopenTicketWithOperatorDelegatesPayloadToWriteService() throws Exception {
+        when(ticketWriteService.reopenTicket("T-201", "operator"))
+            .thenReturn(new BotRuntimeTicketWriteService.MutationResult(true, true));
+
+        mockMvc.perform(post("/internal/api/bot/tickets/T-201/reopen")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "userIdentity": "operator"
+                        }
+                        """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.updated").value(true))
+            .andExpect(jsonPath("$.exists").value(true));
+
+        verify(ticketWriteService).reopenTicket("T-201", "operator");
     }
 
     @Test
@@ -101,6 +121,27 @@ class BotRuntimeWriteApiControllerWebMvcTest {
             .andExpect(jsonPath("$.exists").value(true));
 
         verify(ticketWriteService).markClientMessageEdited(15L, 7010L, "Edited text");
+    }
+
+    @Test
+    void operatorMessageEditDelegatesPayloadToWriteService() throws Exception {
+        when(ticketWriteService.markOperatorMessageEdited("T-301", 7011L, "Edited operator text", "operator"))
+            .thenReturn(new BotRuntimeTicketWriteService.MutationResult(true, true));
+
+        mockMvc.perform(put("/internal/api/bot/tickets/T-301/operator-messages/7011")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "message": "Edited operator text",
+                          "operatorIdentity": "operator"
+                        }
+                        """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.updated").value(true))
+            .andExpect(jsonPath("$.exists").value(true));
+
+        verify(ticketWriteService).markOperatorMessageEdited("T-301", 7011L, "Edited operator text", "operator");
     }
 
     @Test
