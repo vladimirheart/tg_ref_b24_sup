@@ -1,15 +1,15 @@
 package com.example.supportbot.service;
 
+import com.example.supportbot.config.BotIntegrationTransportMode;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.repository.ChannelRepository;
+import java.security.SecureRandom;
+import java.util.HexFormat;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.security.SecureRandom;
-import java.util.HexFormat;
 
 @Service
 public class ChannelService {
@@ -19,9 +19,15 @@ public class ChannelService {
     private static final HexFormat HEX = HexFormat.of();
 
     private final ChannelRepository channelRepository;
+    private final BotIntegrationTransportMode integrationTransportMode;
+    private final PanelChannelClient panelChannelClient;
 
-    public ChannelService(ChannelRepository channelRepository) {
+    public ChannelService(ChannelRepository channelRepository,
+                          BotIntegrationTransportMode integrationTransportMode,
+                          PanelChannelClient panelChannelClient) {
         this.channelRepository = channelRepository;
+        this.integrationTransportMode = integrationTransportMode;
+        this.panelChannelClient = panelChannelClient;
     }
 
     @Transactional
@@ -31,6 +37,10 @@ public class ChannelService {
 
     @Transactional
     public Channel ensurePublicIdForToken(String token, String channelName, String platform) {
+        if (integrationTransportMode.isRabbitMqMode() && panelChannelClient.isEnabled()) {
+            return panelChannelClient.resolveConfiguredChannel(null, token, channelName, platform)
+                .orElseThrow(() -> new IllegalStateException("Unable to resolve configured channel via internal panel API"));
+        }
         String lookupToken = (token == null || token.isBlank()) ? "__default__" : token;
         return channelRepository.findByToken(lookupToken)
                 .map(channel -> ensurePersistedPublicId(channel, channelName, platform))
@@ -47,6 +57,10 @@ public class ChannelService {
 
     @Transactional
     public Channel resolveConfiguredChannel(Long channelId, String token, String channelName, String platform) {
+        if (integrationTransportMode.isRabbitMqMode() && panelChannelClient.isEnabled()) {
+            return panelChannelClient.resolveConfiguredChannel(channelId, token, channelName, platform)
+                .orElseThrow(() -> new IllegalStateException("Unable to resolve configured channel via internal panel API"));
+        }
         if (channelId != null && channelId > 0) {
             Optional<Channel> configured = channelRepository.findById(channelId);
             if (configured.isPresent()) {
@@ -64,6 +78,10 @@ public class ChannelService {
         }
         if (supportChatId == null || supportChatId.isBlank()) {
             throw new IllegalArgumentException("Support chat id must be a non-empty string");
+        }
+        if (integrationTransportMode.isRabbitMqMode() && panelChannelClient.isEnabled()) {
+            return panelChannelClient.updateSupportChatId(channel.getId(), supportChatId)
+                .orElseThrow(() -> new IllegalStateException("Unable to update support chat id via internal panel API"));
         }
         String current = channel.getSupportChatId();
         if (supportChatId.equals(current)) {

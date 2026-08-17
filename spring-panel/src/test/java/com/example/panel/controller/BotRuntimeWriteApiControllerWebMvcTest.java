@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.panel.entity.Channel;
+import com.example.panel.service.BotRuntimeChannelService;
 import com.example.panel.service.BotRuntimeTicketWriteService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +30,9 @@ class BotRuntimeWriteApiControllerWebMvcTest {
 
     @MockBean
     private BotRuntimeTicketWriteService ticketWriteService;
+
+    @MockBean
+    private BotRuntimeChannelService channelService;
 
     @Test
     void registerActivityRequiresInternalToken() throws Exception {
@@ -112,6 +117,56 @@ class BotRuntimeWriteApiControllerWebMvcTest {
             .andExpect(jsonPath("$.exists").value(true));
 
         verify(ticketWriteService).storeFeedback(902L, 5);
+    }
+
+    @Test
+    void resolveChannelDelegatesPayloadToChannelService() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(51L);
+        channel.setToken("bot-token");
+        channel.setChannelName("Telegram");
+        channel.setPlatform("telegram");
+        channel.setPublicId("public-51");
+        when(channelService.resolveConfiguredChannel(51L, "bot-token", "Telegram", "telegram")).thenReturn(channel);
+
+        mockMvc.perform(post("/internal/api/bot/channels/resolve")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "channelId": 51,
+                          "token": "bot-token",
+                          "channelName": "Telegram",
+                          "platform": "telegram"
+                        }
+                        """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(51L))
+            .andExpect(jsonPath("$.publicId").value("public-51"));
+
+        verify(channelService).resolveConfiguredChannel(51L, "bot-token", "Telegram", "telegram");
+    }
+
+    @Test
+    void updateSupportChatDelegatesPayloadToChannelService() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(52L);
+        channel.setSupportChatId("-10052");
+        when(channelService.updateSupportChatId(52L, "-10052")).thenReturn(channel);
+
+        mockMvc.perform(put("/internal/api/bot/channels/52/support-chat")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "supportChatId": "-10052"
+                        }
+                        """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(52L))
+            .andExpect(jsonPath("$.supportChatId").value("-10052"));
+
+        verify(channelService).updateSupportChatId(52L, "-10052");
     }
 
     @Test
