@@ -1,0 +1,169 @@
+/* Sidebar runtime indicators + shared sidebar modal layer */
+
+.sidebar-bot-mini-indicators {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+
+    min-height: 0.75rem;
+}
+
+.sidebar-bot-mini-dot {
+    display: inline-block;
+
+    width: 0.55rem;
+    height: 0.55rem;
+
+    border:
+        1px solid
+        color-mix(
+            in srgb,
+            var(--surface-card) 72%,
+            transparent
+        );
+
+    border-radius: var(--radius-pill);
+
+    background: var(--state-neutral);
+
+    box-shadow:
+        0 0 0 1px
+        color-mix(
+            in srgb,
+            var(--shadow-color) 8%,
+            transparent
+        );
+}
+
+.sidebar-bot-mini-dot--running {
+    background: var(--state-success);
+}
+
+.sidebar-bot-mini-dot--stopped {
+    background: var(--state-danger);
+}
+
+.sidebar-bot-mini-dot--inactive {
+    background: var(--state-neutral);
+}
+
+.sidebar-bot-mini-dot--error {
+    background: var(--state-warning);
+}
+
+.sidebar-bot-mini-more {
+    color: var(--color-text-muted);
+
+    font-size: 0.68rem;
+    line-height: 1;
+}
+
+/* Shared modal motion */
+
+.modal.fade .modal-dialog {
+    opacity: 0;
+
+    transform: translateY(8px);
+    transform-origin: center;
+
+    transition:
+        transform 0.18s ease,
+        opacity 0.18s ease;
+}
+
+.modal.fade.show .modal-dialog,
+.modal.fade.showing .modal-dialog {
+    opacity: 1;
+
+    transform: translateY(0);
+}
+
+.modal.fade.modal-closing .modal-dialog {
+    opacity: 0;
+
+    transform: translateY(6px);
+}
+
+.modal.fade.modal-closing {
+    pointer-events: none;
+}
+
+/* Password modal */
+
+[data-sidebar-password-modal] .modal-content {
+    overflow: hidden;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+
+    background: var(--surface-card);
+    color: var(--color-text);
+
+    box-shadow:
+        0 24px 54px
+        color-mix(
+            in srgb,
+            var(--shadow-color) 18%,
+            transparent
+        );
+}
+
+[data-sidebar-password-modal] .modal-header,
+[data-sidebar-password-modal] .modal-footer {
+    border-color: var(--color-border);
+
+    background: var(--surface-raised);
+}
+
+[data-sidebar-password-modal] .modal-title {
+    color: var(--color-text);
+
+    font-weight: 800;
+}
+
+[data-sidebar-password-modal] .form-label {
+    color: var(--color-text-muted);
+
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+}
+
+[data-sidebar-password-modal] .form-control {
+    border-color: var(--color-border);
+
+    background: var(--surface-card);
+    color: var(--color-text);
+
+    box-shadow: none;
+}
+
+[data-sidebar-password-modal] .form-control:focus {
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 45%,
+            var(--color-border)
+        );
+
+    box-shadow:
+        0 0 0 0.18rem
+        color-mix(
+            in srgb,
+            var(--primary) 12%,
+            transparent
+        );
+}
+
+[data-sidebar-password-modal] .alert-danger {
+    border-color: var(--state-danger-border);
+
+    background: var(--state-danger-bg);
+    color: var(--state-danger-text);
+}
+
+[data-sidebar-password-modal] .alert-success {
+    border-color: var(--state-success-border);
+
+    background: var(--state-success-bg);
+    color: var(--state-success-text);
+}
