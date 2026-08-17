@@ -41,17 +41,205 @@ function Find-FreePort {
 }
 
 function Test-DockerComposeAvailable {
-    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    $dockerCommand = Get-DockerCommandPath
+    if (-not $dockerCommand) {
         return $false
     }
 
-    & docker compose version *> $null
+    Update-ProcessPathForDocker -DockerCommand $dockerCommand
+
+    & $dockerCommand compose version *> $null
     if ($LASTEXITCODE -ne 0) {
         return $false
     }
 
-    & docker info *> $null
+    & $dockerCommand info *> $null
     return $LASTEXITCODE -eq 0
+}
+
+function Get-BoolSetting {
+    param(
+        [string]$Name,
+        [bool]$Default = $false
+    )
+
+    $rawValue = [Environment]::GetEnvironmentVariable($Name)
+    if ([string]::IsNullOrWhiteSpace($rawValue)) {
+        return $Default
+    }
+
+    switch ($rawValue.Trim().ToLowerInvariant()) {
+        "1" { return $true }
+        "true" { return $true }
+        "yes" { return $true }
+        "on" { return $true }
+        "0" { return $false }
+        "false" { return $false }
+        "no" { return $false }
+        "off" { return $false }
+        default { return $Default }
+    }
+}
+
+function Get-IntSetting {
+    param(
+        [string]$Name,
+        [int]$Default
+    )
+
+    $rawValue = [Environment]::GetEnvironmentVariable($Name)
+    if ([string]::IsNullOrWhiteSpace($rawValue)) {
+        return $Default
+    }
+
+    $parsedValue = 0
+    if ([int]::TryParse($rawValue.Trim(), [ref]$parsedValue)) {
+        return $parsedValue
+    }
+
+    return $Default
+}
+
+function Get-DockerCommandPath {
+    $dockerCommand = Get-Command docker -ErrorAction SilentlyContinue
+    if ($dockerCommand) {
+        return $dockerCommand.Source
+    }
+
+    $candidates = @(
+        (Join-Path $env:ProgramFiles "Docker\Docker\resources\bin\docker.exe"),
+        (Join-Path ${env:ProgramFiles(x86)} "Docker\Docker\resources\bin\docker.exe"),
+        (Join-Path $env:LOCALAPPDATA "Programs\Docker\Docker\resources\bin\docker.exe")
+    )
+
+    foreach ($candidate in $candidates) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate)) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function Update-ProcessPathForDocker {
+    param(
+        [string]$DockerCommand
+    )
+
+    if ([string]::IsNullOrWhiteSpace($DockerCommand)) {
+        return
+    }
+
+    $dockerDirectory = Split-Path -Parent $DockerCommand
+    if ([string]::IsNullOrWhiteSpace($dockerDirectory)) {
+        return
+    }
+
+    $pathItems = @($env:PATH -split ";")
+    if ($pathItems -notcontains $dockerDirectory) {
+        $env:PATH = "$dockerDirectory;$env:PATH"
+    }
+}
+
+function Get-DockerDesktopExecutablePath {
+    $candidates = @(
+        (Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe"),
+        (Join-Path ${env:ProgramFiles(x86)} "Docker\Docker\Docker Desktop.exe"),
+        (Join-Path $env:LOCALAPPDATA "Programs\Docker\Docker\Docker Desktop.exe")
+    )
+
+    foreach ($candidate in $candidates) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate)) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function Install-DockerDesktop {
+    $wingetCommand = Get-Command winget -ErrorAction SilentlyContinue
+    if (-not $wingetCommand) {
+        throw "Docker Desktop is missing and winget is unavailable, so bootstrap cannot install it automatically."
+    }
+
+    Write-Host "[INFO] Installing Docker Desktop via winget"
+    & $wingetCommand.Source install -e --id Docker.DockerDesktop --accept-source-agreements --accept-package-agreements --silent
+    if ($LASTEXITCODE -ne 0) {
+        throw "winget failed to install Docker Desktop (exit code $LASTEXITCODE)."
+    }
+}
+
+function Start-DockerDesktop {
+    $dockerDesktop = Get-DockerDesktopExecutablePath
+    if (-not $dockerDesktop) {
+        throw "Docker Desktop appears to be installed, but its executable was not found."
+    }
+
+    Write-Host "[INFO] Starting Docker Desktop"
+    Start-Process -FilePath $dockerDesktop -WindowStyle Hidden | Out-Null
+}
+
+function Wait-ForDockerReady {
+    param(
+        [int]$TimeoutSeconds = 300,
+        [int]$PollSeconds = 3
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (Test-DockerComposeAvailable) {
+            return $true
+        }
+        Start-Sleep -Seconds $PollSeconds
+    }
+
+    return $false
+}
+
+function Ensure-DockerAvailable {
+    param(
+        [string]$BootstrapMode,
+        [bool]$AllowInstallation = $true
+    )
+
+    if (Test-DockerComposeAvailable) {
+        return $true
+    }
+
+    $timeoutSeconds = Get-IntSetting -Name "IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS" -Default 300
+    if (Get-DockerDesktopExecutablePath) {
+        try {
+            Write-Host "[INFO] Docker Desktop is installed but not ready yet. Waiting for it to come online."
+            Start-DockerDesktop
+            if (Wait-ForDockerReady -TimeoutSeconds $timeoutSeconds) {
+                return $true
+            }
+            Write-Warning "Docker Desktop is installed, but docker info did not become ready in time."
+        } catch {
+            Write-Warning $_.Exception.Message
+        }
+    }
+
+    $autoInstallDocker = Get-BoolSetting -Name "IGUANA_BOOTSTRAP_INSTALL_DOCKER" -Default $true
+    if ((-not $AllowInstallation) -or (-not $autoInstallDocker)) {
+        return $false
+    }
+
+    try {
+        Install-DockerDesktop
+        Start-DockerDesktop
+        if (-not (Wait-ForDockerReady -TimeoutSeconds $timeoutSeconds)) {
+            throw "Docker Desktop did not become ready within $timeoutSeconds seconds."
+        }
+        return $true
+    } catch {
+        if ($BootstrapMode -eq "postgresql") {
+            throw
+        }
+        Write-Warning $_.Exception.Message
+        return $false
+    }
 }
 
 function Write-Utf8NoBomFile {
@@ -138,6 +326,7 @@ if ([string]::IsNullOrWhiteSpace($bootstrapMode)) {
     $bootstrapMode = "auto"
 }
 $bootstrapMode = $bootstrapMode.Trim().ToLowerInvariant()
+$allowSqliteFallback = Get-BoolSetting -Name "IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK" -Default $true
 
 if ($bootstrapMode -notin @("auto", "sqlite", "postgresql")) {
     throw "Unsupported IGUANA_BOOTSTRAP_DB_MODE '$bootstrapMode'. Allowed values: auto, sqlite, postgresql."
@@ -145,7 +334,7 @@ if ($bootstrapMode -notin @("auto", "sqlite", "postgresql")) {
 
 $dockerAvailable = $false
 if (-not $SkipDocker -and $bootstrapMode -ne "sqlite") {
-    $dockerAvailable = Test-DockerComposeAvailable
+    $dockerAvailable = Ensure-DockerAvailable -BootstrapMode $bootstrapMode -AllowInstallation (-not $ValidateOnly)
 }
 
 $effectiveMode = switch ($bootstrapMode) {
@@ -157,7 +346,13 @@ $effectiveMode = switch ($bootstrapMode) {
     }
     "sqlite" { "sqlite" }
     default {
-        if ($dockerAvailable) { "postgresql" } else { "sqlite" }
+        if ($dockerAvailable) {
+            "postgresql"
+        } elseif ($allowSqliteFallback) {
+            "sqlite"
+        } else {
+            throw "Docker is unavailable after bootstrap checks, and IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=false blocks SQLite fallback."
+        }
     }
 }
 
@@ -209,7 +404,12 @@ if ((-not (Test-Path -LiteralPath $envFile)) -or $Force) {
 
 if ($effectiveMode -eq "postgresql" -and -not $SkipDocker) {
     Write-Host "[INFO] Starting local PostgreSQL and RabbitMQ via docker compose"
-    & docker compose -f $composeFile up -d postgres rabbitmq
+    $dockerCommand = Get-DockerCommandPath
+    if (-not $dockerCommand) {
+        throw "Docker became unavailable before docker compose startup."
+    }
+    Update-ProcessPathForDocker -DockerCommand $dockerCommand
+    & $dockerCommand compose -f $composeFile up -d postgres rabbitmq
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to start local PostgreSQL/RabbitMQ containers."
     }

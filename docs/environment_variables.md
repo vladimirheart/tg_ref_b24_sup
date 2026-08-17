@@ -23,6 +23,9 @@
 | `SPRING_DATASOURCE_PASSWORD` | пароль external DB | Панель и бот |
 | `IGUANA_BOOTSTRAP_DB_MODE` | режим first-run bootstrap: `auto`, `sqlite`, `postgresql` | bootstrap scripts |
 | `APP_POSTGRES_PORT` | локальный порт для dockerized PostgreSQL bootstrap | bootstrap scripts |
+| `IGUANA_BOOTSTRAP_INSTALL_DOCKER` | разрешить Windows bootstrap автоматически поставить Docker Desktop через `winget` | bootstrap scripts |
+| `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK` | разрешить `auto`-bootstrap откатиться на SQLite, если Docker не стал доступен | bootstrap scripts |
+| `IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS` | timeout ожидания готовности Docker Desktop после установки/старта | bootstrap scripts |
 
 ## Базы данных
 

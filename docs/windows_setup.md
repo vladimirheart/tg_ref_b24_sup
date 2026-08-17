@@ -7,6 +7,7 @@ This guide describes how to run the Spring Boot replacement for the support pane
 ## 1. Install prerequisites
 1. Download and install [Microsoft Build of OpenJDK 17](https://learn.microsoft.com/java/openjdk/download#openjdk-17). During installation enable the option to set `JAVA_HOME`.
 2. (Optional) If you already have Maven installed globally you can keep using it. Otherwise the repository now ships with cross-platform Maven Wrapper scripts that will download Maven 3.9.6 on first run.
+3. Docker Desktop can now be installed automatically by the first-run bootstrap via `winget`, so you do not have to install it manually in advance on a clean Windows machine.
 
 > ℹ️  If you already use a JDK manager (SDKMAN!, IntelliJ, etc.) simply ensure `java -version` prints 17.x. The helper scripts prefer the local `mvnw`/`mvnw.cmd` and fall back to a global Maven installation if present.
 
@@ -26,8 +27,24 @@ On a fresh clone the script now runs a first-run bootstrap automatically when th
 
 - creates `.env`;
 - prepares `attachments`, `logs` and `bot_databases`;
-- starts local PostgreSQL through `docker compose`, if Docker is available;
-- otherwise keeps the project in SQLite dev mode so the first start still succeeds without manual SQL preparation.
+- if Docker Desktop is missing, tries to install it automatically via `winget`;
+- starts Docker Desktop and waits until `docker info` becomes ready;
+- starts local PostgreSQL and RabbitMQ through `docker compose`;
+- only if Docker still cannot be used after the install attempt does bootstrap fall back to SQLite dev mode.
+
+If you want strict PostgreSQL-only first-run behavior without SQLite fallback, set:
+
+```powershell
+$env:IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK = "false"
+.\run-windows.bat
+```
+
+If you want to disable the automatic Docker Desktop installation and keep the old behavior, set:
+
+```powershell
+$env:IGUANA_BOOTSTRAP_INSTALL_DOCKER = "false"
+.\run-windows.bat
+```
 
 If you want to rerun the same setup manually, use:
 

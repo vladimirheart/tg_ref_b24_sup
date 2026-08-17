@@ -35,7 +35,7 @@ SPRING_DATASOURCE_PASSWORD=iguana
 
 Поведение bootstrap:
 
-- `IGUANA_BOOTSTRAP_DB_MODE=auto` — предпочитает локальный PostgreSQL через Docker, но если Docker недоступен, откатывается на SQLite dev mode;
+- `IGUANA_BOOTSTRAP_DB_MODE=auto` — на Windows сначала пытается автоматически поставить Docker Desktop через `winget`, затем предпочитает локальный PostgreSQL через Docker; если Docker всё равно недоступен, откатывается на SQLite dev mode;
 - `IGUANA_BOOTSTRAP_DB_MODE=postgresql` — требует Docker и поднимает `docker-compose.local-postgres.yml`;
 - `IGUANA_BOOTSTRAP_DB_MODE=sqlite` — оставляет локальный dev-path без Docker.
 
@@ -50,6 +50,9 @@ SPRING_DATASOURCE_PASSWORD=iguana
 - `APP_BOT_DATABASE_DIR` — каталог, в котором будут храниться отдельные базы для каждого бота.
 - `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` — preferred-конфиг для external DB.
 - `DATABASE_URL` — compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL.
+- `IGUANA_BOOTSTRAP_INSTALL_DOCKER` — разрешает bootstrap на Windows автоматически поставить Docker Desktop через `winget` (по умолчанию `true`).
+- `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK` — разрешает в `IGUANA_BOOTSTRAP_DB_MODE=auto` откатиться на SQLite, если Docker так и не стал доступен после install/start попытки (по умолчанию `true`).
+- `IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS` — сколько ждать готовности Docker Desktop после установки/старта (по умолчанию `300` секунд).
 
 Для целевого production-перехода по `01-181` используйте явный режим external DB:
 
