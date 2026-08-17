@@ -100,6 +100,17 @@ public class PanelTicketWriteClient {
         ).map(MutationResponse::updated).orElse(false);
     }
 
+    public boolean storeFeedback(Long requestId, Integer rating) {
+        if (!isEnabled() || requestId == null || rating == null) {
+            return false;
+        }
+        return sendMutation(
+            "/internal/api/bot/feedback/pending/" + requestId + "/submit",
+            "POST",
+            new FeedbackSubmitRequest(rating)
+        ).map(MutationResponse::updated).orElse(false);
+    }
+
     private Optional<MutationResponse> sendMutation(String path, String method, Object body) {
         HttpRequest.Builder builder = HttpRequest.newBuilder(resolve(path))
             .timeout(Duration.ofSeconds(5))
@@ -154,5 +165,8 @@ public class PanelTicketWriteClient {
     }
 
     private record ClientMessageEditRequest(String message) {
+    }
+
+    private record FeedbackSubmitRequest(Integer rating) {
     }
 }

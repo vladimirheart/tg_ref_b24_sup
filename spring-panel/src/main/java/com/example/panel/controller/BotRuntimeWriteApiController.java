@@ -87,6 +87,19 @@ public class BotRuntimeWriteApiController {
         );
     }
 
+    @PostMapping("/feedback/pending/{requestId}/submit")
+    public BotRuntimeTicketWriteService.MutationResult storeFeedback(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable Long requestId,
+        @RequestBody FeedbackSubmitRequest request
+    ) {
+        requireAuthorized(token);
+        return ticketWriteService.storeFeedback(
+            requestId,
+            request != null ? request.rating() : null
+        );
+    }
+
     private void requireAuthorized(String token) {
         if (token == null || token.isBlank() || !token.equals(expectedToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized internal bot API request");
@@ -103,5 +116,8 @@ public class BotRuntimeWriteApiController {
     }
 
     public record ClientMessageEditRequest(String message) {
+    }
+
+    public record FeedbackSubmitRequest(Integer rating) {
     }
 }

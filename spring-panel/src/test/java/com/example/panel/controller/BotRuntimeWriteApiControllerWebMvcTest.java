@@ -95,6 +95,26 @@ class BotRuntimeWriteApiControllerWebMvcTest {
     }
 
     @Test
+    void feedbackSubmitDelegatesPayloadToWriteService() throws Exception {
+        when(ticketWriteService.storeFeedback(902L, 5))
+            .thenReturn(new BotRuntimeTicketWriteService.MutationResult(true, true));
+
+        mockMvc.perform(post("/internal/api/bot/feedback/pending/902/submit")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "rating": 5
+                        }
+                        """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.updated").value(true))
+            .andExpect(jsonPath("$.exists").value(true));
+
+        verify(ticketWriteService).storeFeedback(902L, 5);
+    }
+
+    @Test
     void clearActivityDelegatesToWriteService() throws Exception {
         when(ticketWriteService.clearActivity("T-400"))
             .thenReturn(new BotRuntimeTicketWriteService.MutationResult(false, true));

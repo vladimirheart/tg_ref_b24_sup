@@ -1,8 +1,14 @@
 package com.example.panel.service;
 
+import com.example.panel.entity.Feedback;
+import com.example.panel.entity.PendingFeedbackRequest;
+import com.example.panel.repository.FeedbackRepository;
+import com.example.panel.repository.PendingFeedbackRequestRepository;
 import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,18 +17,25 @@ import org.springframework.util.StringUtils;
 @Service
 public class BotRuntimeTicketWriteService {
 
-    static final String REOPEN_EVENT_TEXT = "Заявка переоткрыта оператором.";
+    private static final Logger log = LoggerFactory.getLogger(BotRuntimeTicketWriteService.class);
+    static final String REOPEN_EVENT_TEXT = "\u0417\u0430\u044f\u0432\u043a\u0430 \u043f\u0435\u0440\u0435\u043e\u0442\u043a\u0440\u044b\u0442\u0430 \u043e\u043f\u0435\u0440\u0430\u0442\u043e\u0440\u043e\u043c.";
 
     private final JdbcTemplate jdbcTemplate;
     private final DialogReplyTargetService dialogReplyTargetService;
     private final UiEventOutboxAppendService uiEventOutboxAppendService;
+    private final PendingFeedbackRequestRepository pendingFeedbackRequestRepository;
+    private final FeedbackRepository feedbackRepository;
 
     public BotRuntimeTicketWriteService(JdbcTemplate jdbcTemplate,
                                         DialogReplyTargetService dialogReplyTargetService,
-                                        UiEventOutboxAppendService uiEventOutboxAppendService) {
+                                        UiEventOutboxAppendService uiEventOutboxAppendService,
+                                        PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
+                                        FeedbackRepository feedbackRepository) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogReplyTargetService = dialogReplyTargetService;
         this.uiEventOutboxAppendService = uiEventOutboxAppendService;
+        this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
+        this.feedbackRepository = feedbackRepository;
     }
 
     @Transactional
@@ -127,6 +140,44 @@ public class BotRuntimeTicketWriteService {
             uiEventOutboxAppendService.publishClientMessageEdited(snapshot.ticketId(), snapshot.channelId(), message);
         }
         return new MutationResult(updated > 0, true);
+    }
+
+    @Transactional
+    public MutationResult storeFeedback(Long requestId, Integer rating) {
+        if (requestId == null || rating == null || rating < 1 || rating > 5) {
+            return new MutationResult(false, false);
+        }
+        Optional<PendingFeedbackRequest> requestOpt = pendingFeedbackRequestRepository.findById(requestId);
+        if (requestOpt.isEmpty()) {
+            return new MutationResult(false, false);
+        }
+        PendingFeedbackRequest request = requestOpt.get();
+        OffsetDateTime now = OffsetDateTime.now();
+        if (request.getExpiresAt() != null && !request.getExpiresAt().isAfter(now)) {
+            return new MutationResult(false, true);
+        }
+        String ticketId = request.getTicketId();
+        Long channelId = request.getChannel() != null ? request.getChannel().getId() : null;
+        Feedback feedback = StringUtils.hasText(ticketId)
+                ? feedbackRepository.findFirstByTicketIdOrderByTimestampDesc(ticketId).orElseGet(Feedback::new)
+                : new Feedback();
+        feedback.setUserId(request.getUserId());
+        feedback.setTicketId(ticketId);
+        feedback.setChannelId(channelId);
+        feedback.setRating(rating);
+        feedback.setTimestamp(now);
+        feedbackRepository.save(feedback);
+        uiEventOutboxAppendService.publishFeedbackCreated(ticketId, channelId, rating);
+        request.setExpiresAt(now);
+        try {
+            pendingFeedbackRequestRepository.save(request);
+        } catch (RuntimeException ex) {
+            log.warn("Saved feedback for ticket {}, but failed to expire pending feedback request {}: {}",
+                    ticketId,
+                    requestId,
+                    ex.getMessage());
+        }
+        return new MutationResult(true, true);
     }
 
     private void storeSystemEvent(TicketSnapshot ticket, String text) {

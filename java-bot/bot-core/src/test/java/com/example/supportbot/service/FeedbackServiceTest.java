@@ -12,11 +12,13 @@ import static org.mockito.Mockito.when;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.Feedback;
 import com.example.supportbot.entity.PendingFeedbackRequest;
+import com.example.supportbot.config.BotIntegrationTransportMode;
 import com.example.supportbot.repository.FeedbackRepository;
 import com.example.supportbot.repository.PendingFeedbackRequestRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.mock.env.MockEnvironment;
 
 class FeedbackServiceTest {
 
@@ -25,7 +27,14 @@ class FeedbackServiceTest {
         PendingFeedbackRequestRepository pendingRepository = mock(PendingFeedbackRequestRepository.class);
         FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
         UiEventOutboxService outboxService = mock(UiEventOutboxService.class);
-        FeedbackService service = new FeedbackService(pendingRepository, feedbackRepository, outboxService);
+        FeedbackService service = new FeedbackService(
+            pendingRepository,
+            feedbackRepository,
+            outboxService,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")),
+            mock(PanelTicketReadClient.class),
+            mock(PanelTicketWriteClient.class)
+        );
 
         Channel channel = new Channel();
         channel.setId(3L);
@@ -59,7 +68,14 @@ class FeedbackServiceTest {
         PendingFeedbackRequestRepository pendingRepository = mock(PendingFeedbackRequestRepository.class);
         FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
         UiEventOutboxService outboxService = mock(UiEventOutboxService.class);
-        FeedbackService service = new FeedbackService(pendingRepository, feedbackRepository, outboxService);
+        FeedbackService service = new FeedbackService(
+            pendingRepository,
+            feedbackRepository,
+            outboxService,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")),
+            mock(PanelTicketReadClient.class),
+            mock(PanelTicketWriteClient.class)
+        );
 
         Channel channel = new Channel();
         channel.setId(12L);
@@ -80,6 +96,66 @@ class FeedbackServiceTest {
         assertThat(result).isEmpty();
         verify(pendingRepository).findFirstByUserIdAndChannel_IdAndExpiresAtAfterOrderByCreatedAtDesc(eq(42L), eq(12L), any());
         verify(pendingRepository).findFirstByUserIdAndExpiresAtAfterOrderByCreatedAtDesc(eq(42L), any());
+        verify(outboxService, never()).publishFeedbackCreated(any(), any(), any());
+    }
+
+    @Test
+    void findActiveRequestUsesPanelReadClientInRabbitMode() {
+        PendingFeedbackRequestRepository pendingRepository = mock(PendingFeedbackRequestRepository.class);
+        FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
+        UiEventOutboxService outboxService = mock(UiEventOutboxService.class);
+        PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
+        when(panelTicketReadClient.isEnabled()).thenReturn(true);
+
+        Channel channel = new Channel();
+        channel.setId(99L);
+        PendingFeedbackRequest request = new PendingFeedbackRequest();
+        request.setId(100L);
+        when(panelTicketReadClient.findActiveFeedbackRequest(55L, 99L)).thenReturn(Optional.of(request));
+
+        FeedbackService service = new FeedbackService(
+            pendingRepository,
+            feedbackRepository,
+            outboxService,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
+            panelTicketReadClient,
+            panelTicketWriteClient
+        );
+
+        Optional<PendingFeedbackRequest> result = service.findActiveRequest(55L, channel);
+
+        assertThat(result).contains(request);
+        verify(panelTicketReadClient).findActiveFeedbackRequest(55L, 99L);
+        verify(pendingRepository, never()).findFirstByUserIdAndChannel_IdAndExpiresAtAfterOrderByCreatedAtDesc(any(), any(), any());
+    }
+
+    @Test
+    void storeFeedbackUsesPanelWriteClientInRabbitMode() {
+        PendingFeedbackRequestRepository pendingRepository = mock(PendingFeedbackRequestRepository.class);
+        FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
+        UiEventOutboxService outboxService = mock(UiEventOutboxService.class);
+        PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
+        PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
+        when(panelTicketWriteClient.isEnabled()).thenReturn(true);
+        when(panelTicketWriteClient.storeFeedback(101L, 4)).thenReturn(true);
+
+        PendingFeedbackRequest request = new PendingFeedbackRequest();
+        request.setId(101L);
+
+        FeedbackService service = new FeedbackService(
+            pendingRepository,
+            feedbackRepository,
+            outboxService,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
+            panelTicketReadClient,
+            panelTicketWriteClient
+        );
+
+        service.storeFeedback(request, 4);
+
+        verify(panelTicketWriteClient).storeFeedback(101L, 4);
+        verify(feedbackRepository, never()).save(any());
         verify(outboxService, never()).publishFeedbackCreated(any(), any(), any());
     }
 }

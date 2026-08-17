@@ -103,4 +103,26 @@ class BotRuntimeReadApiControllerWebMvcTest {
             .andExpect(jsonPath("$[0].ticketId").value("T-1"))
             .andExpect(jsonPath("$[0].requestNumber").value("20260816-001"));
     }
+
+    @Test
+    void pendingFeedbackRequestReturnsLookupForAuthorizedInternalRequest() throws Exception {
+        when(ticketReadService.findActiveFeedbackRequest(55L, 12L)).thenReturn(Optional.of(
+            new BotRuntimeTicketReadService.PendingFeedbackRequestLookup(
+                901L,
+                55L,
+                12L,
+                "T-901",
+                "user_prompt",
+                OffsetDateTime.parse("2026-08-17T09:00:00Z")
+            )
+        ));
+
+        mockMvc.perform(get("/internal/api/bot/users/55/feedback/pending")
+                .header("X-Iguana-Bot-Api-Token", "test-internal-token")
+                .param("channelId", "12"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(901L))
+            .andExpect(jsonPath("$.ticketId").value("T-901"))
+            .andExpect(jsonPath("$.channelId").value(12L));
+    }
 }

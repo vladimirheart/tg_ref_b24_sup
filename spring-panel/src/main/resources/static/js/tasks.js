@@ -275,7 +275,7 @@
       tr.dataset.dueAt = dueAtValue;
       tr.dataset.closedAt = closedAtValue;
       tr.dataset.id = t.id || '';
-      tr.className = '';
+      tr.className = 'tasks-row';
       let timeLeftText = '';
       let timeLeftClass = 'text-muted';
       let finalOverdue = false;
@@ -301,22 +301,63 @@
       }
       const safeStatusAttr = escapeAttr(t.status);
       tr.innerHTML = `
-  <td>${t.display_no || ''}</td>
-  <td>${t.title || ''}</td>
-  <td>${t.assignee || ''}</td>
-  <td>
-    ${dueAtValue ? fmtDT(dueAtValue) : '—'}
-    <div class="small ${timeLeftClass} time-left" data-due="${dueAtValue}" data-status="${safeStatusAttr}" data-final="${final ? '1' : '0'}" data-overdue="${finalOverdue ? '1' : '0'}">
-      ${timeLeftText}
-    </div>
-  </td>
-  <td>${fmtDT(t.last_activity_at)}</td>
-  <td>${fmtDT(t.created_at)}</td>
-  <td>${fmtDT(t.closed_at)}</td>
-  <td>${t.tag || ''}</td>
-  <td>${t.status || ''}</td>
-  <td><button class="btn btn-sm btn-outline-primary edit-btn" data-id="${t.id}">Открыть</button></td>
-`;
+	  <td class="tasks-cell-number">
+		${escapeAttr(t.display_no || '')}
+	  </td>
+
+	  <td class="tasks-cell-title">
+		<div class="fw-semibold">
+		  ${escapeAttr(t.title || 'Без названия')}
+		</div>
+	  </td>
+
+	  <td>
+		${escapeAttr(t.assignee || '—')}
+	  </td>
+
+	  <td>
+		${dueAtValue ? fmtDT(dueAtValue) : '—'}
+
+		<div class="small ${timeLeftClass} time-left"
+			 data-due="${escapeAttr(dueAtValue)}"
+			 data-status="${safeStatusAttr}"
+			 data-final="${final ? '1' : '0'}"
+			 data-overdue="${finalOverdue ? '1' : '0'}">
+		  ${escapeAttr(timeLeftText)}
+		</div>
+	  </td>
+
+	  <td>
+		${fmtDT(t.last_activity_at)}
+	  </td>
+
+	  <td>
+		${fmtDT(t.created_at)}
+	  </td>
+
+	  <td>
+		${fmtDT(t.closed_at)}
+	  </td>
+
+	  <td>
+		${escapeAttr(t.tag || '—')}
+	  </td>
+
+	  <td>
+		<span class="badge task-status-badge"
+			  data-task-status="${safeStatusAttr}">
+		  ${escapeAttr(t.status || '—')}
+		</span>
+	  </td>
+
+	  <td class="text-end">
+		<button class="btn btn-sm btn-outline-primary edit-btn"
+				type="button"
+				data-id="${escapeAttr(t.id)}">
+		  Открыть
+		</button>
+	  </td>
+	`;
       tbody.appendChild(tr);
     }
 

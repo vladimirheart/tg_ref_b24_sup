@@ -1,10 +1,20 @@
 package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.example.panel.config.PanelDatabaseRuntimeMode;
+import com.example.panel.entity.Channel;
+import com.example.panel.entity.Feedback;
+import com.example.panel.entity.PendingFeedbackRequest;
+import com.example.panel.repository.FeedbackRepository;
+import com.example.panel.repository.PendingFeedbackRequestRepository;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,7 +38,9 @@ class BotRuntimeTicketWriteServiceTest {
         service = new BotRuntimeTicketWriteService(
             jdbcTemplate,
             dialogReplyTargetService,
-            new UiEventOutboxAppendService(jdbcTemplate)
+            new UiEventOutboxAppendService(jdbcTemplate),
+            mock(PendingFeedbackRequestRepository.class),
+            mock(FeedbackRepository.class)
         );
         createSchema();
     }
@@ -142,6 +154,55 @@ class BotRuntimeTicketWriteServiceTest {
                 String.class,
                 "T-880"
         )).isEqualTo("client_message_edited");
+    }
+
+    @Test
+    void storeFeedbackSavesRatingAndAppendsUiEvent() {
+        PendingFeedbackRequestRepository pendingFeedbackRequestRepository = mock(PendingFeedbackRequestRepository.class);
+        FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
+        PanelDatabaseRuntimeMode databaseRuntimeMode = new PanelDatabaseRuntimeMode(new MockEnvironment());
+        DialogReplyTargetService dialogReplyTargetService = new DialogReplyTargetService(
+            jdbcTemplate,
+            new ChatAttachmentMetadataService(jdbcTemplate, databaseRuntimeMode)
+        );
+        BotRuntimeTicketWriteService feedbackService = new BotRuntimeTicketWriteService(
+            jdbcTemplate,
+            dialogReplyTargetService,
+            new UiEventOutboxAppendService(jdbcTemplate),
+            pendingFeedbackRequestRepository,
+            feedbackRepository
+        );
+
+        Channel channel = new Channel();
+        channel.setId(25L);
+
+        PendingFeedbackRequest request = new PendingFeedbackRequest();
+        request.setId(903L);
+        request.setUserId(77L);
+        request.setTicketId("T-903");
+        request.setChannel(channel);
+        request.setExpiresAt(java.time.OffsetDateTime.parse("2026-08-18T08:00:00Z"));
+
+        when(pendingFeedbackRequestRepository.findById(903L)).thenReturn(Optional.of(request));
+        when(feedbackRepository.findFirstByTicketIdOrderByTimestampDesc("T-903")).thenReturn(Optional.empty());
+
+        BotRuntimeTicketWriteService.MutationResult result = feedbackService.storeFeedback(903L, 4);
+
+        assertThat(result.updated()).isTrue();
+        assertThat(result.exists()).isTrue();
+        verify(feedbackRepository).save(org.mockito.ArgumentMatchers.argThat((Feedback feedback) ->
+            feedback.getUserId().equals(77L)
+                && feedback.getTicketId().equals("T-903")
+                && feedback.getChannelId().equals(25L)
+                && feedback.getRating().equals(4)
+                && feedback.getTimestamp() != null
+        ));
+        verify(pendingFeedbackRequestRepository).save(eq(request));
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT event_type FROM ui_event_outbox WHERE ticket_id = ?",
+                String.class,
+                "T-903"
+        )).isEqualTo("feedback_created");
     }
 
     private void createSchema() {

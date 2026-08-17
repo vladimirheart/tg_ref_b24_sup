@@ -140,6 +140,30 @@ public class PanelTicketReadClient {
             .toList();
     }
 
+    public Optional<com.example.supportbot.entity.PendingFeedbackRequest> findActiveFeedbackRequest(Long userId, Long channelId) {
+        if (!isEnabled() || userId == null) {
+            return Optional.empty();
+        }
+        String path = channelId == null
+            ? "/internal/api/bot/users/" + userId + "/feedback/pending"
+            : "/internal/api/bot/users/" + userId + "/feedback/pending?channelId=" + channelId;
+        return send(path, new TypeReference<PendingFeedbackRequestResponse>() {})
+            .map(response -> {
+                com.example.supportbot.entity.PendingFeedbackRequest request = new com.example.supportbot.entity.PendingFeedbackRequest();
+                request.setId(response.id());
+                request.setUserId(response.userId());
+                request.setTicketId(response.ticketId());
+                request.setSource(response.source());
+                request.setExpiresAt(response.expiresAt());
+                if (response.channelId() != null) {
+                    com.example.supportbot.entity.Channel channel = new com.example.supportbot.entity.Channel();
+                    channel.setId(response.channelId());
+                    request.setChannel(channel);
+                }
+                return request;
+            });
+    }
+
     private <T> Optional<T> send(String path, TypeReference<T> typeReference) {
         HttpRequest request = HttpRequest.newBuilder(resolve(path))
             .timeout(Duration.ofSeconds(5))
@@ -218,5 +242,13 @@ public class PanelTicketReadClient {
                                          String locationName,
                                          Integer rating,
                                          OffsetDateTime createdAt) {
+    }
+
+    private record PendingFeedbackRequestResponse(Long id,
+                                                  Long userId,
+                                                  Long channelId,
+                                                  String ticketId,
+                                                  String source,
+                                                  OffsetDateTime expiresAt) {
     }
 }

@@ -80,6 +80,17 @@ public class BotRuntimeReadApiController {
         return ticketReadService.findRecentTickets(userId, limit);
     }
 
+    @GetMapping("/users/{userId}/feedback/pending")
+    public BotRuntimeTicketReadService.PendingFeedbackRequestLookup pendingFeedbackRequest(
+        @RequestHeader(name = AUTH_HEADER, required = false) String token,
+        @PathVariable Long userId,
+        @RequestParam(required = false) Long channelId
+    ) {
+        requireAuthorized(token);
+        return ticketReadService.findActiveFeedbackRequest(userId, channelId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pending feedback request not found"));
+    }
+
     private void requireAuthorized(String token) {
         if (token == null || token.isBlank() || !token.equals(expectedToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized internal bot API request");

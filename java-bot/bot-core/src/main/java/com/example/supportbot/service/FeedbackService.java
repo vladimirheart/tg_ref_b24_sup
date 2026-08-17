@@ -1,5 +1,6 @@
 package com.example.supportbot.service;
 
+import com.example.supportbot.config.BotIntegrationTransportMode;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.Feedback;
 import com.example.supportbot.entity.PendingFeedbackRequest;
@@ -21,17 +22,29 @@ public class FeedbackService {
     private final PendingFeedbackRequestRepository pendingFeedbackRequestRepository;
     private final FeedbackRepository feedbackRepository;
     private final UiEventOutboxService uiEventOutboxService;
+    private final BotIntegrationTransportMode integrationTransportMode;
+    private final PanelTicketReadClient panelTicketReadClient;
+    private final PanelTicketWriteClient panelTicketWriteClient;
 
     public FeedbackService(PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
                            FeedbackRepository feedbackRepository,
-                           UiEventOutboxService uiEventOutboxService) {
+                           UiEventOutboxService uiEventOutboxService,
+                           BotIntegrationTransportMode integrationTransportMode,
+                           PanelTicketReadClient panelTicketReadClient,
+                           PanelTicketWriteClient panelTicketWriteClient) {
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.feedbackRepository = feedbackRepository;
         this.uiEventOutboxService = uiEventOutboxService;
+        this.integrationTransportMode = integrationTransportMode;
+        this.panelTicketReadClient = panelTicketReadClient;
+        this.panelTicketWriteClient = panelTicketWriteClient;
     }
 
     @Transactional(readOnly = true)
     public Optional<PendingFeedbackRequest> findActiveRequest(long userId, Channel channel) {
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+            return panelTicketReadClient.findActiveFeedbackRequest(userId, channel != null ? channel.getId() : null);
+        }
         OffsetDateTime now = OffsetDateTime.now();
         Optional<PendingFeedbackRequest> request = Optional.empty();
         if (channel != null && channel.getId() != null) {
@@ -50,6 +63,16 @@ public class FeedbackService {
     }
 
     public void storeFeedback(PendingFeedbackRequest request, int rating) {
+        if (request == null) {
+            return;
+        }
+        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled() && request.getId() != null) {
+            boolean stored = panelTicketWriteClient.storeFeedback(request.getId(), rating);
+            if (!stored) {
+                log.warn("Failed to store feedback via internal panel API for request {}", request.getId());
+            }
+            return;
+        }
         Channel channel = request.getChannel();
         String ticketId = request.getTicketId();
         OffsetDateTime now = OffsetDateTime.now();

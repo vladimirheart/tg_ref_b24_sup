@@ -2,10 +2,12 @@ package com.example.panel.service;
 
 import com.example.panel.entity.Feedback;
 import com.example.panel.entity.Message;
+import com.example.panel.entity.PendingFeedbackRequest;
 import com.example.panel.entity.Ticket;
 import com.example.panel.entity.TicketActive;
 import com.example.panel.repository.FeedbackRepository;
 import com.example.panel.repository.MessageRepository;
+import com.example.panel.repository.PendingFeedbackRequestRepository;
 import com.example.panel.repository.TicketActiveRepository;
 import com.example.panel.repository.TicketRepository;
 import java.time.LocalDate;
@@ -30,15 +32,18 @@ public class BotRuntimeTicketReadService {
     private final TicketRepository ticketRepository;
     private final TicketActiveRepository ticketActiveRepository;
     private final FeedbackRepository feedbackRepository;
+    private final PendingFeedbackRequestRepository pendingFeedbackRequestRepository;
 
     public BotRuntimeTicketReadService(MessageRepository messageRepository,
                                        TicketRepository ticketRepository,
                                        TicketActiveRepository ticketActiveRepository,
-                                       FeedbackRepository feedbackRepository) {
+                                       FeedbackRepository feedbackRepository,
+                                       PendingFeedbackRequestRepository pendingFeedbackRequestRepository) {
         this.messageRepository = messageRepository;
         this.ticketRepository = ticketRepository;
         this.ticketActiveRepository = ticketActiveRepository;
         this.feedbackRepository = feedbackRepository;
+        this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
     }
 
     @Transactional(readOnly = true)
@@ -141,6 +146,28 @@ public class BotRuntimeTicketReadService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
+    public Optional<PendingFeedbackRequestLookup> findActiveFeedbackRequest(Long userId, Long channelId) {
+        if (userId == null) {
+            return Optional.empty();
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        Optional<PendingFeedbackRequest> request = Optional.empty();
+        if (channelId != null) {
+            request = pendingFeedbackRequestRepository
+                .findFirstByUserIdAndChannel_IdAndExpiresAtAfterOrderByCreatedAtDesc(userId, channelId, now);
+        }
+        if (request.isPresent() && !hasStoredFeedback(request.get())) {
+            return Optional.of(toLookup(request.get()));
+        }
+        Optional<PendingFeedbackRequest> fallback = pendingFeedbackRequestRepository
+            .findFirstByUserIdAndExpiresAtAfterOrderByCreatedAtDesc(userId, now);
+        if (fallback.isPresent() && hasStoredFeedback(fallback.get())) {
+            return Optional.empty();
+        }
+        return fallback.map(this::toLookup);
+    }
+
     private List<String> buildIdentities(Long userId, String username) {
         List<String> identities = new ArrayList<>();
         if (userId != null && userId > 0) {
@@ -187,6 +214,23 @@ public class BotRuntimeTicketReadService {
         return leftTime.isAfter(rightTime) ? left : right;
     }
 
+    private boolean hasStoredFeedback(PendingFeedbackRequest request) {
+        return request != null
+            && StringUtils.hasText(request.getTicketId())
+            && feedbackRepository.existsByTicketId(request.getTicketId());
+    }
+
+    private PendingFeedbackRequestLookup toLookup(PendingFeedbackRequest request) {
+        return new PendingFeedbackRequestLookup(
+            request.getId(),
+            request.getUserId(),
+            request.getChannel() != null ? request.getChannel().getId() : null,
+            request.getTicketId(),
+            request.getSource(),
+            request.getExpiresAt()
+        );
+    }
+
     public record ActiveTicketLookup(String ticketId,
                                      String userIdentity,
                                      OffsetDateTime lastSeen) {
@@ -221,5 +265,13 @@ public class BotRuntimeTicketReadService {
                                       String locationName,
                                       Integer rating,
                                       OffsetDateTime createdAt) {
+    }
+
+    public record PendingFeedbackRequestLookup(Long id,
+                                               Long userId,
+                                               Long channelId,
+                                               String ticketId,
+                                               String source,
+                                               OffsetDateTime expiresAt) {
     }
 }
