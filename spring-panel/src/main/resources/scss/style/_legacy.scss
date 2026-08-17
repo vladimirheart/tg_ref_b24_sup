@@ -357,16 +357,6 @@ table[data-column-reorderable] th.dragging {
 /* Системная подрезка «пустоты» над заголовками */
 h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 
-/* Плавное появление и скрытие модальных окон */
-.modal-backdrop {
-  transition: opacity 0.25s ease;
-}
-
-.modal.fade.modal-closing .modal-dialog {
-  --modal-scale: 0.9;
-  opacity: 0;
-}
-
 /* Автогенерируемые кнопки копирования */
 [data-copy-enhanced="true"].copyable-inline-container,
 [data-copy-enhanced="true"].copyable-block-container {

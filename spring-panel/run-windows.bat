@@ -47,6 +47,7 @@ if not defined APP_HTTP_PORT (
         echo [WARN] APP_HTTP_PORT=%APP_HTTP_PORT% appears to be in use!PORT_OWNER_MESSAGE! The application may fail to start.
     )
 )
+echo [INFO] Panel URL: http://localhost:!APP_HTTP_PORT!/
 
 if not defined JAVA_EXE (
     echo [ERROR] Java executable not found. Install JDK 17+ and expose it via JAVA_HOME or PATH.

@@ -603,10 +603,13 @@ p {
 
 .page-header-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
   margin-bottom: 1.5rem;
-  padding: 1.35rem 1.5rem;
+  padding: var(--ui-panel-padding-lg);
   border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
-  border-radius: 1.35rem;
+  border-radius: var(--radius-xl);
   background: linear-gradient(135deg, var(--surface-card), color-mix(in srgb, var(--secondary) 7%, var(--surface-card)));
   box-shadow: var(--ui-panel-shadow);
 }
@@ -614,8 +617,10 @@ p {
 .page-kicker {
   display: inline-flex;
   align-items: center;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
+  width: fit-content;
+  min-height: 26px;
+  padding: 0 0.62rem;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--accent) 22%, var(--surface-card));
   color: var(--color-text);
   font-size: var(--font-size-xs);
@@ -625,7 +630,7 @@ p {
 }
 
 .page-title {
-  margin: 0.75rem 0 0.25rem;
+  margin: 0;
   font-family: var(--font-serif);
   font-size: clamp(1.8rem, 2.4vw, 2.35rem);
   font-weight: 700;
@@ -635,10 +640,10 @@ p {
 
 .page-subtitle {
   margin: 0;
-  max-width: 70ch;
+  max-width: 72ch;
   color: var(--color-text-muted);
-  font-size: var(--font-size-base);
-  line-height: var(--line-height-relaxed);
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .surface-soft {
@@ -984,7 +989,7 @@ a:not([class]) {
 
 .nav-tabs .nav-link {
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--color-text-muted);
   font-weight: 700;
   background: var(--surface-raised);
@@ -1079,7 +1084,7 @@ a:not([class]) {
 }
 
 .btn-close {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background-color: var(--surface-interactive);
   box-shadow: none;
 }
@@ -1521,16 +1526,6 @@ table[data-column-reorderable] th.dragging {
 /* Системная подрезка «пустоты» над заголовками */
 h1.page-title, .content h1, .container h1 {
   margin-top: 0 !important;
-}
-
-/* Плавное появление и скрытие модальных окон */
-.modal-backdrop {
-  transition: opacity 0.25s ease;
-}
-
-.modal.fade.modal-closing .modal-dialog {
-  --modal-scale: 0.9;
-  opacity: 0;
 }
 
 /* Автогенерируемые кнопки копирования */

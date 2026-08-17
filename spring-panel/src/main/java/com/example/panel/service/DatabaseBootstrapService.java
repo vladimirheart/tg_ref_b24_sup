@@ -34,6 +34,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     private final DataSource clientsDataSource;
     private final DataSource knowledgeDataSource;
     private final DataSource objectsDataSource;
+    private final DataSource botDataSource;
     private final SqliteSchemaBootstrapSupport schemaBootstrapSupport;
     private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
@@ -47,6 +48,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                                     @Qualifier("clientsDataSource") DataSource clientsDataSource,
                                     @Qualifier("knowledgeDataSource") DataSource knowledgeDataSource,
                                     @Qualifier("objectsDataSource") DataSource objectsDataSource,
+                                    @Qualifier("botDataSource") DataSource botDataSource,
                                     SqliteSchemaBootstrapSupport schemaBootstrapSupport,
                                     PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.clientsProperties = clientsProperties;
@@ -59,6 +61,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         this.clientsDataSource = clientsDataSource;
         this.knowledgeDataSource = knowledgeDataSource;
         this.objectsDataSource = objectsDataSource;
+        this.botDataSource = botDataSource;
         this.schemaBootstrapSupport = schemaBootstrapSupport;
         this.databaseRuntimeMode = databaseRuntimeMode;
     }
@@ -72,6 +75,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         initializeClientsDatabase();
         initializeKnowledgeDatabase();
         initializeObjectsDatabase();
+        initializeSharedBotRuntimeDatabase();
         botDatabaseRegistry.ensureSettingsSchema();
         registerDatabaseLinks();
         initializeBotDatabases();
@@ -176,6 +180,32 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                 ")"
         ), "objects.db");
         log.info("Objects database ensured at {}", objectsProperties.getNormalizedPath());
+    }
+
+    private void initializeSharedBotRuntimeDatabase() {
+        schemaBootstrapSupport.initializeSchema(botDataSource, List.of(
+            "CREATE TABLE IF NOT EXISTS feedbacks (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "user_id INTEGER, " +
+                "rating INTEGER, " +
+                "timestamp TEXT, " +
+                "ticket_id TEXT, " +
+                "channel_id INTEGER" +
+                ")",
+            "CREATE TABLE IF NOT EXISTS client_unblock_requests (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "user_id TEXT NOT NULL, " +
+                "channel_id INTEGER, " +
+                "reason TEXT, " +
+                "created_at TEXT NOT NULL, " +
+                "status TEXT NOT NULL DEFAULT 'pending', " +
+                "decided_at TEXT, " +
+                "decided_by TEXT, " +
+                "decision_comment TEXT" +
+                ")",
+            "CREATE INDEX IF NOT EXISTS idx_client_unblock_requests_user " +
+                "ON client_unblock_requests(user_id)"
+        ), "bot_runtime.db");
     }
 
     private void registerDatabaseLinks() {
