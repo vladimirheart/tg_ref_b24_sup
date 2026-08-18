@@ -282,10 +282,10 @@ public class RmsLicenseMonitorRepository {
         ps.setInt(4, item.getPort() != null ? item.getPort() : 443);
         ps.setString(5, item.getAuthLogin());
         ps.setString(6, credentialsCryptoService.encryptIfNeeded(item.getAuthPassword()));
-        ps.setBoolean(7, Boolean.TRUE.equals(item.getEnabled()));
-        ps.setBoolean(8, Boolean.TRUE.equals(item.getLicenseMonitoringEnabled()));
-        ps.setBoolean(9, Boolean.TRUE.equals(item.getNetworkMonitoringEnabled()));
-        ps.setBoolean(10, Boolean.TRUE.equals(item.getDeleted()));
+        ps.setBoolean(7, defaultBoolean(item.getEnabled(), false));
+        ps.setBoolean(8, defaultBoolean(item.getLicenseMonitoringEnabled(), true));
+        ps.setBoolean(9, defaultBoolean(item.getNetworkMonitoringEnabled(), true));
+        ps.setBoolean(10, defaultBoolean(item.getDeleted(), false));
         ps.setString(11, item.getServerName());
         ps.setString(12, item.getServerType());
         ps.setString(13, item.getServerVersion());
@@ -311,6 +311,10 @@ public class RmsLicenseMonitorRepository {
         bindOffsetDateTime(ps, 29, item.getCreatedAt());
         bindOffsetDateTime(ps, 30, item.getUpdatedAt());
         bindOffsetDateTime(ps, 31, item.getDeletedAt());
+    }
+
+    private boolean defaultBoolean(Boolean value, boolean defaultValue) {
+        return value != null ? value : defaultValue;
     }
 
     private void bindOffsetDateTime(PreparedStatement ps, int index, OffsetDateTime value) throws SQLException {
