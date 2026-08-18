@@ -566,7 +566,7 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
   width: 1.75rem;
   height: 1.75rem;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--surface-card) 92%, transparent);
   color: var(--color-text-muted);
   display: inline-flex;
@@ -667,7 +667,7 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
   display: inline-flex;
   align-items: center;
   padding: 2px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.4;
@@ -828,7 +828,7 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
 .metric-icon {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1416,7 +1416,7 @@ body[data-ui-page=dialogs] .dialog-table th[data-column-key=actions] {
   width: 2rem;
   height: 2rem;
   flex: 0 0 2rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1944,7 +1944,7 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   display: inline-flex;
   align-items: center;
   padding: 0.1rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-weight: 600;
   color: var(--color-text);
 }
@@ -2097,7 +2097,7 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   gap: 0.25rem;
   height: 14px;
   background: color-mix(in srgb, var(--primary) 8%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
@@ -2136,14 +2136,14 @@ body[data-ui-page=dialogs] .dialog-open-btn {
 .rating-chart-bar {
   height: 8px;
   background: color-mix(in srgb, var(--primary) 12%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
 .rating-chart-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--primary), var(--chart-2));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   transition: width 0.3s ease;
 }
 
@@ -6323,7 +6323,7 @@ body[data-ui-page=dashboard] .reports-tab-nav .nav-item {
 }
 body[data-ui-page=dashboard] .reports-tab-nav .nav-link {
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0.72rem 1rem;
   color: var(--color-text-muted);
   font-weight: 700;
@@ -6490,7 +6490,7 @@ body[data-ui-page=dashboard] .section-chip {
   align-items: center;
   min-height: 28px;
   padding: 0 0.68rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -6546,7 +6546,7 @@ body[data-ui-page=dashboard] .restaurant-filter-count {
   align-items: center;
   min-height: 1.7rem;
   padding: 0 0.62rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--color-border));
   background: var(--surface-raised);
   color: var(--primary);
@@ -6677,7 +6677,7 @@ body[data-ui-page=dashboard] .metrics-headline__chip {
   align-items: center;
   min-height: 28px;
   padding: 0 0.72rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-on-ink) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-on-ink) 8%, transparent);
   color: color-mix(in srgb, var(--color-on-ink) 90%, transparent);
@@ -6911,7 +6911,7 @@ body[data-ui-page=dashboard] .dashboard-hidden-panel-chip {
   min-height: 34px;
   padding: 0.32rem 0.72rem;
   border: 1px solid color-mix(in srgb, var(--color-border) 18%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-raised);
   color: var(--color-text);
   font-size: 0.78rem;
@@ -6942,7 +6942,7 @@ body[data-ui-page=dashboard] .dashboard-layout-reset {
   min-height: 36px;
   padding: 0.38rem 0.82rem;
   border: 1px solid color-mix(in srgb, var(--color-border) 16%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-raised);
   color: var(--color-text-muted);
   font-size: 0.76rem;
@@ -7079,7 +7079,7 @@ body[data-ui-page=dashboard] .activity-heatmap-cell--business::after {
   right: 5px;
   bottom: 3px;
   height: 2px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--chart-5) 88%, var(--surface-card));
   opacity: 0.85;
 }
@@ -7111,7 +7111,7 @@ body[data-ui-page=dashboard] .activity-heatmap-legend__hours {
 body[data-ui-page=dashboard] .activity-heatmap-legend__line {
   width: 54px;
   height: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--chart-5) 88%, var(--surface-card));
 }
 body[data-ui-page=dashboard] .pie-chart-container {
@@ -7157,7 +7157,7 @@ body[data-ui-page=dashboard] .pie-chart-legend-item.hidden {
 body[data-ui-page=dashboard] .pie-chart-legend-color {
   width: 16px;
   height: 16px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   flex-shrink: 0;
 }
 body[data-ui-page=dashboard] .pie-chart-legend-label {
@@ -7269,7 +7269,7 @@ body[data-ui-page=dashboard] .staff-time-total {
   align-items: center;
   min-height: 34px;
   padding: 0 0.8rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--primary) 10%, var(--surface-card));
   color: var(--primary);
   font-weight: 800;

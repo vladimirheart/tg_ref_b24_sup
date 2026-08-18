@@ -31,7 +31,7 @@ body[data-ui-page='dashboard'] {
 
     .reports-tab-nav .nav-link {
       border: 1px solid transparent;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       padding: 0.72rem 1rem;
       color: var(--color-text-muted);
       font-weight: 700;
@@ -292,7 +292,7 @@ body[data-ui-page='dashboard'] {
       align-items: center;
       min-height: 28px;
       padding: 0 0.68rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       font-size: 0.68rem;
       font-weight: 800;
       text-transform: uppercase;
@@ -387,7 +387,7 @@ body[data-ui-page='dashboard'] {
       align-items: center;
       min-height: 1.7rem;
       padding: 0 0.62rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--color-border));
       background: var(--surface-raised);
 	  color: var(--primary);
@@ -563,7 +563,7 @@ body[data-ui-page='dashboard'] {
       align-items: center;
       min-height: 28px;
       padding: 0 0.72rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background:
 		  color-mix(
 			in srgb,
@@ -1005,7 +1005,7 @@ body[data-ui-page='dashboard'] {
       min-height: 34px;
       padding: 0.32rem 0.72rem;
       border: 1px solid color-mix(in srgb, var(--color-border) 18%, transparent);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--surface-raised);
       color: var(--color-text);
       font-size: 0.78rem;
@@ -1039,7 +1039,7 @@ body[data-ui-page='dashboard'] {
       min-height: 36px;
       padding: 0.38rem 0.82rem;
       border: 1px solid color-mix(in srgb, var(--color-border) 16%, transparent);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--surface-raised);
       color: var(--color-text-muted);
       font-size: 0.76rem;
@@ -1240,7 +1240,7 @@ body[data-ui-page='dashboard'] {
       right: 5px;
       bottom: 3px;
       height: 2px;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: color-mix(in srgb, var(--chart-5) 88%, var(--surface-card));
       opacity: 0.85;
     }
@@ -1292,7 +1292,7 @@ body[data-ui-page='dashboard'] {
     .activity-heatmap-legend__line {
       width: 54px;
       height: 3px;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: color-mix(in srgb, var(--chart-5) 88%, var(--surface-card));
     }
 
@@ -1345,7 +1345,7 @@ body[data-ui-page='dashboard'] {
     .pie-chart-legend-color {
       width: 16px;
       height: 16px;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       flex-shrink: 0;
     }
 
@@ -1493,7 +1493,7 @@ body[data-ui-page='dashboard'] {
       align-items: center;
       min-height: 34px;
       padding: 0 0.8rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background:
 	  color-mix(
 		in srgb,
