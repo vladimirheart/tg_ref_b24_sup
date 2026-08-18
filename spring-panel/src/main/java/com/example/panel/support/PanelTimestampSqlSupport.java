@@ -161,6 +161,10 @@ public class PanelTimestampSqlSupport {
         } catch (DateTimeParseException ignored) {
         }
         try {
+            return OffsetDateTime.parse(raw.replace(' ', 'T')).toInstant();
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
             String compact = raw.replace(' ', 'T');
             if (compact.length() == 19) {
                 return LocalDateTime.parse(compact).toInstant(ZoneOffset.UTC);
