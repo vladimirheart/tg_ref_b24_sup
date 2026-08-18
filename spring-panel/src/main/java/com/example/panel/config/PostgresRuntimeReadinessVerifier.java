@@ -65,13 +65,15 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         }
 
         log.info(
-            "[READY] Iguana panel is ready on http://127.0.0.1:{}/ | PostgreSQL probes passed | data: channels={}, tickets={}, messages={}, chat_history={}, tasks={}",
+            "[READY] Iguana panel is ready on http://127.0.0.1:{}/ | PostgreSQL probes passed | data: channels={}, tickets={}, messages={}, chat_history={}, tasks={}, clients={}, avatars={}",
             resolvePort(),
             counts.channels(),
             counts.tickets(),
             counts.messages(),
             counts.chatHistory(),
-            counts.tasks()
+            counts.tasks(),
+            counts.clients(),
+            counts.avatars()
         );
     }
 
@@ -119,6 +121,9 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
 
         jdbcTemplate.queryForList(
             "SELECT user_id FROM client_blacklist WHERE is_blacklisted IN (TRUE, FALSE) AND unblock_requested IN (TRUE, FALSE) LIMIT 1"
+        );
+        jdbcTemplate.queryForList(
+            "SELECT user_id, thumb_path, full_path FROM client_avatar_history WHERE 1 = 0"
         );
     }
 
@@ -180,14 +185,18 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
                 (SELECT COUNT(*) FROM tickets) AS tickets_count,
                 (SELECT COUNT(*) FROM messages) AS messages_count,
                 (SELECT COUNT(*) FROM chat_history) AS chat_history_count,
-                (SELECT COUNT(*) FROM tasks) AS tasks_count
+                (SELECT COUNT(*) FROM tasks) AS tasks_count,
+                (SELECT COUNT(DISTINCT user_id) FROM messages WHERE user_id IS NOT NULL) AS clients_count,
+                (SELECT COUNT(*) FROM client_avatar_history) AS avatars_count
             """,
             (rs, rowNum) -> new RuntimeCounts(
                 rs.getLong("channels_count"),
                 rs.getLong("tickets_count"),
                 rs.getLong("messages_count"),
                 rs.getLong("chat_history_count"),
-                rs.getLong("tasks_count")
+                rs.getLong("tasks_count"),
+                rs.getLong("clients_count"),
+                rs.getLong("avatars_count")
             )
         );
     }
@@ -212,7 +221,9 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         long tickets,
         long messages,
         long chatHistory,
-        long tasks
+        long tasks,
+        long clients,
+        long avatars
     ) {
     }
 }
