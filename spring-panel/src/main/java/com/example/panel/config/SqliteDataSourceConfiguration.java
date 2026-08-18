@@ -28,7 +28,7 @@ import java.util.Optional;
     SqliteDataSourceProperties.class,
     BotProcessProperties.class
 })
-    public class SqliteDataSourceConfiguration {
+public class SqliteDataSourceConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(SqliteDataSourceConfiguration.class);
 
@@ -40,7 +40,6 @@ import java.util.Optional;
             ExternalDatabaseSettings settings = externalDatabaseSettings.get();
             registerRuntimeProperty(environment, "spring.jpa.database-platform", settings.hibernateDialect());
             registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
-            registerRuntimeProperty(environment, "spring.flyway.locations", settings.flywayLocation());
 
             log.info("Using external {} database at {}", settings.vendor().name().toLowerCase(), settings.jdbcUrl());
 
@@ -98,4 +97,3 @@ import java.util.Optional;
         propertySources.addFirst(new MapPropertySource("runtime-properties", map));
     }
 }
-
