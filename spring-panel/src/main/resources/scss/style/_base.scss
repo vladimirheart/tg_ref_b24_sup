@@ -302,9 +302,11 @@ p {
 }
 
 .btn {
+  position: relative;
+  overflow: hidden;
+
   min-height: var(--control-height);
   padding: 0.5rem 0.85rem;
-
   border-radius: var(--control-radius);
   border-color: var(--color-border);
   color: var(--color-text);
@@ -566,6 +568,36 @@ a:not([class]) {
 [data-theme='dark'] .btn-outline-primary:hover,
 [data-theme='dark'] .btn-outline-light:hover {
   background-color: var(--color-bg-muted);
+}
+
+.btn-ripple-wave {
+  position: absolute;
+
+  border-radius: var(--radius-pill);
+
+  pointer-events: none;
+
+  transform: scale(0);
+  opacity: 0.65;
+
+  animation: btn-ripple-wave 650ms ease-out forwards;
+
+  background:
+    var(
+      --button-ripple-color,
+      color-mix(
+        in srgb,
+        var(--color-text) 18%,
+        transparent
+      )
+    );
+}
+
+@keyframes btn-ripple-wave {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
 }
 
 .bg-light,

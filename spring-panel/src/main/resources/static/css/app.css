@@ -2549,7 +2549,7 @@ body {
 }
 
 .client-avatar-img {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   display: block;
 }
 
@@ -2599,92 +2599,11 @@ body {
   max-width: 260px;
 }
 
-/* Unified UI refresh: softer static borders + consistent buttons */
-:root {
-  --ui-border-soft: color-mix(in srgb, var(--color-border) 78%, transparent);
-  --ui-border-soft-strong: color-mix(in srgb, var(--color-border) 88%, transparent);
-}
-
-.card,
-.modal-content,
-.table,
-.list-group-item,
-.dropdown-menu {
-  border-color: var(--ui-border-soft) !important;
-}
-
-.card:hover,
-.modal-content:hover,
-.dropdown-menu:hover {
-  border-color: var(--ui-border-soft) !important;
-}
-
-.btn {
-  position: relative;
-  overflow: hidden;
-  border-radius: 0.75rem;
-  border-color: var(--ui-border-soft) !important;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, color 0.16s ease;
-}
-
-.btn:hover {
-  border-color: var(--ui-border-soft-strong) !important;
-  transform: none;
-  box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--primary) 10%, transparent);
-  background-color: color-mix(in srgb, var(--ui-primary) 8%, var(--ui-surface));
-}
-
-.btn:active {
-  transform: none;
-  box-shadow: 0 0 0 0.12rem color-mix(in srgb, var(--primary) 12%, transparent);
-}
-
-.btn.btn-outline-primary,
-.btn.btn-outline-secondary,
-.btn.btn-outline-success,
-.btn.btn-outline-warning,
-.btn.btn-outline-danger {
-  background-color: color-mix(in srgb, var(--card) 90%, var(--background));
-}
-
-.btn.btn-primary {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 94%, white), color-mix(in srgb, var(--primary) 82%, black));
-  border-color: color-mix(in srgb, var(--primary) 66%, var(--color-border)) !important;
-}
-
-.btn.btn-success {
-  border-color: color-mix(in srgb, var(--chart-5) 55%, var(--color-border)) !important;
-}
-
-.btn.btn-warning {
-  border-color: color-mix(in srgb, var(--chart-3) 58%, var(--color-border)) !important;
-}
-
-.btn.btn-danger {
-  border-color: color-mix(in srgb, var(--destructive) 60%, var(--color-border)) !important;
-}
-
-.btn-ripple-wave {
-  position: absolute;
-  border-radius: 999px;
-  pointer-events: none;
-  transform: scale(0);
-  opacity: 0.65;
-  animation: btn-ripple-wave 650ms ease-out forwards;
-  background: var(--button-ripple-color, rgba(0, 0, 0, 0.18));
-}
-
-@keyframes btn-ripple-wave {
-  to {
-    transform: scale(1);
-    opacity: 0;
-  }
-}
 .btn-ai-soft,
 .badge-ai-soft {
   background: var(--state-ai-bg) !important;
   border: 1px solid var(--state-ai-border) !important;
-  color: var(--state-ai-fg) !important;
+  color: var(--state-ai-text) !important;
 }
 
 .ui-kpi-grid {
@@ -2697,7 +2616,7 @@ body {
   padding: 0.78rem 0.85rem;
   border: 1px solid var(--ui-panel-border);
   border-radius: calc(var(--ui-panel-radius) - 0.1rem);
-  background: color-mix(in srgb, var(--ui-surface) 98%, white);
+  background: var(--surface-raised);
 }
 
 .ui-kpi-label {
@@ -2726,12 +2645,12 @@ body {
   align-items: center;
   min-height: 1.6rem;
   padding: 0 0.58rem;
-  border-radius: 999px;
   border: 1px solid var(--ui-panel-border);
-  background: color-mix(in srgb, var(--ui-surface) 96%, white);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ui-muted);
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--ui-muted);
 }
 
 .ui-log-list {
@@ -2743,12 +2662,12 @@ body {
 .ui-log-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.75rem;
   align-items: start;
+  gap: 0.75rem;
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--ui-panel-border);
   border-radius: calc(var(--ui-panel-radius) - 0.1rem);
-  background: color-mix(in srgb, var(--ui-surface) 97%, white);
+  background: var(--surface-raised);
 }
 
 .ui-log-title {
@@ -2766,7 +2685,6 @@ body {
 }
 
 /* Dialog/theme hover suppression */
-.gradient-border-hover,
 .dialog-summary-value-link,
 .dialog-column-option,
 .workspace-tab-btn,
@@ -2775,46 +2693,30 @@ body {
 }
 
 @media (hover: hover) {
-  .gradient-border-hover:hover,
   .dialog-summary-value-link:hover,
   .dialog-column-option:hover,
   .workspace-tab-btn:hover,
   .dialog-business-pill:hover {
     background: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
     color: inherit !important;
-    border-color: var(--ui-border-soft-strong) !important;
+    border-color: color-mix(in srgb, var(--color-border) 88%, transparent) !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent) !important;
     text-decoration: none !important;
   }
 }
-/* Global hover polish: keep feedback without lift/jump */
+/* App-specific hover polish */
 @media (hover: hover) {
-  .btn:hover,
-  .btn:active,
-  .card:hover,
-  .modal-content:hover,
-  .nav-link:hover,
-  .dropdown-item:hover,
-  .list-group-item:hover,
-  .page-link:hover,
   .settings-tile:hover,
   .client-analytics-row:hover,
   .workspace-tab-btn:hover,
-  .dialog-business-pill:hover,
-  .gradient-border-hover:hover,
-  .gradient-border-stop-hover:hover {
+  .dialog-business-pill:hover {
     transform: none !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent) !important;
     filter: none !important;
     text-decoration: none !important;
     animation: none !important;
-    background-color: color-mix(in srgb, var(--ui-primary) 4%, var(--ui-surface)) !important;
-    border-color: var(--ui-border-soft-strong) !important;
-    color: inherit !important;
-  }
-  .table-hover > tbody > tr:hover > * {
-    --bs-table-accent-bg: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
-    background-color: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
+    background-color: color-mix(in srgb, var(--primary) 4%, var(--surface-card)) !important;
+    border-color: color-mix(in srgb, var(--color-border) 88%, transparent) !important;
     color: inherit !important;
   }
 }
