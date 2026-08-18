@@ -47,6 +47,15 @@ public class LenientOffsetDateTimeConverter implements AttributeConverter<Offset
             }
         }
 
+        // PostgreSQL's JDBC driver commonly renders TIMESTAMPTZ values as
+        // "yyyy-MM-dd HH:mm:ss[.fraction]+HH". ISO_OFFSET_DATE_TIME accepts
+        // that representation once the date/time separator is normalized.
+        try {
+            return OffsetDateTime.parse(trimmed.replace(' ', 'T'));
+        } catch (Exception ignored) {
+            // Try the legacy/local timestamp formats below.
+        }
+
         for (DateTimeFormatter formatter : FALLBACK_FORMATTERS) {
             try {
                 if (formatter == DateTimeFormatter.ISO_OFFSET_DATE_TIME) {
