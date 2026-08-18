@@ -7,12 +7,14 @@ UPDATE tickets AS t
            SELECT MIN(m.created_at)
              FROM messages m
             WHERE m.ticket_id = t.ticket_id
+              AND (t.channel_id IS NULL OR m.channel_id = t.channel_id)
               AND m.created_at IS NOT NULL
        ),
        (
            SELECT MIN(ch.timestamp)
              FROM chat_history ch
             WHERE ch.ticket_id = t.ticket_id
+              AND (t.channel_id IS NULL OR ch.channel_id = t.channel_id)
               AND ch.timestamp IS NOT NULL
        ),
        t.resolved_at,
