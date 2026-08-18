@@ -24,7 +24,9 @@ spring:
       - classpath:db/migration/postgresql
     baseline-on-migrate: true
     baseline-version: 0
-    out-of-order: true
+    # PostgreSQL migrations are maintained as a strictly increasing chain.
+    # SQLite keeps its own compatibility setting in application-sqlite.yml.
+    out-of-order: false
     placeholders:
       autoIncrement: AUTOINCREMENT
 
