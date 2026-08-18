@@ -38,7 +38,10 @@ public class SqliteDataSourceConfiguration {
         Optional<ExternalDatabaseSettings> externalDatabaseSettings = ExternalDatabaseSettingsResolver.resolve(environment);
         if (externalDatabaseSettings.isPresent()) {
             ExternalDatabaseSettings settings = externalDatabaseSettings.get();
-            registerRuntimeProperty(environment, "spring.jpa.database-platform", settings.hibernateDialect());
+
+            // Hibernate 6 can detect PostgreSQL/MySQL directly from JDBC metadata.
+            // Supplying PostgreSQLDialect explicitly only produces a deprecation
+            // warning and is unnecessary for external database mode.
             registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
 
             log.info("Using external {} database at {}", settings.vendor().name().toLowerCase(), settings.jdbcUrl());
@@ -66,6 +69,8 @@ public class SqliteDataSourceConfiguration {
             properties.getJournalMode(),
             properties.getBusyTimeoutMs()
         );
+        // SQLite is not a Hibernate core dialect, so explicit community dialect
+        // selection is still required for compatibility mode.
         registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
         registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
         return dataSource;
