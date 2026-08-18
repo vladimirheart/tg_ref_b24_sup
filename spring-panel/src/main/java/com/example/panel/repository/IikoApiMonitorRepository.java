@@ -12,10 +12,13 @@ import org.springframework.stereotype.Repository;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 @Repository
@@ -31,7 +34,7 @@ public class IikoApiMonitorRepository {
         item.setApiLogin(rs.getString("api_login"));
         item.setRequestType(rs.getString("request_type"));
         item.setRequestConfigJson(rs.getString("request_config_json"));
-        item.setEnabled(rs.getInt("enabled") != 0);
+        item.setEnabled(rs.getBoolean("enabled"));
         item.setLocationsSyncEnabled(readBooleanColumn(rs, "locations_sync_enabled", false));
         item.setLastStatus(rs.getString("last_status"));
         Object lastHttpStatus = rs.getObject("last_http_status");
@@ -116,73 +119,81 @@ public class IikoApiMonitorRepository {
     }
 
     private void update(IikoApiMonitor item) {
-        jdbcTemplate.update(
-            """
-            UPDATE iiko_api_monitors
-               SET monitor_name = ?,
-                   base_url = ?,
-                   api_login = ?,
-                   request_type = ?,
-                   request_config_json = ?,
-                   enabled = ?,
-                   locations_sync_enabled = ?,
-                   last_status = ?,
-                   last_http_status = ?,
-                   last_error_message = ?,
-                   last_duration_ms = ?,
-                   last_checked_at = ?,
-                   last_token_checked_at = ?,
-                   last_response_excerpt = ?,
-                   last_response_summary_json = ?,
-                   consecutive_failures = ?,
-                   created_at = ?,
-                   updated_at = ?
-             WHERE id = ?
-            """,
-            item.getMonitorName(),
-            item.getBaseUrl(),
-            item.getApiLogin(),
-            item.getRequestType(),
-            item.getRequestConfigJson(),
-            toInt(item.getEnabled()),
-            toInt(item.getLocationsSyncEnabled()),
-            item.getLastStatus(),
-            item.getLastHttpStatus(),
-            item.getLastErrorMessage(),
-            item.getLastDurationMs(),
-            formatOffsetDateTime(item.getLastCheckedAt()),
-            formatOffsetDateTime(item.getLastTokenCheckedAt()),
-            item.getLastResponseExcerpt(),
-            item.getLastResponseSummaryJson(),
-            item.getConsecutiveFailures() == null ? 0 : item.getConsecutiveFailures(),
-            formatOffsetDateTime(item.getCreatedAt()),
-            formatOffsetDateTime(item.getUpdatedAt()),
-            item.getId()
-        );
+        jdbcTemplate.execute((ConnectionCallback<Integer>) connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(
+                """
+                UPDATE iiko_api_monitors
+                   SET monitor_name = ?,
+                       base_url = ?,
+                       api_login = ?,
+                       request_type = ?,
+                       request_config_json = ?,
+                       enabled = ?,
+                       locations_sync_enabled = ?,
+                       last_status = ?,
+                       last_http_status = ?,
+                       last_error_message = ?,
+                       last_duration_ms = ?,
+                       last_checked_at = ?,
+                       last_token_checked_at = ?,
+                       last_response_excerpt = ?,
+                       last_response_summary_json = ?,
+                       consecutive_failures = ?,
+                       created_at = ?,
+                       updated_at = ?
+                 WHERE id = ?
+                """
+            )) {
+                bindCommon(ps, item);
+                ps.setLong(19, item.getId());
+                return ps.executeUpdate();
+            }
+        });
     }
 
-    private void bindCommon(PreparedStatement ps, IikoApiMonitor item) throws java.sql.SQLException {
+    private void bindCommon(PreparedStatement ps, IikoApiMonitor item) throws SQLException {
         ps.setString(1, item.getMonitorName());
         ps.setString(2, item.getBaseUrl());
         ps.setString(3, item.getApiLogin());
         ps.setString(4, item.getRequestType());
         ps.setString(5, item.getRequestConfigJson());
-        ps.setInt(6, toInt(item.getEnabled()));
-        ps.setInt(7, toInt(item.getLocationsSyncEnabled()));
+        ps.setBoolean(6, Boolean.TRUE.equals(item.getEnabled()));
+        ps.setBoolean(7, Boolean.TRUE.equals(item.getLocationsSyncEnabled()));
         ps.setString(8, item.getLastStatus());
         ps.setObject(9, item.getLastHttpStatus());
         ps.setString(10, item.getLastErrorMessage());
         ps.setObject(11, item.getLastDurationMs());
-        ps.setString(12, formatOffsetDateTime(item.getLastCheckedAt()));
-        ps.setString(13, formatOffsetDateTime(item.getLastTokenCheckedAt()));
+        bindOffsetDateTime(ps, 12, item.getLastCheckedAt());
+        bindOffsetDateTime(ps, 13, item.getLastTokenCheckedAt());
         ps.setString(14, item.getLastResponseExcerpt());
         ps.setString(15, item.getLastResponseSummaryJson());
         ps.setInt(16, item.getConsecutiveFailures() == null ? 0 : item.getConsecutiveFailures());
-        ps.setString(17, formatOffsetDateTime(item.getCreatedAt()));
-        ps.setString(18, formatOffsetDateTime(item.getUpdatedAt()));
+        bindOffsetDateTime(ps, 17, item.getCreatedAt());
+        bindOffsetDateTime(ps, 18, item.getUpdatedAt());
     }
 
-    private PreparedStatement prepareInsertStatement(Connection connection) throws java.sql.SQLException {
+    private void bindOffsetDateTime(PreparedStatement ps, int index, OffsetDateTime value) throws SQLException {
+        String databaseProductName = ps.getConnection().getMetaData().getDatabaseProductName();
+        boolean postgresql = databaseProductName != null
+            && databaseProductName.toLowerCase(Locale.ROOT).contains("postgresql");
+
+        if (value == null) {
+            if (postgresql) {
+                ps.setNull(index, Types.TIMESTAMP_WITH_TIMEZONE);
+            } else {
+                ps.setNull(index, Types.VARCHAR);
+            }
+            return;
+        }
+
+        if (postgresql) {
+            ps.setObject(index, value);
+        } else {
+            ps.setString(index, value.toString());
+        }
+    }
+
+    private PreparedStatement prepareInsertStatement(Connection connection) throws SQLException {
         return connection.prepareStatement(
             """
             INSERT INTO iiko_api_monitors (
@@ -196,21 +207,13 @@ public class IikoApiMonitorRepository {
         );
     }
 
-    private static int toInt(Boolean value) {
-        return Boolean.TRUE.equals(value) ? 1 : 0;
-    }
-
-    private static String formatOffsetDateTime(OffsetDateTime value) {
-        return value != null ? value.toString() : null;
-    }
-
     private static OffsetDateTime parseOffsetDateTime(String value) {
         return DATE_TIME_CONVERTER.convertToEntityAttribute(value);
     }
 
     private static boolean readBooleanColumn(ResultSet rs, String columnName, boolean defaultValue) {
         try {
-            return rs.getInt(columnName) != 0;
+            return rs.getBoolean(columnName);
         } catch (Exception ignored) {
             return defaultValue;
         }
