@@ -38,7 +38,7 @@ class SettingsParameterServiceTest {
                     param_type VARCHAR(255),
                     value VARCHAR(255),
                     state VARCHAR(255),
-                    is_deleted INTEGER,
+                    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
                     deleted_at TIMESTAMP NULL,
                     extra_json CLOB,
                     UNIQUE(param_type, value)
@@ -113,7 +113,7 @@ class SettingsParameterServiceTest {
                 "SELECT is_deleted, deleted_at FROM settings_parameters WHERE id = ?",
                 id
         );
-        assertEquals(1, ((Number) row.get("is_deleted")).intValue());
+        assertEquals(Boolean.TRUE, row.get("is_deleted"));
         assertTrue(row.get("deleted_at") != null);
     }
 
