@@ -56,6 +56,24 @@ function showNotification(message, type = 'info', containerId = 'notification-co
 
     let overlay = document.getElementById(containerId);
 
+    const activeElement =
+        document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+
+    const inheritedFocusTarget =
+        overlay?._notificationRestoreFocus instanceof HTMLElement
+            ? overlay._notificationRestoreFocus
+            : null;
+
+    const previousActiveElement =
+        inheritedFocusTarget ||
+        (
+            activeElement && !overlay?.contains(activeElement)
+                ? activeElement
+                : null
+        );
+
     if (overlay) {
         overlay.remove();
     }
@@ -63,6 +81,7 @@ function showNotification(message, type = 'info', containerId = 'notification-co
     overlay = document.createElement('div');
     overlay.id = containerId;
     overlay.className = 'ui-notification-overlay';
+    overlay._notificationRestoreFocus = previousActiveElement;
 
     const tone = type === 'error'
         ? {
@@ -84,25 +103,38 @@ function showNotification(message, type = 'info', containerId = 'notification-co
                     modifier: 'info'
                 };
 
+    const titleId = `${containerId}-title`;
+    const bodyId = `${containerId}-body`;
+
     const popup = document.createElement('div');
     popup.className = 'ui-notification-popup';
+
+    popup.setAttribute('role', 'alertdialog');
+    popup.setAttribute('aria-modal', 'true');
+    popup.setAttribute('aria-labelledby', titleId);
+    popup.setAttribute('aria-describedby', bodyId);
 
     const header = document.createElement('div');
     header.className =
         `ui-notification-header ui-notification-header--${tone.modifier}`;
 
     const title = document.createElement('strong');
+    title.id = titleId;
     title.textContent = tone.title;
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'btn-close ui-notification-close';
-    closeBtn.setAttribute('aria-label', '\u0417\u0430\u043A\u0440\u044B\u0442\u044C');
+    closeBtn.setAttribute(
+        'aria-label',
+        '\u0417\u0430\u043A\u0440\u044B\u0442\u044C'
+    );
 
     header.appendChild(title);
     header.appendChild(closeBtn);
 
     const body = document.createElement('div');
+    body.id = bodyId;
     body.className = 'ui-notification-body';
 
     if (message instanceof Node) {
@@ -129,38 +161,89 @@ function showNotification(message, type = 'info', containerId = 'notification-co
     root.appendChild(overlay);
 
     let closed = false;
+    let timerId = null;
+
+    const restoreFocus = () => {
+        const target = overlay._notificationRestoreFocus;
+
+        if (
+            target instanceof HTMLElement &&
+            target.isConnected
+        ) {
+            window.requestAnimationFrame(() => {
+                target.focus({ preventScroll: true });
+            });
+        }
+    };
 
     const closePopup = () => {
-        if (closed) return;
+        if (closed) {
+            return;
+        }
 
         closed = true;
+
+        if (timerId !== null) {
+            window.clearTimeout(timerId);
+            timerId = null;
+        }
+
         overlay.remove();
+        restoreFocus();
     };
+
+    closeBtn.addEventListener('click', closePopup);
+    okBtn.addEventListener('click', closePopup);
+
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+            closePopup();
+        }
+    });
+
+    overlay.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closePopup();
+            return;
+        }
+
+        if (event.key !== 'Tab') {
+            return;
+        }
+
+        const focusableElements = [closeBtn, okBtn];
+        const first = focusableElements[0];
+        const last = focusableElements[focusableElements.length - 1];
+
+        if (
+            event.shiftKey &&
+            document.activeElement === first
+        ) {
+            event.preventDefault();
+            last.focus();
+            return;
+        }
+
+        if (
+            !event.shiftKey &&
+            document.activeElement === last
+        ) {
+            event.preventDefault();
+            first.focus();
+        }
+    });
 
     const autoHideMs =
         type === 'error' || type === 'warning'
             ? 4500
             : 3000;
 
-    const timer = window.setTimeout(closePopup, autoHideMs);
+    timerId = window.setTimeout(closePopup, autoHideMs);
 
-    const closeAndClear = () => {
-        window.clearTimeout(timer);
-        closePopup();
-    };
-
-    closeBtn.addEventListener('click', closeAndClear);
-    okBtn.addEventListener('click', closeAndClear);
-
-    overlay.addEventListener(
-        'click',
-        (event) => {
-            if (event.target === overlay) {
-                closeAndClear();
-            }
-        },
-        { once: true }
-    );
+    window.requestAnimationFrame(() => {
+        okBtn.focus({ preventScroll: true });
+    });
 }
 
 function showPopup(message, type = 'info', containerId = 'notification-container') {

@@ -1602,6 +1602,18 @@ table[data-column-reorderable] th.dragging {
   max-height: 90vh;
 }
 
+@media (max-width: 575.98px) {
+  .resizable-modal .modal-dialog {
+    width: calc(100% - 1rem);
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    max-height: calc(100dvh - 1rem);
+    margin: 0.5rem auto;
+    resize: none;
+    overflow: auto;
+  }
+}
 /* Адаптивные фильтры */
 .filter-grid {
   display: grid;
