@@ -41,7 +41,10 @@ spring:
   session:
     store-type: jdbc
     jdbc:
-      table-name: SPRING_SESSION   # только имя таблицы, без initialize-schema / schema
+      table-name: SPRING_SESSION
+      # Flyway migrations own the session schema for every external database.
+      # Do not let Spring Session create an unmanaged parallel schema at runtime.
+      initialize-schema: never
 
   servlet:
     multipart:
