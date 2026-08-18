@@ -17,8 +17,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        temp:
-          use_jdbc_metadata_defaults: false
+        # Do not disable JDBC metadata here. External PostgreSQL/MySQL mode
+        # relies on Hibernate 6 detecting the dialect from the configured
+        # DataSource; SQLite compatibility mode still sets its dialect explicitly.
 
   flyway:
     # Main runtime is PostgreSQL-first. FlywayConfig switches this location
