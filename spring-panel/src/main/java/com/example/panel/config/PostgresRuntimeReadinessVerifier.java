@@ -47,12 +47,14 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
             return;
         }
 
+        RuntimeCounts counts;
         try {
             verifySessionSchema();
             verifyCoreDialogSchema();
             verifyClientsReadPath();
             verifyKnowledgeSchema();
             verifyBooleanRuntimeSchema();
+            counts = loadRuntimeCounts();
         } catch (RuntimeException ex) {
             throw new IllegalStateException(
                 "PostgreSQL runtime readiness verification failed. Iguana will not be marked READY.",
@@ -61,8 +63,13 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         }
 
         log.info(
-            "[READY] Iguana panel is ready on http://127.0.0.1:{}/ (PostgreSQL UI/runtime probes passed)",
-            resolvePort()
+            "[READY] Iguana panel is ready on http://127.0.0.1:{}/ | PostgreSQL probes passed | data: channels={}, tickets={}, messages={}, chat_history={}, tasks={}",
+            resolvePort(),
+            counts.channels(),
+            counts.tickets(),
+            counts.messages(),
+            counts.chatHistory(),
+            counts.tasks()
         );
     }
 
@@ -87,9 +94,6 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
     }
 
     private void verifyClientsReadPath() {
-        // Compile the grouping shape used by ClientsService. PostgreSQL is
-        // intentionally stricter than SQLite here, so this catches accidental
-        // SELECT columns that are neither grouped nor aggregated.
         jdbcTemplate.queryForList("""
             SELECT
                 m.user_id,
@@ -146,10 +150,38 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         );
     }
 
+    private RuntimeCounts loadRuntimeCounts() {
+        return jdbcTemplate.queryForObject("""
+            SELECT
+                (SELECT COUNT(*) FROM channels) AS channels_count,
+                (SELECT COUNT(*) FROM tickets) AS tickets_count,
+                (SELECT COUNT(*) FROM messages) AS messages_count,
+                (SELECT COUNT(*) FROM chat_history) AS chat_history_count,
+                (SELECT COUNT(*) FROM tasks) AS tasks_count
+            """,
+            (rs, rowNum) -> new RuntimeCounts(
+                rs.getLong("channels_count"),
+                rs.getLong("tickets_count"),
+                rs.getLong("messages_count"),
+                rs.getLong("chat_history_count"),
+                rs.getLong("tasks_count")
+            )
+        );
+    }
+
     private String resolvePort() {
         return environment.getProperty(
             "local.server.port",
             environment.getProperty("server.port", "8080")
         );
+    }
+
+    private record RuntimeCounts(
+        long channels,
+        long tickets,
+        long messages,
+        long chatHistory,
+        long tasks
+    ) {
     }
 }
