@@ -16,7 +16,18 @@
 
 ## Runtime Inputs
 
-Обязательные cross-platform env keys:
+Обязательные cross-platform env keys в PostgreSQL-first runtime:
+
+- `APP_DB_MODE`
+- `SPRING_DATASOURCE_URL`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_BOT_USERNAME`
+- `GROUP_CHAT_ID`
+- `APP_BOT_LOG_PATH`
+- `SPRING_PROFILES_ACTIVE`
+- `JAVA_TOOL_OPTIONS`
+
+SQLite compatibility env keys остаются обязательными только при явном `APP_DB_MODE=sqlite`:
 
 - `APP_DB_PANEL_RUNTIME`
 - `TELEGRAM_BOT_TOKEN`
@@ -77,6 +88,7 @@ Platform-specific:
 
 - в `APP_DB_MODE=sqlite` warnings/blockers обязаны сигнализировать, что это только local/dev bootstrap perimeter;
 - production-ready статус для bot runtime допустим только при external PostgreSQL contract (`APP_DB_MODE=postgresql` + `SPRING_DATASOURCE_URL`) и при готовом jar launcher path.
+- normal runtime default для `spring-panel` и `java-bot` теперь `postgresql`, поэтому SQLite contract больше не должен восприниматься как implicit path.
 
 ## Production Recipe
 

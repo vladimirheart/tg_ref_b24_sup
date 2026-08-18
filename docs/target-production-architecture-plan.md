@@ -103,7 +103,7 @@
 
 ## 9. Что уже сделано первым implementation-срезом в `01-181`
 
-- Добавлен явный `APP_DB_MODE` / `app.datasource.mode` для `spring-panel` и `support-bot.database.mode` для `java-bot` с режимами `auto`, `sqlite`, `postgresql` (для панели также `mysql` как legacy-compatible external mode).
+- Добавлен явный `APP_DB_MODE` / `app.datasource.mode` для `spring-panel` и `support-bot.database.mode` для `java-bot`; normal runtime default переведён в `postgresql`, `sqlite` оставлен только явным compatibility-режимом, `auto` сохраняется лишь как transitional/manual option (для панели также `mysql` как legacy-compatible external mode).
 - `spring-panel` теперь при external DB выбирает корректный `spring.flyway.locations` под vendor вместо молчаливого использования SQLite migrations.
 - `java-bot` в external PostgreSQL-режиме теперь не использует `spring.sql.init` вовсе, чтобы transport worker не выступал владельцем business schema.
 

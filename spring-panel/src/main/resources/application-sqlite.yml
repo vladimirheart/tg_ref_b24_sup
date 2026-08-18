@@ -1,3 +1,7 @@
+app:
+  datasource:
+    mode: ${APP_DB_MODE:sqlite}
+
 spring:
   datasource:
     driver-class-name: org.sqlite.JDBC

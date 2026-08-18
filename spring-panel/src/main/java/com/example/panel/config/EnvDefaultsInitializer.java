@@ -21,8 +21,7 @@ import org.springframework.core.env.MutablePropertySources;
 import org.springframework.util.StringUtils;
 
 /**
- * Ensures the Spring panel automatically points to the local SQLite files without requiring
- * manual {@code export APP_DB_*} calls.
+ * Seeds local SQLite compatibility paths only when the panel explicitly runs in sqlite mode.
  */
 public class EnvDefaultsInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
@@ -40,10 +39,19 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
     private static final String APP_DB_KNOWLEDGE = "APP_DB_KNOWLEDGE";
     private static final String APP_DB_OBJECTS = "APP_DB_OBJECTS";
     private static final String APP_DB_SETTINGS = "APP_DB_SETTINGS";
+    private static final String DATASOURCE_MODE = "app.datasource.mode";
 
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
         ConfigurableEnvironment environment = applicationContext.getEnvironment();
+        if (!isExplicitSqliteCompatibilityMode(environment)) {
+            log.info(
+                "Skipping automatic SQLite path defaults because {} is '{}'.",
+                DATASOURCE_MODE,
+                environment.getProperty(DATASOURCE_MODE, "postgresql")
+            );
+            return;
+        }
         Path currentDirectory = Paths.get("").toAbsolutePath().normalize();
         Path workspaceRoot = locateWorkspaceRoot(currentDirectory);
         Path panelHome = locatePanelHome(currentDirectory, workspaceRoot);
@@ -158,6 +166,10 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
             sources.addFirst(new MapPropertySource("autoDbDefaults", defaults));
             log.info("Applied default SQLite paths for missing APP_DB_* variables: {}", defaults);
         }
+    }
+
+    private boolean isExplicitSqliteCompatibilityMode(ConfigurableEnvironment environment) {
+        return DatabaseMode.from(environment.getProperty(DATASOURCE_MODE)) == DatabaseMode.SQLITE;
     }
 
     Path locateWorkspaceRoot(Path start) {

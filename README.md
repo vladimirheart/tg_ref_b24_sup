@@ -72,6 +72,7 @@ cd spring-panel
 - подготавливает `attachments/`, `logs/` и `bot_databases/`;
 - поднимает локальные `PostgreSQL` и `RabbitMQ`, переводит старт в `APP_DB_MODE=postgresql` и включает `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
 - если Docker недоступен, bootstrap теперь завершается ошибкой вместо молчаливого перехода в SQLite;
+- дефолтные runtime-конфиги `spring-panel` и `java-bot` теперь тоже ориентированы на `APP_DB_MODE=postgresql`;
 - `APP_DB_MODE=sqlite` оставлен только как явный compatibility override для локального legacy/dev-сценария.
 
 Для ручного повторного bootstrap используйте `scripts/bootstrap-first-run.ps1` или `scripts/bootstrap-first-run.sh`.

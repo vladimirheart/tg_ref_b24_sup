@@ -38,7 +38,7 @@ SPRING_DATASOURCE_PASSWORD=iguana
 
 - `TELEGRAM_BOT_TOKEN` — токен Telegram-бота.
 - `GROUP_CHAT_ID` — ID рабочей группы/чата для уведомлений (можно оставить пустым и сохранить в панели).
-- `APP_DB_MODE` — явный режим БД: `auto`, `sqlite`, `postgresql`; для `spring-panel` режим `mysql` остаётся только как legacy-compatible external option.
+- `APP_DB_MODE` — явный режим БД: normal runtime default теперь `postgresql`; `sqlite` оставлен только как явный compatibility override, `auto` допустим только как ручной transitional режим; для `spring-panel` режим `mysql` остаётся legacy-compatible external option.
 - `APP_DB_PANEL_RUNTIME`, `APP_DB_PANEL_IDENTITY`, `APP_DB_BOT_RUNTIME` — канонические пути к основным SQLite-контурам.
 - `APP_DB_TICKETS`, `APP_DB_USERS`, `APP_DB_BOT` — legacy aliases, которые пока остаются поддержаны.
 - `APP_DB_*` для secondary-баз задают пути к клиентам, knowledge, объектам и registry-контуру.
@@ -65,6 +65,7 @@ SPRING_DATASOURCE_PASSWORD=secret
 - `java-bot` больше не использует Spring Boot `sql.init` как runtime-механику владения схемой: в external PostgreSQL-режиме бот просто подключается к готовой схеме, а не пытается инициализировать её сам.
 - `java-bot` в SQLite-режиме теперь поднимает local schema явным `SqliteSchemaInitializer`, который исполняет `schema-sqlite.sql` только для local/dev-контура.
 - runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели, а SQLite-пути используются только в явном `sqlite`-режиме без дополнительных `SPRING_SQL_INIT_*` флагов.
+- `spring-panel` больше не подставляет `APP_DB_*` SQLite-пути автоматически, если `app.datasource.mode` не выставлен в явный `sqlite`.
 - normal first-run path больше не должен неявно переводить проект обратно в SQLite только потому, что Docker недоступен.
 
 > 💡 ID группы поддержки для Telegram можно сохранить в панели администратора в разделе «Каналы (боты)». Если оставить пустым, бот запишет ID автоматически после добавления в чат.

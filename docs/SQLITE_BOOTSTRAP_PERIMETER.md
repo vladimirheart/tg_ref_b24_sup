@@ -20,6 +20,8 @@
   Ведёт `settings.db` и `bot-<channelId>.db` только как local/dev registry и per-channel bootstrap слой.
 - `SqliteSchemaBootstrapSupport`
   Общий helper для local SQLite schema bootstrap.
+- `EnvDefaultsInitializer`
+  Подставляет локальные `APP_DB_*` пути только при явном `app.datasource.mode=sqlite`.
 
 ### `java-bot`
 

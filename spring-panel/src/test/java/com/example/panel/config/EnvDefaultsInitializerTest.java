@@ -1,6 +1,7 @@
 package com.example.panel.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -18,7 +19,8 @@ class EnvDefaultsInitializerTest {
     @Test
     void initializeAppliesDefaultsForMissingDbPaths() throws Exception {
         GenericApplicationContext context = new GenericApplicationContext();
-        MockEnvironment environment = new MockEnvironment();
+        MockEnvironment environment = new MockEnvironment()
+            .withProperty("app.datasource.mode", "sqlite");
         context.setEnvironment(environment);
 
         new EnvDefaultsInitializer().initialize(context);
@@ -36,6 +38,7 @@ class EnvDefaultsInitializerTest {
 
         GenericApplicationContext context = new GenericApplicationContext();
         MockEnvironment environment = new MockEnvironment()
+                .withProperty("app.datasource.mode", "sqlite")
                 .withProperty("APP_DB_PANEL_IDENTITY", customUsersDb.toString());
         context.setEnvironment(environment);
 
@@ -45,6 +48,20 @@ class EnvDefaultsInitializerTest {
         assertEquals(customUsersDb.toString(), environment.getProperty("APP_DB_USERS"));
         assertTrue(environment.getProperty("APP_DB_PANEL_RUNTIME").endsWith("panel_runtime.db"));
         assertTrue(environment.getProperty("APP_DB_TICKETS").endsWith("panel_runtime.db"));
+    }
+
+    @Test
+    void initializeSkipsSqliteDefaultsOutsideExplicitSqliteMode() {
+        GenericApplicationContext context = new GenericApplicationContext();
+        MockEnvironment environment = new MockEnvironment()
+            .withProperty("app.datasource.mode", "postgresql");
+        context.setEnvironment(environment);
+
+        new EnvDefaultsInitializer().initialize(context);
+
+        assertEquals("postgresql", environment.getProperty("app.datasource.mode"));
+        assertNull(environment.getProperty("APP_DB_PANEL_RUNTIME"));
+        assertNull(environment.getProperty("APP_DB_USERS"));
     }
 
     @Test

@@ -16,7 +16,7 @@
 | `MAX_BOT_ENABLED` | включить MAX-бота (`true/false`) | Java-бот |
 | `MAX_BOT_TOKEN` | токен MAX | Java-бот |
 | `MAX_SUPPORT_CHAT_ID` | чат операторов MAX | Java-бот |
-| `APP_DB_MODE` | режим БД: `auto`, `sqlite`, `postgresql` (для панели ещё `mysql`) | Панель и бот |
+| `APP_DB_MODE` | режим БД: normal runtime default `postgresql`; `sqlite` только явный compatibility override; для панели ещё `mysql`, `auto` допустим только как ручной transitional режим | Панель и бот |
 | `DATABASE_URL` | compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL | Панель и бот |
 | `SPRING_DATASOURCE_URL` | явный JDBC URL для external DB | Панель и бот |
 | `SPRING_DATASOURCE_USERNAME` | пользователь external DB | Панель и бот |
@@ -80,6 +80,11 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 
 - в `APP_DB_MODE=sqlite` runtime сам поднимает local schema через `SqliteSchemaInitializer`;
 - в `APP_DB_MODE=postgresql` runtime получает готовый PostgreSQL datasource-контракт и не несёт `SPRING_SQL_INIT_MODE`/`schema-sqlite.sql` в production-path.
+
+Для `spring-panel` действует ещё одно правило:
+
+- локальные `APP_DB_*` SQLite-пути автоматически подставляются только в явном `APP_DB_MODE=sqlite`;
+- normal runtime path с `APP_DB_MODE=postgresql` больше не получает скрытый SQLite compatibility bootstrap через `EnvDefaultsInitializer`.
 
 Для first-run bootstrap после стартового production-slice `01-183` действует ещё одно правило:
 

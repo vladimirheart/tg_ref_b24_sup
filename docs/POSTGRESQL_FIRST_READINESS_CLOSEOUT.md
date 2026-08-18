@@ -7,10 +7,12 @@
 ## 1. Что уже считается закрытым
 
 - `spring-panel` и `java-bot` получили явный runtime contract по режиму БД через `APP_DB_MODE` / `app.datasource.mode` и соответствующие external datasource properties;
+- default runtime-конфиги `spring-panel` и `java-bot` теперь тоже ведут в `postgresql`, а не в implicit SQLite path;
 - `spring-panel` использует vendor-aware Flyway ownership для external БД, а не SQLite migrations по умолчанию;
 - active read/runtime SQL path, который мешал fresh external PostgreSQL запуску, очищен от критичных SQLite-only timestamp/date assumptions;
 - runtime DDL drift в external PostgreSQL path закрыт: bot/runtime больше не должен мутировать business schema на старте;
 - SQLite bootstrap и trigger/schema init ограничены local/dev perimeter и не должны активироваться в external PostgreSQL path;
+- `spring-panel` больше не подставляет SQLite `APP_DB_*` defaults вне явного `sqlite` режима;
 - first-run bootstrap умеет поднимать локальный PostgreSQL-контур автоматически, а при отсутствии Docker оставляет воспроизводимый `sqlite` fallback только для dev/onboarding;
 - `/api/bots/{channelId}/runtime-contract` теперь явно различает `local/dev bootstrap perimeter` и production-ready external PostgreSQL path;
 - targeted verification-path снова рабочий: ключевые тесты по runtime contract, bootstrap guards и external PostgreSQL protection проходят.
