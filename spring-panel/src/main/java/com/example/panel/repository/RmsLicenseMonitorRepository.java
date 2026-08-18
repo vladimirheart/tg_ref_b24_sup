@@ -13,10 +13,12 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -43,9 +45,9 @@ public class RmsLicenseMonitorRepository {
             item.setPort(rs.getInt("port"));
             item.setAuthLogin(rs.getString("auth_login"));
             item.setAuthPassword(this.credentialsCryptoService.decryptIfNeeded(rs.getString("auth_password")));
-            item.setEnabled(rs.getInt("enabled") != 0);
-            item.setLicenseMonitoringEnabled(rs.getInt("license_monitoring_enabled") != 0);
-            item.setNetworkMonitoringEnabled(rs.getInt("network_monitoring_enabled") != 0);
+            item.setEnabled(rs.getBoolean("enabled"));
+            item.setLicenseMonitoringEnabled(rs.getBoolean("license_monitoring_enabled"));
+            item.setNetworkMonitoringEnabled(rs.getBoolean("network_monitoring_enabled"));
             item.setDeleted(readBooleanColumn(rs, "is_deleted"));
             item.setServerName(rs.getString("server_name"));
             item.setServerType(rs.getString("server_type"));
@@ -76,7 +78,7 @@ public class RmsLicenseMonitorRepository {
     }
 
     public List<RmsLicenseMonitor> findAll() {
-        return jdbcTemplate.query("SELECT * FROM rms_license_monitors WHERE is_deleted = 0 ORDER BY id ASC", rowMapper);
+        return jdbcTemplate.query("SELECT * FROM rms_license_monitors WHERE NOT is_deleted ORDER BY id ASC", rowMapper);
     }
 
     public List<RmsLicenseMonitor> findAllIncludingDeleted() {
@@ -91,13 +93,13 @@ public class RmsLicenseMonitorRepository {
     }
 
     public List<RmsLicenseMonitor> findAllByOrderByRmsAddressAscIdAsc() {
-        return jdbcTemplate.query("SELECT * FROM rms_license_monitors WHERE is_deleted = 0 ORDER BY rms_address ASC, id ASC", rowMapper);
+        return jdbcTemplate.query("SELECT * FROM rms_license_monitors WHERE NOT is_deleted ORDER BY rms_address ASC, id ASC", rowMapper);
     }
 
     public Optional<RmsLicenseMonitor> findByRmsAddress(String rmsAddress) {
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject(
-                "SELECT * FROM rms_license_monitors WHERE rms_address = ? AND is_deleted = 0 LIMIT 1",
+                "SELECT * FROM rms_license_monitors WHERE rms_address = ? AND NOT is_deleted LIMIT 1",
                 rowMapper,
                 rmsAddress
             ));
@@ -121,7 +123,7 @@ public class RmsLicenseMonitorRepository {
     public Optional<RmsLicenseMonitor> findById(Long id) {
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject(
-                "SELECT * FROM rms_license_monitors WHERE id = ? AND is_deleted = 0 LIMIT 1",
+                "SELECT * FROM rms_license_monitors WHERE id = ? AND NOT is_deleted LIMIT 1",
                 rowMapper,
                 id
             ));
@@ -132,7 +134,7 @@ public class RmsLicenseMonitorRepository {
 
     public boolean existsById(Long id) {
         Integer count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM rms_license_monitors WHERE id = ? AND is_deleted = 0",
+            "SELECT COUNT(*) FROM rms_license_monitors WHERE id = ? AND NOT is_deleted",
             Integer.class,
             id
         );
@@ -141,12 +143,16 @@ public class RmsLicenseMonitorRepository {
 
     public void softDeleteById(Long id) {
         OffsetDateTime now = OffsetDateTime.now(java.time.ZoneOffset.UTC);
-        runWithBusyRetry(() -> jdbcTemplate.update(
-            "UPDATE rms_license_monitors SET is_deleted = 1, deleted_at = ?, updated_at = ? WHERE id = ?",
-            formatOffsetDateTime(now),
-            formatOffsetDateTime(now),
-            id
-        ));
+        runWithBusyRetry(() -> jdbcTemplate.execute((ConnectionCallback<Integer>) connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(
+                "UPDATE rms_license_monitors SET is_deleted = TRUE, deleted_at = ?, updated_at = ? WHERE id = ?"
+            )) {
+                bindOffsetDateTime(ps, 1, now);
+                bindOffsetDateTime(ps, 2, now);
+                ps.setLong(3, id);
+                return ps.executeUpdate();
+            }
+        }));
     }
 
     public RmsLicenseMonitor save(RmsLicenseMonitor item) {
@@ -180,75 +186,49 @@ public class RmsLicenseMonitorRepository {
     }
 
     private void update(RmsLicenseMonitor item) {
-        runWithBusyRetry(() -> jdbcTemplate.update(
-            """
-            UPDATE rms_license_monitors
-               SET rms_address = ?,
-                   scheme = ?,
-                   host = ?,
-                   port = ?,
-                   auth_login = ?,
-                   auth_password = ?,
-                   enabled = ?,
-                   license_monitoring_enabled = ?,
-                   network_monitoring_enabled = ?,
-                   is_deleted = ?,
-                   server_name = ?,
-                   server_type = ?,
-                   server_version = ?,
-                   license_status = ?,
-                   license_error_message = ?,
-                   license_details_json = ?,
-                   license_expires_at = ?,
-                   license_days_left = ?,
-                   license_last_checked_at = ?,
-                   license_last_notified_at = ?,
-                   rms_status = ?,
-                   rms_status_message = ?,
-                   ping_output = ?,
-                   traceroute_summary = ?,
-                   traceroute_report = ?,
-                   traceroute_checked_at = ?,
-                   license_debug_excerpt = ?,
-                   rms_last_checked_at = ?,
-                   created_at = ?,
-                   updated_at = ?,
-                   deleted_at = ?
-             WHERE id = ?
-            """,
-            item.getRmsAddress(),
-            item.getScheme(),
-            item.getHost(),
-            item.getPort(),
-            item.getAuthLogin(),
-            credentialsCryptoService.encryptIfNeeded(item.getAuthPassword()),
-            toInt(item.getEnabled()),
-            toInt(item.getLicenseMonitoringEnabled()),
-            toInt(item.getNetworkMonitoringEnabled()),
-            toInt(item.getDeleted()),
-            item.getServerName(),
-            item.getServerType(),
-            item.getServerVersion(),
-            item.getLicenseStatus(),
-            item.getLicenseErrorMessage(),
-            item.getLicenseDetailsJson(),
-            formatOffsetDateTime(item.getLicenseExpiresAt()),
-            item.getLicenseDaysLeft(),
-            formatOffsetDateTime(item.getLicenseLastCheckedAt()),
-            formatOffsetDateTime(item.getLicenseLastNotifiedAt()),
-            item.getRmsStatus(),
-            item.getRmsStatusMessage(),
-            item.getPingOutput(),
-            item.getTracerouteSummary(),
-            item.getTracerouteReport(),
-            formatOffsetDateTime(item.getTracerouteCheckedAt()),
-            item.getLicenseDebugExcerpt(),
-            formatOffsetDateTime(item.getRmsLastCheckedAt()),
-            formatOffsetDateTime(item.getCreatedAt()),
-            formatOffsetDateTime(item.getUpdatedAt()),
-            formatOffsetDateTime(item.getDeletedAt()),
-            item.getId()
-        ));
+        runWithBusyRetry(() -> jdbcTemplate.execute((ConnectionCallback<Integer>) connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(
+                """
+                UPDATE rms_license_monitors
+                   SET rms_address = ?,
+                       scheme = ?,
+                       host = ?,
+                       port = ?,
+                       auth_login = ?,
+                       auth_password = ?,
+                       enabled = ?,
+                       license_monitoring_enabled = ?,
+                       network_monitoring_enabled = ?,
+                       is_deleted = ?,
+                       server_name = ?,
+                       server_type = ?,
+                       server_version = ?,
+                       license_status = ?,
+                       license_error_message = ?,
+                       license_details_json = ?,
+                       license_expires_at = ?,
+                       license_days_left = ?,
+                       license_last_checked_at = ?,
+                       license_last_notified_at = ?,
+                       rms_status = ?,
+                       rms_status_message = ?,
+                       ping_output = ?,
+                       traceroute_summary = ?,
+                       traceroute_report = ?,
+                       traceroute_checked_at = ?,
+                       license_debug_excerpt = ?,
+                       rms_last_checked_at = ?,
+                       created_at = ?,
+                       updated_at = ?,
+                       deleted_at = ?
+                 WHERE id = ?
+                """
+            )) {
+                bindCommon(ps, item);
+                ps.setLong(32, item.getId());
+                return ps.executeUpdate();
+            }
+        }));
     }
 
     private void runWithBusyRetry(Runnable action) {
@@ -295,45 +275,63 @@ public class RmsLicenseMonitorRepository {
         }
     }
 
-    private void bindCommon(PreparedStatement ps, RmsLicenseMonitor item) throws java.sql.SQLException {
+    private void bindCommon(PreparedStatement ps, RmsLicenseMonitor item) throws SQLException {
         ps.setString(1, item.getRmsAddress());
         ps.setString(2, item.getScheme());
         ps.setString(3, item.getHost());
         ps.setInt(4, item.getPort() != null ? item.getPort() : 443);
         ps.setString(5, item.getAuthLogin());
         ps.setString(6, credentialsCryptoService.encryptIfNeeded(item.getAuthPassword()));
-        ps.setInt(7, toInt(item.getEnabled()));
-        ps.setInt(8, toInt(item.getLicenseMonitoringEnabled()));
-        ps.setInt(9, toInt(item.getNetworkMonitoringEnabled()));
-        ps.setInt(10, toInt(item.getDeleted()));
+        ps.setBoolean(7, Boolean.TRUE.equals(item.getEnabled()));
+        ps.setBoolean(8, Boolean.TRUE.equals(item.getLicenseMonitoringEnabled()));
+        ps.setBoolean(9, Boolean.TRUE.equals(item.getNetworkMonitoringEnabled()));
+        ps.setBoolean(10, Boolean.TRUE.equals(item.getDeleted()));
         ps.setString(11, item.getServerName());
         ps.setString(12, item.getServerType());
         ps.setString(13, item.getServerVersion());
         ps.setString(14, item.getLicenseStatus());
         ps.setString(15, item.getLicenseErrorMessage());
         ps.setString(16, item.getLicenseDetailsJson());
-        ps.setString(17, formatOffsetDateTime(item.getLicenseExpiresAt()));
+        bindOffsetDateTime(ps, 17, item.getLicenseExpiresAt());
         if (item.getLicenseDaysLeft() != null) {
             ps.setInt(18, item.getLicenseDaysLeft());
         } else {
             ps.setObject(18, null);
         }
-        ps.setString(19, formatOffsetDateTime(item.getLicenseLastCheckedAt()));
-        ps.setString(20, formatOffsetDateTime(item.getLicenseLastNotifiedAt()));
+        bindOffsetDateTime(ps, 19, item.getLicenseLastCheckedAt());
+        bindOffsetDateTime(ps, 20, item.getLicenseLastNotifiedAt());
         ps.setString(21, item.getRmsStatus());
         ps.setString(22, item.getRmsStatusMessage());
         ps.setString(23, item.getPingOutput());
         ps.setString(24, item.getTracerouteSummary());
         ps.setString(25, item.getTracerouteReport());
-        ps.setString(26, formatOffsetDateTime(item.getTracerouteCheckedAt()));
+        bindOffsetDateTime(ps, 26, item.getTracerouteCheckedAt());
         ps.setString(27, item.getLicenseDebugExcerpt());
-        ps.setString(28, formatOffsetDateTime(item.getRmsLastCheckedAt()));
-        ps.setString(29, formatOffsetDateTime(item.getCreatedAt()));
-        ps.setString(30, formatOffsetDateTime(item.getUpdatedAt()));
-        ps.setString(31, formatOffsetDateTime(item.getDeletedAt()));
+        bindOffsetDateTime(ps, 28, item.getRmsLastCheckedAt());
+        bindOffsetDateTime(ps, 29, item.getCreatedAt());
+        bindOffsetDateTime(ps, 30, item.getUpdatedAt());
+        bindOffsetDateTime(ps, 31, item.getDeletedAt());
     }
 
-    private PreparedStatement prepareInsertStatement(Connection connection) throws java.sql.SQLException {
+    private void bindOffsetDateTime(PreparedStatement ps, int index, OffsetDateTime value) throws SQLException {
+        if (value == null) {
+            ps.setObject(index, null);
+            return;
+        }
+
+        String databaseProductName = ps.getConnection().getMetaData().getDatabaseProductName();
+        if (databaseProductName != null
+            && databaseProductName.toLowerCase(Locale.ROOT).contains("postgresql")) {
+            ps.setObject(index, value);
+            return;
+        }
+
+        // SQLite stores these timestamps as text. Keeping the ISO-8601 format
+        // preserves the existing runtime representation and parser behavior.
+        ps.setString(index, value.toString());
+    }
+
+    private PreparedStatement prepareInsertStatement(Connection connection) throws SQLException {
         return connection.prepareStatement(
             """
             INSERT INTO rms_license_monitors (
@@ -351,14 +349,6 @@ public class RmsLicenseMonitorRepository {
         );
     }
 
-    private static int toInt(Boolean value) {
-        return Boolean.TRUE.equals(value) ? 1 : 0;
-    }
-
-    private static String formatOffsetDateTime(OffsetDateTime value) {
-        return value != null ? value.toString() : null;
-    }
-
     private static OffsetDateTime parseOffsetDateTime(String value) {
         return DATE_TIME_CONVERTER.convertToEntityAttribute(value);
     }
@@ -373,7 +363,7 @@ public class RmsLicenseMonitorRepository {
 
     private static boolean readBooleanColumn(java.sql.ResultSet rs, String columnName) {
         try {
-            return rs.getInt(columnName) != 0;
+            return rs.getBoolean(columnName);
         } catch (Exception ignored) {
             return false;
         }
