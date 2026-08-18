@@ -444,11 +444,12 @@
         margin: 0;
     }
 
-    [data-ui-page='tasks'] #taskModal .tasks-modal-content {
-        min-height: 100vh;
+    [data-ui-page='tasks'] #taskModal .tasks-modal-content {[data-ui-page='tasks'] #taskModal .tasks-modal-content {
+		min-height: 100vh;
+		min-height: 100dvh;
 
-        border-radius: 0 !important;
-    }
+		border-radius: 0 !important;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {

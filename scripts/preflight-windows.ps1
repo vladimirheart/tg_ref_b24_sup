@@ -435,23 +435,51 @@ function Test-OptionalFeatureEnabled {
     return ([int]$feature.InstallState -eq 1)
 }
 
+function Test-WslRuntimeInstalled {
+    if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
+        return $false
+    }
+
+    # Do not use localized output as the installation test.
+    # A successful `wsl --status` is the primary indicator that the WSL
+    # runtime is installed and operational enough for Docker Desktop.
+    try {
+        & wsl.exe --status *> $null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
 function Get-WslVersion {
     if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
         return $null
     }
 
-    $output = (& wsl.exe --version 2>&1 | Out-String)
-
-    if ($LASTEXITCODE -ne 0) {
+    try {
+        $output = (& wsl.exe --version 2>&1 | Out-String)
+        $exitCode = $LASTEXITCODE
+    } catch {
         return $null
     }
 
-    $wslLine = $output `
-        -split "\r?\n" |
-        Where-Object { $_ -match "WSL" } |
+    if ($exitCode -ne 0 -or [string]::IsNullOrWhiteSpace($output)) {
+        return $null
+    }
+
+    # Prefer the line that contains WSL, but do not depend on English text.
+    # The ASCII token "WSL" is present in localized output such as
+    # "Версия WSL: 2.7.11.0".
+    $lines = $output -split "\r?\n"
+    $candidateLine = $lines |
+        Where-Object { $_ -match "(?i)\bWSL\b" } |
         Select-Object -First 1
 
-    if ($wslLine -and $wslLine -match "(\d+\.\d+\.\d+(?:\.\d+)?)") {
+    if (-not $candidateLine) {
+        $candidateLine = $output
+    }
+
+    if ($candidateLine -match "(\d+\.\d+\.\d+(?:\.\d+)?)") {
         try {
             return [version]$Matches[1]
         } catch {
@@ -493,11 +521,11 @@ function Ensure-Wsl {
 
     Write-Check "WSL runtime"
 
-    $version = Get-WslVersion
+    $runtimeInstalled = Test-WslRuntimeInstalled
 
-    if (-not $version) {
+    if (-not $runtimeInstalled) {
         Write-Host ""
-        Write-WarnMessage "The modern WSL runtime is not installed."
+        Write-WarnMessage "The WSL runtime is not installed or cannot be started."
         Write-WarnMessage "WSL will be installed without a user Linux distribution."
         Write-WarnMessage "A Windows restart may be required."
         Write-Host ""
@@ -509,31 +537,52 @@ function Ensure-Wsl {
 
         Invoke-ElevatedAction "InstallWsl"
 
-        # Microsoft recommends rebooting after initial WSL installation.
-        Request-Reboot
-    }
+        # Re-check before requesting a reboot. If WSL is already usable,
+        # do not force an unnecessary reinstall/reboot cycle.
+        $runtimeInstalled = Test-WslRuntimeInstalled
 
-    if ($version -lt [version]"2.1.5.0") {
-        Write-Host ""
-        Write-WarnMessage "WSL $version is too old for current Docker Desktop."
-        Write-WarnMessage "WSL 2.1.5 or newer is required."
-        Write-Host ""
-
-        if (-not (Confirm-IguanaAction "Update WSL now?")) {
-            Write-ErrorMessage "WSL update was cancelled."
-            exit 20
-        }
-
-        Invoke-ElevatedAction "UpdateWsl"
-
-        $version = Get-WslVersion
-
-        if (-not $version -or $version -lt [version]"2.1.5.0") {
+        if (-not $runtimeInstalled) {
             Request-Reboot
         }
     }
 
-    Write-Ok "WSL $version"
+    Write-Ok "WSL runtime is installed"
+
+    $version = Get-WslVersion
+
+    if ($version) {
+        Write-Ok "WSL version: $version"
+
+        if ($version -lt [version]"2.1.5.0") {
+            Write-Host ""
+            Write-WarnMessage "WSL $version is too old for current Docker Desktop."
+            Write-WarnMessage "WSL 2.1.5 or newer is required."
+            Write-Host ""
+
+            if (-not (Confirm-IguanaAction "Update WSL now?")) {
+                Write-ErrorMessage "WSL update was cancelled."
+                exit 20
+            }
+
+            Invoke-ElevatedAction "UpdateWsl"
+
+            $updatedVersion = Get-WslVersion
+
+            if (-not $updatedVersion) {
+                Write-WarnMessage "WSL was updated, but its version could not be detected."
+            } elseif ($updatedVersion -lt [version]"2.1.5.0") {
+                Request-Reboot
+            } else {
+                $version = $updatedVersion
+                Write-Ok "WSL updated to $version"
+            }
+        }
+    } else {
+        # Important: failure to parse localized `wsl --version` output must
+        # never be interpreted as "WSL is not installed".
+        Write-InfoMessage "WSL version could not be parsed from localized output."
+        Write-InfoMessage "The Docker Engine readiness check will validate WSL compatibility."
+    }
 
     & wsl.exe --set-default-version 2 *> $null
 
@@ -634,6 +683,42 @@ function Ensure-LanmanServer {
     Write-Ok "LanmanServer is Automatic and Running"
 }
 
+function Get-JavaVersionOutput {
+    param([string]$JavaExe)
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $JavaExe
+    $startInfo.Arguments = "-version"
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+
+    try {
+        if (-not $process.Start()) {
+            return $null
+        }
+
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+
+        $process.WaitForExit()
+
+        if ($process.ExitCode -ne 0) {
+            return $null
+        }
+
+        return (($stdout + [Environment]::NewLine + $stderr).Trim())
+    } catch {
+        return $null
+    } finally {
+        $process.Dispose()
+    }
+}
+
 function Get-JavaRuntime {
     $candidates = New-Object System.Collections.Generic.List[string]
 
@@ -676,7 +761,11 @@ function Get-JavaRuntime {
             continue
         }
 
-        $output = (& $candidate -version 2>&1 | Out-String)
+        $output = Get-JavaVersionOutput -JavaExe $candidate
+
+        if ([string]::IsNullOrWhiteSpace($output)) {
+            continue
+        }
 
         if ($output -match 'version\s+"(?<version>\d+(?:\.\d+)*)') {
             $versionText = $Matches["version"]

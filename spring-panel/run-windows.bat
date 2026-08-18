@@ -1,5 +1,5 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
 
 set "SCRIPT_DIR=%~dp0"
@@ -29,9 +29,9 @@ powershell.exe ^
     -ExecutionPolicy Bypass ^
     -File "%WORKSPACE_ROOT%\scripts\preflight-windows.ps1"
 
-set "PREFLIGHT_EXIT=!ERRORLEVEL!"
+set "PREFLIGHT_EXIT=%ERRORLEVEL%"
 
-if "!PREFLIGHT_EXIT!"=="3010" (
+if "%PREFLIGHT_EXIT%"=="3010" (
     echo.
     echo [WARN] Windows restart is required before Iguana can start.
     echo [WARN] Restart Windows and run Iguana again.
@@ -39,24 +39,81 @@ if "!PREFLIGHT_EXIT!"=="3010" (
     goto :Exit
 )
 
-if "!PREFLIGHT_EXIT!"=="20" (
+if "%PREFLIGHT_EXIT%"=="20" (
     echo.
     echo [INFO] Environment setup was cancelled by the user.
     set "EXIT_CODE=20"
     goto :Exit
 )
 
-if not "!PREFLIGHT_EXIT!"=="0" (
+if not "%PREFLIGHT_EXIT%"=="0" (
     echo.
-    echo [ERROR] Iguana environment preflight failed with exit code !PREFLIGHT_EXIT!.
-    set "EXIT_CODE=!PREFLIGHT_EXIT!"
+    echo [ERROR] Iguana environment preflight failed with exit code %PREFLIGHT_EXIT%.
+    set "EXIT_CODE=%PREFLIGHT_EXIT%"
     goto :Exit
 )
 
 echo [INFO] Environment preflight completed successfully.
 echo.
 
-rem Resolve Java again in this CMD process because preflight may have installed it.
+rem ---------------------------------------------------------------------------
+rem Load repository .env into THIS CMD process.
+rem
+rem Spring Boot does not load the repository-root .env file automatically.
+rem preflight-windows.ps1 can read it for validation, but a child PowerShell
+rem process cannot modify the environment of this parent CMD process.
+rem Therefore .env must be imported here before Maven / Java is started.
+rem
+rem Existing process environment variables take precedence over .env values.
+rem Delayed expansion is intentionally disabled while loading so that values
+rem containing exclamation marks are not corrupted.
+rem ---------------------------------------------------------------------------
+
+if exist "%WORKSPACE_ROOT%\.env" (
+    call :LoadEnvFile "%WORKSPACE_ROOT%\.env"
+
+    if errorlevel 1 (
+        echo [ERROR] Failed to load repository .env file.
+        set "EXIT_CODE=1"
+        goto :Exit
+    )
+
+    echo [INFO] Loaded environment from %WORKSPACE_ROOT%\.env
+) else (
+    echo [WARN] Repository .env file was not found.
+)
+
+rem Fail early with a useful message instead of letting Spring Boot fail deep
+rem inside Flyway/DataSource bean initialization.
+if /I "%APP_DB_MODE%"=="postgresql" (
+    if not defined SPRING_DATASOURCE_URL if not defined DATABASE_URL (
+        echo.
+        echo [ERROR] PostgreSQL mode is active, but no database URL is configured.
+        echo [ERROR] Expected SPRING_DATASOURCE_URL or DATABASE_URL.
+        echo [ERROR] Check: %WORKSPACE_ROOT%\.env
+        echo.
+        set "EXIT_CODE=1"
+        goto :Exit
+    )
+)
+
+if defined SPRING_DATASOURCE_URL (
+    echo [INFO] PostgreSQL datasource configuration is loaded.
+) else if defined DATABASE_URL (
+    echo [INFO] DATABASE_URL configuration is loaded.
+)
+
+rem The rest of the launcher uses delayed expansion inside command blocks.
+setlocal EnableDelayedExpansion
+
+rem ---------------------------------------------------------------------------
+rem Resolve Java again in this CMD process.
+rem
+rem preflight-windows.ps1 may have installed JDK 17. A child PowerShell process
+rem cannot update the environment of this parent CMD process, so we search the
+rem known Microsoft OpenJDK location before falling back to PATH.
+rem ---------------------------------------------------------------------------
+
 set "JAVA_EXE="
 
 if defined JAVA_HOME_17 if exist "%JAVA_HOME_17%\bin\java.exe" (
@@ -84,7 +141,10 @@ if not defined JAVA_EXE (
     )
 )
 
-rem Choose a free port if the default one is busy and the user has not explicitly set APP_HTTP_PORT.
+rem ---------------------------------------------------------------------------
+rem Choose a free HTTP port when APP_HTTP_PORT was not explicitly specified.
+rem ---------------------------------------------------------------------------
+
 set "DEFAULT_PORT=%APP_HTTP_PORT%"
 if not defined DEFAULT_PORT set "DEFAULT_PORT=8080"
 
@@ -105,6 +165,10 @@ if not defined APP_HTTP_PORT (
 )
 
 echo [INFO] Panel URL: http://localhost:!APP_HTTP_PORT!/
+
+rem ---------------------------------------------------------------------------
+rem Validate Java.
+rem ---------------------------------------------------------------------------
 
 if not defined JAVA_EXE (
     echo [ERROR] Java executable was not found after successful preflight.
@@ -172,6 +236,10 @@ if not "!JAVA_EFFECTIVE_MAJOR!"=="17" (
     echo [WARN] If build errors occur, set JAVA_HOME_17 to a JDK 17 installation.
 )
 
+rem ---------------------------------------------------------------------------
+rem Maven.
+rem ---------------------------------------------------------------------------
+
 set "MVN_CMD=%SCRIPT_DIR%\mvnw.cmd"
 
 if exist "%MVN_CMD%" (
@@ -187,6 +255,10 @@ if not exist "%SCRIPT_DIR%\.m2" (
 )
 
 set "MVN_REPO_ARG=-Dmaven.repo.local=%MVN_REPO_DIR%"
+
+rem ---------------------------------------------------------------------------
+rem Force UTF-8 for Java/Maven runtime.
+rem ---------------------------------------------------------------------------
 
 set "UTF8_JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8"
 
@@ -236,6 +308,35 @@ call :RunMaven spring-boot:run %*
 set "EXIT_CODE=!ERRORLEVEL!"
 
 goto :Exit
+
+rem ---------------------------------------------------------------------------
+rem Load KEY=VALUE pairs from .env.
+rem
+rem Rules:
+rem - empty lines are ignored;
+rem - lines beginning with # are comments;
+rem - existing environment variables are NOT overwritten;
+rem - values may contain additional '=' characters;
+rem - expected repository-generated .env files are UTF-8 without BOM.
+rem ---------------------------------------------------------------------------
+
+:LoadEnvFile
+
+set "ENV_FILE=%~1"
+
+if not exist "%ENV_FILE%" (
+    exit /b 1
+)
+
+for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
+    if not "%%A"=="" (
+        if not defined %%A (
+            set "%%A=%%B"
+        )
+    )
+)
+
+exit /b 0
 
 :RunMaven
 
@@ -317,4 +418,4 @@ goto :FindAvailablePortLoop
 :Exit
 
 popd >nul
-endlocal & exit /b %EXIT_CODE%
+exit /b %EXIT_CODE%
