@@ -15,6 +15,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -318,14 +319,20 @@ public class RmsLicenseMonitorRepository {
     }
 
     private void bindOffsetDateTime(PreparedStatement ps, int index, OffsetDateTime value) throws SQLException {
+        String databaseProductName = ps.getConnection().getMetaData().getDatabaseProductName();
+        boolean postgresql = databaseProductName != null
+            && databaseProductName.toLowerCase(Locale.ROOT).contains("postgresql");
+
         if (value == null) {
-            ps.setObject(index, null);
+            if (postgresql) {
+                ps.setNull(index, Types.TIMESTAMP_WITH_TIMEZONE);
+            } else {
+                ps.setNull(index, Types.VARCHAR);
+            }
             return;
         }
 
-        String databaseProductName = ps.getConnection().getMetaData().getDatabaseProductName();
-        if (databaseProductName != null
-            && databaseProductName.toLowerCase(Locale.ROOT).contains("postgresql")) {
+        if (postgresql) {
             ps.setObject(index, value);
             return;
         }
