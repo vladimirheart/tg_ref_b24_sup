@@ -1,11 +1,12 @@
 package com.example.panel.service;
 
 import com.example.panel.config.PanelIntegrationTransportMode;
+import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +20,8 @@ import org.springframework.util.StringUtils;
 
 @Service
 public class BotRuntimeBlacklistService {
+
+    private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
 
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate botJdbcTemplate;
@@ -113,6 +116,7 @@ public class BotRuntimeBlacklistService {
         }
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime threshold = now.minusDays(30);
+        Timestamp thresholdTimestamp = Timestamp.from(threshold.toInstant());
         List<Long> expiredIds = botJdbcTemplate.query(
             """
                 SELECT id
@@ -120,7 +124,7 @@ public class BotRuntimeBlacklistService {
                 WHERE status = 'pending' AND created_at < ?
                 """,
             (rs, rowNum) -> rs.getLong("id"),
-            threshold.toString()
+            thresholdTimestamp
         );
         if (expiredIds.isEmpty()) {
             return;
@@ -133,9 +137,9 @@ public class BotRuntimeBlacklistService {
                     decision_comment = ?
                 WHERE status = 'pending' AND created_at < ?
                 """,
-            now.toString(),
+            Timestamp.from(now.toInstant()),
             "Auto-expired by spring-panel scheduler",
-            threshold.toString()
+            thresholdTimestamp
         );
         if (updated > 0) {
             uiEventStreamService.publishSidebarUnblockChanged("runtime_unblock_requests_expired");
@@ -155,25 +159,26 @@ public class BotRuntimeBlacklistService {
     }
 
     private void upsertBlacklistEntry(String userId, OffsetDateTime now) {
+        Timestamp timestamp = Timestamp.from(now.toInstant());
         int updated = jdbcTemplate.update(
             """
                 UPDATE client_blacklist
-                SET is_blacklisted = 1,
-                    unblock_requested = 1,
+                SET is_blacklisted = TRUE,
+                    unblock_requested = TRUE,
                     unblock_requested_at = ?
                 WHERE user_id = ?
                 """,
-            now.toString(),
+            timestamp,
             userId
         );
         if (updated == 0) {
             jdbcTemplate.update(
                 """
                     INSERT INTO client_blacklist(user_id, is_blacklisted, unblock_requested, unblock_requested_at)
-                    VALUES (?, 1, 1, ?)
+                    VALUES (?, TRUE, TRUE, ?)
                     """,
                 userId,
-                now.toString()
+                timestamp
             );
         }
     }
@@ -184,6 +189,7 @@ public class BotRuntimeBlacklistService {
                                                              OffsetDateTime now) {
         PendingUnblockRequestLookup existing = findLatestPendingRequest(userId).orElse(null);
         String normalizedReason = StringUtils.hasText(reason) ? reason.trim() : null;
+        Timestamp nowTimestamp = Timestamp.from(now.toInstant());
         if (existing != null && existing.id() != null) {
             botJdbcTemplate.update(
                 """
@@ -193,7 +199,7 @@ public class BotRuntimeBlacklistService {
                     """,
                 channelId,
                 normalizedReason,
-                now.toString(),
+                nowTimestamp,
                 existing.id()
             );
             return new PendingUnblockRequestLookup(existing.id(), userId, channelId, normalizedReason, now, "pending");
@@ -206,7 +212,7 @@ public class BotRuntimeBlacklistService {
             userId,
             channelId,
             normalizedReason,
-            now.toString()
+            nowTimestamp
         );
         return findLatestPendingRequest(userId)
             .orElse(new PendingUnblockRequestLookup(null, userId, channelId, normalizedReason, now, "pending"));
@@ -265,8 +271,8 @@ public class BotRuntimeBlacklistService {
     private BlacklistEntry mapBlacklistEntry(ResultSet rs) throws SQLException {
         return new BlacklistEntry(
             rs.getString("user_id"),
-            rs.getInt("is_blacklisted") != 0,
-            rs.getInt("unblock_requested") != 0,
+            rs.getBoolean("is_blacklisted"),
+            rs.getBoolean("unblock_requested"),
             parseOffsetDateTime(rs.getString("unblock_requested_at"))
         );
     }
@@ -285,14 +291,7 @@ public class BotRuntimeBlacklistService {
     }
 
     private OffsetDateTime parseOffsetDateTime(String rawValue) {
-        if (!StringUtils.hasText(rawValue)) {
-            return null;
-        }
-        try {
-            return OffsetDateTime.parse(rawValue.trim());
-        } catch (Exception ex) {
-            return null;
-        }
+        return DATE_TIME_CONVERTER.convertToEntityAttribute(rawValue);
     }
 
     public record ResolvedBlacklistStatusLookup(String matchedUserId,
