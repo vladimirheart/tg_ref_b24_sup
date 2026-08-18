@@ -102,15 +102,6 @@ CREATE TABLE IF NOT EXISTS ticket_attributes (
 CREATE INDEX IF NOT EXISTS idx_ticket_attributes_ticket ON ticket_attributes(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_ticket_attributes_key_dashboard ON ticket_attributes(attribute_key, include_in_dashboard);
 
-CREATE OR REPLACE VIEW client_stats AS
-SELECT
-    COALESCE(m.username, '') AS username,
-    MAX(COALESCE(ch.timestamp, m.created_at)) AS last_contact,
-    COUNT(DISTINCT m.ticket_id) AS tickets
-FROM messages m
-LEFT JOIN chat_history ch ON ch.ticket_id = m.ticket_id
-GROUP BY COALESCE(m.username, '');
-
 CREATE TABLE IF NOT EXISTS chat_history (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id       BIGINT,
@@ -131,6 +122,15 @@ CREATE INDEX IF NOT EXISTS idx_history_ticket_channel
     ON chat_history(ticket_id, channel_id);
 CREATE INDEX IF NOT EXISTS idx_history_channel_time
     ON chat_history(channel_id, timestamp);
+
+CREATE OR REPLACE VIEW client_stats AS
+SELECT
+    COALESCE(m.username, '') AS username,
+    MAX(COALESCE(ch.timestamp, m.created_at)) AS last_contact,
+    COUNT(DISTINCT m.ticket_id) AS tickets
+FROM messages m
+LEFT JOIN chat_history ch ON ch.ticket_id = m.ticket_id
+GROUP BY COALESCE(m.username, '');
 
 CREATE TABLE IF NOT EXISTS feedbacks (
     id        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -239,7 +239,7 @@ CREATE TABLE IF NOT EXISTS task_people (
 
 CREATE TABLE IF NOT EXISTS task_comments (
     id        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    task_id   BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    task_id BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     author    TEXT,
     html      TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -442,4 +442,3 @@ CREATE TABLE IF NOT EXISTS panel_users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_panel_users_role_id ON panel_users(role_id);
-
