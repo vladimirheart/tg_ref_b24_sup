@@ -6,6 +6,7 @@ import com.example.panel.service.AnalyticsService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.SharedConfigService;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -44,48 +45,79 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public String view(Model model, Authentication authentication) {
         navigationService.enrich(model, authentication);
+
+        List<String> loadWarnings = new ArrayList<>();
+        List<AnalyticsTicketSummary> ticketSummary = loadTicketSummary(loadWarnings);
+        List<AnalyticsClientSummary> clientSummary = loadClientSummary(loadWarnings);
+        model.addAttribute("ticketSummary", ticketSummary);
+        model.addAttribute("clientSummary", clientSummary);
+        model.addAttribute("analyticsLoadWarnings", loadWarnings);
+
+        Map<String, Object> dialogConfig = loadDialogConfig(loadWarnings);
+        model.addAttribute("crossProductOmnichannelDashboardUrl", String.valueOf(dialogConfig.getOrDefault("cross_product_omnichannel_dashboard_url", "")).trim());
+        model.addAttribute("crossProductOmnichannelDashboardLabel", String.valueOf(dialogConfig.getOrDefault("cross_product_omnichannel_dashboard_label", "Omni-channel KPI dashboard")).trim());
+        model.addAttribute("crossProductFinanceDashboardUrl", String.valueOf(dialogConfig.getOrDefault("cross_product_finance_dashboard_url", "")).trim());
+        model.addAttribute("crossProductFinanceDashboardLabel", String.valueOf(dialogConfig.getOrDefault("cross_product_finance_dashboard_label", "Финансовый KPI dashboard")).trim());
+        model.addAttribute("crossProductDashboardLinksRequired", Boolean.parseBoolean(
+                String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_dashboard_links_required", false))));
+        model.addAttribute("crossProductOmnichannelReady", Boolean.parseBoolean(
+                String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_omnichannel_ready", false))));
+        model.addAttribute("crossProductFinanceReady", Boolean.parseBoolean(
+                String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_finance_ready", false))));
+        String dependencyTicketUrl = String.valueOf(dialogConfig.getOrDefault(
+                "workspace_rollout_external_kpi_datamart_dependency_ticket_url", "")).trim();
+        model.addAttribute("crossProductDependencyTicketUrl", dependencyTicketUrl);
+        model.addAttribute("crossProductDependencyTicketRequired", Boolean.parseBoolean(
+                String.valueOf(dialogConfig.getOrDefault(
+                        "workspace_rollout_external_kpi_datamart_dependency_ticket_required", false))));
+        model.addAttribute("crossProductDependencyTicketFreshnessRequired", Boolean.parseBoolean(
+                String.valueOf(dialogConfig.getOrDefault(
+                        "workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required", false))));
+        model.addAttribute("crossProductDependencyTicketUpdatedAt", String.valueOf(dialogConfig.getOrDefault(
+                "workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at", "")).trim());
+        model.addAttribute("crossProductDependencyTicketTtlHours", String.valueOf(dialogConfig.getOrDefault(
+                "workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours", "336")).trim());
+
+        log.info("Analytics view requested by {}: {} ticket rows, {} client rows, {} degraded source(s)",
+                authentication != null ? authentication.getName() : "unknown",
+                ticketSummary.size(),
+                clientSummary.size(),
+                loadWarnings.size());
+        return "analytics/index";
+    }
+
+    private List<AnalyticsTicketSummary> loadTicketSummary(List<String> warnings) {
         try {
-            List<AnalyticsTicketSummary> ticketSummary = analyticsService.loadTicketSummary();
-            List<AnalyticsClientSummary> clientSummary = analyticsService.loadClientSummary();
-            model.addAttribute("ticketSummary", ticketSummary);
-            model.addAttribute("clientSummary", clientSummary);
+            return analyticsService.loadTicketSummary();
+        } catch (Exception ex) {
+            warnings.add("ticket-summary");
+            log.error("Analytics ticket summary is temporarily unavailable", ex);
+            return List.of();
+        }
+    }
+
+    private List<AnalyticsClientSummary> loadClientSummary(List<String> warnings) {
+        try {
+            return analyticsService.loadClientSummary();
+        } catch (Exception ex) {
+            warnings.add("client-summary");
+            log.error("Analytics client summary is temporarily unavailable", ex);
+            return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> loadDialogConfig(List<String> warnings) {
+        try {
             Map<String, Object> settings = sharedConfigService.loadSettings();
-            Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
+            return settings.get("dialog_config") instanceof Map<?, ?> map
                     ? (Map<String, Object>) map
                     : Map.of();
-            model.addAttribute("crossProductOmnichannelDashboardUrl", String.valueOf(dialogConfig.getOrDefault("cross_product_omnichannel_dashboard_url", "")).trim());
-            model.addAttribute("crossProductOmnichannelDashboardLabel", String.valueOf(dialogConfig.getOrDefault("cross_product_omnichannel_dashboard_label", "Omni-channel KPI dashboard")).trim());
-            model.addAttribute("crossProductFinanceDashboardUrl", String.valueOf(dialogConfig.getOrDefault("cross_product_finance_dashboard_url", "")).trim());
-            model.addAttribute("crossProductFinanceDashboardLabel", String.valueOf(dialogConfig.getOrDefault("cross_product_finance_dashboard_label", "Финансовый KPI dashboard")).trim());
-            model.addAttribute("crossProductDashboardLinksRequired", Boolean.parseBoolean(
-                    String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_dashboard_links_required", false))));
-            model.addAttribute("crossProductOmnichannelReady", Boolean.parseBoolean(
-                    String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_omnichannel_ready", false))));
-            model.addAttribute("crossProductFinanceReady", Boolean.parseBoolean(
-                    String.valueOf(dialogConfig.getOrDefault("workspace_rollout_external_kpi_finance_ready", false))));
-            String dependencyTicketUrl = String.valueOf(dialogConfig.getOrDefault(
-                    "workspace_rollout_external_kpi_datamart_dependency_ticket_url", "")).trim();
-            model.addAttribute("crossProductDependencyTicketUrl", dependencyTicketUrl);
-            model.addAttribute("crossProductDependencyTicketRequired", Boolean.parseBoolean(
-                    String.valueOf(dialogConfig.getOrDefault(
-                            "workspace_rollout_external_kpi_datamart_dependency_ticket_required", false))));
-            model.addAttribute("crossProductDependencyTicketFreshnessRequired", Boolean.parseBoolean(
-                    String.valueOf(dialogConfig.getOrDefault(
-                            "workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required", false))));
-            model.addAttribute("crossProductDependencyTicketUpdatedAt", String.valueOf(dialogConfig.getOrDefault(
-                    "workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at", "")).trim());
-            model.addAttribute("crossProductDependencyTicketTtlHours", String.valueOf(dialogConfig.getOrDefault(
-                    "workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours", "336")).trim());
-
-            log.info("Analytics view requested by {}: {} ticket rows, {} client rows",
-                    authentication.getName(), ticketSummary.size(), clientSummary.size());
         } catch (Exception ex) {
-            log.error("Failed to load analytics page for user {}",
-                    authentication != null ? authentication.getName() : "unknown",
-                    ex);
-            throw ex;
+            warnings.add("shared-config");
+            log.error("Analytics shared configuration is temporarily unavailable", ex);
+            return Map.of();
         }
-        return "analytics/index";
     }
 
     @GetMapping("/certificates")
