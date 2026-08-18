@@ -27,7 +27,7 @@ public class AvatarService {
                          @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir) throws IOException {
         this.permissionService = permissionService;
         this.resourceLoader = resourceLoader;
-        this.avatarsRoot = ensureDirectory(avatarsDir);
+        this.avatarsRoot = ensureDirectory(resolveStoragePath(avatarsDir));
     }
 
     public ResponseEntity<Resource> loadAvatar(Authentication authentication,
@@ -69,10 +69,40 @@ public class AvatarService {
             .body(resource);
     }
 
-    private Path ensureDirectory(String directory) throws IOException {
-        Path path = Paths.get(directory).toAbsolutePath().normalize();
+    private Path resolveStoragePath(String directory) {
+        Path configured = Paths.get(directory.trim());
+        if (configured.isAbsolute()) {
+            return configured.normalize();
+        }
+
+        Path workingDirectory = Paths.get("").toAbsolutePath().normalize();
+        // Explicit ../ paths are intentionally relative to spring-panel and
+        // already point at the repository root in the default configuration.
+        if (configured.startsWith("..")) {
+            return workingDirectory.resolve(configured).normalize();
+        }
+
+        Path workspaceRoot = locateWorkspaceRoot(workingDirectory);
+        if (!workspaceRoot.equals(workingDirectory)) {
+            return workspaceRoot.resolve(configured).normalize();
+        }
+        return workingDirectory.resolve(configured).normalize();
+    }
+
+    private Path locateWorkspaceRoot(Path start) {
+        Path current = start;
+        while (current != null) {
+            if (Files.isDirectory(current.resolve(".git")) || Files.isDirectory(current.resolve("spring-panel"))) {
+                return current;
+            }
+            current = current.getParent();
+        }
+        return start;
+    }
+
+    private Path ensureDirectory(Path path) throws IOException {
         Files.createDirectories(path);
-        return path;
+        return path.toAbsolutePath().normalize();
     }
 
     private void requireAuthority(Authentication authentication, String authority) {
