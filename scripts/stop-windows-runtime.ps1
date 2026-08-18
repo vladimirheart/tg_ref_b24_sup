@@ -12,7 +12,6 @@ try {
 }
 
 $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
-$SpringPanelDir = Join-Path $RepoRoot "spring-panel"
 $ComposeFile = Join-Path $RepoRoot "docker-compose.local-postgres.yml"
 $RunDir = Join-Path $RepoRoot "run"
 
@@ -29,6 +28,45 @@ function Write-Ok {
 function Write-WarnMessage {
     param([string]$Message)
     Write-Host "[WARN]  $Message" -ForegroundColor Yellow
+}
+
+function Invoke-NativeCommandQuiet {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+        [string]$Arguments = ""
+    )
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $FilePath
+    $startInfo.Arguments = $Arguments
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+
+    try {
+        if (-not $process.Start()) {
+            return [pscustomobject]@{ ExitCode = -1; StdOut = ""; StdErr = "Process could not be started." }
+        }
+
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+
+        return [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            StdOut = $stdout
+            StdErr = $stderr
+        }
+    } catch {
+        return [pscustomobject]@{ ExitCode = -1; StdOut = ""; StdErr = $_.Exception.Message }
+    } finally {
+        $process.Dispose()
+    }
 }
 
 function Get-NormalizedCommandLine {
@@ -82,19 +120,31 @@ function Stop-ProcessTree {
         [string]$Description
     )
 
-    $existing = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
-    if (-not $existing) {
+    if (-not (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)) {
         return
     }
 
     Write-InfoMessage "Stopping $Description (PID $ProcessId)..."
 
-    & taskkill.exe /PID $ProcessId /T *> $null
+    $taskkill = Join-Path $env:SystemRoot "System32\taskkill.exe"
+    $graceful = Invoke-NativeCommandQuiet -FilePath $taskkill -Arguments "/PID $ProcessId /T"
     Start-Sleep -Milliseconds 800
 
     if (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue) {
-        & taskkill.exe /PID $ProcessId /T /F *> $null
+        $forced = Invoke-NativeCommandQuiet -FilePath $taskkill -Arguments "/PID $ProcessId /T /F"
         Start-Sleep -Milliseconds 500
+
+        if ((Get-Process -Id $ProcessId -ErrorAction SilentlyContinue) -and $forced.ExitCode -ne 0) {
+            $details = $forced.StdErr.Trim()
+            if ([string]::IsNullOrWhiteSpace($details)) {
+                $details = $forced.StdOut.Trim()
+            }
+            Write-WarnMessage "Could not stop PID $ProcessId. $details"
+        }
+    } elseif ($graceful.ExitCode -ne 0) {
+        # The process disappeared between discovery and taskkill. That is a
+        # successful end state, so a non-zero taskkill code is not fatal.
+        Write-InfoMessage "PID $ProcessId exited while shutdown was in progress."
     }
 }
 
@@ -161,45 +211,6 @@ function Get-DockerCommandPath {
     }
 
     return $null
-}
-
-function Invoke-NativeCommandQuiet {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$FilePath,
-        [string]$Arguments = ""
-    )
-
-    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $startInfo.FileName = $FilePath
-    $startInfo.Arguments = $Arguments
-    $startInfo.UseShellExecute = $false
-    $startInfo.CreateNoWindow = $true
-    $startInfo.RedirectStandardOutput = $true
-    $startInfo.RedirectStandardError = $true
-
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $startInfo
-
-    try {
-        if (-not $process.Start()) {
-            return [pscustomobject]@{ ExitCode = -1; StdOut = ""; StdErr = "Process could not be started." }
-        }
-
-        $stdout = $process.StandardOutput.ReadToEnd()
-        $stderr = $process.StandardError.ReadToEnd()
-        $process.WaitForExit()
-
-        return [pscustomobject]@{
-            ExitCode = $process.ExitCode
-            StdOut = $stdout
-            StdErr = $stderr
-        }
-    } catch {
-        return [pscustomobject]@{ ExitCode = -1; StdOut = ""; StdErr = $_.Exception.Message }
-    } finally {
-        $process.Dispose()
-    }
 }
 
 function Stop-DockerInfrastructure {
