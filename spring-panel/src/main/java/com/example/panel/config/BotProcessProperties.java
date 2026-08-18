@@ -94,7 +94,28 @@ public class BotProcessProperties {
     }
 
     public Path resolveDatabaseDir() {
-        return Paths.get(databaseDir).toAbsolutePath().normalize();
+        String configuredValue = databaseDir == null || databaseDir.isBlank()
+            ? "../bot_databases"
+            : databaseDir.trim();
+        Path configuredPath = Paths.get(configuredValue);
+        if (configuredPath.isAbsolute()) {
+            return configuredPath.normalize();
+        }
+
+        Path workingDirectory = Paths.get("").toAbsolutePath().normalize();
+
+        // Older bootstrap-first-run.ps1 versions wrote APP_BOT_DATABASE_DIR=bot_databases
+        // into the repository-root .env, while spring-panel is launched with spring-panel
+        // as its working directory. Preserve those existing .env files by treating that
+        // exact legacy value as repository-root relative when launched from spring-panel.
+        if ("bot_databases".equalsIgnoreCase(configuredValue.replace('\\', '/'))
+                && workingDirectory.getFileName() != null
+                && "spring-panel".equalsIgnoreCase(workingDirectory.getFileName().toString())
+                && workingDirectory.getParent() != null) {
+            return workingDirectory.getParent().resolve("bot_databases").normalize();
+        }
+
+        return workingDirectory.resolve(configuredPath).normalize();
     }
 
     public int resolveMaxPort(Long channelId) {
