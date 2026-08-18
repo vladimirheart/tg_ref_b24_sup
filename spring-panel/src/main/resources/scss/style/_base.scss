@@ -356,15 +356,6 @@ p {
   border-color: var(--color-border);
   background: var(--surface-raised);
 }
-  border-color:
-    color-mix(
-      in srgb,
-      var(--color-border) 82%,
-      transparent
-    );
-
-  background: var(--surface-raised);
-}
 
 .btn-outline-primary {
   color: var(--primary);
