@@ -730,21 +730,18 @@ p {
 }
 
 .table thead th {
-  background-color: color-mix(in srgb, var(--color-bg-muted) 82%, var(--color-surface));
-  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--muted) 75%, var(--surface-card));
+  border-bottom: 1px solid var(--ui-panel-border);
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-size: 0.74rem;
+  font-weight: 800;
   line-height: 1.25;
-  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .table-striped > tbody > tr:nth-of-type(odd) > * {
-  background-color: color-mix(in srgb, var(--color-bg-muted) 60%, transparent);
-}
-
-[data-theme=dark] .table-striped > tbody > tr:nth-of-type(odd) > * {
-  background-color: color-mix(in srgb, var(--color-bg-muted) 85%, transparent);
+  background: color-mix(in srgb, var(--muted) 35%, var(--surface-card));
 }
 
 [data-theme=dark] .table-hover > tbody > tr:hover > * {
@@ -1004,12 +1001,15 @@ a:not([class]) {
 }
 
 .table {
+  --bs-table-bg: var(--surface-card);
+  --bs-table-color: var(--color-text);
+  --bs-table-border-color: var(--color-border);
   margin-bottom: 0;
   border-color: var(--color-border);
 }
 
 .table > :not(caption) > * > * {
-  padding: 0.68rem 0.75rem;
+  padding: 0.62rem 0.75rem;
   vertical-align: middle;
 }
 
@@ -1132,11 +1132,12 @@ a:not([class]) {
 }
 
 .badge {
-  padding: 0.34rem 0.56rem;
+  padding: 0.42em 0.68em;
   border-radius: var(--radius-pill);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   line-height: 1.2;
+  letter-spacing: 0.01em;
 }
 
 .chat-bubble {

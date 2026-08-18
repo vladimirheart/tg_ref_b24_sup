@@ -153,52 +153,8 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
     letter-spacing: 0.2px;
 }
 
-.card {
-    border: 1px solid var(--ui-panel-border);
-    box-shadow: var(--ui-panel-shadow);
-}
-
-.table > :not(caption) > * > * {
-    vertical-align: middle;
-    padding-top: 0.62rem;
-    padding-bottom: 0.62rem;
-}
-
-.table thead th {
-    color: var(--color-text-muted);
-    font-size: 0.74rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    border-bottom-color: var(--ui-panel-border);
-}
-
-.badge {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    padding: 0.42em 0.68em;
-}
-
 .btn-rounded {
     border-radius: var(--radius-pill);
-}
-
-.form-control,
-.form-select,
-.btn {
-    border-radius: var(--control-radius);
-    min-height: var(--control-height);
-}
-
-.btn-sm,
-.form-control-sm,
-.form-select-sm {
-    min-height: var(--control-height-sm);
-}
-
-.text-muted {
-    color: var(--text-muted) !important;
 }
 
 .content-disclosure {

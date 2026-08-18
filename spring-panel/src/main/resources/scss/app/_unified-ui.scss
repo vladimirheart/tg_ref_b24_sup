@@ -1,30 +1,14 @@
-﻿/* Unified visual system */
-.card,
-.page-header-card,
+﻿/* App-specific unified visual system */
+
 .workspace-panel-block {
     border-radius: var(--ui-panel-radius);
     border-color: var(--ui-panel-border);
-}
-
-.card {
-    box-shadow: var(--ui-panel-shadow);
 }
 
 .page-title,
 .dialogs-title {
     letter-spacing: -0.025em;
     line-height: 1.08;
-}
-
-.table > :not(caption) > * > * {
-    padding-top: 0.62rem;
-    padding-bottom: 0.62rem;
-}
-
-.btn,
-.form-control,
-.form-select {
-    min-height: var(--control-height);
 }
 
 /* Density mode (global) */
@@ -77,14 +61,6 @@ body[data-ui-density='compact'] .page-title {
 
 body {
     letter-spacing: var(--letter-spacing, normal);
-}
-
-.page-header-card {
-    background: var(--ui-surface) !important;
-    border: 1px solid var(--ui-border) !important;
-    border-radius: var(--ui-radius) !important;
-    box-shadow: var(--ui-shadow) !important;
-    animation: none !important;
 }
 
 .card,
@@ -158,27 +134,6 @@ body {
 .btn-outline-dark:hover,
 .btn-outline-light:hover {
     background: var(--surface-selected) !important;
-}
-
-.table {
-    --bs-table-bg: var(--ui-surface);
-    --bs-table-color: var(--ui-text);
-    --bs-table-border-color: var(--ui-border);
-}
-
-.table thead th {
-    background: color-mix(in srgb, var(--muted) 75%, var(--ui-surface)) !important;
-    color: var(--ui-muted) !important;
-}
-
-.table-striped > tbody > tr:nth-of-type(odd) > * {
-    background: color-mix(in srgb, var(--muted) 35%, var(--ui-surface)) !important;
-}
-
-.text-muted,
-.form-text,
-.small.text-muted {
-    color: var(--ui-muted) !important;
 }
 
 /* Bootstrap utility harmonization */
