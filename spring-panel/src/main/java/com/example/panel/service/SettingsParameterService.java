@@ -66,7 +66,7 @@ public class SettingsParameterService {
         }
         String extraJson = buildExtraJson(normalizedPayload, Set.of("param_type", "value", "state"));
         jdbcTemplate.update(
-                "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, ?, 0, ?)",
+                "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, ?, FALSE, ?)",
                 paramType, value, state, extraJson
         );
         syncLocationsFromParameters();
@@ -107,7 +107,7 @@ public class SettingsParameterService {
         }
         if (normalizedPayload.containsKey("is_deleted")) {
             updates.append("is_deleted = ?,");
-            params.add(Boolean.TRUE.equals(normalizedPayload.get("is_deleted")) ? 1 : 0);
+            params.add(Boolean.TRUE.equals(normalizedPayload.get("is_deleted")));
             if (Boolean.TRUE.equals(normalizedPayload.get("is_deleted"))) {
                 updates.append("deleted_at = CURRENT_TIMESTAMP,");
             } else {
@@ -131,7 +131,7 @@ public class SettingsParameterService {
 
     public Map<String, Object> deleteParameter(long paramId) {
         int updated = jdbcTemplate.update(
-                "UPDATE settings_parameters SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP WHERE id = ?",
+                "UPDATE settings_parameters SET is_deleted = TRUE, deleted_at = CURRENT_TIMESTAMP WHERE id = ?",
                 paramId
         );
         if (updated == 0) {
@@ -178,7 +178,7 @@ public class SettingsParameterService {
 
         String sql = "SELECT id, param_type, value, state, is_deleted, deleted_at, extra_json FROM settings_parameters";
         if (!includeDeleted) {
-            sql += " WHERE is_deleted = 0";
+            sql += " WHERE is_deleted = FALSE";
         }
         sql += " ORDER BY param_type, value";
 
@@ -287,7 +287,7 @@ public class SettingsParameterService {
             return;
         }
         List<Map<String, Object>> candidates = jdbcTemplate.queryForList(
-                "SELECT id FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = 0",
+                "SELECT id FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = FALSE",
                 paramType,
                 value
         );
@@ -334,7 +334,7 @@ public class SettingsParameterService {
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT param_type, value, extra_json FROM settings_parameters "
-                        + "WHERE is_deleted = 0 AND param_type IN ('business', 'city', 'department')"
+                        + "WHERE is_deleted = FALSE AND param_type IN ('business', 'city', 'department')"
         );
 
         for (Map<String, Object> row : rows) {
@@ -410,7 +410,7 @@ public class SettingsParameterService {
     private boolean hasLocationParametersForRepair() {
         Integer count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM settings_parameters "
-                        + "WHERE is_deleted = 0 AND param_type IN ('business', 'city', 'department')",
+                        + "WHERE is_deleted = FALSE AND param_type IN ('business', 'city', 'department')",
                 Integer.class
         );
         return count != null && count > 0;
@@ -537,7 +537,7 @@ public class SettingsParameterService {
             return;
         }
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id, extra_json FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = 0",
+                "SELECT id, extra_json FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = FALSE",
                 paramType,
                 value
         );
@@ -584,7 +584,7 @@ public class SettingsParameterService {
         dependencies.forEach(payload::put);
         String extraJson = writeJson(payload);
         jdbcTemplate.update(
-                "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', 0, ?)",
+                "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', FALSE, ?)",
                 paramType,
                 value,
                 extraJson
@@ -636,7 +636,7 @@ public class SettingsParameterService {
         }
         boolean changed = false;
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id, extra_json FROM settings_parameters WHERE is_deleted = 0 AND extra_json LIKE ?",
+                "SELECT id, extra_json FROM settings_parameters WHERE is_deleted = FALSE AND extra_json LIKE ?",
                 "%" + alias + "%"
         );
         for (Map<String, Object> row : rows) {
@@ -653,7 +653,7 @@ public class SettingsParameterService {
         }
 
         Integer aliasCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM settings_parameters WHERE is_deleted = 0 AND param_type = 'business' AND value = ?",
+                "SELECT COUNT(*) FROM settings_parameters WHERE is_deleted = FALSE AND param_type = 'business' AND value = ?",
                 Integer.class,
                 alias
         );
@@ -661,19 +661,19 @@ public class SettingsParameterService {
             return changed;
         }
         Integer canonicalCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM settings_parameters WHERE is_deleted = 0 AND param_type = 'business' AND value = ?",
+                "SELECT COUNT(*) FROM settings_parameters WHERE is_deleted = FALSE AND param_type = 'business' AND value = ?",
                 Integer.class,
                 canonical
         );
         if (canonicalCount != null && canonicalCount > 0) {
             jdbcTemplate.update(
-                    "UPDATE settings_parameters SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP "
-                            + "WHERE is_deleted = 0 AND param_type = 'business' AND value = ?",
+                    "UPDATE settings_parameters SET is_deleted = TRUE, deleted_at = CURRENT_TIMESTAMP "
+                            + "WHERE is_deleted = FALSE AND param_type = 'business' AND value = ?",
                     alias
             );
         } else {
             jdbcTemplate.update(
-                    "UPDATE settings_parameters SET value = ? WHERE is_deleted = 0 AND param_type = 'business' AND value = ?",
+                    "UPDATE settings_parameters SET value = ? WHERE is_deleted = FALSE AND param_type = 'business' AND value = ?",
                     canonical,
                     alias
             );
