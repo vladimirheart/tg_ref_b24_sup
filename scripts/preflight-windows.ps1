@@ -580,12 +580,9 @@ function Ensure-Wsl {
     } else {
         # Important: failure to parse localized `wsl --version` output must
         # never be interpreted as "WSL is not installed".
-        Write-WarnMessage "WSL is installed, but its version could not be parsed."
+        Write-InfoMessage "WSL version could not be parsed from localized output."
         Write-InfoMessage "The Docker Engine readiness check will validate WSL compatibility."
-        Write-WarnMessage "Skipping automatic WSL update check."
     }
-
-    Write-Ok "WSL $version"
 
     & wsl.exe --set-default-version 2 *> $null
 
@@ -902,11 +899,63 @@ function Get-DockerDesktopPath {
     return $null
 }
 
+function Invoke-NativeCommandQuiet {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [string]$Arguments = ""
+    )
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $FilePath
+    $startInfo.Arguments = $Arguments
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+
+    try {
+        if (-not $process.Start()) {
+            return [pscustomobject]@{
+                ExitCode = -1
+                StdOut   = ""
+                StdErr   = "Process could not be started."
+            }
+        }
+
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+
+        $process.WaitForExit()
+
+        return [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            StdOut   = $stdout
+            StdErr   = $stderr
+        }
+    } catch {
+        return [pscustomobject]@{
+            ExitCode = -1
+            StdOut   = ""
+            StdErr   = $_.Exception.Message
+        }
+    } finally {
+        $process.Dispose()
+    }
+}
+
 function Test-DockerEngine {
     param([string]$Docker)
 
-    & $Docker info *> $null
-    return ($LASTEXITCODE -eq 0)
+    $result = Invoke-NativeCommandQuiet `
+        -FilePath $Docker `
+        -Arguments "info"
+
+    return ($result.ExitCode -eq 0)
 }
 
 function Wait-DockerEngine {
@@ -995,18 +1044,20 @@ function Ensure-Docker {
 
         $desktopStartSucceeded = $false
 
-        try {
-            & $docker desktop start --timeout $DockerTimeoutSeconds
+        $desktopStartResult = Invoke-NativeCommandQuiet `
+            -FilePath $docker `
+            -Arguments "desktop start --timeout $DockerTimeoutSeconds"
 
-            if ($LASTEXITCODE -eq 0) {
-                $desktopStartSucceeded = $true
-            }
-        } catch {
-            $desktopStartSucceeded = $false
+        if ($desktopStartResult.ExitCode -eq 0) {
+            $desktopStartSucceeded = $true
         }
 
         if (-not $desktopStartSucceeded) {
             Write-WarnMessage "Docker Desktop CLI start failed or is unavailable. Falling back to Docker Desktop.exe."
+
+            if (-not [string]::IsNullOrWhiteSpace($desktopStartResult.StdErr)) {
+                Write-InfoMessage $desktopStartResult.StdErr.Trim()
+            }
 
             Start-Process `
                 -FilePath $desktop `
@@ -1033,10 +1084,12 @@ Run these commands for diagnostics:
 
     Write-Check "Docker Compose"
 
-    & $docker compose version *> $null
+    $composeResult = Invoke-NativeCommandQuiet `
+        -FilePath $docker `
+        -Arguments "compose version"
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "Docker Compose is not available."
+    if ($composeResult.ExitCode -ne 0) {
+        throw "Docker Compose is not available. $($composeResult.StdErr.Trim())"
     }
 
     Write-Ok "Docker Compose is available"
