@@ -265,6 +265,40 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
     padding: 1rem !important;
   }
 }
+.error-status-mark {
+  width: 6rem;
+  height: 6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  font-family: var(--font-serif);
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.error-status-mark--info {
+  border-color: var(--state-info-border);
+  background: var(--state-info-bg);
+  color: var(--state-info-text);
+}
+
+.error-status-mark--warning {
+  border-color: var(--state-warning-border);
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+}
+
+.error-status-mark--danger {
+  border-color: var(--state-danger-border);
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
+}
+
 .empty-state {
   padding: 2rem;
   border: 1px dashed color-mix(in srgb, var(--color-border) 80%, transparent);
@@ -2285,17 +2319,194 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   color: var(--color-text);
 }
 
+/* Dialogs template-extracted layout */
+body[data-ui-page=dialogs] .dialogs-hero,
+body[data-ui-page=dialogs] .dialogs-summary-card,
+body[data-ui-page=dialogs] .workspace-shell-card {
+  overflow: hidden;
+}
+
+body[data-ui-page=dialogs] .dialogs-toolbar-card .card-body,
+body[data-ui-page=dialogs] .dialogs-summary-card .card-body {
+  background: linear-gradient(180deg, var(--surface-card), var(--surface-raised));
+}
+
+body[data-ui-page=dialogs] .dialogs-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+body[data-ui-page=dialogs] .dialog-toolbar-search {
+  min-width: min(18rem, 100%);
+  max-width: none;
+}
+
+body[data-ui-page=dialogs] .dialog-table .text-truncate {
+  max-width: 18rem;
+}
+
+body[data-ui-page=dialogs] .workspace-panel-block {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--ui-panel-shadow);
+  animation: none;
+}
+
+body[data-ui-page=dialogs].density-compact .workspace-panel-block {
+  padding: calc(var(--app-density-space) * 0.95) !important;
+}
+
+body[data-ui-page=dialogs] .workspace-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+body[data-ui-page=dialogs] .workspace-tab-btn {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+body[data-ui-page=dialogs] .workspace-tab-btn:hover {
+  background: var(--surface-interactive);
+}
+
+body[data-ui-page=dialogs] .workspace-tab-btn.is-active {
+  background: var(--surface-selected);
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--color-border));
+  color: var(--primary);
+}
+
+body[data-ui-page=dialogs] .workspace-tab-panel.d-none {
+  display: none !important;
+}
+
+body[data-ui-page=dialogs] .dialog-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 12rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+body[data-ui-page=dialogs] .dialog-summary-item .h5 {
+  font-family: var(--font-serif);
+}
+
+body[data-ui-page=dialogs] .dialog-pending-media-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+body[data-ui-page=dialogs] .dialog-pending-media-preview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+body[data-ui-page=dialogs] .dialog-pending-media-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: min(18rem, 100%);
+  max-width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+body[data-ui-page=dialogs] .dialog-pending-media-thumb {
+  flex: 0 0 auto;
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--surface-interactive);
+  color: var(--color-text);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+body[data-ui-page=dialogs] .dialog-pending-media-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+body[data-ui-page=dialogs] .dialog-pending-media-meta {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+body[data-ui-page=dialogs] .dialog-pending-media-name {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+body[data-ui-page=dialogs] .dialog-pending-media-details {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  word-break: break-word;
+}
+
+body[data-ui-page=dialogs] .dialog-pending-media-remove {
+  flex: 0 0 auto;
+}
+
+body[data-ui-page=dialogs].dialog-compact-mode .dialogs-hero {
+  display: none;
+}
+
+body[data-ui-page=dialogs].dialog-compact-mode .dialogs-toolbar-card .card-body,
+body[data-ui-page=dialogs].dialog-compact-mode .dialogs-table-card .card-body,
+body[data-ui-page=dialogs].dialog-compact-mode .workspace-shell-card .card-body {
+  padding: 0.75rem !important;
+}
+
+body[data-ui-page=dialogs].dialog-compact-mode .workspace-panel-block {
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+}
+
+body[data-ui-page=dialogs].dialog-compact-mode .card {
+  box-shadow: none;
+}
+
+body[data-ui-page=dialogs].dialog-compact-mode .page-title {
+  font-size: 1.4rem;
+}
+
+body[data-ui-page=dialogs].dialog-compact-mode .dialog-summary-item {
+  min-width: 9rem;
+  padding: 0.5rem 0.75rem;
+}
+
+body[data-ui-page=dialogs].dialog-list-only-mode .dialogs-extra-section {
+  display: none !important;
+}
+
 /* App-specific unified visual system */
-.workspace-panel-block {
-  border-radius: var(--ui-panel-radius);
-  border-color: var(--ui-panel-border);
-}
-
-.dialogs-title {
-  letter-spacing: -0.025em;
-  line-height: 1.08;
-}
-
 /* Density mode (global) */
 body.density-comfortable {
   --app-density-space: 1rem;
@@ -2308,8 +2519,7 @@ body.density-compact {
 }
 
 body.density-compact .card-body,
-body.density-compact .page-header-card,
-body.density-compact .workspace-panel-block {
+body.density-compact .page-header-card {
   padding: calc(var(--app-density-space) * 0.95) !important;
 }
 
@@ -2346,14 +2556,6 @@ body[data-ui-density=compact] .page-title {
 
 body {
   letter-spacing: var(--letter-spacing, normal);
-}
-
-.workspace-panel-block {
-  background: var(--surface-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--ui-panel-radius);
-  box-shadow: var(--ui-panel-shadow);
-  animation: none;
 }
 
 /* Settings page cards unified */
