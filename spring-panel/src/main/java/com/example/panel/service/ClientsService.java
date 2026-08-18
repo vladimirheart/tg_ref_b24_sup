@@ -12,16 +12,16 @@ import com.example.panel.model.clients.ClientProfileStats;
 import com.example.panel.model.clients.ClientProfileTicket;
 import com.example.panel.model.clients.ClientUsernameEntry;
 import com.example.panel.repository.ClientUsernameRepository;
-import java.time.OffsetDateTime;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -41,6 +41,7 @@ public class ClientsService {
 
     private static final UUID NAMESPACE_URL = UUID.fromString("6ba7b811-9dad-11d1-80b4-00c04fd430c8");
     private static final DateTimeFormatter DISPLAY_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
     private final JdbcTemplate jdbcTemplate;
     private final ClientUsernameRepository clientUsernameRepository;
     private final JdbcTemplate botJdbcTemplate;
@@ -61,27 +62,38 @@ public class ClientsService {
             """
                 SELECT
                     m.user_id,
-                    m.username,
                     (
-                        SELECT client_name
-                        FROM messages
-                        WHERE user_id = m.user_id AND client_name IS NOT NULL AND client_name != ''
-                        ORDER BY created_at DESC
-                        LIMIT 1
+                        SELECT latest_username.username
+                          FROM messages latest_username
+                         WHERE latest_username.user_id = m.user_id
+                           AND latest_username.username IS NOT NULL
+                           AND latest_username.username <> ''
+                         ORDER BY latest_username.created_at DESC NULLS LAST
+                         LIMIT 1
+                    ) AS username,
+                    (
+                        SELECT latest_client.client_name
+                          FROM messages latest_client
+                         WHERE latest_client.user_id = m.user_id
+                           AND latest_client.client_name IS NOT NULL
+                           AND latest_client.client_name <> ''
+                         ORDER BY latest_client.created_at DESC NULLS LAST
+                         LIMIT 1
                     ) AS client_name,
                     COUNT(*) AS ticket_count,
                     MIN(m.created_at) AS first_contact,
                     MAX(m.created_at) AS last_contact,
                     (
-                        SELECT channel_id
-                        FROM messages
-                        WHERE user_id = m.user_id
-                        ORDER BY created_at DESC
-                        LIMIT 1
+                        SELECT latest_channel.channel_id
+                          FROM messages latest_channel
+                         WHERE latest_channel.user_id = m.user_id
+                         ORDER BY latest_channel.created_at DESC NULLS LAST
+                         LIMIT 1
                     ) AS channel_id
                 FROM messages m
+                WHERE m.user_id IS NOT NULL
                 GROUP BY m.user_id
-                ORDER BY last_contact DESC
+                ORDER BY last_contact DESC NULLS LAST
                 """,
             (rs, rowNum) -> new ClientRow(
                 rs.getLong("user_id"),
@@ -100,11 +112,14 @@ public class ClientsService {
 
         List<ClientListItem> clients = new ArrayList<>();
         for (ClientRow row : baseRows) {
-            BlacklistInfo blacklistInfo = blacklistMap.getOrDefault(String.valueOf(row.userId()), new BlacklistInfo(false, false));
+            BlacklistInfo blacklistInfo = blacklistMap.getOrDefault(
+                String.valueOf(row.userId()),
+                new BlacklistInfo(false, false)
+            );
             String status = statusMap.get(row.userId());
             String channelName = row.channelId() != null ? channelMap.get(row.channelId()) : null;
             int totalMinutes = loadTotalMinutes(row.userId());
-            ClientListItem item = new ClientListItem(
+            clients.add(new ClientListItem(
                 row.userId(),
                 row.username(),
                 row.clientName(),
@@ -118,8 +133,7 @@ public class ClientsService {
                 generatePanelId(row.userId()),
                 blacklistInfo.blacklisted(),
                 blacklistInfo.unblockRequested()
-            );
-            clients.add(item);
+            ));
         }
 
         if (StringUtils.hasText(blacklistFilter)) {
@@ -137,20 +151,23 @@ public class ClientsService {
                 SELECT
                     m.user_id,
                     (
-                        SELECT username
-                        FROM messages
-                        WHERE user_id = m.user_id AND username IS NOT NULL AND username != ''
-                        ORDER BY created_at DESC
-                        LIMIT 1
+                        SELECT latest_username.username
+                          FROM messages latest_username
+                         WHERE latest_username.user_id = m.user_id
+                           AND latest_username.username IS NOT NULL
+                           AND latest_username.username <> ''
+                         ORDER BY latest_username.created_at DESC NULLS LAST
+                         LIMIT 1
                     ) AS username,
                     (
-                        SELECT client_name
-                        FROM messages
-                        WHERE user_id = m.user_id AND client_name IS NOT NULL AND client_name != ''
-                        ORDER BY created_at DESC
-                        LIMIT 1
-                    ) AS client_name
-                    ,
+                        SELECT latest_client.client_name
+                          FROM messages latest_client
+                         WHERE latest_client.user_id = m.user_id
+                           AND latest_client.client_name IS NOT NULL
+                           AND latest_client.client_name <> ''
+                         ORDER BY latest_client.created_at DESC NULLS LAST
+                         LIMIT 1
+                    ) AS client_name,
                     m.channel_id,
                     c.channel_name,
                     c.platform,
@@ -170,7 +187,7 @@ public class ClientsService {
                 FROM messages m
                 LEFT JOIN channels c ON m.channel_id = c.id
                 WHERE m.user_id = ?
-                ORDER BY m.created_at DESC
+                ORDER BY m.created_at DESC NULLS LAST
                 LIMIT 1
                 """,
             rs -> rs.next()
@@ -214,7 +231,7 @@ public class ClientsService {
                 LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
                 LEFT JOIN channels c ON m.channel_id = c.id
                 WHERE m.user_id = ?
-                ORDER BY m.created_at DESC
+                ORDER BY m.created_at DESC NULLS LAST
                 """,
             (rs, rowNum) -> new ClientProfileTicket(
                 rs.getString("ticket_id"),
@@ -237,9 +254,9 @@ public class ClientsService {
         ClientProfileStats stats = jdbcTemplate.query(
             """
                 SELECT
-                    COUNT(*) as total,
-                    SUM(CASE WHEN t.status = 'resolved' THEN 1 ELSE 0 END) as resolved,
-                    SUM(CASE WHEN t.status != 'resolved' THEN 1 ELSE 0 END) as pending
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN t.status = 'resolved' THEN 1 ELSE 0 END) AS resolved,
+                    SUM(CASE WHEN t.status <> 'resolved' OR t.status IS NULL THEN 1 ELSE 0 END) AS pending
                 FROM messages m
                 LEFT JOIN tickets t ON m.ticket_id = t.ticket_id
                 WHERE m.user_id = ?
@@ -248,10 +265,11 @@ public class ClientsService {
                 if (!rs.next()) {
                     return new ClientProfileStats(0, 0, 0);
                 }
-                int total = rs.getInt("total");
-                int resolved = rs.getInt("resolved");
-                int pending = rs.getInt("pending");
-                return new ClientProfileStats(total, resolved, pending);
+                return new ClientProfileStats(
+                    rs.getInt("total"),
+                    rs.getInt("resolved"),
+                    rs.getInt("pending")
+                );
             },
             userId
         );
@@ -330,9 +348,10 @@ public class ClientsService {
         }
         List<ClientUsernameEntry> history = new ArrayList<>();
         for (ClientUsername entry : entries) {
-            String username = entry.getUsername();
-            String seenAt = formatOffsetDateTime(entry.getSeenAt());
-            history.add(new ClientUsernameEntry(username, seenAt));
+            history.add(new ClientUsernameEntry(
+                entry.getUsername(),
+                formatOffsetDateTime(entry.getSeenAt())
+            ));
         }
         return history;
     }
@@ -344,10 +363,7 @@ public class ClientsService {
             if (!StringUtils.hasText(value)) {
                 continue;
             }
-            String key = value.trim();
-            if (!key.isEmpty()) {
-                counts.merge(key, 1L, Long::sum);
-            }
+            counts.merge(value.trim(), 1L, Long::sum);
         }
         return toAnalyticsList(counts);
     }
@@ -370,11 +386,8 @@ public class ClientsService {
         }
         return counts.entrySet().stream()
             .sorted((a, b) -> {
-                int cmp = Long.compare(b.getValue(), a.getValue());
-                if (cmp != 0) {
-                    return cmp;
-                }
-                return a.getKey().compareToIgnoreCase(b.getKey());
+                int countCompare = Long.compare(b.getValue(), a.getValue());
+                return countCompare != 0 ? countCompare : a.getKey().compareToIgnoreCase(b.getKey());
             })
             .map(entry -> new ClientAnalyticsItem(entry.getKey(), entry.getValue()))
             .toList();
@@ -391,10 +404,10 @@ public class ClientsService {
                 FROM messages m
                 JOIN tickets t ON m.ticket_id = t.ticket_id
                 LEFT JOIN (
-                    SELECT ticket_id, MIN(timestamp) as first_response_time
+                    SELECT ticket_id, MIN(timestamp) AS first_response_time
                     FROM chat_history
                     WHERE sender IS NOT NULL
-                      AND TRIM(sender) != ''
+                      AND TRIM(sender) <> ''
                       AND LOWER(sender) NOT IN ('user', 'клиент', 'client', 'customer', 'пользователь')
                     GROUP BY ticket_id
                 ) ch ON t.ticket_id = ch.ticket_id
@@ -408,6 +421,7 @@ public class ClientsService {
             ),
             userId
         );
+
         int total = 0;
         for (TicketTimingRow row : rows) {
             if (!isResolvedStatus(row.status())) {
@@ -434,14 +448,14 @@ public class ClientsService {
                 if (!rs.next()) {
                     return new ClientBlacklistInfo(false, false, null, null, null, null);
                 }
-                boolean blacklisted = rs.getInt("is_blacklisted") == 1;
-                boolean unblockRequested = rs.getInt("unblock_requested") == 1;
+                boolean blacklisted = rs.getBoolean("is_blacklisted");
+                boolean unblockRequested = rs.getBoolean("unblock_requested");
                 String addedAt = formatTimestamp(rs.getString("added_at"));
                 String addedBy = rs.getString("added_by");
                 String reason = rs.getString("reason");
                 String blockedFor = blacklistHistoryService.calculateDurationFromLastBlock(String.valueOf(userId), null)
-                        .map(blacklistHistoryService::formatDuration)
-                        .orElse(null);
+                    .map(blacklistHistoryService::formatDuration)
+                    .orElse(null);
                 return new ClientBlacklistInfo(blacklisted, unblockRequested, addedAt, addedBy, reason, blockedFor);
             },
             String.valueOf(userId)
@@ -453,28 +467,26 @@ public class ClientsService {
             return List.of();
         }
         return jdbcTemplate.query(
-                """
-                    SELECT action, reason, actor, created_at
-                    FROM client_blacklist_history
-                    WHERE user_id = ?
-                    ORDER BY created_at DESC
-                    """,
-                (rs, rowNum) -> {
-                    String action = rs.getString("action");
-                    String actionLabel = "blocked".equalsIgnoreCase(action)
-                            ? "Блокировка"
-                            : "unblocked".equalsIgnoreCase(action)
-                                    ? "Разблокировка"
-                                    : action;
-                    return new ClientBlacklistHistoryEntry(
-                            action,
-                            actionLabel,
-                            formatTimestamp(rs.getString("created_at")),
-                            rs.getString("actor"),
-                            rs.getString("reason")
-                    );
-                },
-                String.valueOf(userId)
+            """
+                SELECT action, reason, actor, created_at
+                FROM client_blacklist_history
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                """,
+            (rs, rowNum) -> {
+                String action = rs.getString("action");
+                String actionLabel = "blocked".equalsIgnoreCase(action)
+                    ? "Блокировка"
+                    : "unblocked".equalsIgnoreCase(action) ? "Разблокировка" : action;
+                return new ClientBlacklistHistoryEntry(
+                    action,
+                    actionLabel,
+                    formatTimestamp(rs.getString("created_at")),
+                    rs.getString("actor"),
+                    rs.getString("reason")
+                );
+            },
+            String.valueOf(userId)
         );
     }
 
@@ -515,8 +527,8 @@ public class ClientsService {
                 if (!rs.next()) {
                     return null;
                 }
-                double avg = rs.getDouble("avg_rating");
-                return rs.wasNull() ? null : avg;
+                double average = rs.getDouble("avg_rating");
+                return rs.wasNull() ? null : average;
             },
             userId
         );
@@ -529,10 +541,9 @@ public class ClientsService {
             rs -> {
                 while (rs.next()) {
                     Integer rating = rs.getObject("rating") != null ? rs.getInt("rating") : null;
-                    if (rating == null || rating < 1 || rating > 5) {
-                        continue;
+                    if (rating != null && rating >= 1 && rating <= 5) {
+                        counts.put(rating, rs.getLong("rating_count"));
                     }
-                    counts.put(rating, rs.getLong("rating_count"));
                 }
                 return null;
             },
@@ -540,9 +551,8 @@ public class ClientsService {
         );
 
         List<ClientAnalyticsItem> stats = new ArrayList<>();
-        for (int rating = 5; rating >= 1; rating -= 1) {
-            long value = counts.getOrDefault(rating, 0L);
-            stats.add(new ClientAnalyticsItem(rating + "★", value));
+        for (int rating = 5; rating >= 1; rating--) {
+            stats.add(new ClientAnalyticsItem(rating + "★", counts.getOrDefault(rating, 0L)));
         }
         return stats;
     }
@@ -553,10 +563,13 @@ public class ClientsService {
             rs -> {
                 Map<String, BlacklistInfo> map = new HashMap<>();
                 while (rs.next()) {
-                    String userId = rs.getString("user_id");
-                    boolean blacklisted = rs.getInt("is_blacklisted") == 1;
-                    boolean unblockRequested = rs.getInt("unblock_requested") == 1;
-                    map.put(userId, new BlacklistInfo(blacklisted, unblockRequested));
+                    map.put(
+                        rs.getString("user_id"),
+                        new BlacklistInfo(
+                            rs.getBoolean("is_blacklisted"),
+                            rs.getBoolean("unblock_requested")
+                        )
+                    );
                 }
                 return map;
             }
@@ -589,6 +602,7 @@ public class ClientsService {
         if (channelIds.isEmpty()) {
             return Map.of();
         }
+
         String placeholders = String.join(",", channelIds.stream().map(id -> "?").toList());
         List<Object> params = new ArrayList<>(channelIds);
         return jdbcTemplate.query(
@@ -596,8 +610,10 @@ public class ClientsService {
             rs -> {
                 Map<Long, String> map = new HashMap<>();
                 while (rs.next()) {
-                    String channelName = resolveChannelName(rs.getString("channel_name"), rs.getString("bot_name"));
-                    map.put(rs.getLong("id"), channelName);
+                    map.put(
+                        rs.getLong("id"),
+                        resolveChannelName(rs.getString("channel_name"), rs.getString("bot_name"))
+                    );
                 }
                 return map;
             },
@@ -619,7 +635,7 @@ public class ClientsService {
         if (minutes == null) {
             return "0 ч 0 мин";
         }
-        int value = minutes;
+        int value = Math.max(0, minutes);
         int hours = value / 60;
         int mins = value % 60;
         if (hours == 0) {
@@ -635,19 +651,22 @@ public class ClientsService {
         if (!StringUtils.hasText(value)) {
             return null;
         }
-        String trimmed = value.trim();
+        String trimmed = value.trim().replace('T', ' ');
+        int offsetPlus = trimmed.indexOf('+', 10);
+        int offsetMinus = trimmed.indexOf('-', 10);
+        int offsetIndex = offsetPlus > 0 ? offsetPlus : offsetMinus;
+        if (offsetIndex > 0) {
+            trimmed = trimmed.substring(0, offsetIndex);
+        }
         int dotIndex = trimmed.indexOf('.');
         if (dotIndex > 0) {
             trimmed = trimmed.substring(0, dotIndex);
         }
-        return trimmed.replace('T', ' ');
+        return trimmed;
     }
 
     private String formatOffsetDateTime(OffsetDateTime value) {
-        if (value == null) {
-            return null;
-        }
-        return DISPLAY_DATE_FORMAT.format(value);
+        return value == null ? null : DISPLAY_DATE_FORMAT.format(value);
     }
 
     private boolean isResolvedStatus(String status) {
@@ -668,9 +687,17 @@ public class ClientsService {
         } catch (DateTimeParseException ignored) {
         }
         try {
+            String normalized = raw.replace(' ', 'T');
+            if (normalized.matches(".*[+-]\\d{2}$")) {
+                normalized += ":00";
+            }
+            return OffsetDateTime.parse(normalized).toInstant();
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
             String compact = raw.replace(' ', 'T');
-            if (compact.length() == 19) {
-                return LocalDateTime.parse(compact).toInstant(ZoneOffset.UTC);
+            if (compact.length() >= 19) {
+                return LocalDateTime.parse(compact.substring(0, 19)).toInstant(ZoneOffset.UTC);
             }
         } catch (DateTimeParseException ignored) {
         }
@@ -679,10 +706,12 @@ public class ClientsService {
 
     private String generatePanelId(Long userId) {
         if (userId == null) {
-            return "CL-" + Base64.getEncoder().encodeToString(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)).substring(0, 8).toUpperCase();
+            return "CL-" + Base64.getEncoder()
+                .encodeToString(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8))
+                .substring(0, 8)
+                .toUpperCase();
         }
-        String base = "client:" + userId;
-        UUID uuid = uuid5(NAMESPACE_URL, base);
+        UUID uuid = uuid5(NAMESPACE_URL, "client:" + userId);
         return "CL-" + uuid.toString().replace("-", "").substring(0, 8).toUpperCase();
     }
 
@@ -697,9 +726,7 @@ public class ClientsService {
             hash[8] &= 0x3f;
             hash[8] |= 0x80;
             ByteBuffer buffer = ByteBuffer.wrap(hash, 0, 16);
-            long msb = buffer.getLong();
-            long lsb = buffer.getLong();
-            return new UUID(msb, lsb);
+            return new UUID(buffer.getLong(), buffer.getLong());
         } catch (Exception ex) {
             return UUID.nameUUIDFromBytes(name.getBytes(StandardCharsets.UTF_8));
         }
@@ -713,13 +740,13 @@ public class ClientsService {
     }
 
     private record ClientRow(
-            Long userId,
-            String username,
-            String clientName,
-            long ticketCount,
-            String firstContact,
-            String lastContact,
-            Long channelId
+        Long userId,
+        String username,
+        String clientName,
+        long ticketCount,
+        String firstContact,
+        String lastContact,
+        Long channelId
     ) {
     }
 
@@ -727,10 +754,10 @@ public class ClientsService {
     }
 
     private record TicketTimingRow(
-            String ticketId,
-            String status,
-            String resolvedAt,
-            String firstResponseTime
+        String ticketId,
+        String status,
+        String resolvedAt,
+        String firstResponseTime
     ) {
     }
 }
