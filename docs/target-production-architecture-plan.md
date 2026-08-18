@@ -151,7 +151,7 @@
 
 - `spring-panel`: `DatabaseBootstrapService`, `MonitoringDatabaseBootstrapService`, `BotDatabaseRegistry`, `SqliteSchemaBootstrapSupport`;
 - `java-bot`: `SqliteSchemaInitializer`, `SqliteTriggerInitializer`, `schema-sqlite.sql`;
-- first-run fallback bootstrap, который оставляет локальный запуск в `APP_DB_MODE=sqlite`, если на машине нет Docker для локального PostgreSQL.
+- explicit SQLite compatibility bootstrap, который включается только при сознательном выборе `IGUANA_BOOTSTRAP_DB_MODE=sqlite` или аварийном override.
 
 Этот слой больше не должен участвовать в external PostgreSQL runtime path. Для отдельной фиксации perimeter см. [docs/SQLITE_BOOTSTRAP_PERIMETER.md](SQLITE_BOOTSTRAP_PERIMETER.md).
 

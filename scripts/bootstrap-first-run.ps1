@@ -326,7 +326,7 @@ if ([string]::IsNullOrWhiteSpace($bootstrapMode)) {
     $bootstrapMode = "auto"
 }
 $bootstrapMode = $bootstrapMode.Trim().ToLowerInvariant()
-$allowSqliteFallback = Get-BoolSetting -Name "IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK" -Default $true
+$allowSqliteFallback = Get-BoolSetting -Name "IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK" -Default $false
 
 if ($bootstrapMode -notin @("auto", "sqlite", "postgresql")) {
     throw "Unsupported IGUANA_BOOTSTRAP_DB_MODE '$bootstrapMode'. Allowed values: auto, sqlite, postgresql."
@@ -349,9 +349,10 @@ $effectiveMode = switch ($bootstrapMode) {
         if ($dockerAvailable) {
             "postgresql"
         } elseif ($allowSqliteFallback) {
+            Write-Warning "Docker is unavailable after bootstrap checks. Falling back to SQLite only because IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=true explicitly enabled compatibility mode."
             "sqlite"
         } else {
-            throw "Docker is unavailable after bootstrap checks, and IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=false blocks SQLite fallback."
+            throw "Docker is unavailable after bootstrap checks. Default first-run bootstrap now requires PostgreSQL/RabbitMQ. Use IGUANA_BOOTSTRAP_DB_MODE=sqlite only as an explicit local compatibility override."
         }
     }
 }
@@ -416,7 +417,7 @@ if ($effectiveMode -eq "postgresql" -and -not $SkipDocker) {
     Write-Host "[INFO] Local PostgreSQL is starting on localhost:$effectivePort"
     Write-Host "[INFO] Local RabbitMQ is starting on localhost:$effectiveRabbitAmqpPort (management UI: http://localhost:$effectiveRabbitHttpPort)"
 } elseif ($effectiveMode -eq "sqlite") {
-    Write-Host "[INFO] Docker is unavailable, bootstrap stayed in SQLite+JDBC dev mode."
+    Write-Host "[WARN] Bootstrap is running in explicit SQLite compatibility mode."
 }
 
 Write-Host "[INFO] First-run bootstrap completed."
