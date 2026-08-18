@@ -107,10 +107,6 @@ app:
     repository-root: ${APP_ADMIN_REPOSITORY_ROOT:}
     storage-inventory-timeout: ${APP_ADMIN_STORAGE_INVENTORY_TIMEOUT:90s}
 
-# One-time compatibility bridge for installations that used local SQLite
-# before PostgreSQL became the default runtime. Set to false to opt out.
-IGUANA_LEGACY_SQLITE_AUTO_IMPORT: ${IGUANA_LEGACY_SQLITE_AUTO_IMPORT:true}
-
 server:
   port: ${APP_HTTP_PORT:8080}
   tomcat:
