@@ -11,21 +11,16 @@
 ```
 TELEGRAM_BOT_TOKEN=123:ABC
 GROUP_CHAT_ID=-1001234567890
-APP_DB_MODE=sqlite
-APP_DB_PANEL_RUNTIME=/srv/iguana/panel_runtime.db
-APP_DB_PANEL_IDENTITY=/srv/iguana/panel_identity.db
-APP_DB_BOT_RUNTIME=/srv/iguana/bot_runtime.db
-APP_DB_CLIENTS=/srv/iguana/clients.db
-APP_DB_KNOWLEDGE=/srv/iguana/knowledge_base.db
-APP_DB_OBJECTS=/srv/iguana/objects.db
-APP_DB_SETTINGS=/srv/iguana/settings.db
-APP_BOT_DATABASE_DIR=/srv/iguana/bots
+APP_DB_MODE=postgresql
+SPRING_DATASOURCE_URL=jdbc:postgresql://db.example.local:5432/iguana
+SPRING_DATASOURCE_USERNAME=iguana
+SPRING_DATASOURCE_PASSWORD=secret
 ```
 
 Для локального PostgreSQL-first старта bootstrap теперь использует такой базовый шаблон:
 
 ```bash
-IGUANA_BOOTSTRAP_DB_MODE=auto
+IGUANA_BOOTSTRAP_DB_MODE=postgresql
 APP_POSTGRES_PORT=5432
 APP_DB_MODE=postgresql
 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/iguana
@@ -35,9 +30,9 @@ SPRING_DATASOURCE_PASSWORD=iguana
 
 Поведение bootstrap:
 
-- `IGUANA_BOOTSTRAP_DB_MODE=auto` — на Windows сначала пытается автоматически поставить Docker Desktop через `winget`, затем предпочитает локальный PostgreSQL через Docker; если Docker всё равно недоступен, откатывается на SQLite dev mode;
+- `IGUANA_BOOTSTRAP_DB_MODE=auto` — на Windows сначала пытается автоматически поставить Docker Desktop через `winget`, затем поднимает локальный PostgreSQL/RabbitMQ через Docker; без Docker bootstrap теперь завершается ошибкой;
 - `IGUANA_BOOTSTRAP_DB_MODE=postgresql` — требует Docker и поднимает `docker-compose.local-postgres.yml`;
-- `IGUANA_BOOTSTRAP_DB_MODE=sqlite` — оставляет локальный dev-path без Docker.
+- `IGUANA_BOOTSTRAP_DB_MODE=sqlite` — оставляет локальный compatibility path без Docker и должен использоваться только сознательно для legacy/dev-слоя.
 
 Ключевые переменные:
 
@@ -51,7 +46,7 @@ SPRING_DATASOURCE_PASSWORD=iguana
 - `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` — preferred-конфиг для external DB.
 - `DATABASE_URL` — compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL.
 - `IGUANA_BOOTSTRAP_INSTALL_DOCKER` — разрешает bootstrap на Windows автоматически поставить Docker Desktop через `winget` (по умолчанию `true`).
-- `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK` — разрешает в `IGUANA_BOOTSTRAP_DB_MODE=auto` откатиться на SQLite, если Docker так и не стал доступен после install/start попытки (по умолчанию `true`).
+- `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK` — аварийно разрешает в `IGUANA_BOOTSTRAP_DB_MODE=auto` откатиться на SQLite, если Docker так и не стал доступен после install/start попытки (по умолчанию `false`).
 - `IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS` — сколько ждать готовности Docker Desktop после установки/старта (по умолчанию `300` секунд).
 
 Для целевого production-перехода по `01-181` используйте явный режим external DB:
@@ -70,6 +65,7 @@ SPRING_DATASOURCE_PASSWORD=secret
 - `java-bot` больше не использует Spring Boot `sql.init` как runtime-механику владения схемой: в external PostgreSQL-режиме бот просто подключается к готовой схеме, а не пытается инициализировать её сам.
 - `java-bot` в SQLite-режиме теперь поднимает local schema явным `SqliteSchemaInitializer`, который исполняет `schema-sqlite.sql` только для local/dev-контура.
 - runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели, а SQLite-пути используются только в явном `sqlite`-режиме без дополнительных `SPRING_SQL_INIT_*` флагов.
+- normal first-run path больше не должен неявно переводить проект обратно в SQLite только потому, что Docker недоступен.
 
 > 💡 ID группы поддержки для Telegram можно сохранить в панели администратора в разделе «Каналы (боты)». Если оставить пустым, бот запишет ID автоматически после добавления в чат.
 

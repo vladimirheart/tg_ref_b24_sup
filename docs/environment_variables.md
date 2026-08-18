@@ -21,10 +21,10 @@
 | `SPRING_DATASOURCE_URL` | явный JDBC URL для external DB | Панель и бот |
 | `SPRING_DATASOURCE_USERNAME` | пользователь external DB | Панель и бот |
 | `SPRING_DATASOURCE_PASSWORD` | пароль external DB | Панель и бот |
-| `IGUANA_BOOTSTRAP_DB_MODE` | режим first-run bootstrap: `auto`, `sqlite`, `postgresql` | bootstrap scripts |
+| `IGUANA_BOOTSTRAP_DB_MODE` | режим first-run bootstrap: `auto`, `sqlite`, `postgresql`; normal path должен вести в PostgreSQL/RabbitMQ | bootstrap scripts |
 | `APP_POSTGRES_PORT` | локальный порт для dockerized PostgreSQL bootstrap | bootstrap scripts |
 | `IGUANA_BOOTSTRAP_INSTALL_DOCKER` | разрешить Windows bootstrap автоматически поставить Docker Desktop через `winget` | bootstrap scripts |
-| `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK` | разрешить `auto`-bootstrap откатиться на SQLite, если Docker не стал доступен | bootstrap scripts |
+| `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK` | аварийно разрешить `auto`-bootstrap откатиться на SQLite, если Docker не стал доступен | bootstrap scripts |
 | `IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS` | timeout ожидания готовности Docker Desktop после установки/старта | bootstrap scripts |
 
 ## Базы данных
@@ -59,12 +59,10 @@
 
 ```bash
 export TELEGRAM_BOT_TOKEN="123:ABC"
-export APP_DB_MODE="sqlite"
-export APP_DB_PANEL_RUNTIME="/srv/iguana/panel_runtime.db"
-export APP_DB_PANEL_IDENTITY="/srv/iguana/panel_identity.db"
-export APP_DB_BOT_RUNTIME="/srv/iguana/bot_runtime.db"
-export APP_DB_CLIENTS="/srv/iguana/clients.db"
-export APP_BOT_DATABASE_DIR="/srv/iguana/bots"
+export APP_DB_MODE="postgresql"
+export SPRING_DATASOURCE_URL="jdbc:postgresql://db.example.local:5432/iguana"
+export SPRING_DATASOURCE_USERNAME="iguana"
+export SPRING_DATASOURCE_PASSWORD="secret"
 ```
 
 Для external PostgreSQL-режима рекомендуется явно фиксировать режим и стандартные Spring datasource-поля:
@@ -82,3 +80,8 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 
 - в `APP_DB_MODE=sqlite` runtime сам поднимает local schema через `SqliteSchemaInitializer`;
 - в `APP_DB_MODE=postgresql` runtime получает готовый PostgreSQL datasource-контракт и не несёт `SPRING_SQL_INIT_MODE`/`schema-sqlite.sql` в production-path.
+
+Для first-run bootstrap после стартового production-slice `01-183` действует ещё одно правило:
+
+- default bootstrap-path должен завершаться в `PostgreSQL + RabbitMQ`;
+- SQLite допускается только как явный compatibility override (`IGUANA_BOOTSTRAP_DB_MODE=sqlite`) или как аварийный fallback при явно включённом `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=true`.

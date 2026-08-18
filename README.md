@@ -70,8 +70,9 @@ cd spring-panel
 
 - создаёт корневой `.env`, если его ещё нет;
 - подготавливает `attachments/`, `logs/` и `bot_databases/`;
-- если на машине доступен Docker с `docker compose`, поднимает локальные `PostgreSQL` и `RabbitMQ`, переводит старт в `APP_DB_MODE=postgresql` и включает `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
-- если Docker недоступен, сохраняет рабочий dev-path через `APP_DB_MODE=sqlite` и `APP_INTEGRATION_TRANSPORT_MODE=jdbc`, чтобы проект всё равно можно было поднять без ручной подготовки.
+- поднимает локальные `PostgreSQL` и `RabbitMQ`, переводит старт в `APP_DB_MODE=postgresql` и включает `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
+- если Docker недоступен, bootstrap теперь завершается ошибкой вместо молчаливого перехода в SQLite;
+- `APP_DB_MODE=sqlite` оставлен только как явный compatibility override для локального legacy/dev-сценария.
 
 Для ручного повторного bootstrap используйте `scripts/bootstrap-first-run.ps1` или `scripts/bootstrap-first-run.sh`.
 

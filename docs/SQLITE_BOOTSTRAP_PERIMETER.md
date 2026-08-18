@@ -34,7 +34,8 @@
 
 - `scripts/bootstrap-first-run.ps1`
 - `scripts/bootstrap-first-run.sh`
-- fallback в `.env`/run-скриптах на `APP_DB_MODE=sqlite`, если локально нет Docker
+- explicit compatibility override `IGUANA_BOOTSTRAP_DB_MODE=sqlite`
+- аварийный fallback только при явном `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=true`
 
 Этот слой допустим только для того, чтобы новый клон можно было запустить без ручной SQL-подготовки.
 
@@ -55,7 +56,7 @@
 SQLite остаётся только в трёх ролях:
 
 - local/dev bootstrap;
-- compatibility fallback для первого запуска без Docker;
+- explicit compatibility fallback, а не normal first-run path;
 - legacy/test perimeter, который не должен участвовать в external production-like path.
 
 Если новый код требует SQLite-ветку вне этих ролей, это уже не continuation existing perimeter, а новый architectural debt и его нужно отдельно обосновывать.

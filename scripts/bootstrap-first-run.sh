@@ -31,6 +31,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ENV_FILE="${REPO_ROOT}/.env"
 COMPOSE_FILE="${REPO_ROOT}/docker-compose.local-postgres.yml"
 BOOTSTRAP_MODE="${IGUANA_BOOTSTRAP_DB_MODE:-auto}"
+ALLOW_SQLITE_FALLBACK="${IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK:-false}"
 
 test_port_busy() {
   local port="$1"
@@ -142,8 +143,12 @@ case "${BOOTSTRAP_MODE}" in
   *)
     if [[ "${DOCKER_AVAILABLE}" == "1" ]]; then
       EFFECTIVE_MODE="postgresql"
-    else
+    elif [[ "${ALLOW_SQLITE_FALLBACK,,}" == "1" || "${ALLOW_SQLITE_FALLBACK,,}" == "true" || "${ALLOW_SQLITE_FALLBACK,,}" == "yes" || "${ALLOW_SQLITE_FALLBACK,,}" == "on" ]]; then
+      echo "[WARN] Docker is unavailable after bootstrap checks. Falling back to SQLite only because IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=true explicitly enabled compatibility mode." >&2
       EFFECTIVE_MODE="sqlite"
+    else
+      echo "[ERROR] Docker is unavailable after bootstrap checks. Default first-run bootstrap now requires PostgreSQL/RabbitMQ. Use IGUANA_BOOTSTRAP_DB_MODE=sqlite only as an explicit local compatibility override." >&2
+      exit 1
     fi
     ;;
 esac
@@ -201,7 +206,7 @@ if [[ "${EFFECTIVE_MODE}" == "postgresql" && "${SKIP_DOCKER}" != "1" ]]; then
   echo "[INFO] Local PostgreSQL is starting on localhost:${EFFECTIVE_PORT}"
   echo "[INFO] Local RabbitMQ is starting on localhost:${EFFECTIVE_RABBIT_AMQP_PORT} (management UI: http://localhost:${EFFECTIVE_RABBIT_HTTP_PORT})"
 elif [[ "${EFFECTIVE_MODE}" == "sqlite" ]]; then
-  echo "[INFO] Docker is unavailable, bootstrap stayed in SQLite+JDBC dev mode."
+  echo "[WARN] Bootstrap is running in explicit SQLite compatibility mode."
 fi
 
 echo "[INFO] First-run bootstrap completed."
