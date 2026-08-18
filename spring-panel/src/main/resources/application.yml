@@ -18,13 +18,13 @@ spring:
           use_jdbc_metadata_defaults: false
 
   flyway:
+    # Main runtime is PostgreSQL-first. FlywayConfig switches this location
+    # to sqlite/mysql when the selected datasource mode requires it.
     locations:
-      - classpath:db/migration/sqlite
+      - classpath:db/migration/postgresql
     baseline-on-migrate: true
     baseline-version: 0
     out-of-order: true
-    placeholders:
-      autoIncrement: AUTOINCREMENT
 
   sql:
     init:
@@ -119,6 +119,3 @@ logging:
   level:
     # Suppress noisy stack traces when HTTPS traffic accidentally hits the HTTP port
     org.apache.coyote.http11.Http11Processor: WARN
-
-
-
