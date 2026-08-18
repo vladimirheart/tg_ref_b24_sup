@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 
 import java.sql.ResultSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -96,12 +95,12 @@ public class SecurityBootstrap {
             return ids.get(0);
         }
 
-        // если админа нет — создаём
+        // если админа нет — создаём. Передаём boolean параметром, а не SQLite-специфичным 1.
         String encoded = passwordEncoder.encode("admin");
         if (hasUsersColumn("enabled")) {
             jdbcTemplate.update(
-                    "INSERT INTO users(username, password, enabled) VALUES(?, ?, 1)",
-                    "admin", encoded
+                    "INSERT INTO users(username, password, enabled) VALUES(?, ?, ?)",
+                    "admin", encoded, true
             );
         } else {
             jdbcTemplate.update(
@@ -206,4 +205,3 @@ public class SecurityBootstrap {
         }
     }
 }
-
