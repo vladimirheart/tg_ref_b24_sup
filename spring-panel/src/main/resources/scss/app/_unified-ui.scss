@@ -90,72 +90,6 @@ body {
         );
 }	
 
-.dialog-status-badge.status-new {
-    background-color: var(--state-info-bg);
-    border-color: var(--state-info-border);
-    color: var(--state-info-text);
-}
-
-.dialog-status-badge.status-waiting-operator {
-    background-color: var(--state-warning-bg);
-    border-color: var(--state-warning-border);
-    color: var(--state-warning-text);
-}
-
-.dialog-status-badge.status-closed {
-    background-color: var(--state-success-bg);
-    border-color: var(--state-success-border);
-    color: var(--state-success-text);
-}
-
-.dialog-status-badge.status-auto-closed {
-    background-color: var(--state-neutral-bg);
-    border-color: var(--state-neutral-border);
-    color: var(--color-text);
-}
-
-.dialog-status-badge.status-auto-processing {
-    background-color: color-mix(in srgb, var(--primary) 10%, var(--ui-surface));
-    border-color: color-mix(in srgb, var(--primary) 35%, var(--ui-border));
-    color: var(--ui-text);
-}
-
-.dialog-sla-badge.dialog-sla-safe {
-    background-color: color-mix(in srgb, var(--secondary) 84%, var(--ui-surface));
-    color: var(--secondary-foreground);
-}
-
-.dialog-sla-badge.dialog-sla-risk {
-    background-color: color-mix(in srgb, var(--accent) 84%, var(--ui-surface));
-    color: var(--accent-foreground);
-}
-
-.dialog-sla-badge.dialog-sla-overdue {
-    background-color: color-mix(in srgb, var(--destructive) 86%, var(--ui-surface));
-    color: var(--destructive-foreground);
-}
-
-.dialog-sla-badge.dialog-sla-closed {
-    background-color: var(--state-neutral-bg);
-    color: var(--color-text);
-}
-
-.dialog-table tbody tr.dialog-priority-breached {
-    border-left-color: var(--destructive);
-}
-
-.dialog-table tbody tr.dialog-priority-at-risk {
-    border-left-color: var(--accent);
-}
-
-.dialog-table tbody tr.dialog-priority-normal {
-    border-left-color: var(--secondary);
-}
-
-.dialog-table .avatar-circle {
-    background: linear-gradient(135deg, var(--primary), var(--chart-4));
-}
-
 .client-avatar-ring.status-has-color {
     color: var(--status-color, var(--primary));
 }
@@ -260,35 +194,6 @@ body {
 .client-profile-kpi .h4 {
     color: var(--color-text);
 }
-/* AI Ops extracted inline styles */
-
-.ai-ops-filter-input {
-    max-width: 14rem;
-}
-
-/* Tasks extracted inline styles */
-.tasks-page-size-select {
-    width: auto;
-    min-width: 90px;
-}
-
-.tasks-status-select {
-    max-width: 160px;
-}
-
-/* Dialogs extracted inline styles */
-.dialog-col-question {
-    min-width: 18rem;
-}
-
-.dialog-col-current-answer,
-.dialog-col-proposed-answer {
-    min-width: 16rem;
-}
-
-.dialog-problem-cell {
-    max-width: 260px;
-}
 
 .btn-ai-soft,
 .badge-ai-soft {
@@ -385,40 +290,10 @@ body {
 }
 
 
-
-
-/* Dialog/theme hover suppression */
-.dialog-summary-value-link,
-.dialog-column-option,
-.workspace-tab-btn,
-.dialog-business-pill {
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, color 0.16s ease !important;
-}
-
-@media (hover: hover) {
-  .dialog-summary-value-link:hover,
-  .dialog-column-option:hover,
-  .workspace-tab-btn:hover,
-  .dialog-business-pill:hover {
-    background: color-mix(in srgb, var(--ui-primary) 6%, var(--ui-surface)) !important;
-    color: inherit !important;
-border-color:
-  color-mix(
-    in srgb,
-    var(--color-border) 88%,
-    transparent
-  ) !important;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent) !important;
-    text-decoration: none !important;
-  }
-}
-
 /* App-specific hover polish */
 @media (hover: hover) {
   .settings-tile:hover,
-  .client-analytics-row:hover,
-  .workspace-tab-btn:hover,
-  .dialog-business-pill:hover {
+  .client-analytics-row:hover {
     transform: none !important;
 
     box-shadow:

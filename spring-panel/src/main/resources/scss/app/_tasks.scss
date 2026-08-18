@@ -60,6 +60,10 @@
     min-width: 82px;
 }
 
+[data-ui-page='tasks'] .tasks-status-select {
+    max-width: 160px;
+}
+
 /* Metrics */
 
 [data-ui-page='tasks'] .tasks-metric-chip {
@@ -226,7 +230,7 @@
     border: 1px solid var(--state-neutral-border);
 
     background: var(--state-neutral-bg);
-    color: var(--state-neutral-fg);
+    color: var(--color-text);
 }
 
 [data-ui-page='tasks']
@@ -271,7 +275,7 @@
     border-color: var(--state-neutral-border);
 
     background: var(--state-neutral-bg);
-    color: var(--state-neutral-fg);
+    color: var(--color-text);
 }
 
 /* Task editor */

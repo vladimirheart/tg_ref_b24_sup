@@ -483,6 +483,19 @@
     min-width: 0;
 }
 
+.dialog-col-question {
+    min-width: 18rem;
+}
+
+.dialog-col-current-answer,
+.dialog-col-proposed-answer {
+    min-width: 16rem;
+}
+
+.dialog-problem-cell {
+    max-width: 260px;
+}
+
 .dialog-client-meta .fw-semibold,
 .dialog-responsible-name,
 .dialog-problem-cell {
@@ -534,7 +547,12 @@
             var(--color-border)
         );
 
-    background: var(--surface-interactive);
+background:
+    linear-gradient(
+        135deg,
+        var(--primary),
+        var(--chart-4)
+    );
     color: var(--primary);
 
     font-weight: 700;
@@ -1062,28 +1080,14 @@ body[data-ui-page='dialogs'] .dialog-table th[data-column-key='actions'] {
 
 .dialog-status-badge.status-new {
     background: var(--state-info-bg);
-
-    border-color:
-        color-mix(
-            in srgb,
-            var(--state-system) 32%,
-            var(--color-border)
-        );
-
-    color: var(--state-system);
+    border-color: var(--state-info-border);
+    color: var(--state-info-text);
 }
 
 .dialog-status-badge.status-waiting-operator {
     background: var(--state-warning-bg);
-
-    border-color:
-        color-mix(
-            in srgb,
-            var(--state-warning) 32%,
-            var(--color-border)
-        );
-
-    color: var(--state-warning);
+    border-color: var(--state-warning-border);
+    color: var(--state-warning-text);
 }
 
 .dialog-status-badge.status-waiting-client {
@@ -1111,34 +1115,32 @@ body[data-ui-page='dialogs'] .dialog-table th[data-column-key='actions'] {
 
 .dialog-status-badge.status-closed {
     background: var(--state-success-bg);
-
-    border-color:
-        color-mix(
-            in srgb,
-            var(--state-success) 30%,
-            var(--color-border)
-        );
-
-    color: var(--state-success);
+    border-color: var(--state-success-border);
+    color: var(--state-success-text);
 }
 
 .dialog-status-badge.status-auto-closed {
-    background: var(--color-bg-muted);
-    border-color: var(--color-border);
-    color: var(--color-text-muted);
+    background: var(--state-neutral-bg);
+    border-color: var(--state-neutral-border);
+    color: var(--color-text);
 }
 
 .dialog-status-badge.status-auto-processing {
-    background: var(--state-info-bg);
+    background:
+        color-mix(
+            in srgb,
+            var(--primary) 10%,
+            var(--surface-card)
+        );
 
     border-color:
         color-mix(
             in srgb,
-            var(--state-system) 30%,
+            var(--primary) 35%,
             var(--color-border)
         );
 
-    color: var(--state-system);
+    color: var(--color-text);
 }
 
 .dialog-unread-count {
@@ -1164,50 +1166,41 @@ body[data-ui-page='dialogs'] .dialog-table th[data-column-key='actions'] {
 
 
 .dialog-sla-badge.dialog-sla-safe {
-    background: var(--state-success-bg);
-
-    border-color:
+    background:
         color-mix(
             in srgb,
-            var(--state-success) 32%,
-            var(--color-border)
+            var(--secondary) 84%,
+            var(--surface-card)
         );
 
-    color: var(--state-success);
+    color: var(--secondary-foreground);
 }
 
 .dialog-sla-badge.dialog-sla-risk {
-    background: var(--state-warning-bg);
-
-    border-color:
+    background:
         color-mix(
             in srgb,
-            var(--state-warning) 32%,
-            var(--color-border)
+            var(--accent) 84%,
+            var(--surface-card)
         );
 
-    color: var(--state-warning);
+    color: var(--accent-foreground);
 }
 
 .dialog-sla-badge.dialog-sla-overdue {
-    background: var(--state-danger-bg);
-
-    border-color:
+    background:
         color-mix(
             in srgb,
-            var(--state-danger) 34%,
-            var(--color-border)
+            var(--destructive) 86%,
+            var(--surface-card)
         );
 
-    color: var(--state-danger);
+    color: var(--destructive-foreground);
 }
 
 .dialog-sla-badge.dialog-sla-closed {
-    background: var(--color-bg-muted);
-
-    border-color: var(--color-border);
-
-    color: var(--color-text-muted);
+    background: var(--state-neutral-bg);
+    color: var(--color-text);
 }
 
 .dialog-sla-badge.is-pinned {
@@ -1260,6 +1253,18 @@ body[data-ui-page='dialogs'] .dialog-table th[data-column-key='actions'] {
       var(--state-danger) 85%,
       transparent
     );
+}
+
+.dialog-table tbody tr.dialog-priority-breached {
+    border-left-color: var(--destructive);
+}
+
+.dialog-table tbody tr.dialog-priority-at-risk {
+    border-left-color: var(--accent);
+}
+
+.dialog-table tbody tr.dialog-priority-normal {
+    border-left-color: var(--secondary);
 }
 
 .dialog-responsible-cell {
@@ -2564,4 +2569,80 @@ body[data-ui-page='dialogs'].dialog-compact-mode .dialog-summary-item {
 
 body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
     display: none !important;
+}
+/* Dialog hover ownership */
+
+.dialog-summary-value-link,
+.dialog-column-option,
+.workspace-tab-btn,
+.dialog-business-pill {
+    transition:
+        border-color 0.16s ease,
+        box-shadow 0.16s ease,
+        background-color 0.16s ease,
+        color 0.16s ease !important;
+}
+
+@media (hover: hover) {
+    .dialog-summary-value-link:hover,
+    .dialog-column-option:hover {
+        background:
+            color-mix(
+                in srgb,
+                var(--primary) 6%,
+                var(--surface-card)
+            ) !important;
+
+        color: inherit !important;
+
+        border-color:
+            color-mix(
+                in srgb,
+                var(--color-border) 88%,
+                transparent
+            ) !important;
+
+        box-shadow:
+            0 0 0 1px
+            color-mix(
+                in srgb,
+                var(--primary) 10%,
+                transparent
+            ) !important;
+
+        text-decoration: none !important;
+    }
+
+    .workspace-tab-btn:hover,
+    .dialog-business-pill:hover {
+        transform: none !important;
+
+        box-shadow:
+            0 0 0 1px
+            color-mix(
+                in srgb,
+                var(--primary) 10%,
+                transparent
+            ) !important;
+
+        filter: none !important;
+        text-decoration: none !important;
+        animation: none !important;
+
+        background-color:
+            color-mix(
+                in srgb,
+                var(--primary) 4%,
+                var(--surface-card)
+            ) !important;
+
+        border-color:
+            color-mix(
+                in srgb,
+                var(--color-border) 88%,
+                transparent
+            ) !important;
+
+        color: inherit !important;
+    }
 }

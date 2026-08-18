@@ -196,7 +196,7 @@
     border: 1px solid var(--state-neutral-border);
 
     background: var(--state-neutral-bg);
-    color: var(--state-neutral-fg);
+    color: var(--color-text);
 }
 
 [data-ui-page='passports'].passports-list-page
@@ -1222,7 +1222,7 @@
     border: 1px solid var(--state-neutral-border);
 
     background: var(--state-neutral-bg);
-    color: var(--state-neutral-fg);
+    color: var(--color-text);
 }
 
 [data-ui-page='passports'].passport-editor-page
@@ -1264,7 +1264,7 @@
     border: 1px solid var(--state-neutral-border);
 
     background: var(--state-neutral-bg);
-    color: var(--state-neutral-fg);
+    color: var(--color-text);
 }
 
 [data-ui-page='passports'].passport-editor-page
@@ -1346,7 +1346,7 @@
     border: 1px solid var(--state-neutral-border);
 
     background: var(--state-neutral-bg);
-    color: var(--state-neutral-fg);
+    color: var(--color-text);
 }
 
 [data-ui-page='passports'].passport-editor-page
@@ -1362,7 +1362,7 @@
     border-color: var(--state-neutral-border);
 
     background: var(--state-neutral-bg);
-    color: var(--state-neutral-fg);
+    color: var(--color-text);
 }
 
 @media (prefers-reduced-motion: reduce) {
