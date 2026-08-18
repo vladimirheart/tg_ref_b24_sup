@@ -25,6 +25,8 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     out-of-order: true
+    placeholders:
+      autoIncrement: AUTOINCREMENT
 
   sql:
     init:
