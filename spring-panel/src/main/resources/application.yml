@@ -9,6 +9,9 @@ spring:
     virtual-host: ${SPRING_RABBITMQ_VHOST:/}
 
   jpa:
+    # Preserve the current rendering behavior explicitly so Spring Boot does
+    # not emit the default open-in-view warning on every startup.
+    open-in-view: true
     hibernate:
       ddl-auto: none      # правильно, пускай Flyway рулит схемой
     properties:
