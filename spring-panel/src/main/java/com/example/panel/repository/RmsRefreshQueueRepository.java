@@ -10,9 +10,12 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -46,9 +49,9 @@ public class RmsRefreshQueueRepository {
                 } else {
                     ps.setObject(2, null);
                 }
-                ps.setInt(3, withNotifications ? 1 : 0);
+                ps.setBoolean(3, withNotifications);
                 ps.setString(4, STATUS_QUEUED);
-                ps.setString(5, formatOffsetDateTime(safeRequestedAt));
+                bindOffsetDateTime(ps, 5, safeRequestedAt);
                 ps.executeUpdate();
                 return JdbcGeneratedKeySupport.extractGeneratedKey(ps, connection);
             }
@@ -90,7 +93,7 @@ public class RmsRefreshQueueRepository {
                     rs.getLong("id"),
                     rs.getString("queue_kind"),
                     readLongColumn(rs, "monitor_id"),
-                    rs.getInt("with_notifications") != 0,
+                    rs.getBoolean("with_notifications"),
                     rs.getString("status"),
                     parseOffsetDateTime(rs.getString("requested_at"))
                 ),
@@ -129,7 +132,7 @@ public class RmsRefreshQueueRepository {
                 rs.getLong("id"),
                 rs.getString("queue_kind"),
                 readLongColumn(rs, "monitor_id"),
-                rs.getInt("with_notifications") != 0,
+                rs.getBoolean("with_notifications"),
                 rs.getString("status"),
                 parseOffsetDateTime(rs.getString("requested_at"))
             ),
@@ -183,10 +186,6 @@ public class RmsRefreshQueueRepository {
         }
     }
 
-    private static String formatOffsetDateTime(OffsetDateTime value) {
-        return value != null ? value.toString() : null;
-    }
-
     private static OffsetDateTime parseOffsetDateTime(String value) {
         return DATE_TIME_CONVERTER.convertToEntityAttribute(value);
     }
@@ -194,6 +193,29 @@ public class RmsRefreshQueueRepository {
     private static Long readLongColumn(java.sql.ResultSet rs, String columnName) throws java.sql.SQLException {
         long value = rs.getLong(columnName);
         return rs.wasNull() ? null : value;
+    }
+
+    private void bindOffsetDateTime(PreparedStatement ps, int index, OffsetDateTime value) throws SQLException {
+        String databaseProductName = ps.getConnection().getMetaData().getDatabaseProductName();
+        boolean postgresql = databaseProductName != null
+            && databaseProductName.toLowerCase(Locale.ROOT).contains("postgresql");
+
+        if (value == null) {
+            if (postgresql) {
+                ps.setNull(index, Types.TIMESTAMP_WITH_TIMEZONE);
+            } else {
+                ps.setNull(index, Types.VARCHAR);
+            }
+            return;
+        }
+
+        if (postgresql) {
+            ps.setObject(index, value);
+            return;
+        }
+
+        // SQLite stores queue timestamps as ISO-8601 text.
+        ps.setString(index, value.toString());
     }
 
     private PreparedStatement prepareInsertStatement(Connection connection) throws java.sql.SQLException {
