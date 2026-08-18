@@ -568,9 +568,21 @@ function Ensure-Wsl {
 
             $updatedVersion = Get-WslVersion
 
-        if (-not $version -or $version -lt [version]"2.1.5.0") {
-            Request-Reboot
+            if (-not $updatedVersion) {
+                Write-WarnMessage "WSL was updated, but its version could not be detected."
+            } elseif ($updatedVersion -lt [version]"2.1.5.0") {
+                Request-Reboot
+            } else {
+                $version = $updatedVersion
+                Write-Ok "WSL updated to $version"
+            }
         }
+    } else {
+        # Important: failure to parse localized `wsl --version` output must
+        # never be interpreted as "WSL is not installed".
+        Write-WarnMessage "WSL is installed, but its version could not be parsed."
+        Write-InfoMessage "The Docker Engine readiness check will validate WSL compatibility."
+        Write-WarnMessage "Skipping automatic WSL update check."
     }
 
     Write-Ok "WSL $version"
