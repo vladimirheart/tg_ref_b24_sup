@@ -52,9 +52,11 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
             verifySessionSchema();
             verifyCoreDialogSchema();
             verifyClientsReadPath();
+            verifyAnalyticsReadPath();
             verifyKnowledgeSchema();
             verifyBooleanRuntimeSchema();
             counts = loadRuntimeCounts();
+            verifyRecoveredBusinessData(counts);
         } catch (RuntimeException ex) {
             throw new IllegalStateException(
                 "PostgreSQL runtime readiness verification failed. Iguana will not be marked READY.",
@@ -120,6 +122,27 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         );
     }
 
+    private void verifyAnalyticsReadPath() {
+        jdbcTemplate.queryForList("""
+            SELECT m.business,
+                   m.city,
+                   t.status,
+                   COUNT(*) AS total
+              FROM messages m
+              JOIN tickets t ON m.ticket_id = t.ticket_id
+             GROUP BY m.business, m.city, t.status
+             LIMIT 1
+            """);
+        jdbcTemplate.queryForList("""
+            SELECT username,
+                   MAX(last_contact) AS last_contact,
+                   SUM(tickets) AS total_tickets
+              FROM client_stats
+             GROUP BY username
+             LIMIT 1
+            """);
+    }
+
     private void verifyKnowledgeSchema() {
         jdbcTemplate.queryForList("""
             SELECT id,
@@ -167,6 +190,14 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
                 rs.getLong("tasks_count")
             )
         );
+    }
+
+    private void verifyRecoveredBusinessData(RuntimeCounts counts) {
+        if (counts.tickets() > 0 && counts.messages() == 0) {
+            throw new IllegalStateException(
+                "PostgreSQL contains tickets but no messages. Legacy business-data recovery is incomplete."
+            );
+        }
     }
 
     private String resolvePort() {
