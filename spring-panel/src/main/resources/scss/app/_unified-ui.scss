@@ -5,7 +5,6 @@
     border-color: var(--ui-panel-border);
 }
 
-.page-title,
 .dialogs-title {
     letter-spacing: -0.025em;
     line-height: 1.08;
@@ -68,111 +67,11 @@ body {
 .dropdown-menu,
 .accordion-item,
 .workspace-panel-block {
-    background: var(--surface-card) !important;
-    border: 1px solid var(--color-border) !important;
-    border-radius: var(--ui-panel-radius) !important;
-    box-shadow: var(--ui-panel-shadow) !important;
-    animation: none !important;
-}
-
-.btn {
-    border-radius: var(--control-radius) !important;
-    border-color: var(--color-border) !important;
-}
-
-.form-check-input {
-    border-color: var(--color-border) !important;
-}
-
-.btn-primary {
-    color: var(--primary-foreground) !important;
-
-    background:
-        linear-gradient(
-            135deg,
-            var(--color-accent),
-            var(--color-accent-strong)
-        ) !important;
-
-    border-color:
-        color-mix(
-            in srgb,
-            var(--color-accent) 72%,
-            var(--color-ink-panel)
-        ) !important;
-}
-
-.btn-outline-primary,
-.btn-outline-secondary,
-.btn-outline-warning,
-.btn-outline-danger,
-.btn-outline-success,
-.btn-outline-dark,
-.btn-outline-light {
-    border-color: var(--color-border) !important;
-    background: var(--surface-raised) !important;
-}
-
-.btn-outline-primary {
-    color: var(--primary) !important;
-}
-
-.btn-outline-secondary,
-.btn-outline-warning,
-.btn-outline-danger,
-.btn-outline-success,
-.btn-outline-dark,
-.btn-outline-light {
-    color: var(--color-text) !important;
-}
-
-.btn-outline-primary:hover,
-.btn-outline-secondary:hover,
-.btn-outline-warning:hover,
-.btn-outline-danger:hover,
-.btn-outline-success:hover,
-.btn-outline-dark:hover,
-.btn-outline-light:hover {
-    background: var(--surface-selected) !important;
-}
-
-/* Bootstrap utility harmonization */
-.bg-light,
-.bg-light-subtle,
-.bg-secondary-subtle,
-.bg-body-tertiary {
-    background-color: color-mix(in srgb, var(--muted) 78%, var(--ui-surface)) !important;
-    color: var(--ui-text) !important;
-}
-
-.text-dark,
-.text-body-secondary,
-.text-secondary {
-    color: var(--ui-text) !important;
-}
-
-.border,
-.border-top,
-.border-bottom,
-.border-start,
-.border-end {
-    border-color: var(--ui-border) !important;
-}
-
-.badge.bg-light,
-.badge.bg-light.text-dark,
-.badge.bg-warning.text-dark {
-    background-color: color-mix(in srgb, var(--muted) 72%, var(--ui-surface)) !important;
-    color: var(--ui-text) !important;
-    border: 1px solid var(--ui-border) !important;
-}
-
-.badge.bg-info,
-.badge.bg-primary,
-.badge.bg-secondary,
-.badge.bg-success,
-.badge.bg-danger {
-    border: 1px solid color-mix(in srgb, var(--ui-border) 65%, transparent) !important;
+    background: var(--surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--ui-panel-radius);
+    box-shadow: var(--ui-panel-shadow);
+    animation: none;
 }
 
 /* Settings page cards unified */
@@ -194,31 +93,6 @@ body {
     background: color-mix(in srgb, var(--ui-primary) 8%, var(--ui-surface)) !important;
     border-color: var(--ui-border) !important;
     transform: none !important;
-}
-
-/* Navbar, tabs, pagination */
-.nav-tabs .nav-link {
-    color: var(--ui-text);
-    border-color: transparent;
-}
-
-.nav-tabs .nav-link.active,
-.nav-tabs .nav-item.show .nav-link {
-    color: var(--ui-text);
-    background-color: var(--ui-surface);
-    border-color: var(--ui-border) var(--ui-border) transparent !important;
-}
-
-.pagination .page-link {
-    color: var(--ui-text);
-    border-color: var(--ui-border);
-    background-color: var(--ui-surface);
-}
-
-.pagination .page-item.active .page-link {
-    background-color: var(--ui-primary);
-    border-color: var(--ui-primary);
-    color: var(--primary-foreground);
 }
 
 /* Component state aliases.

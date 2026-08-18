@@ -132,7 +132,7 @@ p {
   font-size: clamp(1.8rem, 2.4vw, 2.35rem);
   font-weight: 700;
 
-  line-height: var(--line-height-tight);
+  line-height: 1.08;
   letter-spacing: -0.025em;
 }
 
@@ -181,7 +181,6 @@ p {
 .list-group-item,
 .accordion-item {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
 
   background: var(--surface-card);
 
@@ -190,6 +189,16 @@ p {
   transition:
     border-color 0.18s ease,
     box-shadow 0.18s ease;
+}
+
+.card,
+.dropdown-menu,
+.accordion-item {
+  border-radius: var(--ui-panel-radius);
+}
+
+.list-group-item {
+  border-radius: var(--radius-lg);
 }
 
 .card-header,
@@ -297,7 +306,7 @@ p {
   padding: 0.5rem 0.85rem;
 
   border-radius: var(--control-radius);
-
+  border-color: var(--color-border);
   color: var(--color-text);
   font-size: var(--font-size-base);
   font-weight: 700;
@@ -339,8 +348,14 @@ p {
 
 .btn-outline-primary,
 .btn-outline-secondary,
+.btn-outline-warning,
+.btn-outline-danger,
+.btn-outline-success,
 .btn-outline-dark,
 .btn-outline-light {
+  border-color: var(--color-border);
+  background: var(--surface-raised);
+}
   border-color:
     color-mix(
       in srgb,
@@ -356,6 +371,9 @@ p {
 }
 
 .btn-outline-secondary,
+.btn-outline-warning,
+.btn-outline-danger,
+.btn-outline-success,
 .btn-outline-dark,
 .btn-outline-light {
   color: var(--color-text);
@@ -363,21 +381,28 @@ p {
 
 .btn-outline-primary:hover,
 .btn-outline-secondary:hover,
+.btn-outline-warning:hover,
+.btn-outline-danger:hover,
+.btn-outline-success:hover,
 .btn-outline-dark:hover,
 .btn-outline-light:hover,
 .btn-outline-primary:focus-visible,
 .btn-outline-secondary:focus-visible,
+.btn-outline-warning:focus-visible,
+.btn-outline-danger:focus-visible,
+.btn-outline-success:focus-visible,
 .btn-outline-dark:focus-visible,
 .btn-outline-light:focus-visible {
   transform: translateY(-1px);
+
   background: var(--surface-selected);
 
-	border-color:
-	  color-mix(
-		in srgb,
-		var(--color-accent) 32%,
-		var(--color-border)
-	  );
+  border-color:
+    color-mix(
+      in srgb,
+      var(--color-accent) 32%,
+      var(--color-border)
+    );
 }
 
 /* Iguana form controls */
@@ -547,12 +572,61 @@ a:not([class]) {
   background-color: var(--color-bg-muted);
 }
 
-.bg-light {
-  background-color: color-mix(in srgb, var(--color-bg-muted) 75%, var(--color-surface)) !important;
+.bg-light,
+.bg-light-subtle,
+.bg-secondary-subtle,
+.bg-body-tertiary {
+  background-color:
+    color-mix(
+      in srgb,
+      var(--muted) 78%,
+      var(--surface-card)
+    ) !important;
+
+  color: var(--color-text) !important;
 }
 
-.bg-body-tertiary {
-  background-color: color-mix(in srgb, var(--color-bg-muted) 75%, var(--color-surface)) !important;
+.text-dark,
+.text-body-secondary,
+.text-secondary {
+  color: var(--color-text) !important;
+}
+
+.border,
+.border-top,
+.border-bottom,
+.border-start,
+.border-end {
+  border-color: var(--color-border) !important;
+}
+
+.badge.bg-light,
+.badge.bg-light.text-dark,
+.badge.bg-warning.text-dark {
+  background-color:
+    color-mix(
+      in srgb,
+      var(--muted) 72%,
+      var(--surface-card)
+    ) !important;
+
+  color: var(--color-text) !important;
+
+  border: 1px solid var(--color-border) !important;
+}
+
+.badge.bg-info,
+.badge.bg-primary,
+.badge.bg-secondary,
+.badge.bg-success,
+.badge.bg-danger {
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--color-border) 65%,
+      transparent
+    ) !important;
 }
 
 .bg-primary-subtle {
@@ -578,10 +652,25 @@ a:not([class]) {
   border-bottom-color: color-mix(in srgb, var(--color-border) 12%, transparent);
 }
 
+.pagination .page-link {
+  color: var(--color-text);
+
+  border-color: var(--color-border);
+
+  background-color: var(--surface-card);
+}
+
+.pagination .page-item.active .page-link {
+  border-color: var(--primary);
+
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
 .nav-tabs .nav-link {
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
-  color: var(--color-text-muted);
+  color: var(--color-text);
   font-weight: 700;
   background: var(--surface-raised);
 }
@@ -589,21 +678,21 @@ a:not([class]) {
 .nav-tabs .nav-link.active,
 .nav-tabs .nav-item.show .nav-link {
   color: var(--color-text);
-  border-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
-  background:
-	  linear-gradient(
-		135deg,
-		var(--surface-selected),
-		var(--surface-card)
-	  );
 
-	box-shadow:
-	  0 10px 22px
-	  color-mix(
-		in srgb,
-		var(--shadow-color) 8%,
-		transparent
-	  );
+  border-color:
+    var(--color-border)
+    var(--color-border)
+    transparent;
+
+  background: var(--surface-card);
+
+  box-shadow:
+    0 10px 22px
+    color-mix(
+      in srgb,
+      var(--shadow-color) 8%,
+      transparent
+    );
 }
 
 .table {
