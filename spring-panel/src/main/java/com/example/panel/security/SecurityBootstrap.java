@@ -95,7 +95,7 @@ public class SecurityBootstrap {
             return ids.get(0);
         }
 
-        // если админа нет — создаём. Передаём boolean параметром, а не SQLite-специфичным 1.
+        // если админа нет — создаём
         String encoded = passwordEncoder.encode("admin");
         if (hasUsersColumn("enabled")) {
             jdbcTemplate.update(
