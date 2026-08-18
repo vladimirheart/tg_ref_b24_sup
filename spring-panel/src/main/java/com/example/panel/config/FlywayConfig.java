@@ -1,17 +1,24 @@
 package com.example.panel.config;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.Set;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
 import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.util.StringUtils;
 
 @Configuration
 public class FlywayConfig {
@@ -27,12 +34,53 @@ public class FlywayConfig {
     private static final String CLIENT_PHONES_SQLITE_NEW_SCRIPT = "db.migration.sqlite.V37_1__fix_client_phones_schema";
 
     @Bean
+    public FlywayConfigurationCustomizer databaseSpecificFlywayLocations(Environment environment) {
+        return configuration -> {
+            String location = resolveFlywayLocation(environment);
+            configuration.locations(location);
+            logger.info("Configured Flyway migration location: {}", location);
+        };
+    }
+
+    @Bean
     public FlywayMigrationStrategy normalizeLegacyHistoryBeforeMigrate() {
         return flyway -> {
             normalizeSchemaHistory(flyway);
             repairBaselineChecksumMismatchIfNeeded(flyway);
             flyway.migrate();
         };
+    }
+
+    private String resolveFlywayLocation(Environment environment) {
+        DatabaseMode requestedMode = DatabaseMode.from(environment.getProperty("app.datasource.mode"));
+        if (requestedMode == DatabaseMode.SQLITE) {
+            return "classpath:db/migration/sqlite";
+        }
+        if (requestedMode == DatabaseMode.POSTGRESQL) {
+            return "classpath:db/migration/postgresql";
+        }
+        if (requestedMode == DatabaseMode.MYSQL) {
+            return "classpath:db/migration/mysql";
+        }
+
+        String databaseUrl = environment.getProperty("spring.datasource.url");
+        if (!StringUtils.hasText(databaseUrl)) {
+            databaseUrl = environment.getProperty("DATABASE_URL");
+        }
+        if (!StringUtils.hasText(databaseUrl)) {
+            return "classpath:db/migration/sqlite";
+        }
+
+        String normalized = databaseUrl.trim().toLowerCase(Locale.ROOT);
+        if (normalized.startsWith("jdbc:postgresql:")
+            || normalized.startsWith("postgresql:")
+            || normalized.startsWith("postgres:")) {
+            return "classpath:db/migration/postgresql";
+        }
+        if (normalized.startsWith("jdbc:mysql:") || normalized.startsWith("mysql:")) {
+            return "classpath:db/migration/mysql";
+        }
+        return "classpath:db/migration/sqlite";
     }
 
     private void normalizeSchemaHistory(Flyway flyway) {
@@ -47,10 +95,10 @@ public class FlywayConfig {
             "DELETE FROM " + schemaHistoryTable + " WHERE version = ? AND script = ?";
         String migrateClientPhonesVersionSql =
             "UPDATE " + schemaHistoryTable + " SET version = ?, script = ? " +
-                "WHERE version = ? AND script = ? AND success = 1";
+                "WHERE version = ? AND script = ? AND success = TRUE";
         String updateBaselineChecksumSql =
             "UPDATE " + schemaHistoryTable + " SET checksum = ? " +
-                "WHERE version = ? AND script = ? AND success = 1 AND (checksum IS NULL OR checksum <> ?)";
+                "WHERE version = ? AND script = ? AND success = TRUE AND (checksum IS NULL OR checksum <> ?)";
         String deleteRedundantDeleteMarkersSql =
             "DELETE FROM " + schemaHistoryTable + " AS deleted " +
                 "WHERE deleted.type = 'DELETE' " +
@@ -59,11 +107,19 @@ public class FlywayConfig {
                 "    SELECT 1 FROM " + schemaHistoryTable + " AS applied " +
                 "    WHERE applied.version = deleted.version " +
                 "      AND applied.script = deleted.script " +
-                "      AND applied.success = 1 " +
+                "      AND applied.success = TRUE " +
                 "      AND applied.type <> 'DELETE'" +
                 ")";
 
         try (Connection connection = dataSource.getConnection()) {
+            if (!schemaHistoryTableExists(connection, schemaHistoryTable)) {
+                logger.debug(
+                    "Flyway schema history table '{}' does not exist yet; skipping legacy history normalization.",
+                    schemaHistoryTable
+                );
+                return;
+            }
+
             int removedLegacyRows;
             try (PreparedStatement statement = connection.prepareStatement(deleteLegacyClientPhonesSql)) {
                 statement.setString(1, LEGACY_CLIENT_PHONES_VERSION);
@@ -116,7 +172,42 @@ public class FlywayConfig {
                 connection.commit();
             }
         } catch (SQLException ex) {
-            logger.warn("Unable to normalize Flyway schema history before migrate.", ex);
+            logger.warn("Unable to normalize existing Flyway schema history before migrate.", ex);
+        }
+    }
+
+    private boolean schemaHistoryTableExists(Connection connection, String tableName) throws SQLException {
+        DatabaseMetaData metadata = connection.getMetaData();
+        Set<String> candidates = new LinkedHashSet<>();
+        candidates.add(tableName);
+        candidates.add(tableName.toLowerCase(Locale.ROOT));
+        candidates.add(tableName.toUpperCase(Locale.ROOT));
+
+        String catalog = connection.getCatalog();
+        String schema = null;
+        try {
+            schema = connection.getSchema();
+        } catch (SQLException | AbstractMethodError ignored) {
+            // Some JDBC drivers do not expose a current schema.
+        }
+
+        for (String candidate : candidates) {
+            if (tableExists(metadata, catalog, schema, candidate)) {
+                return true;
+            }
+            if (schema != null && tableExists(metadata, catalog, null, candidate)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean tableExists(DatabaseMetaData metadata,
+                                String catalog,
+                                String schema,
+                                String tableName) throws SQLException {
+        try (ResultSet tables = metadata.getTables(catalog, schema, tableName, new String[]{"TABLE"})) {
+            return tables.next();
         }
     }
 
@@ -146,27 +237,36 @@ public class FlywayConfig {
         String schemaHistoryTable = configuration.getTable();
         String successfulBaselineCountSql =
             "SELECT COUNT(*) FROM " + schemaHistoryTable +
-                " WHERE version = ? AND script = ? AND success = 1";
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement successfulBaselineStatement = connection.prepareStatement(successfulBaselineCountSql)) {
-            successfulBaselineStatement.setString(1, BASELINE_VERSION);
-            successfulBaselineStatement.setString(2, BASELINE_SCRIPT);
-            int successfulBaselineCount;
-            try (ResultSet resultSet = successfulBaselineStatement.executeQuery()) {
-                successfulBaselineCount = resultSet.next() ? resultSet.getInt(1) : 0;
-            }
-            if (successfulBaselineCount <= 0) {
+                " WHERE version = ? AND script = ? AND success = TRUE";
+        try (Connection connection = dataSource.getConnection()) {
+            if (!schemaHistoryTableExists(connection, schemaHistoryTable)) {
+                logger.debug(
+                    "Flyway schema history table '{}' does not exist yet; skipping legacy checksum repair.",
+                    schemaHistoryTable
+                );
                 return;
             }
 
-            logger.warn(
-                "Detected applied Flyway baseline {} {} in schema history. Running Flyway repair before migrate to keep mutable baseline checksums aligned.",
-                BASELINE_VERSION,
-                BASELINE_SCRIPT
-            );
-            flyway.repair();
+            try (PreparedStatement successfulBaselineStatement = connection.prepareStatement(successfulBaselineCountSql)) {
+                successfulBaselineStatement.setString(1, BASELINE_VERSION);
+                successfulBaselineStatement.setString(2, BASELINE_SCRIPT);
+                int successfulBaselineCount;
+                try (ResultSet resultSet = successfulBaselineStatement.executeQuery()) {
+                    successfulBaselineCount = resultSet.next() ? resultSet.getInt(1) : 0;
+                }
+                if (successfulBaselineCount <= 0) {
+                    return;
+                }
+
+                logger.warn(
+                    "Detected applied Flyway baseline {} {} in schema history. Running Flyway repair before migrate to keep mutable baseline checksums aligned.",
+                    BASELINE_VERSION,
+                    BASELINE_SCRIPT
+                );
+                flyway.repair();
+            }
         } catch (SQLException ex) {
-            logger.warn("Unable to check legacy Flyway baseline checksum mismatch before migrate.", ex);
+            logger.warn("Unable to check existing Flyway baseline checksum mismatch before migrate.", ex);
         }
     }
 }
