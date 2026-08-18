@@ -937,17 +937,22 @@ p {
 
 .text-success,
 .text-success-emphasis {
-  color: var(--chart-2) !important;
+  color: var(--state-success) !important;
 }
 
 .text-warning,
 .text-warning-emphasis {
-  color: var(--chart-3) !important;
+  color: var(--state-warning) !important;
 }
 
 .text-danger,
 .text-danger-emphasis {
-  color: var(--destructive) !important;
+  color: var(--state-danger) !important;
+}
+
+.text-info,
+.text-info-emphasis {
+  color: var(--state-system) !important;
 }
 
 a.link-primary,
@@ -998,19 +1003,52 @@ a:not([class]) {
 }
 
 .badge.bg-light,
-.badge.bg-light.text-dark,
-.badge.bg-warning.text-dark {
+.badge.bg-light.text-dark {
   background-color: color-mix(in srgb, var(--muted) 72%, var(--surface-card)) !important;
   color: var(--color-text) !important;
   border: 1px solid var(--color-border) !important;
 }
 
-.badge.bg-info,
-.badge.bg-primary,
-.badge.bg-secondary,
-.badge.bg-success,
+.badge.text-bg-primary,
+.badge.bg-primary {
+  background-color: color-mix(in srgb, var(--primary) 80%, var(--surface-card)) !important;
+  color: var(--primary-foreground) !important;
+  border: 1px solid color-mix(in srgb, var(--primary) 34%, var(--color-border)) !important;
+}
+
+.badge.text-bg-success,
+.badge.bg-success {
+  background-color: var(--state-success-bg) !important;
+  color: var(--state-success-text) !important;
+  border: 1px solid var(--state-success-border) !important;
+}
+
+.badge.text-bg-warning,
+.badge.bg-warning {
+  background-color: var(--state-warning-bg) !important;
+  color: var(--state-warning-text) !important;
+  border: 1px solid var(--state-warning-border) !important;
+}
+
+.badge.text-bg-danger,
 .badge.bg-danger {
-  border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent) !important;
+  background-color: var(--state-danger-bg) !important;
+  color: var(--state-danger-text) !important;
+  border: 1px solid var(--state-danger-border) !important;
+}
+
+.badge.text-bg-info,
+.badge.bg-info {
+  background-color: var(--state-info-bg) !important;
+  color: var(--state-info-text) !important;
+  border: 1px solid var(--state-info-border) !important;
+}
+
+.badge.text-bg-secondary,
+.badge.bg-secondary {
+  background-color: color-mix(in srgb, var(--muted) 65%, var(--surface-card)) !important;
+  color: var(--color-text) !important;
+  border: 1px solid color-mix(in srgb, var(--muted-foreground) 30%, var(--color-border)) !important;
 }
 
 .bg-primary-subtle {
@@ -1018,11 +1056,60 @@ a:not([class]) {
 }
 
 .bg-success-subtle {
-  background-color: color-mix(in srgb, var(--chart-2) 12%, var(--color-surface)) !important;
+  background-color: var(--state-success-bg) !important;
+  color: var(--state-success-text) !important;
 }
 
 .bg-warning-subtle {
-  background-color: color-mix(in srgb, var(--chart-3) 16%, var(--color-surface)) !important;
+  background-color: var(--state-warning-bg) !important;
+  color: var(--state-warning-text) !important;
+}
+
+.bg-danger-subtle {
+  background-color: var(--state-danger-bg) !important;
+  color: var(--state-danger-text) !important;
+}
+
+.bg-info-subtle {
+  background-color: var(--state-info-bg) !important;
+  color: var(--state-info-text) !important;
+}
+
+.table-light,
+.table-light > th,
+.table-light > td {
+  --bs-table-bg:
+    color-mix(
+      in srgb,
+      var(--muted) 72%,
+      var(--surface-card)
+    );
+  --bs-table-color: var(--color-text);
+  --bs-table-border-color: var(--color-border);
+}
+
+.alert-info {
+  background-color: var(--state-info-bg) !important;
+  border-color: var(--state-info-border) !important;
+  color: var(--state-info-text) !important;
+}
+
+.alert-warning {
+  background-color: var(--state-warning-bg) !important;
+  border-color: var(--state-warning-border) !important;
+  color: var(--state-warning-text) !important;
+}
+
+.alert-success {
+  background-color: var(--state-success-bg) !important;
+  border-color: var(--state-success-border) !important;
+  color: var(--state-success-text) !important;
+}
+
+.alert-danger {
+  background-color: var(--state-danger-bg) !important;
+  border-color: var(--state-danger-border) !important;
+  color: var(--state-danger-text) !important;
 }
 
 .spinner-border.text-primary,

@@ -2393,36 +2393,9 @@ body {
 
 /* Component state aliases.
    Base colors come from style/_theme.scss. */
+/* App-only neutral state tokens.
+   Canonical info/success/warning/danger/AI states live in style/_theme.scss. */
 :root {
-  --state-info-border:
-      color-mix(
-          in srgb,
-          var(--state-system) 30%,
-          var(--color-border)
-      );
-  --state-info-fg: var(--state-info-text);
-  --state-warn-bg: var(--state-warning-bg);
-  --state-warn-border:
-      color-mix(
-          in srgb,
-          var(--state-warning) 36%,
-          var(--color-border)
-      );
-  --state-warn-fg: var(--state-warning-text);
-  --state-success-border:
-      color-mix(
-          in srgb,
-          var(--state-success) 32%,
-          var(--color-border)
-      );
-  --state-success-fg: var(--state-success-text);
-  --state-danger-border:
-      color-mix(
-          in srgb,
-          var(--state-danger) 32%,
-          var(--color-border)
-      );
-  --state-danger-fg: var(--state-danger-text);
   --state-neutral-bg:
       color-mix(
           in srgb,
@@ -2435,112 +2408,30 @@ body {
           var(--muted-foreground) 30%,
           var(--color-border)
       );
-  --state-neutral-fg: var(--color-text);
-  --state-ai-border:
-      color-mix(
-          in srgb,
-          var(--state-ai) 30%,
-          var(--color-border)
-      );
-  --state-ai-fg: var(--state-ai-text);
-}
-
-.table-light,
-.table-light > th,
-.table-light > td {
-  --bs-table-bg: color-mix(in srgb, var(--muted) 72%, var(--ui-surface));
-  --bs-table-color: var(--ui-text);
-  --bs-table-border-color: var(--ui-border);
-}
-
-.alert-info {
-  background-color: var(--state-info-bg) !important;
-  border-color: var(--state-info-border) !important;
-  color: var(--state-info-fg) !important;
-}
-
-.alert-warning {
-  background-color: var(--state-warn-bg) !important;
-  border-color: var(--state-warn-border) !important;
-  color: var(--state-warn-fg) !important;
-}
-
-.alert-success {
-  background-color: var(--state-success-bg) !important;
-  border-color: var(--state-success-border) !important;
-  color: var(--state-success-fg) !important;
-}
-
-.alert-danger {
-  background-color: var(--state-danger-bg) !important;
-  border-color: var(--state-danger-border) !important;
-  color: var(--state-danger-fg) !important;
-}
-
-.badge.text-bg-primary,
-.badge.bg-primary {
-  background-color: color-mix(in srgb, var(--primary) 80%, var(--ui-surface)) !important;
-  color: var(--primary-foreground) !important;
-}
-
-.badge.text-bg-success,
-.badge.bg-success {
-  background-color: color-mix(in srgb, var(--secondary) 80%, var(--ui-surface)) !important;
-  color: var(--secondary-foreground) !important;
-}
-
-.badge.text-bg-warning,
-.badge.bg-warning {
-  background-color: color-mix(in srgb, var(--accent) 80%, var(--ui-surface)) !important;
-  color: var(--accent-foreground) !important;
-}
-
-.badge.text-bg-danger,
-.badge.bg-danger {
-  background-color: color-mix(in srgb, var(--destructive) 82%, var(--ui-surface)) !important;
-  color: var(--destructive-foreground) !important;
-}
-
-.badge.text-bg-info,
-.badge.bg-info {
-  background-color: color-mix(in srgb, var(--state-system) 72%, var(--ui-surface)) !important;
-  color: var(--secondary-foreground) !important;
-}
-
-.badge.text-bg-secondary,
-.badge.bg-secondary {
-  background-color: var(--state-neutral-bg) !important;
-  color: var(--state-neutral-fg) !important;
 }
 
 .dialog-status-badge.status-new {
   background-color: var(--state-info-bg);
   border-color: var(--state-info-border);
-  color: var(--state-info-fg);
+  color: var(--state-info-text);
 }
 
 .dialog-status-badge.status-waiting-operator {
-  background-color: var(--state-warn-bg);
-  border-color: var(--state-warn-border);
-  color: var(--state-warn-fg);
-}
-
-.dialog-status-badge.status-waiting-client {
-  background-color: color-mix(in srgb, var(--chart-2) 16%, var(--ui-surface));
-  border-color: color-mix(in srgb, var(--chart-2) 38%, var(--ui-border));
-  color: var(--ui-text);
+  background-color: var(--state-warning-bg);
+  border-color: var(--state-warning-border);
+  color: var(--state-warning-text);
 }
 
 .dialog-status-badge.status-closed {
   background-color: var(--state-success-bg);
   border-color: var(--state-success-border);
-  color: var(--state-success-fg);
+  color: var(--state-success-text);
 }
 
 .dialog-status-badge.status-auto-closed {
   background-color: var(--state-neutral-bg);
   border-color: var(--state-neutral-border);
-  color: var(--state-neutral-fg);
+  color: var(--color-text);
 }
 
 .dialog-status-badge.status-auto-processing {
@@ -2566,7 +2457,7 @@ body {
 
 .dialog-sla-badge.dialog-sla-closed {
   background-color: var(--state-neutral-bg);
-  color: var(--state-neutral-fg);
+  color: var(--color-text);
 }
 
 .dialog-table tbody tr.dialog-priority-breached {
@@ -3179,7 +3070,7 @@ body {
 [data-ui-page=ai-ops] .aiops-page-header .page-kicker {
   border: 1px solid var(--state-ai-border);
   background: var(--state-ai-bg);
-  color: var(--state-ai-fg);
+  color: var(--state-ai-text);
 }
 
 /* Workspace tabs */
@@ -3208,7 +3099,7 @@ body {
 [data-ui-page=ai-ops] .aiops-tab-nav .nav-link.active {
   border-color: var(--state-ai-border);
   background: var(--state-ai-bg);
-  color: var(--state-ai-fg);
+  color: var(--state-ai-text);
 }
 
 /* Top runtime state */
@@ -3244,19 +3135,19 @@ body {
 [data-ui-page=ai-ops] .aiops-action-status[data-tone=info] {
   border-color: var(--state-info-border);
   background: var(--state-info-bg);
-  color: var(--state-info-fg);
+  color: var(--state-info-text);
 }
 
 [data-ui-page=ai-ops] .aiops-action-status[data-tone=success] {
   border-color: var(--state-success-border);
   background: var(--state-success-bg);
-  color: var(--state-success-fg);
+  color: var(--state-success-text);
 }
 
 [data-ui-page=ai-ops] .aiops-action-status[data-tone=error] {
   border-color: var(--state-danger-border);
   background: var(--state-danger-bg);
-  color: var(--state-danger-fg);
+  color: var(--state-danger-text);
 }
 
 [data-ui-page=ai-ops] .aiops-refresh-pill {
@@ -3323,19 +3214,19 @@ body {
 [data-ui-page=ai-ops] .aiops-alert--info {
   border-color: var(--state-ai-border);
   background: var(--state-ai-bg);
-  color: var(--state-ai-fg);
+  color: var(--state-ai-text);
 }
 
 [data-ui-page=ai-ops] .aiops-alert--warning {
   border-color: var(--state-warning-border);
   background: var(--state-warning-bg);
-  color: var(--state-warning-fg);
+  color: var(--state-warning-text);
 }
 
 [data-ui-page=ai-ops] .aiops-alert--success {
   border-color: var(--state-success-border);
   background: var(--state-success-bg);
-  color: var(--state-success-fg);
+  color: var(--state-success-text);
 }
 
 [data-ui-page=ai-ops] .aiops-alert-meta {
@@ -3380,7 +3271,7 @@ body {
 [data-ui-page=ai-ops] .aiops-stream-item--danger {
   border-color: var(--state-danger-border);
   background: var(--state-danger-bg);
-  color: var(--state-danger-fg);
+  color: var(--state-danger-text);
 }
 
 /* Review table */
