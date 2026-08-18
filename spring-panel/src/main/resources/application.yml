@@ -122,5 +122,11 @@ logging:
   file:
     name: ${APP_PANEL_LOG_PATH:${APP_PANEL_LOG_DIR:../logs}/spring-panel.log}
   level:
-    # Suppress noisy stack traces when HTTPS traffic accidentally hits the HTTP port
+    # Keep failures visible while suppressing high-frequency polling/request INFO.
     org.apache.coyote.http11.Http11Processor: WARN
+    org.springframework.web.servlet.DispatcherServlet: WARN
+    com.example.panel.controller.NotificationApiController: WARN
+    com.example.panel.controller.TaskApiController: WARN
+    com.example.panel.controller.ManagementController: WARN
+    com.example.panel.service.ChannelTransportService: WARN
+    com.example.panel.service.IikoDepartmentLocationsSyncService: WARN
