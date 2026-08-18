@@ -3781,7 +3781,9 @@ body {
 
 [data-ui-page=knowledge] .kb-index-card .table-responsive,
 [data-ui-page=knowledge] .kb-import-card .table-responsive {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--surface-card);
@@ -7096,6 +7098,13 @@ body[data-ui-page=dashboard] .dashboard-layout-reset:focus-visible {
   background: var(--surface-selected);
   color: var(--primary);
   outline: none;
+}
+body[data-ui-page=dashboard] .panel-info-button:focus-visible,
+body[data-ui-page=dashboard] .panel-action-btn:focus-visible,
+body[data-ui-page=dashboard] .dashboard-hidden-panel-chip:focus-visible,
+body[data-ui-page=dashboard] .dashboard-layout-reset:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 body[data-ui-page=dashboard] .chart-container {
   position: relative;

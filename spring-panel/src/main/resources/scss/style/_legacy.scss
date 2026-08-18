@@ -444,6 +444,13 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
   outline: none;
 }
 
+.role-card__toggle:focus-visible {
+  border-radius: var(--radius-sm);
+
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
 .role-card__chevron {
   transition: transform 0.2s ease;
 }

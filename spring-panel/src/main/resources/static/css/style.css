@@ -998,6 +998,99 @@ a:not([class]) {
     opacity: 0;
   }
 }
+/* Global runtime notifications */
+.ui-notification-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--color-ink-panel-deep) 38%, transparent);
+  pointer-events: auto;
+  isolation: isolate;
+}
+
+.ui-notification-popup {
+  position: relative;
+  width: min(92vw, 520px);
+  max-height: min(90dvh, 48rem);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--surface-card);
+  color: var(--color-text);
+  box-shadow: 0 1rem 2rem color-mix(in srgb, var(--shadow-color) 24%, transparent);
+}
+
+.ui-notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.ui-notification-header--info {
+  border-bottom-color: var(--state-info-border);
+  background: var(--state-info-bg);
+}
+
+.ui-notification-header--success {
+  border-bottom-color: var(--state-success-border);
+  background: var(--state-success-bg);
+}
+
+.ui-notification-header--warning {
+  border-bottom-color: var(--state-warning-border);
+  background: var(--state-warning-bg);
+}
+
+.ui-notification-header--danger {
+  border-bottom-color: var(--state-danger-border);
+  background: var(--state-danger-bg);
+}
+
+.ui-notification-body {
+  padding: 1rem;
+  color: var(--color-text);
+  line-height: var(--line-height-normal);
+  overflow-wrap: anywhere;
+}
+
+.ui-notification-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 1rem 1rem;
+}
+
+.ui-notification-close {
+  flex: 0 0 auto;
+}
+
+[data-theme=dark] .ui-notification-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.ui-notification-close:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (max-width: 575.98px) {
+  .ui-notification-overlay {
+    align-items: flex-end;
+    padding: 0.75rem;
+  }
+  .ui-notification-popup {
+    width: 100%;
+    max-height: 85dvh;
+    border-radius: var(--radius-lg);
+  }
+}
 .bg-light,
 .bg-light-subtle,
 .bg-secondary-subtle,
@@ -1217,6 +1310,10 @@ a:not([class]) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html,
+  body {
+    transition: none;
+  }
   .modal-backdrop,
   .modal.fade .modal-dialog {
     transition: none;
@@ -1780,6 +1877,12 @@ h1.page-title, .content h1, .container h1 {
   text-decoration: none;
   box-shadow: none;
   outline: none;
+}
+
+.role-card__toggle:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
 }
 
 .role-card__chevron {

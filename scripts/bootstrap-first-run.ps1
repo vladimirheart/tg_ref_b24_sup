@@ -221,7 +221,7 @@ function Ensure-DockerAvailable {
         }
     }
 
-    $autoInstallDocker = Get-BoolSetting -Name "IGUANA_BOOTSTRAP_INSTALL_DOCKER" -Default $true
+    $autoInstallDocker = Get-BoolSetting -Name "IGUANA_BOOTSTRAP_INSTALL_DOCKER" -Default $false
     if ((-not $AllowInstallation) -or (-not $autoInstallDocker)) {
         return $false
     }

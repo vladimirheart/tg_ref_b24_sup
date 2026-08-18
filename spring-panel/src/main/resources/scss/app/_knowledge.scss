@@ -441,7 +441,10 @@
 
 [data-ui-page='knowledge'] .kb-index-card .table-responsive,
 [data-ui-page='knowledge'] .kb-import-card .table-responsive {
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    -webkit-overflow-scrolling: touch;
 
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);

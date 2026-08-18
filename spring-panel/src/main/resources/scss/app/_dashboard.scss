@@ -1057,6 +1057,14 @@ body[data-ui-page='dashboard'] {
       outline: none;
     }
 
+	.panel-info-button:focus-visible,
+	.panel-action-btn:focus-visible,
+	.dashboard-hidden-panel-chip:focus-visible,
+	.dashboard-layout-reset:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+	
     .chart-container {
       position: relative;
       min-height: 320px;
