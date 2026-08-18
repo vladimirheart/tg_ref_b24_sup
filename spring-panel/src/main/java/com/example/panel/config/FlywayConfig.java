@@ -45,8 +45,10 @@ public class FlywayConfig {
     @Bean
     public FlywayMigrationStrategy normalizeLegacyHistoryBeforeMigrate() {
         return flyway -> {
+            // Legacy checksum/history cleanup is performed only when rows
+            // actually differ. Do not run flyway.repair() unconditionally on
+            // every normal startup: it adds noise and hides real repair events.
             normalizeSchemaHistory(flyway);
-            repairBaselineChecksumMismatchIfNeeded(flyway);
             flyway.migrate();
         };
     }
@@ -148,7 +150,7 @@ public class FlywayConfig {
                 }
             } else {
                 logger.warn(
-                    "Unable to resolve local Flyway checksum for {} {} before migrate. Skipping direct checksum rewrite and deferring to repair logic if needed.",
+                    "Unable to resolve local Flyway checksum for {} {} before migrate. Skipping legacy checksum normalization.",
                     BASELINE_VERSION,
                     BASELINE_SCRIPT
                 );
@@ -160,8 +162,8 @@ public class FlywayConfig {
             }
 
             if (removedLegacyRows > 0 || migratedClientPhonesRows > 0 || repairedBaselineChecksums > 0 || removedDeleteMarkers > 0) {
-                logger.warn(
-                    "Normalized Flyway schema history before migrate: removed {} legacy V6.1 rows, remapped {} SQLite client_phones rows to version 37.1, repaired {} baseline V1 checksums and removed {} redundant DELETE markers.",
+                logger.info(
+                    "Normalized Flyway schema history: removed {} legacy V6.1 rows, remapped {} SQLite client_phones rows to version 37.1, repaired {} baseline V1 checksums and removed {} redundant DELETE markers.",
                     removedLegacyRows,
                     migratedClientPhonesRows,
                     repairedBaselineChecksums,
@@ -225,48 +227,5 @@ public class FlywayConfig {
             return migrationInfo.getChecksum();
         }
         return null;
-    }
-
-    private void repairBaselineChecksumMismatchIfNeeded(Flyway flyway) {
-        org.flywaydb.core.api.configuration.Configuration configuration = flyway.getConfiguration();
-        DataSource dataSource = configuration.getDataSource();
-        if (dataSource == null) {
-            return;
-        }
-
-        String schemaHistoryTable = configuration.getTable();
-        String successfulBaselineCountSql =
-            "SELECT COUNT(*) FROM " + schemaHistoryTable +
-                " WHERE version = ? AND script = ? AND success = TRUE";
-        try (Connection connection = dataSource.getConnection()) {
-            if (!schemaHistoryTableExists(connection, schemaHistoryTable)) {
-                logger.debug(
-                    "Flyway schema history table '{}' does not exist yet; skipping legacy checksum repair.",
-                    schemaHistoryTable
-                );
-                return;
-            }
-
-            try (PreparedStatement successfulBaselineStatement = connection.prepareStatement(successfulBaselineCountSql)) {
-                successfulBaselineStatement.setString(1, BASELINE_VERSION);
-                successfulBaselineStatement.setString(2, BASELINE_SCRIPT);
-                int successfulBaselineCount;
-                try (ResultSet resultSet = successfulBaselineStatement.executeQuery()) {
-                    successfulBaselineCount = resultSet.next() ? resultSet.getInt(1) : 0;
-                }
-                if (successfulBaselineCount <= 0) {
-                    return;
-                }
-
-                logger.warn(
-                    "Detected applied Flyway baseline {} {} in schema history. Running Flyway repair before migrate to keep mutable baseline checksums aligned.",
-                    BASELINE_VERSION,
-                    BASELINE_SCRIPT
-                );
-                flyway.repair();
-            }
-        } catch (SQLException ex) {
-            logger.warn("Unable to check existing Flyway baseline checksum mismatch before migrate.", ex);
-        }
     }
 }
