@@ -1,18 +1,4 @@
-﻿:root {
-    --brand-color: var(--primary);
-    --bg-muted: var(--background);
-    --text-muted: var(--muted-foreground);
-    --card-shadow: var(--color-shadow);
-}
-
-body {
-    font-family: var(--font-sans);
-    background-color: var(--bg-muted);
-    color: var(--foreground);
-    min-height: 100vh;
-}
-
-.page-shell {
+﻿.page-shell {
     box-sizing: border-box;
     width: 100%;
     max-width: var(--ui-page-max-width);
@@ -219,19 +205,42 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
 }
 
 .auth-wrapper {
-    min-height: 100vh;
+    min-height: var(--page-min-height);
+
     background:
-        radial-gradient(circle at 10% 20%, color-mix(in srgb, var(--secondary) 65%, transparent), transparent 30%),
-        radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--accent) 78%, transparent), transparent 32%),
-        radial-gradient(circle at 30% 80%, color-mix(in srgb, var(--primary) 20%, transparent), transparent 30%),
-        linear-gradient(180deg, color-mix(in srgb, var(--background) 92%, white), var(--bg-muted));
+        radial-gradient(
+            circle at 10% 20%,
+            color-mix(in srgb, var(--secondary) 65%, transparent),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 90% 10%,
+            color-mix(in srgb, var(--accent) 78%, transparent),
+            transparent 32%
+        ),
+        radial-gradient(
+            circle at 30% 80%,
+            color-mix(in srgb, var(--primary) 20%, transparent),
+            transparent 30%
+        ),
+        linear-gradient(
+            180deg,
+            color-mix(
+                in srgb,
+                var(--surface-page) 92%,
+                var(--surface-card)
+            ),
+            var(--surface-page)
+        );
 }
 
 .auth-card {
-    border: 1px solid transparent;
-    border-radius: 1rem;
-    box-shadow: var(--card-shadow);
     overflow: hidden;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--ui-panel-radius);
+
+    box-shadow: var(--ui-panel-shadow);
 }
 
 .auth-logo {
@@ -258,14 +267,34 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
 
 .auth-card {
     backdrop-filter: blur(6px);
+
     background:
-        linear-gradient(color-mix(in srgb, var(--card) 86%, white), color-mix(in srgb, var(--card) 94%, transparent)),
-        linear-gradient(135deg, color-mix(in srgb, var(--gradient-primary) 22%, transparent), transparent 70%);
+        linear-gradient(
+            color-mix(
+                in srgb,
+                var(--surface-card) 88%,
+                var(--surface-raised)
+            ),
+            color-mix(
+                in srgb,
+                var(--surface-card) 94%,
+                transparent
+            )
+        ),
+        linear-gradient(
+            135deg,
+            color-mix(
+                in srgb,
+                var(--gradient-primary) 22%,
+                transparent
+            ),
+            transparent 70%
+        );
 }
 
 .auth-card .form-control {
-    border-radius: 0.8rem;
-    min-height: 44px;
+    min-height: var(--control-height-lg);
+    border-radius: var(--control-radius);
 }
 
 .auth-actions {
@@ -299,8 +328,8 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
 @media (max-width: 575.98px) {
     .auth-wrapper {
         align-items: flex-start !important;
-        padding-top: 16px;
-        padding-bottom: 16px;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
     }
 
     .auth-card .card-body {
@@ -309,16 +338,26 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
 }
 
 .empty-state {
-    border: 1px dashed color-mix(in srgb, var(--color-border) 80%, transparent);
-    border-radius: 1rem;
     padding: 2rem;
+
+    border:
+        1px dashed
+        color-mix(
+            in srgb,
+            var(--color-border) 80%,
+            transparent
+        );
+
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+    color: var(--color-text-muted);
+
     text-align: center;
-    color: var(--text-muted);
-    background: color-mix(in srgb, var(--card) 92%, white);
 }
 
 .chat-message {
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     padding: 0.75rem 1rem;
     margin-bottom: 0.75rem;
     min-width: min(22rem, calc(100% - 3rem));
