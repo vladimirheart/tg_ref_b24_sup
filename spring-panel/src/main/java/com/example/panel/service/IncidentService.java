@@ -39,6 +39,7 @@ public class IncidentService {
     private static final Set<String> STATUSES = Set.of("open", "acknowledged", "investigating", "resolved", "closed");
     private static final Set<String> SEVERITIES = Set.of("low", "medium", "high", "critical");
     private static final Set<String> RELATION_TYPES = Set.of("ticket", "task", "object_passport");
+    private static final Set<String> ROUTE_TYPES = Set.of("webhook", "user", "users", "department", "all_operators");
 
     private final IncidentRepository incidentRepository;
     private final IncidentEventRepository incidentEventRepository;
@@ -50,6 +51,7 @@ public class IncidentService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final NotificationRoutingService notificationRoutingService;
+    private final IncidentRouteDeliveryOutboxService incidentRouteDeliveryOutboxService;
 
     public IncidentService(IncidentRepository incidentRepository,
                            IncidentEventRepository incidentEventRepository,
@@ -60,7 +62,8 @@ public class IncidentService {
                            TaskRepository taskRepository,
                            JdbcTemplate jdbcTemplate,
                            ObjectMapper objectMapper,
-                           NotificationRoutingService notificationRoutingService) {
+                           NotificationRoutingService notificationRoutingService,
+                           IncidentRouteDeliveryOutboxService incidentRouteDeliveryOutboxService) {
         this.incidentRepository = incidentRepository;
         this.incidentEventRepository = incidentEventRepository;
         this.incidentRelationRepository = incidentRelationRepository;
@@ -71,6 +74,7 @@ public class IncidentService {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.notificationRoutingService = notificationRoutingService;
+        this.incidentRouteDeliveryOutboxService = incidentRouteDeliveryOutboxService;
     }
 
     public Map<String, Object> listIncidents(String status,
@@ -114,6 +118,16 @@ public class IncidentService {
         return listIncidentSummariesForRelation("object_passport", String.valueOf(passportId));
     }
 
+    public List<Map<String, Object>> listIncidentSummariesForSignalType(String signalType) {
+        String normalized = normalizeNullableText(signalType);
+        if (!StringUtils.hasText(normalized)) {
+            return List.of();
+        }
+        return incidentRepository.findBySignalTypeOrderByUpdatedAtDescIdDesc(normalized).stream()
+            .map(this::buildIncidentSummary)
+            .toList();
+    }
+
     public Map<String, Object> getIncident(Long id) {
         Incident incident = requireIncident(id);
         return Map.of(
@@ -153,6 +167,7 @@ public class IncidentService {
         syncRoutes(incident, extractRoutes(payload), now);
         appendEvent(incident, "created", "Incident создан", payload, actor, now);
         notifyIncidentParticipants(incident, "incident_created", "Создан incident " + incident.getIncidentKey() + ": " + incident.getTitle(), actor);
+        incidentRouteDeliveryOutboxService.enqueueIncidentRoutes(incident, "incident_created", "Incident создан", payload, actor);
         return Map.of(
             "success", true,
             "incident", buildIncidentDetails(incident)
@@ -269,6 +284,13 @@ public class IncidentService {
                 now
             );
             notifyIncidentParticipants(incident, "incident_updated", "Обновлён incident " + incident.getIncidentKey() + ": " + incident.getTitle(), actor);
+            incidentRouteDeliveryOutboxService.enqueueIncidentRoutes(
+                incident,
+                "incident_updated",
+                "Обновлены поля: " + String.join(", ", changes),
+                Map.of("changes", changes),
+                actor
+            );
         }
 
         return Map.of(
@@ -287,9 +309,137 @@ public class IncidentService {
         incident.setUpdatedAt(now);
         incidentRepository.save(incident);
         notifyIncidentParticipants(incident, "incident_event", "Новое событие в incident " + incident.getIncidentKey() + ": " + eventText, actor);
+        incidentRouteDeliveryOutboxService.enqueueIncidentRoutes(incident, eventType, eventText, payload.get("payload"), actor);
         return Map.of(
             "success", true,
             "incident", buildIncidentDetails(incident)
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> openOrRefreshSignalIncident(String signalType,
+                                                           String signalKey,
+                                                           String title,
+                                                           String summary,
+                                                           String description,
+                                                           String severity,
+                                                           String source,
+                                                           Object payload,
+                                                           String actor) {
+        String normalizedSignalType = requiredText(signalType, "Укажите signal type incident.");
+        String normalizedSignalKey = requiredText(signalKey, "Укажите signal key incident.");
+        OffsetDateTime now = OffsetDateTime.now();
+        Incident incident = incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(
+                normalizedSignalType,
+                normalizedSignalKey
+            ).stream()
+            .filter(item -> !isResolvedStatus(item.getStatus()))
+            .findFirst()
+            .orElse(null);
+        if (incident == null) {
+            incident = new Incident();
+            incident.setTitle(requiredText(title, "Укажите заголовок incident."));
+            incident.setSummary(normalizeNullableText(summary));
+            incident.setDescription(normalizeNullableText(description));
+            incident.setStatus("open");
+            incident.setSeverity(normalizeSeverity(severity, "high"));
+            incident.setSource(normalizeNullableText(source));
+            incident.setSignalType(normalizedSignalType);
+            incident.setSignalKey(normalizedSignalKey);
+            incident.setCreatedBy(normalizeNullableIdentity(actor));
+            incident.setCreatedAt(now);
+            incident.setUpdatedAt(now);
+            incident = incidentRepository.save(incident);
+            incident.setIncidentKey("INC-" + incident.getId());
+            incident = incidentRepository.save(incident);
+            appendEvent(incident, "signal_opened", "Signal incident created", payload, actor, now);
+        } else {
+            incident.setTitle(requiredText(title, "Укажите заголовок incident."));
+            incident.setSummary(normalizeNullableText(summary));
+            incident.setDescription(normalizeNullableText(description));
+            incident.setSeverity(normalizeSeverity(severity, incident.getSeverity() != null ? incident.getSeverity() : "high"));
+            incident.setSource(normalizeNullableText(source));
+            incident.setStatus("investigating");
+            incident.setResolvedAt(null);
+            incident.setUpdatedAt(now);
+            incidentRepository.save(incident);
+            appendEvent(incident, "signal_refreshed", "Signal incident refreshed", payload, actor, now);
+        }
+        notifyIncidentParticipants(incident, "incident_signal_updated", "Обновлён signal incident " + incident.getIncidentKey(), actor);
+        incidentRouteDeliveryOutboxService.enqueueIncidentRoutes(
+            incident,
+            "incident_signal_updated",
+            "Signal incident updated",
+            payload,
+            actor
+        );
+        return Map.of("success", true, "incident", buildIncidentDetails(incident));
+    }
+
+    @Transactional
+    public Map<String, Object> resolveSignalIncident(String signalType,
+                                                     String signalKey,
+                                                     String eventText,
+                                                     Object payload,
+                                                     String actor) {
+        String normalizedSignalType = normalizeNullableText(signalType);
+        String normalizedSignalKey = normalizeNullableText(signalKey);
+        if (!StringUtils.hasText(normalizedSignalType) || !StringUtils.hasText(normalizedSignalKey)) {
+            return Map.of("success", true, "resolved", false);
+        }
+        Incident incident = incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(
+                normalizedSignalType,
+                normalizedSignalKey
+            ).stream()
+            .filter(item -> !isResolvedStatus(item.getStatus()))
+            .findFirst()
+            .orElse(null);
+        if (incident == null) {
+            return Map.of("success", true, "resolved", false);
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        incident.setStatus("resolved");
+        incident.setResolvedAt(now);
+        incident.setUpdatedAt(now);
+        incidentRepository.save(incident);
+        appendEvent(incident, "signal_resolved", requiredText(eventText, "Укажите текст события incident."), payload, actor, now);
+        notifyIncidentParticipants(incident, "incident_signal_resolved", "Signal incident resolved " + incident.getIncidentKey(), actor);
+        incidentRouteDeliveryOutboxService.enqueueIncidentRoutes(incident, "incident_signal_resolved", eventText, payload, actor);
+        return Map.of("success", true, "resolved", true, "incident", buildIncidentDetails(incident));
+    }
+
+    @Transactional
+    public void appendSignalEvent(String signalType,
+                                  String signalKey,
+                                  String eventType,
+                                  String eventText,
+                                  Object payload,
+                                  String actor) {
+        String normalizedSignalType = normalizeNullableText(signalType);
+        String normalizedSignalKey = normalizeNullableText(signalKey);
+        if (!StringUtils.hasText(normalizedSignalType) || !StringUtils.hasText(normalizedSignalKey)) {
+            return;
+        }
+        Incident incident = incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(
+                normalizedSignalType,
+                normalizedSignalKey
+            ).stream()
+            .filter(item -> !isResolvedStatus(item.getStatus()))
+            .findFirst()
+            .orElse(null);
+        if (incident == null) {
+            return;
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        incident.setUpdatedAt(now);
+        incidentRepository.save(incident);
+        appendEvent(incident, normalizeEventType(eventType), requiredText(eventText, "Укажите текст события incident."), payload, actor, now);
+        incidentRouteDeliveryOutboxService.enqueueIncidentRoutes(
+            incident,
+            normalizeEventType(eventType),
+            requiredText(eventText, "Укажите текст события incident."),
+            payload,
+            actor
         );
     }
 
@@ -333,8 +483,9 @@ public class IncidentService {
         Incident incident = requireIncident(incidentId);
         IncidentRoute route = new IncidentRoute();
         route.setIncident(incident);
-        route.setRouteType(requiredText(payload.get("route_type"), "Укажите тип маршрута incident."));
-        route.setRouteTarget(requiredText(payload.get("route_target"), "Укажите цель маршрута incident."));
+        String routeType = normalizeRouteType(payload.get("route_type"));
+        route.setRouteType(routeType);
+        route.setRouteTarget(resolveRouteTarget(routeType, payload.get("route_target")));
         route.setRouteStatus(normalizeNullableText(payload.get("route_status")));
         route.setNote(normalizeNullableText(payload.get("note")));
         OffsetDateTime now = OffsetDateTime.now();
@@ -345,6 +496,7 @@ public class IncidentService {
         incidentRepository.save(incident);
         appendEvent(incident, "route_added", "Добавлен маршрут " + route.getRouteType() + " -> " + route.getRouteTarget(), payload, actor, now);
         notifyIncidentParticipants(incident, "incident_route_updated", "Обновлён routing incident " + incident.getIncidentKey(), actor);
+        incidentRouteDeliveryOutboxService.enqueueRouteReplay(incident, route.getId(), actor);
         return Map.of(
             "success", true,
             "incident", buildIncidentDetails(incident)
@@ -358,10 +510,10 @@ public class IncidentService {
             .filter(item -> item.getIncident() != null && Objects.equals(item.getIncident().getId(), incidentId))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Маршрут incident не найден"));
         if (payload.containsKey("route_type")) {
-            route.setRouteType(requiredText(payload.get("route_type"), "Укажите тип маршрута incident."));
+            route.setRouteType(normalizeRouteType(payload.get("route_type")));
         }
         if (payload.containsKey("route_target")) {
-            route.setRouteTarget(requiredText(payload.get("route_target"), "Укажите цель маршрута incident."));
+            route.setRouteTarget(resolveRouteTarget(route.getRouteType(), payload.get("route_target")));
         }
         if (payload.containsKey("route_status")) {
             route.setRouteStatus(normalizeNullableText(payload.get("route_status")));
@@ -376,10 +528,40 @@ public class IncidentService {
         incidentRepository.save(incident);
         appendEvent(incident, "route_updated", "Обновлён маршрут " + route.getRouteType() + " -> " + route.getRouteTarget(), payload, actor, now);
         notifyIncidentParticipants(incident, "incident_route_updated", "Обновлён routing incident " + incident.getIncidentKey(), actor);
+        incidentRouteDeliveryOutboxService.enqueueRouteReplay(incident, route.getId(), actor);
         return Map.of(
             "success", true,
             "incident", buildIncidentDetails(incident)
         );
+    }
+
+    @Transactional
+    public Map<String, Object> redeliverRoute(Long incidentId, Long routeId, String actor) {
+        Incident incident = requireIncident(incidentId);
+        int queued = incidentRouteDeliveryOutboxService.enqueueRouteReplay(incident, routeId, actor);
+        if (queued <= 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Маршрут incident не найден");
+        }
+        appendEvent(incident, "route_redelivery_requested", "Запрошена повторная доставка маршрута " + routeId,
+            Map.of("route_id", routeId), actor, OffsetDateTime.now());
+        incident.setUpdatedAt(OffsetDateTime.now());
+        incidentRepository.save(incident);
+        return Map.of("success", true, "queued", queued, "incident", buildIncidentDetails(incident));
+    }
+
+    @Transactional
+    public Map<String, Object> redeliverFailedRoutes(Long incidentId, Integer limit, String actor) {
+        Incident incident = requireIncident(incidentId);
+        int safeLimit = limit == null ? 25 : limit;
+        int queued = incidentRouteDeliveryOutboxService.enqueueFailedRouteReplays(incident, safeLimit, actor);
+        if (queued > 0) {
+            appendEvent(incident, "route_redelivery_batch_requested",
+                "Запрошена повторная доставка failed routes (" + queued + ")",
+                Map.of("count", queued, "limit", safeLimit), actor, OffsetDateTime.now());
+            incident.setUpdatedAt(OffsetDateTime.now());
+            incidentRepository.save(incident);
+        }
+        return Map.of("success", true, "queued", queued, "limit", safeLimit, "incident", buildIncidentDetails(incident));
     }
 
     private List<Map<String, Object>> listIncidentSummariesForRelation(String relationType, String relationKey) {
@@ -459,6 +641,7 @@ public class IncidentService {
         List<IncidentWatcher> watchers = incidentWatcherRepository.findByIncidentIdOrderByWatcherIdentityAsc(incident.getId());
         List<IncidentRoute> routes = incidentRouteRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId());
         List<IncidentEvent> events = incidentEventRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId());
+        Map<Long, Map<String, Object>> routeDeliverySnapshots = incidentRouteDeliveryOutboxService.loadLatestRouteDeliverySnapshots(incident.getId());
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("id", incident.getId());
         payload.put("incident_key", incident.getIncidentKey());
@@ -475,8 +658,15 @@ public class IncidentService {
         payload.put("relation_count", relations.size());
         payload.put("watcher_count", watchers.size());
         payload.put("route_count", routes.size());
+        payload.put("failed_route_count", routes.stream()
+            .filter(route -> {
+                Map<String, Object> snapshot = routeDeliverySnapshots.get(route.getId());
+                return snapshot != null && "failed".equals(String.valueOf(snapshot.get("status")));
+            })
+            .count());
         payload.put("event_count", events.size());
         payload.put("relations", relations.stream().map(this::toRelationPayload).toList());
+        payload.put("routes", routes.stream().map(route -> toRoutePayload(route, routeDeliverySnapshots.get(route.getId()))).toList());
         return payload;
     }
 
@@ -486,11 +676,12 @@ public class IncidentService {
         payload.put("signal_type", incident.getSignalType() == null ? "" : incident.getSignalType());
         payload.put("signal_key", incident.getSignalKey() == null ? "" : incident.getSignalKey());
         payload.put("created_by", incident.getCreatedBy() == null ? "" : incident.getCreatedBy());
+        Map<Long, Map<String, Object>> routeDeliverySnapshots = incidentRouteDeliveryOutboxService.loadLatestRouteDeliverySnapshots(incident.getId());
         payload.put("watchers", incidentWatcherRepository.findByIncidentIdOrderByWatcherIdentityAsc(incident.getId()).stream()
             .map(this::toWatcherPayload)
             .toList());
         payload.put("routes", incidentRouteRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId()).stream()
-            .map(this::toRoutePayload)
+            .map(route -> toRoutePayload(route, routeDeliverySnapshots.get(route.getId())))
             .toList());
         payload.put("events", incidentEventRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId()).stream()
             .map(this::toEventPayload)
@@ -519,7 +710,8 @@ public class IncidentService {
         return payload;
     }
 
-    private Map<String, Object> toRoutePayload(IncidentRoute route) {
+    private Map<String, Object> toRoutePayload(IncidentRoute route,
+                                               Map<String, Object> deliverySnapshot) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("id", route.getId());
         payload.put("route_type", route.getRouteType());
@@ -528,6 +720,7 @@ public class IncidentService {
         payload.put("note", route.getNote() == null ? "" : route.getNote());
         payload.put("created_at", route.getCreatedAt() != null ? route.getCreatedAt().toString() : null);
         payload.put("updated_at", route.getUpdatedAt() != null ? route.getUpdatedAt().toString() : null);
+        payload.put("delivery", deliverySnapshot == null ? Map.of() : deliverySnapshot);
         return payload;
     }
 
@@ -590,8 +783,9 @@ public class IncidentService {
         for (RouteDraft route : routes) {
             IncidentRoute entity = new IncidentRoute();
             entity.setIncident(incident);
-            entity.setRouteType(requiredText(route.routeType(), "Укажите тип маршрута incident."));
-            entity.setRouteTarget(requiredText(route.routeTarget(), "Укажите цель маршрута incident."));
+            String routeType = normalizeRouteType(route.routeType());
+            entity.setRouteType(routeType);
+            entity.setRouteTarget(resolveRouteTarget(routeType, route.routeTarget()));
             entity.setRouteStatus(normalizeNullableText(route.routeStatus()));
             entity.setNote(normalizeNullableText(route.note()));
             entity.setCreatedAt(now);
@@ -922,6 +1116,30 @@ public class IncidentService {
     private String normalizeEventType(Object raw) {
         String normalized = normalizeNullableText(raw);
         return StringUtils.hasText(normalized) ? normalized.toLowerCase(Locale.ROOT) : "comment";
+    }
+
+    private String normalizeRouteType(Object raw) {
+        String normalized = normalizeNullableText(raw);
+        if (!StringUtils.hasText(normalized)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите тип маршрута incident.");
+        }
+        String lowered = normalized.toLowerCase(Locale.ROOT);
+        String canonical = switch (lowered) {
+            case "operator", "operators", "all_operators" -> "all_operators";
+            default -> lowered;
+        };
+        if (!ROUTE_TYPES.contains(canonical)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Неподдерживаемый route type incident: " + normalized);
+        }
+        return canonical;
+    }
+
+    private String resolveRouteTarget(String routeType,
+                                      Object rawRouteTarget) {
+        if ("all_operators".equals(normalizeNullableText(routeType))) {
+            return "all_operators";
+        }
+        return requiredText(rawRouteTarget, "Укажите цель маршрута incident.");
     }
 
     private boolean isResolvedStatus(String status) {

@@ -212,6 +212,19 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         jdbcTemplate.queryForList(
             "SELECT worker_key, cursor_text, updated_at FROM runtime_worker_checkpoints WHERE 1 = 0"
         );
+        jdbcTemplate.queryForList(
+            """
+            SELECT event_id,
+                   event_kind,
+                   routing_key,
+                   status,
+                   attempt_count,
+                   processing_started_at,
+                   published_at
+              FROM integration_transport_outbox
+             WHERE 1 = 0
+            """
+        );
     }
 
     private void verifyIncidentSchema() {
@@ -229,6 +242,21 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         );
         jdbcTemplate.queryForList(
             "SELECT incident_id, route_type, route_target, route_status, updated_at FROM incident_routes WHERE 1 = 0"
+        );
+        jdbcTemplate.queryForList(
+            """
+            SELECT event_id,
+                   incident_id,
+                   route_id,
+                   event_type,
+                   route_type,
+                   status,
+                   attempt_count,
+                   processing_started_at,
+                   delivered_at
+              FROM incident_route_delivery_outbox
+             WHERE 1 = 0
+            """
         );
     }
 

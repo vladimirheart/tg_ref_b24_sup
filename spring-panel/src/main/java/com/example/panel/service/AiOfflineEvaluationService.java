@@ -2,13 +2,8 @@ package com.example.panel.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
 import java.io.InputStream;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -18,6 +13,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 public class AiOfflineEvaluationService {
@@ -29,17 +29,20 @@ public class AiOfflineEvaluationService {
     private final AiRetrievalService aiRetrievalService;
     private final SharedConfigService sharedConfigService;
     private final ObjectMapper objectMapper;
+    private final RuntimeCoordinationService runtimeCoordinationService;
 
     public AiOfflineEvaluationService(JdbcTemplate jdbcTemplate,
                                       AiIntentService aiIntentService,
                                       AiRetrievalService aiRetrievalService,
                                       SharedConfigService sharedConfigService,
-                                      ObjectMapper objectMapper) {
+                                      ObjectMapper objectMapper,
+                                      RuntimeCoordinationService runtimeCoordinationService) {
         this.jdbcTemplate = jdbcTemplate;
         this.aiIntentService = aiIntentService;
         this.aiRetrievalService = aiRetrievalService;
         this.sharedConfigService = sharedConfigService;
         this.objectMapper = objectMapper;
+        this.runtimeCoordinationService = runtimeCoordinationService;
     }
 
     @Scheduled(cron = "${panel.ai.offline-eval.cron:0 15 3 * * *}")
@@ -47,10 +50,12 @@ public class AiOfflineEvaluationService {
         if (!isOfflineEvalEnabled()) {
             return;
         }
-        try {
-            runEvaluationNow("scheduler");
-        } catch (Exception ignored) {
-        }
+        runtimeCoordinationService.runWithLease("ai-offline-evaluation", Duration.ofHours(6), () -> {
+            try {
+                runEvaluationNow("scheduler");
+            } catch (Exception ignored) {
+            }
+        });
     }
 
     public Map<String, Object> runEvaluationNow(String actor) {

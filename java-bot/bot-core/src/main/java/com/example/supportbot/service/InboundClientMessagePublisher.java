@@ -5,8 +5,6 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.MessageDeliveryMode;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,12 +12,12 @@ public class InboundClientMessagePublisher {
 
     private static final Logger log = LoggerFactory.getLogger(InboundClientMessagePublisher.class);
 
-    private final RabbitTemplate rabbitTemplate;
     private final IntegrationRabbitProperties rabbitProperties;
+    private final IntegrationTransportOutboxService integrationTransportOutboxService;
 
-    public InboundClientMessagePublisher(RabbitTemplate rabbitTemplate,
+    public InboundClientMessagePublisher(IntegrationTransportOutboxService integrationTransportOutboxService,
                                          IntegrationRabbitProperties rabbitProperties) {
-        this.rabbitTemplate = rabbitTemplate;
+        this.integrationTransportOutboxService = integrationTransportOutboxService;
         this.rabbitProperties = rabbitProperties;
     }
 
@@ -50,13 +48,8 @@ public class InboundClientMessagePublisher {
             occurredAt
         );
         String routingKey = rabbitProperties.routingKeyForPlatform(platform);
-        rabbitTemplate.convertAndSend(rabbitProperties.getInboundExchange(), routingKey, event, message -> {
-            message.getMessageProperties().setMessageId(eventId);
-            message.getMessageProperties().setCorrelationId(eventId);
-            message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
-            return message;
-        });
-        log.info("Published inbound client message event {} for ticket {} via routing key {}",
+        integrationTransportOutboxService.enqueueInboundClientMessage(event, routingKey, rabbitProperties);
+        log.info("Queued inbound client message event {} for ticket {} via routing key {}",
             eventId, command.ticketId(), routingKey);
     }
 

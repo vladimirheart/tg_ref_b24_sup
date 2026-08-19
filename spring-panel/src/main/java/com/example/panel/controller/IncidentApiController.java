@@ -87,4 +87,18 @@ public class IncidentApiController {
                                            Authentication authentication) {
         return incidentService.updateRoute(id, routeId, payload, authentication != null ? authentication.getName() : null);
     }
+
+    @PostMapping("/{id}/routes/{routeId}/redeliver")
+    public Map<String, Object> redeliverRoute(@PathVariable("id") Long id,
+                                              @PathVariable("routeId") Long routeId,
+                                              Authentication authentication) {
+        return incidentService.redeliverRoute(id, routeId, authentication != null ? authentication.getName() : null);
+    }
+
+    @PostMapping("/{id}/routes/redeliver-failed")
+    public Map<String, Object> redeliverFailedRoutes(@PathVariable("id") Long id,
+                                                     @RequestParam(name = "limit", required = false, defaultValue = "25") Integer limit,
+                                                     Authentication authentication) {
+        return incidentService.redeliverFailedRoutes(id, limit, authentication != null ? authentication.getName() : null);
+    }
 }
