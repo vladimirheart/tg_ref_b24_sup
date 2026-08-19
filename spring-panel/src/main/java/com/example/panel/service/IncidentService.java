@@ -114,6 +114,16 @@ public class IncidentService {
         return listIncidentSummariesForRelation("object_passport", String.valueOf(passportId));
     }
 
+    public List<Map<String, Object>> listIncidentSummariesForSignalType(String signalType) {
+        String normalized = normalizeNullableText(signalType);
+        if (!StringUtils.hasText(normalized)) {
+            return List.of();
+        }
+        return incidentRepository.findBySignalTypeOrderByUpdatedAtDescIdDesc(normalized).stream()
+            .map(this::buildIncidentSummary)
+            .toList();
+    }
+
     public Map<String, Object> getIncident(Long id) {
         Incident incident = requireIncident(id);
         return Map.of(
@@ -291,6 +301,118 @@ public class IncidentService {
             "success", true,
             "incident", buildIncidentDetails(incident)
         );
+    }
+
+    @Transactional
+    public Map<String, Object> openOrRefreshSignalIncident(String signalType,
+                                                           String signalKey,
+                                                           String title,
+                                                           String summary,
+                                                           String description,
+                                                           String severity,
+                                                           String source,
+                                                           Object payload,
+                                                           String actor) {
+        String normalizedSignalType = requiredText(signalType, "Укажите signal type incident.");
+        String normalizedSignalKey = requiredText(signalKey, "Укажите signal key incident.");
+        OffsetDateTime now = OffsetDateTime.now();
+        Incident incident = incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(
+                normalizedSignalType,
+                normalizedSignalKey
+            ).stream()
+            .filter(item -> !isResolvedStatus(item.getStatus()))
+            .findFirst()
+            .orElse(null);
+        if (incident == null) {
+            incident = new Incident();
+            incident.setTitle(requiredText(title, "Укажите заголовок incident."));
+            incident.setSummary(normalizeNullableText(summary));
+            incident.setDescription(normalizeNullableText(description));
+            incident.setStatus("open");
+            incident.setSeverity(normalizeSeverity(severity, "high"));
+            incident.setSource(normalizeNullableText(source));
+            incident.setSignalType(normalizedSignalType);
+            incident.setSignalKey(normalizedSignalKey);
+            incident.setCreatedBy(normalizeNullableIdentity(actor));
+            incident.setCreatedAt(now);
+            incident.setUpdatedAt(now);
+            incident = incidentRepository.save(incident);
+            incident.setIncidentKey("INC-" + incident.getId());
+            incident = incidentRepository.save(incident);
+            appendEvent(incident, "signal_opened", "Signal incident created", payload, actor, now);
+        } else {
+            incident.setTitle(requiredText(title, "Укажите заголовок incident."));
+            incident.setSummary(normalizeNullableText(summary));
+            incident.setDescription(normalizeNullableText(description));
+            incident.setSeverity(normalizeSeverity(severity, incident.getSeverity() != null ? incident.getSeverity() : "high"));
+            incident.setSource(normalizeNullableText(source));
+            incident.setStatus("investigating");
+            incident.setResolvedAt(null);
+            incident.setUpdatedAt(now);
+            incidentRepository.save(incident);
+            appendEvent(incident, "signal_refreshed", "Signal incident refreshed", payload, actor, now);
+        }
+        notifyIncidentParticipants(incident, "incident_signal_updated", "Обновлён signal incident " + incident.getIncidentKey(), actor);
+        return Map.of("success", true, "incident", buildIncidentDetails(incident));
+    }
+
+    @Transactional
+    public Map<String, Object> resolveSignalIncident(String signalType,
+                                                     String signalKey,
+                                                     String eventText,
+                                                     Object payload,
+                                                     String actor) {
+        String normalizedSignalType = normalizeNullableText(signalType);
+        String normalizedSignalKey = normalizeNullableText(signalKey);
+        if (!StringUtils.hasText(normalizedSignalType) || !StringUtils.hasText(normalizedSignalKey)) {
+            return Map.of("success", true, "resolved", false);
+        }
+        Incident incident = incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(
+                normalizedSignalType,
+                normalizedSignalKey
+            ).stream()
+            .filter(item -> !isResolvedStatus(item.getStatus()))
+            .findFirst()
+            .orElse(null);
+        if (incident == null) {
+            return Map.of("success", true, "resolved", false);
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        incident.setStatus("resolved");
+        incident.setResolvedAt(now);
+        incident.setUpdatedAt(now);
+        incidentRepository.save(incident);
+        appendEvent(incident, "signal_resolved", requiredText(eventText, "Укажите текст события incident."), payload, actor, now);
+        notifyIncidentParticipants(incident, "incident_signal_resolved", "Signal incident resolved " + incident.getIncidentKey(), actor);
+        return Map.of("success", true, "resolved", true, "incident", buildIncidentDetails(incident));
+    }
+
+    @Transactional
+    public void appendSignalEvent(String signalType,
+                                  String signalKey,
+                                  String eventType,
+                                  String eventText,
+                                  Object payload,
+                                  String actor) {
+        String normalizedSignalType = normalizeNullableText(signalType);
+        String normalizedSignalKey = normalizeNullableText(signalKey);
+        if (!StringUtils.hasText(normalizedSignalType) || !StringUtils.hasText(normalizedSignalKey)) {
+            return;
+        }
+        Incident incident = incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(
+                normalizedSignalType,
+                normalizedSignalKey
+            ).stream()
+            .filter(item -> !isResolvedStatus(item.getStatus()))
+            .findFirst()
+            .orElse(null);
+        if (incident == null) {
+            return;
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        incident.setUpdatedAt(now);
+        incidentRepository.save(incident);
+        appendEvent(incident, normalizeEventType(eventType), requiredText(eventText, "Укажите текст события incident."), payload, actor, now);
     }
 
     @Transactional

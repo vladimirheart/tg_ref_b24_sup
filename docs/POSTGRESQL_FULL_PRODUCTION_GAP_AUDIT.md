@@ -21,6 +21,11 @@
   - `incident_watchers`;
   - `incident_routes`;
 - dialogs/tasks/object passports уже умеют читать incident summaries из canonical backend contour.
+- Redis lease coordination и object-storage readiness уже входят в canonical PostgreSQL runtime contract;
+- transport contour получил operator-facing ops слой:
+  - analytics/API surface для inbox/outbox/checkpoints/incidents;
+  - ручные replay/requeue действия;
+  - automatic signal-incident monitoring для transport degradation.
 
 ## 2. Что ещё не даёт считать проект PostgreSQL-only production system
 
@@ -35,14 +40,14 @@
 
 Это допустимо как transitional/dev/import perimeter, но не является финальным production contour.
 
-### 2.2. Runtime infra contour ещё не дожат до final production contract
+### 2.2. Runtime infra contour в базовом виде уже собран, но operational maturity ещё не финализирована
 
-Основной незакрытый gap уже не в datasource split, а в infra/runtime ownership:
+Основной незакрытый gap уже не в datasource split и не в отсутствии infra-компонентов, а в глубине их operational hardening:
 
-- Redis ещё не зафиксирован как обязательный слой для sessions/leases/live coordination;
-- MinIO/S3 abstraction для attachments остаётся target-state, а не обязательным live contract;
-- stateless multi-backend / multi-worker coordination model ещё не закрыт end-to-end operational guardrail-ами;
-- transport boundary уже умеет работать через RabbitMQ, но runtime по-прежнему сохраняет compatibility-варианты и не везде жёстко мыслится как RabbitMQ-first production model.
+- Redis lease coordination уже внедрён для shared schedulers/watchers, но финальный аудит remaining multi-instance side effects всё ещё нужен;
+- MinIO/S3-compatible object storage уже стал обязательной readiness boundary для PostgreSQL contour, но compatibility/local perimeter ещё остаётся для dev/import режимов;
+- RabbitMQ-first transport model уже materially жёстче, включая producer outbox, consumer scaling, delivery ledger и panel-side replay/requeue ops, но deeper integration-worker compensations/replay tooling всё ещё можно усиливать;
+- stateless multi-backend / multi-worker model уже не выглядит теоретическим, но end-to-end observability/alerting/runbook maturity поверх него ещё не доведена до финальной формы.
 
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 
@@ -51,33 +56,23 @@
 Это уже лучше, чем normal fallback-path, но всё ещё не финальная цель, где живой проект полностью мыслится через canonical PostgreSQL contour и SQLite остаётся только в test/import/legacy compatibility ролях.
 Дополнительно one-time import/recovery из legacy SQLite уже переведён в explicit opt-in и больше не должен автоматически стартовать в каждом PostgreSQL runtime только из-за присутствия старых `*.db` файлов рядом с репозиторием.
 
-### 2.4. Attachment binaries всё ещё не закреплены за canonical object storage contour
+### 2.4. Documentation и compatibility perimeter всё ещё несут transitional topology
 
-Сейчас runtime attachment path по-прежнему в значимой степени мыслится через local filesystem directories.
-
-Это лучше, чем хранить business state в SQLite, но для заявленного production contour остаётся отдельным gap:
-
-- нужна обязательная `S3/MinIO`-совместимая storage boundary;
-- нужны runbook/config contracts для multi-instance attachment serving;
-- local disk должен остаться только compatibility/dev perimeter.
-
-### 2.5. Часть документации всё ещё описывает систему как более split-топологию, чем она есть по факту
-
-Это видно по:
+Код уже ушёл дальше старой multi-SQLite/local-disk модели, но часть документации и compatibility-контрактов всё ещё описывает более transitional состояние, чем реально осталось:
 
 - `docs/database_distribution.md`;
 - `docs/database-paths.md`;
 - `docs/environment_variables.md`;
-- SQLite-specific migration/tests/runbook references.
+- SQLite/local compatibility runbooks и migration references.
 
-Пока документация и код вместе описывают multiple SQLite contours как живой runtime, архитектурная миграция не завершена.
+Пока документация и compatibility perimeter не подчёркивают достаточно жёстко, что canonical live contour уже backend-owned `PostgreSQL + Redis + RabbitMQ + object storage`, архитектурная миграция воспринимается менее завершённой, чем она есть по факту.
 
-### 2.6. Incident module есть в backend contour, но ещё не закрывает весь operator/ops слой
+### 2.5. Incident module есть в backend contour, но ещё не закрывает весь operator/ops слой
 
 Canonical incident domain на backend-owned storage уже появился, но remaining scope по incident-теме ещё есть:
 
-- полноценный operator-facing UI lifecycle вокруг incident API;
-- richer signal ingestion / automatic incident creation;
+- полноценный operator-facing UI lifecycle вокруг incident API, а не только API + analytics-side observability;
+- richer signal ingestion / automatic incident creation beyond the current transport monitor and linked domain reads;
 - завершённые alerting/runbook flows поверх новых incident сущностей;
 - operational reporting, которая считает incident module first-class production feature, а не просто linked metadata.
 
@@ -97,10 +92,9 @@ Canonical incident domain на backend-owned storage уже появился, н
 
 ### 3.3. Infra contour
 
-- Redis для sessions/leases/live coordination;
-- RabbitMQ как безусловный live transport backbone;
-- MinIO/S3 для binary attachments;
-- stateless multi-backend/multi-worker model.
+- удержать Redis/RabbitMQ/object-storage contract как invariant production contour;
+- добить оставшиеся multi-instance side-effect audits и deeper worker operability;
+- довести alerting/runbook/observability слой до end-to-end production maturity.
 
 ### 3.4. Incident module
 

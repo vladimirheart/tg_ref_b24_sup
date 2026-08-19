@@ -15,4 +15,8 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
     List<Incident> findByIdInOrderByUpdatedAtDescIdDesc(Collection<Long> ids);
 
     List<Incident> findByStatusOrderByUpdatedAtDescIdDesc(String status);
+
+    List<Incident> findBySignalTypeOrderByUpdatedAtDescIdDesc(String signalType);
+
+    List<Incident> findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(String signalType, String signalKey);
 }
