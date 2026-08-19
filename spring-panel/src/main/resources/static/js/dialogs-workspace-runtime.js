@@ -1276,7 +1276,17 @@
       elements.workspaceCategoriesList.classList.remove('d-none');
       elements.workspaceCategoriesList.innerHTML = ordered.map((category) => {
         const selected = selectedCategories.has(category);
-        return `<button class="badge rounded-pill text-bg-light border dialog-category-badge ${selected ? 'is-selected' : ''}" type="button" data-category-value="${escapeHtml(category)}" ${categoriesEnabled ? '' : 'disabled'}>${escapeHtml(category)}</button>`;
+        return `
+    <button
+        class="badge rounded-pill text-bg-light border dialog-category-badge ${selected ? 'is-selected' : ''}"
+        type="button"
+        data-category-value="${escapeHtml(category)}"
+        aria-pressed="${selected ? 'true' : 'false'}"
+        ${categoriesEnabled ? '' : 'disabled'}
+    >
+        ${escapeHtml(category)}
+    </button>
+`;
       }).join('');
       if (elements.workspaceCategoriesClear) {
         elements.workspaceCategoriesClear.disabled = !categoriesEnabled;

@@ -688,10 +688,24 @@
       const messagePreviewText = String(message?.replyPreview || message?.message || '').trim()
         || ((message?.attachment || message?.attachmentStatus) ? resolveAttachmentTypeLabel(message, mediaKind) : 'Сообщение');
       const canReply = !archivedHistory && senderType !== 'system' && message?.telegramMessageId;
+	  const actionMenuId = canReply
+		? `chat-message-actions-${message.telegramMessageId}`
+		: '';
       const actionButtons = canReply
-        ? `<div class="chat-message-menu">
-            <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Действия с сообщением">⋯</button>
-            <div class="chat-message-menu-list">
+			? `<div class="chat-message-menu">
+				<button
+					class="chat-message-menu-toggle"
+					type="button"
+					data-action-menu
+					aria-label="Действия с сообщением"
+					aria-controls="${actionMenuId}"
+					aria-expanded="false"
+				>⋯</button>
+
+				<div
+					class="chat-message-menu-list"
+					id="${actionMenuId}"
+				>
               <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
               ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Изменить</button>` : ''}
               ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
@@ -1504,14 +1518,50 @@
       return false;
     }
 
-    function closeHistoryActionMenus(exceptMenu = null) {
-      if (!elements.detailsHistory) return;
-      elements.detailsHistory.querySelectorAll('.chat-message-menu.is-open').forEach((menu) => {
-        if (menu !== exceptMenu) {
-          menu.classList.remove('is-open');
-        }
-      });
-    }
+    function setHistoryActionMenuOpen(
+			menu,
+			open,
+			restoreFocus = false
+		) {
+			if (!menu) return;
+
+			const shouldOpen = Boolean(open);
+			const toggle = menu.querySelector('[data-action-menu]');
+
+			menu.classList.toggle('is-open', shouldOpen);
+
+			if (toggle) {
+				toggle.setAttribute(
+					'aria-expanded',
+					shouldOpen ? 'true' : 'false'
+				);
+			}
+
+			if (!shouldOpen && restoreFocus && toggle) {
+				window.requestAnimationFrame(() => {
+					toggle.focus({ preventScroll: true });
+				});
+			}
+		}
+
+		function closeHistoryActionMenus(
+			exceptMenu = null,
+			restoreFocus = false
+		) {
+			if (!elements.detailsHistory) return;
+
+			elements.detailsHistory
+				.querySelectorAll('.chat-message-menu.is-open')
+				.forEach((menu) => {
+					if (menu !== exceptMenu) {
+						setHistoryActionMenuOpen(
+							menu,
+							false,
+							restoreFocus
+						);
+					}
+				});
+		}
 
     function bindHistoryInteractionEvents() {
       if (state.historyInteractionsBound) {
@@ -1535,15 +1585,25 @@
           if (menuToggle) {
             const menu = menuToggle.closest('.chat-message-menu');
             if (!menu) return;
-            closeHistoryActionMenus(menu);
-            menu.classList.toggle('is-open');
-            return;
+            const shouldOpen =
+				!menu.classList.contains('is-open');
+
+			closeHistoryActionMenus(menu);
+
+			setHistoryActionMenuOpen(
+				menu,
+				shouldOpen
+			);
+
+			return;
           }
           const button = event.target.closest('button[data-action]');
           const ticketId = String(getActiveDialogState().ticketId || '').trim();
           if (!button || !ticketId) return;
           const menu = button.closest('.chat-message-menu');
-          if (menu) menu.classList.remove('is-open');
+          if (menu) {
+    setHistoryActionMenuOpen(menu, false);
+}
           const messageId = Number.parseInt(button.dataset.messageId, 10);
           if (!Number.isFinite(messageId)) return;
           const action = button.dataset.action;
@@ -1602,6 +1662,30 @@
         if (event.target.closest('.chat-message-menu')) return;
         closeHistoryActionMenus();
       });
+
+		document.addEventListener('keydown', (event) => {
+			if (event.key !== 'Escape' || !elements.detailsHistory) {
+				return;
+			}
+
+			const openMenu =
+				elements.detailsHistory.querySelector(
+					'.chat-message-menu.is-open'
+				);
+
+			if (!openMenu) {
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
+
+			setHistoryActionMenuOpen(
+				openMenu,
+				false,
+				true
+			);
+		});
 
       if (elements.detailsReplyMediaTrigger && elements.detailsReplyMedia) {
         elements.detailsReplyMediaTrigger.addEventListener('click', () => {

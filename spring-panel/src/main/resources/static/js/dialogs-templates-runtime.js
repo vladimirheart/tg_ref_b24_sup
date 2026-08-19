@@ -180,7 +180,14 @@
         badge.type = 'button';
         badge.dataset.categoryValue = normalized;
         badge.textContent = normalized;
-        badge.classList.toggle('is-selected', selectedCategories.has(normalized));
+
+		const selected = selectedCategories.has(normalized);
+
+		badge.classList.toggle('is-selected', selected);
+		badge.setAttribute(
+			'aria-pressed',
+			selected ? 'true' : 'false'
+		);
         elements.categoryTemplateList.appendChild(badge);
       });
       const hasItems = categories.length > 0;
@@ -233,7 +240,13 @@
       const selectedCategories = getSelectedCategories();
       elements.categoryTemplateList.querySelectorAll('[data-category-value]').forEach((item) => {
         const value = item.dataset.categoryValue || '';
-        item.classList.toggle('is-selected', selectedCategories.has(value));
+        const selected = selectedCategories.has(value);
+
+		item.classList.toggle('is-selected', selected);
+		item.setAttribute(
+			'aria-pressed',
+			selected ? 'true' : 'false'
+		);
       });
     }
 
@@ -423,10 +436,47 @@
       }
 
       if (elements.detailsReplyEmojiTrigger && elements.emojiPanel) {
-        elements.detailsReplyEmojiTrigger.addEventListener('click', () => {
-          elements.emojiPanel.classList.toggle('is-open');
-        });
-      }
+			const setEmojiPanelOpen = (open) => {
+				const shouldOpen = Boolean(open);
+
+				elements.emojiPanel.classList.toggle(
+					'is-open',
+					shouldOpen
+				);
+
+				elements.detailsReplyEmojiTrigger.setAttribute(
+					'aria-expanded',
+					shouldOpen ? 'true' : 'false'
+				);
+			};
+
+			elements.detailsReplyEmojiTrigger.addEventListener(
+				'click',
+				() => {
+					setEmojiPanelOpen(
+						!elements.emojiPanel.classList.contains('is-open')
+					);
+				}
+			);
+
+			document.addEventListener('keydown', (event) => {
+				if (
+					event.key !== 'Escape' ||
+					!elements.emojiPanel.classList.contains('is-open')
+				) {
+					return;
+				}
+
+				event.preventDefault();
+				event.stopPropagation();
+
+				setEmojiPanelOpen(false);
+
+				elements.detailsReplyEmojiTrigger.focus({
+					preventScroll: true
+				});
+			});
+		}
 
       if (elements.emojiList) {
         elements.emojiList.addEventListener('click', (event) => {

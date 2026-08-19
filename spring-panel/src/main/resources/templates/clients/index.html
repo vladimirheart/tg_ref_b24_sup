@@ -63,8 +63,7 @@
         <div class="table-responsive">
             <table class="table align-middle mb-0" id="clientsTable">
                 <thead>
-                <tr>
-                    <tr>
+					<tr>
 						<th class="sortable"
 							data-sort-index="0"
 							tabindex="0">ID клиента</th>
@@ -104,10 +103,7 @@
 						<th>Blacklist</th>
 						<th>Действия</th>
 					</tr>
-                    <th>Blacklist</th>
-                    <th>Действия</th>
-                </tr>
-                </thead>
+					</thead>
                 <tbody>
                 <tr th:if="${#lists.isEmpty(clients)}">
                     <td colspan="11" class="text-center text-muted py-4">Клиенты отсутствуют</td>
