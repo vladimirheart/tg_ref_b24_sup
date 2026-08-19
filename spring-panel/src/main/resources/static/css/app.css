@@ -5377,6 +5377,7 @@ body {
   }
   [data-ui-page=tasks] #taskModal .tasks-modal-content {
     min-height: 100vh;
+    min-height: 100dvh;
     border-radius: 0 !important;
   }
 }
