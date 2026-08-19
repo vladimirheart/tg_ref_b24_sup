@@ -590,9 +590,7 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
     transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.chat-message-menu.is-open .chat-message-menu-list,
-.chat-message-menu:hover .chat-message-menu-list,
-.chat-message-menu:focus-within .chat-message-menu-list {
+.chat-message-menu.is-open .chat-message-menu-list {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
