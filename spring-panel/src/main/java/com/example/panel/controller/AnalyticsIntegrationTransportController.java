@@ -37,6 +37,11 @@ public class AnalyticsIntegrationTransportController {
         return integrationTransportOpsService.loadOutboundEventDetail(eventId);
     }
 
+    @GetMapping("/tickets/{ticketId}/debug")
+    public Map<String, Object> ticketTransportDebug(@PathVariable("ticketId") String ticketId) {
+        return integrationTransportOpsService.loadTicketTransportDebug(ticketId);
+    }
+
     @PostMapping("/inbound-events/{eventId}/replay")
     public Map<String, Object> replayInboundEvent(@PathVariable("eventId") String eventId,
                                                   Authentication authentication) {

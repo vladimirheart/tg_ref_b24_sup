@@ -274,6 +274,7 @@
                 <div class="card-body">
                     <div class="incident-filter-grid mb-3">
                         <input type="text" class="form-control form-control-sm" id="transportWorkbenchTicketId" placeholder="Ticket id для targeted replay/requeue">
+                        <button type="button" class="btn btn-sm btn-outline-dark" id="transportWorkbenchInspectTicket">Inspect ticket transport</button>
                         <button type="button" class="btn btn-sm btn-outline-primary" id="transportWorkbenchReplayTicket">Replay inbound by ticket</button>
                         <button type="button" class="btn btn-sm btn-outline-primary" id="transportWorkbenchRequeueTicket">Requeue outbound by ticket</button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="transportWorkbenchReplayFailed">Replay failed inbound batch</button>
@@ -285,7 +286,24 @@
                         <div class="incident-kpi-card"><div class="incident-kpi-label">Inbound stale</div><div class="incident-kpi-value" id="transportMetricInboundStale">-</div></div>
                         <div class="incident-kpi-card"><div class="incident-kpi-label">Outbound failed</div><div class="incident-kpi-value" id="transportMetricOutboundFailed">-</div></div>
                         <div class="incident-kpi-card"><div class="incident-kpi-label">Outbound backlog</div><div class="incident-kpi-value" id="transportMetricOutboundBacklog">-</div></div>
+                        <div class="incident-kpi-card"><div class="incident-kpi-label">Stale checkpoints</div><div class="incident-kpi-value" id="transportMetricCheckpointStale">-</div></div>
+                        <div class="incident-kpi-card"><div class="incident-kpi-label">Manual ops 6h</div><div class="incident-kpi-value" id="transportMetricRecentOps">-</div></div>
                         <div class="incident-kpi-card"><div class="incident-kpi-label">Transport incidents</div><div class="incident-kpi-value" id="transportMetricIncidentCount">-</div></div>
+                    </div>
+
+                    <div class="transport-columns mb-3">
+                        <section class="card">
+                            <div class="card-header"><strong>Observability alerts</strong></div>
+                            <div class="card-body transport-log-list" id="transportWorkbenchAlertList">
+                                <div class="text-muted">Загрузка transport alerts...</div>
+                            </div>
+                        </section>
+                        <section class="card">
+                            <div class="card-header"><strong>Recent recovery operations</strong></div>
+                            <div class="card-body transport-log-list" id="transportWorkbenchOperationList">
+                                <div class="text-muted">Загрузка recovery audit trail...</div>
+                            </div>
+                        </section>
                     </div>
 
                     <div class="transport-columns mb-3">
@@ -303,9 +321,16 @@
                         </section>
                     </div>
 
+                    <section class="card mb-3">
+                        <div class="card-header"><strong>Targeted ticket debug</strong></div>
+                        <div class="card-body transport-log-list" id="transportWorkbenchTicketDebug">
+                            <div class="text-muted">Укажите ticket id и нажмите <em>Inspect ticket transport</em>.</div>
+                        </div>
+                    </section>
+
                     <div class="transport-columns">
                         <section class="card">
-                            <div class="card-header"><strong>Runtime checkpoints</strong></div>
+                            <div class="card-header"><strong>Runtime checkpoints / worker health</strong></div>
                             <div class="card-body transport-log-list" id="transportWorkbenchCheckpointList">
                                 <div class="text-muted">Загрузка checkpoints...</div>
                             </div>

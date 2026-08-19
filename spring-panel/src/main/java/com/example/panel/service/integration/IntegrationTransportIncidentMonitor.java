@@ -12,6 +12,7 @@ public class IntegrationTransportIncidentMonitor {
 
     private static final String SIGNAL_TYPE = "integration_transport";
     private static final String SIGNAL_KEY = "panel-rabbitmq-bridge";
+    private static final String CHECKPOINT_SIGNAL_KEY = "panel-runtime-checkpoints";
 
     private final IntegrationTransportOpsService transportOpsService;
     private final RuntimeCoordinationService runtimeCoordinationService;
@@ -55,6 +56,35 @@ public class IntegrationTransportIncidentMonitor {
                     SIGNAL_TYPE,
                     SIGNAL_KEY,
                     "Transport contour recovered",
+                    Map.of("status", "healthy"),
+                    "system"
+                );
+            }
+
+            if (snapshot.staleCheckpointCount() > 0) {
+                incidentService.openOrRefreshSignalIncident(
+                    SIGNAL_TYPE,
+                    CHECKPOINT_SIGNAL_KEY,
+                    "Runtime worker checkpoint degradation",
+                    "Обнаружены stale runtime checkpoints в panel-side watchers.",
+                    """
+                    Один или несколько background/watcher loops перестали своевременно обновлять runtime checkpoints.
+                    Проверьте active lease owner, worker logs и backlog по связанным source tables.
+                    """.trim(),
+                    snapshot.staleCheckpointCount() > 1 ? "critical" : "high",
+                    "integration_transport_monitor",
+                    Map.of(
+                        "stale_checkpoint_count", snapshot.staleCheckpointCount(),
+                        "lagging_checkpoint_count", snapshot.laggingCheckpointCount(),
+                        "recent_manual_operations", snapshot.recentManualOperations()
+                    ),
+                    "system"
+                );
+            } else {
+                incidentService.resolveSignalIncident(
+                    SIGNAL_TYPE,
+                    CHECKPOINT_SIGNAL_KEY,
+                    "Runtime checkpoints recovered",
                     Map.of("status", "healthy"),
                     "system"
                 );

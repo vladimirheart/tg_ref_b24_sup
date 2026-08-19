@@ -30,6 +30,10 @@
   - появился durable `incident_route_delivery_outbox`;
   - delivery работает через leased dispatcher и retry semantics;
   - incident details возвращают latest route delivery snapshot для operability/replay.
+- transport/integration operability теперь уже глубже базового replay/requeue:
+  - manual replay/requeue/checkpoint actions пишутся в canonical `integration_transport_operation_log`;
+  - incident workbench показывает transport alerts, recovery audit trail и ticket-scoped transport debug;
+  - stale runtime checkpoints поднимаются отдельным signal incident, а не теряются внутри общего backlog summary.
 - финальный audit background/live coordination выполнен:
   - instance-local round-robin cursors в assignment/auto-assign больше не определяют live routing decisions;
   - SLA escalation webhook cooldown переведён в shared coordination layer;
@@ -63,7 +67,8 @@
 - главный remaining live-flow gap сместился ещё уже:
   - long-poll ingress ownership уже coordinated;
   - webhook/session-sharing layer для `VK`/`MAX` уже externalized;
-  - remaining scope теперь больше про richer operability, replay/debug surface и end-to-end observability.
+  - richer operability, replay/debug surface и базовый observability/alerting слой уже materially расширены;
+  - remaining scope теперь больше про ещё более глубокую end-to-end observability/reporting и worker-debug maturity.
 
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 
@@ -124,4 +129,4 @@ Canonical incident domain на backend-owned storage уже появился, op
 - `canonical incident backend domain`: да, operator-facing слой тоже реализован;
 - `full PostgreSQL-only production contour`: ещё нет.
 
-Следующий корректный scope — уже не chase за очередной SQLite-точкой и не базовый incident UI, а deeper worker operability/replay/observability поверх уже собранного contour.
+Следующий корректный scope — уже не chase за очередной SQLite-точкой, не базовый incident UI и не первичный transport operability layer, а дальнейшее развитие reporting/alert routing/debug maturity поверх уже собранного contour.

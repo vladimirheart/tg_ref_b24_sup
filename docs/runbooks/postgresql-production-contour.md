@@ -88,15 +88,17 @@ Production contour теперь предполагает следующий live
   - watchers/routes management;
   - route redelivery;
   - incident event/runbook notes;
-  - `Integration recovery` tab для failed/stale inbound/outbound transport events, payload inspection и checkpoint overrides.
+  - `Integration recovery` tab для failed/stale inbound/outbound transport events, payload inspection, ticket-scoped debug, checkpoint overrides, recovery audit trail и transport observability alerts.
 
 Если transport contour деградировал:
 
 1. Открыть `/incidents`.
 2. Проверить `Integration recovery` и incident list по `signal_type=integration_transport`.
-3. Для stuck/failed inbound использовать replay/requeue actions.
-4. Для route delivery failures использовать incident route redelivery.
-5. Если cursor у worker ушёл в неверное состояние, использовать manual checkpoint update только как осознанный recovery action.
+3. Проверить transport alerts, stale checkpoints и recent recovery operations.
+4. Для stuck/failed inbound использовать replay/requeue actions.
+5. Для route delivery failures использовать incident route redelivery.
+6. Если cursor у worker ушёл в неверное состояние, использовать manual checkpoint update только как осознанный recovery action.
+7. Для конкретного `ticket_id` использовать targeted transport debug, чтобы увидеть inbound/outbound history, связанные incidents и ручные recovery operations в одном месте.
 
 ## 5. Release checklist
 
@@ -107,6 +109,7 @@ Production contour теперь предполагает следующий live
 - Для `VK`/`MAX` webhook ingress требуется общий Redis coordination/session layer; без него webhook multi-instance contour не считается поддержанным.
 - После релиза проверить:
   - `/incidents`;
+  - transport alerts / recovery audit trail / stale checkpoint cards;
   - transport incidents;
   - route delivery;
   - worker checkpoints;

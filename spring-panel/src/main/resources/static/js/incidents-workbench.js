@@ -44,11 +44,16 @@
     outboundList: document.getElementById('transportWorkbenchOutboundList'),
     checkpointList: document.getElementById('transportWorkbenchCheckpointList'),
     incidentList: document.getElementById('transportWorkbenchIncidentList'),
+    alertList: document.getElementById('transportWorkbenchAlertList'),
+    operationList: document.getElementById('transportWorkbenchOperationList'),
+    ticketDebug: document.getElementById('transportWorkbenchTicketDebug'),
     ticketId: document.getElementById('transportWorkbenchTicketId'),
     inboundFailed: document.getElementById('transportMetricInboundFailed'),
     inboundStale: document.getElementById('transportMetricInboundStale'),
     outboundFailed: document.getElementById('transportMetricOutboundFailed'),
     outboundBacklog: document.getElementById('transportMetricOutboundBacklog'),
+    checkpointStale: document.getElementById('transportMetricCheckpointStale'),
+    recentOps: document.getElementById('transportMetricRecentOps'),
     incidentCount: document.getElementById('transportMetricIncidentCount')
   };
 
@@ -117,15 +122,20 @@
     switch (String(status || '').toLowerCase()) {
       case 'critical':
       case 'failed':
+      case 'stale':
       case 'closed':
         return 'text-bg-danger';
       case 'high':
+      case 'warning':
       case 'investigating':
       case 'processing':
         return 'text-bg-warning';
       case 'resolved':
       case 'published':
       case 'delivered':
+      case 'healthy':
+      case 'ok':
+      case 'success':
         return 'text-bg-success';
       case 'acknowledged':
       case 'queued':
@@ -491,16 +501,21 @@
     const payload = state.transportOverview || {};
     const inbound = payload.inbound || {};
     const outbound = payload.outbound || {};
+    const healthSnapshot = payload.health_snapshot || {};
     transportNodes.inboundFailed.textContent = String(inbound.failed ?? 0);
     transportNodes.inboundStale.textContent = String(inbound.stale_processing ?? 0);
     transportNodes.outboundFailed.textContent = String(outbound.failed ?? 0);
     transportNodes.outboundBacklog.textContent = String((outbound.queued ?? 0) + (outbound.processing ?? 0));
+    transportNodes.checkpointStale.textContent = String(healthSnapshot.stale_checkpoint_count ?? 0);
+    transportNodes.recentOps.textContent = String(healthSnapshot.recent_manual_operations ?? 0);
     transportNodes.incidentCount.textContent = String(Array.isArray(payload.transport_incidents) ? payload.transport_incidents.length : 0);
 
     renderTransportItems(transportNodes.inboundList, payload.recent_failed_inbound || [], 'inbound');
     renderTransportItems(transportNodes.outboundList, payload.recent_failed_outbound || [], 'outbound');
     renderCheckpointItems(payload.runtime_checkpoints || []);
     renderTransportIncidentItems(payload.transport_incidents || []);
+    renderAlertItems(payload.alerts || []);
+    renderOperationItems(payload.recent_operations || []);
   }
 
   function renderTransportItems(node, items, mode) {
@@ -538,12 +553,63 @@
     }
     transportNodes.checkpointList.innerHTML = items.map((item) => `
       <div class="transport-item-card">
-        <div class="fw-semibold mb-2">${escapeHtml(item.worker_key || '—')}</div>
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+          <div>
+            <div class="fw-semibold">${escapeHtml(item.worker_label || item.worker_key || '—')}</div>
+            <div class="small text-muted">${escapeHtml(item.worker_key || '—')}</div>
+          </div>
+          <span class="badge ${badgeClass(item.health_status)}">${escapeHtml(item.health_status || 'unknown')}</span>
+        </div>
         <div class="input-group input-group-sm mb-2">
           <input type="text" class="form-control incident-code" data-transport-checkpoint-input="${escapeHtml(item.worker_key || '')}" value="${escapeHtml(item.cursor_text || '')}">
           <button type="button" class="btn btn-outline-secondary" data-transport-save-checkpoint="${escapeHtml(item.worker_key || '')}">Save</button>
         </div>
-        <div class="small text-muted">updated=${escapeHtml(formatDate(item.updated_at))}</div>
+        <div class="small text-muted">
+          updated=${escapeHtml(formatDate(item.updated_at))} · age=${escapeHtml(item.age_minutes ?? '—')}m · stale-threshold=${escapeHtml(item.stale_threshold_minutes ?? '—')}m
+        </div>
+        <div class="small text-muted">
+          source=${escapeHtml(item.source_table || '—')} · lag=${escapeHtml(item.cursor_lag ?? '—')} · max=${escapeHtml(item.source_max_cursor ?? '—')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderAlertItems(items) {
+    if (!transportNodes.alertList) return;
+    if (!Array.isArray(items) || !items.length) {
+      transportNodes.alertList.innerHTML = '<div class="text-muted">Transport alerts отсутствуют.</div>';
+      return;
+    }
+    transportNodes.alertList.innerHTML = items.map((item) => `
+      <div class="transport-item-card">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+          <div class="fw-semibold">${escapeHtml(item.key || 'alert')}</div>
+          <span class="badge ${badgeClass(item.severity)}">${escapeHtml(item.severity || 'info')}</span>
+        </div>
+        <div>${escapeHtml(item.message || '')}</div>
+        <div class="small text-muted mt-2">value=${escapeHtml(item.value ?? 0)} · threshold=${escapeHtml(item.threshold ?? 0)}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderOperationItems(items) {
+    if (!transportNodes.operationList) return;
+    if (!Array.isArray(items) || !items.length) {
+      transportNodes.operationList.innerHTML = '<div class="text-muted">Recovery audit trail пока пуст.</div>';
+      return;
+    }
+    transportNodes.operationList.innerHTML = items.map((item) => `
+      <div class="transport-item-card">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+          <div>
+            <div class="fw-semibold">${escapeHtml(item.summary_text || item.action_type || 'operation')}</div>
+            <div class="small text-muted">${escapeHtml(item.action_type || '—')} · actor=${escapeHtml(item.actor || 'system')}</div>
+          </div>
+          <span class="badge ${badgeClass(item.result_status)}">${escapeHtml(item.result_status || 'success')}</span>
+        </div>
+        <div class="small text-muted">target=${escapeHtml(item.target_type || '—')} / ${escapeHtml(item.target_id || '—')} · ticket=${escapeHtml(item.ticket_id || '—')}</div>
+        <div class="small text-muted">created=${escapeHtml(formatDate(item.created_at))}</div>
+        ${item.details_json ? `<pre class="incident-code mt-2">${escapeHtml(item.details_json)}</pre>` : ''}
       </div>
     `).join('');
   }
@@ -569,6 +635,91 @@
         <div class="small text-muted">${escapeHtml(item.summary || '')}</div>
       </div>
     `).join('');
+  }
+
+  function renderTicketDebug(payload) {
+    if (!transportNodes.ticketDebug) return;
+    if (!payload || payload.success !== true) {
+      transportNodes.ticketDebug.innerHTML = '<div class="text-muted">Ticket debug ещё не загружен.</div>';
+      return;
+    }
+    const inboundEvents = Array.isArray(payload.inbound_events) ? payload.inbound_events : [];
+    const outboundEvents = Array.isArray(payload.outbound_events) ? payload.outbound_events : [];
+    const incidents = Array.isArray(payload.related_incidents) ? payload.related_incidents : [];
+    const operations = Array.isArray(payload.recent_operations) ? payload.recent_operations : [];
+    transportNodes.ticketDebug.innerHTML = `
+      <div class="transport-item-card">
+        <div class="fw-semibold mb-2">Ticket ${escapeHtml(payload.ticket_id || '—')}</div>
+        <div class="small text-muted mb-3">
+          inbound=${escapeHtml(inboundEvents.length)} · outbound=${escapeHtml(outboundEvents.length)} · incidents=${escapeHtml(incidents.length)} · recent ops=${escapeHtml(operations.length)}
+        </div>
+        <div class="transport-columns">
+          <div class="transport-log-list">
+            <div class="fw-semibold">Inbound events</div>
+            ${inboundEvents.length ? inboundEvents.map((item) => `
+              <div class="incident-surface-item">
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                  <div>${escapeHtml(item.event_id || '—')}</div>
+                  <span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status || '—')}</span>
+                </div>
+                <div class="small text-muted">${escapeHtml(item.event_kind || '—')} · updated=${escapeHtml(formatDate(item.updated_at))}</div>
+                ${item.last_error ? `<pre class="incident-code mt-2 text-danger">${escapeHtml(item.last_error)}</pre>` : ''}
+              </div>
+            `).join('') : '<div class="text-muted">Inbound events не найдены.</div>'}
+          </div>
+          <div class="transport-log-list">
+            <div class="fw-semibold">Outbound events</div>
+            ${outboundEvents.length ? outboundEvents.map((item) => `
+              <div class="incident-surface-item">
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                  <div>${escapeHtml(item.event_id || '—')}</div>
+                  <span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status || '—')}</span>
+                </div>
+                <div class="small text-muted">${escapeHtml(item.event_kind || '—')} · updated=${escapeHtml(formatDate(item.updated_at))}</div>
+                ${item.last_error ? `<pre class="incident-code mt-2 text-danger">${escapeHtml(item.last_error)}</pre>` : ''}
+              </div>
+            `).join('') : '<div class="text-muted">Outbound events не найдены.</div>'}
+          </div>
+        </div>
+        <div class="transport-columns mt-3">
+          <div class="transport-log-list">
+            <div class="fw-semibold">Related incidents</div>
+            ${incidents.length ? incidents.map((item) => `
+              <div class="incident-surface-item">
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                  <div>${escapeHtml(item.incident_key || '—')}</div>
+                  <span class="badge ${badgeClass(item.severity)}">${escapeHtml(item.severity || '—')}</span>
+                </div>
+                <div>${escapeHtml(item.title || '')}</div>
+                <div class="small text-muted">${escapeHtml(item.status || '—')} · updated=${escapeHtml(formatDate(item.updated_at))}</div>
+              </div>
+            `).join('') : '<div class="text-muted">Связанные incidents не найдены.</div>'}
+          </div>
+          <div class="transport-log-list">
+            <div class="fw-semibold">Recent operations</div>
+            ${operations.length ? operations.map((item) => `
+              <div class="incident-surface-item">
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                  <div>${escapeHtml(item.summary_text || item.action_type || 'operation')}</div>
+                  <span class="badge ${badgeClass(item.result_status)}">${escapeHtml(item.result_status || 'success')}</span>
+                </div>
+                <div class="small text-muted">${escapeHtml(item.actor || 'system')} · ${escapeHtml(formatDate(item.created_at))}</div>
+              </div>
+            `).join('') : '<div class="text-muted">Recovery actions по ticket ещё не зафиксированы.</div>'}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function inspectTicketTransport() {
+    const ticketId = transportNodes.ticketId?.value?.trim();
+    if (!ticketId) {
+      throw new Error('Укажите ticket id для targeted transport debug.');
+    }
+    const payload = await requestJson(`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/debug`);
+    renderTicketDebug(payload);
+    showSuccess(`Ticket transport debug loaded for ${ticketId}`);
   }
 
   async function showTransportPayload(mode, eventId) {
@@ -680,6 +831,7 @@
     }
     void invokeTransportAction(`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/requeue-outbound?limit=25`, 'Ticket outbound requeue requested').catch((error) => showError(error.message));
   });
+  document.getElementById('transportWorkbenchInspectTicket')?.addEventListener('click', () => void inspectTicketTransport().catch((error) => showError(error.message)));
 
   void loadIncidents().catch((error) => showError(error.message));
   if (transportNodes.inboundList) {
