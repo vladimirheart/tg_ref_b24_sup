@@ -147,14 +147,8 @@ operator-facing canonical reads.
 
 ### 2.5. Secondary/legacy контуры
 
-Через `SecondarySqliteDataSourceConfiguration` поднимается ещё один
-secondary data source:
-
-- `objectsDataSource`
-
-Он соответствует:
-
-- `objects.db`
+Через Spring datasource graph больше не поднимаются отдельные legacy
+`clients`/`knowledge`/`settings`/`objects` data source beans.
 
 Отдельно:
 
@@ -164,6 +158,9 @@ secondary data source:
 - `settings.db` также не поднимается как общий Spring datasource: его lazy
   SQLite access остаётся только внутри `BotDatabaseRegistry` и только для
   явного compatibility path.
+- `objects.db` тоже больше не поднимается как отдельный общий Spring
+  datasource: `ObjectPassportService` использует primary datasource в external
+  runtime и ленивый SQLite datasource только в explicit compatibility path.
 
 ## 3. Фактическое владение данными по БД
 
@@ -259,10 +256,16 @@ SQLite compatibility path. В external PostgreSQL runtime monitoring-domain уж
 
 ### 3.5. `objects.db`
 
-`objects.db` - это не просто декларативный split, а реально используемый
-отдельный контур.
+`objects.db` долго оставался последним реальным live split-контуром для
+паспортов объектов.
 
-Он подключается через `objectsDataSource`, а с ним напрямую работает:
+Сейчас `ObjectPassportService` уже не зависит от отдельного Spring datasource
+bean: в external runtime он работает через primary datasource, а локальный
+SQLite datasource поднимает только лениво в compatibility path.
+
+Доменный split при этом пока ещё остаётся логически выделенным, потому что
+сам сервис и таблицы `objects` / `object_passports` ещё не растворены в общем
+production storage model.
 
 - `ObjectPassportService`
 
@@ -271,7 +274,8 @@ SQLite compatibility path. В external PostgreSQL runtime monitoring-domain уж
 - `objects`
 - `object_passports`
 
-Вывод: `objects.db` остаётся активной отдельной БД на runtime уровне.
+Вывод: physical runtime split уже ослаблен, но сам объектный контур ещё не
+закрыт как архитектурная задача.
 
 ### 3.6. `clients.db`
 

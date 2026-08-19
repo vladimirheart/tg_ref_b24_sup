@@ -32,7 +32,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     private final ChannelRepository channelRepository;
     private final BotDatabaseRegistry botDatabaseRegistry;
     private final BotProcessProperties botProcessProperties;
-    private final DataSource objectsDataSource;
     private final DataSource botDataSource;
     private final SqliteSchemaBootstrapSupport schemaBootstrapSupport;
     private final PanelDatabaseRuntimeMode databaseRuntimeMode;
@@ -44,7 +43,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                                     ChannelRepository channelRepository,
                                     BotDatabaseRegistry botDatabaseRegistry,
                                     BotProcessProperties botProcessProperties,
-                                    @Qualifier("objectsDataSource") DataSource objectsDataSource,
                                     @Qualifier("botDataSource") DataSource botDataSource,
                                     SqliteSchemaBootstrapSupport schemaBootstrapSupport,
                                     PanelDatabaseRuntimeMode databaseRuntimeMode) {
@@ -55,7 +53,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         this.channelRepository = channelRepository;
         this.botDatabaseRegistry = botDatabaseRegistry;
         this.botProcessProperties = botProcessProperties;
-        this.objectsDataSource = objectsDataSource;
         this.botDataSource = botDataSource;
         this.schemaBootstrapSupport = schemaBootstrapSupport;
         this.databaseRuntimeMode = databaseRuntimeMode;
@@ -158,7 +155,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     }
 
     private void initializeObjectsDatabase() {
-        schemaBootstrapSupport.initializeSchema(objectsDataSource, List.of(
+        schemaBootstrapSupport.initializeSchema(createObjectsCompatibilityDataSource(), List.of(
             "CREATE TABLE IF NOT EXISTS objects (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "name TEXT NOT NULL, " +
@@ -229,5 +226,9 @@ public class DatabaseBootstrapService implements ApplicationRunner {
 
     private DataSource createKnowledgeCompatibilityDataSource() {
         return SqliteConnectionConfigSupport.createDataSource(knowledgeProperties);
+    }
+
+    private DataSource createObjectsCompatibilityDataSource() {
+        return SqliteConnectionConfigSupport.createDataSource(objectsProperties);
     }
 }

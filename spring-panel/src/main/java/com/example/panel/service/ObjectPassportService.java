@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.config.ObjectsSqliteDataSourceProperties;
+import com.example.panel.config.PanelDatabaseRuntimeMode;
+import com.example.panel.config.SqliteConnectionConfigSupport;
 import com.example.panel.storage.ObjectPassportPhotoStorageService;
 import com.example.panel.storage.ObjectPassportPhotoStorageService.StoredPhoto;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -21,7 +24,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,13 +41,20 @@ public class ObjectPassportService {
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
     private final ObjectPassportPhotoStorageService photoStorageService;
-    private final DataSource objectsDataSource;
+    private final DataSource primaryDataSource;
+    private final ObjectsSqliteDataSourceProperties objectsSqliteProperties;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
+    private volatile DataSource objectsCompatibilityDataSource;
 
-    public ObjectPassportService(@Qualifier("objectsDataSource") DataSource objectsDataSource,
+    public ObjectPassportService(DataSource primaryDataSource,
+                                 ObjectsSqliteDataSourceProperties objectsSqliteProperties,
+                                 PanelDatabaseRuntimeMode databaseRuntimeMode,
                                  JdbcTemplate jdbcTemplate,
                                  ObjectMapper objectMapper,
                                  ObjectPassportPhotoStorageService photoStorageService) {
-        this.objectsDataSource = objectsDataSource;
+        this.primaryDataSource = primaryDataSource;
+        this.objectsSqliteProperties = objectsSqliteProperties;
+        this.databaseRuntimeMode = databaseRuntimeMode;
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.photoStorageService = photoStorageService;
@@ -351,7 +360,23 @@ public class ObjectPassportService {
     }
 
     private Connection openConnection() throws SQLException {
-        return objectsDataSource.getConnection();
+        return runtimeObjectsDataSource().getConnection();
+    }
+
+    private DataSource runtimeObjectsDataSource() {
+        if (databaseRuntimeMode.isExternalDatabaseEnabled()) {
+            return primaryDataSource;
+        }
+        DataSource cached = objectsCompatibilityDataSource;
+        if (cached != null) {
+            return cached;
+        }
+        synchronized (this) {
+            if (objectsCompatibilityDataSource == null) {
+                objectsCompatibilityDataSource = SqliteConnectionConfigSupport.createDataSource(objectsSqliteProperties);
+            }
+            return objectsCompatibilityDataSource;
+        }
     }
 
     private void validatePayload(Map<String, Object> payload) {

@@ -10,7 +10,7 @@
   Используется как primary `DataSource`/JPA-контур через `SqliteDataSourceConfiguration`.
   Сюда пишутся диалоги, сообщения, задачи, каналы, уведомления, knowledge/article-сущности, client-related runtime-таблицы и большая часть operator-facing business state.
 - `panel_identity.db`
-  Отдельный users/roles/auth-контур через `UsersSqliteDataSourceConfiguration` и `usersJdbcTemplate`.
+  Отдельный users/roles/auth-контур; в external runtime `usersJdbcTemplate` уже должен опираться на primary contour, а SQLite identity path оставаться только compatibility-режимом.
 - `monitoring.db`
   Отдельный monitoring-контур остаётся только как SQLite compatibility/bootstrap слой; live monitoring runtime в external mode должен идти через primary contour.
 - `clients.db`, `knowledge_base.db`, `objects.db`
@@ -49,7 +49,7 @@
 - `monitoring.db`
   Канонический monitoring source of truth.
 - `objects.db`
-  Пока остаётся отдельным активным контуром, хотя в target-state должен быть поглощён общим business storage.
+  Physical datasource split уже ослаблен, но объектный контур всё ещё логически выделен и в target-state должен быть поглощён общим business storage.
 - `bot_runtime.db`
   Активный, но ещё не доведённый до чистого transport/runtime-контура.
 - `settings.db`
