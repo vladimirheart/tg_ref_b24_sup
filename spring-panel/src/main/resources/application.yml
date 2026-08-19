@@ -87,7 +87,22 @@ app:
   storage:
     attachments: ${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}/knowledge_base}
+    passport-photos: ${APP_STORAGE_PASSPORT_PHOTOS:${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}/passport_photos}
     avatars: ${APP_STORAGE_AVATARS:../attachments/avatars}
+    object:
+      mode: ${APP_STORAGE_OBJECT_MODE:local_fs}
+      required-for-postgresql: ${APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL:true}
+      bucket: ${APP_STORAGE_OBJECT_BUCKET:}
+      region: ${APP_STORAGE_OBJECT_REGION:us-east-1}
+      endpoint: ${APP_STORAGE_OBJECT_ENDPOINT:}
+      access-key: ${APP_STORAGE_OBJECT_ACCESS_KEY:}
+      secret-key: ${APP_STORAGE_OBJECT_SECRET_KEY:}
+      path-style-access: ${APP_STORAGE_OBJECT_PATH_STYLE_ACCESS:true}
+      key-prefix: ${APP_STORAGE_OBJECT_KEY_PREFIX:iguana}
+  coordination:
+    mode: ${APP_COORDINATION_MODE:redis}
+    lease-namespace: ${APP_COORDINATION_LEASE_NAMESPACE:iguana}
+    required-for-postgresql: ${APP_COORDINATION_REQUIRED_FOR_POSTGRESQL:true}
   integration:
     transport:
       mode: ${APP_INTEGRATION_TRANSPORT_MODE:jdbc}

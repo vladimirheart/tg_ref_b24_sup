@@ -896,7 +896,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url)).GET().build();
         HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            Path stored = attachmentService.store(getChannel().getPublicId(), extension, response.body());
+            AttachmentService.StoredAttachment stored = attachmentService.store(getChannel().getPublicId(), extension, response.body());
             session.addAttachment(stored, messageType);
         } else {
             log.warn("Failed to download attachment {} -> status {}", url, response.statusCode());
@@ -1268,9 +1268,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return currentIndex >= flow.size();
         }
 
-        void addAttachment(Path path, String messageType) {
+        void addAttachment(AttachmentService.StoredAttachment attachment, String messageType) {
             markClientResponseReceived();
-            history.add(new HistoryEvent(userId, messageType, messageType, path.toString()));
+            history.add(new HistoryEvent(userId, messageType, messageType, attachment.storageKey()));
         }
 
         List<HistoryEvent> history() {

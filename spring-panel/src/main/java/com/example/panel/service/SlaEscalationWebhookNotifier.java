@@ -31,6 +31,7 @@ public class SlaEscalationWebhookNotifier {
     private final SlaEscalationAutoAssignService slaEscalationAutoAssignService;
     private final SlaRoutingPolicyService slaRoutingPolicyService;
     private final SlaEscalationWebhookDeliveryService slaEscalationWebhookDeliveryService;
+    private final RuntimeCoordinationService runtimeCoordinationService;
     private final Map<String, Instant> ticketCooldownCache = new ConcurrentHashMap<>();
 
     enum SlaOrchestrationMode {
@@ -52,7 +53,8 @@ public class SlaEscalationWebhookNotifier {
                                         SlaEscalationCandidateService slaEscalationCandidateService,
                                         SlaEscalationAutoAssignService slaEscalationAutoAssignService,
                                         SlaRoutingPolicyService slaRoutingPolicyService,
-                                        SlaEscalationWebhookDeliveryService slaEscalationWebhookDeliveryService) {
+                                        SlaEscalationWebhookDeliveryService slaEscalationWebhookDeliveryService,
+                                        RuntimeCoordinationService runtimeCoordinationService) {
         this.sharedConfigService = sharedConfigService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
@@ -61,6 +63,7 @@ public class SlaEscalationWebhookNotifier {
         this.slaEscalationAutoAssignService = slaEscalationAutoAssignService;
         this.slaRoutingPolicyService = slaRoutingPolicyService;
         this.slaEscalationWebhookDeliveryService = slaEscalationWebhookDeliveryService;
+        this.runtimeCoordinationService = runtimeCoordinationService;
     }
 
     SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
@@ -78,10 +81,19 @@ public class SlaEscalationWebhookNotifier {
                 new SlaRoutingRuleAuditService()
         );
         this.slaEscalationWebhookDeliveryService = new SlaEscalationWebhookDeliveryService(objectMapper);
+        this.runtimeCoordinationService = null;
     }
 
     @Scheduled(fixedDelayString = "${panel.sla-escalation.webhook-check-interval-ms:120000}")
     public void notifyCriticalUnassignedDialogs() {
+        if (runtimeCoordinationService != null) {
+            runtimeCoordinationService.runWithLease("sla-escalation-webhook", Duration.ofMinutes(3), this::notifyCriticalUnassignedDialogsInternal);
+            return;
+        }
+        notifyCriticalUnassignedDialogsInternal();
+    }
+
+    private void notifyCriticalUnassignedDialogsInternal() {
         Map<String, Object> settings = sharedConfigService.loadSettings();
         Map<String, Object> dialogConfig = extractMap(settings.get("dialog_config"));
         if (!resolveBoolean(dialogConfig, "sla_critical_escalation_enabled", true)) {

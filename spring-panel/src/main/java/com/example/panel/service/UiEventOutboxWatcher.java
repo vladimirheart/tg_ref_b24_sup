@@ -8,6 +8,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -15,12 +16,15 @@ public class UiEventOutboxWatcher {
 
     private final JdbcTemplate jdbcTemplate;
     private final DialogRealtimeEventService dialogRealtimeEventService;
+    private final RuntimeCoordinationService runtimeCoordinationService;
     private final AtomicLong lastProcessedId = new AtomicLong(0L);
 
     public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate,
-                                DialogRealtimeEventService dialogRealtimeEventService) {
+                                DialogRealtimeEventService dialogRealtimeEventService,
+                                RuntimeCoordinationService runtimeCoordinationService) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogRealtimeEventService = dialogRealtimeEventService;
+        this.runtimeCoordinationService = runtimeCoordinationService;
     }
 
     @PostConstruct
@@ -30,47 +34,51 @@ public class UiEventOutboxWatcher {
 
     @Scheduled(fixedDelayString = "${panel.ui-event-outbox.watch-interval-ms:1000}")
     void watch() {
-        long afterId = lastProcessedId.get();
-        jdbcTemplate.query("""
+        runtimeCoordinationService.runWithLease("ui-event-outbox-watch", Duration.ofSeconds(30), () -> {
+            long afterId = lastProcessedId.get();
+            jdbcTemplate.query("""
                 SELECT id, event_type, ticket_id, channel_id, message_text, message_type, attachment, rating
                   FROM ui_event_outbox
                  WHERE id > ?
                  ORDER BY id ASC
                 """, rs -> {
-            long maxSeen = afterId;
-            while (rs.next()) {
-                long id = rs.getLong("id");
-                if (id > maxSeen) {
-                    maxSeen = id;
+                long maxSeen = afterId;
+                while (rs.next()) {
+                    long id = rs.getLong("id");
+                    if (id > maxSeen) {
+                        maxSeen = id;
+                    }
+                    handleEvent(
+                            rs.getString("event_type"),
+                            rs.getString("ticket_id"),
+                            rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
+                            rs.getString("message_text"),
+                            rs.getString("message_type"),
+                            rs.getString("attachment"),
+                            rs.getObject("rating") != null ? rs.getInt("rating") : null
+                    );
                 }
-                handleEvent(
-                        rs.getString("event_type"),
-                        rs.getString("ticket_id"),
-                        rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
-                        rs.getString("message_text"),
-                        rs.getString("message_type"),
-                        rs.getString("attachment"),
-                        rs.getObject("rating") != null ? rs.getInt("rating") : null
-                );
-            }
-            if (maxSeen > afterId) {
-                lastProcessedId.set(maxSeen);
-            }
-        }, afterId);
+                if (maxSeen > afterId) {
+                    lastProcessedId.set(maxSeen);
+                }
+            }, afterId);
+        });
     }
 
     @Scheduled(fixedDelayString = "${panel.ui-event-outbox.cleanup-interval-ms:3600000}")
     void cleanup() {
-        long safeThresholdId = lastProcessedId.get();
-        if (safeThresholdId <= 0) {
-            return;
-        }
-        String thresholdCreatedAt = OffsetDateTime.now(ZoneOffset.UTC).minusDays(3).toString();
-        jdbcTemplate.update("""
+        runtimeCoordinationService.runWithLease("ui-event-outbox-cleanup", Duration.ofMinutes(10), () -> {
+            long safeThresholdId = lastProcessedId.get();
+            if (safeThresholdId <= 0) {
+                return;
+            }
+            String thresholdCreatedAt = OffsetDateTime.now(ZoneOffset.UTC).minusDays(3).toString();
+            jdbcTemplate.update("""
                 DELETE FROM ui_event_outbox
                  WHERE id <= ?
                    AND created_at < ?
                 """, safeThresholdId, thresholdCreatedAt);
+        });
     }
 
     private void handleEvent(String eventType,

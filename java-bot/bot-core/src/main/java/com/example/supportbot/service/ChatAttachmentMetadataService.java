@@ -1,6 +1,7 @@
 package com.example.supportbot.service;
 
 import com.example.supportbot.config.BotDatabaseRuntimeMode;
+import com.example.supportbot.config.ObjectStorageProperties;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -17,11 +18,14 @@ public class ChatAttachmentMetadataService {
 
     private final JdbcTemplate jdbcTemplate;
     private final BotDatabaseRuntimeMode databaseRuntimeMode;
+    private final ObjectStorageProperties objectStorageProperties;
 
     public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate,
-                                         BotDatabaseRuntimeMode databaseRuntimeMode) {
+                                         BotDatabaseRuntimeMode databaseRuntimeMode,
+                                         ObjectStorageProperties objectStorageProperties) {
         this.jdbcTemplate = jdbcTemplate;
         this.databaseRuntimeMode = databaseRuntimeMode;
+        this.objectStorageProperties = objectStorageProperties;
         ensureSchema();
     }
 
@@ -34,7 +38,7 @@ public class ChatAttachmentMetadataService {
         if (chatHistoryId == null || !StringUtils.hasText(rawAttachment)) {
             return;
         }
-        String storageProvider = isExternalUrl(rawAttachment) ? "external_url" : "local_fs";
+        String storageProvider = resolveStorageProvider(rawAttachment);
         String storageKey = normalizeStorageKey(ticketId, rawAttachment);
         Path resolvedPath = resolveLocalPath(rawAttachment);
         Long size = resolveSize(resolvedPath);
@@ -286,5 +290,12 @@ public class ChatAttachmentMetadataService {
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         return normalized.startsWith("http://") || normalized.startsWith("https://");
+    }
+
+    private String resolveStorageProvider(String rawAttachment) {
+        if (isExternalUrl(rawAttachment)) {
+            return "external_url";
+        }
+        return objectStorageProperties.isS3Mode() ? "s3" : "local_fs";
     }
 }

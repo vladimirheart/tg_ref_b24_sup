@@ -653,14 +653,14 @@ public class SupportBot extends TelegramLongPollingBot {
     private void handleDocument(Message message, ConversationSession session) {
         Document document = message.getDocument();
         try (InputStream data = fetchFile(document.getFileId())) {
-            Path stored = attachmentService.store(getChannelPublicId(), getExtension(document.getFileName()), data);
-            log.info("Document saved for user {} at {}", message.getFrom().getId(), stored);
+            AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), getExtension(document.getFileName()), data);
+            log.info("Document saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
             if (session != null) {
                 session.addAttachment(stored);
-                session.addHistoryEvent(message, "document", stored.toString(), document.getFileName());
+                session.addHistoryEvent(message, "document", stored.storageKey(), document.getFileName());
                 acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент приложил документ");
             } else {
-                handleActiveAttachment(message, "document", stored.toString(), document.getFileName(), message.getCaption(), true);
+                handleActiveAttachment(message, "document", stored.storageKey(), document.getFileName(), message.getCaption(), true);
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store document", e);
@@ -674,14 +674,14 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         try (InputStream data = fetchFile(largest.getFileId())) {
-            Path stored = attachmentService.store(getChannelPublicId(), "jpg", data);
-            log.info("Photo saved for user {} at {}", message.getFrom().getId(), stored);
+            AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), "jpg", data);
+            log.info("Photo saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
             if (session != null) {
                 session.addAttachment(stored);
-                session.addHistoryEvent(message, "photo", stored.toString(), null);
+                session.addHistoryEvent(message, "photo", stored.storageKey(), null);
                 acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент приложил фото");
             } else {
-                handleActiveAttachment(message, "photo", stored.toString(), null, message.getCaption(), true);
+                handleActiveAttachment(message, "photo", stored.storageKey(), null, message.getCaption(), true);
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store photo", e);
@@ -694,14 +694,14 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         try (InputStream data = fetchFile(video.getFileId())) {
-            Path stored = attachmentService.store(getChannelPublicId(), "mp4", data);
-            log.info("Video saved for user {} at {}", message.getFrom().getId(), stored);
+            AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), "mp4", data);
+            log.info("Video saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
             if (session != null) {
                 session.addAttachment(stored);
-                session.addHistoryEvent(message, "video", stored.toString(), null);
+                session.addHistoryEvent(message, "video", stored.storageKey(), null);
                 acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент приложил видео");
             } else {
-                handleActiveAttachment(message, "video", stored.toString(), null, message.getCaption(), true);
+                handleActiveAttachment(message, "video", stored.storageKey(), null, message.getCaption(), true);
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store video", e);
@@ -715,14 +715,14 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         String extension = extensionFromMime(voice.getMimeType(), "ogg");
         try (InputStream data = fetchFile(voice.getFileId())) {
-            Path stored = attachmentService.store(getChannelPublicId(), extension, data);
-            log.info("Voice saved for user {} at {}", message.getFrom().getId(), stored);
+            AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), extension, data);
+            log.info("Voice saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
             if (session != null) {
                 session.addAttachment(stored);
-                session.addHistoryEvent(message, "voice", stored.toString(), null);
+                session.addHistoryEvent(message, "voice", stored.storageKey(), null);
                 acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент отправил голосовое сообщение");
             } else {
-                handleActiveAttachment(message, "voice", stored.toString(), null, message.getCaption(), true);
+                handleActiveAttachment(message, "voice", stored.storageKey(), null, message.getCaption(), true);
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store voice", e);
@@ -737,14 +737,14 @@ public class SupportBot extends TelegramLongPollingBot {
         String extension = Optional.ofNullable(getExtension(audio.getFileName()))
                 .orElseGet(() -> extensionFromMime(audio.getMimeType(), "mp3"));
         try (InputStream data = fetchFile(audio.getFileId())) {
-            Path stored = attachmentService.store(getChannelPublicId(), extension, data);
-            log.info("Audio saved for user {} at {}", message.getFrom().getId(), stored);
+            AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), extension, data);
+            log.info("Audio saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
             if (session != null) {
                 session.addAttachment(stored);
-                session.addHistoryEvent(message, "audio", stored.toString(), audio.getFileName());
+                session.addHistoryEvent(message, "audio", stored.storageKey(), audio.getFileName());
                 acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент приложил аудио");
             } else {
-                handleActiveAttachment(message, "audio", stored.toString(), audio.getFileName(), message.getCaption(), true);
+                handleActiveAttachment(message, "audio", stored.storageKey(), audio.getFileName(), message.getCaption(), true);
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store audio", e);
@@ -759,14 +759,14 @@ public class SupportBot extends TelegramLongPollingBot {
         String extension = Optional.ofNullable(getExtension(animation.getFileName()))
                 .orElse("mp4");
         try (InputStream data = fetchFile(animation.getFileId())) {
-            Path stored = attachmentService.store(getChannelPublicId(), extension, data);
-            log.info("Animation saved for user {} at {}", message.getFrom().getId(), stored);
+            AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), extension, data);
+            log.info("Animation saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
             if (session != null) {
                 session.addAttachment(stored);
-                session.addHistoryEvent(message, "animation", stored.toString(), animation.getFileName());
+                session.addHistoryEvent(message, "animation", stored.storageKey(), animation.getFileName());
                 acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент приложил анимацию");
             } else {
-                handleActiveAttachment(message, "animation", stored.toString(), animation.getFileName(), message.getCaption(), true);
+                handleActiveAttachment(message, "animation", stored.storageKey(), animation.getFileName(), message.getCaption(), true);
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store animation", e);
@@ -782,14 +782,14 @@ public class SupportBot extends TelegramLongPollingBot {
                 ? "tgs"
                 : (sticker.getIsVideo() != null && sticker.getIsVideo() ? "webm" : "webp");
         try (InputStream data = fetchFile(sticker.getFileId())) {
-            Path stored = attachmentService.store(getChannelPublicId(), extension, data);
-            log.info("Sticker saved for user {} at {}", message.getFrom().getId(), stored);
+            AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), extension, data);
+            log.info("Sticker saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
             if (session != null) {
                 session.addAttachment(stored);
-                session.addHistoryEvent(message, "sticker", stored.toString(), null);
+                session.addHistoryEvent(message, "sticker", stored.storageKey(), null);
                 acceptAttachmentAsSessionAnswer(message, session, null, "Клиент отправил стикер");
             } else {
-                handleActiveAttachment(message, "sticker", stored.toString(), null, null, true);
+                handleActiveAttachment(message, "sticker", stored.storageKey(), null, null, true);
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store sticker", e);
@@ -802,14 +802,14 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         try (InputStream data = fetchFile(note.getFileId())) {
-            Path stored = attachmentService.store(getChannelPublicId(), "mp4", data);
-            log.info("Video note saved for user {} at {}", message.getFrom().getId(), stored);
+            AttachmentService.StoredAttachment stored = attachmentService.store(getChannelPublicId(), "mp4", data);
+            log.info("Video note saved for user {} as {}", message.getFrom().getId(), stored.storageKey());
             if (session != null) {
                 session.addAttachment(stored);
-                session.addHistoryEvent(message, "video_note", stored.toString(), null);
+                session.addHistoryEvent(message, "video_note", stored.storageKey(), null);
                 acceptAttachmentAsSessionAnswer(message, session, message.getCaption(), "Клиент отправил видеосообщение");
             } else {
-                handleActiveAttachment(message, "video_note", stored.toString(), null, message.getCaption(), true);
+                handleActiveAttachment(message, "video_note", stored.storageKey(), null, message.getCaption(), true);
             }
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store video note", e);
@@ -1121,16 +1121,14 @@ public class SupportBot extends TelegramLongPollingBot {
         if (operatorChatId == null || operatorChatId <= 0 || attachmentPath == null || attachmentPath.isBlank()) {
             return false;
         }
-        File file = Path.of(attachmentPath).toFile();
-        if (!file.isFile()) {
-            log.warn("Operator relay attachment is missing on disk: {}", attachmentPath);
-            return false;
-        }
         String safeCaption = caption != null && caption.length() > 1024
                 ? caption.substring(0, 1021) + "..."
                 : caption;
         String normalizedType = String.valueOf(messageType).trim().toLowerCase(Locale.ROOT);
+        Path materializedPath = null;
         try {
+            materializedPath = attachmentService.materialize(attachmentPath);
+            File file = materializedPath.toFile();
             relayAttachmentWithPreferredType(operatorChatId, normalizedType, file, safeCaption);
             return true;
         } catch (Exception primaryEx) {
@@ -1140,6 +1138,10 @@ public class SupportBot extends TelegramLongPollingBot {
                     primaryEx);
         }
         try {
+            if (materializedPath == null) {
+                materializedPath = attachmentService.materialize(attachmentPath);
+            }
+            File file = materializedPath.toFile();
             execute(SendDocument.builder()
                     .chatId(operatorChatId)
                     .document(new InputFile(file))
@@ -1152,6 +1154,19 @@ public class SupportBot extends TelegramLongPollingBot {
                     attachmentPath,
                     fallbackEx);
             return false;
+        } finally {
+            cleanupMaterializedAttachment(materializedPath);
+        }
+    }
+
+    private void cleanupMaterializedAttachment(Path materializedPath) {
+        if (materializedPath == null) {
+            return;
+        }
+        try {
+            attachmentService.cleanupMaterialized(materializedPath);
+        } catch (IOException ex) {
+            log.debug("Failed to cleanup materialized attachment {}", materializedPath, ex);
         }
     }
 
@@ -2083,7 +2098,7 @@ public class SupportBot extends TelegramLongPollingBot {
         private final User user;
         private final BotSettingsDto settings;
         private final Map<String, String> answers;
-        private final List<Path> attachments;
+        private final List<String> attachments;
         private final List<HistoryEvent> historyEvents;
         private final List<Integer> visitedQuestionIndexes;
         private final Map<String, Integer> questionIndexes;
@@ -2177,9 +2192,9 @@ public class SupportBot extends TelegramLongPollingBot {
             return true;
         }
 
-        void addAttachment(Path attachment) {
+        void addAttachment(AttachmentService.StoredAttachment attachment) {
             markClientResponseReceived();
-            attachments.add(attachment);
+            attachments.add(attachment.storageKey());
         }
 
         void addHistoryEvent(Message message, String messageType, String attachmentPath, String attachmentName) {
@@ -2239,7 +2254,7 @@ public class SupportBot extends TelegramLongPollingBot {
             return attributes;
         }
 
-        List<Path> attachments() {
+        List<String> attachments() {
             return attachments;
         }
 
@@ -2341,7 +2356,7 @@ public class SupportBot extends TelegramLongPollingBot {
             }
             if (!attachments.isEmpty()) {
                 builder.append("\nВложения:\n");
-                for (Path attachment : attachments) {
+                for (String attachment : attachments) {
                     builder.append("- ").append(attachment).append("\n");
                 }
             }

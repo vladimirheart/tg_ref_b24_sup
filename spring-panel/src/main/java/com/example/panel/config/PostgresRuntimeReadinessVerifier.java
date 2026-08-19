@@ -26,10 +26,17 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
 
     private final JdbcTemplate jdbcTemplate;
     private final Environment environment;
+    private final com.example.panel.service.RuntimeCoordinationService runtimeCoordinationService;
+    private final com.example.panel.storage.AttachmentObjectStorageService attachmentObjectStorageService;
 
-    public PostgresRuntimeReadinessVerifier(JdbcTemplate jdbcTemplate, Environment environment) {
+    public PostgresRuntimeReadinessVerifier(JdbcTemplate jdbcTemplate,
+                                            Environment environment,
+                                            com.example.panel.service.RuntimeCoordinationService runtimeCoordinationService,
+                                            com.example.panel.storage.AttachmentObjectStorageService attachmentObjectStorageService) {
         this.jdbcTemplate = jdbcTemplate;
         this.environment = environment;
+        this.runtimeCoordinationService = runtimeCoordinationService;
+        this.attachmentObjectStorageService = attachmentObjectStorageService;
     }
 
     @Override
@@ -49,6 +56,8 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
 
         RuntimeCounts counts;
         try {
+            runtimeCoordinationService.verifyReadyForPostgresql();
+            attachmentObjectStorageService.verifyReadyForPostgresql();
             verifySessionSchema();
             verifyCoreDialogSchema();
             verifyClientsReadPath();

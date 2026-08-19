@@ -31,6 +31,16 @@ support-bot:
   webforms-dir: ${APP_STORAGE_WEBFORMS:${APP_STORAGE_ATTACHMENTS:../attachments}/forms}
 
 app:
+  storage:
+    object:
+      mode: ${APP_STORAGE_OBJECT_MODE:local_fs}
+      bucket: ${APP_STORAGE_OBJECT_BUCKET:}
+      region: ${APP_STORAGE_OBJECT_REGION:us-east-1}
+      endpoint: ${APP_STORAGE_OBJECT_ENDPOINT:}
+      access-key: ${APP_STORAGE_OBJECT_ACCESS_KEY:}
+      secret-key: ${APP_STORAGE_OBJECT_SECRET_KEY:}
+      path-style-access: ${APP_STORAGE_OBJECT_PATH_STYLE_ACCESS:true}
+      key-prefix: ${APP_STORAGE_OBJECT_KEY_PREFIX:iguana}
   integration:
     transport:
       mode: ${APP_INTEGRATION_TRANSPORT_MODE:jdbc}

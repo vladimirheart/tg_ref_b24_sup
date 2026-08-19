@@ -29,15 +29,18 @@ import java.util.UUID;
 public class AttachmentService {
 
     private final PermissionService permissionService;
+    private final AttachmentObjectStorageService objectStorageService;
     private final Path attachmentsRoot;
     private final Path knowledgeBaseRoot;
     private final Path avatarsRoot;
 
     public AttachmentService(PermissionService permissionService,
+                              AttachmentObjectStorageService objectStorageService,
                               @Value("${app.storage.attachments:attachments}") String attachmentsDir,
                               @Value("${app.storage.knowledge-base:attachments/knowledge_base}") String knowledgeBaseDir,
                               @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir) throws IOException {
         this.permissionService = permissionService;
+        this.objectStorageService = objectStorageService;
         this.attachmentsRoot = ensureDirectory(attachmentsDir);
         this.knowledgeBaseRoot = ensureDirectory(knowledgeBaseDir);
         this.avatarsRoot = ensureDirectory(avatarsDir);
@@ -45,8 +48,8 @@ public class AttachmentService {
 
     public ResponseEntity<Resource> downloadTicketAttachment(Authentication authentication, String ticketId, String filename) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        Path resolved = resolveAttachment(attachmentsRoot, ticketId, filename);
-        return buildDownloadResponse(resolved, filename);
+        AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, filename);
+        return buildResponse(binary, buildContentDisposition("attachment", filename));
     }
 
 
@@ -58,14 +61,15 @@ public class AttachmentService {
 
     public ResponseEntity<Resource> downloadTicketAttachmentByStorageKey(Authentication authentication, String storageKey) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        Path resolved = resolveByStoredPath(attachmentsRoot, storageKey);
-        return buildInlineResponse(resolved);
+        AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachmentByStorageKey(storageKey);
+        String filename = AttachmentStorageKeyResolver.extractFileName(storageKey);
+        return buildResponse(binary, buildContentDisposition("inline", StringUtils.hasText(filename) ? filename : "file"));
     }
 
     public ResponseEntity<Resource> downloadKnowledgeBaseFile(Authentication authentication, String fileId) throws IOException {
         requireAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
-        Path resolved = resolveAttachment(knowledgeBaseRoot, "", fileId);
-        return buildDownloadResponse(resolved, resolved.getFileName().toString());
+        AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openKnowledgeBaseFile(fileId);
+        return buildResponse(binary, buildContentDisposition("attachment", fileId));
     }
 
     public ResponseEntity<Resource> downloadAvatar(Authentication authentication, String avatarId) throws IOException {
@@ -103,26 +107,28 @@ public class AttachmentService {
         }
         String safeName = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "file.bin");
         String storedName = UUID.randomUUID() + "_" + safeName;
-        Path ticketDir = ensureDirectory(attachmentsRoot.resolve(ticketId).toString());
-        Path target = ticketDir.resolve(storedName);
         try (InputStream in = file.getInputStream()) {
-            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            AttachmentObjectStorageService.StoredBinary binary = objectStorageService.storeDialogAttachment(
+                    ticketId,
+                    storedName,
+                    file.getContentType(),
+                    in
+            );
+            return new AttachmentUploadMetadata(
+                    safeName,
+                    storedName,
+                    binary.contentType(),
+                    binary.size(),
+                    OffsetDateTime.now()
+            );
         }
-        return new AttachmentUploadMetadata(
-            safeName,
-            storedName,
-            probeContentType(target, file.getContentType()),
-            Files.size(target),
-            OffsetDateTime.now()
-        );
     }
 
     public void deleteTicketAttachment(String ticketId, String storedName) throws IOException {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(storedName)) {
             return;
         }
-        Path target = resolveTicketAttachmentPath(ticketId, storedName);
-        Files.deleteIfExists(target);
+        objectStorageService.deleteDialogAttachment(ticketId, storedName);
     }
 
     public void deleteKnowledgeBaseFile(Authentication authentication, String storedName) throws IOException {
@@ -134,11 +140,9 @@ public class AttachmentService {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(storedName)) {
             throw new IllegalArgumentException("File not found");
         }
-        Path resolved = resolveTicketAttachmentPath(ticketId, storedName);
-        if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) {
-            throw new IllegalArgumentException("File not found");
+        try (AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, storedName)) {
+            return new AttachmentDescriptor(extractOriginalAttachmentName(storedName), binary.size());
         }
-        return describeResolvedAttachment(resolved);
     }
 
     public AttachmentDescriptor describeTicketAttachmentByPath(String rawPath) throws IOException {
@@ -147,14 +151,17 @@ public class AttachmentService {
     }
 
     public AttachmentDescriptor describeTicketAttachmentByStorageKey(String storageKey) throws IOException {
-        Path resolved = resolveByStoredPath(attachmentsRoot, storageKey);
-        return describeResolvedAttachment(resolved);
+        try (AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachmentByStorageKey(storageKey)) {
+            return new AttachmentDescriptor(
+                    extractOriginalAttachmentName(AttachmentStorageKeyResolver.extractFileName(storageKey)),
+                    binary.size()
+            );
+        }
     }
 
     public boolean hasTicketAttachmentByStorageKey(String storageKey) {
         try {
-            Path resolved = resolveByStoredPath(attachmentsRoot, storageKey);
-            return Files.exists(resolved) && Files.isRegularFile(resolved);
+            return objectStorageService.dialogAttachmentExistsByStorageKey(storageKey);
         } catch (Exception ex) {
             return false;
         }
@@ -172,31 +179,23 @@ public class AttachmentService {
         String storedName = StringUtils.hasText(preferredStoredName)
             ? StringUtils.cleanPath(preferredStoredName)
             : UUID.randomUUID() + "_" + safeName;
-        Path target = knowledgeBaseRoot.resolve(storedName).normalize();
-        if (!target.startsWith(knowledgeBaseRoot)) {
-            throw new IllegalArgumentException("Invalid path");
-        }
         try (InputStream in = inputStream) {
-            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            AttachmentObjectStorageService.StoredBinary binary = objectStorageService.storeKnowledgeBaseFile(storedName, mimeType, in);
+            return new AttachmentUploadMetadata(
+                    safeName,
+                    storedName,
+                    binary.contentType(),
+                    binary.size(),
+                    OffsetDateTime.now()
+            );
         }
-        return new AttachmentUploadMetadata(
-            safeName,
-            storedName,
-            probeContentType(target, mimeType),
-            Files.size(target),
-            OffsetDateTime.now()
-        );
     }
 
     private void deleteKnowledgeBaseFileInternal(String storedName) throws IOException {
         if (!StringUtils.hasText(storedName)) {
             return;
         }
-        Path target = knowledgeBaseRoot.resolve(storedName).normalize();
-        if (!target.startsWith(knowledgeBaseRoot)) {
-            throw new IllegalArgumentException("Invalid path");
-        }
-        Files.deleteIfExists(target);
+        objectStorageService.deleteKnowledgeBaseFile(storedName);
     }
 
     private String probeContentType(Path target, String fallbackMimeType) throws IOException {
@@ -236,6 +235,18 @@ public class AttachmentService {
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
                 .contentType(mediaType)
                 .contentLength(Files.size(file))
+                .body(resource);
+    }
+
+    private ResponseEntity<Resource> buildResponse(AttachmentObjectStorageService.StoredBinary binary, String disposition) {
+        MediaType mediaType = StringUtils.hasText(binary.contentType())
+                ? MediaType.parseMediaType(binary.contentType())
+                : MediaType.APPLICATION_OCTET_STREAM;
+        InputStreamResource resource = new InputStreamResource(binary.inputStream());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                .contentType(mediaType)
+                .contentLength(binary.size())
                 .body(resource);
     }
 

@@ -20,7 +20,7 @@ public class SupportBotCoreConfiguration {
 
     @PostConstruct
     void ensureDirectories() throws IOException {
-        Path root = Paths.get(attachmentsDir);
+        Path root = Paths.get(attachmentsDir).toAbsolutePath().normalize();
         Files.createDirectories(root);
         Files.createDirectories(root.resolve("temp"));
         if (logFileName != null && !logFileName.isBlank()) {

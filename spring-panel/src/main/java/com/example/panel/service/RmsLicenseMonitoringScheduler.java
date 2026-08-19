@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import java.time.Duration;
 
 @Component
 public class RmsLicenseMonitoringScheduler {
@@ -11,9 +12,12 @@ public class RmsLicenseMonitoringScheduler {
     private static final Logger log = LoggerFactory.getLogger(RmsLicenseMonitoringScheduler.class);
 
     private final RmsLicenseMonitoringService monitoringService;
+    private final RuntimeCoordinationService runtimeCoordinationService;
 
-    public RmsLicenseMonitoringScheduler(RmsLicenseMonitoringService monitoringService) {
+    public RmsLicenseMonitoringScheduler(RmsLicenseMonitoringService monitoringService,
+                                        RuntimeCoordinationService runtimeCoordinationService) {
         this.monitoringService = monitoringService;
+        this.runtimeCoordinationService = runtimeCoordinationService;
     }
 
     @Scheduled(
@@ -21,11 +25,13 @@ public class RmsLicenseMonitoringScheduler {
         fixedDelayString = "${panel.rms-monitor.license-check-interval-ms:86400000}"
     )
     public void refreshLicenses() {
-        try {
-            monitoringService.requestLicenseRefresh(true);
-        } catch (Exception ex) {
-            log.warn("RMS license scheduler failed", ex);
-        }
+        runtimeCoordinationService.runWithLease("rms-license-monitoring", Duration.ofHours(25), () -> {
+            try {
+                monitoringService.requestLicenseRefresh(true);
+            } catch (Exception ex) {
+                log.warn("RMS license scheduler failed", ex);
+            }
+        });
     }
 
     @Scheduled(
@@ -33,10 +39,12 @@ public class RmsLicenseMonitoringScheduler {
         fixedDelayString = "${panel.rms-monitor.network-check-interval-ms:300000}"
     )
     public void refreshNetworkState() {
-        try {
-            monitoringService.requestNetworkRefresh();
-        } catch (Exception ex) {
-            log.warn("RMS network scheduler failed", ex);
-        }
+        runtimeCoordinationService.runWithLease("rms-network-monitoring", Duration.ofMinutes(10), () -> {
+            try {
+                monitoringService.requestNetworkRefresh();
+            } catch (Exception ex) {
+                log.warn("RMS network scheduler failed", ex);
+            }
+        });
     }
 }

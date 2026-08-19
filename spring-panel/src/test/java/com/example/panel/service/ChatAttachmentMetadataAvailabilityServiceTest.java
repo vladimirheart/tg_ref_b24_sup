@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.example.panel.storage.AttachmentObjectStorageService;
 import com.example.panel.storage.AttachmentService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -19,11 +20,12 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
     void reconcileDoesNotAttemptSchemaMutationDuringAvailabilityRefresh() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         AttachmentService attachmentService = mock(AttachmentService.class);
+        AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
         doReturn(List.of()).when(jdbcTemplate)
                 .query(anyString(), ArgumentMatchers.<RowMapper<Object>>any());
 
         ChatAttachmentMetadataAvailabilityService service =
-                new ChatAttachmentMetadataAvailabilityService(jdbcTemplate, attachmentService);
+                new ChatAttachmentMetadataAvailabilityService(jdbcTemplate, attachmentService, attachmentObjectStorageService);
 
         service.reconcileAvailabilityStatuses();
 

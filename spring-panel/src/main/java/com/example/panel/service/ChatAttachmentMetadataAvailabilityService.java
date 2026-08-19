@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.storage.AttachmentService;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
+import com.example.panel.storage.AttachmentObjectStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -19,11 +20,14 @@ public class ChatAttachmentMetadataAvailabilityService {
 
     private final JdbcTemplate jdbcTemplate;
     private final AttachmentService attachmentService;
+    private final AttachmentObjectStorageService attachmentObjectStorageService;
 
     public ChatAttachmentMetadataAvailabilityService(JdbcTemplate jdbcTemplate,
-                                                     AttachmentService attachmentService) {
+                                                     AttachmentService attachmentService,
+                                                     AttachmentObjectStorageService attachmentObjectStorageService) {
         this.jdbcTemplate = jdbcTemplate;
         this.attachmentService = attachmentService;
+        this.attachmentObjectStorageService = attachmentObjectStorageService;
     }
 
     @PostConstruct
@@ -69,7 +73,10 @@ public class ChatAttachmentMetadataAvailabilityService {
         if (AttachmentStorageKeyResolver.isExternalUrl(row.legacyAttachmentRef())) {
             return "external_url";
         }
-        return "local_fs";
+        if (StringUtils.hasText(row.storageProvider()) && !"local_fs".equalsIgnoreCase(row.storageProvider().trim())) {
+            return row.storageProvider().trim();
+        }
+        return attachmentObjectStorageService.providerLabel();
     }
 
     private String resolveNormalizationStatus(AttachmentMetadataRow row, String storageProvider) {

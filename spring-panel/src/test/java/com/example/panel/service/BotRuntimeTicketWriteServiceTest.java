@@ -12,6 +12,7 @@ import com.example.panel.entity.Feedback;
 import com.example.panel.entity.PendingFeedbackRequest;
 import com.example.panel.repository.FeedbackRepository;
 import com.example.panel.repository.PendingFeedbackRequestRepository;
+import com.example.panel.storage.AttachmentObjectStorageService;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -35,7 +36,7 @@ class BotRuntimeTicketWriteServiceTest {
         PanelDatabaseRuntimeMode databaseRuntimeMode = new PanelDatabaseRuntimeMode(new MockEnvironment());
         DialogReplyTargetService dialogReplyTargetService = new DialogReplyTargetService(
             jdbcTemplate,
-            new ChatAttachmentMetadataService(jdbcTemplate)
+            new ChatAttachmentMetadataService(jdbcTemplate, mock(AttachmentObjectStorageService.class))
         );
         dialogResponsibilityService = new DialogResponsibilityService(jdbcTemplate);
         dialogParticipantService = new DialogParticipantService(
@@ -274,7 +275,7 @@ class BotRuntimeTicketWriteServiceTest {
         PanelDatabaseRuntimeMode databaseRuntimeMode = new PanelDatabaseRuntimeMode(new MockEnvironment());
         DialogReplyTargetService dialogReplyTargetService = new DialogReplyTargetService(
             jdbcTemplate,
-            new ChatAttachmentMetadataService(jdbcTemplate)
+            new ChatAttachmentMetadataService(jdbcTemplate, mock(AttachmentObjectStorageService.class))
         );
         BotRuntimeTicketWriteService feedbackService = new BotRuntimeTicketWriteService(
             jdbcTemplate,

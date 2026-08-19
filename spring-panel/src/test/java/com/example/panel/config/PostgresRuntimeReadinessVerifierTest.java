@@ -41,8 +41,15 @@ class PostgresRuntimeReadinessVerifierTest {
             when(rs.getLong("open_incidents_count")).thenReturn(3L);
             return rowMapper.mapRow(rs, 0);
         });
+        com.example.panel.service.RuntimeCoordinationService runtimeCoordinationService = mock(com.example.panel.service.RuntimeCoordinationService.class);
+        com.example.panel.storage.AttachmentObjectStorageService attachmentObjectStorageService = mock(com.example.panel.storage.AttachmentObjectStorageService.class);
 
-        PostgresRuntimeReadinessVerifier verifier = new PostgresRuntimeReadinessVerifier(jdbcTemplate, environment);
+        PostgresRuntimeReadinessVerifier verifier = new PostgresRuntimeReadinessVerifier(
+                jdbcTemplate,
+                environment,
+                runtimeCoordinationService,
+                attachmentObjectStorageService
+        );
 
         assertThatCode(() -> verifier.onApplicationEvent(null))
                 .doesNotThrowAnyException();
@@ -69,8 +76,15 @@ class PostgresRuntimeReadinessVerifierTest {
             }
             return List.of();
         });
+        com.example.panel.service.RuntimeCoordinationService runtimeCoordinationService = mock(com.example.panel.service.RuntimeCoordinationService.class);
+        com.example.panel.storage.AttachmentObjectStorageService attachmentObjectStorageService = mock(com.example.panel.storage.AttachmentObjectStorageService.class);
 
-        PostgresRuntimeReadinessVerifier verifier = new PostgresRuntimeReadinessVerifier(jdbcTemplate, environment);
+        PostgresRuntimeReadinessVerifier verifier = new PostgresRuntimeReadinessVerifier(
+                jdbcTemplate,
+                environment,
+                runtimeCoordinationService,
+                attachmentObjectStorageService
+        );
 
         assertThatThrownBy(() -> verifier.onApplicationEvent(null))
                 .isInstanceOf(IllegalStateException.class)
@@ -82,8 +96,15 @@ class PostgresRuntimeReadinessVerifierTest {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         MockEnvironment environment = new MockEnvironment()
                 .withProperty("app.datasource.mode", "sqlite");
+        com.example.panel.service.RuntimeCoordinationService runtimeCoordinationService = mock(com.example.panel.service.RuntimeCoordinationService.class);
+        com.example.panel.storage.AttachmentObjectStorageService attachmentObjectStorageService = mock(com.example.panel.storage.AttachmentObjectStorageService.class);
 
-        PostgresRuntimeReadinessVerifier verifier = new PostgresRuntimeReadinessVerifier(jdbcTemplate, environment);
+        PostgresRuntimeReadinessVerifier verifier = new PostgresRuntimeReadinessVerifier(
+                jdbcTemplate,
+                environment,
+                runtimeCoordinationService,
+                attachmentObjectStorageService
+        );
 
         assertThatCode(() -> verifier.onApplicationEvent(null))
                 .doesNotThrowAnyException();

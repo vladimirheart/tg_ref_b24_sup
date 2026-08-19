@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.storage.AttachmentObjectStorageService;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -11,9 +12,12 @@ import java.time.OffsetDateTime;
 public class ChatAttachmentMetadataService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final AttachmentObjectStorageService attachmentObjectStorageService;
 
-    public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate) {
+    public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate,
+                                         AttachmentObjectStorageService attachmentObjectStorageService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.attachmentObjectStorageService = attachmentObjectStorageService;
     }
 
     public void upsertForChatHistory(Long chatHistoryId,
@@ -27,7 +31,9 @@ public class ChatAttachmentMetadataService {
         if (chatHistoryId == null || !StringUtils.hasText(rawAttachment)) {
             return;
         }
-        String storageProvider = AttachmentStorageKeyResolver.isExternalUrl(rawAttachment) ? "external_url" : "local_fs";
+        String storageProvider = AttachmentStorageKeyResolver.isExternalUrl(rawAttachment)
+                ? "external_url"
+                : attachmentObjectStorageService.providerLabel();
         String storageKey = AttachmentStorageKeyResolver.normalizeStorageKey(ticketId, rawAttachment);
         String normalizationStatus = "external_url".equals(storageProvider) || StringUtils.hasText(storageKey)
                 ? "normalized"

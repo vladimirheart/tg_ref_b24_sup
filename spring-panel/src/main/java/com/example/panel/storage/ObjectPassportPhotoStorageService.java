@@ -44,11 +44,14 @@ public class ObjectPassportPhotoStorageService {
             "image/x-ms-bmp", ".bmp"
     );
 
+    private final AttachmentObjectStorageService objectStorageService;
     private final Path passportPhotosRoot;
 
     public ObjectPassportPhotoStorageService(
+            AttachmentObjectStorageService objectStorageService,
             @Value("${app.storage.passport-photos:attachments/passport_photos}") String passportPhotosDir
     ) throws IOException {
+        this.objectStorageService = objectStorageService;
         this.passportPhotosRoot = ensureDirectory(passportPhotosDir);
     }
 
@@ -69,18 +72,22 @@ public class ObjectPassportPhotoStorageService {
             throw new IllegalArgumentException("Некорректный путь для сохранения файла");
         }
         try (InputStream inputStream = file.getInputStream()) {
-            Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
+            AttachmentObjectStorageService.StoredBinary binary = objectStorageService.storePassportPhoto(
+                    storedName,
+                    file.getContentType(),
+                    inputStream
+            );
+            String mimeType = binary.contentType();
+            OffsetDateTime uploadedAt = OffsetDateTime.now();
+            return new StoredPhoto(
+                    originalName,
+                    storedName,
+                    buildPhotoUrl(storedName),
+                    mimeType,
+                    binary.size(),
+                    uploadedAt.toString()
+            );
         }
-        String mimeType = probeContentType(target, file.getContentType());
-        OffsetDateTime uploadedAt = OffsetDateTime.now();
-        return new StoredPhoto(
-                originalName,
-                storedName,
-                buildPhotoUrl(storedName),
-                mimeType,
-                Files.size(target),
-                uploadedAt.toString()
-        );
     }
 
     public StoredPhoto store(InputStream inputStream,
@@ -106,36 +113,39 @@ public class ObjectPassportPhotoStorageService {
         if (!target.startsWith(passportPhotosRoot)) {
             throw new IllegalArgumentException("РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ РїСѓС‚СЊ РґР»СЏ СЃРѕС…СЂР°РЅРµРЅРёСЏ С„Р°Р№Р»Р°");
         }
-        Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
-        String mimeType = probeContentType(target, contentType);
+        AttachmentObjectStorageService.StoredBinary binary = objectStorageService.storePassportPhoto(
+                storedName,
+                contentType,
+                inputStream
+        );
+        String mimeType = binary.contentType();
         OffsetDateTime uploadedAt = OffsetDateTime.now();
         return new StoredPhoto(
                 originalName,
                 storedName,
                 buildPhotoUrl(storedName),
                 mimeType,
-                Files.size(target),
+                binary.size(),
                 uploadedAt.toString()
         );
     }
 
     public ResponseEntity<Resource> download(String storedName) throws IOException {
-        Path resolved = resolveStoredPhoto(storedName);
-        String filename = resolved.getFileName() != null ? resolved.getFileName().toString() : "photo";
-        String mimeType = probeContentType(resolved, null);
+        AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openPassportPhoto(storedName);
+        String filename = StringUtils.hasText(storedName) ? StringUtils.cleanPath(storedName) : "photo";
+        String mimeType = binary.contentType();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.builder("inline")
                         .filename(filename, StandardCharsets.UTF_8)
                         .build()
                         .toString())
                 .contentType(MediaType.parseMediaType(mimeType))
-                .contentLength(Files.size(resolved))
-                .body(new InputStreamResource(Files.newInputStream(resolved)));
+                .contentLength(binary.size())
+                .body(new InputStreamResource(binary.inputStream()));
     }
 
     public void delete(String storedName) throws IOException {
-        Path resolved = resolveStoredPhotoForDeletion(storedName);
-        Files.deleteIfExists(resolved);
+        objectStorageService.deletePassportPhoto(storedName);
     }
 
     public void deleteQuietly(String storedName) {
