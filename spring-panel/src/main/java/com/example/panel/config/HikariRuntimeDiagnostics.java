@@ -10,7 +10,11 @@ import org.springframework.stereotype.Component;
 import javax.sql.DataSource;
 
 /**
- * Configures runtime diagnostics for the primary external Hikari datasource.
+ * Best-effort diagnostics for the primary external Hikari datasource.
+ *
+ * <p>Flyway may start the datasource before regular singleton initialization,
+ * therefore changing the leak threshold is intentionally non-fatal. Pool
+ * pressure reporting is handled separately by HikariPoolPressureReporter.</p>
  */
 @Component
 public class HikariRuntimeDiagnostics {
@@ -40,8 +44,6 @@ public class HikariRuntimeDiagnostics {
             try {
                 hikari.setLeakDetectionThreshold(leakDetectionMs);
             } catch (RuntimeException ex) {
-                // Flyway can start the pool before ordinary singleton creation.
-                // Diagnostics must never make application startup fail.
                 log.debug("Hikari leak threshold could not be changed after pool startup: {}", ex.getMessage());
             }
         }
