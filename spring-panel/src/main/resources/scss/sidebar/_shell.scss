@@ -70,7 +70,9 @@ body.with-sidebar.sidebar-hovering {
   inset: 0 auto 0 0;
 
   width: var(--sidebar-w);
+
   height: 100vh;
+  height: 100dvh;
 
   padding: 10px 8px 12px;
 

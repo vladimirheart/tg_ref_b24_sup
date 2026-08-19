@@ -64,15 +64,15 @@
             <table class="table align-middle mb-0" id="clientsTable">
                 <thead>
                 <tr>
-                    <th class="sortable" onclick="sortTable(0)">ID клиента</th>
-                    <th class="sortable" onclick="sortTable(1)">Юзернейм</th>
-                    <th class="sortable" onclick="sortTable(2)">Имя в БД</th>
-                    <th class="sortable" onclick="sortTable(3)">Название для панели</th>
-                    <th class="sortable" onclick="sortTable(4)">Заявок</th>
-                    <th class="sortable" onclick="sortTable(5)">Затрачено времени</th>
-                    <th class="sortable" onclick="sortTable(6)">Первый контакт</th>
-                    <th class="sortable" onclick="sortTable(7)">Последний контакт</th>
-                    <th class="sortable" onclick="sortTable(8)">Статус</th>
+                    <th class="sortable" data-sort-index="0" tabindex="0">ID клиента</th>
+                    <th class="sortable" data-sort-index="1" tabindex="1">>Юзернейм</th>
+                    <th class="sortable" data-sort-index="2" tabindex="2">Имя в БД</th>
+                    <th class="sortable" data-sort-index="3" tabindex="3">Название для панели</th>
+                    <th class="sortable" data-sort-index="4" tabindex="4">>Заявок</th>
+                    <th class="sortable" data-sort-index="5" tabindex="5">">Затрачено времени</th>
+                    <th class="sortable" data-sort-index="6" tabindex="6">">Первый контакт</th>
+                    <th class="sortable" data-sort-index="7" tabindex="7">Последний контакт</th>
+                    <th class="sortable" data-sort-index="8" tabindex="8">Статус</th>
                     <th>Blacklist</th>
                     <th>Действия</th>
                 </tr>
@@ -132,8 +132,17 @@
         const th = table.tHead.rows[0].cells[colIndex];
         const asc = !th.classList.contains('sort-asc');
 
-        table.querySelectorAll('thead th.sortable').forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
-        th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+        table.querySelectorAll('thead th.sortable').forEach(h => {
+			h.classList.remove('sort-asc', 'sort-desc');
+			h.removeAttribute('aria-sort');
+		});
+
+		th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+
+		th.setAttribute(
+			'aria-sort',
+			asc ? 'ascending' : 'descending'
+		);
 
         function parseTimeToMinutes(str) {
             if (!str || str === '—') return 0;
@@ -168,6 +177,34 @@
         tbody.innerHTML = '';
         rows.forEach(r => tbody.appendChild(r));
     }
+
+document
+    .querySelectorAll(
+        '#clientsTable thead th.sortable[data-sort-index]'
+    )
+    .forEach((header) => {
+        const activate = () => {
+            const index = Number(header.dataset.sortIndex);
+
+            if (Number.isInteger(index)) {
+                sortTable(index);
+            }
+        };
+
+        header.addEventListener('click', activate);
+
+        header.addEventListener('keydown', (event) => {
+            if (
+                event.key !== 'Enter' &&
+                event.key !== ' '
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+            activate();
+        });
+    });
 
     document.getElementById('searchClients').addEventListener('input', function () {
         const q = this.value.toLowerCase();

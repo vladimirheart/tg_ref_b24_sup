@@ -81,12 +81,12 @@
 				   id="passportsTable">
 				<thead>
                 <tr>
-                    <th class="passport-sortable" data-sort-key="department" data-sort-type="text">Департамент <span class="sort-indicator">↕</span></th>
-                    <th class="passport-sortable" data-sort-key="city" data-sort-type="text">Город <span class="sort-indicator">↕</span></th>
-                    <th class="passport-sortable" data-sort-key="business" data-sort-type="text">Бизнес <span class="sort-indicator">↕</span></th>
-                    <th class="passport-sortable" data-sort-key="status" data-sort-type="text">Статус <span class="sort-indicator">↕</span></th>
-                    <th class="passport-sortable" data-sort-key="location_address" data-sort-type="text">Адрес <span class="sort-indicator">↕</span></th>
-                    <th class="passport-sortable text-center" data-sort-key="appeals_count" data-sort-type="number">Обращения <span class="sort-indicator">↕</span></th>
+                    <th class="passport-sortable" data-sort-key="department" data-sort-type="text" tabindex="0">Департамент <span class="sort-indicator">↕</span></th>
+                    <th class="passport-sortable" data-sort-key="city" data-sort-type="text">Город <span class="sort-indicator" tabindex="0">↕</span></th>
+                    <th class="passport-sortable" data-sort-key="business" data-sort-type="text">Бизнес <span class="sort-indicator" tabindex="0">↕</span></th>
+                    <th class="passport-sortable" data-sort-key="status" data-sort-type="text">Статус <span class="sort-indicator" tabindex="0">↕</span></th>
+                    <th class="passport-sortable" data-sort-key="location_address" data-sort-type="text">Адрес <span class="sort-indicator" tabindex="0">↕</span></th>
+                    <th class="passport-sortable text-center" data-sort-key="appeals_count" data-sort-type="number">Обращения <span class="sort-indicator" tabindex="0">↕</span></th>
                     <th></th>
                 </tr>
                 </thead>
@@ -311,16 +311,39 @@
         }
 
         function updateSortIndicators() {
-            sortHeaders.forEach((header) => {
-                const indicator = header.querySelector('.sort-indicator');
-                if (!indicator) return;
-                if (header.dataset.sortKey !== state.sortKey) {
-                    indicator.textContent = '↕';
-                    return;
-                }
-                indicator.textContent = state.sortDirection === 'asc' ? '↑' : '↓';
-            });
-        }
+			sortHeaders.forEach((header) => {
+				const active =
+					header.dataset.sortKey === state.sortKey;
+
+				if (active) {
+					header.setAttribute(
+						'aria-sort',
+						state.sortDirection === 'asc'
+							? 'ascending'
+							: 'descending'
+					);
+				} else {
+					header.removeAttribute('aria-sort');
+				}
+
+				const indicator =
+					header.querySelector('.sort-indicator');
+
+				if (!indicator) {
+					return;
+				}
+
+				if (!active) {
+					indicator.textContent = '↕';
+					return;
+				}
+
+				indicator.textContent =
+					state.sortDirection === 'asc'
+						? '↑'
+						: '↓';
+			});
+		}
 
         function applyState() {
             const filteredRows = rows.filter(matchesFilters).sort(compareRows);
@@ -382,6 +405,17 @@
                     }
                     applyState();
                 });
+				header.addEventListener('keydown', (event) => {
+					if (
+						event.key !== 'Enter' &&
+						event.key !== ' '
+					) {
+						return;
+					}
+
+					event.preventDefault();
+					header.click();
+				});
             });
         }
 

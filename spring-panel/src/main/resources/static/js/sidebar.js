@@ -159,17 +159,60 @@
   }
 
   function setMobileOpen(open) {
-    const shouldOpen = Boolean(open);
+    const mobile = isMobileViewport();
+    const shouldOpen = mobile && Boolean(open);
+
+    const activeElement =
+        document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+
+    const restoreToggleFocus =
+        mobile &&
+        !shouldOpen &&
+        activeElement &&
+        sidebar.contains(activeElement);
+
     root.classList.toggle('sidebar-mobile-open', shouldOpen);
+
     if (mobileOverlay) {
-      mobileOverlay.hidden = !shouldOpen;
+        mobileOverlay.hidden = !shouldOpen;
     }
+
     if (mobileToggleBtn) {
-      const icon = mobileToggleBtn.querySelector('.icon');
-      if (icon) icon.textContent = shouldOpen ? '×' : '☰';
-      mobileToggleBtn.setAttribute('aria-label', shouldOpen ? 'Закрыть меню' : 'Открыть меню');
+        const icon = mobileToggleBtn.querySelector('.icon');
+
+        if (icon) {
+            icon.textContent = shouldOpen ? '×' : '☰';
+        }
+
+        mobileToggleBtn.setAttribute(
+            'aria-label',
+            shouldOpen ? 'Закрыть меню' : 'Открыть меню'
+        );
+
+        mobileToggleBtn.setAttribute(
+            'aria-expanded',
+            shouldOpen ? 'true' : 'false'
+        );
     }
-  }
+
+    const shouldHideSidebar = mobile && !shouldOpen;
+
+    sidebar.toggleAttribute('inert', shouldHideSidebar);
+
+    if (shouldHideSidebar) {
+        sidebar.setAttribute('aria-hidden', 'true');
+    } else {
+        sidebar.removeAttribute('aria-hidden');
+    }
+
+    if (restoreToggleFocus && mobileToggleBtn) {
+        window.requestAnimationFrame(() => {
+            mobileToggleBtn.focus({ preventScroll: true });
+        });
+    }
+}
 
   // оборачиваем страницу, чтобы не было пустоты справа
   function ensureLayoutWrap() {
@@ -254,14 +297,19 @@
   }
 
   function syncSidebarForViewport() {
-    if (!isMobileViewport()) {
-      setMobileOpen(false);
+    const mobile = isMobileViewport();
+
+    setMobileOpen(
+        mobile &&
+        root.classList.contains('sidebar-mobile-open')
+    );
+
+    if (mobile) {
+        setActionMenuOpen(false);
     }
-    if (isMobileViewport()) {
-      setActionMenuOpen(false);
-    }
+
     applyState();
-  }
+}
 
   if (mobileToggleBtn) {
     mobileToggleBtn.addEventListener('click', () => {
@@ -743,10 +791,20 @@
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && actionMenuOpen) {
-      setActionMenuOpen(false);
+    if (event.key !== 'Escape' || !actionMenuOpen) {
+        return;
     }
-  });
+
+    event.preventDefault();
+
+    setActionMenuOpen(false);
+
+    if (actionMenuTrigger) {
+        window.requestAnimationFrame(() => {
+            actionMenuTrigger.focus({ preventScroll: true });
+        });
+    }
+});
 
   // клик по "📌"
   if (pinBtn) {
@@ -1603,14 +1661,29 @@
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && root.classList.contains('sidebar-mobile-open')) {
-      setMobileOpen(false);
-      return;
+    if (event.key !== 'Escape' || event.defaultPrevented) {
+        return;
     }
-    if (event.key === 'Escape' && notificationsOpen) {
-      closeNotifications();
+
+    if (notificationsOpen) {
+        event.preventDefault();
+
+        closeNotifications();
+
+        if (bellBtn) {
+            window.requestAnimationFrame(() => {
+                bellBtn.focus({ preventScroll: true });
+            });
+        }
+
+        return;
     }
-  });
+
+    if (root.classList.contains('sidebar-mobile-open')) {
+        event.preventDefault();
+        setMobileOpen(false);
+    }
+});
 
   updateNotificationCountSafe();
   startNotificationPolling();

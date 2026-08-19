@@ -2651,26 +2651,31 @@ body {
 }
 
 /* Clients page extracted styles */
-.sortable {
+[data-ui-page=clients] .sortable {
   cursor: pointer;
   user-select: none;
   position: relative;
 }
 
-.sortable::after {
+[data-ui-page=clients] .sortable::after {
   content: " ↕";
   font-size: 0.8em;
   opacity: 0.5;
 }
 
-.sort-asc::after {
+[data-ui-page=clients] .sort-asc::after {
   content: " ↑";
   opacity: 1;
 }
 
-.sort-desc::after {
+[data-ui-page=clients] .sort-desc::after {
   content: " ↓";
   opacity: 1;
+}
+
+[data-ui-page=clients] .sortable:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
 }
 
 .clients-filter-panel {
@@ -4978,6 +4983,17 @@ body {
   background: color-mix(in srgb, var(--primary) 4%, var(--surface-card));
 }
 
+[data-ui-page=passports].passports-list-page .passport-sortable:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+  color: var(--primary) !important;
+}
+
+[data-ui-page=passports].passports-list-page .passport-sortable:focus-visible .sort-indicator {
+  color: var(--primary);
+  opacity: 1;
+}
+
 /* Photo runtime surfaces */
 [data-ui-page=passports].passport-editor-page .passport-photo-menu-toggle {
   width: 34px;
@@ -5168,11 +5184,17 @@ body {
 }
 
 [data-ui-page=tasks] .table thead th.sortable:hover,
-[data-ui-page=tasks] .table thead th.sortable:focus-within {
+[data-ui-page=tasks] .table thead th.sortable:focus-visible {
   color: var(--primary) !important;
 }
 
-[data-ui-page=tasks] .table thead th.sortable:hover .sort-ind {
+[data-ui-page=tasks] .table thead th.sortable:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+[data-ui-page=tasks] .table thead th.sortable:hover .sort-ind,
+[data-ui-page=tasks] .table thead th.sortable:focus-visible .sort-ind {
   color: var(--primary);
   opacity: 1;
 }

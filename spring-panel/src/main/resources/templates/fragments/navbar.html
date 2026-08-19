@@ -1,6 +1,11 @@
 <!-- Unified sidebar fragment shared across all pages -->
 <div xmlns:th="http://www.thymeleaf.org" th:fragment="navbar(active)">
-    <button id="sidebarMobileToggle" class="sidebar-mobile-toggle" type="button" aria-label="Открыть меню">
+    <button id="sidebarMobileToggle"
+        class="sidebar-mobile-toggle"
+        type="button"
+        aria-label="Открыть меню"
+        aria-controls="app-sidebar"
+        aria-expanded="false">
         <span class="icon" aria-hidden="true">&#9776;</span>
     </button>
     <div id="sidebarMobileOverlay" class="sidebar-mobile-overlay" hidden></div>
@@ -24,11 +29,22 @@
                     </div>
                 </div>
                 <div class="sidebar-actions" id="notify-bell-wrapper">
-                    <button id="bellBtn" class="icon-btn notify-btn" type="button" title="Оповещения" aria-expanded="false">
+                    <button id="bellBtn"
+						class="icon-btn notify-btn"
+						type="button"
+						title="Оповещения"
+						aria-label="Оповещения"
+						aria-controls="notify-dropdown"
+						aria-expanded="false">
                         <span class="icon" aria-hidden="true">🔔</span>
                         <span id="notify-count" class="notify-count" hidden>0</span>
                     </button>
-                    <div id="notify-dropdown" class="notify-dropdown" hidden role="listbox" aria-label="Оповещения"></div>
+                    <div id="notify-dropdown"
+						 class="notify-dropdown"
+						 hidden
+						 role="region"
+						 aria-label="Оповещения">
+					</div>
                     <button id="pinSidebarBtn" class="icon-btn" type="button" title="Прикрепить/открепить">📌</button>
                     <button id="resetSidebarOrderBtn" class="icon-btn" type="button" title="Вернуть порядок по умолчанию" hidden>↺</button>
                 </div>

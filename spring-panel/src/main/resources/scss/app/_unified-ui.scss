@@ -95,26 +95,31 @@ body {
 }
 
 /* Clients page extracted styles */
-.sortable {
+[data-ui-page='clients'] .sortable {
     cursor: pointer;
     user-select: none;
     position: relative;
 }
 
-.sortable::after {
+[data-ui-page='clients'] .sortable::after {
     content: " ↕";
     font-size: 0.8em;
     opacity: 0.5;
 }
 
-.sort-asc::after {
+[data-ui-page='clients'] .sort-asc::after {
     content: " ↑";
     opacity: 1;
 }
 
-.sort-desc::after {
+[data-ui-page='clients'] .sort-desc::after {
     content: " ↓";
     opacity: 1;
+}
+
+[data-ui-page='clients'] .sortable:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
 }
 
 .clients-filter-panel {

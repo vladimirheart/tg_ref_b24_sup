@@ -1322,6 +1322,20 @@
         );
 }
 
+[data-ui-page='passports'].passports-list-page
+.passport-sortable:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+
+    color: var(--primary) !important;
+}
+
+[data-ui-page='passports'].passports-list-page
+.passport-sortable:focus-visible .sort-indicator {
+    color: var(--primary);
+    opacity: 1;
+}
+
 /* Photo runtime surfaces */
 
 [data-ui-page='passports'].passport-editor-page

@@ -185,13 +185,18 @@
 }
 
 [data-ui-page='tasks'] .table thead th.sortable:hover,
-[data-ui-page='tasks'] .table thead th.sortable:focus-within {
+[data-ui-page='tasks'] .table thead th.sortable:focus-visible {
     color: var(--primary) !important;
 }
 
-[data-ui-page='tasks'] .table thead th.sortable:hover .sort-ind {
-    color: var(--primary);
+[data-ui-page='tasks'] .table thead th.sortable:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+}
 
+[data-ui-page='tasks'] .table thead th.sortable:hover .sort-ind,
+[data-ui-page='tasks'] .table thead th.sortable:focus-visible .sort-ind {
+    color: var(--primary);
     opacity: 1;
 }
 

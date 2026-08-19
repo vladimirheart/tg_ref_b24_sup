@@ -445,12 +445,63 @@ setInterval(updateOverdueTasks, 60000);
 
   function markSortHeader() {
     table.querySelectorAll('thead th.sortable').forEach(th => {
-      const key = th.dataset.sort;
-      const ind = th.querySelector('.sort-ind');
-      if (!ind) return;
-      ind.textContent = (state.sort_by === key) ? (state.sort_dir === 'asc' ? '↑' : '↓') : '↕';
+        const key = th.dataset.sort;
+        const active = state.sort_by === key;
+        const ind = th.querySelector('.sort-ind');
+
+        if (ind) {
+            ind.textContent = active
+                ? (state.sort_dir === 'asc' ? '↑' : '↓')
+                : '↕';
+        }
+
+        if (active) {
+            th.setAttribute(
+                'aria-sort',
+                state.sort_dir === 'asc'
+                    ? 'ascending'
+                    : 'descending'
+            );
+        } else {
+            th.removeAttribute('aria-sort');
+        }
     });
-  }
+}
+
+function activateSortHeader(th) {
+    const key = th.dataset.sort;
+
+    if (state.sort_by === key) {
+        state.sort_dir =
+            state.sort_dir === 'asc'
+                ? 'desc'
+                : 'asc';
+    } else {
+        state.sort_by = key;
+        state.sort_dir = 'asc';
+    }
+
+    state.page = 1;
+    load();
+}
+
+table.querySelectorAll('thead th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+        activateSortHeader(th);
+    });
+
+    th.addEventListener('keydown', (event) => {
+        if (
+            event.key !== 'Enter' &&
+            event.key !== ' '
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+        activateSortHeader(th);
+    });
+});
 
   // сортировка
   table.querySelectorAll('thead th.sortable').forEach(th => {
