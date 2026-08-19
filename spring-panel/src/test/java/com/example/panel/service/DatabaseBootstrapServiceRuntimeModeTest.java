@@ -14,7 +14,6 @@ import com.example.panel.config.ClientsSqliteDataSourceProperties;
 import com.example.panel.config.KnowledgeSqliteDataSourceProperties;
 import com.example.panel.config.ObjectsSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
-import com.example.panel.config.SettingsSqliteDataSourceProperties;
 import com.example.panel.repository.ChannelRepository;
 import java.nio.file.Path;
 import java.util.List;
@@ -38,7 +37,6 @@ class DatabaseBootstrapServiceRuntimeModeTest {
             clientsProperties(),
             knowledgeProperties(),
             objectsProperties(),
-            settingsProperties(),
             channelRepository,
             botDatabaseRegistry,
             botProcessProperties(),
@@ -51,7 +49,6 @@ class DatabaseBootstrapServiceRuntimeModeTest {
         service.run(null);
 
         verify(schemaBootstrapSupport, never()).initializeSchema(any(), anyList(), any());
-        verify(botDatabaseRegistry, never()).ensureSettingsSchema();
         verify(channelRepository, never()).findAll();
     }
 
@@ -67,7 +64,6 @@ class DatabaseBootstrapServiceRuntimeModeTest {
             clientsProperties(),
             knowledgeProperties(),
             objectsProperties(),
-            settingsProperties(),
             channelRepository,
             botDatabaseRegistry,
             botProcessProperties(),
@@ -78,7 +74,6 @@ class DatabaseBootstrapServiceRuntimeModeTest {
         service.run(null);
 
         verify(schemaBootstrapSupport).initializeSchema(any(), anyList(), eq("bot_runtime.db"));
-        verify(botDatabaseRegistry).ensureSettingsSchema();
         verify(channelRepository, never()).findAll();
     }
 
@@ -109,12 +104,6 @@ class DatabaseBootstrapServiceRuntimeModeTest {
     private ObjectsSqliteDataSourceProperties objectsProperties() {
         ObjectsSqliteDataSourceProperties properties = new ObjectsSqliteDataSourceProperties();
         properties.setPath(tempDir.resolve("objects.db").toString());
-        return properties;
-    }
-
-    private SettingsSqliteDataSourceProperties settingsProperties() {
-        SettingsSqliteDataSourceProperties properties = new SettingsSqliteDataSourceProperties();
-        properties.setPath(tempDir.resolve("settings.db").toString());
         return properties;
     }
 }

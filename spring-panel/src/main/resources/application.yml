@@ -74,8 +74,6 @@ app:
       path: ${APP_DB_KNOWLEDGE:knowledge_base.db}
     objects-sqlite:
       path: ${APP_DB_OBJECTS:objects.db}
-    settings-sqlite:
-      path: ${APP_DB_SETTINGS:settings.db}
   bots:
     database-dir: ${APP_BOT_DATABASE_DIR:../bot_databases}
     sqlite-per-channel-shard-enabled: ${APP_BOT_SQLITE_PER_CHANNEL_SHARD_ENABLED:false}

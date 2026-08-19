@@ -13,11 +13,11 @@
 ### `spring-panel`
 
 - `DatabaseBootstrapService`
-  Создаёт `clients.db`, `knowledge_base.db`, `objects.db` и registry links только в `APP_DB_MODE=sqlite`.
+  Создаёт `clients.db`, `knowledge_base.db` и `objects.db` только в `APP_DB_MODE=sqlite`.
 - `MonitoringDatabaseBootstrapService`
   Поддерживает локальный `monitoring.db` и перенос старых monitoring-таблиц только в SQLite-режиме.
 - `BotDatabaseRegistry`
-  Ведёт `settings.db` и `bot-<channelId>.db` только как local/dev registry и per-channel bootstrap слой; `settings.db` больше не поднимается как отдельный Spring datasource в external runtime.
+  Ведёт только explicit local/dev bootstrap `bot-<channelId>.db`; отдельный `settings.db` registry layer больше не считается допустимым runtime ownership слоем.
 - `SqliteSchemaBootstrapSupport`
   Общий helper для local SQLite schema bootstrap.
 - `EnvDefaultsInitializer`
@@ -52,7 +52,7 @@
 - runtime `ALTER TABLE`, `CREATE TABLE IF NOT EXISTS`, `INSERT OR IGNORE`, SQLite `PRAGMA`;
 - создание или миграция business-таблиц из `java-bot`;
 - зависимость запуска бота от `schema-sqlite.sql`, `SPRING_SQL_INIT_MODE`, `spring.sql.init.platform`;
-- неявное создание `settings.db`, `bot-<channelId>.db`, `monitoring.db` или secondary SQLite-файлов при `APP_DB_MODE=postgresql`;
+- неявное создание `bot-<channelId>.db`, `monitoring.db` или secondary SQLite-файлов при `APP_DB_MODE=postgresql`;
 - operator-facing live reads, которые в `APP_DB_MODE=postgresql` продолжают напрямую открывать per-channel SQLite-файлы вместо canonical datasource;
 - schema ownership вспомогательных SQLite-таблиц внутри live controller/service bean’ов (`PasswordResetRequestApiController`, `UiEventOutboxWatcher`, `ChatAttachmentMetadata*`);
 - автоматический import/recovery из legacy `*.db` в обычном PostgreSQL runtime без явного compatibility switch;

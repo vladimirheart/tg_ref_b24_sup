@@ -24,8 +24,7 @@
 - `bot_runtime.db`;
 - `clients.db`;
 - `knowledge_base.db`;
-- `objects.db`;
-- `settings.db`.
+- `objects.db`.
 
 Это означает, что проект ещё не живёт на едином canonical PostgreSQL storage even if main path already supports PostgreSQL-first start.
 
@@ -36,13 +35,13 @@
 - primary/secondary sqlite paths;
 - monitoring sqlite path;
 - users sqlite path;
-- objects/clients/knowledge/settings sqlite paths;
+- objects/clients/knowledge sqlite paths;
 - env defaults, которые по-прежнему мыслят проект как multi-SQLite topology.
 
 Пока этот graph остаётся рабочим runtime wiring, система ещё не переведена в final PostgreSQL contour.
 
 При этом отдельные operator-facing direct SQLite probes уже начинают вычищаться: например, client profile refresh больше не должен открывать per-channel `bot-<channelId>.db` в external PostgreSQL runtime path.
-Дополнительно часть ad-hoc SQLite DDL уже снята с live-bean’ов и возвращена под Flyway ownership; monitoring runtime alias, `settings.db` registry wiring, lazy-only bootstrap для `clients.db` / `knowledge_base.db`, runtime rewiring для `objects.db`, runtime alias для `panel_identity.db`, removal отдельного `bot_runtime` datasource bean, explicit `SUPPORT_BOT_DATABASE_PATH` bridge вместо implicit `APP_DB_PANEL_RUNTIME` contract, opt-in-only per-channel bot shard bootstrap и fail-fast removal silent local business fallback в `rabbitmq` mode уже частично выведены из production-like graph, но transport/runtime логика и доменное разделение ещё остаются.
+Дополнительно часть ad-hoc SQLite DDL уже снята с live-bean’ов и возвращена под Flyway ownership; removal отдельного `settings.db` registry contour, monitoring runtime alias, lazy-only bootstrap для `clients.db` / `knowledge_base.db`, runtime rewiring для `objects.db`, runtime alias для `panel_identity.db`, removal отдельного `bot_runtime` datasource bean, explicit `SUPPORT_BOT_DATABASE_PATH` bridge вместо implicit `APP_DB_PANEL_RUNTIME` contract, opt-in-only per-channel bot shard bootstrap и fail-fast removal silent local business fallback в `rabbitmq` mode уже частично выведены из production-like graph, но transport/runtime логика и доменное разделение ещё остаются.
 
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 

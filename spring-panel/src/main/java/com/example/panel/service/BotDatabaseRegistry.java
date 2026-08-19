@@ -3,109 +3,34 @@ package com.example.panel.service;
 import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.BotProcessProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
-import com.example.panel.config.SettingsSqliteDataSourceProperties;
 import com.example.panel.config.SqliteConnectionConfigSupport;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
+import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import javax.sql.DataSource;
-
 @Service
 public class BotDatabaseRegistry {
-    // Legacy local/dev registry for settings.db and per-channel bot SQLite files.
+    // Legacy local/dev helper for explicit per-channel bot SQLite shard bootstrap.
     // External PostgreSQL runtime must never rely on this service as schema owner.
 
     private static final Logger log = LoggerFactory.getLogger(BotDatabaseRegistry.class);
 
     private final BotProcessProperties botProcessProperties;
     private final BotSqliteDataSourceProperties botSqliteProperties;
-    private final SettingsSqliteDataSourceProperties settingsSqliteProperties;
     private final SqliteSchemaBootstrapSupport schemaBootstrapSupport;
     private final PanelDatabaseRuntimeMode databaseRuntimeMode;
-    private volatile DataSource settingsRegistryDataSource;
 
     public BotDatabaseRegistry(BotProcessProperties botProcessProperties,
                                BotSqliteDataSourceProperties botSqliteProperties,
-                               SettingsSqliteDataSourceProperties settingsSqliteProperties,
                                SqliteSchemaBootstrapSupport schemaBootstrapSupport,
                                PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.botProcessProperties = botProcessProperties;
         this.botSqliteProperties = botSqliteProperties;
-        this.settingsSqliteProperties = settingsSqliteProperties;
         this.schemaBootstrapSupport = schemaBootstrapSupport;
         this.databaseRuntimeMode = databaseRuntimeMode;
-    }
-
-    public void ensureSettingsSchema() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            log.info("Skipping settings.db schema bootstrap in external {} mode", databaseRuntimeMode.modeLabel());
-            return;
-        }
-        schemaBootstrapSupport.initializeSchema(settingsRegistryDataSource(), java.util.List.of(
-            "CREATE TABLE IF NOT EXISTS database_registry (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "db_type TEXT NOT NULL UNIQUE, " +
-                "db_path TEXT NOT NULL, " +
-                "updated_at TEXT" +
-                ")",
-            "CREATE TABLE IF NOT EXISTS bot_instances (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "channel_id INTEGER NOT NULL UNIQUE, " +
-                "bot_db_path TEXT NOT NULL, " +
-                "platform TEXT, " +
-                "created_at TEXT" +
-                ")",
-            "CREATE TABLE IF NOT EXISTS database_links (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "source_type TEXT NOT NULL, " +
-                "source_id TEXT NOT NULL, " +
-                "target_type TEXT NOT NULL, " +
-                "target_id TEXT NOT NULL, " +
-                "created_at TEXT, " +
-                "UNIQUE(source_type, source_id, target_type, target_id)" +
-                ")"
-        ), "settings.db");
-    }
-
-    public void registerDatabase(String type, String path) {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        String sql = "INSERT INTO database_registry (db_type, db_path, updated_at) VALUES (?, ?, datetime('now')) " +
-            "ON CONFLICT(db_type) DO UPDATE SET db_path = excluded.db_path, updated_at = excluded.updated_at";
-        try (Connection connection = settingsRegistryDataSource().getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, type);
-            statement.setString(2, path);
-            statement.executeUpdate();
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to register database " + type, ex);
-        }
-    }
-
-    public void registerDatabaseLink(String sourceType, String sourceId, String targetType, String targetId) {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        String sql = "INSERT INTO database_links " +
-            "(source_type, source_id, target_type, target_id, created_at) " +
-            "VALUES (?, ?, ?, ?, datetime('now')) " +
-            "ON CONFLICT(source_type, source_id, target_type, target_id) DO NOTHING";
-        try (Connection connection = settingsRegistryDataSource().getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, sourceType);
-            statement.setString(2, sourceId);
-            statement.setString(3, targetType);
-            statement.setString(4, targetId);
-            statement.executeUpdate();
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to register database link " + sourceType + " -> " + targetType, ex);
-        }
     }
 
     public Path ensureBotDatabase(Long channelId, String platform) {
@@ -120,7 +45,10 @@ public class BotDatabaseRegistry {
         }
         ensureDatabaseFile(dbPath);
         ensureBotSchema(dbPath);
-        registerBotInstance(channelId, platform, dbPath);
+        log.info("Legacy per-channel bot shard database ready for channel {} (platform={}) at {}",
+            channelId,
+            platform,
+            dbPath);
         return dbPath;
     }
 
@@ -169,34 +97,5 @@ public class BotDatabaseRegistry {
                 "FOREIGN KEY (user_id) REFERENCES bot_users(user_id)" +
                 ")"
         ), dbPath.toString());
-    }
-
-    private void registerBotInstance(Long channelId, String platform, Path dbPath) {
-        String sql = "INSERT INTO bot_instances (channel_id, bot_db_path, platform, created_at) VALUES (?, ?, ?, datetime('now')) " +
-            "ON CONFLICT(channel_id) DO UPDATE SET bot_db_path = excluded.bot_db_path, platform = excluded.platform";
-        try (Connection connection = settingsRegistryDataSource().getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setLong(1, channelId);
-            statement.setString(2, dbPath.toString());
-            statement.setString(3, platform);
-            statement.executeUpdate();
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to register bot database for channel " + channelId, ex);
-        }
-        registerDatabaseLink("channel", Long.toString(channelId), "bot", dbPath.toString());
-        log.info("Bot database ready for channel {} at {}", channelId, dbPath);
-    }
-
-    private DataSource settingsRegistryDataSource() {
-        DataSource cached = settingsRegistryDataSource;
-        if (cached != null) {
-            return cached;
-        }
-        synchronized (this) {
-            if (settingsRegistryDataSource == null) {
-                settingsRegistryDataSource = SqliteConnectionConfigSupport.createDataSource(settingsSqliteProperties);
-            }
-            return settingsRegistryDataSource;
-        }
     }
 }

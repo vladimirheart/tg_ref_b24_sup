@@ -38,7 +38,6 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
     private static final String APP_DB_CLIENTS = "APP_DB_CLIENTS";
     private static final String APP_DB_KNOWLEDGE = "APP_DB_KNOWLEDGE";
     private static final String APP_DB_OBJECTS = "APP_DB_OBJECTS";
-    private static final String APP_DB_SETTINGS = "APP_DB_SETTINGS";
     private static final String DATASOURCE_MODE = "app.datasource.mode";
 
     @Override
@@ -136,17 +135,6 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
             new String[]{"objects.db"},
             "objects.db"
         );
-        String settingsPath = resolveCanonicalPath(
-            environment,
-            dotEnv,
-            workspaceRoot,
-            panelHome,
-            new String[]{APP_DB_SETTINGS},
-            panelRuntimePath,
-            new String[]{"settings.db"},
-            "settings.db"
-        );
-
         Map<String, Object> defaults = new HashMap<>();
         registerDefault(defaults, environment, APP_DB_PANEL_RUNTIME, panelRuntimePath, workspaceRoot);
         registerDefault(defaults, environment, APP_DB_TICKETS, panelRuntimePath, workspaceRoot);
@@ -159,7 +147,6 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         registerDefault(defaults, environment, APP_DB_CLIENTS, clientsPath, workspaceRoot);
         registerDefault(defaults, environment, APP_DB_KNOWLEDGE, knowledgePath, workspaceRoot);
         registerDefault(defaults, environment, APP_DB_OBJECTS, objectsPath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_SETTINGS, settingsPath, workspaceRoot);
 
         if (!defaults.isEmpty()) {
             MutablePropertySources sources = environment.getPropertySources();

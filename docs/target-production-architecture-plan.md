@@ -15,8 +15,6 @@
   Отдельный monitoring-контур остаётся только как SQLite compatibility/bootstrap слой; live monitoring runtime в external mode должен идти через primary contour.
 - `clients.db`, `knowledge_base.db`, `objects.db`
   Создаются и bootstrap-ятся в `DatabaseBootstrapService`.
-- `settings.db`
-  Используется `BotDatabaseRegistry` для registry/linking таблиц `database_registry`, `bot_instances`, `database_links`.
 - `bot-<channelId>.db`
   Панель умеет создавать per-channel SQLite-файлы через `BotDatabaseRegistry.ensureBotDatabase(...)`, но после текущего cleanup это должен быть только explicit legacy opt-in.
 
@@ -34,7 +32,7 @@
   - `monitoring.db` только как SQLite compatibility/bootstrap слой, тогда как live monitoring runtime в external mode уже идёт через primary contour;
   - `bot_runtime.db` и `bot-<channelId>.db` только для remaining compatibility/runtime-хвостов, а не как canonical owner `feedbacks`/`client_unblock_requests`;
   - `objects.db` для паспортов объектов;
-  - transitional `clients.db`, `knowledge_base.db`, `settings.db`.
+  - transitional `clients.db`, `knowledge_base.db`.
 - `java-bot` читает:
   - explicit SQLite compatibility path через `SUPPORT_BOT_DATABASE_PATH`, если он действительно прокинут;
   - иначе `bot_runtime.db` / `APP_DB_BOT_RUNTIME` как собственный compatibility/runtime fallback;
@@ -55,8 +53,6 @@
   Shared bot/runtime contour уже не поднимается как отдельный live Spring
   datasource в external runtime, но как compatibility/transport слой ещё не
   доведён до конечной RabbitMQ-first модели.
-- `settings.db`
-  Transitional registry, не business source of truth.
 - `bot-<channelId>.db`
   Legacy/shard слой, не должен развиваться как самостоятельная доменная БД.
 
@@ -70,7 +66,6 @@
 | `objects.db` | `PostgreSQL.objects` |
 | `clients.db` | поглотить в `PostgreSQL.core` |
 | `knowledge_base.db` | поглотить в `PostgreSQL.knowledge` или `PostgreSQL.core` по фактическому ownership |
-| `settings.db` | убрать как отдельный runtime-contour; registry metadata либо перенести в `PostgreSQL.integrations`, либо удалить |
 | `bot_runtime.db` | оставить только как transport/runtime contour до полного перехода на RabbitMQ + backend-owned business writes |
 | `bot-<channelId>.db` | убрать как отдельный source of truth; при необходимости оставить только как runtime spool/shard abstraction |
 
@@ -84,7 +79,7 @@
 ## 6. Ключевые migration risks
 
 - Даже после ослабления default runtime contract прямой доступ `java-bot` к business DB смешивает transport и business ownership там, где ещё используется explicit SQLite compatibility bridge.
-- `settings.db` и `bot-<channelId>.db` продолжают закреплять legacy topology и усложняют миграцию.
+- `bot-<channelId>.db` продолжает закреплять legacy topology и усложняет миграцию.
 - `bot_runtime.db` уже ослаблен как physical datasource split, но transport/runtime ownership всё ещё не закрыт полностью.
 - Часть bootstrap-логики использует SQLite-specific SQL (`datetime('now')`, `INSERT OR IGNORE`, SQLite schema bootstrap).
 - `spring-panel` имеет split между primary/runtime, identity, monitoring и secondary DB, поэтому миграция к одной PostgreSQL БД со schema boundaries потребует переезда именованных `JdbcTemplate` и bootstrap-сервисов.
@@ -93,7 +88,6 @@
 ## 7. Legacy components, которые должны исчезнуть
 
 - Прямая зависимость `java-bot` от `panel_runtime.db` как default business DB.
-- Runtime-рост `settings.db` как отдельного registry-контура.
 - Возврат `bot_runtime.db` в роль отдельного live datasource source of truth для panel-side runtime.
 - Per-channel `bot-<channelId>.db` как скрытый доменный storage.
 - SQLite-specific bootstrap для внешней production DB.
@@ -123,7 +117,7 @@
 ### Phase 1. Storage ownership cleanup
 
 - Перевести `java-bot` с default `panel_runtime.db` на явный transport contract.
-- Остановить дальнейший рост `settings.db` и `bot-<channelId>.db`.
+- Остановить дальнейший рост `bot-<channelId>.db`.
 - Зафиксировать backend-only ownership для business writes в правилах и runtime контрактах.
 
 ### Phase 2. PostgreSQL schema bridge

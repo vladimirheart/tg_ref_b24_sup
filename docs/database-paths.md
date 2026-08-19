@@ -15,7 +15,6 @@ Target-state topology и причины итогового разбиения о
 | `APP_DB_TICKETS` | `panel_runtime.db` | legacy alias для primary runtime | `panel-runtime` |
 | `APP_DB_USERS` | `panel_identity.db` | legacy alias для identity runtime | `panel-identity` |
 | `APP_DB_BOT` | `bot_runtime.db` | legacy alias для bot runtime | `bot-runtime` |
-| `APP_DB_SETTINGS` | `settings.db` | Registry/bootstrap split-контура | transitional only, без отдельного target DB |
 | `APP_DB_CLIENTS` | `clients.db` | Подготовленный secondary clients-файл | transitional only, должен быть поглощён `panel-runtime` |
 | `APP_DB_KNOWLEDGE` | `knowledge_base.db` | Подготовленный secondary knowledge-файл | transitional only, должен быть поглощён `panel-runtime` |
 | `APP_DB_OBJECTS` | `objects.db` | Secondary файл паспортов объектов | transitional only, должен быть поглощён `panel-runtime` |
@@ -33,7 +32,7 @@ Target-state topology и причины итогового разбиения о
 
 ## Что считается transitional legacy
 
-- `settings.db` не должен развиваться как отдельный business/runtime контур.
+- отдельный `settings.db` больше не входит в active runtime contract и не должен возвращаться как registry/bootstrap contour.
 - `clients.db`, `knowledge_base.db`, `objects.db` нельзя считать долгосрочными canonical DBs только потому, что файлы уже существуют.
 - новые technical history данные не должны по умолчанию падать в `panel_runtime.db`; для них целевые контуры — `monitoring` или будущий `panel-telemetry`.
 
@@ -56,7 +55,6 @@ export APP_DB_MONITORING="/srv/iguana/monitoring.db"
 export APP_DB_CLIENTS="/srv/iguana/clients.db"
 export APP_DB_KNOWLEDGE="/srv/iguana/knowledge_base.db"
 export APP_DB_OBJECTS="/srv/iguana/objects.db"
-export APP_DB_SETTINGS="/srv/iguana/settings.db"
 export APP_DB_BOT_RUNTIME="/srv/iguana/bot_runtime.db"
 export SUPPORT_BOT_DATABASE_PATH="/srv/iguana/panel_runtime.db"
 export APP_BOT_DATABASE_DIR="/srv/iguana/bots"

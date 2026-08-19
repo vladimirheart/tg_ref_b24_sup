@@ -120,7 +120,7 @@ Shared JSON-файлы лежат в `config/shared/`:
 - `clients.db`
 - `knowledge_base.db`
 - `objects.db`
-- `settings.db`
+- explicit legacy `bot-<channelId>.db`, если shard-layer отдельно включён
 
 ### 5.2 Bot database directory
 
@@ -183,7 +183,6 @@ python scripts/report-iguana-storage.py
 - `APP_DB_CLIENTS`
 - `APP_DB_KNOWLEDGE`
 - `APP_DB_OBJECTS`
-- `APP_DB_SETTINGS`
 - `APP_BOT_DATABASE_DIR`
 
 Storage:

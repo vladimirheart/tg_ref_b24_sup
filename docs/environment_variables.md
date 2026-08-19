@@ -44,7 +44,6 @@
 | `APP_DB_CLIENTS` | база клиентов | `clients.db` |
 | `APP_DB_KNOWLEDGE` | база знаний | `knowledge_base.db` |
 | `APP_DB_OBJECTS` | база объектов | `objects.db` |
-| `APP_DB_SETTINGS` | общая база настроек | `settings.db` |
 | `APP_BOT_DATABASE_DIR` | каталог баз каждого бота | `../bot_databases` |
 | `APP_BOT_SQLITE_PER_CHANNEL_SHARD_ENABLED` | разрешить legacy bootstrap `bot-<channelId>.db` shard-layer даже в SQLite mode | `false` |
 
@@ -79,7 +78,7 @@ export SPRING_DATASOURCE_USERNAME="iguana"
 export SPRING_DATASOURCE_PASSWORD="secret"
 ```
 
-В этом режиме `spring-panel` использует единый primary datasource для runtime/user/bot/settings контуров, а `java-bot` получает тот же JDBC-контракт через переменные окружения и не должен инициализировать схему самостоятельно.
+В этом режиме `spring-panel` использует единый primary datasource для runtime/business контуров, а `java-bot` получает тот же JDBC-контракт через переменные окружения и не должен инициализировать схему самостоятельно.
 
 Для `java-bot` действует явная граница:
 
@@ -91,6 +90,7 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 
 - локальные `APP_DB_*` SQLite-пути автоматически подставляются только в явном `APP_DB_MODE=sqlite`;
 - normal runtime path с `APP_DB_MODE=postgresql` больше не получает скрытый SQLite compatibility bootstrap через `EnvDefaultsInitializer`.
+- `APP_DB_SETTINGS` больше не входит в active runtime/env contract: отдельный `settings.db` registry layer удалён как legacy topology.
 
 Для first-run bootstrap после стартового production-slice `01-183` действует ещё одно правило:
 

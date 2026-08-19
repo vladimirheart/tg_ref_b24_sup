@@ -25,7 +25,7 @@
 - `bot_runtime.db` - shared bot/runtime compatibility-контур, который больше
   не поднимается как отдельный live Spring datasource в external runtime;
 - `objects.db` - реально используемый отдельный контур паспортов объектов;
-- `clients.db`, `knowledge_base.db`, `settings.db` - transitional/registry
+- `clients.db`, `knowledge_base.db` - transitional/compatibility
   контуры, из которых не все являются текущим business source of truth.
 
 Отдельно существует каталог `bot-<channelId>.db`, который создаётся панелью
@@ -42,7 +42,6 @@
 | `clients` | `clients.db` | `app.datasource.clients-sqlite.path` / `APP_DB_CLIENTS` | `spring-panel` | Bootstrap secondary БД клиентов | transitional |
 | `knowledge` | `knowledge_base.db` | `app.datasource.knowledge-sqlite.path` / `APP_DB_KNOWLEDGE` | `spring-panel` | Bootstrap secondary knowledge БД | transitional |
 | `objects` | `objects.db` | `app.datasource.objects-sqlite.path` / `APP_DB_OBJECTS` | `spring-panel` | Отдельный контур паспортов объектов | active |
-| `settings-registry` | `settings.db` | `app.datasource.settings-sqlite.path` / `APP_DB_SETTINGS` | `spring-panel` | Registry/linking для DB-метаданных и bot instance mapping | transitional |
 | `bot shard layer` | `bot-<channelId>.db` | `APP_BOT_DATABASE_DIR` | `spring-panel` | Per-channel bot файлы, создаются `BotDatabaseRegistry` | shard/legacy layer |
 
 ## 2. Как БД подключаются в `spring-panel`
@@ -161,9 +160,8 @@ runtime source.
 - `clients.db` и `knowledge_base.db` больше не поднимаются как общие Spring
   datasources и создаются только лениво из `DatabaseBootstrapService` в явном
   SQLite compatibility path;
-- `settings.db` также не поднимается как общий Spring datasource: его lazy
-  SQLite access остаётся только внутри `BotDatabaseRegistry` и только для
-  явного compatibility path.
+- отдельный `settings.db` registry contour удалён из active runtime wiring и
+  больше не поднимается даже как lazy compatibility datasource.
 - `objects.db` тоже больше не поднимается как отдельный общий Spring
   datasource: `ObjectPassportService` использует primary datasource в external
   runtime и ленивый SQLite datasource только в explicit compatibility path.
@@ -330,21 +328,20 @@ Bootstrap создаёт:
 Как и `clients.db`, этот файл больше не поднимается как отдельный live
 Spring datasource outside явного SQLite bootstrap path.
 
-### 3.8. `settings.db`
+### 3.8. Удалённый `settings.db` contour
 
-`settings.db` не является общей business БД настроек в широком смысле.
+Отдельный `settings.db` больше не входит в текущую active topology.
 
-Сейчас её основная роль - registry/metadata слой для bot/database wiring:
+Исторически он использовался как registry/metadata слой для:
 
 - `database_registry`
 - `bot_instances`
 - `database_links`
 
-Это обеспечивает `BotDatabaseRegistry`.
-
-Вывод: `settings.db` - служебный transitional реестр, а не полноценный
-source of truth для прикладных настроек панели. В external runtime он больше
-не должен выглядеть как отдельный live datasource contour.
+Но этот registry не читался как живой source of truth и только закреплял
+legacy multi-SQLite topology. Поэтому отдельный `settings.db` contour удалён,
+а `BotDatabaseRegistry` оставлен только как local helper для explicit
+`bot-<channelId>.db` shard bootstrap.
 
 ## 4. Как БД используются в `java-bot`
 
@@ -387,14 +384,14 @@ shard-layer больше не должен расти автоматически
 - хранить channel-local bot файлы;
 - создавать `bot_users`;
 - создавать `bot_chat_history`;
-- регистрировать связь канала с его bot DB.
+- создавать локальные bot-side таблицы без отдельного registry DB.
 
 Теперь по умолчанию `app.bots.sqlite-per-channel-shard-enabled=false`, поэтому:
 
 - per-channel `bot-<channelId>.db` не bootstrap-ятся автоматически даже в
   SQLite compatibility runtime;
-- registry/link metadata для bot shard layer тоже не должны расти без явного
-  opt-in;
+- registry/link metadata для bot shard layer больше не должны расти вообще
+  через отдельный `settings.db`;
 - сам слой остаётся только как legacy compatibility механизм, а не как
   нормальная topology живой системы.
 
@@ -414,10 +411,6 @@ shard-layer больше не должен расти автоматически
 - `clients.db` и `knowledge_base.db` существуют, но многие их домены уже
   фактически живут в primary runtime.
 
-### Что является служебным transitional контуром
-
-- `settings.db`
-
 ## 7. Практическая интерпретация для разработчика
 
 Если задача касается:
@@ -427,8 +420,6 @@ shard-layer больше не должен расти автоматически
 - пользователей, ролей и прав - в `panel_identity.db`;
 - SSL/RMS/iiko monitoring - в `monitoring.db`;
 - паспортов объектов - в `objects.db`;
-- bot registry и связи каналов с bot shard-файлами - в `settings.db`, но этот
-  слой уже должен считаться legacy opt-in;
 - bot-side client/unblock/runtime хвостов - в `bot_runtime.db` и частично в
   `bot-<channelId>.db`.
 
@@ -456,8 +447,9 @@ shard-layer больше не должен расти автоматически
 - `panel_runtime.db` остаётся центральной business БД проекта;
 - `panel_identity.db` и `monitoring.db` уже выделены правильно;
 - `objects.db` реально используется отдельно;
-- `clients.db`, `knowledge_base.db`, `settings.db` нужно трактовать как
+- `clients.db` и `knowledge_base.db` нужно трактовать как
   transitional/служебные контуры, а не как равноправные business source of
   truth;
+- `settings.db` как отдельный registry contour уже удалён из active runtime contract;
 - `bot_runtime.db` уже не поднимается как отдельный live datasource bean, но
   разделение panel и bot transport/runtime данных ещё не доведено до конца.

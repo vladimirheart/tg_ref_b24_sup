@@ -122,8 +122,7 @@ public class LegacySqliteImportService implements ApplicationRunner {
         new SourceGroup("bot-runtime", List.of("APP_DB_BOT_RUNTIME", "APP_DB_BOT"), List.of("bot_runtime.db", "bot_database.db")),
         new SourceGroup("clients", List.of("APP_DB_CLIENTS"), List.of("clients.db")),
         new SourceGroup("knowledge", List.of("APP_DB_KNOWLEDGE"), List.of("knowledge_base.db")),
-        new SourceGroup("objects", List.of("APP_DB_OBJECTS", "APP_DB_OBJECT_PASSPORTS"), List.of("objects.db", "object_passports.db")),
-        new SourceGroup("settings", List.of("APP_DB_SETTINGS"), List.of("settings.db"))
+        new SourceGroup("objects", List.of("APP_DB_OBJECTS", "APP_DB_OBJECT_PASSPORTS"), List.of("objects.db", "object_passports.db"))
     );
 
     private static final Map<String, Map<String, String>> COLUMN_ALIASES = Map.of(

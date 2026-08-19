@@ -29,7 +29,7 @@ class EnvDefaultsInitializerTest {
         assertTrue(environment.getProperty("APP_DB_TICKETS").endsWith("panel_runtime.db"));
         assertTrue(environment.getProperty("APP_DB_PANEL_IDENTITY").endsWith("panel_identity.db"));
         assertTrue(environment.getProperty("APP_DB_USERS").endsWith("panel_identity.db"));
-        assertTrue(environment.getProperty("APP_DB_SETTINGS").endsWith("settings.db"));
+        assertNull(environment.getProperty("APP_DB_SETTINGS"));
     }
 
     @Test

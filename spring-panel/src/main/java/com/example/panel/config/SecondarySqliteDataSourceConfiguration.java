@@ -7,8 +7,7 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties({
     ClientsSqliteDataSourceProperties.class,
     KnowledgeSqliteDataSourceProperties.class,
-    ObjectsSqliteDataSourceProperties.class,
-    SettingsSqliteDataSourceProperties.class
+    ObjectsSqliteDataSourceProperties.class
 })
 public class SecondarySqliteDataSourceConfiguration {
 }

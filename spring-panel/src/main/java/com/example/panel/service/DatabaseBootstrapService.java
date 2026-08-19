@@ -6,7 +6,6 @@ import com.example.panel.config.ClientsSqliteDataSourceProperties;
 import com.example.panel.config.KnowledgeSqliteDataSourceProperties;
 import com.example.panel.config.ObjectsSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
-import com.example.panel.config.SettingsSqliteDataSourceProperties;
 import com.example.panel.config.SqliteConnectionConfigSupport;
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
@@ -28,7 +27,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     private final ClientsSqliteDataSourceProperties clientsProperties;
     private final KnowledgeSqliteDataSourceProperties knowledgeProperties;
     private final ObjectsSqliteDataSourceProperties objectsProperties;
-    private final SettingsSqliteDataSourceProperties settingsProperties;
     private final ChannelRepository channelRepository;
     private final BotDatabaseRegistry botDatabaseRegistry;
     private final BotProcessProperties botProcessProperties;
@@ -39,7 +37,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                                     ClientsSqliteDataSourceProperties clientsProperties,
                                     KnowledgeSqliteDataSourceProperties knowledgeProperties,
                                     ObjectsSqliteDataSourceProperties objectsProperties,
-                                    SettingsSqliteDataSourceProperties settingsProperties,
                                     ChannelRepository channelRepository,
                                     BotDatabaseRegistry botDatabaseRegistry,
                                     BotProcessProperties botProcessProperties,
@@ -49,7 +46,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         this.clientsProperties = clientsProperties;
         this.knowledgeProperties = knowledgeProperties;
         this.objectsProperties = objectsProperties;
-        this.settingsProperties = settingsProperties;
         this.channelRepository = channelRepository;
         this.botDatabaseRegistry = botDatabaseRegistry;
         this.botProcessProperties = botProcessProperties;
@@ -67,8 +63,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         initializeKnowledgeDatabase();
         initializeObjectsDatabase();
         initializeSharedBotRuntimeDatabase();
-        botDatabaseRegistry.ensureSettingsSchema();
-        registerDatabaseLinks();
         initializeBotDatabases();
     }
 
@@ -197,21 +191,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
             "CREATE INDEX IF NOT EXISTS idx_client_unblock_requests_user " +
                 "ON client_unblock_requests(user_id)"
         ), "bot_runtime.db");
-    }
-
-    private void registerDatabaseLinks() {
-        botDatabaseRegistry.registerDatabase("clients", clientsProperties.getNormalizedPath().toString());
-        botDatabaseRegistry.registerDatabase("knowledge", knowledgeProperties.getNormalizedPath().toString());
-        botDatabaseRegistry.registerDatabase("objects", objectsProperties.getNormalizedPath().toString());
-        botDatabaseRegistry.registerDatabase("settings", settingsProperties.getNormalizedPath().toString());
-
-        botDatabaseRegistry.registerDatabaseLink("settings", "global", "clients", clientsProperties.getNormalizedPath().toString());
-        botDatabaseRegistry.registerDatabaseLink("settings", "global", "knowledge", knowledgeProperties.getNormalizedPath().toString());
-        botDatabaseRegistry.registerDatabaseLink("settings", "global", "objects", objectsProperties.getNormalizedPath().toString());
-        if (botProcessProperties.isSqlitePerChannelShardEnabled()) {
-            botDatabaseRegistry.registerDatabase("bots", botProcessProperties.resolveDatabaseDir().toString());
-            botDatabaseRegistry.registerDatabaseLink("settings", "global", "bots", botProcessProperties.resolveDatabaseDir().toString());
-        }
     }
 
     private void initializeBotDatabases() {

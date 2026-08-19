@@ -133,7 +133,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 - `clients.db` - transitional контур клиентов;
 - `knowledge_base.db` - transitional контур базы знаний;
 - `objects.db` - transitional контур паспортов объектов;
-- `settings.db` - общие настройки и registry/bootstrap данные.
+- per-channel `bot-<channelId>.db` - только explicit legacy shard-layer при отдельном opt-in.
 
 Подробная карта путей и canonical aliases описана в [docs/database-paths.md](docs/database-paths.md).
 
@@ -155,7 +155,6 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 - `APP_DB_CLIENTS`
 - `APP_DB_KNOWLEDGE`
 - `APP_DB_OBJECTS`
-- `APP_DB_SETTINGS`
 - `APP_BOT_DATABASE_DIR`
 - `APP_STORAGE_ATTACHMENTS`
 - `TELEGRAM_BOT_TOKEN`
