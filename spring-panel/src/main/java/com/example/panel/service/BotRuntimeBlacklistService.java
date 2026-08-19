@@ -25,13 +25,16 @@ public class BotRuntimeBlacklistService {
     private final JdbcTemplate jdbcTemplate;
     private final PanelIntegrationTransportMode integrationTransportMode;
     private final UiEventStreamService uiEventStreamService;
+    private final RuntimeCoordinationService runtimeCoordinationService;
 
     public BotRuntimeBlacklistService(JdbcTemplate jdbcTemplate,
                                       PanelIntegrationTransportMode integrationTransportMode,
-                                      UiEventStreamService uiEventStreamService) {
+                                      UiEventStreamService uiEventStreamService,
+                                      RuntimeCoordinationService runtimeCoordinationService) {
         this.jdbcTemplate = jdbcTemplate;
         this.integrationTransportMode = integrationTransportMode;
         this.uiEventStreamService = uiEventStreamService;
+        this.runtimeCoordinationService = runtimeCoordinationService;
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +113,10 @@ public class BotRuntimeBlacklistService {
         if (!integrationTransportMode.isRabbitMqMode()) {
             return;
         }
+        runtimeCoordinationService.runWithLease("bot-runtime-blacklist-expiry", Duration.ofMinutes(5), this::expireOldPendingRequestsInternal);
+    }
+
+    void expireOldPendingRequestsInternal() {
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime threshold = now.minusDays(30);
         Timestamp thresholdTimestamp = Timestamp.from(threshold.toInstant());

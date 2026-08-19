@@ -55,7 +55,19 @@ class PostgresRuntimeReadinessVerifierTest {
                 .doesNotThrowAnyException();
 
         verify(jdbcTemplate).queryForList("SELECT id, event_type, ticket_id, channel_id, created_at FROM ui_event_outbox WHERE 1 = 0");
-        verify(jdbcTemplate).queryForList("SELECT event_id, event_type, ticket_id, source, status FROM integration_inbound_event_inbox WHERE 1 = 0");
+        verify(jdbcTemplate).queryForList("""
+            SELECT event_id,
+                   event_kind,
+                   ticket_id,
+                   transport_source,
+                   status,
+                   attempt_count,
+                   processing_started_at,
+                   updated_at
+              FROM integration_inbound_event_inbox
+             WHERE 1 = 0
+            """);
+        verify(jdbcTemplate).queryForList("SELECT worker_key, cursor_text, updated_at FROM runtime_worker_checkpoints WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT id, incident_key, status, severity, title, created_at, updated_at FROM incidents WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT incident_id, relation_type, relation_key, primary_relation FROM incident_relations WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT incident_id, event_type, actor, created_at FROM incident_events WHERE 1 = 0");

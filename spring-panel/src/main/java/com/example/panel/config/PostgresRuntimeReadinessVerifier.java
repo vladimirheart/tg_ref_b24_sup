@@ -196,7 +196,21 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
             "SELECT id, event_type, ticket_id, channel_id, created_at FROM ui_event_outbox WHERE 1 = 0"
         );
         jdbcTemplate.queryForList(
-            "SELECT event_id, event_type, ticket_id, source, status FROM integration_inbound_event_inbox WHERE 1 = 0"
+            """
+            SELECT event_id,
+                   event_kind,
+                   ticket_id,
+                   transport_source,
+                   status,
+                   attempt_count,
+                   processing_started_at,
+                   updated_at
+              FROM integration_inbound_event_inbox
+             WHERE 1 = 0
+            """
+        );
+        jdbcTemplate.queryForList(
+            "SELECT worker_key, cursor_text, updated_at FROM runtime_worker_checkpoints WHERE 1 = 0"
         );
     }
 

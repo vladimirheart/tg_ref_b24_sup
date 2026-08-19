@@ -40,7 +40,8 @@ class BotRuntimeBlacklistServiceTest {
         BotRuntimeBlacklistService service = new BotRuntimeBlacklistService(
             jdbcTemplate,
             new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
-            uiEventStreamService
+            uiEventStreamService,
+            passthroughCoordinationService()
         );
 
         BotRuntimeBlacklistService.PendingUnblockSummaryLookup summary = service.pendingSummary(2);
@@ -57,11 +58,22 @@ class BotRuntimeBlacklistServiceTest {
         BotRuntimeBlacklistService service = new BotRuntimeBlacklistService(
             jdbcTemplate,
             new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")),
-            uiEventStreamService
+            uiEventStreamService,
+            passthroughCoordinationService()
         );
 
         service.expireOldPendingRequests();
 
         verify(jdbcTemplate, never()).query(any(String.class), any(org.springframework.jdbc.core.RowMapper.class), any());
+    }
+
+    private RuntimeCoordinationService passthroughCoordinationService() {
+        RuntimeCoordinationService coordinationService = mock(RuntimeCoordinationService.class);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            Runnable action = invocation.getArgument(2);
+            action.run();
+            return null;
+        }).when(coordinationService).runWithLease(any(), any(), any());
+        return coordinationService;
     }
 }

@@ -14,22 +14,27 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 public class UiEventOutboxWatcher {
 
+    private static final String CHECKPOINT_KEY = "ui-event-outbox-watch";
+
     private final JdbcTemplate jdbcTemplate;
     private final DialogRealtimeEventService dialogRealtimeEventService;
     private final RuntimeCoordinationService runtimeCoordinationService;
+    private final RuntimeWorkerCheckpointService checkpointService;
     private final AtomicLong lastProcessedId = new AtomicLong(0L);
 
     public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate,
                                 DialogRealtimeEventService dialogRealtimeEventService,
-                                RuntimeCoordinationService runtimeCoordinationService) {
+                                RuntimeCoordinationService runtimeCoordinationService,
+                                RuntimeWorkerCheckpointService checkpointService) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogRealtimeEventService = dialogRealtimeEventService;
         this.runtimeCoordinationService = runtimeCoordinationService;
+        this.checkpointService = checkpointService;
     }
 
     @PostConstruct
     void initialize() {
-        lastProcessedId.set(readMaxId());
+        lastProcessedId.set(checkpointService.readLongCursorOrInitialize(CHECKPOINT_KEY, this::readMaxId));
     }
 
     @Scheduled(fixedDelayString = "${panel.ui-event-outbox.watch-interval-ms:1000}")
@@ -60,6 +65,7 @@ public class UiEventOutboxWatcher {
                 }
                 if (maxSeen > afterId) {
                     lastProcessedId.set(maxSeen);
+                    checkpointService.saveLongCursor(CHECKPOINT_KEY, maxSeen);
                 }
             }, afterId);
         });

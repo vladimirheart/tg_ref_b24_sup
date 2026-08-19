@@ -73,7 +73,8 @@ class DialogAutoCloseSchedulerServiceTest {
             uiEventOutboxAppendService,
             followUpTaskService,
             new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
-            jdbcTemplate
+            jdbcTemplate,
+            passthroughCoordinationService()
         );
 
         DialogAutoCloseSchedulerService.AutoCloseRunResult result = service.runAutoCloseSweep(Map.of(
@@ -135,7 +136,8 @@ class DialogAutoCloseSchedulerServiceTest {
             mock(UiEventOutboxAppendService.class),
             mock(DialogAutoCloseFollowUpTaskService.class),
             new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
-            mock(JdbcTemplate.class)
+            mock(JdbcTemplate.class),
+            passthroughCoordinationService()
         );
 
         DialogAutoCloseSchedulerService.AutoCloseRunResult result = service.runAutoCloseSweep(Map.of(
@@ -149,5 +151,15 @@ class DialogAutoCloseSchedulerServiceTest {
         assertThat(result.closedTickets()).isZero();
         verify(ticketRepository, never()).save(any());
         verify(ticketActiveRepository, never()).deleteById("T-901");
+    }
+
+    private RuntimeCoordinationService passthroughCoordinationService() {
+        RuntimeCoordinationService coordinationService = mock(RuntimeCoordinationService.class);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            Runnable action = invocation.getArgument(2);
+            action.run();
+            return null;
+        }).when(coordinationService).runWithLease(any(), any(), any());
+        return coordinationService;
     }
 }

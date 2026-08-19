@@ -29,7 +29,10 @@ public class OperatorNotificationWatcher {
     private static final Logger log = LoggerFactory.getLogger(OperatorNotificationWatcher.class);
     private static final int DEFAULT_FIRST_RESPONSE_TARGET_MINUTES = 24 * 60;
     private static final Duration LIVE_MESSAGE_REPLAY_WINDOW = Duration.ofDays(1);
+    private static final Duration WATCH_LEASE_TTL = Duration.ofSeconds(45);
     private static final DateTimeFormatter LOCAL_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String CHAT_HISTORY_CHECKPOINT_KEY = "operator-notification-watch.chat-history";
+    private static final String FEEDBACK_CHECKPOINT_KEY = "operator-notification-watch.feedbacks";
 
     private final JdbcTemplate jdbcTemplate;
     private final NotificationService notificationService;
@@ -38,6 +41,8 @@ public class OperatorNotificationWatcher {
     private final ChannelRepository channelRepository;
     private final DialogAuditService dialogAuditService;
     private final SharedConfigService sharedConfigService;
+    private final RuntimeCoordinationService runtimeCoordinationService;
+    private final RuntimeWorkerCheckpointService checkpointService;
     private final UiEventStreamService uiEventStreamService;
     @Autowired
     private DialogNotificationService dialogNotificationService;
@@ -60,6 +65,8 @@ public class OperatorNotificationWatcher {
                 channelRepository,
                 dialogAuditService,
                 sharedConfigService,
+                null,
+                new RuntimeWorkerCheckpointService(jdbcTemplate),
                 null
         );
     }
@@ -72,6 +79,8 @@ public class OperatorNotificationWatcher {
                                        ChannelRepository channelRepository,
                                        DialogAuditService dialogAuditService,
                                        SharedConfigService sharedConfigService,
+                                       RuntimeCoordinationService runtimeCoordinationService,
+                                       RuntimeWorkerCheckpointService checkpointService,
                                        UiEventStreamService uiEventStreamService) {
         this.jdbcTemplate = jdbcTemplate;
         this.notificationService = notificationService;
@@ -80,22 +89,31 @@ public class OperatorNotificationWatcher {
         this.channelRepository = channelRepository;
         this.dialogAuditService = dialogAuditService;
         this.sharedConfigService = sharedConfigService;
+        this.runtimeCoordinationService = runtimeCoordinationService;
+        this.checkpointService = checkpointService;
         this.uiEventStreamService = uiEventStreamService;
     }
 
     @PostConstruct
     void initialize() {
-        lastChatHistoryId.set(readMaxId("chat_history"));
-        lastFeedbackId.set(readMaxId("feedbacks"));
+        lastChatHistoryId.set(checkpointService.readLongCursorOrInitialize(CHAT_HISTORY_CHECKPOINT_KEY, () -> readMaxId("chat_history")));
+        lastFeedbackId.set(checkpointService.readLongCursorOrInitialize(FEEDBACK_CHECKPOINT_KEY, () -> readMaxId("feedbacks")));
         log.info("Operator notification watcher initialized (chatHistoryId={}, feedbackId={})",
                 lastChatHistoryId.get(), lastFeedbackId.get());
     }
 
     @Scheduled(fixedDelayString = "${panel.notifications.watch-interval-ms:12000}")
     void watch() {
-        watchChatHistoryMessages();
-        watchFeedbacks();
-        watchFirstResponseOverdue();
+        Runnable task = () -> {
+            watchChatHistoryMessages();
+            watchFeedbacks();
+            watchFirstResponseOverdue();
+        };
+        if (runtimeCoordinationService == null) {
+            task.run();
+            return;
+        }
+        runtimeCoordinationService.runWithLease("operator-notification-watch", WATCH_LEASE_TTL, task);
     }
 
     private void watchChatHistoryMessages() {
@@ -149,6 +167,7 @@ public class OperatorNotificationWatcher {
                     }
                     if (maxSeen > afterId) {
                         lastChatHistoryId.set(maxSeen);
+                        checkpointService.saveLongCursor(CHAT_HISTORY_CHECKPOINT_KEY, maxSeen);
                     }
                     return null;
                 },
@@ -225,6 +244,7 @@ public class OperatorNotificationWatcher {
                     }
                     if (maxSeen > afterId) {
                         lastFeedbackId.set(maxSeen);
+                        checkpointService.saveLongCursor(FEEDBACK_CHECKPOINT_KEY, maxSeen);
                     }
                     return null;
                 },

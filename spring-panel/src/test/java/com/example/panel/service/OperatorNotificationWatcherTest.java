@@ -33,6 +33,8 @@ class OperatorNotificationWatcherTest {
     private ChannelRepository channelRepository;
     private DialogAuditService dialogAuditService;
     private SharedConfigService sharedConfigService;
+    private RuntimeCoordinationService runtimeCoordinationService;
+    private RuntimeWorkerCheckpointService checkpointService;
     private OperatorNotificationWatcher watcher;
 
     @BeforeEach
@@ -49,6 +51,8 @@ class OperatorNotificationWatcherTest {
         channelRepository = mock(ChannelRepository.class);
         dialogAuditService = mock(DialogAuditService.class);
         sharedConfigService = mock(SharedConfigService.class);
+        runtimeCoordinationService = passthroughCoordinationService();
+        checkpointService = new RuntimeWorkerCheckpointService(jdbcTemplate);
 
         watcher = new OperatorNotificationWatcher(
                 jdbcTemplate,
@@ -57,7 +61,10 @@ class OperatorNotificationWatcherTest {
                 alertQueueService,
                 channelRepository,
                 dialogAuditService,
-                sharedConfigService
+                sharedConfigService,
+                runtimeCoordinationService,
+                checkpointService,
+                null
         );
         watcher.initialize();
     }
@@ -224,5 +231,15 @@ class OperatorNotificationWatcherTest {
                     created_at TEXT
                 )
                 """);
+    }
+
+    private RuntimeCoordinationService passthroughCoordinationService() {
+        RuntimeCoordinationService coordinationService = mock(RuntimeCoordinationService.class);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            Runnable action = invocation.getArgument(2);
+            action.run();
+            return null;
+        }).when(coordinationService).runWithLease(anyString(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        return coordinationService;
     }
 }

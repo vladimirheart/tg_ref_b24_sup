@@ -47,6 +47,7 @@ public class DialogAutoCloseSchedulerService {
     private final DialogAutoCloseFollowUpTaskService dialogAutoCloseFollowUpTaskService;
     private final PanelIntegrationTransportMode integrationTransportMode;
     private final JdbcTemplate jdbcTemplate;
+    private final RuntimeCoordinationService runtimeCoordinationService;
 
     public DialogAutoCloseSchedulerService(TicketActiveRepository ticketActiveRepository,
                                            TicketRepository ticketRepository,
@@ -56,7 +57,8 @@ public class DialogAutoCloseSchedulerService {
                                            UiEventOutboxAppendService uiEventOutboxAppendService,
                                            DialogAutoCloseFollowUpTaskService dialogAutoCloseFollowUpTaskService,
                                            PanelIntegrationTransportMode integrationTransportMode,
-                                           JdbcTemplate jdbcTemplate) {
+                                           JdbcTemplate jdbcTemplate,
+                                           RuntimeCoordinationService runtimeCoordinationService) {
         this.ticketActiveRepository = ticketActiveRepository;
         this.ticketRepository = ticketRepository;
         this.ticketSpanRepository = ticketSpanRepository;
@@ -66,6 +68,7 @@ public class DialogAutoCloseSchedulerService {
         this.dialogAutoCloseFollowUpTaskService = dialogAutoCloseFollowUpTaskService;
         this.integrationTransportMode = integrationTransportMode;
         this.jdbcTemplate = jdbcTemplate;
+        this.runtimeCoordinationService = runtimeCoordinationService;
     }
 
     @Scheduled(cron = "0 */10 * * * *")
@@ -74,9 +77,11 @@ public class DialogAutoCloseSchedulerService {
         if (!integrationTransportMode.isRabbitMqMode()) {
             return;
         }
-        AutoCloseRunResult result = runAutoCloseSweep(sharedConfigService.loadSettings());
-        log.info("Panel auto-close scheduler checked {} active tickets and closed {}",
-            result.checkedTickets(), result.closedTickets());
+        runtimeCoordinationService.runWithLease("dialog-auto-close", Duration.ofMinutes(5), () -> {
+            AutoCloseRunResult result = runAutoCloseSweep(sharedConfigService.loadSettings());
+            log.info("Panel auto-close scheduler checked {} active tickets and closed {}",
+                result.checkedTickets(), result.closedTickets());
+        });
     }
 
     @Transactional
