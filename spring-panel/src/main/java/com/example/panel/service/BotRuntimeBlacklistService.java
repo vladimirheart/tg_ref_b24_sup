@@ -11,7 +11,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -24,16 +23,13 @@ public class BotRuntimeBlacklistService {
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
 
     private final JdbcTemplate jdbcTemplate;
-    private final JdbcTemplate botJdbcTemplate;
     private final PanelIntegrationTransportMode integrationTransportMode;
     private final UiEventStreamService uiEventStreamService;
 
     public BotRuntimeBlacklistService(JdbcTemplate jdbcTemplate,
-                                      @Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate,
                                       PanelIntegrationTransportMode integrationTransportMode,
                                       UiEventStreamService uiEventStreamService) {
         this.jdbcTemplate = jdbcTemplate;
-        this.botJdbcTemplate = botJdbcTemplate;
         this.integrationTransportMode = integrationTransportMode;
         this.uiEventStreamService = uiEventStreamService;
     }
@@ -117,7 +113,7 @@ public class BotRuntimeBlacklistService {
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime threshold = now.minusDays(30);
         Timestamp thresholdTimestamp = Timestamp.from(threshold.toInstant());
-        List<Long> expiredIds = botJdbcTemplate.query(
+        List<Long> expiredIds = jdbcTemplate.query(
             """
                 SELECT id
                 FROM client_unblock_requests
@@ -129,7 +125,7 @@ public class BotRuntimeBlacklistService {
         if (expiredIds.isEmpty()) {
             return;
         }
-        int updated = botJdbcTemplate.update(
+        int updated = jdbcTemplate.update(
             """
                 UPDATE client_unblock_requests
                 SET status = 'expired',
@@ -191,7 +187,7 @@ public class BotRuntimeBlacklistService {
         String normalizedReason = StringUtils.hasText(reason) ? reason.trim() : null;
         Timestamp nowTimestamp = Timestamp.from(now.toInstant());
         if (existing != null && existing.id() != null) {
-            botJdbcTemplate.update(
+            jdbcTemplate.update(
                 """
                     UPDATE client_unblock_requests
                     SET channel_id = ?, reason = ?, created_at = ?, status = 'pending', decided_at = NULL, decided_by = NULL, decision_comment = NULL
@@ -204,7 +200,7 @@ public class BotRuntimeBlacklistService {
             );
             return new PendingUnblockRequestLookup(existing.id(), userId, channelId, normalizedReason, now, "pending");
         }
-        botJdbcTemplate.update(
+        jdbcTemplate.update(
             """
                 INSERT INTO client_unblock_requests(user_id, channel_id, reason, created_at, status, decided_at, decided_by, decision_comment)
                 VALUES (?, ?, ?, ?, 'pending', NULL, NULL, NULL)
@@ -219,7 +215,7 @@ public class BotRuntimeBlacklistService {
     }
 
     private long countPendingRequests() {
-        Long count = botJdbcTemplate.queryForObject(
+        Long count = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM client_unblock_requests WHERE status = 'pending'",
             Long.class
         );
@@ -227,7 +223,7 @@ public class BotRuntimeBlacklistService {
     }
 
     private List<PendingUnblockRequestLookup> loadRecentPendingRequests(int limit) {
-        return botJdbcTemplate.query(
+        return jdbcTemplate.query(
             """
                 SELECT id, user_id, channel_id, reason, created_at, status
                 FROM client_unblock_requests
@@ -241,7 +237,7 @@ public class BotRuntimeBlacklistService {
     }
 
     private Optional<PendingUnblockRequestLookup> findLatestPendingRequest(String userId) {
-        return Optional.ofNullable(botJdbcTemplate.query(
+        return Optional.ofNullable(jdbcTemplate.query(
             """
                 SELECT id, user_id, channel_id, reason, created_at, status
                 FROM client_unblock_requests
@@ -255,7 +251,7 @@ public class BotRuntimeBlacklistService {
     }
 
     private Optional<PendingUnblockRequestLookup> findLatestRequest(String userId) {
-        return Optional.ofNullable(botJdbcTemplate.query(
+        return Optional.ofNullable(jdbcTemplate.query(
             """
                 SELECT id, user_id, channel_id, reason, created_at, status
                 FROM client_unblock_requests

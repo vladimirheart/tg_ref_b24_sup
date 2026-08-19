@@ -5,7 +5,6 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -13,18 +12,15 @@ import org.springframework.util.StringUtils;
 @Service
 public class UnblockRequestService {
 
-    private final JdbcTemplate botJdbcTemplate;
     private final JdbcTemplate jdbcTemplate;
     private final BlacklistHistoryService blacklistHistoryService;
     private final DialogNotificationService dialogNotificationService;
     private final UiEventStreamService uiEventStreamService;
 
-    public UnblockRequestService(@Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate,
-                                 JdbcTemplate jdbcTemplate,
+    public UnblockRequestService(JdbcTemplate jdbcTemplate,
                                  BlacklistHistoryService blacklistHistoryService,
                                  DialogNotificationService dialogNotificationService,
                                  UiEventStreamService uiEventStreamService) {
-        this.botJdbcTemplate = botJdbcTemplate;
         this.jdbcTemplate = jdbcTemplate;
         this.blacklistHistoryService = blacklistHistoryService;
         this.dialogNotificationService = dialogNotificationService;
@@ -32,7 +28,7 @@ public class UnblockRequestService {
     }
 
     public long countPendingRequests() {
-        Long count = botJdbcTemplate.queryForObject(
+        Long count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM client_unblock_requests WHERE status = 'pending'",
                 Long.class
         );
@@ -59,7 +55,7 @@ public class UnblockRequestService {
             """.formatted(StringUtils.hasText(normalizedStatus) ? "WHERE r.status = ?" : "");
 
         Object[] args = StringUtils.hasText(normalizedStatus) ? new Object[]{normalizedStatus} : new Object[]{};
-        return botJdbcTemplate.query(
+        return jdbcTemplate.query(
                 sql,
                 args,
                 (rs, rowNum) -> new UnblockRequestItem(
@@ -99,7 +95,7 @@ public class UnblockRequestService {
             clearUnblockRequestFlag(context.userId());
         }
 
-        botJdbcTemplate.update(
+        jdbcTemplate.update(
                 """
                     UPDATE client_unblock_requests
                     SET status = ?, decided_at = ?, decided_by = ?, decision_comment = ?
@@ -120,7 +116,7 @@ public class UnblockRequestService {
     }
 
     private Optional<UnblockDecisionContext> loadDecisionContext(long requestId) {
-        return Optional.ofNullable(botJdbcTemplate.query(
+        return Optional.ofNullable(jdbcTemplate.query(
                 """
                     SELECT id, user_id, status
                     FROM client_unblock_requests

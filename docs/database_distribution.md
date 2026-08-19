@@ -38,7 +38,7 @@
 | `panel-runtime` | `panel_runtime.db` | `app.datasource.sqlite.path` / `APP_DB_PANEL_RUNTIME` | `spring-panel`, `java-bot` | Главная runtime БД панели, JPA + primary `JdbcTemplate` | canonical |
 | `panel-identity` | `panel_identity.db` | `app.datasource.users-sqlite.path` / `APP_DB_PANEL_IDENTITY` | `spring-panel` | Пользователи, роли, auth/read-write через `usersJdbcTemplate` | canonical |
 | `monitoring` | `monitoring.db` | `app.datasource.monitoring-sqlite.path` / `APP_DB_MONITORING` | `spring-panel` | SQLite compatibility/bootstrap контур; в external runtime monitoring-domain идёт через primary PostgreSQL contour | compatibility |
-| `bot-runtime` | `bot_runtime.db` | `app.datasource.bot-sqlite.path` / `APP_DB_BOT_RUNTIME` | `spring-panel` | Bot-side данные через `botJdbcTemplate` | active, но частично transitional |
+| `bot-runtime` | `bot_runtime.db` | `app.datasource.bot-sqlite.path` / `APP_DB_BOT_RUNTIME` | `spring-panel` | SQLite compatibility/shared-bot contour; operator-facing feedback/unblock reads уже смещены в primary runtime | transitional |
 | `clients` | `clients.db` | `app.datasource.clients-sqlite.path` / `APP_DB_CLIENTS` | `spring-panel` | Bootstrap secondary БД клиентов | transitional |
 | `knowledge` | `knowledge_base.db` | `app.datasource.knowledge-sqlite.path` / `APP_DB_KNOWLEDGE` | `spring-panel` | Bootstrap secondary knowledge БД | transitional |
 | `objects` | `objects.db` | `app.datasource.objects-sqlite.path` / `APP_DB_OBJECTS` | `spring-panel` | Отдельный контур паспортов объектов | active |
@@ -138,11 +138,8 @@ app:
       path: ${APP_DB_BOT_RUNTIME:${APP_DB_BOT:bot_runtime.db}}
 ```
 
-С этим контуром работают:
-
-- `ClientsService`
-- `ClientProfileApiController`
-- `UnblockRequestService`
+С этим контуром теперь в основном живут compatibility/runtime-пути, а не
+operator-facing canonical reads.
 
 Важно: панель действительно умеет читать `bot_runtime.db`, но запуск самих
 `java-bot` процессов сейчас ориентирован прежде всего на `panel_runtime.db`,
@@ -242,13 +239,10 @@ SQLite compatibility path. В external PostgreSQL runtime monitoring-domain уж
 Этот файл подключён в панели как отдельный bot-side контур. Через него читаются
 и частично обновляются данные, связанные с bot/runtime слоем.
 
-По коду видно следующие реальные use cases:
-
-- `ClientsService` читает часть bot-side данных через `botJdbcTemplate`;
-- `ClientProfileApiController` использует `botJdbcTemplate` для внешнего
-  client context;
-- `UnblockRequestService` читает и обновляет `client_unblock_requests`
-  через `botJdbcTemplate`.
+По коду видно важный сдвиг: operator-facing сервисы панели уже не должны
+считать `bot_runtime.db` canonical owner для `feedbacks` и
+`client_unblock_requests`; эти таблицы читаются через основной runtime-контур,
+а отдельный bot contour остаётся в compatibility/runtime-роли.
 
 При этом есть важный архитектурный нюанс:
 

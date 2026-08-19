@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -44,16 +43,13 @@ public class ClientsService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ClientUsernameRepository clientUsernameRepository;
-    private final JdbcTemplate botJdbcTemplate;
     private final BlacklistHistoryService blacklistHistoryService;
 
     public ClientsService(JdbcTemplate jdbcTemplate,
                           ClientUsernameRepository clientUsernameRepository,
-                          @Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate,
                           BlacklistHistoryService blacklistHistoryService) {
         this.jdbcTemplate = jdbcTemplate;
         this.clientUsernameRepository = clientUsernameRepository;
-        this.botJdbcTemplate = botJdbcTemplate;
         this.blacklistHistoryService = blacklistHistoryService;
     }
 
@@ -521,7 +517,7 @@ public class ClientsService {
     }
 
     private Double loadAverageRating(long userId) {
-        return botJdbcTemplate.query(
+        return jdbcTemplate.query(
             "SELECT AVG(rating) AS avg_rating FROM feedbacks WHERE user_id = ?",
             rs -> {
                 if (!rs.next()) {
@@ -536,7 +532,7 @@ public class ClientsService {
 
     private List<ClientAnalyticsItem> loadRatingStats(long userId) {
         Map<Integer, Long> counts = new HashMap<>();
-        botJdbcTemplate.query(
+        jdbcTemplate.query(
             "SELECT rating, COUNT(*) AS rating_count FROM feedbacks WHERE user_id = ? GROUP BY rating",
             rs -> {
                 while (rs.next()) {

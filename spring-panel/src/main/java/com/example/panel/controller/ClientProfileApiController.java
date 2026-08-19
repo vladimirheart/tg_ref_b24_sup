@@ -36,7 +36,6 @@ import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -61,7 +60,6 @@ public class ClientProfileApiController {
         .build();
 
     private final JdbcTemplate jdbcTemplate;
-    private final JdbcTemplate botJdbcTemplate;
     private final ClientStatusRepository clientStatusRepository;
     private final ClientPhoneRepository clientPhoneRepository;
     private final BotDatabaseRegistry botDatabaseRegistry;
@@ -72,7 +70,6 @@ public class ClientProfileApiController {
     private final Path avatarsRoot;
 
     public ClientProfileApiController(JdbcTemplate jdbcTemplate,
-                                      @Qualifier("botJdbcTemplate") JdbcTemplate botJdbcTemplate,
                                       ClientStatusRepository clientStatusRepository,
                                       ClientPhoneRepository clientPhoneRepository,
                                       BotDatabaseRegistry botDatabaseRegistry,
@@ -83,7 +80,6 @@ public class ClientProfileApiController {
                                       @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir)
         throws IOException {
         this.jdbcTemplate = jdbcTemplate;
-        this.botJdbcTemplate = botJdbcTemplate;
         this.clientStatusRepository = clientStatusRepository;
         this.clientPhoneRepository = clientPhoneRepository;
         this.botDatabaseRegistry = botDatabaseRegistry;
@@ -338,7 +334,7 @@ public class ClientProfileApiController {
             info = loadExternalUserInfo(template, userId);
         }
         if (info.isEmpty()) {
-            info = loadExternalUserInfo(botJdbcTemplate, userId);
+            info = loadExternalUserInfo(jdbcTemplate, userId);
         }
         return info;
     }

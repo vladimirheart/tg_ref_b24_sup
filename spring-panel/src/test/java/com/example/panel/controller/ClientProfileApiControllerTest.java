@@ -70,7 +70,6 @@ class ClientProfileApiControllerTest {
                                                   PanelDatabaseRuntimeMode databaseRuntimeMode) throws Exception {
         return new ClientProfileApiController(
             mock(JdbcTemplate.class),
-            mock(JdbcTemplate.class),
             mock(ClientStatusRepository.class),
             mock(ClientPhoneRepository.class),
             botDatabaseRegistry,

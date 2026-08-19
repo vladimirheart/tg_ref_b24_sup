@@ -33,7 +33,7 @@ class ClientsServiceTest {
         when(clientUsernameRepository.findByUserIdOrderBySeenAtDesc(55L)).thenReturn(List.of());
         blacklistHistoryService = mock(BlacklistHistoryService.class);
         when(blacklistHistoryService.historyTableExists()).thenReturn(false);
-        service = new ClientsService(jdbcTemplate, clientUsernameRepository, jdbcTemplate, blacklistHistoryService);
+        service = new ClientsService(jdbcTemplate, clientUsernameRepository, blacklistHistoryService);
         createSchema();
     }
 

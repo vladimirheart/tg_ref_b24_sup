@@ -20,13 +20,12 @@ class BotRuntimeBlacklistServiceTest {
     @Test
     void pendingSummaryReturnsCountAndRecentRows() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        JdbcTemplate botJdbcTemplate = mock(JdbcTemplate.class);
         UiEventStreamService uiEventStreamService = mock(UiEventStreamService.class);
-        when(botJdbcTemplate.queryForObject(
+        when(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM client_unblock_requests WHERE status = 'pending'",
                 Long.class))
                 .thenReturn(3L);
-        when(botJdbcTemplate.query(any(String.class), any(org.springframework.jdbc.core.RowMapper.class), eq(2)))
+        when(jdbcTemplate.query(any(String.class), any(org.springframework.jdbc.core.RowMapper.class), eq(2)))
                 .thenAnswer(invocation -> List.of(
                         new BotRuntimeBlacklistService.PendingUnblockRequestLookup(
                                 1001L,
@@ -40,7 +39,6 @@ class BotRuntimeBlacklistServiceTest {
 
         BotRuntimeBlacklistService service = new BotRuntimeBlacklistService(
             jdbcTemplate,
-            botJdbcTemplate,
             new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
             uiEventStreamService
         );
@@ -55,17 +53,15 @@ class BotRuntimeBlacklistServiceTest {
     @Test
     void expireOldPendingRequestsSkipsOutsideRabbitMode() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        JdbcTemplate botJdbcTemplate = mock(JdbcTemplate.class);
         UiEventStreamService uiEventStreamService = mock(UiEventStreamService.class);
         BotRuntimeBlacklistService service = new BotRuntimeBlacklistService(
             jdbcTemplate,
-            botJdbcTemplate,
             new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")),
             uiEventStreamService
         );
 
         service.expireOldPendingRequests();
 
-        verify(botJdbcTemplate, never()).query(any(String.class), any(org.springframework.jdbc.core.RowMapper.class), any());
+        verify(jdbcTemplate, never()).query(any(String.class), any(org.springframework.jdbc.core.RowMapper.class), any());
     }
 }

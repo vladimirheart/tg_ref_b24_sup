@@ -31,8 +31,8 @@
 - `spring-panel` читает:
   - `panel_runtime.db` как основной business/source-of-truth контур UI;
   - `panel_identity.db` для auth, профилей, ролей, маршрутизации уведомлений;
-  - `monitoring.db` для RMS/SSL/iiko monitoring;
-  - `bot_runtime.db` и `bot-<channelId>.db` для bot-side history/unblock/runtime-хвостов;
+  - `monitoring.db` только как SQLite compatibility/bootstrap слой, тогда как live monitoring runtime в external mode уже идёт через primary contour;
+  - `bot_runtime.db` и `bot-<channelId>.db` только для remaining compatibility/runtime-хвостов, а не как canonical owner `feedbacks`/`client_unblock_requests`;
   - `objects.db` для паспортов объектов;
   - transitional `clients.db`, `knowledge_base.db`, `settings.db`.
 - `java-bot` читает:
