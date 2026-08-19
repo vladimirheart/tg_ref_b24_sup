@@ -41,7 +41,7 @@
 Пока этот graph остаётся рабочим runtime wiring, система ещё не переведена в final PostgreSQL contour.
 
 При этом отдельные operator-facing direct SQLite probes уже начинают вычищаться: например, client profile refresh больше не должен открывать per-channel `bot-<channelId>.db` в external PostgreSQL runtime path.
-Дополнительно часть ad-hoc SQLite DDL уже снята с live-bean’ов и возвращена под Flyway ownership; monitoring runtime alias и `settings.db` registry wiring уже частично выведены из production-like graph, но доменное разделение secondary contours пока ещё остаётся.
+Дополнительно часть ad-hoc SQLite DDL уже снята с live-bean’ов и возвращена под Flyway ownership; monitoring runtime alias, `settings.db` registry wiring и lazy-only bootstrap для `clients.db` / `knowledge_base.db` уже частично выведены из production-like graph, но доменное разделение secondary contours пока ещё остаётся.
 
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 

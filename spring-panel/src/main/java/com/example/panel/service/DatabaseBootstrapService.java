@@ -6,6 +6,7 @@ import com.example.panel.config.KnowledgeSqliteDataSourceProperties;
 import com.example.panel.config.ObjectsSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SettingsSqliteDataSourceProperties;
+import com.example.panel.config.SqliteConnectionConfigSupport;
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
 import java.util.List;
@@ -31,8 +32,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     private final ChannelRepository channelRepository;
     private final BotDatabaseRegistry botDatabaseRegistry;
     private final BotProcessProperties botProcessProperties;
-    private final DataSource clientsDataSource;
-    private final DataSource knowledgeDataSource;
     private final DataSource objectsDataSource;
     private final DataSource botDataSource;
     private final SqliteSchemaBootstrapSupport schemaBootstrapSupport;
@@ -45,8 +44,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                                     ChannelRepository channelRepository,
                                     BotDatabaseRegistry botDatabaseRegistry,
                                     BotProcessProperties botProcessProperties,
-                                    @Qualifier("clientsDataSource") DataSource clientsDataSource,
-                                    @Qualifier("knowledgeDataSource") DataSource knowledgeDataSource,
                                     @Qualifier("objectsDataSource") DataSource objectsDataSource,
                                     @Qualifier("botDataSource") DataSource botDataSource,
                                     SqliteSchemaBootstrapSupport schemaBootstrapSupport,
@@ -58,8 +55,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         this.channelRepository = channelRepository;
         this.botDatabaseRegistry = botDatabaseRegistry;
         this.botProcessProperties = botProcessProperties;
-        this.clientsDataSource = clientsDataSource;
-        this.knowledgeDataSource = knowledgeDataSource;
         this.objectsDataSource = objectsDataSource;
         this.botDataSource = botDataSource;
         this.schemaBootstrapSupport = schemaBootstrapSupport;
@@ -82,7 +77,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     }
 
     private void initializeClientsDatabase() {
-        schemaBootstrapSupport.initializeSchema(clientsDataSource, List.of(
+        schemaBootstrapSupport.initializeSchema(createClientsCompatibilityDataSource(), List.of(
             "CREATE TABLE IF NOT EXISTS clients (" +
                 "id INTEGER PRIMARY KEY, " +
                 "platform TEXT, " +
@@ -136,7 +131,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     }
 
     private void initializeKnowledgeDatabase() {
-        schemaBootstrapSupport.initializeSchema(knowledgeDataSource, List.of(
+        schemaBootstrapSupport.initializeSchema(createKnowledgeCompatibilityDataSource(), List.of(
             "CREATE TABLE IF NOT EXISTS knowledge_articles (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "title TEXT NOT NULL, " +
@@ -226,5 +221,13 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         for (Channel channel : channels) {
             botDatabaseRegistry.ensureBotDatabase(channel.getId(), channel.getPlatform());
         }
+    }
+
+    private DataSource createClientsCompatibilityDataSource() {
+        return SqliteConnectionConfigSupport.createDataSource(clientsProperties);
+    }
+
+    private DataSource createKnowledgeCompatibilityDataSource() {
+        return SqliteConnectionConfigSupport.createDataSource(knowledgeProperties);
     }
 }

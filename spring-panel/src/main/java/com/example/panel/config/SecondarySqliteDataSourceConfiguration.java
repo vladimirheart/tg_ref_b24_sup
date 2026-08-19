@@ -20,30 +20,6 @@ public class SecondarySqliteDataSourceConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(SecondarySqliteDataSourceConfiguration.class);
 
-    @Bean(name = "clientsDataSource")
-    public DataSource clientsDataSource(ClientsSqliteDataSourceProperties properties,
-                                        @Qualifier("dataSource") DataSource primaryDataSource,
-                                        PanelDatabaseRuntimeMode databaseRuntimeMode) {
-        if (databaseRuntimeMode.isExternalDatabaseEnabled()) {
-            log.info("Using primary external {} datasource as CLIENTS datasource", databaseRuntimeMode.modeLabel());
-            return primaryDataSource;
-        }
-        log.info("Using CLIENTS SQLite database at {}", properties.getNormalizedPath());
-        return SqliteConnectionConfigSupport.createDataSource(properties);
-    }
-
-    @Bean(name = "knowledgeDataSource")
-    public DataSource knowledgeDataSource(KnowledgeSqliteDataSourceProperties properties,
-                                          @Qualifier("dataSource") DataSource primaryDataSource,
-                                          PanelDatabaseRuntimeMode databaseRuntimeMode) {
-        if (databaseRuntimeMode.isExternalDatabaseEnabled()) {
-            log.info("Using primary external {} datasource as KNOWLEDGE datasource", databaseRuntimeMode.modeLabel());
-            return primaryDataSource;
-        }
-        log.info("Using KNOWLEDGE SQLite database at {}", properties.getNormalizedPath());
-        return SqliteConnectionConfigSupport.createDataSource(properties);
-    }
-
     @Bean(name = "objectsDataSource")
     public DataSource objectsDataSource(ObjectsSqliteDataSourceProperties properties,
                                         @Qualifier("dataSource") DataSource primaryDataSource,

@@ -147,22 +147,23 @@ operator-facing canonical reads.
 
 ### 2.5. Secondary/legacy контуры
 
-Через `SecondarySqliteDataSourceConfiguration` поднимаются ещё три
+Через `SecondarySqliteDataSourceConfiguration` поднимается ещё один
 secondary data source:
 
-- `clientsDataSource`
-- `knowledgeDataSource`
 - `objectsDataSource`
 
-Они соответствуют:
+Он соответствует:
 
-- `clients.db`
-- `knowledge_base.db`
 - `objects.db`
 
-Отдельно `settings.db` больше не поднимается как общий Spring datasource:
-его lazy SQLite access остаётся только внутри `BotDatabaseRegistry` и только
-для явного compatibility path.
+Отдельно:
+
+- `clients.db` и `knowledge_base.db` больше не поднимаются как общие Spring
+  datasources и создаются только лениво из `DatabaseBootstrapService` в явном
+  SQLite compatibility path;
+- `settings.db` также не поднимается как общий Spring datasource: его lazy
+  SQLite access остаётся только внутри `BotDatabaseRegistry` и только для
+  явного compatibility path.
 
 ## 3. Фактическое владение данными по БД
 
@@ -191,7 +192,7 @@ secondary data source:
 
 - primary JPA-репозитории по умолчанию работают с `@Primary DataSource`;
 - основные сервисы и SQL-запросы панели используют обычный `JdbcTemplate`,
-  а не secondary `clientsDataSource` или `knowledgeDataSource`.
+  а не отдельные legacy bootstrap contours `clients.db` или `knowledge_base.db`.
 
 Примеры:
 
@@ -291,6 +292,8 @@ SQLite compatibility path. В external PostgreSQL runtime monitoring-domain уж
 
 Вывод: `clients.db` сейчас скорее transitional/legacy split, чем реальный
 канонический контур.
+Дополнительно это уже не live datasource contour external runtime:
+отдельный SQLite datasource для него остаётся только внутри local bootstrap.
 
 ### 3.7. `knowledge_base.db`
 
@@ -309,6 +312,8 @@ Bootstrap создаёт:
 
 Вывод: `knowledge_base.db` существует физически, но knowledge-домен уже
 фактически живёт в `panel_runtime.db`.
+Как и `clients.db`, этот файл больше не поднимается как отдельный live
+Spring datasource outside явного SQLite bootstrap path.
 
 ### 3.8. `settings.db`
 
