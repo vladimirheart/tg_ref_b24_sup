@@ -45,7 +45,7 @@ public class BlacklistService {
 
     @Transactional(readOnly = true)
     public ResolvedBlacklistStatus resolveStatus(long userId, String... aliases) {
-        if (integrationTransportMode.isRabbitMqMode() && panelBlacklistClient.isEnabled()) {
+        if (usePanelBlacklistBoundary("resolve blacklist status")) {
             List<String> aliasList = new java.util.ArrayList<>();
             if (aliases != null) {
                 for (String alias : aliases) {
@@ -141,7 +141,7 @@ public class BlacklistService {
 
     @Transactional
     public UnblockRequestDecision requestUnblock(long userId, String reason, Long channelId, Duration cooldown) {
-        if (integrationTransportMode.isRabbitMqMode() && panelBlacklistClient.isEnabled()) {
+        if (usePanelBlacklistBoundary("request unblock")) {
             return panelBlacklistClient.requestUnblock(userId, reason, channelId, cooldown)
                     .map(result -> new UnblockRequestDecision(result.request(), result.created(), result.retryAfter()))
                     .orElse(new UnblockRequestDecision(null, false, Duration.ZERO));
@@ -170,4 +170,14 @@ public class BlacklistService {
     public record ResolvedBlacklistStatus(String matchedUserId, BlacklistStatus status) {}
 
     public record UnblockRequestDecision(ClientUnblockRequest request, boolean created, Duration retryAfter) {}
+
+    private boolean usePanelBlacklistBoundary(String operation) {
+        if (!integrationTransportMode.isRabbitMqMode()) {
+            return false;
+        }
+        if (!panelBlacklistClient.isEnabled()) {
+            throw new IllegalStateException("RabbitMQ transport requires internal panel blacklist API to " + operation + ".");
+        }
+        return true;
+    }
 }

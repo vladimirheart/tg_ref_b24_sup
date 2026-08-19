@@ -146,6 +146,7 @@ public class TicketService {
                                              Map<String, String> answers,
                                              List<TicketAttributeInput> attributes,
                                              Channel channel) {
+        ensureLocalTicketStorageAllowed("create ticket");
         return createTicketDirect(userId, username, clientName, answers, attributes, channel);
     }
 
@@ -286,7 +287,7 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public Optional<TicketMessage> findLastMessage(long userId) {
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+        if (usePanelReadBoundary("load last ticket context")) {
             return panelTicketReadClient.findLastTicketContext(userId);
         }
         return messageRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
@@ -297,7 +298,7 @@ public class TicketService {
         if (limit <= 0) {
             return List.of();
         }
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+        if (usePanelReadBoundary("load recent tickets")) {
             return panelTicketReadClient.findRecentTickets(userId, limit);
         }
         List<TicketMessage> messages = messageRepository.findTop10ByUserIdOrderByCreatedAtDesc(userId);
@@ -338,7 +339,7 @@ public class TicketService {
         if (!StringUtils.hasText(ticketId)) {
             return null;
         }
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+        if (usePanelReadBoundary("resolve client ticket number")) {
             return panelTicketReadClient.resolveRequestNumber(ticketId).orElse(ticketId);
         }
         return messageRepository.findByTicketId(ticketId)
@@ -361,7 +362,7 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public Optional<TicketActive> findActiveTicketForUser(Long userId, String username, Long channelId) {
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+        if (usePanelReadBoundary("load active ticket")) {
             return panelTicketReadClient.findActiveTicket(userId, username, channelId);
         }
         List<String> identities = new ArrayList<>();
@@ -382,7 +383,7 @@ public class TicketService {
 
     @Transactional(readOnly = true)
     public Optional<TicketWithUser> findByTicketId(String ticketId) {
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+        if (usePanelReadBoundary("load ticket by id")) {
             return panelTicketReadClient.findTicket(ticketId);
         }
         return ticketRepository.findByIdTicketId(ticketId)
@@ -396,7 +397,7 @@ public class TicketService {
 
     @Transactional
     public boolean reopenTicket(String ticketId, String operatorIdentity) {
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+        if (usePanelWriteBoundary("reopen ticket")) {
             return panelTicketWriteClient.reopenTicket(ticketId, operatorIdentity);
         }
         Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(ticketId);
@@ -434,6 +435,7 @@ public class TicketService {
 
     @Transactional
     public boolean closeTicket(String ticketId, String resolvedBy, String source) {
+        ensureLocalTicketStorageAllowed("close ticket");
         Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(ticketId);
         if (ticketOpt.isEmpty()) {
             return false;
@@ -478,6 +480,7 @@ public class TicketService {
 
     @Transactional
     public int closeInactiveTickets(Duration inactivityLimit) {
+        ensureLocalTicketStorageAllowed("auto-close inactive tickets");
         AutoCloseRunResult result = closeInactiveTickets(ticket ->
                 AutoClosePolicy.enabled(inactivityLimit, "legacy:auto_close_duration_api", null, toHours(inactivityLimit)));
         return result.closedTickets();
@@ -485,6 +488,7 @@ public class TicketService {
 
     @Transactional
     public AutoCloseRunResult closeInactiveTickets(Function<Ticket, AutoClosePolicy> policyResolver) {
+        ensureLocalTicketStorageAllowed("scan inactive tickets");
         OffsetDateTime now = OffsetDateTime.now();
         List<TicketActive> activeTickets = ticketActiveRepository.findAll();
         int checked = 0;
@@ -549,7 +553,7 @@ public class TicketService {
     }
 
     public void registerActivity(String ticketId, String username) {
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+        if (usePanelWriteBoundary("register ticket activity")) {
             panelTicketWriteClient.registerActivity(ticketId, username);
             return;
         }
@@ -570,6 +574,7 @@ public class TicketService {
 
     @Transactional
     public void updateClientProfile(String ticketId, String username, String clientName) {
+        ensureLocalTicketStorageAllowed("update client profile");
         if (!StringUtils.hasText(ticketId)) {
             return;
         }
@@ -611,7 +616,7 @@ public class TicketService {
         if (!StringUtils.hasText(ticketId)) {
             return;
         }
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+        if (usePanelWriteBoundary("clear ticket activity")) {
             panelTicketWriteClient.clearActivity(ticketId);
             return;
         }
@@ -625,7 +630,7 @@ public class TicketService {
         if (channelId == null || telegramMessageId == null || !StringUtils.hasText(text)) {
             return false;
         }
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+        if (usePanelWriteBoundary("mark client message edited")) {
             return panelTicketWriteClient.markClientMessageEdited(channelId, telegramMessageId, text);
         }
         return chatHistoryService.markClientMessageEdited(channelId, telegramMessageId, text);
@@ -639,7 +644,7 @@ public class TicketService {
         if (!StringUtils.hasText(ticketId) || telegramMessageId == null || !StringUtils.hasText(text)) {
             return false;
         }
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+        if (usePanelWriteBoundary("mark operator message edited")) {
             return panelTicketWriteClient.markOperatorMessageEdited(ticketId, telegramMessageId, text, operatorIdentity);
         }
         return chatHistoryService.markOperatorMessageEdited(ticketId, telegramMessageId, text);
@@ -656,7 +661,7 @@ public class TicketService {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(text)) {
             return;
         }
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled()) {
+        if (usePanelWriteBoundary("record operator relay")) {
             panelTicketWriteClient.recordOperatorRelay(
                 ticketId,
                 text,
@@ -679,6 +684,7 @@ public class TicketService {
 
     @Transactional
     public void ensureFeedbackRequest(String ticketId, Long userId, Channel channel, String source) {
+        ensureLocalTicketStorageAllowed("ensure pending feedback request");
         OffsetDateTime now = OffsetDateTime.now();
         boolean markAsSent = "user_prompt".equalsIgnoreCase(source);
         pendingFeedbackRequestRepository.findFirstByTicketIdOrderByCreatedAtDesc(ticketId)
@@ -783,6 +789,32 @@ public class TicketService {
             return null;
         }
         return Math.toIntExact(inactivityLimit.toHours());
+    }
+
+    private boolean usePanelReadBoundary(String operation) {
+        if (!integrationTransportMode.isRabbitMqMode()) {
+            return false;
+        }
+        if (!panelTicketReadClient.isEnabled()) {
+            throw new IllegalStateException("RabbitMQ transport requires internal panel read API to " + operation + ".");
+        }
+        return true;
+    }
+
+    private boolean usePanelWriteBoundary(String operation) {
+        if (!integrationTransportMode.isRabbitMqMode()) {
+            return false;
+        }
+        if (!panelTicketWriteClient.isEnabled()) {
+            throw new IllegalStateException("RabbitMQ transport requires internal panel write API to " + operation + ".");
+        }
+        return true;
+    }
+
+    private void ensureLocalTicketStorageAllowed(String operation) {
+        if (integrationTransportMode.isRabbitMqMode()) {
+            throw new IllegalStateException("RabbitMQ transport forbids bot-local business storage for operation: " + operation + ".");
+        }
     }
 
     public record AutoClosePolicy(Duration inactivityLimit,

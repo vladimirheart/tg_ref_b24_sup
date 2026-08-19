@@ -1,6 +1,7 @@
 package com.example.supportbot.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -59,5 +60,23 @@ class UnblockRequestServiceTest {
 
         assertThat(recent).containsExactly(request);
         verify(repository, never()).findByStatusOrderByCreatedAtDesc(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void countPendingFailsFastWithoutPanelClientInRabbitMode() {
+        ClientUnblockRequestRepository repository = mock(ClientUnblockRequestRepository.class);
+        PanelBlacklistClient panelBlacklistClient = mock(PanelBlacklistClient.class);
+
+        UnblockRequestService service = new UnblockRequestService(
+            repository,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
+            panelBlacklistClient
+        );
+
+        assertThatThrownBy(service::countPending)
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("internal panel blacklist API");
+
+        verify(repository, never()).countByStatus("pending");
     }
 }

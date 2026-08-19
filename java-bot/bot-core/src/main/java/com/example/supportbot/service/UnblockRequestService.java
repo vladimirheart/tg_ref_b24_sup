@@ -27,7 +27,7 @@ public class UnblockRequestService {
 
     @Transactional(readOnly = true)
     public long countPending() {
-        if (integrationTransportMode.isRabbitMqMode() && panelBlacklistClient.isEnabled()) {
+        if (usePanelBlacklistBoundary("count pending unblock requests")) {
             return panelBlacklistClient.pendingSummary(0)
                     .map(PanelBlacklistClient.PendingUnblockSummary::pendingCount)
                     .orElse(0L);
@@ -37,7 +37,7 @@ public class UnblockRequestService {
 
     @Transactional(readOnly = true)
     public List<ClientUnblockRequest> findRecentPending(int limit) {
-        if (integrationTransportMode.isRabbitMqMode() && panelBlacklistClient.isEnabled()) {
+        if (usePanelBlacklistBoundary("load pending unblock requests")) {
             int safeLimit = Math.max(1, limit);
             return panelBlacklistClient.pendingSummary(safeLimit)
                     .map(PanelBlacklistClient.PendingUnblockSummary::recentRequests)
@@ -48,5 +48,15 @@ public class UnblockRequestService {
                 STATUS_PENDING,
                 PageRequest.of(0, safeLimit)
         );
+    }
+
+    private boolean usePanelBlacklistBoundary(String operation) {
+        if (!integrationTransportMode.isRabbitMqMode()) {
+            return false;
+        }
+        if (!panelBlacklistClient.isEnabled()) {
+            throw new IllegalStateException("RabbitMQ transport requires internal panel blacklist API to " + operation + ".");
+        }
+        return true;
     }
 }

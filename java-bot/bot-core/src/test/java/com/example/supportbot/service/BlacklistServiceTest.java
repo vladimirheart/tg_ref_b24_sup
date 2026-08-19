@@ -1,6 +1,7 @@
 package com.example.supportbot.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -71,6 +72,26 @@ class BlacklistServiceTest {
         assertThat(decision.created()).isTrue();
         assertThat(decision.request()).isSameAs(request);
         verify(panelBlacklistClient).requestUnblock(77L, "", 12L, Duration.ofMinutes(10));
+        verify(unblockRequestRepository, never()).save(org.mockito.ArgumentMatchers.any(ClientUnblockRequest.class));
+    }
+
+    @Test
+    void requestUnblockFailsFastWithoutPanelClientInRabbitMode() {
+        ClientBlacklistRepository blacklistRepository = mock(ClientBlacklistRepository.class);
+        ClientUnblockRequestRepository unblockRequestRepository = mock(ClientUnblockRequestRepository.class);
+        PanelBlacklistClient panelBlacklistClient = mock(PanelBlacklistClient.class);
+
+        BlacklistService service = new BlacklistService(
+            blacklistRepository,
+            unblockRequestRepository,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
+            panelBlacklistClient
+        );
+
+        assertThatThrownBy(() -> service.requestUnblock(77L, "", 12L, Duration.ofMinutes(10)))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("internal panel blacklist API");
+
         verify(unblockRequestRepository, never()).save(org.mockito.ArgumentMatchers.any(ClientUnblockRequest.class));
     }
 }

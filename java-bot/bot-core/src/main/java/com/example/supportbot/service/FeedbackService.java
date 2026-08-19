@@ -42,7 +42,7 @@ public class FeedbackService {
 
     @Transactional(readOnly = true)
     public Optional<PendingFeedbackRequest> findActiveRequest(long userId, Channel channel) {
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketReadClient.isEnabled()) {
+        if (usePanelReadBoundary("load active feedback request")) {
             return panelTicketReadClient.findActiveFeedbackRequest(userId, channel != null ? channel.getId() : null);
         }
         OffsetDateTime now = OffsetDateTime.now();
@@ -66,7 +66,10 @@ public class FeedbackService {
         if (request == null) {
             return;
         }
-        if (integrationTransportMode.isRabbitMqMode() && panelTicketWriteClient.isEnabled() && request.getId() != null) {
+        if (usePanelWriteBoundary("store feedback")) {
+            if (request.getId() == null) {
+                throw new IllegalStateException("RabbitMQ transport requires a backend-owned pending feedback request id.");
+            }
             boolean stored = panelTicketWriteClient.storeFeedback(request.getId(), rating);
             if (!stored) {
                 log.warn("Failed to store feedback via internal panel API for request {}", request.getId());
@@ -115,5 +118,25 @@ public class FeedbackService {
                     request.getId(),
                     ex.getMessage());
         }
+    }
+
+    private boolean usePanelReadBoundary(String operation) {
+        if (!integrationTransportMode.isRabbitMqMode()) {
+            return false;
+        }
+        if (!panelTicketReadClient.isEnabled()) {
+            throw new IllegalStateException("RabbitMQ transport requires internal panel read API to " + operation + ".");
+        }
+        return true;
+    }
+
+    private boolean usePanelWriteBoundary(String operation) {
+        if (!integrationTransportMode.isRabbitMqMode()) {
+            return false;
+        }
+        if (!panelTicketWriteClient.isEnabled()) {
+            throw new IllegalStateException("RabbitMQ transport requires internal panel write API to " + operation + ".");
+        }
+        return true;
     }
 }

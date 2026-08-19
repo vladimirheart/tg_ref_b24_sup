@@ -1,6 +1,7 @@
 package com.example.supportbot.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -177,6 +178,36 @@ class TicketServiceInboundTransportTest {
     }
 
     @Test
+    void createTicketFailsFastInRabbitModeInsteadOfUsingLocalBusinessStorage() {
+        TicketMessageRepository messageRepository = mock(TicketMessageRepository.class);
+        TicketActiveRepository ticketActiveRepository = mock(TicketActiveRepository.class);
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+
+        TicketService service = createService(
+            messageRepository,
+            ticketActiveRepository,
+            mock(ChatHistoryService.class),
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),
+            mock(PanelTicketWriteClient.class),
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq"),
+            ticketRepository
+        );
+
+        Channel channel = new Channel();
+        channel.setId(71L);
+
+        assertThatThrownBy(() -> service.createTicket(123L, "tg-123", java.util.Map.of("problem", "bridge"), channel))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("forbids bot-local business storage");
+
+        verify(messageRepository, never()).save(any());
+        verify(ticketRepository, never()).save(any());
+        verify(ticketActiveRepository, never()).save(any(TicketActive.class));
+    }
+
+    @Test
     void findActiveTicketForUserUsesPanelReadClientInRabbitMode() {
         PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
         PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
@@ -205,6 +236,27 @@ class TicketServiceInboundTransportTest {
         verify(ticketActiveRepository, never()).findByUserInOrderByLastSeenDescAndChannelId(any(), any());
         assertThat(resolved).isPresent();
         assertThat(resolved.orElseThrow().getTicketId()).isEqualTo("T-777");
+    }
+
+    @Test
+    void findActiveTicketFailsFastWhenPanelReadBoundaryIsUnavailableInRabbitMode() {
+        TicketActiveRepository ticketActiveRepository = mock(TicketActiveRepository.class);
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            ticketActiveRepository,
+            mock(ChatHistoryService.class),
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),
+            mock(PanelTicketWriteClient.class),
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
+        );
+
+        assertThatThrownBy(() -> service.findActiveTicketForUser(777L, "tg-777", 17L))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("internal panel read API");
+
+        verify(ticketActiveRepository, never()).findByUserInOrderByLastSeenDescAndChannelId(any(), any());
     }
 
     @Test
@@ -321,6 +373,30 @@ class TicketServiceInboundTransportTest {
         service.recordOperatorRelay(1001L, "T-1001", "Operator reply", channel, 7001L, 6001L, "operator");
 
         verify(panelTicketWriteClient).recordOperatorRelay("T-1001", "Operator reply", 7001L, 6001L, "operator");
+        verify(chatHistoryService, never()).storeOperatorMessage(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void recordOperatorRelayFailsFastWhenPanelWriteBoundaryIsUnavailableInRabbitMode() {
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            mock(TicketActiveRepository.class),
+            chatHistoryService,
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            mock(PanelTicketReadClient.class),
+            mock(PanelTicketWriteClient.class),
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
+        );
+
+        Channel channel = new Channel();
+        channel.setId(11L);
+
+        assertThatThrownBy(() -> service.recordOperatorRelay(1001L, "T-1001", "Operator reply", channel, 7001L, 6001L, "operator"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("internal panel write API");
+
         verify(chatHistoryService, never()).storeOperatorMessage(any(), any(), any(), any(), any(), any());
     }
 

@@ -1,6 +1,7 @@
 package com.example.supportbot.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -155,6 +156,32 @@ class FeedbackServiceTest {
         service.storeFeedback(request, 4);
 
         verify(panelTicketWriteClient).storeFeedback(101L, 4);
+        verify(feedbackRepository, never()).save(any());
+        verify(outboxService, never()).publishFeedbackCreated(any(), any(), any());
+    }
+
+    @Test
+    void storeFeedbackFailsFastWithoutPanelWriteBoundaryInRabbitMode() {
+        PendingFeedbackRequestRepository pendingRepository = mock(PendingFeedbackRequestRepository.class);
+        FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
+        UiEventOutboxService outboxService = mock(UiEventOutboxService.class);
+
+        PendingFeedbackRequest request = new PendingFeedbackRequest();
+        request.setId(101L);
+
+        FeedbackService service = new FeedbackService(
+            pendingRepository,
+            feedbackRepository,
+            outboxService,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
+            mock(PanelTicketReadClient.class),
+            mock(PanelTicketWriteClient.class)
+        );
+
+        assertThatThrownBy(() -> service.storeFeedback(request, 4))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("internal panel write API");
+
         verify(feedbackRepository, never()).save(any());
         verify(outboxService, never()).publishFeedbackCreated(any(), any(), any());
     }

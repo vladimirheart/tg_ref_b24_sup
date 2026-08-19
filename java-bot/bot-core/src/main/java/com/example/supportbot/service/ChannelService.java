@@ -37,7 +37,7 @@ public class ChannelService {
 
     @Transactional
     public Channel ensurePublicIdForToken(String token, String channelName, String platform) {
-        if (integrationTransportMode.isRabbitMqMode() && panelChannelClient.isEnabled()) {
+        if (usePanelChannelBoundary("resolve configured channel by token")) {
             return panelChannelClient.resolveConfiguredChannel(null, token, channelName, platform)
                 .orElseThrow(() -> new IllegalStateException("Unable to resolve configured channel via internal panel API"));
         }
@@ -52,7 +52,7 @@ public class ChannelService {
         if (channelId == null || channelId <= 0) {
             return Optional.empty();
         }
-        if (integrationTransportMode.isRabbitMqMode() && panelChannelClient.isEnabled()) {
+        if (usePanelChannelBoundary("load channel by id")) {
             return panelChannelClient.findById(channelId);
         }
         return channelRepository.findById(channelId);
@@ -60,7 +60,7 @@ public class ChannelService {
 
     @Transactional
     public Channel resolveConfiguredChannel(Long channelId, String token, String channelName, String platform) {
-        if (integrationTransportMode.isRabbitMqMode() && panelChannelClient.isEnabled()) {
+        if (usePanelChannelBoundary("resolve configured channel")) {
             return panelChannelClient.resolveConfiguredChannel(channelId, token, channelName, platform)
                 .orElseThrow(() -> new IllegalStateException("Unable to resolve configured channel via internal panel API"));
         }
@@ -82,7 +82,7 @@ public class ChannelService {
         if (supportChatId == null || supportChatId.isBlank()) {
             throw new IllegalArgumentException("Support chat id must be a non-empty string");
         }
-        if (integrationTransportMode.isRabbitMqMode() && panelChannelClient.isEnabled()) {
+        if (usePanelChannelBoundary("update support chat id")) {
             return panelChannelClient.updateSupportChatId(channel.getId(), supportChatId)
                 .orElseThrow(() -> new IllegalStateException("Unable to update support chat id via internal panel API"));
         }
@@ -138,5 +138,15 @@ public class ChannelService {
             publicId = HEX.formatHex(data).toLowerCase();
         } while (channelRepository.findByPublicId(publicId).isPresent());
         return publicId;
+    }
+
+    private boolean usePanelChannelBoundary(String operation) {
+        if (!integrationTransportMode.isRabbitMqMode()) {
+            return false;
+        }
+        if (!panelChannelClient.isEnabled()) {
+            throw new IllegalStateException("RabbitMQ transport requires internal panel channel API to " + operation + ".");
+        }
+        return true;
     }
 }

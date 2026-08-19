@@ -11,6 +11,7 @@
 - bot-side task/follow-up fallback больше не живёт как production-like bean-layer в `rabbitmq`-контуре;
 - `java-bot` не должен владеть production schema в external PostgreSQL path;
 - RabbitMQ уже начал использоваться как реальный transport boundary для части live flows.
+- `java-bot` в `rabbitmq` contour больше не должен молча откатываться в local `JPA/SQLite` business-path, если internal panel API для ticket/channel/feedback/blacklist операций не настроен.
 
 ## 2. Что ещё не даёт считать проект PostgreSQL-only production system
 
@@ -41,7 +42,7 @@
 Пока этот graph остаётся рабочим runtime wiring, система ещё не переведена в final PostgreSQL contour.
 
 При этом отдельные operator-facing direct SQLite probes уже начинают вычищаться: например, client profile refresh больше не должен открывать per-channel `bot-<channelId>.db` в external PostgreSQL runtime path.
-Дополнительно часть ad-hoc SQLite DDL уже снята с live-bean’ов и возвращена под Flyway ownership; monitoring runtime alias, `settings.db` registry wiring, lazy-only bootstrap для `clients.db` / `knowledge_base.db`, runtime rewiring для `objects.db`, runtime alias для `panel_identity.db`, removal отдельного `bot_runtime` datasource bean, explicit `SUPPORT_BOT_DATABASE_PATH` bridge вместо implicit `APP_DB_PANEL_RUNTIME` contract и opt-in-only per-channel bot shard bootstrap уже частично выведены из production-like graph, но transport/runtime логика и доменное разделение ещё остаются.
+Дополнительно часть ad-hoc SQLite DDL уже снята с live-bean’ов и возвращена под Flyway ownership; monitoring runtime alias, `settings.db` registry wiring, lazy-only bootstrap для `clients.db` / `knowledge_base.db`, runtime rewiring для `objects.db`, runtime alias для `panel_identity.db`, removal отдельного `bot_runtime` datasource bean, explicit `SUPPORT_BOT_DATABASE_PATH` bridge вместо implicit `APP_DB_PANEL_RUNTIME` contract, opt-in-only per-channel bot shard bootstrap и fail-fast removal silent local business fallback в `rabbitmq` mode уже частично выведены из production-like graph, но transport/runtime логика и доменное разделение ещё остаются.
 
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 

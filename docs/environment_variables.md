@@ -26,6 +26,9 @@
 | `IGUANA_BOOTSTRAP_INSTALL_DOCKER` | разрешить Windows bootstrap автоматически поставить Docker Desktop через `winget` | bootstrap scripts |
 | `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK` | аварийно разрешить `auto`-bootstrap откатиться на SQLite, если Docker не стал доступен | bootstrap scripts |
 | `IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS` | timeout ожидания готовности Docker Desktop после установки/старта | bootstrap scripts |
+| `APP_INTEGRATION_TRANSPORT_MODE` | transport boundary для integration runtime: `jdbc` только compatibility/dev path, `rabbitmq` для live contour | Java-бот |
+| `APP_PANEL_INTERNAL_API_BASE_URL` | base URL internal panel API для bot-side live reads/writes в `rabbitmq` contour | Java-бот |
+| `APP_PANEL_INTERNAL_API_TOKEN` | токен internal panel API для bot-side live reads/writes в `rabbitmq` contour | Java-бот |
 
 ## Базы данных
 
@@ -82,6 +85,7 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 
 - в `APP_DB_MODE=sqlite` runtime сам поднимает local schema через `SqliteSchemaInitializer`;
 - в `APP_DB_MODE=postgresql` runtime получает готовый PostgreSQL datasource-контракт и не несёт `SPRING_SQL_INIT_MODE`/`schema-sqlite.sql` в production-path.
+- в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` bot-side business операции по ticket/channel/feedback/blacklist должны идти через `APP_PANEL_INTERNAL_API_*`; silent fallback в local `JPA/SQLite` business storage больше не считается допустимым live-path.
 
 Для `spring-panel` действует ещё одно правило:
 

@@ -1,6 +1,7 @@
 package com.example.supportbot.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -36,6 +37,24 @@ class ChannelServiceTest {
 
         assertThat(channel.getPublicId()).isEqualTo("public-11");
         verify(panelChannelClient).resolveConfiguredChannel(null, "bot-token", "Telegram", "telegram");
+        verify(repository, never()).findByToken(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void ensurePublicIdForTokenFailsFastWithoutPanelClientInRabbitMode() {
+        ChannelRepository repository = mock(ChannelRepository.class);
+        PanelChannelClient panelChannelClient = mock(PanelChannelClient.class);
+
+        ChannelService service = new ChannelService(
+            repository,
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
+            panelChannelClient
+        );
+
+        assertThatThrownBy(() -> service.ensurePublicIdForToken("bot-token"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("internal panel channel API");
+
         verify(repository, never()).findByToken(org.mockito.ArgumentMatchers.anyString());
     }
 
