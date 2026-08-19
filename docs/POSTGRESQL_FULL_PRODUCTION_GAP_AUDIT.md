@@ -26,6 +26,10 @@
   - analytics/API surface для inbox/outbox/checkpoints/incidents;
   - ручные replay/requeue действия;
   - automatic signal-incident monitoring для transport degradation.
+- incident routes больше не являются только metadata:
+  - появился durable `incident_route_delivery_outbox`;
+  - delivery работает через leased dispatcher и retry semantics;
+  - incident details возвращают latest route delivery snapshot для operability/replay.
 
 ## 2. Что ещё не даёт считать проект PostgreSQL-only production system
 
@@ -73,7 +77,7 @@ Canonical incident domain на backend-owned storage уже появился, н
 
 - полноценный operator-facing UI lifecycle вокруг incident API, а не только API + analytics-side observability;
 - richer signal ingestion / automatic incident creation beyond the current transport monitor and linked domain reads;
-- завершённые alerting/runbook flows поверх новых incident сущностей;
+- более широкий incident workbench/runbook UX поверх уже существующих route deliveries, а не только сам delivery contour;
 - operational reporting, которая считает incident module first-class production feature, а не просто linked metadata.
 
 ## 3. Что должно стать next production scope
@@ -100,7 +104,7 @@ Canonical incident domain на backend-owned storage уже появился, н
 
 - operator-facing lifecycle/UI поверх уже существующего backend domain;
 - signal -> incident model и richer automation;
-- alerts/delivery/runbook flows;
+- richer incident workbench/runbook flows поверх уже собранного route delivery contour;
 - production analytics/reporting для incident operations.
 
 ## 4. Практический вывод

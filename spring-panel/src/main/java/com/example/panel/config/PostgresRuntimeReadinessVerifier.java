@@ -243,6 +243,21 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         jdbcTemplate.queryForList(
             "SELECT incident_id, route_type, route_target, route_status, updated_at FROM incident_routes WHERE 1 = 0"
         );
+        jdbcTemplate.queryForList(
+            """
+            SELECT event_id,
+                   incident_id,
+                   route_id,
+                   event_type,
+                   route_type,
+                   status,
+                   attempt_count,
+                   processing_started_at,
+                   delivered_at
+              FROM incident_route_delivery_outbox
+             WHERE 1 = 0
+            """
+        );
     }
 
     private RuntimeCounts loadRuntimeCounts() {

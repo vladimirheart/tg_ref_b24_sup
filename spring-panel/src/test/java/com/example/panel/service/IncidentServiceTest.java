@@ -47,6 +47,7 @@ class IncidentServiceTest {
         TaskRepository taskRepository = mock(TaskRepository.class);
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         NotificationRoutingService notificationRoutingService = mock(NotificationRoutingService.class);
+        IncidentRouteDeliveryOutboxService incidentRouteDeliveryOutboxService = mock(IncidentRouteDeliveryOutboxService.class);
 
         IncidentService service = new IncidentService(
                 incidentRepository,
@@ -58,7 +59,8 @@ class IncidentServiceTest {
                 taskRepository,
                 jdbcTemplate,
                 new ObjectMapper(),
-                notificationRoutingService
+                notificationRoutingService,
+                incidentRouteDeliveryOutboxService
         );
 
         AtomicLong relationIds = new AtomicLong(1);
@@ -155,5 +157,6 @@ class IncidentServiceTest {
         assertThat((List<?>) incident.get("watchers")).hasSize(2);
         assertThat((List<?>) incident.get("events")).hasSize(1);
         verify(notificationRoutingService).notify(eq("incidents"), eq("incident_created"), any(), any(), any(), eq("Commander"));
+        verify(incidentRouteDeliveryOutboxService).enqueueIncidentRoutes(any(Incident.class), eq("incident_created"), eq("Incident создан"), any(), eq("Commander"));
     }
 }

@@ -113,6 +113,19 @@ public class NotificationRoutingService {
         notificationService.notifyUsersExcluding(recipients, excludedIdentity, text, url);
     }
 
+    public Set<String> findDepartmentRecipients(String department) {
+        if (!StringUtils.hasText(department)) {
+            return Set.of();
+        }
+        Set<String> recipients = new LinkedHashSet<>();
+        for (UserSnapshot user : loadDepartmentUsers(department.trim())) {
+            if (user != null && StringUtils.hasText(user.username())) {
+                recipients.add(user.username());
+            }
+        }
+        return recipients;
+    }
+
     private Set<String> resolveRecipients(NotificationRouteConfig route, Set<String> baseRecipients) {
         Set<String> normalizedBase = normalizeRecipients(baseRecipients);
         Set<String> routedRecipients = resolveRouteRecipients(route);
@@ -469,6 +482,8 @@ public class NotificationRoutingService {
         incidents.put("incident_updated", new NotificationRouteConfig(true, "base_recipients", "", "all_operators", "all", List.of(), List.of()));
         incidents.put("incident_event", new NotificationRouteConfig(true, "base_recipients", "", "all_operators", "all", List.of(), List.of()));
         incidents.put("incident_route_updated", new NotificationRouteConfig(true, "base_recipients", "", "all_operators", "all", List.of(), List.of()));
+        incidents.put("incident_signal_updated", new NotificationRouteConfig(true, "route_only", "", "all_operators", "all", List.of(), List.of()));
+        incidents.put("incident_signal_resolved", new NotificationRouteConfig(true, "route_only", "", "all_operators", "all", List.of(), List.of()));
         defaults.put("incidents", incidents);
 
         Map<String, NotificationRouteConfig> knowledge = new LinkedHashMap<>();
