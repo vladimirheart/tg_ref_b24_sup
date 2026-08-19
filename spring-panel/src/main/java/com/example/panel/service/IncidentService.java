@@ -81,14 +81,21 @@ public class IncidentService {
                                              String severity,
                                              String relationType,
                                              String relationKey,
+                                             String query,
+                                             String signalType,
                                              Integer limit) {
         int safeLimit = limit == null || limit <= 0 ? 100 : Math.min(limit, 200);
         String normalizedStatus = normalizeStatus(status, null);
         String normalizedSeverity = normalizeSeverity(severity, null);
-        List<Incident> incidents = loadFilteredIncidents(normalizedStatus, relationType, relationKey);
+        String normalizedQuery = normalizeNullableText(query);
+        String normalizedSignalType = normalizeNullableText(signalType);
+        List<Incident> incidents = loadFilteredIncidents(normalizedStatus, relationType, relationKey, normalizedSignalType);
         List<Map<String, Object>> items = new ArrayList<>();
         for (Incident incident : incidents) {
             if (normalizedSeverity != null && !normalizedSeverity.equals(incident.getSeverity())) {
+                continue;
+            }
+            if (!matchesQuery(incident, normalizedQuery)) {
                 continue;
             }
             items.add(buildIncidentSummary(incident));
@@ -592,7 +599,7 @@ public class IncidentService {
         return items;
     }
 
-    private List<Incident> loadFilteredIncidents(String status, String relationType, String relationKey) {
+    private List<Incident> loadFilteredIncidents(String status, String relationType, String relationKey, String signalType) {
         if (StringUtils.hasText(relationType) && StringUtils.hasText(relationKey)) {
             String normalizedType = normalizeRelationType(relationType);
             String normalizedKey = normalizeNullableText(relationKey);
@@ -612,6 +619,19 @@ public class IncidentService {
                 .toList();
             List<Incident> incidents = incidentRepository.findByIdInOrderByUpdatedAtDescIdDesc(incidentIds);
             if (!StringUtils.hasText(status)) {
+                return filterBySignalType(incidents, signalType);
+            }
+            List<Incident> filtered = new ArrayList<>();
+            for (Incident incident : incidents) {
+                if (status.equals(incident.getStatus()) && matchesSignalType(incident, signalType)) {
+                    filtered.add(incident);
+                }
+            }
+            return filtered;
+        }
+        if (StringUtils.hasText(signalType)) {
+            List<Incident> incidents = incidentRepository.findBySignalTypeOrderByUpdatedAtDescIdDesc(signalType);
+            if (!StringUtils.hasText(status)) {
                 return incidents;
             }
             List<Incident> filtered = new ArrayList<>();
@@ -626,6 +646,50 @@ public class IncidentService {
             return incidentRepository.findByStatusOrderByUpdatedAtDescIdDesc(status);
         }
         return incidentRepository.findTop200ByOrderByUpdatedAtDescIdDesc();
+    }
+
+    private List<Incident> filterBySignalType(List<Incident> incidents, String signalType) {
+        if (!StringUtils.hasText(signalType) || incidents == null || incidents.isEmpty()) {
+            return incidents == null ? List.of() : incidents;
+        }
+        List<Incident> filtered = new ArrayList<>();
+        for (Incident incident : incidents) {
+            if (matchesSignalType(incident, signalType)) {
+                filtered.add(incident);
+            }
+        }
+        return filtered;
+    }
+
+    private boolean matchesSignalType(Incident incident, String signalType) {
+        if (!StringUtils.hasText(signalType)) {
+            return true;
+        }
+        return incident != null
+            && StringUtils.hasText(incident.getSignalType())
+            && signalType.equalsIgnoreCase(incident.getSignalType().trim());
+    }
+
+    private boolean matchesQuery(Incident incident, String query) {
+        if (!StringUtils.hasText(query)) {
+            return true;
+        }
+        if (incident == null) {
+            return false;
+        }
+        String normalized = query.trim().toLowerCase(Locale.ROOT);
+        return containsIgnoreCase(incident.getIncidentKey(), normalized)
+            || containsIgnoreCase(incident.getTitle(), normalized)
+            || containsIgnoreCase(incident.getSummary(), normalized)
+            || containsIgnoreCase(incident.getSignalKey(), normalized)
+            || containsIgnoreCase(incident.getOwner(), normalized)
+            || containsIgnoreCase(incident.getSource(), normalized);
+    }
+
+    private boolean containsIgnoreCase(String value, String query) {
+        return StringUtils.hasText(value)
+            && StringUtils.hasText(query)
+            && value.toLowerCase(Locale.ROOT).contains(query);
     }
 
     private Incident requireIncident(Long id) {

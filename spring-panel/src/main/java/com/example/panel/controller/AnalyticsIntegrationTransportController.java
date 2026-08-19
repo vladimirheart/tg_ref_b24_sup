@@ -27,6 +27,16 @@ public class AnalyticsIntegrationTransportController {
         return integrationTransportOpsService.buildOverview();
     }
 
+    @GetMapping("/inbound-events/{eventId}")
+    public Map<String, Object> inboundEventDetail(@PathVariable("eventId") String eventId) {
+        return integrationTransportOpsService.loadInboundEventDetail(eventId);
+    }
+
+    @GetMapping("/outbox-events/{eventId}")
+    public Map<String, Object> outboundEventDetail(@PathVariable("eventId") String eventId) {
+        return integrationTransportOpsService.loadOutboundEventDetail(eventId);
+    }
+
     @PostMapping("/inbound-events/{eventId}/replay")
     public Map<String, Object> replayInboundEvent(@PathVariable("eventId") String eventId,
                                                   Authentication authentication) {
@@ -39,6 +49,14 @@ public class AnalyticsIntegrationTransportController {
         return integrationTransportOpsService.replayFailedInboundEvents(limit != null ? limit : 25, authentication != null ? authentication.getName() : null);
     }
 
+    @PostMapping("/tickets/{ticketId}/replay-inbound")
+    public Map<String, Object> replayFailedInboundEventsForTicket(@PathVariable("ticketId") String ticketId,
+                                                                  @RequestParam(name = "limit", required = false, defaultValue = "25") Integer limit,
+                                                                  Authentication authentication) {
+        return integrationTransportOpsService.replayFailedInboundEventsForTicket(ticketId, limit != null ? limit : 25,
+            authentication != null ? authentication.getName() : null);
+    }
+
     @PostMapping("/outbox-events/{eventId}/requeue")
     public Map<String, Object> requeueOutboundEvent(@PathVariable("eventId") String eventId,
                                                     Authentication authentication) {
@@ -49,5 +67,20 @@ public class AnalyticsIntegrationTransportController {
     public Map<String, Object> requeueFailedOutboundEvents(@RequestParam(name = "limit", required = false, defaultValue = "25") Integer limit,
                                                            Authentication authentication) {
         return integrationTransportOpsService.requeueFailedOutboundEvents(limit != null ? limit : 25, authentication != null ? authentication.getName() : null);
+    }
+
+    @PostMapping("/tickets/{ticketId}/requeue-outbound")
+    public Map<String, Object> requeueFailedOutboundEventsForTicket(@PathVariable("ticketId") String ticketId,
+                                                                    @RequestParam(name = "limit", required = false, defaultValue = "25") Integer limit,
+                                                                    Authentication authentication) {
+        return integrationTransportOpsService.requeueFailedOutboundEventsForTicket(ticketId, limit != null ? limit : 25,
+            authentication != null ? authentication.getName() : null);
+    }
+
+    @PostMapping("/checkpoints/{workerKey}")
+    public Map<String, Object> updateCheckpoint(@PathVariable("workerKey") String workerKey,
+                                                @RequestParam(name = "cursor_text", required = false) String cursorText,
+                                                Authentication authentication) {
+        return integrationTransportOpsService.updateCheckpoint(workerKey, cursorText, authentication != null ? authentication.getName() : null);
     }
 }

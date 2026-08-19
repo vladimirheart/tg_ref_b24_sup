@@ -30,8 +30,10 @@ public class IncidentApiController {
                                     @RequestParam(name = "severity", required = false) String severity,
                                     @RequestParam(name = "relation_type", required = false) String relationType,
                                     @RequestParam(name = "relation_key", required = false) String relationKey,
+                                    @RequestParam(name = "query", required = false) String query,
+                                    @RequestParam(name = "signal_type", required = false) String signalType,
                                     @RequestParam(name = "limit", required = false) Integer limit) {
-        return incidentService.listIncidents(status, severity, relationType, relationKey, limit);
+        return incidentService.listIncidents(status, severity, relationType, relationKey, query, signalType, limit);
     }
 
     @GetMapping("/{id}")

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.example.panel.service.IncidentService;
+import com.example.panel.service.RuntimeWorkerCheckpointService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -71,6 +72,7 @@ class IntegrationTransportOpsServiceTest {
         outboxService = mock(OutboundFeedbackPromptPublishOutboxService.class);
         doNothing().when(outboxService).dispatchBatch();
         IncidentService incidentService = mock(IncidentService.class);
+        RuntimeWorkerCheckpointService runtimeWorkerCheckpointService = mock(RuntimeWorkerCheckpointService.class);
         doNothing().when(incidentService).appendSignalEvent(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
             org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
         whenListSignalIncidentsEmpty(incidentService);
@@ -80,7 +82,8 @@ class IntegrationTransportOpsServiceTest {
             inboundIngestionService,
             ticketCreationIngestionService,
             outboxService,
-            incidentService
+            incidentService,
+            runtimeWorkerCheckpointService
         );
     }
 

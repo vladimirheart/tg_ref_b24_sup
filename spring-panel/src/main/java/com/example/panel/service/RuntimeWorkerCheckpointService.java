@@ -28,6 +28,19 @@ public class RuntimeWorkerCheckpointService {
     }
 
     public Optional<Long> readLongCursor(String workerKey) {
+        return readCursorText(workerKey).map(raw -> {
+            if (!StringUtils.hasText(raw)) {
+                return 0L;
+            }
+            try {
+                return Long.parseLong(raw.trim());
+            } catch (NumberFormatException ex) {
+                return 0L;
+            }
+        });
+    }
+
+    public Optional<String> readCursorText(String workerKey) {
         if (!StringUtils.hasText(workerKey)) {
             return Optional.empty();
         }
@@ -37,26 +50,22 @@ public class RuntimeWorkerCheckpointService {
                 if (!rs.next()) {
                     return null;
                 }
-                String raw = rs.getString("cursor_text");
-                if (!StringUtils.hasText(raw)) {
-                    return 0L;
-                }
-                try {
-                    return Long.parseLong(raw.trim());
-                } catch (NumberFormatException ex) {
-                    return 0L;
-                }
+                return rs.getString("cursor_text");
             },
             workerKey.trim()
         ));
     }
 
     public void saveLongCursor(String workerKey, long cursor) {
+        saveCursor(workerKey, Long.toString(Math.max(0L, cursor)));
+    }
+
+    public void saveCursor(String workerKey, String cursorText) {
         if (!StringUtils.hasText(workerKey)) {
             return;
         }
         String normalizedWorkerKey = workerKey.trim();
-        String cursorValue = Long.toString(Math.max(0L, cursor));
+        String cursorValue = cursorText == null ? null : cursorText.trim();
         int updated = jdbcTemplate.update("""
                 UPDATE runtime_worker_checkpoints
                    SET cursor_text = ?,

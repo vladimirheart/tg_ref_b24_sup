@@ -95,6 +95,15 @@
                         <span class="nav-label-sub">Операционный backlog команды</span>
                     </span>
                 </a>
+                <a class="nav-link" data-page-key="incidents" data-nav-group="workspace" th:if="${canViewIncidents}"
+                   th:classappend="${active}=='incidents' ? ' active'"
+                   th:href="@{/incidents}">
+                    <span class="icon" aria-hidden="true">🚨</span>
+                    <span class="label">
+                        <span class="nav-label-main">Инциденты</span>
+                        <span class="nav-label-sub">Runbook, маршруты и сигналы</span>
+                    </span>
+                </a>
                 <a class="nav-link" data-page-key="clients" data-nav-group="workspace" th:if="${canViewClients}"
                    th:classappend="${active}=='clients' ? ' active'"
                    th:href="@{/clients}">

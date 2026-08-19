@@ -75,7 +75,6 @@
 
 Canonical incident domain на backend-owned storage уже появился, но remaining scope по incident-теме ещё есть:
 
-- полноценный operator-facing UI lifecycle вокруг incident API, а не только API + analytics-side observability;
 - richer signal ingestion / automatic incident creation beyond the current transport monitor and linked domain reads;
 - более широкий incident workbench/runbook UX поверх уже существующих route deliveries, а не только сам delivery contour;
 - operational reporting, которая считает incident module first-class production feature, а не просто linked metadata.
@@ -102,7 +101,6 @@ Canonical incident domain на backend-owned storage уже появился, н
 
 ### 3.4. Incident module
 
-- operator-facing lifecycle/UI поверх уже существующего backend domain;
 - signal -> incident model и richer automation;
 - richer incident workbench/runbook flows поверх уже собранного route delivery contour;
 - production analytics/reporting для incident operations.

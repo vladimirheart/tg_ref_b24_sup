@@ -1,10 +1,12 @@
 package com.example.panel.service.integration;
 
 import com.example.panel.service.IncidentService;
+import com.example.panel.service.RuntimeWorkerCheckpointService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -25,19 +27,22 @@ public class IntegrationTransportOpsService {
     private final ConversationTicketCreationIngestionService conversationTicketCreationIngestionService;
     private final OutboundFeedbackPromptPublishOutboxService outboundFeedbackPromptPublishOutboxService;
     private final IncidentService incidentService;
+    private final RuntimeWorkerCheckpointService runtimeWorkerCheckpointService;
 
     public IntegrationTransportOpsService(JdbcTemplate jdbcTemplate,
                                           ObjectMapper objectMapper,
                                           InboundClientMessageIngestionService inboundClientMessageIngestionService,
                                           ConversationTicketCreationIngestionService conversationTicketCreationIngestionService,
                                           OutboundFeedbackPromptPublishOutboxService outboundFeedbackPromptPublishOutboxService,
-                                          IncidentService incidentService) {
+                                          IncidentService incidentService,
+                                          RuntimeWorkerCheckpointService runtimeWorkerCheckpointService) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.inboundClientMessageIngestionService = inboundClientMessageIngestionService;
         this.conversationTicketCreationIngestionService = conversationTicketCreationIngestionService;
         this.outboundFeedbackPromptPublishOutboxService = outboundFeedbackPromptPublishOutboxService;
         this.incidentService = incidentService;
+        this.runtimeWorkerCheckpointService = runtimeWorkerCheckpointService;
     }
 
     public Map<String, Object> buildOverview() {
@@ -75,6 +80,22 @@ public class IntegrationTransportOpsService {
         );
     }
 
+    public Map<String, Object> loadInboundEventDetail(String eventId) {
+        return loadEventDetail(
+            "integration_inbound_event_inbox",
+            List.of("event_id", "event_kind", "ticket_id", "routing_key", "status", "attempt_count", "processing_started_at", "updated_at", "last_error", "payload_json"),
+            eventId
+        );
+    }
+
+    public Map<String, Object> loadOutboundEventDetail(String eventId) {
+        return loadEventDetail(
+            "integration_transport_outbox",
+            List.of("event_id", "event_kind", "ticket_id", "routing_key", "status", "attempt_count", "processing_started_at", "updated_at", "last_error", "payload_json", "published_at"),
+            eventId
+        );
+    }
+
     @Transactional
     public Map<String, Object> replayInboundEvent(String eventId, String actor) {
         InboxEntry entry = loadInboxEntry(eventId);
@@ -105,6 +126,28 @@ public class IntegrationTransportOpsService {
                 actor);
         }
         return Map.of("success", true, "replayed", replayed, "limit", safeLimit);
+    }
+
+    @Transactional
+    public Map<String, Object> replayFailedInboundEventsForTicket(String ticketId, int limit, String actor) {
+        String normalizedTicketId = normalize(ticketId);
+        if (!StringUtils.hasText(normalizedTicketId)) {
+            throw new IllegalArgumentException("Transport inbox replay requires ticket id.");
+        }
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        List<InboxEntry> items = loadReplayableInboxEntriesForTicket(normalizedTicketId, safeLimit);
+        int replayed = 0;
+        for (InboxEntry entry : items) {
+            replayInboundEntry(entry);
+            replayed++;
+        }
+        if (replayed > 0) {
+            incidentService.appendSignalEvent("integration_transport", "panel-rabbitmq-bridge", "manual_replay_inbound_ticket",
+                "Manual replay requested for " + replayed + " inbound event(s) of ticket " + normalizedTicketId,
+                Map.of("count", replayed, "limit", safeLimit, "ticket_id", normalizedTicketId, "actor", normalize(actor)),
+                actor);
+        }
+        return Map.of("success", true, "ticket_id", normalizedTicketId, "replayed", replayed, "limit", safeLimit);
     }
 
     @Transactional
@@ -170,6 +213,56 @@ public class IntegrationTransportOpsService {
                 actor);
         }
         return Map.of("success", true, "requeued", requeued, "limit", safeLimit);
+    }
+
+    @Transactional
+    public Map<String, Object> requeueFailedOutboundEventsForTicket(String ticketId, int limit, String actor) {
+        String normalizedTicketId = normalize(ticketId);
+        if (!StringUtils.hasText(normalizedTicketId)) {
+            throw new IllegalArgumentException("Transport outbox requeue requires ticket id.");
+        }
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        List<String> eventIds = loadReplayableOutboxEventIdsForTicket(normalizedTicketId, safeLimit);
+        int requeued = 0;
+        for (String eventId : eventIds) {
+            requeued += jdbcTemplate.update("""
+                    UPDATE integration_transport_outbox
+                       SET status = 'queued',
+                           available_at = CURRENT_TIMESTAMP,
+                           processing_started_at = NULL,
+                           updated_at = CURRENT_TIMESTAMP
+                     WHERE event_id = ?
+                       AND status <> 'published'
+                    """,
+                eventId
+            );
+        }
+        if (requeued > 0) {
+            outboundFeedbackPromptPublishOutboxService.dispatchBatch();
+            incidentService.appendSignalEvent("integration_transport", "panel-rabbitmq-bridge", "manual_requeue_outbound_ticket",
+                "Manual requeue requested for " + requeued + " outbound event(s) of ticket " + normalizedTicketId,
+                Map.of("count", requeued, "limit", safeLimit, "ticket_id", normalizedTicketId, "actor", normalize(actor)),
+                actor);
+        }
+        return Map.of("success", true, "ticket_id", normalizedTicketId, "requeued", requeued, "limit", safeLimit);
+    }
+
+    public Map<String, Object> updateCheckpoint(String workerKey, String cursorText, String actor) {
+        String normalizedWorkerKey = normalize(workerKey);
+        if (!StringUtils.hasText(normalizedWorkerKey)) {
+            throw new IllegalArgumentException("Runtime checkpoint worker key is required.");
+        }
+        String normalizedCursorText = cursorText == null ? null : cursorText.trim();
+        runtimeWorkerCheckpointService.saveCursor(normalizedWorkerKey, normalizedCursorText);
+        incidentService.appendSignalEvent("integration_transport", "panel-rabbitmq-bridge", "manual_checkpoint_update",
+            "Manual checkpoint update for " + normalizedWorkerKey,
+            Map.of("worker_key", normalizedWorkerKey, "cursor_text", normalizedCursorText, "actor", normalize(actor)),
+            actor);
+        return Map.of(
+            "success", true,
+            "worker_key", normalizedWorkerKey,
+            "cursor_text", runtimeWorkerCheckpointService.readCursorText(normalizedWorkerKey).orElse(normalizedCursorText)
+        );
     }
 
     public TransportHealthSnapshot buildHealthSnapshot() {
@@ -315,6 +408,81 @@ public class IntegrationTransportOpsService {
             timestamp(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(15)),
             limit
         );
+    }
+
+    private List<InboxEntry> loadReplayableInboxEntriesForTicket(String ticketId, int limit) {
+        return jdbcTemplate.query("""
+                SELECT event_id,
+                       event_kind,
+                       routing_key,
+                       payload_json
+                  FROM integration_inbound_event_inbox
+                 WHERE ticket_id = ?
+                   AND (
+                        status = 'failed'
+                        OR (status = 'processing'
+                            AND processing_started_at IS NOT NULL
+                            AND processing_started_at < ?)
+                   )
+                 ORDER BY updated_at ASC, event_id ASC
+                 LIMIT ?
+                """,
+            (rs, rowNum) -> new InboxEntry(
+                rs.getString("event_id"),
+                rs.getString("event_kind"),
+                rs.getString("routing_key"),
+                rs.getString("payload_json")
+            ),
+            ticketId,
+            timestamp(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(15)),
+            limit
+        );
+    }
+
+    private List<String> loadReplayableOutboxEventIdsForTicket(String ticketId, int limit) {
+        return jdbcTemplate.query("""
+                SELECT event_id
+                  FROM integration_transport_outbox
+                 WHERE ticket_id = ?
+                   AND (
+                        status = 'failed'
+                        OR (status = 'processing'
+                            AND processing_started_at IS NOT NULL
+                            AND processing_started_at < ?)
+                   )
+                 ORDER BY updated_at ASC, event_id ASC
+                 LIMIT ?
+                """,
+            (rs, rowNum) -> rs.getString("event_id"),
+            ticketId,
+            timestamp(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(5)),
+            limit
+        );
+    }
+
+    private Map<String, Object> loadEventDetail(String table, List<String> columns, String eventId) {
+        String normalizedEventId = normalize(eventId);
+        if (!StringUtils.hasText(normalizedEventId)) {
+            throw new IllegalArgumentException("Transport event id is required.");
+        }
+        String columnProjection = String.join(", ", columns);
+        List<Map<String, Object>> rows = jdbcTemplate.query(
+            "SELECT " + columnProjection + " FROM " + table + " WHERE event_id = ?",
+            (rs, rowNum) -> readEventRow(rs, columns),
+            normalizedEventId
+        );
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException("Transport event not found: " + normalizedEventId);
+        }
+        return Map.of("success", true, "item", rows.get(0));
+    }
+
+    private Map<String, Object> readEventRow(java.sql.ResultSet rs, List<String> columns) throws java.sql.SQLException {
+        Map<String, Object> row = new LinkedHashMap<>();
+        for (String column : columns) {
+            row.put(column, normalize(rs.getString(column)));
+        }
+        return row;
     }
 
     private InboxEntry loadInboxEntry(String eventId) {

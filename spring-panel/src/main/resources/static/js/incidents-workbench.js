@@ -1,0 +1,688 @@
+(function () {
+  const listNode = document.getElementById('incidentWorkbenchList');
+  if (!listNode) {
+    return;
+  }
+
+  const detailNode = document.getElementById('incidentWorkbenchDetail');
+  const errorNode = document.getElementById('incidentWorkbenchError');
+  const successNode = document.getElementById('incidentWorkbenchSuccess');
+  const listMetaNode = document.getElementById('incidentWorkbenchListMeta');
+  const payloadModalElement = document.getElementById('incidentWorkbenchPayloadModal');
+  const payloadContentNode = document.getElementById('incidentWorkbenchPayloadContent');
+  const payloadModal = payloadModalElement && window.bootstrap ? new window.bootstrap.Modal(payloadModalElement) : null;
+
+  const state = {
+    incidents: [],
+    selectedIncidentId: null,
+    selectedIncident: null,
+    transportOverview: null
+  };
+
+  const filterNodes = {
+    query: document.getElementById('incidentWorkbenchQuery'),
+    status: document.getElementById('incidentWorkbenchStatusFilter'),
+    severity: document.getElementById('incidentWorkbenchSeverityFilter'),
+    signalType: document.getElementById('incidentWorkbenchSignalTypeFilter'),
+    limit: document.getElementById('incidentWorkbenchLimitFilter')
+  };
+
+  const createNodes = {
+    title: document.getElementById('incidentCreateTitle'),
+    summary: document.getElementById('incidentCreateSummary'),
+    severity: document.getElementById('incidentCreateSeverity'),
+    status: document.getElementById('incidentCreateStatus'),
+    owner: document.getElementById('incidentCreateOwner'),
+    source: document.getElementById('incidentCreateSource'),
+    relationType: document.getElementById('incidentCreateRelationType'),
+    relationKey: document.getElementById('incidentCreateRelationKey'),
+    watchers: document.getElementById('incidentCreateWatchers')
+  };
+
+  const transportNodes = {
+    inboundList: document.getElementById('transportWorkbenchInboundList'),
+    outboundList: document.getElementById('transportWorkbenchOutboundList'),
+    checkpointList: document.getElementById('transportWorkbenchCheckpointList'),
+    incidentList: document.getElementById('transportWorkbenchIncidentList'),
+    ticketId: document.getElementById('transportWorkbenchTicketId'),
+    inboundFailed: document.getElementById('transportMetricInboundFailed'),
+    inboundStale: document.getElementById('transportMetricInboundStale'),
+    outboundFailed: document.getElementById('transportMetricOutboundFailed'),
+    outboundBacklog: document.getElementById('transportMetricOutboundBacklog'),
+    incidentCount: document.getElementById('transportMetricIncidentCount')
+  };
+
+  function csrfHeaders() {
+    const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
+    const headerName = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+    return token ? { [headerName]: token } : {};
+  }
+
+  async function requestJson(url, options) {
+    const response = await fetch(url, {
+      credentials: 'same-origin',
+      headers: {
+        'Accept': 'application/json',
+        ...csrfHeaders(),
+        ...(options?.headers || {})
+      },
+      ...options
+    });
+    if (!response.ok) {
+      let message = `Request failed with status ${response.status}`;
+      try {
+        const payload = await response.json();
+        message = payload?.message || payload?.error || message;
+      } catch (error) {
+        try {
+          message = await response.text() || message;
+        } catch (textError) {
+          // ignore
+        }
+      }
+      throw new Error(message);
+    }
+    return response.json();
+  }
+
+  function showError(message) {
+    if (!errorNode) return;
+    errorNode.textContent = String(message || 'Unknown error');
+    errorNode.classList.remove('d-none');
+    successNode?.classList.add('d-none');
+  }
+
+  function showSuccess(message) {
+    if (!successNode) return;
+    successNode.textContent = String(message || 'Готово');
+    successNode.classList.remove('d-none');
+    errorNode?.classList.add('d-none');
+    window.setTimeout(() => successNode.classList.add('d-none'), 3500);
+  }
+
+  function clearFeedback() {
+    errorNode?.classList.add('d-none');
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function badgeClass(status) {
+    switch (String(status || '').toLowerCase()) {
+      case 'critical':
+      case 'failed':
+      case 'closed':
+        return 'text-bg-danger';
+      case 'high':
+      case 'investigating':
+      case 'processing':
+        return 'text-bg-warning';
+      case 'resolved':
+      case 'published':
+      case 'delivered':
+        return 'text-bg-success';
+      case 'acknowledged':
+      case 'queued':
+        return 'text-bg-info';
+      default:
+        return 'text-bg-secondary';
+    }
+  }
+
+  function splitCommaList(value) {
+    return String(value || '')
+      .split(/[,\n;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function formatDate(value) {
+    if (!value) return '—';
+    try {
+      return new Date(value).toLocaleString('ru-RU');
+    } catch (error) {
+      return String(value);
+    }
+  }
+
+  function selectedIncident() {
+    return state.incidents.find((item) => Number(item.id) === Number(state.selectedIncidentId)) || null;
+  }
+
+  async function loadIncidents() {
+    clearFeedback();
+    const params = new URLSearchParams();
+    if (filterNodes.query?.value.trim()) params.set('query', filterNodes.query.value.trim());
+    if (filterNodes.status?.value) params.set('status', filterNodes.status.value);
+    if (filterNodes.severity?.value) params.set('severity', filterNodes.severity.value);
+    if (filterNodes.signalType?.value) params.set('signal_type', filterNodes.signalType.value);
+    params.set('limit', filterNodes.limit?.value || '100');
+    const payload = await requestJson(`/api/incidents?${params.toString()}`);
+    state.incidents = Array.isArray(payload?.items) ? payload.items : [];
+    if (!state.selectedIncidentId || !state.incidents.some((item) => Number(item.id) === Number(state.selectedIncidentId))) {
+      state.selectedIncidentId = state.incidents[0]?.id || null;
+    }
+    renderIncidentList();
+    listMetaNode.textContent = `Всего: ${state.incidents.length}`;
+    if (state.selectedIncidentId) {
+      await loadIncidentDetail(state.selectedIncidentId);
+    } else {
+      state.selectedIncident = null;
+      renderIncidentDetail();
+    }
+  }
+
+  function renderIncidentList() {
+    if (!state.incidents.length) {
+      listNode.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Incidents не найдены</td></tr>';
+      return;
+    }
+    listNode.innerHTML = state.incidents.map((item) => `
+      <tr class="incident-list-row ${Number(item.id) === Number(state.selectedIncidentId) ? 'is-active' : ''}" data-incident-id="${escapeHtml(item.id)}">
+        <td>
+          <div class="fw-semibold">${escapeHtml(item.incident_key || '—')}</div>
+          <div>${escapeHtml(item.title || '')}</div>
+          <div class="small text-muted">${escapeHtml(item.summary || '')}</div>
+        </td>
+        <td><span class="badge ${badgeClass(item.severity)}">${escapeHtml(item.severity || '—')}</span></td>
+        <td><span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status || '—')}</span></td>
+        <td class="small text-muted">${escapeHtml(formatDate(item.updated_at))}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadIncidentDetail(incidentId) {
+    state.selectedIncidentId = incidentId;
+    renderIncidentList();
+    const payload = await requestJson(`/api/incidents/${encodeURIComponent(incidentId)}`);
+    state.selectedIncident = payload?.incident || null;
+    renderIncidentDetail();
+  }
+
+  function renderKeyValue(label, value) {
+    return `<div class="incident-surface-item"><div class="small text-muted mb-1">${escapeHtml(label)}</div><div>${escapeHtml(value || '—')}</div></div>`;
+  }
+
+  function renderIncidentDetail() {
+    const incident = state.selectedIncident;
+    if (!incident) {
+      detailNode.innerHTML = '<div class="text-muted">Выберите incident слева, чтобы открыть workbench.</div>';
+      return;
+    }
+    const relations = Array.isArray(incident.relations) ? incident.relations : [];
+    const watchers = Array.isArray(incident.watchers) ? incident.watchers : [];
+    const routes = Array.isArray(incident.routes) ? incident.routes : [];
+    const events = Array.isArray(incident.events) ? incident.events : [];
+    detailNode.innerHTML = `
+      <div class="incident-kpi-grid mb-3">
+        <div class="incident-kpi-card"><div class="incident-kpi-label">Incident</div><div class="incident-kpi-value">${escapeHtml(incident.incident_key || '—')}</div></div>
+        <div class="incident-kpi-card"><div class="incident-kpi-label">Status</div><div class="incident-kpi-value">${escapeHtml(incident.status || '—')}</div></div>
+        <div class="incident-kpi-card"><div class="incident-kpi-label">Severity</div><div class="incident-kpi-value">${escapeHtml(incident.severity || '—')}</div></div>
+        <div class="incident-kpi-card"><div class="incident-kpi-label">Failed routes</div><div class="incident-kpi-value">${escapeHtml(incident.failed_route_count || 0)}</div></div>
+      </div>
+      <div class="incident-detail-columns">
+        <div class="d-grid gap-3">
+          <section class="card">
+            <div class="card-header"><strong>Core fields</strong></div>
+            <div class="card-body">
+              <div class="incident-create-grid mb-3">
+                <input type="text" class="form-control form-control-sm" id="incidentDetailTitle" value="${escapeHtml(incident.title || '')}" placeholder="title">
+                <input type="text" class="form-control form-control-sm" id="incidentDetailSummary" value="${escapeHtml(incident.summary || '')}" placeholder="summary">
+                <select class="form-select form-select-sm" id="incidentDetailSeverity">
+                  ${['critical', 'high', 'medium', 'low'].map((value) => `<option value="${value}" ${value === incident.severity ? 'selected' : ''}>${value}</option>`).join('')}
+                </select>
+                <select class="form-select form-select-sm" id="incidentDetailStatus">
+                  ${['open', 'acknowledged', 'investigating', 'resolved', 'closed'].map((value) => `<option value="${value}" ${value === incident.status ? 'selected' : ''}>${value}</option>`).join('')}
+                </select>
+                <input type="text" class="form-control form-control-sm" id="incidentDetailOwner" value="${escapeHtml(incident.owner || '')}" placeholder="owner">
+                <input type="text" class="form-control form-control-sm" id="incidentDetailSource" value="${escapeHtml(incident.source || '')}" placeholder="source">
+              </div>
+              <textarea class="form-control form-control-sm" id="incidentDetailDescription" rows="4" placeholder="description">${escapeHtml(incident.description || '')}</textarea>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-header"><strong>Relations</strong></div>
+            <div class="card-body incident-meta-list">
+              ${relations.length ? relations.map((relation) => renderKeyValue(relation.relation_type, `${relation.relation_label || relation.relation_key}${relation.primary ? ' · primary' : ''}`)).join('') : '<div class="text-muted">Связи ещё не добавлены.</div>'}
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-header d-flex justify-content-between align-items-center gap-2">
+              <strong>Events / runbook notes</strong>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentAddEventButton">Добавить note</button>
+            </div>
+            <div class="card-body">
+              <div class="incident-create-grid mb-3">
+                <input type="text" class="form-control form-control-sm" id="incidentEventType" value="comment" placeholder="event_type">
+                <input type="text" class="form-control form-control-sm" id="incidentEventText" placeholder="Короткий update / runbook note">
+              </div>
+              <div class="incident-event-list">
+                ${events.length ? events.slice().reverse().map((event) => `
+                  <div class="incident-surface-item">
+                    <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
+                      <strong>${escapeHtml(event.event_type || 'event')}</strong>
+                      <span class="small text-muted">${escapeHtml(formatDate(event.created_at))}</span>
+                    </div>
+                    <div class="incident-event-text mb-1">${escapeHtml(event.event_text || '')}</div>
+                    <div class="small text-muted">actor: ${escapeHtml(event.actor || 'system')}</div>
+                  </div>
+                `).join('') : '<div class="text-muted">История incident пока пуста.</div>'}
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="d-grid gap-3">
+          <section class="card">
+            <div class="card-header"><strong>Metadata</strong></div>
+            <div class="card-body incident-meta-list">
+              ${renderKeyValue('Signal type', incident.signal_type || '—')}
+              ${renderKeyValue('Signal key', incident.signal_key || '—')}
+              ${renderKeyValue('Created by', incident.created_by || '—')}
+              ${renderKeyValue('Updated', formatDate(incident.updated_at))}
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-header"><strong>Watchers</strong></div>
+            <div class="card-body">
+              <div class="input-group input-group-sm mb-3">
+                <input type="text" class="form-control" id="incidentWatcherInput" placeholder="username">
+                <button type="button" class="btn btn-outline-secondary" id="incidentAddWatcherButton">Добавить watcher</button>
+              </div>
+              <div class="incident-watcher-list">
+                ${watchers.length ? watchers.map((watcher) => `
+                  <div class="incident-surface-item d-flex justify-content-between align-items-center gap-2">
+                    <div>
+                      <div class="fw-semibold">${escapeHtml(watcher.watcher_identity || '')}</div>
+                      <div class="small text-muted">${escapeHtml(formatDate(watcher.added_at))}</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-incident-remove-watcher="${escapeHtml(watcher.watcher_identity || '')}">Удалить</button>
+                  </div>
+                `).join('') : '<div class="text-muted">Watcher-ов пока нет.</div>'}
+              </div>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-header"><strong>Routes / delivery</strong></div>
+            <div class="card-body">
+              <div class="incident-route-grid mb-3">
+                <select class="form-select form-select-sm" id="incidentRouteType">
+                  <option value="webhook">webhook</option>
+                  <option value="user">user</option>
+                  <option value="users">users</option>
+                  <option value="department">department</option>
+                  <option value="all_operators">all_operators</option>
+                </select>
+                <input type="text" class="form-control form-control-sm" id="incidentRouteTarget" placeholder="target / usernames / URL / department">
+                <input type="text" class="form-control form-control-sm" id="incidentRouteNote" placeholder="note">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentAddRouteButton">Добавить route</button>
+              </div>
+              <div class="incident-route-list">
+                ${routes.length ? routes.map((route) => `
+                  <div class="incident-surface-item">
+                    <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+                      <div>
+                        <div class="fw-semibold">${escapeHtml(route.route_type || '')}</div>
+                        <div class="small text-muted">${escapeHtml(route.route_target || '')}</div>
+                      </div>
+                      <div class="d-flex gap-2 align-items-center">
+                        <span class="badge ${badgeClass(route.route_status || route.delivery?.status)}">${escapeHtml(route.route_status || route.delivery?.status || 'pending')}</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-incident-redeliver-route="${escapeHtml(route.id)}">Redeliver</button>
+                      </div>
+                    </div>
+                    <div class="small text-muted mb-2">${escapeHtml(route.note || '')}</div>
+                    <div class="small text-muted">delivery: ${escapeHtml(route.delivery?.status || '—')} · attempts=${escapeHtml(route.delivery?.attempt_count ?? 0)} · updated=${escapeHtml(formatDate(route.delivery?.updated_at))}</div>
+                    ${route.delivery?.last_error ? `<pre class="incident-code mt-2 text-danger">${escapeHtml(route.delivery.last_error)}</pre>` : ''}
+                  </div>
+                `).join('') : '<div class="text-muted">Маршруты ещё не заданы.</div>'}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    `;
+  }
+
+  async function saveIncident() {
+    const incident = state.selectedIncident;
+    if (!incident) return;
+    const payload = {
+      title: document.getElementById('incidentDetailTitle')?.value?.trim() || '',
+      summary: document.getElementById('incidentDetailSummary')?.value?.trim() || '',
+      severity: document.getElementById('incidentDetailSeverity')?.value || '',
+      status: document.getElementById('incidentDetailStatus')?.value || '',
+      owner: document.getElementById('incidentDetailOwner')?.value?.trim() || '',
+      source: document.getElementById('incidentDetailSource')?.value?.trim() || '',
+      description: document.getElementById('incidentDetailDescription')?.value?.trim() || ''
+    };
+    await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    showSuccess('Incident обновлён');
+    await loadIncidents();
+  }
+
+  async function createIncident() {
+    const title = createNodes.title?.value.trim();
+    const relationKey = createNodes.relationKey?.value.trim();
+    if (!title || !relationKey) {
+      throw new Error('Для создания incident заполните title и relation key.');
+    }
+    const payload = {
+      title,
+      summary: createNodes.summary?.value.trim() || '',
+      severity: createNodes.severity?.value || 'high',
+      status: createNodes.status?.value || 'open',
+      owner: createNodes.owner?.value.trim() || '',
+      source: createNodes.source?.value.trim() || '',
+      relations: [{
+        relation_type: createNodes.relationType?.value || 'ticket',
+        relation_key: relationKey,
+        primary: true
+      }],
+      watchers: splitCommaList(createNodes.watchers?.value || '')
+    };
+    const response = await requestJson('/api/incidents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    showSuccess('Incident создан');
+    state.selectedIncidentId = response?.incident?.id || null;
+    await loadIncidents();
+  }
+
+  async function addIncidentEvent() {
+    const incident = state.selectedIncident;
+    if (!incident) return;
+    const eventType = document.getElementById('incidentEventType')?.value?.trim() || 'comment';
+    const eventText = document.getElementById('incidentEventText')?.value?.trim() || '';
+    if (!eventText) {
+      throw new Error('Введите текст runbook note.');
+    }
+    await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: eventType, event_text: eventText })
+    });
+    showSuccess('Событие добавлено');
+    await loadIncidentDetail(incident.id);
+    await loadIncidents();
+  }
+
+  async function addWatcher() {
+    const incident = state.selectedIncident;
+    const watcher = document.getElementById('incidentWatcherInput')?.value?.trim() || '';
+    if (!incident || !watcher) return;
+    await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}/watchers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ watcher_identity: watcher })
+    });
+    showSuccess('Watcher добавлен');
+    await loadIncidentDetail(incident.id);
+  }
+
+  async function removeWatcher(watcher) {
+    const incident = state.selectedIncident;
+    if (!incident || !watcher) return;
+    await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}/watchers/${encodeURIComponent(watcher)}`, {
+      method: 'DELETE'
+    });
+    showSuccess('Watcher удалён');
+    await loadIncidentDetail(incident.id);
+  }
+
+  async function addRoute() {
+    const incident = state.selectedIncident;
+    if (!incident) return;
+    const routeType = document.getElementById('incidentRouteType')?.value || '';
+    const routeTarget = document.getElementById('incidentRouteTarget')?.value?.trim() || '';
+    const note = document.getElementById('incidentRouteNote')?.value?.trim() || '';
+    if (!routeType || (!routeTarget && routeType !== 'all_operators')) {
+      throw new Error('Укажите route type и target.');
+    }
+    await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}/routes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ route_type: routeType, route_target: routeTarget, note })
+    });
+    showSuccess('Route добавлен');
+    await loadIncidentDetail(incident.id);
+  }
+
+  async function redeliverRoute(routeId) {
+    const incident = state.selectedIncident;
+    if (!incident || !routeId) return;
+    await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}/routes/${encodeURIComponent(routeId)}/redeliver`, {
+      method: 'POST'
+    });
+    showSuccess('Повторная доставка маршрута поставлена в очередь');
+    await loadIncidentDetail(incident.id);
+  }
+
+  async function redeliverFailedRoutes() {
+    const incident = state.selectedIncident;
+    if (!incident) return;
+    await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}/routes/redeliver-failed?limit=25`, {
+      method: 'POST'
+    });
+    showSuccess('Failed routes поставлены на повторную доставку');
+    await loadIncidentDetail(incident.id);
+  }
+
+  async function loadTransportOverview() {
+    if (!transportNodes.inboundList) {
+      return;
+    }
+    const payload = await requestJson('/api/analytics/integration-transport');
+    state.transportOverview = payload;
+    renderTransportOverview();
+  }
+
+  function renderTransportOverview() {
+    const payload = state.transportOverview || {};
+    const inbound = payload.inbound || {};
+    const outbound = payload.outbound || {};
+    transportNodes.inboundFailed.textContent = String(inbound.failed ?? 0);
+    transportNodes.inboundStale.textContent = String(inbound.stale_processing ?? 0);
+    transportNodes.outboundFailed.textContent = String(outbound.failed ?? 0);
+    transportNodes.outboundBacklog.textContent = String((outbound.queued ?? 0) + (outbound.processing ?? 0));
+    transportNodes.incidentCount.textContent = String(Array.isArray(payload.transport_incidents) ? payload.transport_incidents.length : 0);
+
+    renderTransportItems(transportNodes.inboundList, payload.recent_failed_inbound || [], 'inbound');
+    renderTransportItems(transportNodes.outboundList, payload.recent_failed_outbound || [], 'outbound');
+    renderCheckpointItems(payload.runtime_checkpoints || []);
+    renderTransportIncidentItems(payload.transport_incidents || []);
+  }
+
+  function renderTransportItems(node, items, mode) {
+    if (!node) return;
+    if (!Array.isArray(items) || !items.length) {
+      node.innerHTML = `<div class="text-muted">Нет ${mode === 'inbound' ? 'replayable inbound' : 'requeueable outbound'} событий.</div>`;
+      return;
+    }
+    node.innerHTML = items.map((item) => `
+      <div class="transport-item-card">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+          <div>
+            <div class="fw-semibold">${escapeHtml(item.event_id || '—')}</div>
+            <div class="small text-muted">${escapeHtml(item.event_kind || '')} · ticket=${escapeHtml(item.ticket_id || '—')}</div>
+          </div>
+          <div class="d-flex gap-2">
+            <span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status || '—')}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-transport-view="${mode}" data-event-id="${escapeHtml(item.event_id || '')}">Payload</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-transport-action="${mode === 'inbound' ? 'replay' : 'requeue'}" data-event-id="${escapeHtml(item.event_id || '')}">
+              ${mode === 'inbound' ? 'Replay' : 'Requeue'}
+            </button>
+          </div>
+        </div>
+        <div class="small text-muted">attempts=${escapeHtml(item.attempt_count ?? 0)} · updated=${escapeHtml(formatDate(item.updated_at))}</div>
+        ${item.last_error ? `<pre class="incident-code mt-2 text-danger">${escapeHtml(item.last_error)}</pre>` : ''}
+      </div>
+    `).join('');
+  }
+
+  function renderCheckpointItems(items) {
+    if (!transportNodes.checkpointList) return;
+    if (!Array.isArray(items) || !items.length) {
+      transportNodes.checkpointList.innerHTML = '<div class="text-muted">Runtime checkpoints отсутствуют.</div>';
+      return;
+    }
+    transportNodes.checkpointList.innerHTML = items.map((item) => `
+      <div class="transport-item-card">
+        <div class="fw-semibold mb-2">${escapeHtml(item.worker_key || '—')}</div>
+        <div class="input-group input-group-sm mb-2">
+          <input type="text" class="form-control incident-code" data-transport-checkpoint-input="${escapeHtml(item.worker_key || '')}" value="${escapeHtml(item.cursor_text || '')}">
+          <button type="button" class="btn btn-outline-secondary" data-transport-save-checkpoint="${escapeHtml(item.worker_key || '')}">Save</button>
+        </div>
+        <div class="small text-muted">updated=${escapeHtml(formatDate(item.updated_at))}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderTransportIncidentItems(items) {
+    if (!transportNodes.incidentList) return;
+    if (!Array.isArray(items) || !items.length) {
+      transportNodes.incidentList.innerHTML = '<div class="text-muted">Transport incidents не обнаружены.</div>';
+      return;
+    }
+    transportNodes.incidentList.innerHTML = items.map((item) => `
+      <div class="transport-item-card">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
+          <div>
+            <div class="fw-semibold">${escapeHtml(item.incident_key || '—')}</div>
+            <div>${escapeHtml(item.title || '')}</div>
+          </div>
+          <div class="d-flex gap-2">
+            <span class="badge ${badgeClass(item.severity)}">${escapeHtml(item.severity || '—')}</span>
+            <span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status || '—')}</span>
+          </div>
+        </div>
+        <div class="small text-muted">${escapeHtml(item.summary || '')}</div>
+      </div>
+    `).join('');
+  }
+
+  async function showTransportPayload(mode, eventId) {
+    const url = mode === 'inbound'
+      ? `/api/analytics/integration-transport/inbound-events/${encodeURIComponent(eventId)}`
+      : `/api/analytics/integration-transport/outbox-events/${encodeURIComponent(eventId)}`;
+    const payload = await requestJson(url);
+    payloadContentNode.textContent = JSON.stringify(payload?.item || {}, null, 2);
+    payloadModal?.show();
+  }
+
+  async function invokeTransportAction(url, successMessage) {
+    await requestJson(url, { method: 'POST' });
+    showSuccess(successMessage);
+    await loadTransportOverview();
+    await loadIncidents();
+  }
+
+  listNode.addEventListener('click', (event) => {
+    const row = event.target.closest('[data-incident-id]');
+    if (!row) return;
+    const incidentId = row.getAttribute('data-incident-id');
+    if (incidentId) {
+      void loadIncidentDetail(incidentId).catch((error) => showError(error.message));
+    }
+  });
+
+  detailNode.addEventListener('click', (event) => {
+    const removeWatcherButton = event.target.closest('[data-incident-remove-watcher]');
+    if (removeWatcherButton) {
+      void removeWatcher(removeWatcherButton.getAttribute('data-incident-remove-watcher')).catch((error) => showError(error.message));
+      return;
+    }
+    const redeliverButton = event.target.closest('[data-incident-redeliver-route]');
+    if (redeliverButton) {
+      void redeliverRoute(redeliverButton.getAttribute('data-incident-redeliver-route')).catch((error) => showError(error.message));
+    }
+  });
+
+  transportNodes.inboundList?.addEventListener('click', (event) => {
+    const viewButton = event.target.closest('[data-transport-view="inbound"]');
+    if (viewButton) {
+      void showTransportPayload('inbound', viewButton.getAttribute('data-event-id')).catch((error) => showError(error.message));
+      return;
+    }
+    const replayButton = event.target.closest('[data-transport-action="replay"]');
+    if (replayButton) {
+      void invokeTransportAction(`/api/analytics/integration-transport/inbound-events/${encodeURIComponent(replayButton.getAttribute('data-event-id') || '')}/replay`, 'Inbound event replayed')
+        .catch((error) => showError(error.message));
+    }
+  });
+
+  transportNodes.outboundList?.addEventListener('click', (event) => {
+    const viewButton = event.target.closest('[data-transport-view="outbound"]');
+    if (viewButton) {
+      void showTransportPayload('outbound', viewButton.getAttribute('data-event-id')).catch((error) => showError(error.message));
+      return;
+    }
+    const requeueButton = event.target.closest('[data-transport-action="requeue"]');
+    if (requeueButton) {
+      void invokeTransportAction(`/api/analytics/integration-transport/outbox-events/${encodeURIComponent(requeueButton.getAttribute('data-event-id') || '')}/requeue`, 'Outbound event requeued')
+        .catch((error) => showError(error.message));
+    }
+  });
+
+  transportNodes.checkpointList?.addEventListener('click', (event) => {
+    const saveButton = event.target.closest('[data-transport-save-checkpoint]');
+    if (!saveButton) return;
+    const workerKey = saveButton.getAttribute('data-transport-save-checkpoint') || '';
+    const input = document.querySelector(`[data-transport-checkpoint-input="${CSS.escape(workerKey)}"]`);
+    const cursorText = input ? input.value : '';
+    void invokeTransportAction(`/api/analytics/integration-transport/checkpoints/${encodeURIComponent(workerKey)}?cursor_text=${encodeURIComponent(cursorText || '')}`, 'Checkpoint updated')
+      .catch((error) => showError(error.message));
+  });
+
+  document.getElementById('incidentWorkbenchApplyFilters')?.addEventListener('click', () => void loadIncidents().catch((error) => showError(error.message)));
+  document.getElementById('incidentWorkbenchRefresh')?.addEventListener('click', () => void loadIncidents().catch((error) => showError(error.message)));
+  document.getElementById('incidentWorkbenchCreate')?.addEventListener('click', () => void createIncident().catch((error) => showError(error.message)));
+  document.getElementById('incidentWorkbenchSaveIncident')?.addEventListener('click', () => void saveIncident().catch((error) => showError(error.message)));
+  document.getElementById('incidentWorkbenchRedeliverFailedRoutes')?.addEventListener('click', () => void redeliverFailedRoutes().catch((error) => showError(error.message)));
+  detailNode.addEventListener('click', (event) => {
+    if (event.target && event.target.id === 'incidentAddEventButton') {
+      void addIncidentEvent().catch((error) => showError(error.message));
+    }
+    if (event.target && event.target.id === 'incidentAddWatcherButton') {
+      void addWatcher().catch((error) => showError(error.message));
+    }
+    if (event.target && event.target.id === 'incidentAddRouteButton') {
+      void addRoute().catch((error) => showError(error.message));
+    }
+  });
+
+  document.getElementById('transportWorkbenchRefresh')?.addEventListener('click', () => void loadTransportOverview().catch((error) => showError(error.message)));
+  document.getElementById('transportWorkbenchReplayFailed')?.addEventListener('click', () => void invokeTransportAction('/api/analytics/integration-transport/inbound-events/replay-failed?limit=25', 'Failed inbound batch replay started').catch((error) => showError(error.message)));
+  document.getElementById('transportWorkbenchRequeueFailed')?.addEventListener('click', () => void invokeTransportAction('/api/analytics/integration-transport/outbox-events/requeue-failed?limit=25', 'Failed outbound batch requeue started').catch((error) => showError(error.message)));
+  document.getElementById('transportWorkbenchReplayTicket')?.addEventListener('click', () => {
+    const ticketId = transportNodes.ticketId?.value?.trim();
+    if (!ticketId) {
+      showError('Укажите ticket id для targeted inbound replay.');
+      return;
+    }
+    void invokeTransportAction(`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/replay-inbound?limit=25`, 'Ticket inbound replay requested').catch((error) => showError(error.message));
+  });
+  document.getElementById('transportWorkbenchRequeueTicket')?.addEventListener('click', () => {
+    const ticketId = transportNodes.ticketId?.value?.trim();
+    if (!ticketId) {
+      showError('Укажите ticket id для targeted outbound requeue.');
+      return;
+    }
+    void invokeTransportAction(`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/requeue-outbound?limit=25`, 'Ticket outbound requeue requested').catch((error) => showError(error.message));
+  });
+
+  void loadIncidents().catch((error) => showError(error.message));
+  if (transportNodes.inboundList) {
+    void loadTransportOverview().catch((error) => showError(error.message));
+  }
+})();

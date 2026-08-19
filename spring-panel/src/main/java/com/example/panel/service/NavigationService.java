@@ -31,6 +31,10 @@ public class NavigationService {
         model.addAttribute("canManageTasks", permissionService.hasAuthority(authentication, "PAGE_TASKS"));
         model.addAttribute("canManageChannels", permissionService.hasAuthority(authentication, "PAGE_CHANNELS"));
         model.addAttribute("canManageUsers", permissionService.hasAuthority(authentication, "PAGE_USERS"));
+        model.addAttribute("canViewIncidents",
+                permissionService.hasAuthority(authentication, "PAGE_DIALOGS")
+                    || permissionService.hasAuthority(authentication, "PAGE_TASKS")
+                    || permissionService.hasAuthority(authentication, "PAGE_OBJECT_PASSPORTS"));
         model.addAttribute("canManagePasswordResetRequests",
                 permissionService.isSuperUser(authentication) || permissionService.hasAuthority(authentication, "ROLE_PORTAL_ADMIN"));
         model.addAttribute("canViewSettings", permissionService.hasAuthority(authentication, "PAGE_SETTINGS"));
