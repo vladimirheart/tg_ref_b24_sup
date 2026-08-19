@@ -17,7 +17,7 @@
 - `MonitoringDatabaseBootstrapService`
   Поддерживает локальный `monitoring.db` и перенос старых monitoring-таблиц только в SQLite-режиме.
 - `BotDatabaseRegistry`
-  Ведёт `settings.db` и `bot-<channelId>.db` только как local/dev registry и per-channel bootstrap слой.
+  Ведёт `settings.db` и `bot-<channelId>.db` только как local/dev registry и per-channel bootstrap слой; `settings.db` больше не поднимается как отдельный Spring datasource в external runtime.
 - `SqliteSchemaBootstrapSupport`
   Общий helper для local SQLite schema bootstrap.
 - `EnvDefaultsInitializer`

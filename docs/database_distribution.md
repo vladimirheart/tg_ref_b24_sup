@@ -147,22 +147,22 @@ operator-facing canonical reads.
 
 ### 2.5. Secondary/legacy контуры
 
-Через `SecondarySqliteDataSourceConfiguration` поднимаются ещё четыре
+Через `SecondarySqliteDataSourceConfiguration` поднимаются ещё три
 secondary data source:
 
 - `clientsDataSource`
 - `knowledgeDataSource`
 - `objectsDataSource`
-- `settingsDataSource`
 
 Они соответствуют:
 
 - `clients.db`
 - `knowledge_base.db`
 - `objects.db`
-- `settings.db`
 
-Но их фактическая полезность различается, и это важно учитывать.
+Отдельно `settings.db` больше не поднимается как общий Spring datasource:
+его lazy SQLite access остаётся только внутри `BotDatabaseRegistry` и только
+для явного compatibility path.
 
 ## 3. Фактическое владение данными по БД
 
@@ -323,7 +323,8 @@ Bootstrap создаёт:
 Это обеспечивает `BotDatabaseRegistry`.
 
 Вывод: `settings.db` - служебный transitional реестр, а не полноценный
-source of truth для прикладных настроек панели.
+source of truth для прикладных настроек панели. В external runtime он больше
+не должен выглядеть как отдельный live datasource contour.
 
 ## 4. Как БД используются в `java-bot`
 

@@ -55,16 +55,4 @@ public class SecondarySqliteDataSourceConfiguration {
         log.info("Using OBJECTS SQLite database at {}", properties.getNormalizedPath());
         return SqliteConnectionConfigSupport.createDataSource(properties);
     }
-
-    @Bean(name = "settingsDataSource")
-    public DataSource settingsDataSource(SettingsSqliteDataSourceProperties properties,
-                                         @Qualifier("dataSource") DataSource primaryDataSource,
-                                         PanelDatabaseRuntimeMode databaseRuntimeMode) {
-        if (databaseRuntimeMode.isExternalDatabaseEnabled()) {
-            log.info("Using primary external {} datasource as SETTINGS datasource", databaseRuntimeMode.modeLabel());
-            return primaryDataSource;
-        }
-        log.info("Using SETTINGS SQLite database at {}", properties.getNormalizedPath());
-        return SqliteConnectionConfigSupport.createDataSource(properties);
-    }
 }

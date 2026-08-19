@@ -29,7 +29,7 @@ class BotDatabaseRegistryTest {
         BotDatabaseRegistry registry = new BotDatabaseRegistry(
                 botProcessProperties(),
                 botSqliteProperties(),
-                mock(DataSource.class),
+                settingsSqliteProperties(),
                 schemaBootstrapSupport,
                 new PanelDatabaseRuntimeMode(externalEnvironment())
         );
@@ -42,19 +42,18 @@ class BotDatabaseRegistryTest {
     @Test
     void ensureSettingsSchemaKeepsLegacyBootstrapInSqliteMode() {
         SqliteSchemaBootstrapSupport schemaBootstrapSupport = mock(SqliteSchemaBootstrapSupport.class);
-        DataSource settingsDataSource = mock(DataSource.class);
 
         BotDatabaseRegistry registry = new BotDatabaseRegistry(
                 botProcessProperties(),
                 botSqliteProperties(),
-                settingsDataSource,
+                settingsSqliteProperties(),
                 schemaBootstrapSupport,
                 new PanelDatabaseRuntimeMode(new MockEnvironment())
         );
 
         registry.ensureSettingsSchema();
 
-        verify(schemaBootstrapSupport).initializeSchema(eq(settingsDataSource), anyList(), eq("settings.db"));
+        verify(schemaBootstrapSupport).initializeSchema(org.mockito.ArgumentMatchers.any(DataSource.class), anyList(), eq("settings.db"));
     }
 
     @Test
@@ -65,7 +64,7 @@ class BotDatabaseRegistryTest {
         BotDatabaseRegistry registry = new BotDatabaseRegistry(
                 botProcessProperties,
                 botSqliteProperties(),
-                mock(DataSource.class),
+                settingsSqliteProperties(),
                 schemaBootstrapSupport,
                 new PanelDatabaseRuntimeMode(externalEnvironment())
         );
@@ -88,6 +87,13 @@ class BotDatabaseRegistryTest {
     private BotSqliteDataSourceProperties botSqliteProperties() {
         BotSqliteDataSourceProperties properties = new BotSqliteDataSourceProperties();
         properties.setPath(tempDir.resolve("bot_runtime.db").toString());
+        return properties;
+    }
+
+    private com.example.panel.config.SettingsSqliteDataSourceProperties settingsSqliteProperties() {
+        com.example.panel.config.SettingsSqliteDataSourceProperties properties =
+                new com.example.panel.config.SettingsSqliteDataSourceProperties();
+        properties.setPath(tempDir.resolve("settings.db").toString());
         return properties;
     }
 

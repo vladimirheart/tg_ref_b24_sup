@@ -3,6 +3,7 @@ package com.example.panel.service;
 import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.BotProcessProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
+import com.example.panel.config.SettingsSqliteDataSourceProperties;
 import com.example.panel.config.SqliteConnectionConfigSupport;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,7 +11,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -24,18 +24,19 @@ public class BotDatabaseRegistry {
 
     private final BotProcessProperties botProcessProperties;
     private final BotSqliteDataSourceProperties botSqliteProperties;
-    private final DataSource settingsDataSource;
+    private final SettingsSqliteDataSourceProperties settingsSqliteProperties;
     private final SqliteSchemaBootstrapSupport schemaBootstrapSupport;
     private final PanelDatabaseRuntimeMode databaseRuntimeMode;
+    private volatile DataSource settingsRegistryDataSource;
 
     public BotDatabaseRegistry(BotProcessProperties botProcessProperties,
                                BotSqliteDataSourceProperties botSqliteProperties,
-                               @Qualifier("settingsDataSource") DataSource settingsDataSource,
+                               SettingsSqliteDataSourceProperties settingsSqliteProperties,
                                SqliteSchemaBootstrapSupport schemaBootstrapSupport,
                                PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.botProcessProperties = botProcessProperties;
         this.botSqliteProperties = botSqliteProperties;
-        this.settingsDataSource = settingsDataSource;
+        this.settingsSqliteProperties = settingsSqliteProperties;
         this.schemaBootstrapSupport = schemaBootstrapSupport;
         this.databaseRuntimeMode = databaseRuntimeMode;
     }
@@ -45,7 +46,7 @@ public class BotDatabaseRegistry {
             log.info("Skipping settings.db schema bootstrap in external {} mode", databaseRuntimeMode.modeLabel());
             return;
         }
-        schemaBootstrapSupport.initializeSchema(settingsDataSource, java.util.List.of(
+        schemaBootstrapSupport.initializeSchema(settingsRegistryDataSource(), java.util.List.of(
             "CREATE TABLE IF NOT EXISTS database_registry (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "db_type TEXT NOT NULL UNIQUE, " +
@@ -77,7 +78,7 @@ public class BotDatabaseRegistry {
         }
         String sql = "INSERT INTO database_registry (db_type, db_path, updated_at) VALUES (?, ?, datetime('now')) " +
             "ON CONFLICT(db_type) DO UPDATE SET db_path = excluded.db_path, updated_at = excluded.updated_at";
-        try (Connection connection = settingsDataSource.getConnection();
+        try (Connection connection = settingsRegistryDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, type);
             statement.setString(2, path);
@@ -95,7 +96,7 @@ public class BotDatabaseRegistry {
             "(source_type, source_id, target_type, target_id, created_at) " +
             "VALUES (?, ?, ?, ?, datetime('now')) " +
             "ON CONFLICT(source_type, source_id, target_type, target_id) DO NOTHING";
-        try (Connection connection = settingsDataSource.getConnection();
+        try (Connection connection = settingsRegistryDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, sourceType);
             statement.setString(2, sourceId);
@@ -169,7 +170,7 @@ public class BotDatabaseRegistry {
     private void registerBotInstance(Long channelId, String platform, Path dbPath) {
         String sql = "INSERT INTO bot_instances (channel_id, bot_db_path, platform, created_at) VALUES (?, ?, ?, datetime('now')) " +
             "ON CONFLICT(channel_id) DO UPDATE SET bot_db_path = excluded.bot_db_path, platform = excluded.platform";
-        try (Connection connection = settingsDataSource.getConnection();
+        try (Connection connection = settingsRegistryDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setLong(1, channelId);
             statement.setString(2, dbPath.toString());
@@ -180,5 +181,18 @@ public class BotDatabaseRegistry {
         }
         registerDatabaseLink("channel", Long.toString(channelId), "bot", dbPath.toString());
         log.info("Bot database ready for channel {} at {}", channelId, dbPath);
+    }
+
+    private DataSource settingsRegistryDataSource() {
+        DataSource cached = settingsRegistryDataSource;
+        if (cached != null) {
+            return cached;
+        }
+        synchronized (this) {
+            if (settingsRegistryDataSource == null) {
+                settingsRegistryDataSource = SqliteConnectionConfigSupport.createDataSource(settingsSqliteProperties);
+            }
+            return settingsRegistryDataSource;
+        }
     }
 }
