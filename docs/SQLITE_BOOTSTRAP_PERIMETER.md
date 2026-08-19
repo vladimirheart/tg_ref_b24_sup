@@ -22,6 +22,8 @@
   Общий helper для local SQLite schema bootstrap.
 - `EnvDefaultsInitializer`
   Подставляет локальные `APP_DB_*` пути только при явном `app.datasource.mode=sqlite`.
+- `IGUANA_LEGACY_SQLITE_AUTO_IMPORT=true`
+  Явно включает one-time compatibility import/recovery из legacy SQLite только по осознанному запросу.
 - SQLite Flyway migrations
   Владеют compatibility-таблицами вроде `password_reset_requests`, `chat_attachment_metadata` и `ui_event_outbox`, чтобы live-beans не создавали их по месту использования.
 
@@ -53,6 +55,7 @@
 - неявное создание `settings.db`, `bot-<channelId>.db`, `monitoring.db` или secondary SQLite-файлов при `APP_DB_MODE=postgresql`;
 - operator-facing live reads, которые в `APP_DB_MODE=postgresql` продолжают напрямую открывать per-channel SQLite-файлы вместо canonical datasource;
 - schema ownership вспомогательных SQLite-таблиц внутри live controller/service bean’ов (`PasswordResetRequestApiController`, `UiEventOutboxWatcher`, `ChatAttachmentMetadata*`);
+- автоматический import/recovery из legacy `*.db` в обычном PostgreSQL runtime без явного compatibility switch;
 - перенос business ownership обратно в local SQLite только ради удобства dev-старта.
 
 ## 3. Практический смысл
@@ -63,6 +66,7 @@ SQLite остаётся только в трёх ролях:
 
 - local/dev bootstrap;
 - explicit compatibility fallback, а не normal first-run path;
+- explicit one-time import/recovery flow, а не always-on production helper;
 - legacy/test perimeter, который не должен участвовать в external production-like path.
 
 Если новый код требует SQLite-ветку вне этих ролей, это уже не continuation existing perimeter, а новый architectural debt и его нужно отдельно обосновывать.

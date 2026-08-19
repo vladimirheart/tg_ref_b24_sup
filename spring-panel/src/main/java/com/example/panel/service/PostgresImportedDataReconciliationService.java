@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.LegacySqliteCompatibilitySettings;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,16 +25,22 @@ public class PostgresImportedDataReconciliationService implements ApplicationRun
 
     private final JdbcTemplate jdbcTemplate;
     private final PanelDatabaseRuntimeMode runtimeMode;
+    private final LegacySqliteCompatibilitySettings compatibilitySettings;
 
     public PostgresImportedDataReconciliationService(JdbcTemplate jdbcTemplate,
-                                                      PanelDatabaseRuntimeMode runtimeMode) {
+                                                      PanelDatabaseRuntimeMode runtimeMode,
+                                                      LegacySqliteCompatibilitySettings compatibilitySettings) {
         this.jdbcTemplate = jdbcTemplate;
         this.runtimeMode = runtimeMode;
+        this.compatibilitySettings = compatibilitySettings;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         if (!"postgresql".equalsIgnoreCase(runtimeMode.modeLabel())) {
+            return;
+        }
+        if (!compatibilitySettings.isAutoImportEnabled()) {
             return;
         }
 

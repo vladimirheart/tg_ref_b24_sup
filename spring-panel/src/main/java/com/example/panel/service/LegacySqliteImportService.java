@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.LegacySqliteCompatibilitySettings;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,13 +135,16 @@ public class LegacySqliteImportService implements ApplicationRunner {
     private final DataSource dataSource;
     private final Environment environment;
     private final PanelDatabaseRuntimeMode runtimeMode;
+    private final LegacySqliteCompatibilitySettings compatibilitySettings;
 
     public LegacySqliteImportService(DataSource dataSource,
                                      Environment environment,
-                                     PanelDatabaseRuntimeMode runtimeMode) {
+                                     PanelDatabaseRuntimeMode runtimeMode,
+                                     LegacySqliteCompatibilitySettings compatibilitySettings) {
         this.dataSource = dataSource;
         this.environment = environment;
         this.runtimeMode = runtimeMode;
+        this.compatibilitySettings = compatibilitySettings;
     }
 
     @Override
@@ -148,8 +152,8 @@ public class LegacySqliteImportService implements ApplicationRunner {
         if (!"postgresql".equalsIgnoreCase(runtimeMode.modeLabel())) {
             return;
         }
-        if (!readBooleanSetting("IGUANA_LEGACY_SQLITE_AUTO_IMPORT", true)) {
-            log.info("Legacy SQLite auto-import is disabled by IGUANA_LEGACY_SQLITE_AUTO_IMPORT.");
+        if (!compatibilitySettings.isAutoImportEnabled()) {
+            log.debug("Legacy SQLite compatibility import is disabled.");
             return;
         }
 
@@ -163,7 +167,6 @@ public class LegacySqliteImportService implements ApplicationRunner {
         long importedTotal = 0L;
         int processedSources = 0;
         try (Connection target = dataSource.getConnection()) {
-            ensureMarkerTable(target);
             for (LegacySource source : sources) {
                 if (wasImported(target, source.path())) {
                     continue;
@@ -441,20 +444,6 @@ public class LegacySqliteImportService implements ApplicationRunner {
         }
     }
 
-    private void ensureMarkerTable(Connection target) throws SQLException {
-        try (Statement statement = target.createStatement()) {
-            statement.execute("""
-                CREATE TABLE IF NOT EXISTS legacy_sqlite_imports (
-                    source_path TEXT PRIMARY KEY,
-                    source_size BIGINT NOT NULL DEFAULT 0,
-                    source_modified_at TIMESTAMP WITH TIME ZONE,
-                    imported_rows BIGINT NOT NULL DEFAULT 0,
-                    imported_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )
-                """);
-        }
-    }
-
     private boolean wasImported(Connection target, Path source) throws SQLException {
         try (PreparedStatement statement = target.prepareStatement(
             "SELECT 1 FROM legacy_sqlite_imports WHERE source_path = ? LIMIT 1"
@@ -592,18 +581,6 @@ public class LegacySqliteImportService implements ApplicationRunner {
             current = current.getParent();
         }
         return start;
-    }
-
-    private boolean readBooleanSetting(String name, boolean defaultValue) {
-        String value = environment.getProperty(name);
-        if (!StringUtils.hasText(value)) {
-            return defaultValue;
-        }
-        return switch (value.trim().toLowerCase(Locale.ROOT)) {
-            case "1", "true", "yes", "on" -> true;
-            case "0", "false", "no", "off" -> false;
-            default -> defaultValue;
-        };
     }
 
     private Comparator<String> tableComparator() {

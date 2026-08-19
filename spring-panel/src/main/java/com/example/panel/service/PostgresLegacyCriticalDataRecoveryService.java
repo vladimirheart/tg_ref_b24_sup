@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.LegacySqliteCompatibilitySettings;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,18 +69,25 @@ public class PostgresLegacyCriticalDataRecoveryService implements ApplicationRun
     private final DataSource dataSource;
     private final Environment environment;
     private final PanelDatabaseRuntimeMode runtimeMode;
+    private final LegacySqliteCompatibilitySettings compatibilitySettings;
 
     public PostgresLegacyCriticalDataRecoveryService(DataSource dataSource,
                                                       Environment environment,
-                                                      PanelDatabaseRuntimeMode runtimeMode) {
+                                                      PanelDatabaseRuntimeMode runtimeMode,
+                                                      LegacySqliteCompatibilitySettings compatibilitySettings) {
         this.dataSource = dataSource;
         this.environment = environment;
         this.runtimeMode = runtimeMode;
+        this.compatibilitySettings = compatibilitySettings;
     }
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
         if (!"postgresql".equalsIgnoreCase(runtimeMode.modeLabel())) {
+            return;
+        }
+        if (!compatibilitySettings.isAutoImportEnabled()) {
+            log.debug("Legacy SQLite critical recovery is disabled.");
             return;
         }
 

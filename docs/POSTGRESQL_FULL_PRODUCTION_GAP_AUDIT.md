@@ -48,6 +48,7 @@
 После стартового среза `01-183` first-run bootstrap больше не должен молча откатываться в SQLite при недоступном Docker, но SQLite compatibility mode всё ещё существует как явный override.
 
 Это уже лучше, чем normal fallback-path, но всё ещё не финальная цель, где живой проект полностью мыслится через canonical PostgreSQL contour и SQLite остаётся только в test/import/legacy compatibility ролях.
+Дополнительно one-time import/recovery из legacy SQLite уже переведён в explicit opt-in и больше не должен автоматически стартовать в каждом PostgreSQL runtime только из-за присутствия старых `*.db` файлов рядом с репозиторием.
 
 ### 2.4. Часть документации всё ещё описывает систему как multi-SQLite architecture
 
