@@ -22,6 +22,14 @@
   const trendMetaEl = document.getElementById('analyticsIntegrationTransportTrendMeta');
   const trendSummaryEl = document.getElementById('analyticsIntegrationTransportTrendSummary');
   const snapshotMetaEl = document.getElementById('analyticsIntegrationTransportSnapshotMeta');
+  const workerTitleEl = document.getElementById('analyticsIntegrationTransportWorkerTitle');
+  const workerMetaEl = document.getElementById('analyticsIntegrationTransportWorkerMeta');
+  const workerTrendBadgeEl = document.getElementById('analyticsIntegrationTransportWorkerTrendBadge');
+  const workerTrendMetaEl = document.getElementById('analyticsIntegrationTransportWorkerTrendMeta');
+  const workerRecommendationEl = document.getElementById('analyticsIntegrationTransportWorkerRecommendations');
+  const workerIncidentTable = document.getElementById('analyticsIntegrationTransportWorkerIncidentTable');
+  const workerHistoryTable = document.getElementById('analyticsIntegrationTransportWorkerHistoryTable');
+  const workerOperationTable = document.getElementById('analyticsIntegrationTransportWorkerOperationTable');
   const metricNodes = {
     inbound_failed: document.querySelector('[data-transport-metric="inbound_failed"]'),
     inbound_stale: document.querySelector('[data-transport-metric="inbound_stale"]'),
@@ -32,7 +40,9 @@
     unhealthy_streak: document.querySelector('[data-transport-metric="unhealthy_streak"]'),
     transport_incidents: document.querySelector('[data-transport-metric="transport_incidents"]'),
   };
+
   let inFlight = false;
+  let selectedWorkerKey = null;
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -80,13 +90,16 @@
   function badgeClassForSeverity(severity) {
     switch (String(severity || '').toLowerCase()) {
       case 'critical':
+      case 'failed':
+      case 'stale':
         return 'text-bg-danger';
       case 'high':
-        return 'text-bg-warning';
       case 'warning':
+      case 'lagging':
         return 'text-bg-warning';
       case 'ok':
       case 'healthy':
+      case 'success':
         return 'text-bg-success';
       default:
         return 'text-bg-secondary';
@@ -146,6 +159,45 @@
     if (snapshotMetaEl) {
       snapshotMetaEl.textContent = `Последний snapshot: ${formatTimestamp(trendSummary?.latest_created_at)}`;
     }
+  }
+
+  function renderWorkerDiagnostics(payload) {
+    const worker = payload?.worker || {};
+    const trendSummary = payload?.trend_summary || {};
+    const badge = trendBadge(trendSummary?.status);
+    if (workerTitleEl) {
+      workerTitleEl.textContent = worker.worker_label || worker.worker_key || 'Worker';
+    }
+    if (workerMetaEl) {
+      workerMetaEl.textContent = `key=${worker.worker_key || '—'} · source=${worker.source_table || '—'} · lag=${worker.cursor_lag == null ? '—' : formatNumber(worker.cursor_lag)} · updated=${formatTimestamp(worker.updated_at)}`;
+    }
+    if (workerTrendBadgeEl) {
+      workerTrendBadgeEl.className = `badge ${badge.css}`;
+      workerTrendBadgeEl.textContent = `Worker ${badge.label.replace('Trend: ', 'trend: ')}`;
+    }
+    if (workerTrendMetaEl) {
+      workerTrendMetaEl.textContent = `streak=${formatNumber(trendSummary.unhealthy_streak)} · peak lag=${formatNumber(trendSummary.peak_cursor_lag)} · peak age=${formatNumber(trendSummary.peak_age_minutes)}m`;
+    }
+    renderWorkerRecommendations(payload?.recommendations || []);
+    renderWorkerIncidentRows(payload?.related_incidents || []);
+    renderWorkerHistoryRows(payload?.recent_history || []);
+    renderWorkerOperationRows(payload?.recent_operations || []);
+  }
+
+  function renderWorkerRecommendations(items) {
+    if (!workerRecommendationEl) {
+      return;
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      workerRecommendationEl.innerHTML = '<div class="text-muted small">Рекомендации для worker-а отсутствуют.</div>';
+      return;
+    }
+    workerRecommendationEl.innerHTML = items.map((item) => `
+      <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 border rounded-3 px-3 py-2">
+        <div>${escapeHtml(item.message || '—')}</div>
+        <span class="badge ${badgeClassForSeverity(item.severity)}">${escapeHtml(item.severity || 'info')}</span>
+      </div>
+    `).join('');
   }
 
   function renderAlerts(items) {
@@ -251,7 +303,71 @@
         </td>
         <td><span class="badge ${badgeClassForSeverity(item.health_status)}">${escapeHtml(item.health_status || '—')}</span></td>
         <td>${escapeHtml(item.cursor_lag == null ? '—' : formatNumber(item.cursor_lag))}</td>
+        <td>
+          <div>${escapeHtml(formatTimestamp(item.updated_at))}</div>
+          <button type="button" class="btn btn-link btn-sm p-0" data-transport-action="inspect-worker" data-worker-key="${escapeHtml(item.worker_key || '')}">Inspect</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function renderWorkerIncidentRows(items) {
+    if (!workerIncidentTable) {
+      return;
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      workerIncidentTable.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Worker incidents не найдены</td></tr>';
+      return;
+    }
+    workerIncidentTable.innerHTML = items.map((item) => `
+      <tr>
+        <td>
+          <div class="fw-semibold">${escapeHtml(item.incident_key || '—')}</div>
+          <div class="small text-muted">${escapeHtml(item.title || '—')}</div>
+        </td>
+        <td><span class="badge ${badgeClassForSeverity(item.severity)}">${escapeHtml(item.severity || '—')}</span></td>
+        <td>${escapeHtml(item.status || '—')}</td>
         <td>${escapeHtml(formatTimestamp(item.updated_at))}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderWorkerHistoryRows(items) {
+    if (!workerHistoryTable) {
+      return;
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      workerHistoryTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">История worker-а отсутствует</td></tr>';
+      return;
+    }
+    workerHistoryTable.innerHTML = items.map((item) => `
+      <tr>
+        <td>${escapeHtml(formatTimestamp(item.created_at))}</td>
+        <td><span class="badge ${badgeClassForSeverity(item.health_status)}">${escapeHtml(item.health_status || '—')}</span></td>
+        <td>${escapeHtml(item.cursor_lag == null ? '—' : formatNumber(item.cursor_lag))}</td>
+        <td>${escapeHtml(item.age_minutes == null ? '—' : formatNumber(item.age_minutes))}m</td>
+        <td class="small text-muted">${escapeHtml(item.summary_text || '—')}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderWorkerOperationRows(items) {
+    if (!workerOperationTable) {
+      return;
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      workerOperationTable.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Recovery operations для worker-а не найдены</td></tr>';
+      return;
+    }
+    workerOperationTable.innerHTML = items.map((item) => `
+      <tr>
+        <td>${escapeHtml(formatTimestamp(item.created_at))}</td>
+        <td>
+          <div class="fw-semibold">${escapeHtml(item.action_type || '—')}</div>
+          <div class="small text-muted">${escapeHtml(item.summary_text || '—')}</div>
+        </td>
+        <td>${escapeHtml(item.actor || 'system')}</td>
+        <td><span class="badge ${badgeClassForSeverity(item.result_status === 'success' ? 'ok' : 'warning')}">${escapeHtml(item.result_status || '—')}</span></td>
       </tr>
     `).join('');
   }
@@ -319,6 +435,15 @@
     return payload;
   }
 
+  async function loadWorkerDiagnostics(workerKey) {
+    if (!workerKey) {
+      return;
+    }
+    selectedWorkerKey = workerKey;
+    const payload = await requestJson(`/api/analytics/integration-transport/workers/${encodeURIComponent(workerKey)}`);
+    renderWorkerDiagnostics(payload);
+  }
+
   async function loadOverview() {
     if (inFlight) {
       return;
@@ -328,6 +453,16 @@
     try {
       const payload = await requestJson('/api/analytics/integration-transport');
       renderOverview(payload);
+      const checkpoints = Array.isArray(payload?.runtime_checkpoints) ? payload.runtime_checkpoints : [];
+      if (checkpoints.length > 0) {
+        const workerKeys = checkpoints.map((item) => String(item.worker_key || '')).filter(Boolean);
+        if (!selectedWorkerKey || !workerKeys.includes(selectedWorkerKey)) {
+          selectedWorkerKey = workerKeys[0] || null;
+        }
+        if (selectedWorkerKey) {
+          await loadWorkerDiagnostics(selectedWorkerKey);
+        }
+      }
       if (updatedAtEl) {
         updatedAtEl.textContent = `Обновлено: ${new Date().toLocaleString('ru-RU')}`;
       }
@@ -362,6 +497,12 @@
     if (requeueButton) {
       event.preventDefault();
       void invokeAction(`/api/analytics/integration-transport/outbox-events/${encodeURIComponent(requeueButton.dataset.eventId || '')}/requeue`);
+      return;
+    }
+    const inspectWorkerButton = event.target.closest('[data-transport-action="inspect-worker"]');
+    if (inspectWorkerButton) {
+      event.preventDefault();
+      void loadWorkerDiagnostics(inspectWorkerButton.dataset.workerKey || '').catch((error) => setError(error.message));
     }
   });
 

@@ -59,4 +59,19 @@ class AnalyticsIntegrationTransportControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.event_id").value("evt-1"));
     }
+
+    @Test
+    void workerDiagnosticsReturnsPayload() throws Exception {
+        when(integrationTransportOpsService.loadWorkerDiagnostics(eq("ui-event-outbox-watch")))
+            .thenReturn(Map.of(
+                "success", true,
+                "worker", Map.of("worker_key", "ui-event-outbox-watch")
+            ));
+
+        mockMvc.perform(get("/api/analytics/integration-transport/workers/ui-event-outbox-watch")
+                .with(user("operator").authorities(() -> "PAGE_ANALYTICS")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.worker.worker_key").value("ui-event-outbox-watch"));
+    }
 }

@@ -131,3 +131,21 @@ Production contour теперь предполагает следующий live
 - более широкий внешний alerting/integration observability слой поверх уже собранного contour.
 
 Всё остальное production contour следует считать уже собранным вокруг canonical `PostgreSQL + Redis + RabbitMQ + object storage + incident workbench`.
+
+## 7. Worker forensics addendum
+
+На `2026-08-19` panel-side observability по transport contour уже включает не только общий snapshot/trend слой, но и отдельный worker drilldown.
+
+Через `/analytics` -> `Integration Transport Ops` теперь доступны:
+
+- current worker health status и lag thresholds;
+- worker snapshot history;
+- worker-specific manual operations;
+- related incidents и operator recommendations;
+- worker-specific signal incidents `integration_transport/panel-runtime-checkpoints/<worker_key>`.
+
+Практический смысл:
+
+- operator может начать разбор с runtime checkpoint row и уйти в `Inspect`, не собирая историю worker'а вручную по таблицам;
+- incident trail теперь есть не только по overall transport degradation, но и по конкретному watcher/worker pressure;
+- remaining residual debt по worker-side observability смещён уже не в отсутствие базового drilldown, а в более глубокий replay/forensics и внешний alerting/automation слой.

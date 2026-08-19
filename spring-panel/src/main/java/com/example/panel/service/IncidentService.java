@@ -135,6 +135,17 @@ public class IncidentService {
             .toList();
     }
 
+    public List<Map<String, Object>> listIncidentSummariesForSignal(String signalType, String signalKey) {
+        String normalizedSignalType = normalizeNullableText(signalType);
+        String normalizedSignalKey = normalizeNullableText(signalKey);
+        if (!StringUtils.hasText(normalizedSignalType) || !StringUtils.hasText(normalizedSignalKey)) {
+            return List.of();
+        }
+        return incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc(normalizedSignalType, normalizedSignalKey).stream()
+            .map(this::buildIncidentSummary)
+            .toList();
+    }
+
     public Map<String, Object> getIncident(Long id) {
         Incident incident = requireIncident(id);
         return Map.of(

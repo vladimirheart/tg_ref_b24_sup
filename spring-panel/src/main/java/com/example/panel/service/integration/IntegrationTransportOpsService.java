@@ -26,17 +26,20 @@ public class IntegrationTransportOpsService {
 
     private static final int RECENT_LIMIT = 20;
     private static final int RECENT_OPERATION_LIMIT = 25;
+    private static final int RECENT_WORKER_HISTORY_LIMIT = 24;
+    private static final int RECENT_WORKER_OPERATION_LIMIT = 20;
     private static final Duration INBOUND_STALE_TIMEOUT = Duration.ofMinutes(15);
     private static final Duration OUTBOUND_STALE_TIMEOUT = Duration.ofMinutes(5);
     private static final Duration RECENT_MANUAL_OPERATION_WINDOW = Duration.ofHours(6);
     private static final Duration DEFAULT_TREND_WINDOW = Duration.ofHours(24);
+    private static final Duration DEFAULT_WORKER_TREND_WINDOW = Duration.ofHours(24);
     private static final long SUSTAINED_UNHEALTHY_STREAK_THRESHOLD = 3L;
     private static final long SUSTAINED_CRITICAL_STREAK_THRESHOLD = 2L;
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
     private static final List<WorkerDiagnosticsDefinition> WORKER_DIAGNOSTICS = List.of(
-        new WorkerDiagnosticsDefinition("operator-notification-watch.chat-history", "Operator chat-history watcher", "chat_history", "id", Duration.ofMinutes(15)),
-        new WorkerDiagnosticsDefinition("operator-notification-watch.feedbacks", "Operator feedback watcher", "feedbacks", "id", Duration.ofMinutes(20)),
-        new WorkerDiagnosticsDefinition("ui-event-outbox-watch", "UI event outbox watcher", "ui_event_outbox", "id", Duration.ofMinutes(10))
+        new WorkerDiagnosticsDefinition("operator-notification-watch.chat-history", "Operator chat-history watcher", "chat_history", "id", Duration.ofMinutes(15), 25L),
+        new WorkerDiagnosticsDefinition("operator-notification-watch.feedbacks", "Operator feedback watcher", "feedbacks", "id", Duration.ofMinutes(20), 10L),
+        new WorkerDiagnosticsDefinition("ui-event-outbox-watch", "UI event outbox watcher", "ui_event_outbox", "id", Duration.ofMinutes(10), 50L)
     );
 
     private final JdbcTemplate jdbcTemplate;
@@ -141,6 +144,28 @@ public class IntegrationTransportOpsService {
         return payload;
     }
 
+    public Map<String, Object> loadWorkerDiagnostics(String workerKey) {
+        String normalizedWorkerKey = normalize(workerKey);
+        if (!StringUtils.hasText(normalizedWorkerKey)) {
+            throw new IllegalArgumentException("Worker key is required for transport diagnostics.");
+        }
+        WorkerCheckpointSnapshot snapshot = loadCurrentWorkerCheckpointSnapshot(normalizedWorkerKey);
+        if (snapshot == null) {
+            throw new IllegalArgumentException("Runtime worker checkpoint not found: " + normalizedWorkerKey);
+        }
+        Map<String, Object> trendSummary = buildWorkerTrendSummary(normalizedWorkerKey, DEFAULT_WORKER_TREND_WINDOW);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("success", true);
+        payload.put("worker", snapshot.toMap());
+        payload.put("trend_summary", trendSummary);
+        payload.put("recent_history", loadRecentWorkerHealthSnapshots(normalizedWorkerKey, RECENT_WORKER_HISTORY_LIMIT));
+        payload.put("recent_operations", loadRecentOperationLogsForWorker(normalizedWorkerKey, RECENT_WORKER_OPERATION_LIMIT));
+        payload.put("related_incidents", incidentService.listIncidentSummariesForSignal("integration_transport",
+            workerSignalKey(normalizedWorkerKey)));
+        payload.put("recommendations", buildWorkerRecommendations(snapshot, trendSummary));
+        return payload;
+    }
+
     public void recordHealthSnapshot(TransportHealthSnapshot snapshot) {
         if (snapshot == null) {
             return;
@@ -173,12 +198,31 @@ public class IntegrationTransportOpsService {
         );
     }
 
+    public void recordWorkerHealthSnapshots() {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        for (WorkerCheckpointSnapshot snapshot : loadWorkerCheckpointSnapshots(now)) {
+            recordWorkerHealthSnapshot(snapshot);
+        }
+    }
+
     public void deleteHealthSnapshotsOlderThan(Duration retention) {
         Duration safeRetention = retention == null || retention.isZero() || retention.isNegative()
             ? Duration.ofDays(30)
             : retention;
         jdbcTemplate.update("""
                 DELETE FROM integration_transport_health_snapshots
+                 WHERE created_at < ?
+                """,
+            timestamp(OffsetDateTime.now(ZoneOffset.UTC).minus(safeRetention))
+        );
+    }
+
+    public void deleteWorkerHealthSnapshotsOlderThan(Duration retention) {
+        Duration safeRetention = retention == null || retention.isZero() || retention.isNegative()
+            ? Duration.ofDays(30)
+            : retention;
+        jdbcTemplate.update("""
+                DELETE FROM integration_transport_worker_health_snapshots
                  WHERE created_at < ?
                 """,
             timestamp(OffsetDateTime.now(ZoneOffset.UTC).minus(safeRetention))
@@ -228,6 +272,57 @@ public class IntegrationTransportOpsService {
         summary.put("latest_created_at", latest.createdAt());
         summary.put("latest_severity", latest.severity());
         summary.put("latest_summary", latest.summaryText());
+        return summary;
+    }
+
+    public Map<String, Object> buildWorkerTrendSummary(String workerKey, Duration window) {
+        String normalizedWorkerKey = normalize(workerKey);
+        if (!StringUtils.hasText(normalizedWorkerKey)) {
+            throw new IllegalArgumentException("Worker key is required for worker trend summary.");
+        }
+        Duration safeWindow = window == null || window.isZero() || window.isNegative()
+            ? DEFAULT_WORKER_TREND_WINDOW
+            : window;
+        List<WorkerHealthSnapshotRow> snapshots = loadWorkerHealthSnapshotRows(normalizedWorkerKey, safeWindow, 288);
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("worker_key", normalizedWorkerKey);
+        summary.put("window_hours", safeWindow.toHours());
+        summary.put("snapshot_count", snapshots.size());
+        if (snapshots.isEmpty()) {
+            summary.put("status", "no_data");
+            summary.put("sustained_pressure", false);
+            summary.put("unhealthy_snapshot_count", 0);
+            summary.put("critical_snapshot_count", 0);
+            summary.put("unhealthy_streak", 0);
+            summary.put("critical_streak", 0);
+            summary.put("peak_cursor_lag", 0);
+            summary.put("peak_age_minutes", 0);
+            summary.put("latest_created_at", null);
+            summary.put("latest_summary", null);
+            return summary;
+        }
+        long unhealthyCount = snapshots.stream().filter(WorkerHealthSnapshotRow::unhealthy).count();
+        long criticalCount = snapshots.stream().filter(WorkerHealthSnapshotRow::critical).count();
+        long unhealthyStreak = consecutiveCount(snapshots, WorkerHealthSnapshotRow::unhealthy);
+        long criticalStreak = consecutiveCount(snapshots, WorkerHealthSnapshotRow::critical);
+        long peakCursorLag = snapshots.stream().map(WorkerHealthSnapshotRow::cursorLag).filter(java.util.Objects::nonNull)
+            .max(Comparator.naturalOrder()).orElse(0L);
+        long peakAgeMinutes = snapshots.stream().map(WorkerHealthSnapshotRow::ageMinutes).filter(java.util.Objects::nonNull)
+            .max(Comparator.naturalOrder()).orElse(0L);
+        boolean sustainedPressure = unhealthyStreak >= SUSTAINED_UNHEALTHY_STREAK_THRESHOLD
+            || criticalStreak >= SUSTAINED_CRITICAL_STREAK_THRESHOLD;
+        WorkerHealthSnapshotRow latest = snapshots.get(0);
+        summary.put("status", sustainedPressure ? "pressure" : (latest.unhealthy() ? "monitor" : "healthy"));
+        summary.put("sustained_pressure", sustainedPressure);
+        summary.put("unhealthy_snapshot_count", unhealthyCount);
+        summary.put("critical_snapshot_count", criticalCount);
+        summary.put("unhealthy_streak", unhealthyStreak);
+        summary.put("critical_streak", criticalStreak);
+        summary.put("peak_cursor_lag", peakCursorLag);
+        summary.put("peak_age_minutes", peakAgeMinutes);
+        summary.put("latest_created_at", latest.createdAt());
+        summary.put("latest_summary", latest.summaryText());
+        summary.put("latest_health_status", latest.healthStatus());
         return summary;
     }
 
@@ -482,9 +577,10 @@ public class IntegrationTransportOpsService {
     }
 
     public TransportHealthSnapshot buildHealthSnapshot() {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Timestamp inboundStaleThreshold = timestamp(OffsetDateTime.now(ZoneOffset.UTC).minus(INBOUND_STALE_TIMEOUT));
         Timestamp outboundStaleThreshold = timestamp(OffsetDateTime.now(ZoneOffset.UTC).minus(OUTBOUND_STALE_TIMEOUT));
-        List<WorkerCheckpointSnapshot> checkpointSnapshots = loadWorkerCheckpointSnapshots();
+        List<WorkerCheckpointSnapshot> checkpointSnapshots = loadWorkerCheckpointSnapshots(now);
         return new TransportHealthSnapshot(
             toLong(count("integration_inbound_event_inbox", "status = 'failed'")),
             toLong(countWithThreshold("integration_inbound_event_inbox", "status = 'processing' AND processing_started_at IS NOT NULL AND processing_started_at < ?", inboundStaleThreshold)),
@@ -495,6 +591,10 @@ public class IntegrationTransportOpsService {
             checkpointSnapshots.stream().filter(snapshot -> snapshot.cursorLag() != null && snapshot.cursorLag() > 0L).count(),
             countRecentManualOperations(RECENT_MANUAL_OPERATION_WINDOW)
         );
+    }
+
+    public List<Map<String, Object>> loadRuntimeCheckpointDiagnostics() {
+        return loadRuntimeCheckpoints();
     }
 
     private void replayInboundEntry(InboxEntry entry) {
@@ -516,7 +616,7 @@ public class IntegrationTransportOpsService {
     }
 
     private List<Map<String, Object>> loadRuntimeCheckpoints() {
-        return loadWorkerCheckpointSnapshots().stream()
+        return loadWorkerCheckpointSnapshots(OffsetDateTime.now(ZoneOffset.UTC)).stream()
             .map(WorkerCheckpointSnapshot::toMap)
             .toList();
     }
@@ -817,8 +917,7 @@ public class IntegrationTransportOpsService {
         return items.isEmpty() ? null : items.get(0);
     }
 
-    private List<WorkerCheckpointSnapshot> loadWorkerCheckpointSnapshots() {
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+    private List<WorkerCheckpointSnapshot> loadWorkerCheckpointSnapshots(OffsetDateTime now) {
         return jdbcTemplate.query("""
                 SELECT worker_key, cursor_text, updated_at
                   FROM runtime_worker_checkpoints
@@ -833,6 +932,23 @@ public class IntegrationTransportOpsService {
         );
     }
 
+    private WorkerCheckpointSnapshot loadCurrentWorkerCheckpointSnapshot(String workerKey) {
+        List<WorkerCheckpointSnapshot> items = jdbcTemplate.query("""
+                SELECT worker_key, cursor_text, updated_at
+                  FROM runtime_worker_checkpoints
+                 WHERE worker_key = ?
+                """,
+            (rs, rowNum) -> toCheckpointSnapshot(
+                normalize(rs.getString("worker_key")),
+                normalize(rs.getString("cursor_text")),
+                normalize(rs.getString("updated_at")),
+                OffsetDateTime.now(ZoneOffset.UTC)
+            ),
+            workerKey
+        );
+        return items.isEmpty() ? null : items.get(0);
+    }
+
     private WorkerCheckpointSnapshot toCheckpointSnapshot(String workerKey,
                                                           String cursorText,
                                                           String updatedAtRaw,
@@ -841,12 +957,14 @@ public class IntegrationTransportOpsService {
         String label = definition != null ? definition.label() : workerKey;
         OffsetDateTime updatedAt = parseOffsetDateTime(updatedAtRaw);
         long staleThresholdMinutes = definition != null ? definition.staleThreshold().toMinutes() : 60L;
+        long lagAlertThreshold = definition != null ? definition.lagAlertThreshold() : 0L;
         Long sourceMaxCursor = definition != null ? loadMaxCursor(definition.sourceTable(), definition.cursorColumn()) : null;
         Long cursorValue = parseLong(cursorText);
         Long cursorLag = cursorValue != null && sourceMaxCursor != null ? Math.max(0L, sourceMaxCursor - cursorValue) : null;
         long ageMinutes = updatedAt == null ? Long.MAX_VALUE : Math.max(0L, Duration.between(updatedAt, now).toMinutes());
         boolean stale = ageMinutes > staleThresholdMinutes;
-        String healthStatus = stale ? "stale" : "healthy";
+        boolean lagging = cursorLag != null && cursorLag > lagAlertThreshold;
+        String healthStatus = stale ? "stale" : (lagging ? "lagging" : "healthy");
         return new WorkerCheckpointSnapshot(
             workerKey,
             label,
@@ -854,11 +972,13 @@ public class IntegrationTransportOpsService {
             updatedAtRaw,
             ageMinutes == Long.MAX_VALUE ? null : ageMinutes,
             staleThresholdMinutes,
+            lagAlertThreshold,
             healthStatus,
             definition != null ? definition.sourceTable() : null,
             sourceMaxCursor,
             cursorLag,
-            stale
+            stale,
+            lagging
         );
     }
 
@@ -910,6 +1030,32 @@ public class IntegrationTransportOpsService {
         );
     }
 
+    private List<Map<String, Object>> loadRecentOperationLogsForWorker(String workerKey, int limit) {
+        return jdbcTemplate.query("""
+                SELECT id,
+                       action_type,
+                       summary_text,
+                       target_type,
+                       target_id,
+                       ticket_id,
+                       worker_key,
+                       result_status,
+                       actor,
+                       details_json,
+                       created_at
+                  FROM integration_transport_operation_log
+                 WHERE worker_key = ?
+                    OR (target_type = 'checkpoint' AND target_id = ?)
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT ?
+                """,
+            (rs, rowNum) -> readOperationLogRow(rs),
+            workerKey,
+            workerKey,
+            Math.max(1, limit)
+        );
+    }
+
     private List<Map<String, Object>> loadRecentHealthSnapshots(int limit) {
         return jdbcTemplate.query("""
                 SELECT id,
@@ -944,6 +1090,35 @@ public class IntegrationTransportOpsService {
                 row.put("created_at", normalize(rs.getString("created_at")));
                 return row;
             },
+            Math.max(1, limit)
+        );
+    }
+
+    private List<Map<String, Object>> loadRecentWorkerHealthSnapshots(String workerKey, int limit) {
+        return jdbcTemplate.query("""
+                SELECT id,
+                       worker_key,
+                       worker_label,
+                       source_table,
+                       checkpoint_updated_at,
+                       cursor_text,
+                       source_max_cursor,
+                       cursor_lag,
+                       age_minutes,
+                       stale_threshold_minutes,
+                       lag_alert_threshold,
+                       health_status,
+                       stale,
+                       unhealthy,
+                       summary_text,
+                       created_at
+                  FROM integration_transport_worker_health_snapshots
+                 WHERE worker_key = ?
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT ?
+                """,
+            (rs, rowNum) -> readWorkerHealthSnapshotRow(rs),
+            workerKey,
             Math.max(1, limit)
         );
     }
@@ -987,6 +1162,43 @@ public class IntegrationTransportOpsService {
         );
     }
 
+    private List<WorkerHealthSnapshotRow> loadWorkerHealthSnapshotRows(String workerKey, Duration window, int limit) {
+        Duration safeWindow = window == null || window.isZero() || window.isNegative() ? DEFAULT_WORKER_TREND_WINDOW : window;
+        return jdbcTemplate.query("""
+                SELECT id,
+                       worker_key,
+                       worker_label,
+                       cursor_lag,
+                       age_minutes,
+                       health_status,
+                       stale,
+                       unhealthy,
+                       summary_text,
+                       created_at
+                  FROM integration_transport_worker_health_snapshots
+                 WHERE worker_key = ?
+                   AND created_at >= ?
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT ?
+                """,
+            (rs, rowNum) -> new WorkerHealthSnapshotRow(
+                rs.getLong("id"),
+                normalize(rs.getString("worker_key")),
+                normalize(rs.getString("worker_label")),
+                readNullableLong(rs, "cursor_lag"),
+                readNullableLong(rs, "age_minutes"),
+                normalize(rs.getString("health_status")),
+                rs.getBoolean("stale"),
+                rs.getBoolean("unhealthy"),
+                normalize(rs.getString("summary_text")),
+                normalize(rs.getString("created_at"))
+            ),
+            workerKey,
+            timestamp(OffsetDateTime.now(ZoneOffset.UTC).minus(safeWindow)),
+            Math.max(1, limit)
+        );
+    }
+
     private List<Map<String, Object>> loadRecentOperationLogsForTicket(String ticketId, int limit) {
         return jdbcTemplate.query("""
                 SELECT id,
@@ -1025,6 +1237,27 @@ public class IntegrationTransportOpsService {
         String detailsJson = normalize(rs.getString("details_json"));
         row.put("details_json", detailsJson);
         row.put("details", StringUtils.hasText(detailsJson) ? parseJson(detailsJson) : null);
+        row.put("created_at", normalize(rs.getString("created_at")));
+        return row;
+    }
+
+    private Map<String, Object> readWorkerHealthSnapshotRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", rs.getLong("id"));
+        row.put("worker_key", normalize(rs.getString("worker_key")));
+        row.put("worker_label", normalize(rs.getString("worker_label")));
+        row.put("source_table", normalize(rs.getString("source_table")));
+        row.put("checkpoint_updated_at", normalize(rs.getString("checkpoint_updated_at")));
+        row.put("cursor_text", normalize(rs.getString("cursor_text")));
+        row.put("source_max_cursor", readNullableLong(rs, "source_max_cursor"));
+        row.put("cursor_lag", readNullableLong(rs, "cursor_lag"));
+        row.put("age_minutes", readNullableLong(rs, "age_minutes"));
+        row.put("stale_threshold_minutes", rs.getLong("stale_threshold_minutes"));
+        row.put("lag_alert_threshold", rs.getLong("lag_alert_threshold"));
+        row.put("health_status", normalize(rs.getString("health_status")));
+        row.put("stale", rs.getBoolean("stale"));
+        row.put("unhealthy", rs.getBoolean("unhealthy"));
+        row.put("summary_text", normalize(rs.getString("summary_text")));
         row.put("created_at", normalize(rs.getString("created_at")));
         return row;
     }
@@ -1096,10 +1329,10 @@ public class IntegrationTransportOpsService {
         return value != null ? value : 0L;
     }
 
-    private long consecutiveCount(List<TransportHealthSnapshotRow> rows,
-                                  java.util.function.Predicate<TransportHealthSnapshotRow> predicate) {
+    private <T> long consecutiveCount(List<T> rows,
+                                      java.util.function.Predicate<T> predicate) {
         long count = 0L;
-        for (TransportHealthSnapshotRow row : rows) {
+        for (T row : rows) {
             if (!predicate.test(row)) {
                 break;
             }
@@ -1140,6 +1373,46 @@ public class IntegrationTransportOpsService {
             normalize(resultStatus) == null ? "success" : normalize(resultStatus),
             normalize(actor),
             serializeJson(details)
+        );
+    }
+
+    private void recordWorkerHealthSnapshot(WorkerCheckpointSnapshot snapshot) {
+        if (snapshot == null || !StringUtils.hasText(snapshot.workerKey())) {
+            return;
+        }
+        jdbcTemplate.update("""
+                INSERT INTO integration_transport_worker_health_snapshots(
+                    worker_key,
+                    worker_label,
+                    source_table,
+                    checkpoint_updated_at,
+                    cursor_text,
+                    source_max_cursor,
+                    cursor_lag,
+                    age_minutes,
+                    stale_threshold_minutes,
+                    lag_alert_threshold,
+                    health_status,
+                    stale,
+                    unhealthy,
+                    summary_text,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+            snapshot.workerKey(),
+            snapshot.workerLabel(),
+            snapshot.sourceTable(),
+            timestamp(parseOffsetDateTime(snapshot.updatedAt())),
+            snapshot.cursorText(),
+            snapshot.sourceMaxCursor(),
+            snapshot.cursorLag(),
+            snapshot.ageMinutes(),
+            snapshot.staleThresholdMinutes(),
+            snapshot.lagAlertThreshold(),
+            snapshot.healthStatus(),
+            snapshot.stale(),
+            snapshot.unhealthy(),
+            snapshot.summary()
         );
     }
 
@@ -1197,6 +1470,44 @@ public class IntegrationTransportOpsService {
         }
     }
 
+    private List<Map<String, Object>> buildWorkerRecommendations(WorkerCheckpointSnapshot snapshot,
+                                                                 Map<String, Object> trendSummary) {
+        List<Map<String, Object>> items = new ArrayList<>();
+        if (snapshot == null) {
+            return items;
+        }
+        if (snapshot.stale()) {
+            items.add(recommendation("critical", "Проверьте lease owner и логи worker-а: checkpoint устарел сверх TTL."));
+        }
+        if (snapshot.lagging()) {
+            items.add(recommendation("warning", "Source cursor ушёл вперёд: проверьте backlog в source table и скорость consumer loop."));
+        }
+        if (Boolean.TRUE.equals(trendSummary.get("sustained_pressure"))) {
+            items.add(recommendation("high", "Проблема не разовая: посмотрите историю worker snapshot-ов и зафиксируйте recovery note в incident."));
+        }
+        if (snapshot.stale() || snapshot.lagging()) {
+            items.add(recommendation("info", "Ручной checkpoint update делайте только после проверки source cursor и безопасного replay диапазона."));
+        }
+        if (items.isEmpty()) {
+            items.add(recommendation("ok", "Worker выглядит стабильно: sustained pressure и заметный lag не наблюдаются."));
+        }
+        return items;
+    }
+
+    private Map<String, Object> recommendation(String severity, String message) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("severity", severity);
+        row.put("message", message);
+        return row;
+    }
+
+    public String workerSignalKey(String workerKey) {
+        String normalizedWorkerKey = normalize(workerKey);
+        return StringUtils.hasText(normalizedWorkerKey)
+            ? "panel-runtime-checkpoints/" + normalizedWorkerKey
+            : "panel-runtime-checkpoints";
+    }
+
     private WorkerDiagnosticsDefinition workerDefinition(String workerKey) {
         if (!StringUtils.hasText(workerKey)) {
             return null;
@@ -1207,6 +1518,11 @@ public class IntegrationTransportOpsService {
             }
         }
         return null;
+    }
+
+    private Long readNullableLong(java.sql.ResultSet rs, String columnName) throws java.sql.SQLException {
+        long value = rs.getLong(columnName);
+        return rs.wasNull() ? null : value;
     }
 
     private Object count(String table, String predicate) {
@@ -1320,7 +1636,8 @@ public class IntegrationTransportOpsService {
                                                String label,
                                                String sourceTable,
                                                String cursorColumn,
-                                               Duration staleThreshold) {
+                                               Duration staleThreshold,
+                                               long lagAlertThreshold) {
     }
 
     private record WorkerCheckpointSnapshot(String workerKey,
@@ -1329,11 +1646,29 @@ public class IntegrationTransportOpsService {
                                             String updatedAt,
                                             Long ageMinutes,
                                             long staleThresholdMinutes,
+                                            long lagAlertThreshold,
                                             String healthStatus,
                                             String sourceTable,
                                             Long sourceMaxCursor,
                                             Long cursorLag,
-                                            boolean stale) {
+                                            boolean stale,
+                                            boolean lagging) {
+        boolean unhealthy() {
+            return stale || lagging;
+        }
+
+        String summary() {
+            return String.format(Locale.ROOT,
+                "worker=%s, health=%s, cursor=%s, lag=%s, age_minutes=%s, source=%s",
+                workerKey,
+                healthStatus,
+                cursorText == null ? "-" : cursorText,
+                cursorLag == null ? "-" : String.valueOf(cursorLag),
+                ageMinutes == null ? "-" : String.valueOf(ageMinutes),
+                sourceTable == null ? "-" : sourceTable
+            );
+        }
+
         Map<String, Object> toMap() {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("worker_key", workerKey);
@@ -1342,11 +1677,15 @@ public class IntegrationTransportOpsService {
             row.put("updated_at", updatedAt);
             row.put("age_minutes", ageMinutes);
             row.put("stale_threshold_minutes", staleThresholdMinutes);
+            row.put("lag_alert_threshold", lagAlertThreshold);
             row.put("health_status", healthStatus);
             row.put("source_table", sourceTable);
             row.put("source_max_cursor", sourceMaxCursor);
             row.put("cursor_lag", cursorLag);
             row.put("stale", stale);
+            row.put("lagging", lagging);
+            row.put("unhealthy", unhealthy());
+            row.put("summary_text", summary());
             return row;
         }
     }
@@ -1370,6 +1709,21 @@ public class IntegrationTransportOpsService {
                 || outboundStaleProcessing > 0
                 || outboundBacklog >= 100
                 || staleCheckpointCount > 0;
+        }
+    }
+
+    private record WorkerHealthSnapshotRow(long id,
+                                           String workerKey,
+                                           String workerLabel,
+                                           Long cursorLag,
+                                           Long ageMinutes,
+                                           String healthStatus,
+                                           boolean stale,
+                                           boolean unhealthy,
+                                           String summaryText,
+                                           String createdAt) {
+        boolean critical() {
+            return stale || "stale".equalsIgnoreCase(healthStatus);
         }
     }
 }

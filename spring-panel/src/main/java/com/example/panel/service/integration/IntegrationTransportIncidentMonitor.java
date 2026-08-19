@@ -3,6 +3,7 @@ package com.example.panel.service.integration;
 import com.example.panel.service.IncidentService;
 import com.example.panel.service.RuntimeCoordinationService;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -91,6 +92,61 @@ public class IntegrationTransportIncidentMonitor {
                     Map.of("status", "healthy"),
                     "system"
                 );
+            }
+
+            for (Map<String, Object> worker : transportOpsService.loadRuntimeCheckpointDiagnostics()) {
+                String workerKey = String.valueOf(worker.getOrDefault("worker_key", ""));
+                if (workerKey.isBlank()) {
+                    continue;
+                }
+                Map<String, Object> workerTrend = transportOpsService.buildWorkerTrendSummary(workerKey, Duration.ofHours(6));
+                boolean workerStale = Boolean.TRUE.equals(worker.get("stale"));
+                boolean workerLagging = Boolean.TRUE.equals(worker.get("lagging"));
+                boolean sustainedWorkerPressure = Boolean.TRUE.equals(workerTrend.get("sustained_pressure"));
+                String signalKey = transportOpsService.workerSignalKey(workerKey);
+                if (workerStale || workerLagging || sustainedWorkerPressure) {
+                    String workerLabel = String.valueOf(worker.getOrDefault("worker_label", workerKey));
+                    Map<String, Object> workerDetails = new LinkedHashMap<>();
+                    workerDetails.put("worker_key", workerKey);
+                    workerDetails.put("worker_label", workerLabel);
+                    workerDetails.put("health_status", worker.get("health_status"));
+                    workerDetails.put("cursor_lag", worker.get("cursor_lag"));
+                    workerDetails.put("age_minutes", worker.get("age_minutes"));
+                    workerDetails.put("source_table", worker.get("source_table"));
+                    workerDetails.put("source_max_cursor", worker.get("source_max_cursor"));
+                    workerDetails.put("stale_threshold_minutes", worker.get("stale_threshold_minutes"));
+                    workerDetails.put("lag_alert_threshold", worker.get("lag_alert_threshold"));
+                    workerDetails.put("sustained_pressure", sustainedWorkerPressure);
+                    workerDetails.put("unhealthy_streak", workerTrend.get("unhealthy_streak"));
+                    workerDetails.put("critical_streak", workerTrend.get("critical_streak"));
+                    workerDetails.put("peak_cursor_lag", workerTrend.get("peak_cursor_lag"));
+                    workerDetails.put("peak_age_minutes", workerTrend.get("peak_age_minutes"));
+                    workerDetails.put("latest_created_at", workerTrend.get("latest_created_at"));
+                    incidentService.openOrRefreshSignalIncident(
+                        SIGNAL_TYPE,
+                        signalKey,
+                        "Worker checkpoint degradation: " + workerLabel,
+                        workerStale
+                            ? "Worker checkpoint stale beyond TTL."
+                            : "Worker checkpoint shows persistent cursor lag or sustained pressure.",
+                        """
+                        Конкретный worker вышел за healthy contour.
+                        Проверьте source cursor, lease owner, backlog по source table и историю worker snapshot-ов.
+                        """.trim(),
+                        workerStale ? "critical" : "high",
+                        "integration_transport_monitor",
+                        workerDetails,
+                        "system"
+                    );
+                } else {
+                    incidentService.resolveSignalIncident(
+                        SIGNAL_TYPE,
+                        signalKey,
+                        "Worker checkpoint recovered",
+                        Map.of("status", "healthy", "worker_key", workerKey),
+                        "system"
+                    );
+                }
             }
 
             if (Boolean.TRUE.equals(trendSummary.get("sustained_pressure"))) {

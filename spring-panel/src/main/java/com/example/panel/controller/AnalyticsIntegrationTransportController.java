@@ -42,6 +42,11 @@ public class AnalyticsIntegrationTransportController {
         return integrationTransportOpsService.loadTicketTransportDebug(ticketId);
     }
 
+    @GetMapping("/workers/{workerKey}")
+    public Map<String, Object> workerDiagnostics(@PathVariable("workerKey") String workerKey) {
+        return integrationTransportOpsService.loadWorkerDiagnostics(workerKey);
+    }
+
     @PostMapping("/inbound-events/{eventId}/replay")
     public Map<String, Object> replayInboundEvent(@PathVariable("eventId") String eventId,
                                                   Authentication authentication) {

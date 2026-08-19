@@ -563,6 +563,7 @@
         <div class="input-group input-group-sm mb-2">
           <input type="text" class="form-control incident-code" data-transport-checkpoint-input="${escapeHtml(item.worker_key || '')}" value="${escapeHtml(item.cursor_text || '')}">
           <button type="button" class="btn btn-outline-secondary" data-transport-save-checkpoint="${escapeHtml(item.worker_key || '')}">Save</button>
+          <button type="button" class="btn btn-outline-dark" data-transport-view="worker" data-worker-key="${escapeHtml(item.worker_key || '')}">Inspect</button>
         </div>
         <div class="small text-muted">
           updated=${escapeHtml(formatDate(item.updated_at))} · age=${escapeHtml(item.age_minutes ?? '—')}m · stale-threshold=${escapeHtml(item.stale_threshold_minutes ?? '—')}m
@@ -725,9 +726,11 @@
   async function showTransportPayload(mode, eventId) {
     const url = mode === 'inbound'
       ? `/api/analytics/integration-transport/inbound-events/${encodeURIComponent(eventId)}`
-      : `/api/analytics/integration-transport/outbox-events/${encodeURIComponent(eventId)}`;
+      : mode === 'worker'
+        ? `/api/analytics/integration-transport/workers/${encodeURIComponent(eventId)}`
+        : `/api/analytics/integration-transport/outbox-events/${encodeURIComponent(eventId)}`;
     const payload = await requestJson(url);
-    payloadContentNode.textContent = JSON.stringify(payload?.item || {}, null, 2);
+    payloadContentNode.textContent = JSON.stringify(mode === 'worker' ? payload : (payload?.item || {}), null, 2);
     payloadModal?.show();
   }
 
@@ -786,6 +789,11 @@
   });
 
   transportNodes.checkpointList?.addEventListener('click', (event) => {
+    const inspectButton = event.target.closest('[data-transport-view="worker"]');
+    if (inspectButton) {
+      void showTransportPayload('worker', inspectButton.getAttribute('data-worker-key')).catch((error) => showError(error.message));
+      return;
+    }
     const saveButton = event.target.closest('[data-transport-save-checkpoint]');
     if (!saveButton) return;
     const workerKey = saveButton.getAttribute('data-transport-save-checkpoint') || '';

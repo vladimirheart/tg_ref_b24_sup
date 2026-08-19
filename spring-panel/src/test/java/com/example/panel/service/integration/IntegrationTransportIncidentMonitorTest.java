@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.example.panel.service.IncidentService;
 import com.example.panel.service.RuntimeCoordinationService;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -44,6 +45,28 @@ class IntegrationTransportIncidentMonitorTest {
             Map.entry("latest_severity", "critical"),
             Map.entry("latest_summary", "pressure")
         ));
+        when(opsService.loadRuntimeCheckpointDiagnostics()).thenReturn(List.of(Map.ofEntries(
+            Map.entry("worker_key", "ui-event-outbox-watch"),
+            Map.entry("worker_label", "UI event outbox watcher"),
+            Map.entry("health_status", "stale"),
+            Map.entry("cursor_lag", 60L),
+            Map.entry("age_minutes", 25L),
+            Map.entry("source_table", "ui_event_outbox"),
+            Map.entry("source_max_cursor", 100L),
+            Map.entry("stale_threshold_minutes", 10L),
+            Map.entry("lag_alert_threshold", 50L),
+            Map.entry("stale", true),
+            Map.entry("lagging", true)
+        )));
+        when(opsService.buildWorkerTrendSummary(eq("ui-event-outbox-watch"), any(Duration.class))).thenReturn(Map.of(
+            "sustained_pressure", true,
+            "unhealthy_streak", 3L,
+            "critical_streak", 1L,
+            "peak_cursor_lag", 60L,
+            "peak_age_minutes", 25L,
+            "latest_created_at", "2026-08-19T15:00:00Z"
+        ));
+        when(opsService.workerSignalKey("ui-event-outbox-watch")).thenReturn("panel-runtime-checkpoints/ui-event-outbox-watch");
 
         IntegrationTransportIncidentMonitor monitor = new IntegrationTransportIncidentMonitor(opsService, coordinationService, incidentService);
         monitor.monitor();
@@ -73,6 +96,17 @@ class IntegrationTransportIncidentMonitorTest {
         verify(incidentService).openOrRefreshSignalIncident(
             eq("integration_transport"),
             eq("panel-transport-sustained-pressure"),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq("system")
+        );
+        verify(incidentService).openOrRefreshSignalIncident(
+            eq("integration_transport"),
+            eq("panel-runtime-checkpoints/ui-event-outbox-watch"),
             any(),
             any(),
             any(),
@@ -112,6 +146,28 @@ class IntegrationTransportIncidentMonitorTest {
             Map.entry("latest_severity", "ok"),
             Map.entry("latest_summary", "healthy")
         ));
+        when(opsService.loadRuntimeCheckpointDiagnostics()).thenReturn(List.of(Map.ofEntries(
+            Map.entry("worker_key", "ui-event-outbox-watch"),
+            Map.entry("worker_label", "UI event outbox watcher"),
+            Map.entry("health_status", "healthy"),
+            Map.entry("cursor_lag", 0L),
+            Map.entry("age_minutes", 1L),
+            Map.entry("source_table", "ui_event_outbox"),
+            Map.entry("source_max_cursor", 100L),
+            Map.entry("stale_threshold_minutes", 10L),
+            Map.entry("lag_alert_threshold", 50L),
+            Map.entry("stale", false),
+            Map.entry("lagging", false)
+        )));
+        when(opsService.buildWorkerTrendSummary(eq("ui-event-outbox-watch"), any(Duration.class))).thenReturn(Map.of(
+            "sustained_pressure", false,
+            "unhealthy_streak", 0L,
+            "critical_streak", 0L,
+            "peak_cursor_lag", 0L,
+            "peak_age_minutes", 1L,
+            "latest_created_at", "2026-08-19T15:00:00Z"
+        ));
+        when(opsService.workerSignalKey("ui-event-outbox-watch")).thenReturn("panel-runtime-checkpoints/ui-event-outbox-watch");
 
         IntegrationTransportIncidentMonitor monitor = new IntegrationTransportIncidentMonitor(opsService, coordinationService, incidentService);
         monitor.monitor();
@@ -119,5 +175,6 @@ class IntegrationTransportIncidentMonitorTest {
         verify(incidentService).resolveSignalIncident(eq("integration_transport"), eq("panel-rabbitmq-bridge"), any(), any(Map.class), eq("system"));
         verify(incidentService).resolveSignalIncident(eq("integration_transport"), eq("panel-runtime-checkpoints"), any(), any(Map.class), eq("system"));
         verify(incidentService).resolveSignalIncident(eq("integration_transport"), eq("panel-transport-sustained-pressure"), any(), any(Map.class), eq("system"));
+        verify(incidentService).resolveSignalIncident(eq("integration_transport"), eq("panel-runtime-checkpoints/ui-event-outbox-watch"), any(), any(Map.class), eq("system"));
     }
 }

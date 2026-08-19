@@ -204,6 +204,84 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-12">
+                    <div class="border rounded-3 p-3 bg-body-tertiary">
+                        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-3">
+                            <div>
+                                <h3 class="h6 mb-1">Selected worker diagnostics</h3>
+                                <div class="fw-semibold" id="analyticsIntegrationTransportWorkerTitle">Выберите worker из таблицы checkpoints</div>
+                                <div class="small text-muted" id="analyticsIntegrationTransportWorkerMeta">История lag/staleness и recovery operations появится здесь после выбора worker-а.</div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <span class="badge text-bg-secondary" id="analyticsIntegrationTransportWorkerTrendBadge">Worker trend: no data</span>
+                                <span class="small text-muted" id="analyticsIntegrationTransportWorkerTrendMeta">Нет данных</span>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12 col-xl-4">
+                                <h4 class="h6 mb-2">Recommendations</h4>
+                                <div class="d-flex flex-column gap-2" id="analyticsIntegrationTransportWorkerRecommendations">
+                                    <div class="text-muted small">Рекомендации появятся после выбора worker-а.</div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-xl-8">
+                                <h4 class="h6 mb-2">Worker incidents</h4>
+                                <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                                    <table class="table align-middle table-sm">
+                                        <thead>
+                                        <tr>
+                                            <th>Incident</th>
+                                            <th>Severity</th>
+                                            <th>Status</th>
+                                            <th>Updated</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody id="analyticsIntegrationTransportWorkerIncidentTable">
+                                        <tr><td colspan="4" class="text-center text-muted py-3">Worker incidents еще не загружены</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-12 col-xl-7">
+                                <h4 class="h6 mb-2">Worker history</h4>
+                                <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                                    <table class="table align-middle table-sm">
+                                        <thead>
+                                        <tr>
+                                            <th>Created</th>
+                                            <th>Status</th>
+                                            <th>Lag</th>
+                                            <th>Age</th>
+                                            <th>Summary</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody id="analyticsIntegrationTransportWorkerHistoryTable">
+                                        <tr><td colspan="5" class="text-center text-muted py-3">История worker-а еще не загружена</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-12 col-xl-5">
+                                <h4 class="h6 mb-2">Worker recovery operations</h4>
+                                <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                                    <table class="table align-middle table-sm">
+                                        <thead>
+                                        <tr>
+                                            <th>When</th>
+                                            <th>Action</th>
+                                            <th>Actor</th>
+                                            <th>Result</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody id="analyticsIntegrationTransportWorkerOperationTable">
+                                        <tr><td colspan="4" class="text-center text-muted py-3">Recovery operations для worker-а еще не загружены</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="col-12 col-xl-7">
                     <h3 class="h6 mb-2">Recent transport health snapshots</h3>
                     <div class="table-responsive analytics-table-shell analytics-scroll-area">

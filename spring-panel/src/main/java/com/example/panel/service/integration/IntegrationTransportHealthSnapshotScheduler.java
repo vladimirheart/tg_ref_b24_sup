@@ -22,15 +22,17 @@ public class IntegrationTransportHealthSnapshotScheduler {
 
     @Scheduled(fixedDelayString = "${panel.integration.transport-health-snapshot.interval-ms:300000}")
     public void captureSnapshot() {
-        runtimeCoordinationService.runWithLease("integration-transport-health-snapshot", SNAPSHOT_LEASE_TTL, () ->
-            transportOpsService.recordHealthSnapshot(transportOpsService.buildHealthSnapshot())
-        );
+        runtimeCoordinationService.runWithLease("integration-transport-health-snapshot", SNAPSHOT_LEASE_TTL, () -> {
+            transportOpsService.recordHealthSnapshot(transportOpsService.buildHealthSnapshot());
+            transportOpsService.recordWorkerHealthSnapshots();
+        });
     }
 
     @Scheduled(fixedDelayString = "${panel.integration.transport-health-snapshot.cleanup-interval-ms:43200000}")
     public void cleanupSnapshots() {
-        runtimeCoordinationService.runWithLease("integration-transport-health-snapshot-cleanup", CLEANUP_LEASE_TTL, () ->
-            transportOpsService.deleteHealthSnapshotsOlderThan(Duration.ofDays(30))
-        );
+        runtimeCoordinationService.runWithLease("integration-transport-health-snapshot-cleanup", CLEANUP_LEASE_TTL, () -> {
+            transportOpsService.deleteHealthSnapshotsOlderThan(Duration.ofDays(30));
+            transportOpsService.deleteWorkerHealthSnapshotsOlderThan(Duration.ofDays(30));
+        });
     }
 }
