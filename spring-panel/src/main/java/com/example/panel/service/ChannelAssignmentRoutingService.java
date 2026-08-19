@@ -25,16 +25,26 @@ public class ChannelAssignmentRoutingService {
     private final SharedConfigService sharedConfigService;
     private final DialogParticipantService dialogParticipantService;
     private final DialogLookupReadService dialogLookupReadService;
+    private final RuntimeCoordinationService runtimeCoordinationService;
     private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
 
     public ChannelAssignmentRoutingService(ObjectMapper objectMapper,
                                            SharedConfigService sharedConfigService,
                                            DialogParticipantService dialogParticipantService,
-                                           DialogLookupReadService dialogLookupReadService) {
+                                           DialogLookupReadService dialogLookupReadService,
+                                           RuntimeCoordinationService runtimeCoordinationService) {
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
         this.dialogParticipantService = dialogParticipantService;
         this.dialogLookupReadService = dialogLookupReadService;
+        this.runtimeCoordinationService = runtimeCoordinationService;
+    }
+
+    ChannelAssignmentRoutingService(ObjectMapper objectMapper,
+                                    SharedConfigService sharedConfigService,
+                                    DialogParticipantService dialogParticipantService,
+                                    DialogLookupReadService dialogLookupReadService) {
+        this(objectMapper, sharedConfigService, dialogParticipantService, dialogLookupReadService, null);
     }
 
     public ResolvedAssignmentRouting resolve(Channel channel, RoutingEvent event, String ticketId) {
@@ -184,8 +194,8 @@ public class ChannelAssignmentRoutingService {
     private String resolvePoolAssigneeRoundRobin(AssignmentRoutingConfig config, List<String> assigneePool) {
         String routeKey = config.mode().wireValue() + "::" + normalizeIdentity(config.operatorUsername()) + "::"
                 + trimToNull(config.department()) + "::" + String.join(",", assigneePool);
-        int cursor = roundRobinCursorByRoute.compute(routeKey, (key, value) -> value == null ? 0 : value + 1);
-        return assigneePool.get(Math.floorMod(cursor, assigneePool.size()));
+        long cursor = nextRoundRobinCursor("channel-assignment-routing:" + routeKey);
+        return assigneePool.get(Math.floorMod((int) cursor, assigneePool.size()));
     }
 
     private String resolvePoolAssigneeLeastLoaded(List<String> assigneePool) {
@@ -271,6 +281,13 @@ public class ChannelAssignmentRoutingService {
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private long nextRoundRobinCursor(String routeKey) {
+        if (runtimeCoordinationService != null) {
+            return runtimeCoordinationService.nextCounterValue(routeKey);
+        }
+        return roundRobinCursorByRoute.compute(routeKey, (key, value) -> value == null ? 0 : value + 1);
     }
 
     public enum RoutingEvent {

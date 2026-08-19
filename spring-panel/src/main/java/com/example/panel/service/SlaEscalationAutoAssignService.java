@@ -17,10 +17,17 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SlaEscalationAutoAssignService {
 
     private final DialogLookupReadService dialogLookupReadService;
+    private final RuntimeCoordinationService runtimeCoordinationService;
     private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
 
-    public SlaEscalationAutoAssignService(DialogLookupReadService dialogLookupReadService) {
+    public SlaEscalationAutoAssignService(DialogLookupReadService dialogLookupReadService,
+                                          RuntimeCoordinationService runtimeCoordinationService) {
         this.dialogLookupReadService = dialogLookupReadService;
+        this.runtimeCoordinationService = runtimeCoordinationService;
+    }
+
+    public SlaEscalationAutoAssignService(DialogLookupReadService dialogLookupReadService) {
+        this(dialogLookupReadService, null);
     }
 
     public List<String> resolveAutoAssignTicketIds(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
@@ -322,8 +329,8 @@ public class SlaEscalationAutoAssignService {
 
     private String resolvePoolAssigneeRoundRobin(AutoAssignRule rule) {
         String key = rule.route();
-        int cursor = roundRobinCursorByRoute.compute(key, (k, value) -> value == null ? 0 : value + 1);
-        return rule.assigneePool().get(Math.floorMod(cursor, rule.assigneePool().size()));
+        long cursor = nextRoundRobinCursor("sla-auto-assign:" + key);
+        return rule.assigneePool().get(Math.floorMod((int) cursor, rule.assigneePool().size()));
     }
 
     private String resolvePoolAssigneeLeastLoaded(List<String> assigneePool,
@@ -531,6 +538,13 @@ public class SlaEscalationAutoAssignService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() || "null".equalsIgnoreCase(trimmed) ? null : trimmed;
+    }
+
+    private long nextRoundRobinCursor(String routeKey) {
+        if (runtimeCoordinationService != null) {
+            return runtimeCoordinationService.nextCounterValue(routeKey);
+        }
+        return roundRobinCursorByRoute.compute(routeKey, (key, value) -> value == null ? 0 : value + 1);
     }
 
     private enum PoolAssignStrategy { HASH_BY_TICKET, ROUND_ROBIN, LEAST_LOADED }

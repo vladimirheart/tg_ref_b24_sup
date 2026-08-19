@@ -30,6 +30,11 @@
   - появился durable `incident_route_delivery_outbox`;
   - delivery работает через leased dispatcher и retry semantics;
   - incident details возвращают latest route delivery snapshot для operability/replay.
+- финальный audit background/live coordination выполнен:
+  - instance-local round-robin cursors в assignment/auto-assign больше не определяют live routing decisions;
+  - SLA escalation webhook cooldown переведён в shared coordination layer;
+  - локальные UI/diagnostic loops и explicit local-control invariants вынесены в отдельный production runbook.
+- operator-facing runbook под фактический contour теперь зафиксирован в `docs/runbooks/postgresql-production-contour.md`.
 
 ## 2. Что ещё не даёт считать проект PostgreSQL-only production system
 
@@ -46,12 +51,12 @@
 
 ### 2.2. Runtime infra contour в базовом виде уже собран, но operational maturity ещё не финализирована
 
-Основной незакрытый gap уже не в datasource split и не в отсутствии infra-компонентов, а в глубине их operational hardening:
+Основной незакрытый gap уже не в datasource split и не в отсутствии infra-компонентов, а в последних residual invariants:
 
-- Redis lease coordination уже внедрён для shared schedulers/watchers, но финальный аудит remaining multi-instance side effects всё ещё нужен;
+- Redis lease coordination и shared counter/cooldown coordination уже внедрены для shared schedulers/watchers/live routing decisions;
 - MinIO/S3-compatible object storage уже стал обязательной readiness boundary для PostgreSQL contour, но compatibility/local perimeter ещё остаётся для dev/import режимов;
-- RabbitMQ-first transport model уже materially жёстче, включая producer outbox, consumer scaling, delivery ledger и panel-side replay/requeue ops, но deeper integration-worker compensations/replay tooling всё ещё можно усиливать;
-- stateless multi-backend / multi-worker model уже не выглядит теоретическим, но end-to-end observability/alerting/runbook maturity поверх него ещё не доведена до финальной формы.
+- RabbitMQ-first transport model уже materially жёстче, включая producer outbox, consumer scaling, delivery ledger и panel-side replay/requeue ops;
+- главный remaining live-flow gap сместился в bot-side ingress question-flow/session state, который пока остаётся process-local и требует singleton/sticky deployment policy на один канал.
 
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 
@@ -62,22 +67,21 @@
 
 ### 2.4. Documentation и compatibility perimeter всё ещё несут transitional topology
 
-Код уже ушёл дальше старой multi-SQLite/local-disk модели, но часть документации и compatibility-контрактов всё ещё описывает более transitional состояние, чем реально осталось:
+Код уже ушёл дальше старой multi-SQLite/local-disk модели, и основной production runbook для фактического contour теперь добавлен. Remaining documentation debt уже уже и в основном связан с постепенной синхронизацией старых reference-доков:
 
 - `docs/database_distribution.md`;
 - `docs/database-paths.md`;
 - `docs/environment_variables.md`;
 - SQLite/local compatibility runbooks и migration references.
 
-Пока документация и compatibility perimeter не подчёркивают достаточно жёстко, что canonical live contour уже backend-owned `PostgreSQL + Redis + RabbitMQ + object storage`, архитектурная миграция воспринимается менее завершённой, чем она есть по факту.
+Ключевой operator-facing closeout теперь вынесен в `docs/runbooks/postgresql-production-contour.md`, но часть older reference docs всё ещё несёт более transitional narrative, чем реальный live contour.
 
 ### 2.5. Incident module есть в backend contour, но ещё не закрывает весь operator/ops слой
 
-Canonical incident domain на backend-owned storage уже появился, но remaining scope по incident-теме ещё есть:
+Canonical incident domain на backend-owned storage уже появился, operator-facing workbench тоже реализован. Remaining scope по incident-теме теперь уже заметно уже:
 
 - richer signal ingestion / automatic incident creation beyond the current transport monitor and linked domain reads;
-- более широкий incident workbench/runbook UX поверх уже существующих route deliveries, а не только сам delivery contour;
-- operational reporting, которая считает incident module first-class production feature, а не просто linked metadata.
+- более глубокая incident reporting / analytics поверх уже собранного workbench и route delivery contour.
 
 ## 3. Что должно стать next production scope
 
@@ -96,13 +100,12 @@ Canonical incident domain на backend-owned storage уже появился, н
 ### 3.3. Infra contour
 
 - удержать Redis/RabbitMQ/object-storage contract как invariant production contour;
-- добить оставшиеся multi-instance side-effect audits и deeper worker operability;
-- довести alerting/runbook/observability слой до end-to-end production maturity.
+- удерживать уже закрытый multi-instance audit как invariant и не возвращать instance-local shared decision state;
+- довести alerting/reporting/observability слой до end-to-end production maturity там, где это ещё нужно.
 
 ### 3.4. Incident module
 
 - signal -> incident model и richer automation;
-- richer incident workbench/runbook flows поверх уже собранного route delivery contour;
 - production analytics/reporting для incident operations.
 
 ## 4. Практический вывод
@@ -111,7 +114,7 @@ Canonical incident domain на backend-owned storage уже появился, н
 
 - `PostgreSQL-first readiness`: да;
 - `backend-owned main runtime path`: в основном да;
-- `canonical incident backend domain`: да, базовый слой реализован;
+- `canonical incident backend domain`: да, operator-facing слой тоже реализован;
 - `full PostgreSQL-only production contour`: ещё нет.
 
-Следующий корректный scope — уже не chase за очередной SQLite-точкой, а финализация infra contour, attachment/object storage boundary, stronger multi-instance coordination и полноценный operator/ops слой вокруг incident domain.
+Следующий корректный scope — уже не chase за очередной SQLite-точкой и не базовый incident UI, а оставшийся ingress/session-state hardening и richer reporting/automation поверх уже собранного contour.

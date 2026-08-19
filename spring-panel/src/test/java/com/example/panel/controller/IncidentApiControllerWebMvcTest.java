@@ -33,7 +33,7 @@ class IncidentApiControllerWebMvcTest {
 
     @Test
     void listReturnsIncidentSummaries() throws Exception {
-        when(incidentService.listIncidents("open", null, "ticket", "T-1", 20))
+        when(incidentService.listIncidents("open", null, "ticket", "T-1", null, null, 20))
                 .thenReturn(Map.of(
                         "success", true,
                         "items", List.of(Map.of("incident_key", "INC-1", "status", "open")),

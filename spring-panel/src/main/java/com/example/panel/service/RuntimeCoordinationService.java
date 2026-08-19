@@ -1,7 +1,11 @@
 package com.example.panel.service;
 
 import com.example.panel.config.RuntimeCoordinationProperties;
+import java.time.Instant;
 import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +32,8 @@ public class RuntimeCoordinationService {
 
     private final RuntimeCoordinationProperties properties;
     private final StringRedisTemplate stringRedisTemplate;
+    private final ConcurrentHashMap<String, AtomicLong> localCounters = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Instant> localCooldowns = new ConcurrentHashMap<>();
 
     public RuntimeCoordinationService(RuntimeCoordinationProperties properties,
                                       StringRedisTemplate stringRedisTemplate) {
@@ -49,6 +55,71 @@ public class RuntimeCoordinationService {
             }
         } catch (DataAccessException ex) {
             throw new IllegalStateException("Redis coordination backend is unavailable.", ex);
+        }
+    }
+
+    public long nextCounterValue(String counterName) {
+        String counterKey = buildCounterKey(counterName);
+        if (!properties.isRedisMode()) {
+            return nextLocalCounterValue(counterKey);
+        }
+        try {
+            Long value = stringRedisTemplate.opsForValue().increment(counterKey);
+            if (value == null) {
+                return nextLocalCounterValue(counterKey);
+            }
+            return Math.max(0L, value - 1L);
+        } catch (RuntimeException ex) {
+            log.warn("Falling back to local counter {} because Redis coordination is unavailable: {}",
+                counterName, ex.getMessage());
+            return nextLocalCounterValue(counterKey);
+        }
+    }
+
+    public boolean tryAcquireCooldown(String cooldownName, Duration ttl) {
+        String cooldownKey = buildCooldownKey(cooldownName);
+        Duration safeTtl = ttl == null || ttl.isNegative() || ttl.isZero() ? Duration.ofSeconds(30) : ttl;
+        if (!properties.isRedisMode()) {
+            return tryAcquireLocalCooldown(cooldownKey, safeTtl);
+        }
+        try {
+            Boolean acquired = stringRedisTemplate.opsForValue()
+                .setIfAbsent(cooldownKey, Long.toString(System.currentTimeMillis()), safeTtl);
+            return Boolean.TRUE.equals(acquired);
+        } catch (RuntimeException ex) {
+            log.warn("Falling back to local cooldown {} because Redis coordination is unavailable: {}",
+                cooldownName, ex.getMessage());
+            return tryAcquireLocalCooldown(cooldownKey, safeTtl);
+        }
+    }
+
+    public boolean isCooldownActive(String cooldownName) {
+        String cooldownKey = buildCooldownKey(cooldownName);
+        if (!properties.isRedisMode()) {
+            return isLocalCooldownActive(cooldownKey, Instant.now());
+        }
+        try {
+            return Boolean.TRUE.equals(stringRedisTemplate.hasKey(cooldownKey));
+        } catch (RuntimeException ex) {
+            log.warn("Falling back to local cooldown lookup {} because Redis coordination is unavailable: {}",
+                cooldownName, ex.getMessage());
+            return isLocalCooldownActive(cooldownKey, Instant.now());
+        }
+    }
+
+    public void refreshCooldown(String cooldownName, Duration ttl) {
+        String cooldownKey = buildCooldownKey(cooldownName);
+        Duration safeTtl = ttl == null || ttl.isNegative() || ttl.isZero() ? Duration.ofSeconds(30) : ttl;
+        if (!properties.isRedisMode()) {
+            localCooldowns.put(cooldownKey, Instant.now().plus(safeTtl));
+            return;
+        }
+        try {
+            stringRedisTemplate.opsForValue().set(cooldownKey, Long.toString(System.currentTimeMillis()), safeTtl);
+        } catch (RuntimeException ex) {
+            log.warn("Falling back to local cooldown refresh {} because Redis coordination is unavailable: {}",
+                cooldownName, ex.getMessage());
+            localCooldowns.put(cooldownKey, Instant.now().plus(safeTtl));
         }
     }
 
@@ -85,11 +156,57 @@ public class RuntimeCoordinationService {
         }
     }
 
+    private long nextLocalCounterValue(String counterKey) {
+        return localCounters.computeIfAbsent(counterKey, key -> new AtomicLong(0L)).getAndIncrement();
+    }
+
+    private boolean tryAcquireLocalCooldown(String cooldownKey, Duration ttl) {
+        Instant now = Instant.now();
+        Instant expiresAt = now.plus(ttl);
+        AtomicBoolean acquired = new AtomicBoolean(false);
+        localCooldowns.compute(cooldownKey, (key, existing) -> {
+            if (existing == null || !existing.isAfter(now)) {
+                acquired.set(true);
+                return expiresAt;
+            }
+            return existing;
+        });
+        return acquired.get();
+    }
+
+    private boolean isLocalCooldownActive(String cooldownKey, Instant now) {
+        Instant expiresAt = localCooldowns.get(cooldownKey);
+        if (expiresAt == null) {
+            return false;
+        }
+        if (!expiresAt.isAfter(now)) {
+            localCooldowns.remove(cooldownKey, expiresAt);
+            return false;
+        }
+        return true;
+    }
+
     private String buildLeaseKey(String leaseName) {
         String namespace = StringUtils.hasText(properties.getLeaseNamespace())
                 ? properties.getLeaseNamespace().trim()
                 : "iguana";
         String suffix = StringUtils.hasText(leaseName) ? leaseName.trim() : "unnamed";
         return namespace + ":lease:" + suffix;
+    }
+
+    private String buildCounterKey(String counterName) {
+        String namespace = StringUtils.hasText(properties.getLeaseNamespace())
+            ? properties.getLeaseNamespace().trim()
+            : "iguana";
+        String suffix = StringUtils.hasText(counterName) ? counterName.trim() : "unnamed";
+        return namespace + ":counter:" + suffix;
+    }
+
+    private String buildCooldownKey(String cooldownName) {
+        String namespace = StringUtils.hasText(properties.getLeaseNamespace())
+            ? properties.getLeaseNamespace().trim()
+            : "iguana";
+        String suffix = StringUtils.hasText(cooldownName) ? cooldownName.trim() : "unnamed";
+        return namespace + ":cooldown:" + suffix;
     }
 }

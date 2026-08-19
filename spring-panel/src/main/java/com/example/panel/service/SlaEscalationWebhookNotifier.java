@@ -74,7 +74,7 @@ public class SlaEscalationWebhookNotifier {
         this.dialogResponsibilityService = null;
         this.dialogAuditService = null;
         this.slaEscalationCandidateService = new SlaEscalationCandidateService();
-        this.slaEscalationAutoAssignService = new SlaEscalationAutoAssignService(dialogLookupReadService);
+        this.slaEscalationAutoAssignService = new SlaEscalationAutoAssignService(dialogLookupReadService, null);
         this.slaRoutingPolicyService = new SlaRoutingPolicyService(
                 this.slaEscalationCandidateService,
                 this.slaEscalationAutoAssignService,
@@ -136,11 +136,11 @@ public class SlaEscalationWebhookNotifier {
         }
 
         Instant now = Instant.now();
+        Duration cooldown = Duration.ofMinutes(cooldownMinutes);
         List<Map<String, Object>> readyToNotify = new ArrayList<>();
         for (Map<String, Object> candidate : candidates) {
             String ticketId = String.valueOf(candidate.get("ticket_id"));
-            Instant lastSent = ticketCooldownCache.get(ticketId);
-            if (lastSent != null && lastSent.plus(Duration.ofMinutes(cooldownMinutes)).isAfter(now)) {
+            if (isNotificationCooldownActive(ticketId, cooldown, now)) {
                 continue;
             }
             readyToNotify.add(candidate);
@@ -177,11 +177,12 @@ public class SlaEscalationWebhookNotifier {
         int retryBackoffMs = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_retry_backoff_ms", 250, 3000);
 
         if (slaEscalationWebhookDeliveryService.sendWebhookFanout(webhookEndpoints, payload, timeoutMs, retryAttempts, retryBackoffMs)) {
-            readyToNotify.forEach(candidate -> {
-                String ticketId = String.valueOf(candidate.get("ticket_id"));
-                ticketCooldownCache.put(ticketId, now);
-            });
-            cleanupCooldownCache(now, cooldownMinutes);
+            readyToNotify.forEach(candidate -> rememberNotificationCooldown(
+                String.valueOf(candidate.get("ticket_id")),
+                cooldown,
+                now
+            ));
+            cleanupCooldownCache(now, cooldownMinutes * 2L);
             log.info("SLA escalation webhook sent for {} ticket(s), endpoint(s): {}.", readyToNotify.size(), webhookEndpoints.size());
         }
     }
@@ -272,9 +273,28 @@ public class SlaEscalationWebhookNotifier {
         }
     }
 
-    private void cleanupCooldownCache(Instant now, int cooldownMinutes) {
-        Instant threshold = now.minus(Duration.ofMinutes(cooldownMinutes * 2L));
+    private void cleanupCooldownCache(Instant now, long retentionMinutes) {
+        if (runtimeCoordinationService != null) {
+            return;
+        }
+        Instant threshold = now.minus(Duration.ofMinutes(Math.max(1L, retentionMinutes)));
         ticketCooldownCache.entrySet().removeIf(entry -> entry.getValue() == null || entry.getValue().isBefore(threshold));
+    }
+
+    private boolean isNotificationCooldownActive(String ticketId, Duration cooldown, Instant now) {
+        if (runtimeCoordinationService != null) {
+            return runtimeCoordinationService.isCooldownActive("sla-escalation-webhook:" + ticketId);
+        }
+        Instant lastSent = ticketCooldownCache.get(ticketId);
+        return lastSent != null && lastSent.plus(cooldown).isAfter(now);
+    }
+
+    private void rememberNotificationCooldown(String ticketId, Duration cooldown, Instant now) {
+        if (runtimeCoordinationService != null) {
+            runtimeCoordinationService.refreshCooldown("sla-escalation-webhook:" + ticketId, cooldown);
+            return;
+        }
+        ticketCooldownCache.put(ticketId, now);
     }
 
     private long extractMinutesLeftOrMax(Map<String, Object> candidate) {

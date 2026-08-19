@@ -191,3 +191,17 @@
 - инфраструктурный production contour (`Redis`, `RabbitMQ`, `MinIO`, leases, multi-worker runtime).
 
 Итоговый close-out по readiness-части зафиксирован отдельно в [docs/POSTGRESQL_FIRST_READINESS_CLOSEOUT.md](POSTGRESQL_FIRST_READINESS_CLOSEOUT.md).
+
+## 11.1. Фактический production contour на 2026-08-19
+
+После пакетов `01-183` target-план уже нельзя читать как чисто будущий roadmap: значимая часть contour стала фактом репозитория.
+
+- canonical live contour теперь читается как `PostgreSQL + Redis + RabbitMQ + object storage + backend-owned incident/workbench layer`;
+- shared schedulers, transport inbox/outbox, route deliveries и signal incidents уже работают через leases / claims / retry semantics;
+- instance-local round-robin routing и SLA webhook cooldown больше не должны определять shared live behavior;
+- operator-facing production runbook для этого состояния вынесен в [docs/runbooks/postgresql-production-contour.md](runbooks/postgresql-production-contour.md).
+
+Что всё ещё важно удерживать как явный operational invariant:
+
+- bot-side conversational ingress state пока остаётся process-local;
+- для одного и того же канала нужен singleton/sticky deployment policy, пока этот слой не externalized в shared runtime storage.
