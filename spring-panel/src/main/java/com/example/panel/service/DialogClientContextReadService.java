@@ -82,6 +82,20 @@ public class DialogClientContextReadService {
                       LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
                      WHERE m.user_id = ?
                     """.formatted(recentResolvedCondition.sql());
+
+            // The timestamp predicate is embedded in the SELECT list, so its
+            // placeholder appears before the WHERE user_id placeholder. Keep
+            // JDBC argument order aligned with the SQL text. The previous
+            // bind(userId) call produced [userId, timestamp] and PostgreSQL
+            // therefore tried to evaluate TIMESTAMPTZ >= BIGINT.
+            List<Object> queryArgs = new ArrayList<>();
+            if (recentResolvedCondition.params() != null) {
+                for (Object param : recentResolvedCondition.params()) {
+                    queryArgs.add(param);
+                }
+            }
+            queryArgs.add(userId);
+
             return jdbcTemplate.query(sql, rs -> {
                 if (!rs.next()) {
                     return Map.<String, Object>of();
@@ -93,7 +107,7 @@ public class DialogClientContextReadService {
                 enrichment.put("first_seen_at", rs.getString("first_seen_at"));
                 enrichment.put("last_ticket_activity_at", rs.getString("last_ticket_activity_at"));
                 return enrichment;
-            }, recentResolvedCondition.bind(userId));
+            }, queryArgs.toArray());
         } catch (DataAccessException ex) {
             log.warn("Unable to load client profile enrichment for user {}: {}", userId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Map.of();
@@ -236,12 +250,14 @@ public class DialogClientContextReadService {
 
     private List<Map<String, Object>> querySettingsParameterMatches(String paramType, String incomingValue, int limit) {
         String normalizedIncoming = incomingValue.trim().toLowerCase(Locale.ROOT);
+        String notDeletedPredicate = timestampSqlSupport.isSqliteMode()
+                ? "is_deleted = 0"
+                : "is_deleted = FALSE";
         try {
-            return jdbcTemplate.query(
-                    """
+            String sql = """
                     SELECT id, value, state
                       FROM settings_parameters
-                     WHERE is_deleted = 0
+                     WHERE %s
                        AND param_type = ?
                        AND value IS NOT NULL
                        AND trim(value) <> ''
@@ -254,7 +270,9 @@ public class DialogClientContextReadService {
                        END,
                        value
                      LIMIT ?
-                    """,
+                    """.formatted(notDeletedPredicate);
+            return jdbcTemplate.query(
+                    sql,
                     (rs, rowNum) -> {
                         String value = rs.getString("value");
                         String normalizedValue = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
