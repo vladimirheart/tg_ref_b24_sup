@@ -503,21 +503,6 @@ table.querySelectorAll('thead th.sortable').forEach(th => {
     });
 });
 
-  // сортировка
-  table.querySelectorAll('thead th.sortable').forEach(th => {
-    th.addEventListener('click', () => {
-      const key = th.dataset.sort;
-      if (state.sort_by === key) {
-        state.sort_dir = (state.sort_dir === 'asc') ? 'desc' : 'asc';
-      } else {
-        state.sort_by = key;
-        state.sort_dir = 'asc';
-      }
-      state.page = 1;
-      load();
-    });
-  });
-
   // фильтры
   if (filters) {
     filters.addEventListener('submit', (e) => { e.preventDefault(); state.page = 1; load().then(() => filtersModal && filtersModal.hide()); });

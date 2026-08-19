@@ -180,54 +180,68 @@
 		<table class="table align-middle mb-0" id="tasksTable">
 		  <thead>
 			<tr>
-			  <th scope="col" class="sortable" data-sort="num">
-				Номер <span class="sort-ind">↕</span>
-				tabindex="0"
-			  </th>
+				<th scope="col"
+					class="sortable"
+					data-sort="num"
+					tabindex="0">
+					Номер <span class="sort-ind">↕</span>
+				</th>
 
-			  <th scope="col" class="sortable" data-sort="title">
-				Название <span class="sort-ind">↕</span>
-				tabindex="0"
-			  </th>
+				<th scope="col"
+					class="sortable"
+					data-sort="title"
+					tabindex="0">
+					Название <span class="sort-ind">↕</span>
+				</th>
 
-			  <th scope="col" class="sortable" data-sort="assignee">
-				Исполнитель <span class="sort-ind">↕</span>
-				tabindex="0"
-			  </th>
+				<th scope="col"
+					class="sortable"
+					data-sort="assignee"
+					tabindex="0">
+					Исполнитель <span class="sort-ind">↕</span>
+				</th>
 
-			  <th scope="col" class="sortable" data-sort="due_at">
-				Дедлайн <span class="sort-ind">↕</span>
-				tabindex="0"
-			  </th>
+				<th scope="col"
+					class="sortable"
+					data-sort="due_at"
+					tabindex="0">
+					Дедлайн <span class="sort-ind">↕</span>
+				</th>
 
-			  <th scope="col" class="sortable" data-sort="last_activity_at">
-				Последняя активность <span class="sort-ind">↕</span>
-				tabindex="0"
-			  </th>
+				<th scope="col"
+					class="sortable"
+					data-sort="last_activity_at"
+					tabindex="0">
+					Последняя активность <span class="sort-ind">↕</span>
+				</th>
 
-			  <th scope="col">
-				Создано
-			  </th>
+				<th scope="col">
+					Создано
+				</th>
 
-			  <th scope="col">
-				Закрыто
-			  </th>
+				<th scope="col">
+					Закрыто
+				</th>
 
-			  <th scope="col" class="sortable" data-sort="tag">
-				Тег <span class="sort-ind">↕</span>
-				tabindex="0"
-			  </th>
+				<th scope="col"
+					class="sortable"
+					data-sort="tag"
+					tabindex="0">
+					Тег <span class="sort-ind">↕</span>
+				</th>
 
-			  <th scope="col" class="sortable" data-sort="status">
-				Статус <span class="sort-ind">↕</span>
-				tabindex="0"
-			  </th>
+				<th scope="col"
+					class="sortable"
+					data-sort="status"
+					tabindex="0">
+					Статус <span class="sort-ind">↕</span>
+				</th>
 
-			  <th scope="col" class="text-end">
-				Действия
-			  </th>
+				<th scope="col" class="text-end">
+					Действия
+				</th>
 			</tr>
-		  </thead>
+			</thead>
 
 		  <tbody id="tasksBody">
 			<tr th:if="${#lists.isEmpty(tasks)}">
