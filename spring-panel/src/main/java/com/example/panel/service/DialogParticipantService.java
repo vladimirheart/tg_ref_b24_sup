@@ -66,13 +66,17 @@ public class DialogParticipantService {
             return List.of();
         }
         try {
-            List<StoredParticipant> storedParticipants = jdbcTemplate.query(
-                    """
+            String addedAtOrder = databaseRuntimeMode.isSqliteMode()
+                    ? "COALESCE(added_at, '') ASC"
+                    : "added_at ASC NULLS FIRST";
+            String sql = """
                     SELECT username, added_at, added_by
                       FROM ticket_participants
                      WHERE ticket_id = ?
-                     ORDER BY COALESCE(added_at, '') ASC, lower(username) ASC
-                    """,
+                     ORDER BY %s, lower(username) ASC
+                    """.formatted(addedAtOrder);
+            List<StoredParticipant> storedParticipants = jdbcTemplate.query(
+                    sql,
                     (rs, rowNum) -> new StoredParticipant(
                             rs.getString("username"),
                             rs.getString("added_at"),
@@ -215,10 +219,14 @@ public class DialogParticipantService {
         }
         sql.append(" WHERE 1 = 1 ");
         if (userColumns.contains("enabled")) {
-            sql.append(" AND COALESCE(u.enabled, 1) = 1 ");
+            sql.append(databaseRuntimeMode.isSqliteMode()
+                    ? " AND COALESCE(u.enabled, 1) = 1 "
+                    : " AND COALESCE(u.enabled, TRUE) = TRUE ");
         }
         if (userColumns.contains("is_blocked")) {
-            sql.append(" AND COALESCE(u.is_blocked, 0) = 0 ");
+            sql.append(databaseRuntimeMode.isSqliteMode()
+                    ? " AND COALESCE(u.is_blocked, 0) = 0 "
+                    : " AND COALESCE(u.is_blocked, FALSE) = FALSE ");
         }
 
         List<Object> params = new ArrayList<>();
