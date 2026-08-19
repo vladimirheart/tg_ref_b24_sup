@@ -1,5 +1,6 @@
 package com.example.panel.config;
 
+import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.jdbc.DataSourceBuilder;
@@ -31,6 +32,7 @@ import java.util.Optional;
 public class SqliteDataSourceConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(SqliteDataSourceConfiguration.class);
+    private static final long DEFAULT_HIKARI_LEAK_DETECTION_MS = 15_000L;
 
     @Bean
     @Primary
@@ -57,7 +59,9 @@ public class SqliteDataSourceConfiguration {
             if (StringUtils.hasText(settings.password())) {
                 builder.password(settings.password());
             }
-            return builder.build();
+            DataSource externalDataSource = builder.build();
+            configureExternalHikari(externalDataSource, environment);
+            return externalDataSource;
         }
 
         Path normalized = properties.getNormalizedPath();
@@ -86,6 +90,60 @@ public class SqliteDataSourceConfiguration {
     @Primary
     public PlatformTransactionManager transactionManager(EntityManagerFactory entityManagerFactory) {
         return new JpaTransactionManager(entityManagerFactory);
+    }
+
+    private static void configureExternalHikari(DataSource dataSource, ConfigurableEnvironment environment) {
+        if (!(dataSource instanceof HikariDataSource hikari)) {
+            return;
+        }
+
+        long leakDetectionMs = readLongSetting(
+            environment.getProperty("APP_DB_LEAK_DETECTION_MS"),
+            DEFAULT_HIKARI_LEAK_DETECTION_MS
+        );
+        if (leakDetectionMs > 0L && leakDetectionMs < 2_000L) {
+            leakDetectionMs = 2_000L;
+        }
+        if (leakDetectionMs >= 2_000L) {
+            hikari.setLeakDetectionThreshold(leakDetectionMs);
+        }
+
+        String maxPoolRaw = environment.getProperty("APP_DB_MAX_POOL_SIZE");
+        if (StringUtils.hasText(maxPoolRaw)) {
+            int configuredMax = readIntSetting(maxPoolRaw, hikari.getMaximumPoolSize());
+            if (configuredMax > 0) {
+                hikari.setMaximumPoolSize(configuredMax);
+            }
+        }
+
+        log.info(
+            "External Hikari pool configured: maxPoolSize={}, connectionTimeoutMs={}, leakDetectionMs={}",
+            hikari.getMaximumPoolSize(),
+            hikari.getConnectionTimeout(),
+            hikari.getLeakDetectionThreshold()
+        );
+    }
+
+    private static long readLongSetting(String raw, long defaultValue) {
+        if (!StringUtils.hasText(raw)) {
+            return defaultValue;
+        }
+        try {
+            return Long.parseLong(raw.trim());
+        } catch (NumberFormatException ignored) {
+            return defaultValue;
+        }
+    }
+
+    private static int readIntSetting(String raw, int defaultValue) {
+        if (!StringUtils.hasText(raw)) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException ignored) {
+            return defaultValue;
+        }
     }
 
     private static void registerRuntimeProperty(ConfigurableEnvironment env, String key, String value) {
