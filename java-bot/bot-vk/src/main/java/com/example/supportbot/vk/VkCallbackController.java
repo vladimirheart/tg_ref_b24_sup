@@ -1,6 +1,7 @@
 package com.example.supportbot.vk;
 
 import com.example.supportbot.config.VkBotProperties;
+import com.example.supportbot.service.BotIngressCoordinationService;
 import com.google.gson.Gson;
 import com.vk.api.sdk.objects.messages.Message;
 import org.slf4j.Logger;
@@ -23,11 +24,15 @@ public class VkCallbackController {
 
     private final VkSupportBot vkSupportBot;
     private final VkBotProperties properties;
+    private final BotIngressCoordinationService ingressCoordinationService;
     private final Gson gson = new Gson();
 
-    public VkCallbackController(VkSupportBot vkSupportBot, VkBotProperties properties) {
+    public VkCallbackController(VkSupportBot vkSupportBot,
+                                VkBotProperties properties,
+                                BotIngressCoordinationService ingressCoordinationService) {
         this.vkSupportBot = vkSupportBot;
         this.properties = properties;
+        this.ingressCoordinationService = ingressCoordinationService;
     }
 
     @PostMapping("/{groupId}")
@@ -50,6 +55,9 @@ public class VkCallbackController {
         }
 
         if ("message_new".equals(type)) {
+            if (!ingressCoordinationService.tryAcquireOrRenew("vk", properties.getChannelId())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("inactive-ingress-owner");
+            }
             Object object = payload.get("object");
             if (object instanceof Map<?, ?> objectMap) {
                 Object messageNode = objectMap.get("message");

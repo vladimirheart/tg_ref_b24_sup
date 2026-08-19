@@ -11,6 +11,7 @@ import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.ConversationHistoryEntry;
 import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.ConversationTicketCreationCommand;
+import com.example.supportbot.service.BotIngressCoordinationService;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.MessagingService;
 import com.example.supportbot.service.RuntimeConfigService;
@@ -69,6 +70,7 @@ public class MaxWebhookController {
     private final MessagingService messagingService;
     private final FeedbackService feedbackService;
     private final BotSettingsService botSettingsService;
+    private final BotIngressCoordinationService ingressCoordinationService;
     private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
 
@@ -90,6 +92,7 @@ public class MaxWebhookController {
                                 MessagingService messagingService,
                                 FeedbackService feedbackService,
                                 BotSettingsService botSettingsService,
+                                BotIngressCoordinationService ingressCoordinationService,
                                 RuntimeConfigService runtimeConfigService,
                                 ObjectMapper objectMapper) {
         this.properties = properties;
@@ -100,6 +103,7 @@ public class MaxWebhookController {
         this.messagingService = messagingService;
         this.feedbackService = feedbackService;
         this.botSettingsService = botSettingsService;
+        this.ingressCoordinationService = ingressCoordinationService;
         this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
     }
@@ -111,6 +115,9 @@ public class MaxWebhookController {
     ) {
         if (!properties.isEnabled()) {
             return ResponseEntity.ok(Map.of("ok", true, "ignored", "max-bot-disabled"));
+        }
+        if (!ingressCoordinationService.tryAcquireOrRenew("max", properties.getChannelId())) {
+            return ResponseEntity.status(409).body(Map.of("ok", false, "error", "inactive-ingress-owner"));
         }
         if (!secretValid(secret)) {
             return ResponseEntity.status(403).body(Map.of("ok", false, "error", "invalid-secret"));
@@ -304,6 +311,9 @@ public class MaxWebhookController {
 
     @Scheduled(fixedDelay = 60000L)
     public void expireSilentQuestionFlowSessions() {
+        if (!ingressCoordinationService.isCurrentOwner("max", properties.getChannelId())) {
+            return;
+        }
         Channel channel = getChannel();
         if (channel == null) {
             return;

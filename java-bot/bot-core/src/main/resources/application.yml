@@ -1,6 +1,11 @@
 spring:
   application:
     name: support-bot
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:${SPRING_REDIS_HOST:localhost}}
+      port: ${SPRING_DATA_REDIS_PORT:${SPRING_REDIS_PORT:${APP_REDIS_PORT:6379}}}
+      password: ${SPRING_DATA_REDIS_PASSWORD:${SPRING_REDIS_PASSWORD:}}
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
     port: ${SPRING_RABBITMQ_PORT:${APP_RABBITMQ_AMQP_PORT:5672}}
@@ -31,6 +36,12 @@ support-bot:
   webforms-dir: ${APP_STORAGE_WEBFORMS:${APP_STORAGE_ATTACHMENTS:../attachments}/forms}
 
 app:
+  coordination:
+    mode: ${APP_COORDINATION_MODE:direct}
+    lease-namespace: ${APP_COORDINATION_LEASE_NAMESPACE:iguana}
+    ingress-lease-ttl: ${APP_COORDINATION_BOT_INGRESS_LEASE_TTL:45s}
+    ingress-lease-renew-interval: ${APP_COORDINATION_BOT_INGRESS_RENEW_INTERVAL:15s}
+    ingress-follower-backoff: ${APP_COORDINATION_BOT_INGRESS_FOLLOWER_BACKOFF:5s}
   storage:
     object:
       mode: ${APP_STORAGE_OBJECT_MODE:local_fs}

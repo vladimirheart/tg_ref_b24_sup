@@ -12,6 +12,7 @@ import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.ConversationHistoryEntry;
 import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.ConversationTicketCreationCommand;
+import com.example.supportbot.service.BotIngressCoordinationService;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.TicketService;
@@ -100,6 +101,7 @@ public class SupportBot extends TelegramLongPollingBot {
     private final TicketService ticketService;
     private final ChatHistoryService chatHistoryService;
     private final FeedbackService feedbackService;
+    private final BotIngressCoordinationService ingressCoordinationService;
     private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
 
@@ -123,6 +125,7 @@ public class SupportBot extends TelegramLongPollingBot {
                       TicketService ticketService,
                       ChatHistoryService chatHistoryService,
                       FeedbackService feedbackService,
+                      BotIngressCoordinationService ingressCoordinationService,
                       RuntimeConfigService runtimeConfigService,
                       ObjectMapper objectMapper) {
         super(resolveTelegramBotOptionsFromEnv(), properties.getToken());
@@ -135,6 +138,7 @@ public class SupportBot extends TelegramLongPollingBot {
         this.ticketService = ticketService;
         this.chatHistoryService = chatHistoryService;
         this.feedbackService = feedbackService;
+        this.ingressCoordinationService = ingressCoordinationService;
         this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
     }
@@ -1278,6 +1282,9 @@ public class SupportBot extends TelegramLongPollingBot {
 
     @Scheduled(cron = "0 0 * * * *")
     public void sendUnblockDigest() {
+        if (!ingressCoordinationService.isCurrentOwner("telegram", properties.getChannelId())) {
+            return;
+        }
         Long channelId = properties.getChannelId();
         if (channelId == null || channelId <= 0) {
             return;
@@ -1304,6 +1311,9 @@ public class SupportBot extends TelegramLongPollingBot {
 
     @Scheduled(fixedDelay = 60000L)
     public void expireSilentQuestionFlowSessions() {
+        if (!ingressCoordinationService.isCurrentOwner("telegram", properties.getChannelId())) {
+            return;
+        }
         OffsetDateTime now = OffsetDateTime.now();
         conversations.forEach((userId, session) -> {
             if (session == null) {

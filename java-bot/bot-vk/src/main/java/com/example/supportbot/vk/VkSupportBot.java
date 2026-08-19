@@ -13,6 +13,7 @@ import com.example.supportbot.service.ConversationHistoryEntry;
 import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.ConversationTicketCreationCommand;
 import com.example.supportbot.service.FeedbackService;
+import com.example.supportbot.service.BotIngressCoordinationService;
 import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.service.UnblockRequestService;
@@ -94,6 +95,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private final TicketService ticketService;
     private final ChatHistoryService chatHistoryService;
     private final FeedbackService feedbackService;
+    private final BotIngressCoordinationService ingressCoordinationService;
     private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
     private final Gson gson;
@@ -121,6 +123,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         TicketService ticketService,
                         ChatHistoryService chatHistoryService,
                         FeedbackService feedbackService,
+                        BotIngressCoordinationService ingressCoordinationService,
                         RuntimeConfigService runtimeConfigService,
                         ObjectMapper objectMapper) {
         this.properties = properties;
@@ -132,6 +135,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         this.ticketService = ticketService;
         this.chatHistoryService = chatHistoryService;
         this.feedbackService = feedbackService;
+        this.ingressCoordinationService = ingressCoordinationService;
         this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
         this.gson = new Gson();
@@ -143,6 +147,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     public void start() {
         if (!properties.isEnabled()) {
             log.info("VK bot is disabled; skipping start");
+            return;
+        }
+        if (properties.isWebhookEnabled()) {
+            log.info("VK webhook mode is enabled; skipping long-poll runner startup");
             return;
         }
         running = true;
@@ -163,6 +171,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         LongPollState state = fetchLongPollState(actor);
         while (running) {
             try {
+                if (!ingressCoordinationService.tryAcquireOrRenew("vk", properties.getChannelId())) {
+                    sleepSilently(ingressCoordinationService.followerBackoff());
+                    continue;
+                }
                 GetLongPollEventsResponse response = vkClient.longPoll()
                         .getEvents(state.server(), state.key(), state.ts())
                         .waitTime(25)
@@ -175,11 +187,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             } catch (Exception ex) {
                 log.error("VK long poll failed", ex);
             }
-            try {
-                Thread.sleep(properties.getRetryDelaySeconds() * 1000L);
-            } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-            }
+            sleepSilently(Duration.ofSeconds(Math.max(1L, properties.getRetryDelaySeconds())));
         }
     }
 
@@ -942,6 +950,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     @Scheduled(cron = "0 0 * * * *")
     public void sendUnblockDigest() {
+        if (!ingressCoordinationService.isCurrentOwner("vk", properties.getChannelId())) {
+            return;
+        }
         Long channelId = properties.getChannelId();
         if (channelId == null || channelId <= 0) {
             return;
@@ -968,6 +979,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     @Scheduled(fixedDelay = 60000L)
     public void expireSilentQuestionFlowSessions() {
+        if (!ingressCoordinationService.isCurrentOwner("vk", properties.getChannelId())) {
+            return;
+        }
         Channel channel = getChannel();
         if (channel == null) {
             return;
@@ -1140,6 +1154,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     public void stop() {
         running = false;
         executor.shutdownNow();
+        ingressCoordinationService.release("vk", properties.getChannelId());
         log.info("VK long poll runner stopped");
     }
 
@@ -1548,5 +1563,14 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return fallback;
         }
         return ext;
+    }
+
+    private void sleepSilently(Duration duration) {
+        long millis = duration == null ? 1000L : Math.max(250L, duration.toMillis());
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

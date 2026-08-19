@@ -34,6 +34,10 @@
   - instance-local round-robin cursors в assignment/auto-assign больше не определяют live routing decisions;
   - SLA escalation webhook cooldown переведён в shared coordination layer;
   - локальные UI/diagnostic loops и explicit local-control invariants вынесены в отдельный production runbook.
+- `java-bot` ingress ownership дополнительно дожат на bot-side runtime:
+  - `Telegram`, `VK`, `MAX` long-poll ingress теперь используют shared Redis-based lease contract;
+  - bot-side ingress-related schedulers исполняются только active ingress owner'ом канала;
+  - `VK` webhook path больше не должен silently жить рядом с long-poll и использует explicit single-owner coordination contract.
 - operator-facing runbook под фактический contour теперь зафиксирован в `docs/runbooks/postgresql-production-contour.md`.
 
 ## 2. Что ещё не даёт считать проект PostgreSQL-only production system
@@ -56,7 +60,9 @@
 - Redis lease coordination и shared counter/cooldown coordination уже внедрены для shared schedulers/watchers/live routing decisions;
 - MinIO/S3-compatible object storage уже стал обязательной readiness boundary для PostgreSQL contour, но compatibility/local perimeter ещё остаётся для dev/import режимов;
 - RabbitMQ-first transport model уже materially жёстче, включая producer outbox, consumer scaling, delivery ledger и panel-side replay/requeue ops;
-- главный remaining live-flow gap сместился в bot-side ingress question-flow/session state, который пока остаётся process-local и требует singleton/sticky deployment policy на один канал.
+- главный remaining live-flow gap сместился ещё уже:
+  - long-poll ingress ownership уже coordinated;
+  - но strict active-active webhook/session-sharing state для одного канала всё ещё не externalized полностью и потому требует sticky/single-owner assumptions.
 
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 
@@ -117,4 +123,4 @@ Canonical incident domain на backend-owned storage уже появился, op
 - `canonical incident backend domain`: да, operator-facing слой тоже реализован;
 - `full PostgreSQL-only production contour`: ещё нет.
 
-Следующий корректный scope — уже не chase за очередной SQLite-точкой и не базовый incident UI, а оставшийся ingress/session-state hardening и richer reporting/automation поверх уже собранного contour.
+Следующий корректный scope — уже не chase за очередной SQLite-точкой и не базовый incident UI, а оставшийся webhook/session-state hardening плюс richer reporting/automation поверх уже собранного contour.

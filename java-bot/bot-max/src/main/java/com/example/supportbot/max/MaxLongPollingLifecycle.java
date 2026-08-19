@@ -1,7 +1,9 @@
 package com.example.supportbot.max;
 
 import com.example.supportbot.config.MaxBotProperties;
+import com.example.supportbot.service.BotIngressCoordinationService;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.time.Duration;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +18,7 @@ public class MaxLongPollingLifecycle implements SmartLifecycle {
     private final MaxBotProperties properties;
     private final MaxApiClient apiClient;
     private final MaxWebhookController updateProcessor;
+    private final BotIngressCoordinationService ingressCoordinationService;
 
     private volatile boolean running = false;
     private volatile Thread worker;
@@ -23,10 +26,12 @@ public class MaxLongPollingLifecycle implements SmartLifecycle {
 
     public MaxLongPollingLifecycle(MaxBotProperties properties,
                                    MaxApiClient apiClient,
-                                   MaxWebhookController updateProcessor) {
+                                   MaxWebhookController updateProcessor,
+                                   BotIngressCoordinationService ingressCoordinationService) {
         this.properties = properties;
         this.apiClient = apiClient;
         this.updateProcessor = updateProcessor;
+        this.ingressCoordinationService = ingressCoordinationService;
     }
 
     @Override
@@ -49,6 +54,10 @@ public class MaxLongPollingLifecycle implements SmartLifecycle {
     private void pollLoop() {
         while (running) {
             try {
+                if (!ingressCoordinationService.tryAcquireOrRenew("max", properties.getChannelId())) {
+                    sleepSilently(ingressCoordinationService.followerBackoff().toMillis());
+                    continue;
+                }
                 MaxApiClient.PollBatch batch = apiClient.fetchUpdates(marker, 100, 25);
                 if (batch != null && batch.marker() != null && !batch.marker().isBlank()) {
                     marker = batch.marker();
@@ -68,7 +77,7 @@ public class MaxLongPollingLifecycle implements SmartLifecycle {
                 sleepSilently(300);
             } catch (Exception ex) {
                 log.warn("MAX long polling iteration failed: {}", ex.getMessage());
-                sleepSilently(1500);
+                sleepSilently(Duration.ofSeconds(2).toMillis());
             }
         }
     }
@@ -89,6 +98,7 @@ public class MaxLongPollingLifecycle implements SmartLifecycle {
         if (thread != null) {
             thread.interrupt();
         }
+        ingressCoordinationService.release("max", properties.getChannelId());
         log.info("MAX long polling stopped");
     }
 

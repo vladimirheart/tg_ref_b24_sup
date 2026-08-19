@@ -29,6 +29,11 @@
 | `APP_INTEGRATION_TRANSPORT_MODE` | transport boundary для integration runtime: `jdbc` только compatibility/dev path, `rabbitmq` для live contour | Java-бот |
 | `APP_PANEL_INTERNAL_API_BASE_URL` | base URL internal panel API для bot-side live reads/writes в `rabbitmq` contour | Java-бот |
 | `APP_PANEL_INTERNAL_API_TOKEN` | токен internal panel API для bot-side live reads/writes в `rabbitmq` contour | Java-бот |
+| `APP_COORDINATION_MODE` | coordination backend: `direct` для local/dev, `redis` для shared leases/counters/cooldowns в production contour | Панель и бот |
+| `APP_COORDINATION_LEASE_NAMESPACE` | namespace ключей coordination lease/counter/cooldown в Redis | Панель и бот |
+| `APP_COORDINATION_BOT_INGRESS_LEASE_TTL` | TTL ingress lease для bot long-poll owner semantics | Java-бот |
+| `APP_COORDINATION_BOT_INGRESS_RENEW_INTERVAL` | интервал продления ingress lease для bot long-poll owner semantics | Java-бот |
+| `APP_COORDINATION_BOT_INGRESS_FOLLOWER_BACKOFF` | задержка follower bot instance перед повторной попыткой захватить ingress lease | Java-бот |
 
 ## Базы данных
 
@@ -84,6 +89,8 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 - в `APP_DB_MODE=sqlite` runtime сам поднимает local schema через `SqliteSchemaInitializer`;
 - в `APP_DB_MODE=postgresql` runtime получает готовый PostgreSQL datasource-контракт и не несёт `SPRING_SQL_INIT_MODE`/`schema-sqlite.sql` в production-path.
 - в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` bot-side business операции по ticket/channel/feedback/blacklist должны идти через `APP_PANEL_INTERNAL_API_*`; silent fallback в local `JPA/SQLite` business storage больше не считается допустимым live-path.
+- для multi-instance bot ingress в production contour нужно использовать `APP_COORDINATION_MODE=redis`, чтобы `Telegram`/`VK`/`MAX` long-poll owner semantics не оставались process-local.
+- bot webhook path не следует считать implicit active-active session-sharing model: если webhook mode включён, нужен sticky/single-owner ingress contract либо отдельный shared session-state слой.
 
 Для `spring-panel` действует ещё одно правило:
 
