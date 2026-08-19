@@ -49,6 +49,7 @@
 - создание или миграция business-таблиц из `java-bot`;
 - зависимость запуска бота от `schema-sqlite.sql`, `SPRING_SQL_INIT_MODE`, `spring.sql.init.platform`;
 - неявное создание `settings.db`, `bot-<channelId>.db`, `monitoring.db` или secondary SQLite-файлов при `APP_DB_MODE=postgresql`;
+- operator-facing live reads, которые в `APP_DB_MODE=postgresql` продолжают напрямую открывать per-channel SQLite-файлы вместо canonical datasource;
 - перенос business ownership обратно в local SQLite только ради удобства dev-старта.
 
 ## 3. Практический смысл

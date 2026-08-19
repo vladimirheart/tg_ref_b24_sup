@@ -40,6 +40,8 @@
 
 Пока этот graph остаётся рабочим runtime wiring, система ещё не переведена в final PostgreSQL contour.
 
+При этом отдельные operator-facing direct SQLite probes уже начинают вычищаться: например, client profile refresh больше не должен открывать per-channel `bot-<channelId>.db` в external PostgreSQL runtime path.
+
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 
 После стартового среза `01-183` first-run bootstrap больше не должен молча откатываться в SQLite при недоступном Docker, но SQLite compatibility mode всё ещё существует как явный override.

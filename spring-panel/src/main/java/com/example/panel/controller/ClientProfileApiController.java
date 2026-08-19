@@ -1,5 +1,7 @@
 package com.example.panel.controller;
 
+import com.example.panel.config.PanelDatabaseRuntimeMode;
+import com.example.panel.config.SqliteConnectionConfigSupport;
 import com.example.panel.entity.Channel;
 import com.example.panel.entity.ClientPhone;
 import com.example.panel.entity.ClientStatus;
@@ -47,7 +49,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.sqlite.SQLiteDataSource;
 
 @RestController
 @RequestMapping("/api/clients")
@@ -67,6 +68,7 @@ public class ClientProfileApiController {
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
     private final NotificationService notificationService;
+    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
     private final Path avatarsRoot;
 
     public ClientProfileApiController(JdbcTemplate jdbcTemplate,
@@ -77,6 +79,7 @@ public class ClientProfileApiController {
                                       ChannelRepository channelRepository,
                                       ObjectMapper objectMapper,
                                       NotificationService notificationService,
+                                      PanelDatabaseRuntimeMode databaseRuntimeMode,
                                       @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir)
         throws IOException {
         this.jdbcTemplate = jdbcTemplate;
@@ -87,6 +90,7 @@ public class ClientProfileApiController {
         this.channelRepository = channelRepository;
         this.objectMapper = objectMapper;
         this.notificationService = notificationService;
+        this.databaseRuntimeMode = databaseRuntimeMode;
         this.avatarsRoot = ensureDirectory(avatarsDir);
     }
 
@@ -326,9 +330,10 @@ public class ClientProfileApiController {
     }
 
     private Optional<ExternalUserInfo> loadExternalUserInfo(long userId, long channelId) {
-        Path dbPath = botDatabaseRegistry.resolveBotDatabasePath(channelId);
         Optional<ExternalUserInfo> info = Optional.empty();
-        if (Files.exists(dbPath)) {
+        Optional<Path> compatibilityDbPath = resolveCompatibilityBotDatabasePath(channelId);
+        if (compatibilityDbPath.isPresent()) {
+            Path dbPath = compatibilityDbPath.get();
             JdbcTemplate template = buildBotJdbcTemplate(dbPath);
             info = loadExternalUserInfo(template, userId);
         }
@@ -477,10 +482,16 @@ public class ClientProfileApiController {
         }
     }
 
+    Optional<Path> resolveCompatibilityBotDatabasePath(long channelId) {
+        if (!databaseRuntimeMode.isSqliteMode()) {
+            return Optional.empty();
+        }
+        Path dbPath = botDatabaseRegistry.resolveBotDatabasePath(channelId);
+        return Files.exists(dbPath) ? Optional.of(dbPath) : Optional.empty();
+    }
+
     private JdbcTemplate buildBotJdbcTemplate(Path dbPath) {
-        SQLiteDataSource dataSource = new SQLiteDataSource();
-        dataSource.setUrl("jdbc:sqlite:" + dbPath);
-        return new JdbcTemplate(dataSource);
+        return new JdbcTemplate(SqliteConnectionConfigSupport.createDataSource("jdbc:sqlite:" + dbPath, null, null));
     }
 
     private Set<String> loadTableColumns(JdbcTemplate template, String table) {
