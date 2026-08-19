@@ -12,7 +12,7 @@ import javax.sql.DataSource;
 /**
  * Emits a compact warning only when the primary Hikari pool is saturated or
  * callers are waiting for a connection. This keeps normal logs quiet while
- * making future connection starvation diagnosable from a user-provided log.
+ * making future PostgreSQL connection starvation diagnosable from runtime logs.
  */
 @Component
 public class HikariPoolPressureReporter {
