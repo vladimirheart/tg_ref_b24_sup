@@ -51,7 +51,7 @@ public class SslCertificateMonitorRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public SslCertificateMonitorRepository(@Qualifier("monitoringJdbcTemplate") JdbcTemplate jdbcTemplate) {
+    public SslCertificateMonitorRepository(@Qualifier("monitoringRuntimeJdbcTemplate") JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 

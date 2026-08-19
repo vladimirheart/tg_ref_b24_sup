@@ -37,7 +37,7 @@
 | --- | --- | --- | --- | --- | --- |
 | `panel-runtime` | `panel_runtime.db` | `app.datasource.sqlite.path` / `APP_DB_PANEL_RUNTIME` | `spring-panel`, `java-bot` | Главная runtime БД панели, JPA + primary `JdbcTemplate` | canonical |
 | `panel-identity` | `panel_identity.db` | `app.datasource.users-sqlite.path` / `APP_DB_PANEL_IDENTITY` | `spring-panel` | Пользователи, роли, auth/read-write через `usersJdbcTemplate` | canonical |
-| `monitoring` | `monitoring.db` | `app.datasource.monitoring-sqlite.path` / `APP_DB_MONITORING` | `spring-panel` | Мониторы и история проверок через `monitoringJdbcTemplate` | canonical |
+| `monitoring` | `monitoring.db` | `app.datasource.monitoring-sqlite.path` / `APP_DB_MONITORING` | `spring-panel` | SQLite compatibility/bootstrap контур; в external runtime monitoring-domain идёт через primary PostgreSQL contour | compatibility |
 | `bot-runtime` | `bot_runtime.db` | `app.datasource.bot-sqlite.path` / `APP_DB_BOT_RUNTIME` | `spring-panel` | Bot-side данные через `botJdbcTemplate` | active, но частично transitional |
 | `clients` | `clients.db` | `app.datasource.clients-sqlite.path` / `APP_DB_CLIENTS` | `spring-panel` | Bootstrap secondary БД клиентов | transitional |
 | `knowledge` | `knowledge_base.db` | `app.datasource.knowledge-sqlite.path` / `APP_DB_KNOWLEDGE` | `spring-panel` | Bootstrap secondary knowledge БД | transitional |
@@ -100,6 +100,7 @@ Monitoring-контур поднимается через:
 - `MonitoringSqliteDataSourceConfiguration`
 - `MonitoringSqliteDataSourceProperties`
 - бин `monitoringJdbcTemplate`
+- бин `monitoringRuntimeJdbcTemplate`
 
 Путь задаётся так:
 
@@ -112,11 +113,13 @@ app:
 
 С этим контуром работают:
 
-- `SslCertificateMonitorRepository`
-- `RmsLicenseMonitorRepository`
-- `IikoApiMonitorRepository`
-- `MonitoringCheckHistoryRepository`
 - `MonitoringDatabaseBootstrapService`
+
+Runtime-смысл теперь разный по режимам:
+
+- в `APP_DB_MODE=sqlite` monitoring-domain продолжает работать через отдельный `monitoring.db`;
+- в `APP_DB_MODE=postgresql` live monitoring repositories переключаются на primary datasource через `monitoringRuntimeJdbcTemplate`;
+- отдельный `monitoringJdbcTemplate` остаётся только для SQLite bootstrap/migration слоя.
 
 ### 2.4. Bot runtime: `bot_runtime.db`
 
@@ -230,7 +233,9 @@ secondary data source:
 `MonitoringDatabaseBootstrapService` не только создаёт эти таблицы, но и умеет
 мигрировать monitoring-данные из primary runtime в отдельную monitoring БД.
 
-Вывод: этот split уже реально работает как отдельный технический контур.
+Вывод: как отдельный physical split этот контур теперь допустим только в явном
+SQLite compatibility path. В external PostgreSQL runtime monitoring-domain уже
+не должен зависеть от отдельного monitoring datasource.
 
 ### 3.4. `bot_runtime.db`
 

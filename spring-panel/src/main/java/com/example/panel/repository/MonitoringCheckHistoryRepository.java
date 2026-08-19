@@ -37,7 +37,7 @@ public class MonitoringCheckHistoryRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public MonitoringCheckHistoryRepository(@Qualifier("monitoringJdbcTemplate") JdbcTemplate jdbcTemplate) {
+    public MonitoringCheckHistoryRepository(@Qualifier("monitoringRuntimeJdbcTemplate") JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 

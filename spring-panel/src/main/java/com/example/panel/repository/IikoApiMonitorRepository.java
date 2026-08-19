@@ -55,7 +55,7 @@ public class IikoApiMonitorRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public IikoApiMonitorRepository(@Qualifier("monitoringJdbcTemplate") JdbcTemplate jdbcTemplate) {
+    public IikoApiMonitorRepository(@Qualifier("monitoringRuntimeJdbcTemplate") JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 

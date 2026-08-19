@@ -32,7 +32,7 @@ public class RmsRefreshQueueRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public RmsRefreshQueueRepository(@Qualifier("monitoringJdbcTemplate") JdbcTemplate jdbcTemplate) {
+    public RmsRefreshQueueRepository(@Qualifier("monitoringRuntimeJdbcTemplate") JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 

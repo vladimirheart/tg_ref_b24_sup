@@ -34,6 +34,16 @@ public class MonitoringSqliteDataSourceConfiguration {
         return new JdbcTemplate(monitoringDataSource);
     }
 
+    @Bean(name = "monitoringRuntimeJdbcTemplate")
+    public JdbcTemplate monitoringRuntimeJdbcTemplate(JdbcTemplate primaryJdbcTemplate,
+                                                      @Qualifier("monitoringJdbcTemplate") JdbcTemplate monitoringJdbcTemplate,
+                                                      PanelDatabaseRuntimeMode databaseRuntimeMode) {
+        if (databaseRuntimeMode.isExternalDatabaseEnabled()) {
+            return primaryJdbcTemplate;
+        }
+        return monitoringJdbcTemplate;
+    }
+
     @Bean(name = "monitoringTransactionManager")
     public DataSourceTransactionManager monitoringTransactionManager(@Qualifier("monitoringDataSource") DataSource monitoringDataSource) {
         return new DataSourceTransactionManager(monitoringDataSource);

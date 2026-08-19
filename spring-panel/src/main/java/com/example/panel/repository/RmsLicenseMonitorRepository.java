@@ -33,7 +33,7 @@ public class RmsLicenseMonitorRepository {
     private final MonitoringCredentialsCryptoService credentialsCryptoService;
     private final RowMapper<RmsLicenseMonitor> rowMapper;
 
-    public RmsLicenseMonitorRepository(@Qualifier("monitoringJdbcTemplate") JdbcTemplate jdbcTemplate,
+    public RmsLicenseMonitorRepository(@Qualifier("monitoringRuntimeJdbcTemplate") JdbcTemplate jdbcTemplate,
                                        MonitoringCredentialsCryptoService credentialsCryptoService) {
         this.jdbcTemplate = jdbcTemplate;
         this.credentialsCryptoService = credentialsCryptoService;

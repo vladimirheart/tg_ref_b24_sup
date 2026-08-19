@@ -12,7 +12,7 @@
 - `panel_identity.db`
   Отдельный users/roles/auth-контур через `UsersSqliteDataSourceConfiguration` и `usersJdbcTemplate`.
 - `monitoring.db`
-  Отдельный monitoring-контур через `MonitoringSqliteDataSourceConfiguration` и `monitoringJdbcTemplate`.
+  Отдельный monitoring-контур остаётся только как SQLite compatibility/bootstrap слой; live monitoring runtime в external mode должен идти через primary contour.
 - `clients.db`, `knowledge_base.db`, `objects.db`
   Создаются и bootstrap-ятся в `DatabaseBootstrapService`.
 - `settings.db`
