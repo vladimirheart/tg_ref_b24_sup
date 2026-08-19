@@ -100,6 +100,13 @@ Production contour теперь предполагает следующий live
 6. Если cursor у worker ушёл в неверное состояние, использовать manual checkpoint update только как осознанный recovery action.
 7. Для конкретного `ticket_id` использовать targeted transport debug, чтобы увидеть inbound/outbound history, связанные incidents и ручные recovery operations в одном месте.
 
+Для более широкой transport observability дополнительно использовать `/analytics` -> `Integration Transport Ops`:
+
+- current health snapshot по inbox/outbox/checkpoints;
+- recent health snapshots и trend summary за окно наблюдения;
+- sustained pressure alerts, если contour остаётся unhealthy несколько snapshot-циклов подряд;
+- recent recovery operations как быстрый audit trail по ручным replay/requeue действиям.
+
 ## 5. Release checklist
 
 - Подтвердить доступность `PostgreSQL`, `Redis`, `RabbitMQ` и object storage до старта panel/backend.
@@ -118,9 +125,9 @@ Production contour теперь предполагает следующий live
 
 ## 6. Residual production debt
 
-На `2026-08-19` remaining contour debt уже уже не про SQLite datasources, не про transport ownership и не про базовый webhook session-sharing. Основной незакрытый хвост:
+На `2026-08-19` remaining contour debt уже не про SQLite datasources, не про transport ownership и не про базовый webhook session-sharing. Основной незакрытый хвост:
 
-- deeper operability/replay/debug surface вокруг integration workers и сложных transport incidents;
-- дальнейшее развитие alerting/reporting/observability поверх уже собранного contour.
+- deeper worker-forensics/replay surface за пределами panel-side transport snapshots и текущего recovery audit trail;
+- более широкий внешний alerting/integration observability слой поверх уже собранного contour.
 
 Всё остальное production contour следует считать уже собранным вокруг canonical `PostgreSQL + Redis + RabbitMQ + object storage + incident workbench`.

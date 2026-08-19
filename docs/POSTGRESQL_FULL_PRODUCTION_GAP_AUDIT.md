@@ -34,6 +34,10 @@
   - manual replay/requeue/checkpoint actions пишутся в canonical `integration_transport_operation_log`;
   - incident workbench показывает transport alerts, recovery audit trail и ticket-scoped transport debug;
   - stale runtime checkpoints поднимаются отдельным signal incident, а не теряются внутри общего backlog summary.
+- transport observability теперь включает не только current-state snapshot, но и исторический pressure слой:
+  - added durable `integration_transport_health_snapshots`;
+  - analytics transport dashboard показывает trend summary, recent snapshots и recent recovery operations;
+  - sustained transport pressure поднимается отдельным signal incident, если unhealthy состояние держится несколько snapshot-циклов подряд.
 - финальный audit background/live coordination выполнен:
   - instance-local round-robin cursors в assignment/auto-assign больше не определяют live routing decisions;
   - SLA escalation webhook cooldown переведён в shared coordination layer;
@@ -67,8 +71,8 @@
 - главный remaining live-flow gap сместился ещё уже:
   - long-poll ingress ownership уже coordinated;
   - webhook/session-sharing layer для `VK`/`MAX` уже externalized;
-  - richer operability, replay/debug surface и базовый observability/alerting слой уже materially расширены;
-  - remaining scope теперь больше про ещё более глубокую end-to-end observability/reporting и worker-debug maturity.
+  - richer operability, replay/debug surface и transport history/trend observability слой уже materially расширены;
+  - remaining scope теперь больше про ещё более глубокую end-to-end observability/reporting, worker-debug maturity и внешние alerting integrations.
 
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 
@@ -129,4 +133,4 @@ Canonical incident domain на backend-owned storage уже появился, op
 - `canonical incident backend domain`: да, operator-facing слой тоже реализован;
 - `full PostgreSQL-only production contour`: ещё нет.
 
-Следующий корректный scope — уже не chase за очередной SQLite-точкой, не базовый incident UI и не первичный transport operability layer, а дальнейшее развитие reporting/alert routing/debug maturity поверх уже собранного contour.
+Следующий корректный scope — уже не chase за очередной SQLite-точкой, не базовый incident UI, не первичный transport operability layer и не transport trend history slice, а дальнейшее развитие reporting/alert routing/debug maturity поверх уже собранного contour.

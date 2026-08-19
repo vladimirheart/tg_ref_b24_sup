@@ -29,6 +29,9 @@ public class IntegrationTransportOpsService {
     private static final Duration INBOUND_STALE_TIMEOUT = Duration.ofMinutes(15);
     private static final Duration OUTBOUND_STALE_TIMEOUT = Duration.ofMinutes(5);
     private static final Duration RECENT_MANUAL_OPERATION_WINDOW = Duration.ofHours(6);
+    private static final Duration DEFAULT_TREND_WINDOW = Duration.ofHours(24);
+    private static final long SUSTAINED_UNHEALTHY_STREAK_THRESHOLD = 3L;
+    private static final long SUSTAINED_CRITICAL_STREAK_THRESHOLD = 2L;
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
     private static final List<WorkerDiagnosticsDefinition> WORKER_DIAGNOSTICS = List.of(
         new WorkerDiagnosticsDefinition("operator-notification-watch.chat-history", "Operator chat-history watcher", "chat_history", "id", Duration.ofMinutes(15)),
@@ -87,6 +90,7 @@ public class IntegrationTransportOpsService {
         TransportHealthSnapshot snapshot = buildHealthSnapshot();
         List<Map<String, Object>> runtimeCheckpoints = loadRuntimeCheckpoints();
         List<Map<String, Object>> recentOperations = loadRecentOperationLogs(RECENT_OPERATION_LIMIT);
+        Map<String, Object> trendSummary = buildTrendSummary(DEFAULT_TREND_WINDOW);
         List<Map<String, Object>> transportIncidents = incidentService.listIncidentSummariesForSignalType("integration_transport");
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("success", true);
@@ -97,8 +101,10 @@ public class IntegrationTransportOpsService {
         payload.put("recent_failed_outbound", loadRecentOutboxItems(outboundStaleThreshold));
         payload.put("transport_incidents", transportIncidents);
         payload.put("recent_operations", recentOperations);
-        payload.put("alerts", buildObservabilityAlerts(snapshot, runtimeCheckpoints, recentOperations));
+        payload.put("alerts", buildObservabilityAlerts(snapshot, trendSummary));
         payload.put("health_snapshot", snapshot.toMap());
+        payload.put("recent_snapshots", loadRecentHealthSnapshots(24));
+        payload.put("trend_summary", trendSummary);
         return payload;
     }
 
@@ -133,6 +139,96 @@ public class IntegrationTransportOpsService {
         payload.put("related_incidents", incidentService.listIncidentSummariesForTicket(normalizedTicketId));
         payload.put("recent_operations", loadRecentOperationLogsForTicket(normalizedTicketId, 25));
         return payload;
+    }
+
+    public void recordHealthSnapshot(TransportHealthSnapshot snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+        jdbcTemplate.update("""
+                INSERT INTO integration_transport_health_snapshots(
+                    inbound_failed,
+                    inbound_stale_processing,
+                    outbound_failed,
+                    outbound_backlog,
+                    outbound_stale_processing,
+                    stale_checkpoint_count,
+                    lagging_checkpoint_count,
+                    recent_manual_operations,
+                    severity,
+                    summary_text,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+            snapshot.inboundFailed(),
+            snapshot.inboundStaleProcessing(),
+            snapshot.outboundFailed(),
+            snapshot.outboundBacklog(),
+            snapshot.outboundStaleProcessing(),
+            snapshot.staleCheckpointCount(),
+            snapshot.laggingCheckpointCount(),
+            snapshot.recentManualOperations(),
+            snapshot.severity(),
+            snapshot.summary()
+        );
+    }
+
+    public void deleteHealthSnapshotsOlderThan(Duration retention) {
+        Duration safeRetention = retention == null || retention.isZero() || retention.isNegative()
+            ? Duration.ofDays(30)
+            : retention;
+        jdbcTemplate.update("""
+                DELETE FROM integration_transport_health_snapshots
+                 WHERE created_at < ?
+                """,
+            timestamp(OffsetDateTime.now(ZoneOffset.UTC).minus(safeRetention))
+        );
+    }
+
+    public Map<String, Object> buildTrendSummary(Duration window) {
+        Duration safeWindow = window == null || window.isZero() || window.isNegative() ? DEFAULT_TREND_WINDOW : window;
+        List<TransportHealthSnapshotRow> snapshots = loadHealthSnapshotRows(safeWindow, 288);
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("window_hours", safeWindow.toHours());
+        summary.put("snapshot_count", snapshots.size());
+        if (snapshots.isEmpty()) {
+            summary.put("status", "no_data");
+            summary.put("sustained_pressure", false);
+            summary.put("unhealthy_snapshot_count", 0);
+            summary.put("critical_snapshot_count", 0);
+            summary.put("unhealthy_streak", 0);
+            summary.put("critical_streak", 0);
+            summary.put("peak_outbound_backlog", 0);
+            summary.put("peak_stale_checkpoints", 0);
+            summary.put("peak_recent_manual_operations", 0);
+            summary.put("latest_created_at", null);
+            summary.put("latest_severity", null);
+            summary.put("latest_summary", null);
+            return summary;
+        }
+        long unhealthyCount = snapshots.stream().filter(TransportHealthSnapshotRow::unhealthy).count();
+        long criticalCount = snapshots.stream().filter(snapshot -> "critical".equalsIgnoreCase(snapshot.severity())).count();
+        long unhealthyStreak = consecutiveCount(snapshots, TransportHealthSnapshotRow::unhealthy);
+        long criticalStreak = consecutiveCount(snapshots, snapshot -> "critical".equalsIgnoreCase(snapshot.severity()));
+        long peakOutboundBacklog = snapshots.stream().map(TransportHealthSnapshotRow::outboundBacklog).max(Comparator.naturalOrder()).orElse(0L);
+        long peakStaleCheckpoints = snapshots.stream().map(TransportHealthSnapshotRow::staleCheckpointCount).max(Comparator.naturalOrder()).orElse(0L);
+        long peakRecentManualOperations = snapshots.stream().map(TransportHealthSnapshotRow::recentManualOperations).max(Comparator.naturalOrder()).orElse(0L);
+        boolean sustainedPressure = unhealthyStreak >= SUSTAINED_UNHEALTHY_STREAK_THRESHOLD
+            || criticalStreak >= SUSTAINED_CRITICAL_STREAK_THRESHOLD;
+        TransportHealthSnapshotRow latest = snapshots.get(0);
+        summary.put("status", sustainedPressure ? "pressure" : (latest.unhealthy() ? "monitor" : "healthy"));
+        summary.put("sustained_pressure", sustainedPressure);
+        summary.put("unhealthy_snapshot_count", unhealthyCount);
+        summary.put("critical_snapshot_count", criticalCount);
+        summary.put("unhealthy_streak", unhealthyStreak);
+        summary.put("critical_streak", criticalStreak);
+        summary.put("peak_outbound_backlog", peakOutboundBacklog);
+        summary.put("peak_stale_checkpoints", peakStaleCheckpoints);
+        summary.put("peak_recent_manual_operations", peakRecentManualOperations);
+        summary.put("latest_created_at", latest.createdAt());
+        summary.put("latest_severity", latest.severity());
+        summary.put("latest_summary", latest.summaryText());
+        return summary;
     }
 
     @Transactional
@@ -814,6 +910,83 @@ public class IntegrationTransportOpsService {
         );
     }
 
+    private List<Map<String, Object>> loadRecentHealthSnapshots(int limit) {
+        return jdbcTemplate.query("""
+                SELECT id,
+                       inbound_failed,
+                       inbound_stale_processing,
+                       outbound_failed,
+                       outbound_backlog,
+                       outbound_stale_processing,
+                       stale_checkpoint_count,
+                       lagging_checkpoint_count,
+                       recent_manual_operations,
+                       severity,
+                       summary_text,
+                       created_at
+                  FROM integration_transport_health_snapshots
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT ?
+                """,
+            (rs, rowNum) -> {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("id", rs.getLong("id"));
+                row.put("inbound_failed", rs.getLong("inbound_failed"));
+                row.put("inbound_stale_processing", rs.getLong("inbound_stale_processing"));
+                row.put("outbound_failed", rs.getLong("outbound_failed"));
+                row.put("outbound_backlog", rs.getLong("outbound_backlog"));
+                row.put("outbound_stale_processing", rs.getLong("outbound_stale_processing"));
+                row.put("stale_checkpoint_count", rs.getLong("stale_checkpoint_count"));
+                row.put("lagging_checkpoint_count", rs.getLong("lagging_checkpoint_count"));
+                row.put("recent_manual_operations", rs.getLong("recent_manual_operations"));
+                row.put("severity", normalize(rs.getString("severity")));
+                row.put("summary_text", normalize(rs.getString("summary_text")));
+                row.put("created_at", normalize(rs.getString("created_at")));
+                return row;
+            },
+            Math.max(1, limit)
+        );
+    }
+
+    private List<TransportHealthSnapshotRow> loadHealthSnapshotRows(Duration window, int limit) {
+        Duration safeWindow = window == null || window.isZero() || window.isNegative() ? DEFAULT_TREND_WINDOW : window;
+        return jdbcTemplate.query("""
+                SELECT id,
+                       inbound_failed,
+                       inbound_stale_processing,
+                       outbound_failed,
+                       outbound_backlog,
+                       outbound_stale_processing,
+                       stale_checkpoint_count,
+                       lagging_checkpoint_count,
+                       recent_manual_operations,
+                       severity,
+                       summary_text,
+                       created_at
+                  FROM integration_transport_health_snapshots
+                 WHERE created_at >= ?
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT ?
+                """,
+            (rs, rowNum) -> new TransportHealthSnapshotRow(
+                rs.getLong("id"),
+                rs.getLong("inbound_failed"),
+                rs.getLong("inbound_stale_processing"),
+                rs.getLong("outbound_failed"),
+                rs.getLong("outbound_backlog"),
+                rs.getLong("outbound_stale_processing"),
+                rs.getLong("stale_checkpoint_count"),
+                rs.getLong("lagging_checkpoint_count"),
+                rs.getLong("recent_manual_operations"),
+                normalize(rs.getString("severity")),
+                normalize(rs.getString("summary_text")),
+                normalize(rs.getString("created_at"))
+            ),
+            timestamp(OffsetDateTime.now(ZoneOffset.UTC).minus(safeWindow)),
+            Math.max(1, limit)
+        );
+    }
+
     private List<Map<String, Object>> loadRecentOperationLogsForTicket(String ticketId, int limit) {
         return jdbcTemplate.query("""
                 SELECT id,
@@ -857,8 +1030,7 @@ public class IntegrationTransportOpsService {
     }
 
     private List<Map<String, Object>> buildObservabilityAlerts(TransportHealthSnapshot snapshot,
-                                                               List<Map<String, Object>> runtimeCheckpoints,
-                                                               List<Map<String, Object>> recentOperations) {
+                                                               Map<String, Object> trendSummary) {
         List<Map<String, Object>> alerts = new ArrayList<>();
         if (snapshot.inboundFailed() > 0) {
             alerts.add(alert("inbound_failed", "high", "Есть failed inbound события, требуется replay/debug.", snapshot.inboundFailed(), 0));
@@ -880,9 +1052,18 @@ public class IntegrationTransportOpsService {
             alerts.add(alert("stale_checkpoints", "warning", "Есть stale runtime checkpoints: проверьте worker loops и leases.",
                 snapshot.staleCheckpointCount(), 0));
         }
+        if (snapshot.laggingCheckpointCount() > 0) {
+            alerts.add(alert("lagging_checkpoints", "warning", "Worker checkpoints отстают от source cursors и требуют проверки pressure/backlog.",
+                snapshot.laggingCheckpointCount(), 0));
+        }
         if (snapshot.recentManualOperations() >= 5) {
             alerts.add(alert("manual_compensation_pressure", "warning", "За последние часы выросло число ручных recovery действий.",
                 snapshot.recentManualOperations(), 5));
+        }
+        if (Boolean.TRUE.equals(trendSummary.get("sustained_pressure"))) {
+            alerts.add(alert("sustained_transport_pressure", "critical",
+                "Транспортный контур остаётся unhealthy несколько последовательных snapshot-циклов подряд.",
+                toLong(trendSummary.get("unhealthy_streak")), SUSTAINED_UNHEALTHY_STREAK_THRESHOLD));
         }
         if (alerts.isEmpty()) {
             alerts.add(alert("transport_healthy", "ok", "Transport contour и worker checkpoints выглядят стабильно.", 0, 0));
@@ -907,11 +1088,24 @@ public class IntegrationTransportOpsService {
                 SELECT COUNT(*)
                   FROM integration_transport_operation_log
                  WHERE created_at >= ?
+                   AND action_type LIKE 'manual_%'
                 """,
             Long.class,
             timestamp(since)
         );
         return value != null ? value : 0L;
+    }
+
+    private long consecutiveCount(List<TransportHealthSnapshotRow> rows,
+                                  java.util.function.Predicate<TransportHealthSnapshotRow> predicate) {
+        long count = 0L;
+        for (TransportHealthSnapshotRow row : rows) {
+            if (!predicate.test(row)) {
+                break;
+            }
+            count++;
+        }
+        return count;
     }
 
     private void recordOperation(String actionType,
@@ -1073,18 +1267,22 @@ public class IntegrationTransportOpsService {
             if (inboundFailed > 0 || outboundFailed > 0 || outboundBacklog >= 100) {
                 return "high";
             }
-            return "medium";
+            if (laggingCheckpointCount > 0 || recentManualOperations >= 5) {
+                return "warning";
+            }
+            return "ok";
         }
 
         public String summary() {
             return String.format(Locale.ROOT,
-                "inbound_failed=%d, inbound_stale=%d, outbound_failed=%d, outbound_backlog=%d, outbound_stale=%d, stale_checkpoints=%d, recent_manual_ops=%d",
+                "inbound_failed=%d, inbound_stale=%d, outbound_failed=%d, outbound_backlog=%d, outbound_stale=%d, stale_checkpoints=%d, lagging_checkpoints=%d, recent_manual_ops=%d",
                 inboundFailed,
                 inboundStaleProcessing,
                 outboundFailed,
                 outboundBacklog,
                 outboundStaleProcessing,
                 staleCheckpointCount,
+                laggingCheckpointCount,
                 recentManualOperations
             );
         }
@@ -1150,6 +1348,28 @@ public class IntegrationTransportOpsService {
             row.put("cursor_lag", cursorLag);
             row.put("stale", stale);
             return row;
+        }
+    }
+
+    private record TransportHealthSnapshotRow(long id,
+                                              long inboundFailed,
+                                              long inboundStaleProcessing,
+                                              long outboundFailed,
+                                              long outboundBacklog,
+                                              long outboundStaleProcessing,
+                                              long staleCheckpointCount,
+                                              long laggingCheckpointCount,
+                                              long recentManualOperations,
+                                              String severity,
+                                              String summaryText,
+                                              String createdAt) {
+        boolean unhealthy() {
+            return inboundFailed > 0
+                || inboundStaleProcessing > 0
+                || outboundFailed > 0
+                || outboundStaleProcessing > 0
+                || outboundBacklog >= 100
+                || staleCheckpointCount > 0;
         }
     }
 }

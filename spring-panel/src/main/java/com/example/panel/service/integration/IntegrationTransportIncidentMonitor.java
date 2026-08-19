@@ -13,6 +13,8 @@ public class IntegrationTransportIncidentMonitor {
     private static final String SIGNAL_TYPE = "integration_transport";
     private static final String SIGNAL_KEY = "panel-rabbitmq-bridge";
     private static final String CHECKPOINT_SIGNAL_KEY = "panel-runtime-checkpoints";
+    private static final String SUSTAINED_PRESSURE_SIGNAL_KEY = "panel-transport-sustained-pressure";
+    private static final Duration SUSTAINED_PRESSURE_WINDOW = Duration.ofHours(6);
 
     private final IntegrationTransportOpsService transportOpsService;
     private final RuntimeCoordinationService runtimeCoordinationService;
@@ -30,6 +32,7 @@ public class IntegrationTransportIncidentMonitor {
     public void monitor() {
         runtimeCoordinationService.runWithLease("integration-transport-incident-monitor", Duration.ofMinutes(4), () -> {
             IntegrationTransportOpsService.TransportHealthSnapshot snapshot = transportOpsService.buildHealthSnapshot();
+            Map<String, Object> trendSummary = transportOpsService.buildTrendSummary(SUSTAINED_PRESSURE_WINDOW);
             if (snapshot.unhealthy()) {
                 incidentService.openOrRefreshSignalIncident(
                     SIGNAL_TYPE,
@@ -85,6 +88,44 @@ public class IntegrationTransportIncidentMonitor {
                     SIGNAL_TYPE,
                     CHECKPOINT_SIGNAL_KEY,
                     "Runtime checkpoints recovered",
+                    Map.of("status", "healthy"),
+                    "system"
+                );
+            }
+
+            if (Boolean.TRUE.equals(trendSummary.get("sustained_pressure"))) {
+                incidentService.openOrRefreshSignalIncident(
+                    SIGNAL_TYPE,
+                    SUSTAINED_PRESSURE_SIGNAL_KEY,
+                    "Sustained transport pressure",
+                    "Transport contour остаётся unhealthy несколько последовательных snapshot-циклов подряд.",
+                    """
+                    Snapshot history показывает не разовый сбой, а sustained pressure на transport contour.
+                    Проверьте backlog trend, stale checkpoints, repeated manual recovery operations и worker ownership/leases.
+                    """.trim(),
+                    "critical",
+                    "integration_transport_monitor",
+                    Map.ofEntries(
+                        Map.entry("window_hours", trendSummary.get("window_hours")),
+                        Map.entry("snapshot_count", trendSummary.get("snapshot_count")),
+                        Map.entry("unhealthy_snapshot_count", trendSummary.get("unhealthy_snapshot_count")),
+                        Map.entry("critical_snapshot_count", trendSummary.get("critical_snapshot_count")),
+                        Map.entry("unhealthy_streak", trendSummary.get("unhealthy_streak")),
+                        Map.entry("critical_streak", trendSummary.get("critical_streak")),
+                        Map.entry("peak_outbound_backlog", trendSummary.get("peak_outbound_backlog")),
+                        Map.entry("peak_stale_checkpoints", trendSummary.get("peak_stale_checkpoints")),
+                        Map.entry("peak_recent_manual_operations", trendSummary.get("peak_recent_manual_operations")),
+                        Map.entry("latest_created_at", trendSummary.get("latest_created_at")),
+                        Map.entry("latest_severity", trendSummary.get("latest_severity")),
+                        Map.entry("latest_summary", trendSummary.get("latest_summary"))
+                    ),
+                    "system"
+                );
+            } else {
+                incidentService.resolveSignalIncident(
+                    SIGNAL_TYPE,
+                    SUSTAINED_PRESSURE_SIGNAL_KEY,
+                    "Sustained transport pressure cleared",
                     Map.of("status", "healthy"),
                     "system"
                 );
