@@ -71,15 +71,23 @@ public class RabbitIntegrationTransportConfig {
         );
     }
 
-    @Bean
-    public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
+    @Bean(name = "outboundFeedbackPromptListenerContainerFactory")
+    public SimpleRabbitListenerContainerFactory outboundFeedbackPromptListenerContainerFactory(
         ConnectionFactory connectionFactory,
-        Jackson2JsonMessageConverter integrationRabbitMessageConverter
+        Jackson2JsonMessageConverter integrationRabbitMessageConverter,
+        IntegrationRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(integrationRabbitMessageConverter);
         factory.setDefaultRequeueRejected(false);
+        factory.setConcurrentConsumers(valueOrDefault(properties.getOutboundConcurrency(), 1));
+        factory.setMaxConcurrentConsumers(valueOrDefault(properties.getOutboundMaxConcurrency(), 4));
+        factory.setPrefetchCount(valueOrDefault(properties.getOutboundPrefetch(), 10));
         return factory;
+    }
+
+    private int valueOrDefault(Integer value, int fallback) {
+        return value != null && value > 0 ? value : fallback;
     }
 }

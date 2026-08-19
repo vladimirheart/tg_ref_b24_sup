@@ -406,3 +406,21 @@ CREATE TABLE IF NOT EXISTS feedbacks (
     channel_id INTEGER REFERENCES channels(id)
 );
 
+CREATE TABLE IF NOT EXISTS integration_outbound_event_deliveries (
+    event_id VARCHAR(255) PRIMARY KEY,
+    event_kind VARCHAR(255),
+    routing_key VARCHAR(255),
+    channel_id BIGINT,
+    user_id BIGINT,
+    ticket_id VARCHAR(255),
+    request_id BIGINT,
+    status VARCHAR(64) NOT NULL,
+    last_error TEXT,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    delivered_at TIMESTAMP NULL
+);
+
+CREATE INDEX idx_outbound_event_deliveries_status
+    ON integration_outbound_event_deliveries(status, updated_at);
+

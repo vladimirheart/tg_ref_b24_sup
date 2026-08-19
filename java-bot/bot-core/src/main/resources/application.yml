@@ -59,6 +59,9 @@ app:
       outbound-queue: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_QUEUE:iguana.integration.outbound.feedback-prompt.telegram.channel.0.bot}
       outbound-dlq: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_DLQ:iguana.integration.outbound.feedback-prompt.telegram.channel.0.bot.dlq}
       outbound-routing-key: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_ROUTING_KEY:integration.outbound.feedback.prompt.telegram.channel.0}
+      outbound-concurrency: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_CONCURRENCY:1}
+      outbound-max-concurrency: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_MAX_CONCURRENCY:4}
+      outbound-prefetch: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_PREFETCH:10}
       routing-telegram: ${APP_INTEGRATION_RABBITMQ_ROUTING_TELEGRAM:integration.inbound.telegram}
       routing-vk: ${APP_INTEGRATION_RABBITMQ_ROUTING_VK:integration.inbound.vk}
       routing-max: ${APP_INTEGRATION_RABBITMQ_ROUTING_MAX:integration.inbound.max}

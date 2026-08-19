@@ -19,6 +19,12 @@ public class IntegrationRabbitProperties {
     private String routingVk;
     private String routingMax;
     private String routingTicketCreated;
+    private Integer inboundConcurrency = 2;
+    private Integer inboundMaxConcurrency = 8;
+    private Integer inboundPrefetch = 25;
+    private Integer ticketCreatedConcurrency = 1;
+    private Integer ticketCreatedMaxConcurrency = 4;
+    private Integer ticketCreatedPrefetch = 10;
 
     public String getInboundExchange() {
         return inboundExchange;
@@ -114,6 +120,54 @@ public class IntegrationRabbitProperties {
 
     public void setRoutingTicketCreated(String routingTicketCreated) {
         this.routingTicketCreated = routingTicketCreated;
+    }
+
+    public Integer getInboundConcurrency() {
+        return inboundConcurrency;
+    }
+
+    public void setInboundConcurrency(Integer inboundConcurrency) {
+        this.inboundConcurrency = inboundConcurrency;
+    }
+
+    public Integer getInboundMaxConcurrency() {
+        return inboundMaxConcurrency;
+    }
+
+    public void setInboundMaxConcurrency(Integer inboundMaxConcurrency) {
+        this.inboundMaxConcurrency = inboundMaxConcurrency;
+    }
+
+    public Integer getInboundPrefetch() {
+        return inboundPrefetch;
+    }
+
+    public void setInboundPrefetch(Integer inboundPrefetch) {
+        this.inboundPrefetch = inboundPrefetch;
+    }
+
+    public Integer getTicketCreatedConcurrency() {
+        return ticketCreatedConcurrency;
+    }
+
+    public void setTicketCreatedConcurrency(Integer ticketCreatedConcurrency) {
+        this.ticketCreatedConcurrency = ticketCreatedConcurrency;
+    }
+
+    public Integer getTicketCreatedMaxConcurrency() {
+        return ticketCreatedMaxConcurrency;
+    }
+
+    public void setTicketCreatedMaxConcurrency(Integer ticketCreatedMaxConcurrency) {
+        this.ticketCreatedMaxConcurrency = ticketCreatedMaxConcurrency;
+    }
+
+    public Integer getTicketCreatedPrefetch() {
+        return ticketCreatedPrefetch;
+    }
+
+    public void setTicketCreatedPrefetch(Integer ticketCreatedPrefetch) {
+        this.ticketCreatedPrefetch = ticketCreatedPrefetch;
     }
 
     public String outboundFeedbackPromptRoutingKey(String platform, Long channelId) {

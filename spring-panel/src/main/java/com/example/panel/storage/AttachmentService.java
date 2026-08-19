@@ -32,18 +32,14 @@ public class AttachmentService {
     private final AttachmentObjectStorageService objectStorageService;
     private final Path attachmentsRoot;
     private final Path knowledgeBaseRoot;
-    private final Path avatarsRoot;
-
     public AttachmentService(PermissionService permissionService,
                               AttachmentObjectStorageService objectStorageService,
                               @Value("${app.storage.attachments:attachments}") String attachmentsDir,
-                              @Value("${app.storage.knowledge-base:attachments/knowledge_base}") String knowledgeBaseDir,
-                              @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir) throws IOException {
+                              @Value("${app.storage.knowledge-base:attachments/knowledge_base}") String knowledgeBaseDir) throws IOException {
         this.permissionService = permissionService;
         this.objectStorageService = objectStorageService;
         this.attachmentsRoot = ensureDirectory(attachmentsDir);
         this.knowledgeBaseRoot = ensureDirectory(knowledgeBaseDir);
-        this.avatarsRoot = ensureDirectory(avatarsDir);
     }
 
     public ResponseEntity<Resource> downloadTicketAttachment(Authentication authentication, String ticketId, String filename) throws IOException {
@@ -74,8 +70,8 @@ public class AttachmentService {
 
     public ResponseEntity<Resource> downloadAvatar(Authentication authentication, String avatarId) throws IOException {
         requireAuthenticated(authentication);
-        Path resolved = resolveAttachment(avatarsRoot, "", avatarId);
-        return buildInlineResponse(resolved);
+        AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openAvatar(avatarId);
+        return buildResponse(binary, buildContentDisposition("inline", avatarId));
     }
 
     public AttachmentUploadMetadata storeKnowledgeBaseFile(Authentication authentication, MultipartFile file) throws IOException {

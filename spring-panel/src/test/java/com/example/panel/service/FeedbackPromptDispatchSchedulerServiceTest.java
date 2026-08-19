@@ -2,6 +2,8 @@ package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -61,10 +63,11 @@ class FeedbackPromptDispatchSchedulerServiceTest {
             ticketReadService,
             new PanelBotSettingsService(sharedConfigService, new BotSettingsPayloadNormalizer()),
             publisher,
-            new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq"))
+            new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
+            passthroughCoordinationService()
         );
 
-        service.dispatchPendingFeedbackRequests();
+        service.dispatchPendingFeedbackRequestsInternal();
 
         verify(publisher).publish(901L, channel, 77L, "T-901", "Оцените заявку 20260817-007 по шкале 1-4");
         verify(repository).save(request);
@@ -79,11 +82,22 @@ class FeedbackPromptDispatchSchedulerServiceTest {
             mock(BotRuntimeTicketReadService.class),
             new PanelBotSettingsService(mock(SharedConfigService.class), new BotSettingsPayloadNormalizer()),
             mock(OutboundFeedbackPromptPublisher.class),
-            new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc"))
+            new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "jdbc")),
+            passthroughCoordinationService()
         );
 
-        service.dispatchPendingFeedbackRequests();
+        service.dispatchPendingFeedbackRequestsInternal();
 
         verify(repository, never()).findTop50BySentAtIsNullAndExpiresAtAfterOrderByCreatedAtAsc(any());
+    }
+
+    private RuntimeCoordinationService passthroughCoordinationService() {
+        RuntimeCoordinationService runtimeCoordinationService = mock(RuntimeCoordinationService.class);
+        doAnswer(invocation -> {
+            Runnable action = invocation.getArgument(2);
+            action.run();
+            return null;
+        }).when(runtimeCoordinationService).runWithLease(anyString(), any(), org.mockito.ArgumentMatchers.any(Runnable.class));
+        return runtimeCoordinationService;
     }
 }

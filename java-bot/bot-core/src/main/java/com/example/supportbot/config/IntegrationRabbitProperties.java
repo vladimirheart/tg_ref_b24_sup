@@ -22,6 +22,9 @@ public class IntegrationRabbitProperties {
     private String routingVk;
     private String routingMax;
     private String routingTicketCreated;
+    private Integer outboundConcurrency = 1;
+    private Integer outboundMaxConcurrency = 4;
+    private Integer outboundPrefetch = 10;
 
     public String getInboundExchange() {
         return inboundExchange;
@@ -141,6 +144,30 @@ public class IntegrationRabbitProperties {
 
     public void setRoutingTicketCreated(String routingTicketCreated) {
         this.routingTicketCreated = routingTicketCreated;
+    }
+
+    public Integer getOutboundConcurrency() {
+        return outboundConcurrency;
+    }
+
+    public void setOutboundConcurrency(Integer outboundConcurrency) {
+        this.outboundConcurrency = outboundConcurrency;
+    }
+
+    public Integer getOutboundMaxConcurrency() {
+        return outboundMaxConcurrency;
+    }
+
+    public void setOutboundMaxConcurrency(Integer outboundMaxConcurrency) {
+        this.outboundMaxConcurrency = outboundMaxConcurrency;
+    }
+
+    public Integer getOutboundPrefetch() {
+        return outboundPrefetch;
+    }
+
+    public void setOutboundPrefetch(Integer outboundPrefetch) {
+        this.outboundPrefetch = outboundPrefetch;
     }
 
     public String routingKeyForPlatform(String platform) {

@@ -16,7 +16,10 @@ public class ConversationTicketCreatedListener {
         this.ingestionService = ingestionService;
     }
 
-    @RabbitListener(queues = "${app.integration.rabbitmq.ticket-created-queue}")
+    @RabbitListener(
+        queues = "${app.integration.rabbitmq.ticket-created-queue}",
+        containerFactory = "conversationTicketCreatedListenerContainerFactory"
+    )
     public void onConversationTicketCreated(ConversationTicketCreatedEvent event,
                                             @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
         ingestionService.ingest(event, routingKey);

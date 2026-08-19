@@ -16,7 +16,10 @@ public class OutboundFeedbackPromptListener {
         this.dispatchService = dispatchService;
     }
 
-    @RabbitListener(queues = "${app.integration.rabbitmq.outbound-queue}")
+    @RabbitListener(
+        queues = "${app.integration.rabbitmq.outbound-queue}",
+        containerFactory = "outboundFeedbackPromptListenerContainerFactory"
+    )
     public void onFeedbackPrompt(OutboundFeedbackPromptEvent event,
                                  @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
         dispatchService.dispatch(event, routingKey);

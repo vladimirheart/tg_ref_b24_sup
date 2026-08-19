@@ -16,7 +16,10 @@ public class InboundClientMessageListener {
         this.ingestionService = ingestionService;
     }
 
-    @RabbitListener(queues = "${app.integration.rabbitmq.inbound-queue}")
+    @RabbitListener(
+        queues = "${app.integration.rabbitmq.inbound-queue}",
+        containerFactory = "inboundClientMessageListenerContainerFactory"
+    )
     public void onInboundClientMessage(InboundClientMessageEvent event,
                                        @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
         ingestionService.ingest(event, routingKey);

@@ -30,16 +30,19 @@ public class AttachmentObjectStorageService {
     private final Path attachmentsRoot;
     private final Path knowledgeBaseRoot;
     private final Path passportPhotosRoot;
+    private final Path avatarsRoot;
     private volatile S3Client s3Client;
 
     public AttachmentObjectStorageService(ObjectStorageProperties properties,
                                           @Value("${app.storage.attachments:attachments}") String attachmentsDir,
                                           @Value("${app.storage.knowledge-base:attachments/knowledge_base}") String knowledgeBaseDir,
-                                          @Value("${app.storage.passport-photos:attachments/passport_photos}") String passportPhotosDir) throws IOException {
+                                          @Value("${app.storage.passport-photos:attachments/passport_photos}") String passportPhotosDir,
+                                          @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir) throws IOException {
         this.properties = properties;
         this.attachmentsRoot = ensureDirectory(attachmentsDir);
         this.knowledgeBaseRoot = ensureDirectory(knowledgeBaseDir);
         this.passportPhotosRoot = ensureDirectory(passportPhotosDir);
+        this.avatarsRoot = ensureDirectory(avatarsDir);
     }
 
     public void verifyReadyForPostgresql() {
@@ -126,6 +129,42 @@ public class AttachmentObjectStorageService {
 
     public void deletePassportPhoto(String storedName) throws IOException {
         deleteBinary(passportPhotosRoot, normalizeStorageKey(storedName), "passport_photos");
+    }
+
+    public StoredBinary storeAvatar(String storedName,
+                                    String contentType,
+                                    InputStream inputStream) throws IOException {
+        return storeBinary(avatarsRoot, normalizeStorageKey(storedName), "avatars", contentType, inputStream);
+    }
+
+    public StoredBinary openAvatar(String storedName) throws IOException {
+        return openBinary(avatarsRoot, normalizeStorageKey(storedName), "avatars");
+    }
+
+    public boolean avatarExists(String storedName) {
+        String normalized = normalizeStorageKey(storedName);
+        if (!StringUtils.hasText(normalized)) {
+            return false;
+        }
+        try {
+            if (!properties.isS3Mode()) {
+                Path resolved = avatarsRoot.resolve(normalized).normalize();
+                return resolved.startsWith(avatarsRoot) && Files.isRegularFile(resolved);
+            }
+            s3Client().headObject(HeadObjectRequest.builder()
+                    .bucket(properties.getBucket().trim())
+                    .key(objectKey("avatars", normalized))
+                    .build());
+            return true;
+        } catch (NoSuchKeyException ex) {
+            return false;
+        } catch (RuntimeException ex) {
+            return false;
+        }
+    }
+
+    public void deleteAvatar(String storedName) throws IOException {
+        deleteBinary(avatarsRoot, normalizeStorageKey(storedName), "avatars");
     }
 
     private StoredBinary storeBinary(Path localRoot,

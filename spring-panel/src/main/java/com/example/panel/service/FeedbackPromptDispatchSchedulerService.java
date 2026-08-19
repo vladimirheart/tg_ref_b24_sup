@@ -25,22 +25,29 @@ public class FeedbackPromptDispatchSchedulerService {
     private final PanelBotSettingsService panelBotSettingsService;
     private final OutboundFeedbackPromptPublisher outboundFeedbackPromptPublisher;
     private final PanelIntegrationTransportMode integrationTransportMode;
+    private final RuntimeCoordinationService runtimeCoordinationService;
 
     public FeedbackPromptDispatchSchedulerService(PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
                                                   BotRuntimeTicketReadService ticketReadService,
                                                   PanelBotSettingsService panelBotSettingsService,
                                                   OutboundFeedbackPromptPublisher outboundFeedbackPromptPublisher,
-                                                  PanelIntegrationTransportMode integrationTransportMode) {
+                                                  PanelIntegrationTransportMode integrationTransportMode,
+                                                  RuntimeCoordinationService runtimeCoordinationService) {
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.ticketReadService = ticketReadService;
         this.panelBotSettingsService = panelBotSettingsService;
         this.outboundFeedbackPromptPublisher = outboundFeedbackPromptPublisher;
         this.integrationTransportMode = integrationTransportMode;
+        this.runtimeCoordinationService = runtimeCoordinationService;
     }
 
     @Scheduled(cron = "0 */2 * * * *")
     @Transactional
     public void dispatchPendingFeedbackRequests() {
+        runtimeCoordinationService.runWithLease("feedback-prompt-dispatch", java.time.Duration.ofMinutes(3), this::dispatchPendingFeedbackRequestsInternal);
+    }
+
+    void dispatchPendingFeedbackRequestsInternal() {
         if (!integrationTransportMode.isRabbitMqMode()) {
             return;
         }

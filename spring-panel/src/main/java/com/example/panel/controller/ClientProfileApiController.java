@@ -7,6 +7,7 @@ import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.ClientPhoneRepository;
 import com.example.panel.repository.ClientStatusRepository;
 import com.example.panel.service.NotificationService;
+import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.support.JdbcSchemaInspector;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,10 +18,6 @@ import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -62,7 +59,7 @@ public class ClientProfileApiController {
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
     private final NotificationService notificationService;
-    private final Path avatarsRoot;
+    private final PanelUserPhotoService panelUserPhotoService;
 
     public ClientProfileApiController(JdbcTemplate jdbcTemplate,
                                       ClientStatusRepository clientStatusRepository,
@@ -70,15 +67,14 @@ public class ClientProfileApiController {
                                       ChannelRepository channelRepository,
                                       ObjectMapper objectMapper,
                                       NotificationService notificationService,
-                                      @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir)
-        throws IOException {
+                                      PanelUserPhotoService panelUserPhotoService) {
         this.jdbcTemplate = jdbcTemplate;
         this.clientStatusRepository = clientStatusRepository;
         this.clientPhoneRepository = clientPhoneRepository;
         this.channelRepository = channelRepository;
         this.objectMapper = objectMapper;
         this.notificationService = notificationService;
-        this.avatarsRoot = ensureDirectory(avatarsDir);
+        this.panelUserPhotoService = panelUserPhotoService;
     }
 
     @PostMapping("/{userId}/name")
@@ -641,10 +637,12 @@ public class ClientProfileApiController {
     private boolean storeAvatar(long userId, TelegramProfilePhoto photo) {
         boolean updated = false;
         try {
-            Path thumbPath = resolveAvatarPath(userId, false);
-            Path fullPath = resolveAvatarPath(userId, true);
-            updated |= storeAvatarFile(thumbPath, photo.thumbBytes());
-            updated |= storeAvatarFile(fullPath, photo.fullBytes());
+            String thumbName = panelUserPhotoService.avatarFileName(userId, false);
+            String fullName = panelUserPhotoService.avatarFileName(userId, true);
+            String thumbUrl = panelUserPhotoService.storeNamedAvatar(thumbName, "image/jpeg", photo.thumbBytes());
+            String fullUrl = panelUserPhotoService.storeNamedAvatar(fullName, "image/jpeg", photo.fullBytes());
+            updated |= StringUtils.hasText(thumbUrl);
+            updated |= StringUtils.hasText(fullUrl);
         } catch (IOException ex) {
             log.warn("Failed to store avatar for user {}: {}", userId, ex.getMessage());
         }
@@ -657,34 +655,6 @@ public class ClientProfileApiController {
             return false;
         }
         return storeAvatar(userId, photo.get());
-    }
-
-    private boolean storeAvatarFile(Path target, byte[] data) throws IOException {
-        if (data == null || data.length == 0) {
-            return false;
-        }
-        if (Files.isRegularFile(target)) {
-            byte[] existing = Files.readAllBytes(target);
-            if (Arrays.equals(existing, data)) {
-                return false;
-            }
-        }
-        Files.createDirectories(target.getParent());
-        Path tempFile = Files.createTempFile(target.getParent(), "avatar", ".tmp");
-        Files.write(tempFile, data);
-        Files.move(tempFile, target, StandardCopyOption.REPLACE_EXISTING);
-        return true;
-    }
-
-    private Path resolveAvatarPath(long userId, boolean full) {
-        String suffix = full ? "_full" : "";
-        return avatarsRoot.resolve(userId + suffix + ".jpg").normalize();
-    }
-
-    private Path ensureDirectory(String directory) throws IOException {
-        Path path = Paths.get(directory).toAbsolutePath().normalize();
-        Files.createDirectories(path);
-        return path;
     }
 
     private boolean isTelegramPlatform(String platform) {

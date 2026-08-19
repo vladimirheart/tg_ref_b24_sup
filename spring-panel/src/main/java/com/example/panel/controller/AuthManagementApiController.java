@@ -7,9 +7,6 @@ import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -80,7 +77,6 @@ public class AuthManagementApiController {
     private final PasswordEncoder passwordEncoder;
     private final PanelUserPhotoService panelUserPhotoService;
     private final ObjectMapper objectMapper;
-    private final Path avatarsRoot;
     private volatile Set<String> userColumns;
 
     public AuthManagementApiController(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
@@ -88,15 +84,13 @@ public class AuthManagementApiController {
                                        PermissionService permissionService,
                                        PasswordEncoder passwordEncoder,
                                        PanelUserPhotoService panelUserPhotoService,
-                                       ObjectMapper objectMapper,
-                                       @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir) throws IOException {
+                                       ObjectMapper objectMapper) {
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.sharedConfigService = sharedConfigService;
         this.permissionService = permissionService;
         this.passwordEncoder = passwordEncoder;
         this.panelUserPhotoService = panelUserPhotoService;
         this.objectMapper = objectMapper;
-        this.avatarsRoot = ensureDirectory(avatarsDir);
     }
 
     @GetMapping("/auth/state")
@@ -426,10 +420,8 @@ public class AuthManagementApiController {
         if (!isAllowedImageExtension(extension)) {
             return Map.of("success", false, "error", "Поддерживаются изображения PNG, JPG, GIF или WebP.");
         }
-        String filename = System.currentTimeMillis() + "_" + java.util.UUID.randomUUID() + extension;
-        Path target = avatarsRoot.resolve(filename).normalize();
-        Files.copy(file.getInputStream(), target);
-        String url = "/api/attachments/avatars/" + filename;
+        PanelUserPhotoService.StoredAvatar storedAvatar = panelUserPhotoService.storeUploadedAvatar(file);
+        String url = storedAvatar.url();
         if (userId != null) {
             persistUserPhoto(userId, url);
         }
@@ -437,7 +429,7 @@ public class AuthManagementApiController {
         response.put("success", true);
         response.put("url", url);
         response.put("photo", url);
-        response.put("filename", filename);
+        response.put("filename", storedAvatar.storedName());
         response.put("userId", userId);
         response.put("persisted", userId != null);
         return response;
@@ -707,12 +699,6 @@ public class AuthManagementApiController {
             return s.equalsIgnoreCase("true") || s.equals("1");
         }
         return false;
-    }
-
-    private Path ensureDirectory(String dir) throws IOException {
-        Path path = Paths.get(dir).toAbsolutePath().normalize();
-        Files.createDirectories(path);
-        return path;
     }
 
     private Set<String> loadUserColumns() {

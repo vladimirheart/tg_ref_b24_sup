@@ -3,6 +3,7 @@ package com.example.panel.service;
 import com.example.panel.config.DatabaseMode;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
+import com.example.panel.storage.AttachmentObjectStorageService;
 import com.example.panel.support.PanelTimestampSqlSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DialogLookupReadServiceTest {
 
@@ -32,10 +35,12 @@ class DialogLookupReadServiceTest {
         DataSource usersDataSource = new DriverManagerDataSource("jdbc:sqlite:" + usersDbFile.toAbsolutePath());
         jdbcTemplate = new JdbcTemplate(panelDataSource);
         usersJdbcTemplate = new JdbcTemplate(usersDataSource);
+        AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
+        when(attachmentObjectStorageService.avatarExists("ivan.png")).thenReturn(false);
         service = new DialogLookupReadService(
                 jdbcTemplate,
                 usersJdbcTemplate,
-                new PanelUserPhotoService(avatarsDir.toString()),
+                new PanelUserPhotoService(attachmentObjectStorageService),
                 new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
         );
         createPanelSchema();

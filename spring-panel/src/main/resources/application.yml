@@ -115,6 +115,12 @@ app:
       ticket-created-dlq: ${APP_INTEGRATION_RABBITMQ_TICKET_CREATED_DLQ:iguana.integration.ticket-created.panel.dlq}
       outbound-exchange: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_EXCHANGE:iguana.integration.outbound}
       outbound-dlx: ${APP_INTEGRATION_RABBITMQ_OUTBOUND_DLX:iguana.integration.outbound.dlx}
+      inbound-concurrency: ${APP_INTEGRATION_RABBITMQ_INBOUND_CONCURRENCY:2}
+      inbound-max-concurrency: ${APP_INTEGRATION_RABBITMQ_INBOUND_MAX_CONCURRENCY:8}
+      inbound-prefetch: ${APP_INTEGRATION_RABBITMQ_INBOUND_PREFETCH:25}
+      ticket-created-concurrency: ${APP_INTEGRATION_RABBITMQ_TICKET_CREATED_CONCURRENCY:1}
+      ticket-created-max-concurrency: ${APP_INTEGRATION_RABBITMQ_TICKET_CREATED_MAX_CONCURRENCY:4}
+      ticket-created-prefetch: ${APP_INTEGRATION_RABBITMQ_TICKET_CREATED_PREFETCH:10}
       routing-telegram: ${APP_INTEGRATION_RABBITMQ_ROUTING_TELEGRAM:integration.inbound.telegram}
       routing-vk: ${APP_INTEGRATION_RABBITMQ_ROUTING_VK:integration.inbound.vk}
       routing-max: ${APP_INTEGRATION_RABBITMQ_ROUTING_MAX:integration.inbound.max}

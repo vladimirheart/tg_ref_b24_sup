@@ -403,6 +403,24 @@ CREATE TABLE IF NOT EXISTS feedbacks (
     channel_id INTEGER REFERENCES channels(id)
 );
 
+CREATE TABLE IF NOT EXISTS integration_outbound_event_deliveries (
+    event_id TEXT PRIMARY KEY,
+    event_kind TEXT,
+    routing_key TEXT,
+    channel_id BIGINT,
+    user_id BIGINT,
+    ticket_id TEXT,
+    request_id BIGINT,
+    status TEXT NOT NULL,
+    last_error TEXT,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    delivered_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbound_event_deliveries_status
+    ON integration_outbound_event_deliveries(status, updated_at);
+
 CREATE OR REPLACE FUNCTION trg_on_ticket_resolved_fn()
 RETURNS TRIGGER AS $$
 BEGIN

@@ -1,21 +1,25 @@
 package com.example.panel.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.example.panel.storage.AttachmentObjectStorageService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.InputStream;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class PanelUserPhotoService {
 
-    private final Path avatarsRoot;
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
 
-    public PanelUserPhotoService(@Value("${app.storage.avatars:attachments/avatars}") String avatarsDir) throws IOException {
-        this.avatarsRoot = ensureDirectory(avatarsDir);
+    private final AttachmentObjectStorageService attachmentObjectStorageService;
+
+    public PanelUserPhotoService(AttachmentObjectStorageService attachmentObjectStorageService) {
+        this.attachmentObjectStorageService = attachmentObjectStorageService;
     }
 
     public String resolveUrl(String photo) {
@@ -84,8 +88,7 @@ public class PanelUserPhotoService {
     }
 
     private boolean avatarExists(String filename) {
-        Path resolved = avatarsRoot.resolve(filename).normalize();
-        return resolved.startsWith(avatarsRoot) && Files.isRegularFile(resolved);
+        return attachmentObjectStorageService.avatarExists(filename);
     }
 
     private String extractFilename(String rawValue) {
@@ -101,9 +104,59 @@ public class PanelUserPhotoService {
         return filename;
     }
 
-    private Path ensureDirectory(String directory) throws IOException {
-        Path path = Paths.get(directory).toAbsolutePath().normalize();
-        Files.createDirectories(path);
-        return path;
+    public StoredAvatar storeUploadedAvatar(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Файл не может быть пустым");
+        }
+        String extension = extractExtension(file.getOriginalFilename());
+        if (!isAllowedImageExtension(extension)) {
+            throw new IllegalArgumentException("Поддерживаются изображения PNG, JPG, GIF или WebP.");
+        }
+        String storedName = System.currentTimeMillis() + "_" + UUID.randomUUID() + extension;
+        try (InputStream inputStream = file.getInputStream()) {
+            attachmentObjectStorageService.storeAvatar(storedName, file.getContentType(), inputStream).close();
+        }
+        return new StoredAvatar(storedName, buildStoredAvatarUrl(storedName));
+    }
+
+    public String storeNamedAvatar(String storedName, String contentType, byte[] data) throws IOException {
+        if (!StringUtils.hasText(storedName) || data == null || data.length == 0) {
+            return null;
+        }
+        try (InputStream inputStream = new java.io.ByteArrayInputStream(data)) {
+            attachmentObjectStorageService.storeAvatar(storedName, contentType, inputStream).close();
+        }
+        return buildStoredAvatarUrl(storedName);
+    }
+
+    public String avatarFileName(long userId, boolean full) {
+        return userId + (full ? "_full" : "") + ".jpg";
+    }
+
+    public boolean avatarExists(long userId, boolean full) {
+        return attachmentObjectStorageService.avatarExists(avatarFileName(userId, full));
+    }
+
+    public String resolveAvatarUrl(long userId, boolean full) {
+        String storedName = avatarFileName(userId, full);
+        return attachmentObjectStorageService.avatarExists(storedName) ? buildStoredAvatarUrl(storedName) : null;
+    }
+
+    private String extractExtension(String filename) {
+        if (!StringUtils.hasText(filename)) {
+            return "";
+        }
+        int idx = filename.lastIndexOf('.');
+        if (idx == -1) {
+            return "";
+        }
+        return filename.substring(idx).toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isAllowedImageExtension(String extension) {
+        return ALLOWED_EXTENSIONS.contains(extension);
+    }
+
+    public record StoredAvatar(String storedName, String url) {
     }
 }

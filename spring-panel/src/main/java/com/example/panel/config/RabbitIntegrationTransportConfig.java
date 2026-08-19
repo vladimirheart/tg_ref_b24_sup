@@ -68,15 +68,39 @@ public class RabbitIntegrationTransportConfig {
             ticketCreatedDlqBinding);
     }
 
-    @Bean
-    public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
+    @Bean(name = "inboundClientMessageListenerContainerFactory")
+    public SimpleRabbitListenerContainerFactory inboundClientMessageListenerContainerFactory(
         ConnectionFactory connectionFactory,
-        Jackson2JsonMessageConverter integrationRabbitMessageConverter
+        Jackson2JsonMessageConverter integrationRabbitMessageConverter,
+        IntegrationRabbitProperties properties
     ) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(integrationRabbitMessageConverter);
         factory.setDefaultRequeueRejected(false);
+        factory.setConcurrentConsumers(valueOrDefault(properties.getInboundConcurrency(), 2));
+        factory.setMaxConcurrentConsumers(valueOrDefault(properties.getInboundMaxConcurrency(), 8));
+        factory.setPrefetchCount(valueOrDefault(properties.getInboundPrefetch(), 25));
         return factory;
+    }
+
+    @Bean(name = "conversationTicketCreatedListenerContainerFactory")
+    public SimpleRabbitListenerContainerFactory conversationTicketCreatedListenerContainerFactory(
+        ConnectionFactory connectionFactory,
+        Jackson2JsonMessageConverter integrationRabbitMessageConverter,
+        IntegrationRabbitProperties properties
+    ) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(integrationRabbitMessageConverter);
+        factory.setDefaultRequeueRejected(false);
+        factory.setConcurrentConsumers(valueOrDefault(properties.getTicketCreatedConcurrency(), 1));
+        factory.setMaxConcurrentConsumers(valueOrDefault(properties.getTicketCreatedMaxConcurrency(), 4));
+        factory.setPrefetchCount(valueOrDefault(properties.getTicketCreatedPrefetch(), 10));
+        return factory;
+    }
+
+    private int valueOrDefault(Integer value, int fallback) {
+        return value != null && value > 0 ? value : fallback;
     }
 }
