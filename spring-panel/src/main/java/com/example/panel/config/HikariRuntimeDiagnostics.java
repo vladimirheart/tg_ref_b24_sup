@@ -36,12 +36,14 @@ public class HikariRuntimeDiagnostics {
         if (leakDetectionMs > 0L && leakDetectionMs < 2_000L) {
             leakDetectionMs = 2_000L;
         }
-        try {
-            if (leakDetectionMs >= 2_000L) {
+        if (leakDetectionMs >= 2_000L) {
+            try {
                 hikari.setLeakDetectionThreshold(leakDetectionMs);
+            } catch (RuntimeException ex) {
+                // Flyway can start the pool before ordinary singleton creation.
+                // Diagnostics must never make application startup fail.
+                log.debug("Hikari leak threshold could not be changed after pool startup: {}", ex.getMessage());
             }
-        } catch (IllegalStateException ex) {
-            log.debug("Hikari pool was already started before leak diagnostics could be configured: {}", ex.getMessage());
         }
 
         log.info(
