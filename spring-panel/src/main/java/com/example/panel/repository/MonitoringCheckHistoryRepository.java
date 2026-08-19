@@ -8,8 +8,12 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Supplier;
 
 @Repository
@@ -28,7 +32,7 @@ public class MonitoringCheckHistoryRepository {
         rs.getString("details_excerpt"),
         (Integer) rs.getObject("http_status"),
         readLong(rs, "duration_ms"),
-        parseOffsetDateTime(rs.getString("created_at"))
+        readOffsetDateTime(rs, "created_at")
     );
 
     private final JdbcTemplate jdbcTemplate;
@@ -71,7 +75,13 @@ public class MonitoringCheckHistoryRepository {
             } else {
                 ps.setObject(8, null);
             }
-            ps.setString(9, createdAt != null ? createdAt.toString() : OffsetDateTime.now().toString());
+            OffsetDateTime effectiveCreatedAt = createdAt != null ? createdAt : OffsetDateTime.now();
+            String productName = connection.getMetaData().getDatabaseProductName();
+            if (productName != null && productName.toLowerCase(Locale.ROOT).contains("postgresql")) {
+                ps.setObject(9, effectiveCreatedAt);
+            } else {
+                ps.setString(9, effectiveCreatedAt.toString());
+            }
             return ps;
         }));
     }
@@ -93,6 +103,27 @@ public class MonitoringCheckHistoryRepository {
             monitorId,
             safeLimit
         );
+    }
+
+    private static OffsetDateTime readOffsetDateTime(java.sql.ResultSet rs, String columnName) {
+        try {
+            Object value = rs.getObject(columnName);
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof OffsetDateTime dateTime) {
+                return dateTime;
+            }
+            if (value instanceof Timestamp timestamp) {
+                return timestamp.toInstant().atOffset(ZoneOffset.UTC);
+            }
+            if (value instanceof LocalDateTime localDateTime) {
+                return localDateTime.atOffset(ZoneOffset.UTC);
+            }
+            return parseOffsetDateTime(value.toString());
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static OffsetDateTime parseOffsetDateTime(String value) {
