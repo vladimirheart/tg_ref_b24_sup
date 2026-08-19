@@ -1,7 +1,9 @@
 package com.example.panel.background;
 
 import com.example.panel.service.AnalyticsService;
+import com.example.panel.service.RuntimeCoordinationService;
 import com.example.panel.storage.AttachmentService;
+import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.CacheManager;
@@ -16,13 +18,16 @@ public class HousekeepingScheduler {
     private final CacheManager cacheManager;
     private final AnalyticsService analyticsService;
     private final AttachmentService attachmentService;
+    private final RuntimeCoordinationService runtimeCoordinationService;
 
     public HousekeepingScheduler(CacheManager cacheManager,
                                  AnalyticsService analyticsService,
-                                 AttachmentService attachmentService) {
+                                 AttachmentService attachmentService,
+                                 RuntimeCoordinationService runtimeCoordinationService) {
         this.cacheManager = cacheManager;
         this.analyticsService = analyticsService;
         this.attachmentService = attachmentService;
+        this.runtimeCoordinationService = runtimeCoordinationService;
     }
 
     @Scheduled(cron = "0 */15 * * * *")
@@ -34,11 +39,13 @@ public class HousekeepingScheduler {
 
     @Scheduled(cron = "0 0 * * * *")
     public void cleanupDrafts() {
-        try {
-            attachmentService.purgeDraftAttachments("draft_");
-        } catch (Exception ex) {
-            log.warn("Failed to purge draft attachments", ex);
-        }
+        runtimeCoordinationService.runWithLease("housekeeping-draft-cleanup", Duration.ofMinutes(10), () -> {
+            try {
+                attachmentService.purgeDraftAttachments("draft_");
+            } catch (Exception ex) {
+                log.warn("Failed to purge draft attachments", ex);
+            }
+        });
     }
 
     @Scheduled(cron = "0 0 3 * * *")

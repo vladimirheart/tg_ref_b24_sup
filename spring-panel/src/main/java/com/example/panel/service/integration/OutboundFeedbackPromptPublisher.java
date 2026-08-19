@@ -5,8 +5,6 @@ import com.example.panel.entity.Channel;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.MessageDeliveryMode;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,14 +12,15 @@ public class OutboundFeedbackPromptPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboundFeedbackPromptPublisher.class);
 
-    private final RabbitTemplate rabbitTemplate;
-    private final IntegrationRabbitProperties rabbitProperties;
+    private final OutboundFeedbackPromptPublishOutboxService outboxService;
 
-    public OutboundFeedbackPromptPublisher(RabbitTemplate rabbitTemplate,
+    public OutboundFeedbackPromptPublisher(OutboundFeedbackPromptPublishOutboxService outboxService,
                                            IntegrationRabbitProperties rabbitProperties) {
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxService = outboxService;
         this.rabbitProperties = rabbitProperties;
     }
+
+    private final IntegrationRabbitProperties rabbitProperties;
 
     public void publish(Long requestId,
                         Channel channel,
@@ -45,17 +44,7 @@ public class OutboundFeedbackPromptPublisher {
             prompt
         );
         String routingKey = rabbitProperties.outboundFeedbackPromptRoutingKey(platform, channel.getId());
-        rabbitTemplate.convertAndSend(
-            rabbitProperties.getOutboundExchange(),
-            routingKey,
-            event,
-            message -> {
-                message.getMessageProperties().setMessageId(eventId);
-                message.getMessageProperties().setCorrelationId(eventId);
-                message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
-                return message;
-            }
-        );
-        log.info("Published outbound feedback prompt event {} for request {}", eventId, requestId);
+        outboxService.enqueue(event, routingKey);
+        log.info("Queued outbound feedback prompt event {} for request {}", eventId, requestId);
     }
 }

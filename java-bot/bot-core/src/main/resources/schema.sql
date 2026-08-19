@@ -424,3 +424,27 @@ CREATE TABLE IF NOT EXISTS integration_outbound_event_deliveries (
 CREATE INDEX idx_outbound_event_deliveries_status
     ON integration_outbound_event_deliveries(status, updated_at);
 
+CREATE TABLE IF NOT EXISTS integration_transport_outbox (
+    event_id VARCHAR(255) PRIMARY KEY,
+    transport_source VARCHAR(255) NOT NULL,
+    event_kind VARCHAR(255) NOT NULL,
+    exchange_name VARCHAR(255) NOT NULL,
+    routing_key VARCHAR(255) NOT NULL,
+    payload_json CLOB NOT NULL,
+    channel_id BIGINT,
+    user_id BIGINT,
+    ticket_id VARCHAR(255),
+    request_id BIGINT,
+    status VARCHAR(64) NOT NULL,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    last_error CLOB,
+    available_at TIMESTAMP,
+    processing_started_at TIMESTAMP,
+    published_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_integration_transport_outbox_status
+    ON integration_transport_outbox(status, available_at, updated_at);
+

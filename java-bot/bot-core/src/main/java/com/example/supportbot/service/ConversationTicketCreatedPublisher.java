@@ -5,8 +5,6 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.MessageDeliveryMode;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,12 +12,12 @@ public class ConversationTicketCreatedPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(ConversationTicketCreatedPublisher.class);
 
-    private final RabbitTemplate rabbitTemplate;
     private final IntegrationRabbitProperties rabbitProperties;
+    private final IntegrationTransportOutboxService integrationTransportOutboxService;
 
-    public ConversationTicketCreatedPublisher(RabbitTemplate rabbitTemplate,
+    public ConversationTicketCreatedPublisher(IntegrationTransportOutboxService integrationTransportOutboxService,
                                               IntegrationRabbitProperties rabbitProperties) {
-        this.rabbitTemplate = rabbitTemplate;
+        this.integrationTransportOutboxService = integrationTransportOutboxService;
         this.rabbitProperties = rabbitProperties;
     }
 
@@ -54,18 +52,8 @@ public class ConversationTicketCreatedPublisher {
             mapAttributes(command.attributes()),
             command.historyEntries()
         );
-        rabbitTemplate.convertAndSend(
-            rabbitProperties.getInboundExchange(),
-            rabbitProperties.getRoutingTicketCreated(),
-            event,
-            message -> {
-                message.getMessageProperties().setMessageId(eventId);
-                message.getMessageProperties().setCorrelationId(eventId);
-                message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
-                return message;
-            }
-        );
-        log.info("Published conversation ticket creation event {} for ticket {}", eventId, ticketId);
+        integrationTransportOutboxService.enqueueConversationTicketCreated(event, rabbitProperties);
+        log.info("Queued conversation ticket creation event {} for ticket {}", eventId, ticketId);
     }
 
     private List<ConversationTicketCreatedEvent.TicketAttributePayload> mapAttributes(

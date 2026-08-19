@@ -14,6 +14,10 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
 class AiOfflineEvaluationServiceTest {
 
@@ -54,7 +58,20 @@ class AiOfflineEvaluationServiceTest {
                 aiIntentService,
                 new PanelTimestampSqlSupport(DatabaseMode.POSTGRESQL)
         );
-        service = new AiOfflineEvaluationService(jdbcTemplate, aiIntentService, aiRetrievalService, sharedConfigService, objectMapper);
+        RuntimeCoordinationService runtimeCoordinationService = mock(RuntimeCoordinationService.class);
+        doAnswer(invocation -> {
+            Runnable action = invocation.getArgument(2);
+            action.run();
+            return null;
+        }).when(runtimeCoordinationService).runWithLease(anyString(), any(), any(Runnable.class));
+        service = new AiOfflineEvaluationService(
+                jdbcTemplate,
+                aiIntentService,
+                aiRetrievalService,
+                sharedConfigService,
+                objectMapper,
+                runtimeCoordinationService
+        );
     }
 
     @Test

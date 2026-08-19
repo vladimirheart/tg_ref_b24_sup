@@ -42,6 +42,8 @@ app:
       path-style-access: ${APP_STORAGE_OBJECT_PATH_STYLE_ACCESS:true}
       key-prefix: ${APP_STORAGE_OBJECT_KEY_PREFIX:iguana}
   integration:
+    outbox:
+      dispatch-interval-ms: ${APP_INTEGRATION_OUTBOX_DISPATCH_INTERVAL_MS:1500}
     transport:
       mode: ${APP_INTEGRATION_TRANSPORT_MODE:jdbc}
     panel-api:
