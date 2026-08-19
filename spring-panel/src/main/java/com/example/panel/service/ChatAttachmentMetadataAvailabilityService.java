@@ -1,6 +1,5 @@
 package com.example.panel.service;
 
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.storage.AttachmentService;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
 import org.slf4j.Logger;
@@ -20,20 +19,16 @@ public class ChatAttachmentMetadataAvailabilityService {
 
     private final JdbcTemplate jdbcTemplate;
     private final AttachmentService attachmentService;
-    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
     public ChatAttachmentMetadataAvailabilityService(JdbcTemplate jdbcTemplate,
-                                                     AttachmentService attachmentService,
-                                                     PanelDatabaseRuntimeMode databaseRuntimeMode) {
+                                                     AttachmentService attachmentService) {
         this.jdbcTemplate = jdbcTemplate;
         this.attachmentService = attachmentService;
-        this.databaseRuntimeMode = databaseRuntimeMode;
     }
 
     @PostConstruct
     void reconcileAvailabilityStatuses() {
         try {
-            ensureColumn();
             List<AttachmentMetadataRow> rows = jdbcTemplate.query("""
                     SELECT chat_history_id, storage_provider, storage_key, legacy_attachment_ref, normalization_status
                       FROM chat_attachment_metadata
@@ -92,20 +87,6 @@ public class ChatAttachmentMetadataAvailabilityService {
             return "unresolved";
         }
         return attachmentService.hasTicketAttachmentByStorageKey(row.storageKey()) ? "available" : "missing";
-    }
-
-    private void ensureColumn() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        try {
-            jdbcTemplate.execute("""
-                    ALTER TABLE chat_attachment_metadata
-                    ADD COLUMN availability_status TEXT NOT NULL DEFAULT 'unknown'
-                    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
-                    """);
-        } catch (Exception ignored) {
-        }
     }
 
     private String trim(String value) {

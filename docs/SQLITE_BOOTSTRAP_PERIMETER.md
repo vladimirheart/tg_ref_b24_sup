@@ -22,6 +22,8 @@
   Общий helper для local SQLite schema bootstrap.
 - `EnvDefaultsInitializer`
   Подставляет локальные `APP_DB_*` пути только при явном `app.datasource.mode=sqlite`.
+- SQLite Flyway migrations
+  Владеют compatibility-таблицами вроде `password_reset_requests`, `chat_attachment_metadata` и `ui_event_outbox`, чтобы live-beans не создавали их по месту использования.
 
 ### `java-bot`
 
@@ -50,6 +52,7 @@
 - зависимость запуска бота от `schema-sqlite.sql`, `SPRING_SQL_INIT_MODE`, `spring.sql.init.platform`;
 - неявное создание `settings.db`, `bot-<channelId>.db`, `monitoring.db` или secondary SQLite-файлов при `APP_DB_MODE=postgresql`;
 - operator-facing live reads, которые в `APP_DB_MODE=postgresql` продолжают напрямую открывать per-channel SQLite-файлы вместо canonical datasource;
+- schema ownership вспомогательных SQLite-таблиц внутри live controller/service bean’ов (`PasswordResetRequestApiController`, `UiEventOutboxWatcher`, `ChatAttachmentMetadata*`);
 - перенос business ownership обратно в local SQLite только ради удобства dev-старта.
 
 ## 3. Практический смысл

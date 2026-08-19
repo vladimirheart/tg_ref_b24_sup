@@ -1,6 +1,5 @@
 package com.example.panel.service;
 
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -12,13 +11,9 @@ import java.time.OffsetDateTime;
 public class ChatAttachmentMetadataService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
-    public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate,
-                                         PanelDatabaseRuntimeMode databaseRuntimeMode) {
+    public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.databaseRuntimeMode = databaseRuntimeMode;
-        ensureSchema();
     }
 
     public void upsertForChatHistory(Long chatHistoryId,
@@ -80,52 +75,6 @@ public class ChatAttachmentMetadataService {
                 timestamp,
                 timestamp
         );
-    }
-
-    private void ensureSchema() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS chat_attachment_metadata (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    chat_history_id BIGINT NOT NULL UNIQUE REFERENCES chat_history(id) ON DELETE CASCADE,
-                    ticket_id TEXT,
-                    channel_id BIGINT,
-                    storage_key TEXT,
-                    storage_provider TEXT NOT NULL DEFAULT 'local_fs',
-                    storage_class TEXT NOT NULL DEFAULT 'dialog_attachment',
-                    original_name TEXT,
-                    mime_type TEXT,
-                    size BIGINT,
-                    content_hash TEXT,
-                    legacy_attachment_ref TEXT,
-                    normalization_status TEXT NOT NULL DEFAULT 'normalized',
-                    availability_status TEXT NOT NULL DEFAULT 'unknown',
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT,
-                    archived_at TEXT,
-                    deleted_at TEXT,
-                    CHECK (normalization_status IN ('normalized', 'unresolved')),
-                    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
-                )
-                """);
-        jdbcTemplate.execute("""
-                CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_ticket
-                ON chat_attachment_metadata(ticket_id, chat_history_id)
-                """);
-        jdbcTemplate.execute("""
-                CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_storage_key
-                ON chat_attachment_metadata(storage_key)
-                """);
-        try {
-            jdbcTemplate.execute("""
-                    ALTER TABLE chat_attachment_metadata
-                    ADD COLUMN availability_status TEXT NOT NULL DEFAULT 'unknown'
-                    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
-                    """);
-        } catch (Exception ignored) {
-        }
     }
 
     private String trim(String value) {

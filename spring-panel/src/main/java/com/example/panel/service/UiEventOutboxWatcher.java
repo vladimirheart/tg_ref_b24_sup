@@ -1,6 +1,5 @@
 package com.example.panel.service;
 
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import jakarta.annotation.PostConstruct;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,16 +15,12 @@ public class UiEventOutboxWatcher {
 
     private final JdbcTemplate jdbcTemplate;
     private final DialogRealtimeEventService dialogRealtimeEventService;
-    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
     private final AtomicLong lastProcessedId = new AtomicLong(0L);
 
     public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate,
-                                DialogRealtimeEventService dialogRealtimeEventService,
-                                PanelDatabaseRuntimeMode databaseRuntimeMode) {
+                                DialogRealtimeEventService dialogRealtimeEventService) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogRealtimeEventService = dialogRealtimeEventService;
-        this.databaseRuntimeMode = databaseRuntimeMode;
-        ensureSchema();
     }
 
     @PostConstruct
@@ -99,29 +94,6 @@ public class UiEventOutboxWatcher {
                 // ignore unknown event types
             }
         }
-    }
-
-    private void ensureSchema() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS ui_event_outbox (
-                    id BIGINT PRIMARY KEY,
-                    event_type TEXT NOT NULL,
-                    ticket_id TEXT NOT NULL,
-                    channel_id BIGINT,
-                    message_text TEXT,
-                    message_type TEXT,
-                    attachment TEXT,
-                    rating INTEGER,
-                    created_at TEXT NOT NULL
-                )
-                """);
-        jdbcTemplate.execute("""
-                CREATE INDEX IF NOT EXISTS idx_ui_event_outbox_ticket
-                ON ui_event_outbox(ticket_id, id)
-                """);
     }
 
     private long readMaxId() {

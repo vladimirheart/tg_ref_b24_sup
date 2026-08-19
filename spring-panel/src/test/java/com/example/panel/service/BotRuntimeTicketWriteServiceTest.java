@@ -35,7 +35,7 @@ class BotRuntimeTicketWriteServiceTest {
         PanelDatabaseRuntimeMode databaseRuntimeMode = new PanelDatabaseRuntimeMode(new MockEnvironment());
         DialogReplyTargetService dialogReplyTargetService = new DialogReplyTargetService(
             jdbcTemplate,
-            new ChatAttachmentMetadataService(jdbcTemplate, databaseRuntimeMode)
+            new ChatAttachmentMetadataService(jdbcTemplate)
         );
         dialogResponsibilityService = new DialogResponsibilityService(jdbcTemplate);
         dialogParticipantService = new DialogParticipantService(
@@ -274,7 +274,7 @@ class BotRuntimeTicketWriteServiceTest {
         PanelDatabaseRuntimeMode databaseRuntimeMode = new PanelDatabaseRuntimeMode(new MockEnvironment());
         DialogReplyTargetService dialogReplyTargetService = new DialogReplyTargetService(
             jdbcTemplate,
-            new ChatAttachmentMetadataService(jdbcTemplate, databaseRuntimeMode)
+            new ChatAttachmentMetadataService(jdbcTemplate)
         );
         BotRuntimeTicketWriteService feedbackService = new BotRuntimeTicketWriteService(
             jdbcTemplate,
@@ -294,7 +294,7 @@ class BotRuntimeTicketWriteServiceTest {
         request.setUserId(77L);
         request.setTicketId("T-903");
         request.setChannel(channel);
-        request.setExpiresAt(java.time.OffsetDateTime.parse("2026-08-18T08:00:00Z"));
+        request.setExpiresAt(java.time.OffsetDateTime.now().plusDays(1));
 
         when(pendingFeedbackRequestRepository.findById(903L)).thenReturn(Optional.of(request));
         when(feedbackRepository.findFirstByTicketIdOrderByTimestampDesc("T-903")).thenReturn(Optional.empty());

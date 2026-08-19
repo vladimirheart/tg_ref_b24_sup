@@ -1,6 +1,5 @@
 package com.example.panel.controller;
 
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.service.PermissionService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,22 +31,17 @@ public class PasswordResetRequestApiController {
     private final JdbcTemplate usersJdbcTemplate;
     private final PasswordEncoder passwordEncoder;
     private final PermissionService permissionService;
-    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
-
     public PasswordResetRequestApiController(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                                              PasswordEncoder passwordEncoder,
-                                             PermissionService permissionService,
-                                             PanelDatabaseRuntimeMode databaseRuntimeMode) {
+                                             PermissionService permissionService) {
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.passwordEncoder = passwordEncoder;
         this.permissionService = permissionService;
-        this.databaseRuntimeMode = databaseRuntimeMode;
     }
 
     @PostMapping("/public")
     public Map<String, Object> createPublicRequest(@RequestBody Map<String, Object> payload,
                                                    HttpServletRequest request) {
-        ensureRequestsTable();
         String username = stringValue(payload.get("username"));
         String note = shorten(stringValue(payload.get("comment")), 1000);
         if (!StringUtils.hasText(username)) {
@@ -88,7 +82,6 @@ public class PasswordResetRequestApiController {
         if (!canManageRequests(authentication)) {
             return Map.of("success", false, "error", "Недостаточно прав для просмотра запросов");
         }
-        ensureRequestsTable();
         List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
                 "SELECT id, user_id, username_snapshot, requested_by_username, requested_by_ip, status, " +
                         "requested_note, resolution_note, created_at, resolved_at, resolved_by_username " +
@@ -104,7 +97,6 @@ public class PasswordResetRequestApiController {
         if (!canManageRequests(authentication)) {
             return Map.of("success", false, "error", "Недостаточно прав для обработки запроса");
         }
-        ensureRequestsTable();
         List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
                 "SELECT id, user_id, username_snapshot, status FROM password_reset_requests WHERE id = ? LIMIT 1",
                 requestId
@@ -169,7 +161,6 @@ public class PasswordResetRequestApiController {
         if (!canManageRequests(authentication)) {
             return Map.of("success", false, "error", "Недостаточно прав для обработки запроса");
         }
-        ensureRequestsTable();
         List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(
                 "SELECT id, status FROM password_reset_requests WHERE id = ? LIMIT 1",
                 requestId
@@ -196,33 +187,6 @@ public class PasswordResetRequestApiController {
     private boolean canManageRequests(Authentication authentication) {
         return permissionService.isSuperUser(authentication)
                 || permissionService.hasAuthority(authentication, "ROLE_PORTAL_ADMIN");
-    }
-
-    private void ensureRequestsTable() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        usersJdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS password_reset_requests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                username_snapshot TEXT NOT NULL,
-                requested_by_username TEXT,
-                requested_by_ip TEXT,
-                requested_user_agent TEXT,
-                requested_note TEXT,
-                status TEXT NOT NULL DEFAULT 'PENDING',
-                resolution_note TEXT,
-                created_at TEXT NOT NULL,
-                resolved_at TEXT,
-                resolved_by_username TEXT,
-                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
-            );
-        """);
-        usersJdbcTemplate.execute("""
-            CREATE INDEX IF NOT EXISTS idx_password_reset_requests_status_created_at
-                ON password_reset_requests(status, created_at DESC);
-        """);
     }
 
     private void rejectMissingUserRequest(long requestId, Authentication authentication, String note) {
