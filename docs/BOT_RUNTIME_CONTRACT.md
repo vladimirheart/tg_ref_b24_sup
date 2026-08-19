@@ -29,7 +29,8 @@
 
 SQLite compatibility env keys остаются обязательными только при явном `APP_DB_MODE=sqlite`:
 
-- `APP_DB_PANEL_RUNTIME`
+- `APP_DB_BOT_RUNTIME`
+- `SUPPORT_BOT_DATABASE_PATH`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_USERNAME`
 - `GROUP_CHAT_ID`
@@ -39,7 +40,9 @@ SQLite compatibility env keys остаются обязательными тол
 
 Legacy compatibility:
 
-- panel дополнительно прокидывает `APP_DB_TICKETS` как alias для `APP_DB_PANEL_RUNTIME`, чтобы старые runtime-сценарии не ломались в один шаг.
+- panel больше не делает `APP_DB_PANEL_RUNTIME`/`APP_DB_TICKETS` default runtime contract для `java-bot`;
+- если SQLite compatibility path всё ещё требует shared panel runtime, он передаётся явно через `SUPPORT_BOT_DATABASE_PATH`;
+- `APP_DB_BOT` остаётся legacy alias для `APP_DB_BOT_RUNTIME`.
 
 Platform-specific:
 
@@ -89,6 +92,7 @@ Platform-specific:
 - в `APP_DB_MODE=sqlite` warnings/blockers обязаны сигнализировать, что это только local/dev bootstrap perimeter;
 - production-ready статус для bot runtime допустим только при external PostgreSQL contract (`APP_DB_MODE=postgresql` + `SPRING_DATASOURCE_URL`) и при готовом jar launcher path.
 - normal runtime default для `spring-panel` и `java-bot` теперь `postgresql`, поэтому SQLite contract больше не должен восприниматься как implicit path.
+- per-channel `bot-<channelId>.db` больше не должен автоматически расти даже в SQLite mode: для этого нужен явный `app.bots.sqlite-per-channel-shard-enabled=true`.
 
 ## Production Recipe
 

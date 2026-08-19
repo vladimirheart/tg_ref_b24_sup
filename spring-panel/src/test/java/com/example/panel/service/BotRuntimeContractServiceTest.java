@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
@@ -35,7 +36,7 @@ class BotRuntimeContractServiceTest {
 
         assertThat(contract.resolvedLauncherKind()).isEqualTo("maven");
         assertThat(contract.warnings()).anyMatch(item -> item.contains("fallback на Maven"));
-        assertThat(contract.requiredEnvironmentKeys()).contains("APP_DB_PANEL_RUNTIME", "TELEGRAM_BOT_TOKEN");
+        assertThat(contract.requiredEnvironmentKeys()).contains("APP_DB_BOT_RUNTIME", "SUPPORT_BOT_DATABASE_PATH", "TELEGRAM_BOT_TOKEN");
         assertThat(contract.readiness().timeoutMillis()).isEqualTo(45_000L);
     }
 
@@ -186,8 +187,8 @@ class BotRuntimeContractServiceTest {
             .containsEntry("APP_PANEL_INTERNAL_API_BASE_URL", "http://127.0.0.1:8080")
             .containsEntry("APP_PANEL_INTERNAL_API_TOKEN", "iguana-internal-bot-token")
             .containsEntry("APP_DB_MODE", "sqlite")
-            .containsEntry("APP_DB_PANEL_RUNTIME", tempDir.resolve("panel_runtime.db").toString())
-            .containsEntry("APP_DB_TICKETS", tempDir.resolve("panel_runtime.db").toString())
+            .containsEntry("APP_DB_BOT_RUNTIME", tempDir.resolve("bot_runtime.db").toString())
+            .containsEntry("APP_DB_BOT", tempDir.resolve("bot_runtime.db").toString())
             .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("SPRING_MAIN_WEB_APPLICATION_TYPE", "servlet");
     }
@@ -274,8 +275,8 @@ class BotRuntimeContractServiceTest {
 
         assertThat(env)
             .containsEntry("APP_DB_MODE", "sqlite")
-            .containsEntry("APP_DB_PANEL_RUNTIME", tempDir.resolve("panel_runtime.db").toString())
-            .containsEntry("APP_DB_TICKETS", tempDir.resolve("panel_runtime.db").toString())
+            .containsEntry("APP_DB_BOT_RUNTIME", tempDir.resolve("bot_runtime.db").toString())
+            .containsEntry("APP_DB_BOT", tempDir.resolve("bot_runtime.db").toString())
             .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("TELEGRAM_BOT_TOKEN", "tg-token")
             .containsEntry("TELEGRAM_BOT_USERNAME", "support_bot")
@@ -431,7 +432,7 @@ class BotRuntimeContractServiceTest {
             .containsEntry("SPRING_DATASOURCE_URL", "jdbc:postgresql://db.example.local:5432/iguana")
             .containsEntry("SPRING_DATASOURCE_USERNAME", "iguana")
             .containsEntry("SPRING_DATASOURCE_PASSWORD", "secret")
-            .doesNotContainKeys("APP_DB_PANEL_RUNTIME", "APP_DB_TICKETS", "SUPPORT_BOT_DATABASE_PATH");
+            .doesNotContainKeys("APP_DB_PANEL_RUNTIME", "APP_DB_TICKETS", "SUPPORT_BOT_DATABASE_PATH", "APP_DB_BOT_RUNTIME", "APP_DB_BOT");
     }
 
     @Test
@@ -634,6 +635,8 @@ class BotRuntimeContractServiceTest {
                                                     Map<String, String> environmentOverrides) {
         SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
         sqliteProperties.setPath(tempDir.resolve("panel_runtime.db").toString());
+        BotSqliteDataSourceProperties botSqliteProperties = new BotSqliteDataSourceProperties();
+        botSqliteProperties.setPath(tempDir.resolve("bot_runtime.db").toString());
         BotProcessProperties properties = new BotProcessProperties();
         properties.setLaunchMode(launchMode);
         properties.setExecutableJars(executableJars);
@@ -645,6 +648,7 @@ class BotRuntimeContractServiceTest {
         PanelDatabaseRuntimeMode databaseRuntimeMode = new PanelDatabaseRuntimeMode(environment);
         return new BotRuntimeContractService(
             sqliteProperties,
+            botSqliteProperties,
             properties,
             integrationNetworkService,
             new ObjectMapper(),

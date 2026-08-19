@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.DatabaseMode;
 import com.example.panel.config.ExternalDatabaseSettings;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
@@ -36,6 +37,7 @@ public class BotRuntimeContractService {
     private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
 
     private final SqliteDataSourceProperties ticketsDbProperties;
+    private final BotSqliteDataSourceProperties botRuntimeDbProperties;
     private final BotProcessProperties botProcessProperties;
     private final IntegrationNetworkService integrationNetworkService;
     private final ObjectMapper objectMapper;
@@ -43,12 +45,14 @@ public class BotRuntimeContractService {
     private final Environment environment;
 
     public BotRuntimeContractService(SqliteDataSourceProperties ticketsDbProperties,
+                                     BotSqliteDataSourceProperties botRuntimeDbProperties,
                                      BotProcessProperties botProcessProperties,
                                      IntegrationNetworkService integrationNetworkService,
                                      ObjectMapper objectMapper,
                                      PanelDatabaseRuntimeMode databaseRuntimeMode,
                                      Environment environment) {
         this.ticketsDbProperties = ticketsDbProperties;
+        this.botRuntimeDbProperties = botRuntimeDbProperties;
         this.botProcessProperties = botProcessProperties;
         this.integrationNetworkService = integrationNetworkService;
         this.objectMapper = objectMapper;
@@ -288,7 +292,7 @@ public class BotRuntimeContractService {
             "JAVA_TOOL_OPTIONS"
         ));
         if (databaseRuntimeMode.isSqliteMode()) {
-            keys.add("APP_DB_PANEL_RUNTIME");
+            keys.addAll(List.of("APP_DB_BOT_RUNTIME", "SUPPORT_BOT_DATABASE_PATH"));
         } else {
             keys.addAll(List.of("APP_DB_MODE", "SPRING_DATASOURCE_URL"));
         }
@@ -313,7 +317,7 @@ public class BotRuntimeContractService {
     private List<String> optionalEnvironmentKeys(Channel channel) {
         List<String> keys = new ArrayList<>();
         if (databaseRuntimeMode.isSqliteMode()) {
-            keys.addAll(List.of("APP_DB_TICKETS", "SUPPORT_BOT_DATABASE_PATH"));
+            keys.add("APP_DB_BOT");
         } else {
             keys.addAll(List.of("SPRING_DATASOURCE_USERNAME", "SPRING_DATASOURCE_PASSWORD", "DATABASE_URL"));
         }
@@ -367,9 +371,10 @@ public class BotRuntimeContractService {
     private void applyDatabaseEnvironment(Map<String, String> env) {
         if (databaseRuntimeMode.isSqliteMode()) {
             String panelRuntimeDbPath = ticketsDbProperties.getNormalizedPath().toString();
+            String botRuntimeDbPath = botRuntimeDbProperties.getNormalizedPath().toString();
             env.put("APP_DB_MODE", "sqlite");
-            env.put("APP_DB_PANEL_RUNTIME", panelRuntimeDbPath);
-            env.put("APP_DB_TICKETS", panelRuntimeDbPath);
+            env.put("APP_DB_BOT_RUNTIME", botRuntimeDbPath);
+            env.put("APP_DB_BOT", botRuntimeDbPath);
             env.put("SUPPORT_BOT_DATABASE_PATH", panelRuntimeDbPath);
             return;
         }

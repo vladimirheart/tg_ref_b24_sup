@@ -37,11 +37,13 @@
 | `APP_DB_TICKETS` | legacy alias для `APP_DB_PANEL_RUNTIME` | `panel_runtime.db` |
 | `APP_DB_USERS` | legacy alias для `APP_DB_PANEL_IDENTITY` | `panel_identity.db` |
 | `APP_DB_BOT` | legacy alias для `APP_DB_BOT_RUNTIME` | `bot_runtime.db` |
+| `SUPPORT_BOT_DATABASE_PATH` | явный shared SQLite bridge для `java-bot` compatibility mode | unset |
 | `APP_DB_CLIENTS` | база клиентов | `clients.db` |
 | `APP_DB_KNOWLEDGE` | база знаний | `knowledge_base.db` |
 | `APP_DB_OBJECTS` | база объектов | `objects.db` |
 | `APP_DB_SETTINGS` | общая база настроек | `settings.db` |
 | `APP_BOT_DATABASE_DIR` | каталог баз каждого бота | `../bot_databases` |
+| `APP_BOT_SQLITE_PER_CHANNEL_SHARD_ENABLED` | разрешить legacy bootstrap `bot-<channelId>.db` shard-layer даже в SQLite mode | `false` |
 
 ## Хранилища
 

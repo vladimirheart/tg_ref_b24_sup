@@ -22,8 +22,8 @@
   source of truth для большинства бизнес-таблиц;
 - `panel_identity.db` - отдельная БД пользователей, ролей и auth-контуров;
 - `monitoring.db` - отдельный monitoring-контур;
-- `bot_runtime.db` - bot-side контур, который панель читает через
-  `botJdbcTemplate` для части клиентских и transport-данных;
+- `bot_runtime.db` - shared bot/runtime compatibility-контур, который больше
+  не поднимается как отдельный live Spring datasource в external runtime;
 - `objects.db` - реально используемый отдельный контур паспортов объектов;
 - `clients.db`, `knowledge_base.db`, `settings.db` - transitional/registry
   контуры, из которых не все являются текущим business source of truth.
@@ -38,7 +38,7 @@
 | `panel-runtime` | `panel_runtime.db` | `app.datasource.sqlite.path` / `APP_DB_PANEL_RUNTIME` | `spring-panel`, `java-bot` | Главная runtime БД панели, JPA + primary `JdbcTemplate` | canonical |
 | `panel-identity` | `panel_identity.db` | `app.datasource.users-sqlite.path` / `APP_DB_PANEL_IDENTITY` | `spring-panel` | Пользователи, роли, auth/read-write через `usersJdbcTemplate` | canonical |
 | `monitoring` | `monitoring.db` | `app.datasource.monitoring-sqlite.path` / `APP_DB_MONITORING` | `spring-panel` | SQLite compatibility/bootstrap контур; в external runtime monitoring-domain идёт через primary PostgreSQL contour | compatibility |
-| `bot-runtime` | `bot_runtime.db` | `app.datasource.bot-sqlite.path` / `APP_DB_BOT_RUNTIME` | `spring-panel` | SQLite compatibility/shared-bot contour; operator-facing feedback/unblock reads уже смещены в primary runtime | transitional |
+| `bot-runtime` | `bot_runtime.db` | `app.datasource.bot-sqlite.path` / `APP_DB_BOT_RUNTIME` | `spring-panel` | Lazy SQLite compatibility/shared-bot contour; external runtime больше не поднимает отдельный Spring datasource bean | transitional |
 | `clients` | `clients.db` | `app.datasource.clients-sqlite.path` / `APP_DB_CLIENTS` | `spring-panel` | Bootstrap secondary БД клиентов | transitional |
 | `knowledge` | `knowledge_base.db` | `app.datasource.knowledge-sqlite.path` / `APP_DB_KNOWLEDGE` | `spring-panel` | Bootstrap secondary knowledge БД | transitional |
 | `objects` | `objects.db` | `app.datasource.objects-sqlite.path` / `APP_DB_OBJECTS` | `spring-panel` | Отдельный контур паспортов объектов | active |
@@ -123,11 +123,11 @@ Runtime-смысл теперь разный по режимам:
 
 ### 2.4. Bot runtime: `bot_runtime.db`
 
-Bot-контур для панели поднимается через:
+Bot-контур для панели теперь больше не поднимается как отдельный live
+datasource bean. Через Spring остаётся только properties-holder:
 
 - `BotSqliteDataSourceConfiguration`
 - `BotSqliteDataSourceProperties`
-- бин `botJdbcTemplate`
 
 Путь задаётся так:
 
@@ -138,12 +138,18 @@ app:
       path: ${APP_DB_BOT_RUNTIME:${APP_DB_BOT:bot_runtime.db}}
 ```
 
-С этим контуром теперь в основном живут compatibility/runtime-пути, а не
-operator-facing canonical reads.
+Runtime-смысл теперь разный по режимам:
 
-Важно: панель действительно умеет читать `bot_runtime.db`, но запуск самих
-`java-bot` процессов сейчас ориентирован прежде всего на `panel_runtime.db`,
-а не на `bot_runtime.db` как единственный runtime source.
+- в `APP_DB_MODE=sqlite` `DatabaseBootstrapService` лениво создаёт локальный
+  SQLite datasource для `bot_runtime.db` и bootstrap-ит compatibility-таблицы;
+- в `APP_DB_MODE=postgresql` отдельный `botDataSource` / `botJdbcTemplate`
+  больше не поднимаются, а panel-side runtime продолжает жить через canonical
+  primary contour и internal API boundary.
+
+Важно: панель всё ещё умеет bootstrap-ить `bot_runtime.db` в explicit
+compatibility path, но запуск самих `java-bot` процессов сейчас ориентирован
+прежде всего на `panel_runtime.db`, а не на `bot_runtime.db` как единственный
+runtime source.
 
 ### 2.5. Secondary/legacy контуры
 
@@ -234,8 +240,9 @@ SQLite compatibility path. В external PostgreSQL runtime monitoring-domain уж
 
 ### 3.4. `bot_runtime.db`
 
-Этот файл подключён в панели как отдельный bot-side контур. Через него читаются
-и частично обновляются данные, связанные с bot/runtime слоем.
+Этот файл больше не подключается в панели как отдельный live Spring datasource
+контур. Он остался только как shared bot/runtime compatibility storage для
+явного SQLite path.
 
 По коду видно важный сдвиг: operator-facing сервисы панели уже не должны
 считать `bot_runtime.db` canonical owner для `feedbacks` и
@@ -253,6 +260,10 @@ SQLite compatibility path. В external PostgreSQL runtime monitoring-domain уж
 Это означает, что `java-bot` по умолчанию всё ещё тяготеет к
 `panel_runtime.db`, даже если в панели уже существует отдельный
 `bot_runtime.db`.
+
+Вывод: physical datasource split для bot-runtime уже ослаблен, но transport
+ownership задачи ещё не закрыты полностью, потому что сама интеграционная
+модель и per-channel shard layer пока остаются.
 
 ### 3.5. `objects.db`
 
@@ -345,28 +356,31 @@ source of truth для прикладных настроек панели. В ex
 ```yaml
 support-bot:
   database:
-    path: ${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:${APP_DB_BOT_RUNTIME:${APP_DB_BOT:../panel_runtime.db}}}}
+    path: ${SUPPORT_BOT_DATABASE_PATH:${APP_DB_BOT_RUNTIME:${APP_DB_BOT:${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:../bot_runtime.db}}}}}
 ```
 
 Это значит:
 
-1. приоритет у `APP_DB_PANEL_RUNTIME`;
-2. затем используется legacy `APP_DB_TICKETS`;
-3. только потом рассматривается `APP_DB_BOT_RUNTIME`;
-4. fallback по умолчанию всё равно ведёт к `panel_runtime.db`.
+1. если panel сознательно прокидывает shared SQLite business path, он идёт через `SUPPORT_BOT_DATABASE_PATH`;
+2. default bot-side fallback теперь смотрит в `APP_DB_BOT_RUNTIME`;
+3. legacy `APP_DB_PANEL_RUNTIME` / `APP_DB_TICKETS` остаются только дальним compatibility fallback;
+4. fallback по умолчанию больше не привязывает `java-bot` к `panel_runtime.db` как implicit primary DB.
 
 Следствие:
 
-- bot-модуль формально знает про `APP_DB_BOT_RUNTIME`;
-- но практически его основной JPA/runtime datasource чаще всего указывает на
-  `panel_runtime.db`.
+- `java-bot` больше не получает `panel_runtime.db` как default runtime contract;
+- shared panel runtime в SQLite-совместимом сценарии теперь должен передаваться
+  явно через `SUPPORT_BOT_DATABASE_PATH`;
+- default bot-side datasource contract стал заметно ближе к отдельному
+  transport/runtime contour.
 
 Это нужно учитывать при любой работе по разделению panel и bot контуров.
 
 ## 5. Отдельный слой `bot-<channelId>.db`
 
-Панель создаёт per-channel bot базы через `BotDatabaseRegistry` в каталоге,
-заданном `APP_BOT_DATABASE_DIR`.
+Панель по-прежнему умеет создавать per-channel bot базы через
+`BotDatabaseRegistry` в каталоге, заданном `APP_BOT_DATABASE_DIR`, но этот
+shard-layer больше не должен расти автоматически.
 
 Назначение этого слоя:
 
@@ -375,9 +389,14 @@ support-bot:
 - создавать `bot_chat_history`;
 - регистрировать связь канала с его bot DB.
 
-Этот слой не заменяет автоматически `bot_runtime.db` и не равен отдельному
-business bounded context. Сейчас это скорее operational shard-layer для
-канальных bot экземпляров.
+Теперь по умолчанию `app.bots.sqlite-per-channel-shard-enabled=false`, поэтому:
+
+- per-channel `bot-<channelId>.db` не bootstrap-ятся автоматически даже в
+  SQLite compatibility runtime;
+- registry/link metadata для bot shard layer тоже не должны расти без явного
+  opt-in;
+- сам слой остаётся только как legacy compatibility механизм, а не как
+  нормальная topology живой системы.
 
 ## 6. Ключевые архитектурные выводы
 
@@ -389,7 +408,8 @@ business bounded context. Сейчас это скорее operational shard-lay
 
 ### Что задекларировано, но остаётся смешанным
 
-- `bot_runtime.db` существует, но `java-bot` всё ещё по умолчанию идёт в
+- `bot_runtime.db` существует и остаётся compatibility-layer, но default
+  runtime contract `java-bot` уже больше не должен неявно тянуться к
   `panel_runtime.db`;
 - `clients.db` и `knowledge_base.db` существуют, но многие их домены уже
   фактически живут в primary runtime.
@@ -407,7 +427,8 @@ business bounded context. Сейчас это скорее operational shard-lay
 - пользователей, ролей и прав - в `panel_identity.db`;
 - SSL/RMS/iiko monitoring - в `monitoring.db`;
 - паспортов объектов - в `objects.db`;
-- bot registry и связи каналов с bot shard-файлами - в `settings.db`;
+- bot registry и связи каналов с bot shard-файлами - в `settings.db`, но этот
+  слой уже должен считаться legacy opt-in;
 - bot-side client/unblock/runtime хвостов - в `bot_runtime.db` и частично в
   `bot-<channelId>.db`.
 
@@ -438,5 +459,5 @@ business bounded context. Сейчас это скорее operational shard-lay
 - `clients.db`, `knowledge_base.db`, `settings.db` нужно трактовать как
   transitional/служебные контуры, а не как равноправные business source of
   truth;
-- `bot_runtime.db` существует как отдельный runtime слой, но разделение panel
-  и bot данных ещё не доведено до конца.
+- `bot_runtime.db` уже не поднимается как отдельный live datasource bean, но
+  разделение panel и bot transport/runtime данных ещё не доведено до конца.

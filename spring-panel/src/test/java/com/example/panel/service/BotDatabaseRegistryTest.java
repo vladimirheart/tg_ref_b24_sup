@@ -78,6 +78,28 @@ class BotDatabaseRegistryTest {
         verify(schemaBootstrapSupport, never()).initializeSchema(org.mockito.ArgumentMatchers.any(), anyList(), eq(expected.toString()));
     }
 
+    @Test
+    void ensureBotDatabaseSkipsPerChannelSqliteBootstrapWhenShardLayerDisabled() {
+        SqliteSchemaBootstrapSupport schemaBootstrapSupport = mock(SqliteSchemaBootstrapSupport.class);
+        BotProcessProperties botProcessProperties = botProcessProperties();
+
+        BotDatabaseRegistry registry = new BotDatabaseRegistry(
+                botProcessProperties,
+                botSqliteProperties(),
+                settingsSqliteProperties(),
+                schemaBootstrapSupport,
+                new PanelDatabaseRuntimeMode(new MockEnvironment())
+        );
+
+        Path expected = botProcessProperties.resolveDatabaseDir().resolve("bot-7.db").toAbsolutePath().normalize();
+
+        Path resolved = registry.ensureBotDatabase(7L, "telegram");
+
+        assertThat(resolved).isEqualTo(expected);
+        assertThat(Files.exists(expected)).isFalse();
+        verify(schemaBootstrapSupport, never()).initializeSchema(org.mockito.ArgumentMatchers.any(), anyList(), eq(expected.toString()));
+    }
+
     private BotProcessProperties botProcessProperties() {
         BotProcessProperties properties = new BotProcessProperties();
         properties.setDatabaseDir(tempDir.resolve("bot_databases").toString());

@@ -25,7 +25,7 @@ support-bot:
   channel-id: ${GROUP_CHAT_ID:0}
   database:
     mode: ${APP_DB_MODE:postgresql}
-    path: ${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:${APP_DB_BOT_RUNTIME:${APP_DB_BOT:../panel_runtime.db}}}}
+    path: ${SUPPORT_BOT_DATABASE_PATH:${APP_DB_BOT_RUNTIME:${APP_DB_BOT:${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:../bot_runtime.db}}}}}
   attachments-dir: ${APP_STORAGE_ATTACHMENTS:../attachments}
   knowledge-base-dir: ${APP_STORAGE_KB:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
   webforms-dir: ${APP_STORAGE_WEBFORMS:${APP_STORAGE_ATTACHMENTS:../attachments}/forms}

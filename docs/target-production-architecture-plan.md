@@ -18,11 +18,11 @@
 - `settings.db`
   Используется `BotDatabaseRegistry` для registry/linking таблиц `database_registry`, `bot_instances`, `database_links`.
 - `bot-<channelId>.db`
-  Панель создаёт per-channel SQLite-файлы через `BotDatabaseRegistry.ensureBotDatabase(...)`.
+  Панель умеет создавать per-channel SQLite-файлы через `BotDatabaseRegistry.ensureBotDatabase(...)`, но после текущего cleanup это должен быть только explicit legacy opt-in.
 
 ### `java-bot`
 
-- По умолчанию `bot-core` всё ещё читает/пишет в `panel_runtime.db` через `support-bot.database.path`, а не в `bot_runtime.db` как в единственный transport runtime.
+- Default `bot-core` contract больше не должен неявно тянуться к `panel_runtime.db`: shared panel SQLite path теперь передаётся только через явный `SUPPORT_BOT_DATABASE_PATH`, а не как implicit default.
 - Для SQLite-режима бот продолжает инициализировать локальную схему через `schema-sqlite.sql`.
 - Для external PostgreSQL-режима после текущего шага `01-181` бот больше не должен владеть схемой вообще: production-path должен подключаться только к уже подготовленной PostgreSQL-схеме, а локальный SQLite bootstrap остаётся отдельным dev-only механизмом.
 
@@ -36,7 +36,8 @@
   - `objects.db` для паспортов объектов;
   - transitional `clients.db`, `knowledge_base.db`, `settings.db`.
 - `java-bot` читает:
-  - `panel_runtime.db` по умолчанию;
+  - explicit SQLite compatibility path через `SUPPORT_BOT_DATABASE_PATH`, если он действительно прокинут;
+  - иначе `bot_runtime.db` / `APP_DB_BOT_RUNTIME` как собственный compatibility/runtime fallback;
   - SQLite schema/init resources для локального режима;
   - shared JSON-конфиг и файловые каталоги вложений.
 
@@ -51,7 +52,9 @@
 - `objects.db`
   Physical datasource split уже ослаблен, но объектный контур всё ещё логически выделен и в target-state должен быть поглощён общим business storage.
 - `bot_runtime.db`
-  Активный, но ещё не доведённый до чистого transport/runtime-контура.
+  Shared bot/runtime contour уже не поднимается как отдельный live Spring
+  datasource в external runtime, но как compatibility/transport слой ещё не
+  доведён до конечной RabbitMQ-first модели.
 - `settings.db`
   Transitional registry, не business source of truth.
 - `bot-<channelId>.db`
@@ -75,13 +78,14 @@
 
 - Панель запускает процессы ботов через `BotProcessService`.
 - Контракт окружения ботов формируется `BotRuntimeContractService`.
-- Registry per-channel SQLite-файлов ведёт `BotDatabaseRegistry`.
+- Registry per-channel SQLite-файлов ведёт `BotDatabaseRegistry`, но automatic shard bootstrap теперь должен считаться legacy opt-in, а не normal runtime path.
 - `java-bot` сейчас может работать напрямую с business SQLite-контуром панели, что несовместимо с целевой production-моделью `provider -> worker -> queue/api -> backend -> PostgreSQL`.
 
 ## 6. Ключевые migration risks
 
-- Прямой доступ `java-bot` к business DB смешивает transport и business ownership.
+- Даже после ослабления default runtime contract прямой доступ `java-bot` к business DB смешивает transport и business ownership там, где ещё используется explicit SQLite compatibility bridge.
 - `settings.db` и `bot-<channelId>.db` продолжают закреплять legacy topology и усложняют миграцию.
+- `bot_runtime.db` уже ослаблен как physical datasource split, но transport/runtime ownership всё ещё не закрыт полностью.
 - Часть bootstrap-логики использует SQLite-specific SQL (`datetime('now')`, `INSERT OR IGNORE`, SQLite schema bootstrap).
 - `spring-panel` имеет split между primary/runtime, identity, monitoring и secondary DB, поэтому миграция к одной PostgreSQL БД со schema boundaries потребует переезда именованных `JdbcTemplate` и bootstrap-сервисов.
 - В `spring-panel` `testCompile` уже сломан несвязанными тестами, что ограничивает быструю автоматическую верификацию архитектурных изменений.
@@ -90,6 +94,7 @@
 
 - Прямая зависимость `java-bot` от `panel_runtime.db` как default business DB.
 - Runtime-рост `settings.db` как отдельного registry-контура.
+- Возврат `bot_runtime.db` в роль отдельного live datasource source of truth для panel-side runtime.
 - Per-channel `bot-<channelId>.db` как скрытый доменный storage.
 - SQLite-specific bootstrap для внешней production DB.
 - Неявное переключение панели на external DB только по факту наличия `DATABASE_URL`.

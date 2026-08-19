@@ -114,6 +114,10 @@ public class BotDatabaseRegistry {
             log.info("Skipping per-channel SQLite bot database bootstrap for channel {} in external {} mode", channelId, databaseRuntimeMode.modeLabel());
             return dbPath;
         }
+        if (!botProcessProperties.isSqlitePerChannelShardEnabled()) {
+            log.info("Skipping per-channel SQLite bot database bootstrap for channel {} because app.bots.sqlite-per-channel-shard-enabled=false", channelId);
+            return dbPath;
+        }
         ensureDatabaseFile(dbPath);
         ensureBotSchema(dbPath);
         registerBotInstance(channelId, platform, dbPath);

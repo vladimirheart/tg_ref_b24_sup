@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
@@ -44,6 +45,8 @@ class BotProcessLifecycleContractTest {
 
         SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
         sqliteProperties.setPath(tempDir.resolve("panel_runtime.db").toString());
+        BotSqliteDataSourceProperties botSqliteProperties = new BotSqliteDataSourceProperties();
+        botSqliteProperties.setPath(tempDir.resolve("bot_runtime.db").toString());
 
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
@@ -53,6 +56,7 @@ class BotProcessLifecycleContractTest {
         MockEnvironment environment = new MockEnvironment().withProperty("app.datasource.mode", "sqlite");
         BotRuntimeContractService contractService = new BotRuntimeContractService(
             sqliteProperties,
+            botSqliteProperties,
             properties,
             integrationNetworkService,
             new ObjectMapper(),

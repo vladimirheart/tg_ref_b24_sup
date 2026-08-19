@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.ClientsSqliteDataSourceProperties;
 import com.example.panel.config.KnowledgeSqliteDataSourceProperties;
 import com.example.panel.config.ObjectsSqliteDataSourceProperties;
@@ -12,11 +13,9 @@ import com.example.panel.repository.ChannelRepository;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
-
 import javax.sql.DataSource;
 
 @Service
@@ -25,6 +24,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseBootstrapService.class);
 
+    private final BotSqliteDataSourceProperties botProperties;
     private final ClientsSqliteDataSourceProperties clientsProperties;
     private final KnowledgeSqliteDataSourceProperties knowledgeProperties;
     private final ObjectsSqliteDataSourceProperties objectsProperties;
@@ -32,20 +32,20 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     private final ChannelRepository channelRepository;
     private final BotDatabaseRegistry botDatabaseRegistry;
     private final BotProcessProperties botProcessProperties;
-    private final DataSource botDataSource;
     private final SqliteSchemaBootstrapSupport schemaBootstrapSupport;
     private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
-    public DatabaseBootstrapService(ClientsSqliteDataSourceProperties clientsProperties,
+    public DatabaseBootstrapService(BotSqliteDataSourceProperties botProperties,
+                                    ClientsSqliteDataSourceProperties clientsProperties,
                                     KnowledgeSqliteDataSourceProperties knowledgeProperties,
                                     ObjectsSqliteDataSourceProperties objectsProperties,
                                     SettingsSqliteDataSourceProperties settingsProperties,
                                     ChannelRepository channelRepository,
                                     BotDatabaseRegistry botDatabaseRegistry,
                                     BotProcessProperties botProcessProperties,
-                                    @Qualifier("botDataSource") DataSource botDataSource,
                                     SqliteSchemaBootstrapSupport schemaBootstrapSupport,
                                     PanelDatabaseRuntimeMode databaseRuntimeMode) {
+        this.botProperties = botProperties;
         this.clientsProperties = clientsProperties;
         this.knowledgeProperties = knowledgeProperties;
         this.objectsProperties = objectsProperties;
@@ -53,7 +53,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         this.channelRepository = channelRepository;
         this.botDatabaseRegistry = botDatabaseRegistry;
         this.botProcessProperties = botProcessProperties;
-        this.botDataSource = botDataSource;
         this.schemaBootstrapSupport = schemaBootstrapSupport;
         this.databaseRuntimeMode = databaseRuntimeMode;
     }
@@ -175,7 +174,7 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     }
 
     private void initializeSharedBotRuntimeDatabase() {
-        schemaBootstrapSupport.initializeSchema(botDataSource, List.of(
+        schemaBootstrapSupport.initializeSchema(createBotRuntimeCompatibilityDataSource(), List.of(
             "CREATE TABLE IF NOT EXISTS feedbacks (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "user_id INTEGER, " +
@@ -205,15 +204,21 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         botDatabaseRegistry.registerDatabase("knowledge", knowledgeProperties.getNormalizedPath().toString());
         botDatabaseRegistry.registerDatabase("objects", objectsProperties.getNormalizedPath().toString());
         botDatabaseRegistry.registerDatabase("settings", settingsProperties.getNormalizedPath().toString());
-        botDatabaseRegistry.registerDatabase("bots", botProcessProperties.resolveDatabaseDir().toString());
 
         botDatabaseRegistry.registerDatabaseLink("settings", "global", "clients", clientsProperties.getNormalizedPath().toString());
         botDatabaseRegistry.registerDatabaseLink("settings", "global", "knowledge", knowledgeProperties.getNormalizedPath().toString());
         botDatabaseRegistry.registerDatabaseLink("settings", "global", "objects", objectsProperties.getNormalizedPath().toString());
-        botDatabaseRegistry.registerDatabaseLink("settings", "global", "bots", botProcessProperties.resolveDatabaseDir().toString());
+        if (botProcessProperties.isSqlitePerChannelShardEnabled()) {
+            botDatabaseRegistry.registerDatabase("bots", botProcessProperties.resolveDatabaseDir().toString());
+            botDatabaseRegistry.registerDatabaseLink("settings", "global", "bots", botProcessProperties.resolveDatabaseDir().toString());
+        }
     }
 
     private void initializeBotDatabases() {
+        if (!botProcessProperties.isSqlitePerChannelShardEnabled()) {
+            log.info("Skipping per-channel SQLite bot shard bootstrap because app.bots.sqlite-per-channel-shard-enabled=false");
+            return;
+        }
         List<Channel> channels = channelRepository.findAll();
         for (Channel channel : channels) {
             botDatabaseRegistry.ensureBotDatabase(channel.getId(), channel.getPlatform());
@@ -230,5 +235,9 @@ public class DatabaseBootstrapService implements ApplicationRunner {
 
     private DataSource createObjectsCompatibilityDataSource() {
         return SqliteConnectionConfigSupport.createDataSource(objectsProperties);
+    }
+
+    private DataSource createBotRuntimeCompatibilityDataSource() {
+        return SqliteConnectionConfigSupport.createDataSource(botProperties);
     }
 }

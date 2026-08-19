@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
@@ -350,12 +351,15 @@ class BotProcessServiceTest {
         properties.setExecutableJars(executableJars);
         SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
         sqliteProperties.setPath(tempDir.resolve("panel_runtime.db").toString());
+        BotSqliteDataSourceProperties botSqliteProperties = new BotSqliteDataSourceProperties();
+        botSqliteProperties.setPath(tempDir.resolve("bot_runtime.db").toString());
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
         IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());
         MockEnvironment environment = new MockEnvironment().withProperty("app.datasource.mode", "sqlite");
         BotRuntimeContractService botRuntimeContractService = new BotRuntimeContractService(
             sqliteProperties,
+            botSqliteProperties,
             properties,
             integrationNetworkService,
             new ObjectMapper(),
@@ -423,12 +427,15 @@ class BotProcessServiceTest {
         BotProcessProperties properties = configureProperties(readinessTimeout, pollInterval);
         SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
         sqliteProperties.setPath(Path.of(System.getProperty("java.io.tmpdir")).resolve("bot-process-test.db").toString());
+        BotSqliteDataSourceProperties botSqliteProperties = new BotSqliteDataSourceProperties();
+        botSqliteProperties.setPath(Path.of(System.getProperty("java.io.tmpdir")).resolve("bot-runtime-process-test.db").toString());
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
         IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());
         MockEnvironment environment = new MockEnvironment().withProperty("app.datasource.mode", "sqlite");
         return new BotRuntimeContractService(
             sqliteProperties,
+            botSqliteProperties,
             properties,
             integrationNetworkService,
             new ObjectMapper(),

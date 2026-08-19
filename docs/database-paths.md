@@ -20,6 +20,7 @@ Target-state topology и причины итогового разбиения о
 | `APP_DB_KNOWLEDGE` | `knowledge_base.db` | Подготовленный secondary knowledge-файл | transitional only, должен быть поглощён `panel-runtime` |
 | `APP_DB_OBJECTS` | `objects.db` | Secondary файл паспортов объектов | transitional only, должен быть поглощён `panel-runtime` |
 | `APP_BOT_DATABASE_DIR` | `bot-<channelId>.db` | Channel-local bot файлы | optional shard-layer внутри `bot-runtime`, не отдельные bounded contexts |
+| `SUPPORT_BOT_DATABASE_PATH` | explicit SQLite bridge | Явный shared panel runtime path для `java-bot` compatibility mode | compatibility only |
 
 ## Что считается каноническим уже сейчас
 
@@ -27,6 +28,7 @@ Target-state topology и причины итогового разбиения о
 - `APP_DB_PANEL_IDENTITY` остаётся отдельным identity-контуром.
 - `APP_DB_MONITORING` остаётся отдельным monitoring-контуром и должен стать единственным домом для raw monitoring history.
 - `APP_DB_BOT_RUNTIME` остаётся shared bot-runtime контуром до явного решения по shard-слою.
+- `SUPPORT_BOT_DATABASE_PATH` допустим только как явный compatibility bridge для SQLite-режима `java-bot`, а не как normal default contract.
 - legacy aliases `APP_DB_TICKETS`, `APP_DB_USERS`, `APP_DB_BOT` остаются поддержаны как fallback.
 
 ## Что считается transitional legacy
@@ -56,6 +58,7 @@ export APP_DB_KNOWLEDGE="/srv/iguana/knowledge_base.db"
 export APP_DB_OBJECTS="/srv/iguana/objects.db"
 export APP_DB_SETTINGS="/srv/iguana/settings.db"
 export APP_DB_BOT_RUNTIME="/srv/iguana/bot_runtime.db"
+export SUPPORT_BOT_DATABASE_PATH="/srv/iguana/panel_runtime.db"
 export APP_BOT_DATABASE_DIR="/srv/iguana/bots"
 ```
 
