@@ -50,35 +50,15 @@ public class BotIngressCoordinationService {
     }
 
     public boolean tryAcquireOrRenew(String platform, Long channelId) {
-        String leaseKey = buildLeaseKey(platform, channelId);
-        if (!properties.isRedisMode()) {
-            localOwnership.put(leaseKey, Boolean.TRUE);
-            return true;
-        }
-        StringRedisTemplate redis = requireRedisTemplate();
-        Duration ttl = safeDuration(properties.getIngressLeaseTtl(), Duration.ofSeconds(45));
-        try {
-            Long renewed = redis.execute(
-                RENEW_LEASE_SCRIPT,
-                List.of(leaseKey),
-                instanceToken,
-                Long.toString(ttl.toMillis())
-            );
-            if (renewed != null && renewed > 0L) {
-                localOwnership.put(leaseKey, Boolean.TRUE);
-                return true;
-            }
-            Boolean acquired = redis.opsForValue().setIfAbsent(leaseKey, instanceToken, ttl);
-            boolean owner = Boolean.TRUE.equals(acquired);
-            localOwnership.put(leaseKey, owner);
-            return owner;
-        } catch (RuntimeException ex) {
-            throw new IllegalStateException("Redis ingress coordination is unavailable for " + leaseKey + ".", ex);
-        }
+        return tryAcquireOrRenewLease("ingress", platform, channelId, null, properties.getIngressLeaseTtl());
+    }
+
+    public boolean tryAcquireOrRenewJob(String platform, Long channelId, String jobName) {
+        return tryAcquireOrRenewLease("job", platform, channelId, jobName, properties.getJobLeaseTtl());
     }
 
     public boolean isCurrentOwner(String platform, Long channelId) {
-        String leaseKey = buildLeaseKey(platform, channelId);
+        String leaseKey = buildLeaseKey("ingress", platform, channelId, null);
         if (!properties.isRedisMode()) {
             return true;
         }
@@ -97,17 +77,11 @@ public class BotIngressCoordinationService {
     }
 
     public void release(String platform, Long channelId) {
-        String leaseKey = buildLeaseKey(platform, channelId);
-        localOwnership.remove(leaseKey);
-        if (!properties.isRedisMode()) {
-            return;
-        }
-        StringRedisTemplate redis = requireRedisTemplate();
-        try {
-            redis.execute(RELEASE_LEASE_SCRIPT, List.of(leaseKey), instanceToken);
-        } catch (RuntimeException ex) {
-            log.debug("Unable to release ingress lease {}: {}", leaseKey, ex.getMessage());
-        }
+        releaseLease("ingress", platform, channelId, null);
+    }
+
+    public void releaseJob(String platform, Long channelId, String jobName) {
+        releaseLease("job", platform, channelId, jobName);
     }
 
     public Duration renewInterval() {
@@ -122,6 +96,52 @@ public class BotIngressCoordinationService {
         return properties.isRedisMode();
     }
 
+    private boolean tryAcquireOrRenewLease(String leaseType,
+                                           String platform,
+                                           Long channelId,
+                                           String leaseName,
+                                           Duration configuredTtl) {
+        String leaseKey = buildLeaseKey(leaseType, platform, channelId, leaseName);
+        if (!properties.isRedisMode()) {
+            localOwnership.put(leaseKey, Boolean.TRUE);
+            return true;
+        }
+        StringRedisTemplate redis = requireRedisTemplate();
+        Duration ttl = safeDuration(configuredTtl, Duration.ofSeconds(45));
+        try {
+            Long renewed = redis.execute(
+                RENEW_LEASE_SCRIPT,
+                List.of(leaseKey),
+                instanceToken,
+                Long.toString(ttl.toMillis())
+            );
+            if (renewed != null && renewed > 0L) {
+                localOwnership.put(leaseKey, Boolean.TRUE);
+                return true;
+            }
+            Boolean acquired = redis.opsForValue().setIfAbsent(leaseKey, instanceToken, ttl);
+            boolean owner = Boolean.TRUE.equals(acquired);
+            localOwnership.put(leaseKey, owner);
+            return owner;
+        } catch (RuntimeException ex) {
+            throw new IllegalStateException("Redis coordination is unavailable for " + leaseKey + ".", ex);
+        }
+    }
+
+    private void releaseLease(String leaseType, String platform, Long channelId, String leaseName) {
+        String leaseKey = buildLeaseKey(leaseType, platform, channelId, leaseName);
+        localOwnership.remove(leaseKey);
+        if (!properties.isRedisMode()) {
+            return;
+        }
+        StringRedisTemplate redis = requireRedisTemplate();
+        try {
+            redis.execute(RELEASE_LEASE_SCRIPT, List.of(leaseKey), instanceToken);
+        } catch (RuntimeException ex) {
+            log.debug("Unable to release ingress lease {}: {}", leaseKey, ex.getMessage());
+        }
+    }
+
     private StringRedisTemplate requireRedisTemplate() {
         if (stringRedisTemplate == null) {
             throw new IllegalStateException("Bot ingress coordination is configured for Redis, but StringRedisTemplate is unavailable.");
@@ -129,13 +149,24 @@ public class BotIngressCoordinationService {
         return stringRedisTemplate;
     }
 
-    private String buildLeaseKey(String platform, Long channelId) {
+    private String buildLeaseKey(String leaseType, String platform, Long channelId, String leaseName) {
         String namespace = StringUtils.hasText(properties.getLeaseNamespace())
             ? properties.getLeaseNamespace().trim()
             : "iguana";
+        String normalizedLeaseType = StringUtils.hasText(leaseType) ? leaseType.trim().toLowerCase() : "ingress";
         String normalizedPlatform = StringUtils.hasText(platform) ? platform.trim().toLowerCase() : "unknown";
         String normalizedChannel = channelId == null ? "0" : Long.toString(channelId);
-        return namespace + ":bot-ingress:" + normalizedPlatform + ":channel:" + normalizedChannel;
+        StringBuilder key = new StringBuilder(namespace)
+            .append(":bot-lease:")
+            .append(normalizedLeaseType)
+            .append(":")
+            .append(normalizedPlatform)
+            .append(":channel:")
+            .append(normalizedChannel);
+        if (StringUtils.hasText(leaseName)) {
+            key.append(":name:").append(leaseName.trim().toLowerCase());
+        }
+        return key.toString();
     }
 
     private Duration safeDuration(Duration value, Duration fallback) {

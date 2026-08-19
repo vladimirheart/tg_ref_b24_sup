@@ -36,8 +36,8 @@
   - локальные UI/diagnostic loops и explicit local-control invariants вынесены в отдельный production runbook.
 - `java-bot` ingress ownership дополнительно дожат на bot-side runtime:
   - `Telegram`, `VK`, `MAX` long-poll ingress теперь используют shared Redis-based lease contract;
-  - bot-side ingress-related schedulers исполняются только active ingress owner'ом канала;
-  - `VK` webhook path больше не должен silently жить рядом с long-poll и использует explicit single-owner coordination contract.
+  - bot-side background jobs для `VK`/`MAX` больше не завязаны на implicit ingress-owner side effects и идут через shared job leases;
+  - `VK`/`MAX` webhook question-flow session state externalized в shared bot session store, поэтому webhook path больше не должен требовать single-owner `409` gating.
 - operator-facing runbook под фактический contour теперь зафиксирован в `docs/runbooks/postgresql-production-contour.md`.
 
 ## 2. Что ещё не даёт считать проект PostgreSQL-only production system
@@ -62,7 +62,8 @@
 - RabbitMQ-first transport model уже materially жёстче, включая producer outbox, consumer scaling, delivery ledger и panel-side replay/requeue ops;
 - главный remaining live-flow gap сместился ещё уже:
   - long-poll ingress ownership уже coordinated;
-  - но strict active-active webhook/session-sharing state для одного канала всё ещё не externalized полностью и потому требует sticky/single-owner assumptions.
+  - webhook/session-sharing layer для `VK`/`MAX` уже externalized;
+  - remaining scope теперь больше про richer operability, replay/debug surface и end-to-end observability.
 
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 
@@ -123,4 +124,4 @@ Canonical incident domain на backend-owned storage уже появился, op
 - `canonical incident backend domain`: да, operator-facing слой тоже реализован;
 - `full PostgreSQL-only production contour`: ещё нет.
 
-Следующий корректный scope — уже не chase за очередной SQLite-точкой и не базовый incident UI, а оставшийся webhook/session-state hardening плюс richer reporting/automation поверх уже собранного contour.
+Следующий корректный scope — уже не chase за очередной SQLite-точкой и не базовый incident UI, а deeper worker operability/replay/observability поверх уже собранного contour.

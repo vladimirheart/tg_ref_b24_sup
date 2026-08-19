@@ -34,6 +34,8 @@
 | `APP_COORDINATION_BOT_INGRESS_LEASE_TTL` | TTL ingress lease для bot long-poll owner semantics | Java-бот |
 | `APP_COORDINATION_BOT_INGRESS_RENEW_INTERVAL` | интервал продления ingress lease для bot long-poll owner semantics | Java-бот |
 | `APP_COORDINATION_BOT_INGRESS_FOLLOWER_BACKOFF` | задержка follower bot instance перед повторной попыткой захватить ingress lease | Java-бот |
+| `APP_COORDINATION_BOT_JOB_LEASE_TTL` | TTL distributed lease для bot-side scheduled jobs (`unblock digest`, `session expiry`) | Java-бот |
+| `APP_COORDINATION_BOT_SESSION_TTL` | TTL shared bot session snapshot в Redis/local session store | Java-бот |
 
 ## Базы данных
 
@@ -90,7 +92,7 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 - в `APP_DB_MODE=postgresql` runtime получает готовый PostgreSQL datasource-контракт и не несёт `SPRING_SQL_INIT_MODE`/`schema-sqlite.sql` в production-path.
 - в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` bot-side business операции по ticket/channel/feedback/blacklist должны идти через `APP_PANEL_INTERNAL_API_*`; silent fallback в local `JPA/SQLite` business storage больше не считается допустимым live-path.
 - для multi-instance bot ingress в production contour нужно использовать `APP_COORDINATION_MODE=redis`, чтобы `Telegram`/`VK`/`MAX` long-poll owner semantics не оставались process-local.
-- bot webhook path не следует считать implicit active-active session-sharing model: если webhook mode включён, нужен sticky/single-owner ingress contract либо отдельный shared session-state слой.
+- для `VK`/`MAX` webhook multi-instance contour вместе с этим нужен shared bot session-state слой; он настраивается тем же coordination namespace и TTL через `APP_COORDINATION_BOT_SESSION_TTL`.
 
 Для `spring-panel` действует ещё одно правило:
 

@@ -12,6 +12,7 @@ import com.example.supportbot.service.ConversationHistoryEntry;
 import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.ConversationTicketCreationCommand;
 import com.example.supportbot.service.BotIngressCoordinationService;
+import com.example.supportbot.service.BotSessionStoreService;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.MessagingService;
 import com.example.supportbot.service.RuntimeConfigService;
@@ -37,7 +38,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -61,6 +61,8 @@ public class MaxWebhookController {
             "Ваш аккаунт заблокирован. Отправьте /unblock, чтобы подать запрос на разблокировку.";
     private static final String BLACKLISTED_PENDING_TEXT =
             "Ваш аккаунт заблокирован. Запрос уже на рассмотрении.";
+    private static final String SESSION_PLATFORM = "max";
+    private static final String EXPIRE_SESSIONS_JOB = "expire-silent-question-flow-sessions";
 
     private final MaxBotProperties properties;
     private final BlacklistService blacklistService;
@@ -71,6 +73,7 @@ public class MaxWebhookController {
     private final FeedbackService feedbackService;
     private final BotSettingsService botSettingsService;
     private final BotIngressCoordinationService ingressCoordinationService;
+    private final BotSessionStoreService sessionStoreService;
     private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
 
@@ -78,7 +81,6 @@ public class MaxWebhookController {
         return "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
     }
 
-    private final Map<Long, ConversationSession> sessions = new ConcurrentHashMap<>();
     private final Object locationCacheMonitor = new Object();
     private volatile Map<String, Object> cachedLocationTree;
     private volatile Map<String, Object> cachedPresetDefinitions;
@@ -93,6 +95,7 @@ public class MaxWebhookController {
                                 FeedbackService feedbackService,
                                 BotSettingsService botSettingsService,
                                 BotIngressCoordinationService ingressCoordinationService,
+                                BotSessionStoreService sessionStoreService,
                                 RuntimeConfigService runtimeConfigService,
                                 ObjectMapper objectMapper) {
         this.properties = properties;
@@ -104,6 +107,7 @@ public class MaxWebhookController {
         this.feedbackService = feedbackService;
         this.botSettingsService = botSettingsService;
         this.ingressCoordinationService = ingressCoordinationService;
+        this.sessionStoreService = sessionStoreService;
         this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
     }
@@ -115,9 +119,6 @@ public class MaxWebhookController {
     ) {
         if (!properties.isEnabled()) {
             return ResponseEntity.ok(Map.of("ok", true, "ignored", "max-bot-disabled"));
-        }
-        if (!ingressCoordinationService.tryAcquireOrRenew("max", properties.getChannelId())) {
-            return ResponseEntity.status(409).body(Map.of("ok", false, "error", "inactive-ingress-owner"));
         }
         if (!secretValid(secret)) {
             return ResponseEntity.status(403).body(Map.of("ok", false, "error", "invalid-secret"));
@@ -160,13 +161,13 @@ public class MaxWebhookController {
 
         if ("/start".equalsIgnoreCase(text)) {
             ConversationSession session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
-            sessions.put(userId, session);
+            saveSession(session);
             promptCurrentQuestion(channel, session);
             return ResponseEntity.ok(Map.of("ok", true));
         }
 
         if (isCancelCommand(text)) {
-            sessions.remove(userId);
+            deleteSession(userId);
             messagingService.sendToUser(channel, userId, "Текущая заявка отменена.");
             return ResponseEntity.ok(Map.of("ok", true, "cancelled", true));
         }
@@ -181,7 +182,7 @@ public class MaxWebhookController {
             active = Optional.empty();
         }
         if (active.isPresent()) {
-            sessions.remove(userId);
+            deleteSession(userId);
             String ticketId = active.get().getTicketId();
             String clientText = !text.isBlank() ? text : "[вложение от клиента]";
             String messageType = hasAttachments ? normalizeAttachmentType(attachments.get(0).type()) : "text";
@@ -206,7 +207,7 @@ public class MaxWebhookController {
             return ResponseEntity.ok(Map.of("ok", true, "ticket_id", ticketId));
         }
 
-        ConversationSession session = sessions.get(userId);
+        ConversationSession session = loadSession(userId);
         if (session == null) {
             ResponseEntity<Map<String, Object>> feedbackResponse = tryHandleFeedback(channel, userId, text);
             if (feedbackResponse != null) {
@@ -216,12 +217,13 @@ public class MaxWebhookController {
             if (shouldCaptureBootstrapProblemText(text)) {
                 session.captureBootstrapClientText(text);
             }
-            sessions.put(userId, session);
+            saveSession(session);
             promptCurrentQuestion(channel, session);
             return ResponseEntity.ok(Map.of("ok", true, "session_started", true));
         }
 
         session.markClientResponseReceived();
+        saveSession(session);
 
         if (session.awaitingReuseDecision()) {
             if (!session.consumeReuseDecision(text)) {
@@ -233,12 +235,14 @@ public class MaxWebhookController {
                 TicketService.TicketCreationResult created = finalizeConversation(channel, session);
                 return ResponseEntity.ok(Map.of("ok", true, "ticket_id", created.ticketId()));
             }
+            saveSession(session);
             promptCurrentQuestion(channel, session);
             return ResponseEntity.ok(Map.of("ok", true, "question_prompted", true));
         }
 
         if (BACK_BUTTON.equalsIgnoreCase(Optional.ofNullable(text).orElse("").trim())) {
             if (session.stepBack()) {
+                saveSession(session);
                 promptCurrentQuestion(channel, session);
                 return ResponseEntity.ok(Map.of("ok", true, "stepped_back", true));
             }
@@ -276,6 +280,7 @@ public class MaxWebhookController {
             return ResponseEntity.ok(Map.of("ok", true, "ticket_id", created.ticketId()));
         }
 
+        saveSession(session);
         promptCurrentQuestion(channel, session);
         return ResponseEntity.ok(Map.of("ok", true, "question_prompted", true));
     }
@@ -311,7 +316,7 @@ public class MaxWebhookController {
 
     @Scheduled(fixedDelay = 60000L)
     public void expireSilentQuestionFlowSessions() {
-        if (!ingressCoordinationService.isCurrentOwner("max", properties.getChannelId())) {
+        if (!ingressCoordinationService.tryAcquireOrRenewJob(SESSION_PLATFORM, properties.getChannelId(), EXPIRE_SESSIONS_JOB)) {
             return;
         }
         Channel channel = getChannel();
@@ -319,10 +324,8 @@ public class MaxWebhookController {
             return;
         }
         OffsetDateTime now = OffsetDateTime.now();
-        sessions.forEach((userId, session) -> {
-            if (session == null) {
-                return;
-            }
+        sessionStoreService.loadAll(SESSION_PLATFORM, properties.getChannelId(), ConversationSessionState.class).forEach(storedSession -> {
+            ConversationSession session = restoreSession(storedSession.payload());
             int timeoutMinutes = botSettingsService.firstResponseTimeoutMinutes(
                     session.settings(),
                     DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES
@@ -330,7 +333,11 @@ public class MaxWebhookController {
             if (!session.shouldExpireDueToMissingFirstResponse(now, timeoutMinutes)) {
                 return;
             }
-            if (!sessions.remove(userId, session)) {
+            if (!sessionStoreService.deleteIfUnchanged(
+                    SESSION_PLATFORM,
+                    properties.getChannelId(),
+                    storedSession.userId(),
+                    storedSession.rawPayload())) {
                 return;
             }
             messagingService.sendToUser(
@@ -342,7 +349,7 @@ public class MaxWebhookController {
                     )
             );
             log.info("Expired MAX question-flow session for user {} after {} minutes without first response",
-                    userId,
+                    storedSession.userId(),
                     timeoutMinutes);
         });
     }
@@ -548,7 +555,7 @@ public class MaxWebhookController {
     }
 
     private TicketService.TicketCreationResult finalizeConversation(Channel channel, ConversationSession session) {
-        sessions.remove(session.userId());
+        deleteSession(session.userId());
         TicketService.TicketCreationResult created = ticketService.createConversationTicket(
                 new ConversationTicketCreationCommand(
                         session.userId(),
@@ -1043,6 +1050,23 @@ public class MaxWebhookController {
     private record HistoryEvent(Long userId, String text, String messageType) {
     }
 
+    private record ConversationSessionState(Long userId,
+                                            Long chatId,
+                                            String username,
+                                            String clientName,
+                                            List<QuestionFlowItemDto> flow,
+                                            BotSettingsDto settings,
+                                            Map<String, String> answers,
+                                            List<HistoryEvent> history,
+                                            List<Integer> visitedQuestionIndexes,
+                                            OffsetDateTime startedAt,
+                                            Map<String, String> cachedAnswers,
+                                            String bootstrapProblemText,
+                                            boolean firstClientResponseReceived,
+                                            boolean reuseDecisionPending,
+                                            int currentIndex) {
+    }
+
     private final class ConversationSession {
         private final Long userId;
         private final Long chatId;
@@ -1054,7 +1078,7 @@ public class MaxWebhookController {
         private final List<HistoryEvent> history = new ArrayList<>();
         private final List<Integer> visitedQuestionIndexes = new ArrayList<>();
         private final Map<String, Integer> questionIndexes;
-        private final OffsetDateTime startedAt = OffsetDateTime.now();
+        private final OffsetDateTime startedAt;
         private Map<String, String> cachedAnswers = new LinkedHashMap<>();
         private String bootstrapProblemText;
         private boolean firstClientResponseReceived = false;
@@ -1074,7 +1098,33 @@ public class MaxWebhookController {
             this.flow = flow;
             this.settings = settings;
             this.questionIndexes = indexQuestions(flow);
+            this.startedAt = OffsetDateTime.now();
             this.bootstrapProblemText = null;
+        }
+
+        ConversationSession(ConversationSessionState state) {
+            this.userId = state.userId();
+            this.chatId = state.chatId();
+            this.username = state.username();
+            this.clientName = state.clientName();
+            this.flow = state.flow() != null ? new ArrayList<>(state.flow()) : List.of();
+            this.settings = state.settings();
+            this.questionIndexes = indexQuestions(this.flow);
+            this.startedAt = state.startedAt() != null ? state.startedAt() : OffsetDateTime.now();
+            if (state.answers() != null) {
+                this.answers.putAll(state.answers());
+            }
+            if (state.history() != null) {
+                this.history.addAll(state.history());
+            }
+            if (state.visitedQuestionIndexes() != null) {
+                this.visitedQuestionIndexes.addAll(state.visitedQuestionIndexes());
+            }
+            this.cachedAnswers = state.cachedAnswers() != null ? new LinkedHashMap<>(state.cachedAnswers()) : new LinkedHashMap<>();
+            this.bootstrapProblemText = state.bootstrapProblemText();
+            this.firstClientResponseReceived = state.firstClientResponseReceived();
+            this.reuseDecisionPending = state.reuseDecisionPending();
+            this.currentIndex = Math.max(0, state.currentIndex());
         }
 
         void captureBootstrapClientText(String text) {
@@ -1278,6 +1328,26 @@ public class MaxWebhookController {
             return builder.toString();
         }
 
+        ConversationSessionState snapshot() {
+            return new ConversationSessionState(
+                    userId,
+                    chatId,
+                    username,
+                    clientName,
+                    new ArrayList<>(flow),
+                    settings,
+                    new LinkedHashMap<>(answers),
+                    new ArrayList<>(history),
+                    new ArrayList<>(visitedQuestionIndexes),
+                    startedAt,
+                    new LinkedHashMap<>(cachedAnswers),
+                    bootstrapProblemText,
+                    firstClientResponseReceived,
+                    reuseDecisionPending,
+                    currentIndex
+            );
+        }
+
         private String answerKeyFor(QuestionFlowItemDto item) {
             if (item == null) {
                 return null;
@@ -1365,5 +1435,26 @@ public class MaxWebhookController {
             }
             return null;
         }
+    }
+
+    private ConversationSession loadSession(Long userId) {
+        return sessionStoreService.load(SESSION_PLATFORM, properties.getChannelId(), userId, ConversationSessionState.class)
+                .map(stored -> restoreSession(stored.payload()))
+                .orElse(null);
+    }
+
+    private ConversationSession restoreSession(ConversationSessionState state) {
+        return state == null ? null : new ConversationSession(state);
+    }
+
+    private void saveSession(ConversationSession session) {
+        if (session == null) {
+            return;
+        }
+        sessionStoreService.save(SESSION_PLATFORM, properties.getChannelId(), session.userId(), session.snapshot());
+    }
+
+    private void deleteSession(Long userId) {
+        sessionStoreService.delete(SESSION_PLATFORM, properties.getChannelId(), userId);
     }
 }

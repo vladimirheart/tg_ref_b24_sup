@@ -13,6 +13,8 @@ public class BotIngressCoordinationProperties {
     private Duration ingressLeaseTtl = Duration.ofSeconds(45);
     private Duration ingressLeaseRenewInterval = Duration.ofSeconds(15);
     private Duration ingressFollowerBackoff = Duration.ofSeconds(5);
+    private Duration jobLeaseTtl = Duration.ofMinutes(2);
+    private Duration botSessionTtl = Duration.ofHours(24);
 
     public String getMode() {
         return mode;
@@ -52,6 +54,22 @@ public class BotIngressCoordinationProperties {
 
     public void setIngressFollowerBackoff(Duration ingressFollowerBackoff) {
         this.ingressFollowerBackoff = ingressFollowerBackoff;
+    }
+
+    public Duration getJobLeaseTtl() {
+        return jobLeaseTtl;
+    }
+
+    public void setJobLeaseTtl(Duration jobLeaseTtl) {
+        this.jobLeaseTtl = jobLeaseTtl;
+    }
+
+    public Duration getBotSessionTtl() {
+        return botSessionTtl;
+    }
+
+    public void setBotSessionTtl(Duration botSessionTtl) {
+        this.botSessionTtl = botSessionTtl;
     }
 
     public boolean isRedisMode() {

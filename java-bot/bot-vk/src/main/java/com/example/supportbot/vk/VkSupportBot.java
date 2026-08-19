@@ -14,6 +14,7 @@ import com.example.supportbot.service.ConversationProblemTextSupport;
 import com.example.supportbot.service.ConversationTicketCreationCommand;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.BotIngressCoordinationService;
+import com.example.supportbot.service.BotSessionStoreService;
 import com.example.supportbot.service.RuntimeConfigService;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.service.UnblockRequestService;
@@ -85,6 +86,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private static final String DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE =
             "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
     private static final Duration VK_PROFILE_CACHE_TTL = Duration.ofMinutes(30);
+    private static final String SESSION_PLATFORM = "vk";
+    private static final String UNBLOCK_DIGEST_JOB = "unblock-digest";
+    private static final String EXPIRE_SESSIONS_JOB = "expire-silent-question-flow-sessions";
 
     private final VkBotProperties properties;
     private final BlacklistService blacklistService;
@@ -96,13 +100,13 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private final ChatHistoryService chatHistoryService;
     private final FeedbackService feedbackService;
     private final BotIngressCoordinationService ingressCoordinationService;
+    private final BotSessionStoreService sessionStoreService;
     private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
     private final Gson gson;
     private final VkApiClient vkClient;
     private final HttpClient httpClient;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final Map<Long, ConversationSession> sessions = new ConcurrentHashMap<>();
     private final Map<Long, CachedVkProfile> vkProfileCache = new ConcurrentHashMap<>();
 
     private static String defaultFirstResponseTimeoutMessage() {
@@ -124,6 +128,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         ChatHistoryService chatHistoryService,
                         FeedbackService feedbackService,
                         BotIngressCoordinationService ingressCoordinationService,
+                        BotSessionStoreService sessionStoreService,
                         RuntimeConfigService runtimeConfigService,
                         ObjectMapper objectMapper) {
         this.properties = properties;
@@ -136,6 +141,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         this.chatHistoryService = chatHistoryService;
         this.feedbackService = feedbackService;
         this.ingressCoordinationService = ingressCoordinationService;
+        this.sessionStoreService = sessionStoreService;
         this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
         this.gson = new Gson();
@@ -275,10 +281,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
 
-        ConversationSession session = sessions.get(fromId);
+        ConversationSession session = loadSession(fromId);
         if ("/cancel".equalsIgnoreCase(text)) {
             log.info("Received /cancel from VK user {}", fromId);
-            sessions.remove(fromId);
+            deleteSession(fromId);
             sendText(actor, peerId, "Текущая заявка отменена.");
             return;
         }
@@ -294,13 +300,14 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             }
             session = startSession(actor, message, channel, clientProfile);
             if (shouldCaptureBootstrapProblemText(text)) {
-            session.captureBootstrapClientText(text);
+                session.captureBootstrapClientText(text);
             }
-            sessions.put(fromId, session);
+            saveSession(session);
             return;
         }
 
         session.markClientResponseReceived();
+        saveSession(session);
 
         if (session.awaitingReuseDecision()) {
             if (!session.consumeReuseDecision(text)) {
@@ -310,6 +317,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             if (session.isComplete()) {
                 finalizeConversation(actor, session);
             } else {
+                saveSession(session);
                 promptCurrentQuestion(actor, session);
             }
             return;
@@ -340,6 +348,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (session.isComplete()) {
             finalizeConversation(actor, session);
         } else {
+            saveSession(session);
             promptCurrentQuestion(actor, session);
         }
     }
@@ -818,7 +827,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     }
 
     private void finalizeConversation(GroupActor actor, ConversationSession session) {
-        sessions.remove(session.userId());
+        deleteSession(session.userId());
         Channel channel = getChannel();
         TicketService.TicketCreationResult result = ticketService.createConversationTicket(
                 new ConversationTicketCreationCommand(
@@ -950,7 +959,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     @Scheduled(cron = "0 0 * * * *")
     public void sendUnblockDigest() {
-        if (!ingressCoordinationService.isCurrentOwner("vk", properties.getChannelId())) {
+        if (!ingressCoordinationService.tryAcquireOrRenewJob(SESSION_PLATFORM, properties.getChannelId(), UNBLOCK_DIGEST_JOB)) {
             return;
         }
         Long channelId = properties.getChannelId();
@@ -979,7 +988,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     @Scheduled(fixedDelay = 60000L)
     public void expireSilentQuestionFlowSessions() {
-        if (!ingressCoordinationService.isCurrentOwner("vk", properties.getChannelId())) {
+        if (!ingressCoordinationService.tryAcquireOrRenewJob(SESSION_PLATFORM, properties.getChannelId(), EXPIRE_SESSIONS_JOB)) {
             return;
         }
         Channel channel = getChannel();
@@ -988,10 +997,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         GroupActor actor = createActor();
         OffsetDateTime now = OffsetDateTime.now();
-        sessions.forEach((userId, session) -> {
-            if (session == null) {
-                return;
-            }
+        sessionStoreService.loadAll(SESSION_PLATFORM, properties.getChannelId(), ConversationSessionState.class).forEach(storedSession -> {
+            ConversationSession session = restoreSession(storedSession.payload());
             int timeoutMinutes = botSettingsService.firstResponseTimeoutMinutes(
                     session.settings(),
                     DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES
@@ -999,7 +1006,11 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             if (!session.shouldExpireDueToMissingFirstResponse(now, timeoutMinutes)) {
                 return;
             }
-            if (!sessions.remove(userId, session)) {
+            if (!sessionStoreService.deleteIfUnchanged(
+                    SESSION_PLATFORM,
+                    properties.getChannelId(),
+                    storedSession.userId(),
+                    storedSession.rawPayload())) {
                 return;
             }
             sendText(actor, session.peerId(), botSettingsService.firstResponseTimeoutMessage(
@@ -1007,7 +1018,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     defaultFirstResponseTimeoutMessage()
             ));
             log.info("Expired VK question-flow session for user {} after {} minutes without first response",
-                    userId,
+                    storedSession.userId(),
                     timeoutMinutes);
         });
     }
@@ -1213,6 +1224,23 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private record HistoryEvent(Long userId, String text, String messageType, String attachment) {
     }
 
+    private record ConversationSessionState(Long peerId,
+                                            Long userId,
+                                            String username,
+                                            String clientName,
+                                            List<QuestionFlowItemDto> flow,
+                                            BotSettingsDto settings,
+                                            Map<String, String> answers,
+                                            List<HistoryEvent> history,
+                                            List<Integer> visitedQuestionIndexes,
+                                            OffsetDateTime startedAt,
+                                            Map<String, String> cachedAnswers,
+                                            String bootstrapProblemText,
+                                            boolean firstClientResponseReceived,
+                                            boolean reuseDecisionPending,
+                                            int currentIndex) {
+    }
+
     private final class ConversationSession {
         private final Long peerId;
         private final Long userId;
@@ -1224,7 +1252,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         private final List<HistoryEvent> history = new ArrayList<>();
         private final List<Integer> visitedQuestionIndexes = new ArrayList<>();
         private final Map<String, Integer> questionIndexes;
-        private final OffsetDateTime startedAt = OffsetDateTime.now();
+        private final OffsetDateTime startedAt;
         private Map<String, String> cachedAnswers = new LinkedHashMap<>();
         private String bootstrapProblemText;
         private boolean firstClientResponseReceived = false;
@@ -1244,7 +1272,33 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             this.flow = flow;
             this.settings = settings;
             this.questionIndexes = indexQuestions(flow);
+            this.startedAt = OffsetDateTime.now();
             this.bootstrapProblemText = null;
+        }
+
+        ConversationSession(ConversationSessionState state) {
+            this.peerId = state.peerId();
+            this.userId = state.userId();
+            this.username = state.username();
+            this.clientName = state.clientName();
+            this.flow = state.flow() != null ? new ArrayList<>(state.flow()) : List.of();
+            this.settings = state.settings();
+            this.questionIndexes = indexQuestions(this.flow);
+            this.startedAt = state.startedAt() != null ? state.startedAt() : OffsetDateTime.now();
+            if (state.answers() != null) {
+                this.answers.putAll(state.answers());
+            }
+            if (state.history() != null) {
+                this.history.addAll(state.history());
+            }
+            if (state.visitedQuestionIndexes() != null) {
+                this.visitedQuestionIndexes.addAll(state.visitedQuestionIndexes());
+            }
+            this.cachedAnswers = state.cachedAnswers() != null ? new LinkedHashMap<>(state.cachedAnswers()) : new LinkedHashMap<>();
+            this.bootstrapProblemText = state.bootstrapProblemText();
+            this.firstClientResponseReceived = state.firstClientResponseReceived();
+            this.reuseDecisionPending = state.reuseDecisionPending();
+            this.currentIndex = Math.max(0, state.currentIndex());
         }
 
         void captureBootstrapClientText(String text) {
@@ -1437,6 +1491,26 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return builder.toString();
         }
 
+        ConversationSessionState snapshot() {
+            return new ConversationSessionState(
+                    peerId,
+                    userId,
+                    username,
+                    clientName,
+                    new ArrayList<>(flow),
+                    settings,
+                    new LinkedHashMap<>(answers),
+                    new ArrayList<>(history),
+                    new ArrayList<>(visitedQuestionIndexes),
+                    startedAt,
+                    new LinkedHashMap<>(cachedAnswers),
+                    bootstrapProblemText,
+                    firstClientResponseReceived,
+                    reuseDecisionPending,
+                    currentIndex
+            );
+        }
+
         private String answerKeyFor(QuestionFlowItemDto item) {
             if (item == null) {
                 return null;
@@ -1572,5 +1646,26 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private ConversationSession loadSession(Long userId) {
+        return sessionStoreService.load(SESSION_PLATFORM, properties.getChannelId(), userId, ConversationSessionState.class)
+                .map(stored -> restoreSession(stored.payload()))
+                .orElse(null);
+    }
+
+    private ConversationSession restoreSession(ConversationSessionState state) {
+        return state == null ? null : new ConversationSession(state);
+    }
+
+    private void saveSession(ConversationSession session) {
+        if (session == null) {
+            return;
+        }
+        sessionStoreService.save(SESSION_PLATFORM, properties.getChannelId(), session.userId(), session.snapshot());
+    }
+
+    private void deleteSession(Long userId) {
+        sessionStoreService.delete(SESSION_PLATFORM, properties.getChannelId(), userId);
     }
 }

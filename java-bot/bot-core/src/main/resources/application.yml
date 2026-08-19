@@ -42,6 +42,8 @@ app:
     ingress-lease-ttl: ${APP_COORDINATION_BOT_INGRESS_LEASE_TTL:45s}
     ingress-lease-renew-interval: ${APP_COORDINATION_BOT_INGRESS_RENEW_INTERVAL:15s}
     ingress-follower-backoff: ${APP_COORDINATION_BOT_INGRESS_FOLLOWER_BACKOFF:5s}
+    job-lease-ttl: ${APP_COORDINATION_BOT_JOB_LEASE_TTL:2m}
+    bot-session-ttl: ${APP_COORDINATION_BOT_SESSION_TTL:24h}
   storage:
     object:
       mode: ${APP_STORAGE_OBJECT_MODE:local_fs}

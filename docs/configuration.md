@@ -50,6 +50,8 @@ SPRING_DATASOURCE_PASSWORD=iguana
 - `IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS` — сколько ждать готовности Docker Desktop после установки/старта (по умолчанию `300` секунд).
 - `APP_COORDINATION_MODE` — coordination backend для shared leases/counters/cooldowns; для production contour с multi-instance bot ingress должен быть `redis`.
 - `APP_COORDINATION_BOT_INGRESS_LEASE_TTL`, `APP_COORDINATION_BOT_INGRESS_RENEW_INTERVAL`, `APP_COORDINATION_BOT_INGRESS_FOLLOWER_BACKOFF` — tuning shared ingress ownership для `Telegram` / `VK` / `MAX` long-poll runtimes.
+- `APP_COORDINATION_BOT_JOB_LEASE_TTL` — TTL shared lease для bot-side scheduled jobs, которые не должны дублироваться между instance.
+- `APP_COORDINATION_BOT_SESSION_TTL` — TTL shared webhook/session snapshots для `VK` / `MAX`.
 
 Для целевого production-перехода по `01-181` используйте явный режим external DB:
 
@@ -69,10 +71,13 @@ SPRING_DATASOURCE_PASSWORD=secret
 - runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели, а SQLite-пути используются только в явном `sqlite`-режиме без дополнительных `SPRING_SQL_INIT_*` флагов.
 - для multi-instance bot ingress production contour теперь предполагает shared coordination:
   - `Telegram`, `VK`, `MAX` long-poll ownership должен идти через `APP_COORDINATION_MODE=redis`;
-  - связанные bot-side schedulers, завязанные на ingress owner semantics, должны исполняться только active owner'ом канала.
+  - связанные bot-side schedulers должны идти через shared job lease, а не через process-local таймеры.
+- `VK` и `MAX` webhook mode теперь не должны опираться на single-owner `409` gating:
+  - question-flow session state externalized через shared bot session store;
+  - multi-instance webhook contour требует общего Redis coordination/session layer.
 - `spring-panel` больше не подставляет `APP_DB_*` SQLite-пути автоматически, если `app.datasource.mode` не выставлен в явный `sqlite`.
 - normal first-run path больше не должен неявно переводить проект обратно в SQLite только потому, что Docker недоступен.
-- `VK` webhook mode не должен silently жить рядом с long-poll: при `vk-bot.webhook-enabled=true` long-poll runner должен быть выключен, а webhook ingress следует считать sticky/single-owner perimeter, пока session state не externalized полностью.
+- `VK` webhook mode не должен silently жить рядом с long-poll: при `vk-bot.webhook-enabled=true` long-poll runner должен быть выключен, а webhook/runtime state должен идти через shared coordination/session layer.
 
 > 💡 ID группы поддержки для Telegram можно сохранить в панели администратора в разделе «Каналы (боты)». Если оставить пустым, бот запишет ID автоматически после добавления в чат.
 

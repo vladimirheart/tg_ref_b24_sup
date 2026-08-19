@@ -29,6 +29,7 @@ Production contour теперь предполагает следующий live
 - Incident lifecycle, watchers, routes, delivery ledger и transport degradation incidents живут в canonical backend contour.
 - Attachments в production должны резолвиться через object storage boundary, а не через local repo/runtime disk как live storage.
 - `java-bot` long-poll ingress (`Telegram`, `VK`, `MAX`) теперь должен жить под shared ingress lease через Redis coordination, а не как uncontrolled multi-instance consumer.
+- `VK`/`MAX` webhook question-flow session state теперь тоже должен жить в shared Redis-backed bot session store, а не в process-local памяти одного bot instance.
 
 ## 3. Multi-instance audit
 
@@ -48,11 +49,11 @@ Production contour теперь предполагает следующий live
   - `VkSupportBot`;
   - `MaxLongPollingLifecycle`;
   обновляют shared ingress lease и не должны одновременно держать live long-poll ownership для одного канала.
-- bot-side scheduled flows, привязанные к ingress owner semantics, тоже больше не должны работать как "каждый instance сам по себе":
-  - `SupportBot.sendUnblockDigest`;
+- bot-side scheduled flows, привязанные к ingress/session semantics, тоже больше не должны работать как "каждый instance сам по себе":
   - `VkSupportBot.sendUnblockDigest`;
-  - question-flow session expiry schedulers;
-  теперь исполняются только active ingress owner'ом канала.
+  - `VkSupportBot.expireSilentQuestionFlowSessions`;
+  - `MaxWebhookController.expireSilentQuestionFlowSessions`;
+  теперь исполняются через отдельные shared job leases, а не через неявную зависимость от ingress owner.
 
 ### 3.2. Harmless local-only loops
 
@@ -68,16 +69,15 @@ Production contour теперь предполагает следующий live
 Эти зоны не являются скрытыми shared writers, но их важно держать в голове при production эксплуатации:
 
 - `BotProcessService` — локальный process-control слой панели. В production его нужно считать convenience/control-plane функцией, а не shared distributed orchestrator.
-- Telegram/VK/MAX question-flow sessions (`conversations` / `sessions` maps внутри bot runtimes) всё ещё process-local, но long-poll ingress теперь constrained через distributed singleton ownership на канал.
-- webhook ingress path не является fully active-active state-sharing model:
-  - `VK` callback path использует single-owner coordination;
-  - при webhook deployment всё ещё нужен retry-friendly ingress и предпочтительно sticky routing/single-owner topology, если хотим избежать session fragmentation без полной externalization state.
+- Telegram question-flow session state всё ещё остаётся локальным runtime concern, но его ingress уже constrained через distributed singleton ownership на канал.
+- `VK` и `MAX` webhook question-flow state больше не должен фрагментироваться между instance: session snapshots externalized в shared bot session store.
 
 Практический вывод:
 
 - backend/transport contour уже multi-instance safe на стороне PostgreSQL/Redis/RabbitMQ;
 - long-poll bot ingress теперь тоже закрыт через distributed singleton ownership;
-- remaining non-ideal zone сместилась в webhook/session-sharing edge cases, где state всё ещё не externalized полностью.
+- webhook question-flow state для `VK`/`MAX` уже externalized;
+- remaining non-ideal zone теперь смещена в более глубокий worker replay/observability/debug слой, а не в базовое session-sharing.
 
 ## 4. Operator workbench and recovery surface
 
@@ -104,7 +104,7 @@ Production contour теперь предполагает следующий live
 - Убедиться, что `APP_DB_MODE=postgresql`, а не compatibility `sqlite`.
 - Не запускать integration workers с direct business DB ownership contract.
 - Для long-poll bot ingress убедиться, что `APP_COORDINATION_MODE=redis` и lease ownership реально работает через общий Redis.
-- Для webhook ingress не рассчитывать на implicit active-active session sharing: использовать sticky routing, retry-friendly ingress или single-owner deployment policy.
+- Для `VK`/`MAX` webhook ingress требуется общий Redis coordination/session layer; без него webhook multi-instance contour не считается поддержанным.
 - После релиза проверить:
   - `/incidents`;
   - transport incidents;
@@ -115,9 +115,9 @@ Production contour теперь предполагает следующий live
 
 ## 6. Residual production debt
 
-На `2026-08-19` remaining contour debt уже уже не про SQLite datasources и не про transport ownership. Основной незакрытый хвост:
+На `2026-08-19` remaining contour debt уже уже не про SQLite datasources, не про transport ownership и не про базовый webhook session-sharing. Основной незакрытый хвост:
 
-- bot-side question-flow/session state всё ещё не externalized полностью;
-- strict active-active webhook ingress на один и тот же канал по-прежнему требует отдельного state-sharing слоя, если хотим убрать sticky/single-owner assumptions совсем.
+- deeper operability/replay/debug surface вокруг integration workers и сложных transport incidents;
+- дальнейшее развитие alerting/reporting/observability поверх уже собранного contour.
 
 Всё остальное production contour следует считать уже собранным вокруг canonical `PostgreSQL + Redis + RabbitMQ + object storage + incident workbench`.
