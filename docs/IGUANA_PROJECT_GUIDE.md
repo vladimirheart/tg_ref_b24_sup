@@ -60,7 +60,7 @@ Shared JSON-файлы лежат в `config/shared/`:
 | `java-bot/` | runtime модулей ботов | Внешние каналы и transport layer |
 | `config/shared/` | JSON-конфиги | Shared бизнес-настройки |
 | `attachments/` | файлы пользователей и knowledge assets | Без них часть контента будет недоступна |
-| `bot_databases/` | `bot-<channelId>.db` | Данные конкретных каналов/ботов |
+| `bot_databases/` | `bot-<channelId>.db` | Legacy per-channel shard-данные для controlled import/диагностики |
 | `docs/` | документация | Операционная и архитектурная база знаний |
 | `logs/` | runtime-логи | Полезно для диагностики, но не обязательно для переноса |
 | `run/` | служебные runtime-файлы | Обычно не переносятся |
@@ -120,16 +120,16 @@ Shared JSON-файлы лежат в `config/shared/`:
 - `clients.db`
 - `knowledge_base.db`
 - `objects.db`
-- explicit legacy `bot-<channelId>.db`, если shard-layer отдельно включён
+- legacy `bot-<channelId>.db`, если нужно подтянуть старые per-channel данные в canonical contour
 
 ### 5.2 Bot database directory
 
-Отдельно существует `bot_databases/`, где лежат файлы вида `bot-<channelId>.db`.
+Отдельно существует `bot_databases/`, где лежат legacy-файлы вида `bot-<channelId>.db`.
 
 Это важно по двум причинам:
 
-1. часть bot runtime состояния живёт вне root SQLite-файлов;
-2. при переносе на другую машину этот каталог нужно переносить вместе с проектом.
+1. часть исторических bot-данных может жить вне root SQLite-файлов до controlled import;
+2. при переносе на другую машину этот каталог нужно переносить вместе с проектом, если требуется подтянуть legacy shard-данные.
 
 ### 5.3 Attachments
 
@@ -343,7 +343,7 @@ $env:SPRING_OPTS='--server.port=8080'
 - доступность нужного порта;
 - bot-specific лог;
 - состояние channel config в панели;
-- наличие и доступность `bot_databases/`.
+- наличие и доступность `bot_databases/` для controlled import старых per-channel данных.
 
 ### 11.3 В панели нет данных или пропали вложения
 

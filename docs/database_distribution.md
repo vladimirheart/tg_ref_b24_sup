@@ -28,8 +28,9 @@
 - `clients.db`, `knowledge_base.db` - transitional/compatibility
   контуры, из которых не все являются текущим business source of truth.
 
-Отдельно существует каталог `bot-<channelId>.db`, который создаётся панелью
-для channel-local bot файлов.
+Отдельно существует каталог legacy `bot-<channelId>.db`, который больше не
+создаётся панелью как normal runtime path и нужен только для controlled import
+старых channel-local bot shard-файлов.
 
 ## 1. Текущее распределение БД
 
@@ -42,7 +43,7 @@
 | `clients` | `clients.db` | `app.datasource.clients-sqlite.path` / `APP_DB_CLIENTS` | `spring-panel` | Bootstrap secondary БД клиентов | transitional |
 | `knowledge` | `knowledge_base.db` | `app.datasource.knowledge-sqlite.path` / `APP_DB_KNOWLEDGE` | `spring-panel` | Bootstrap secondary knowledge БД | transitional |
 | `objects` | `objects.db` | `app.datasource.objects-sqlite.path` / `APP_DB_OBJECTS` | `spring-panel` | Отдельный контур паспортов объектов | active |
-| `bot shard layer` | `bot-<channelId>.db` | `APP_BOT_DATABASE_DIR` | `spring-panel` | Per-channel bot файлы, создаются `BotDatabaseRegistry` | shard/legacy layer |
+| `bot shard layer` | `bot-<channelId>.db` | `APP_BOT_DATABASE_DIR` | `spring-panel` | Legacy per-channel shard-файлы, консолидируются backend-owned import service | import-only legacy layer |
 
 ## 2. Как БД подключаются в `spring-panel`
 
@@ -340,8 +341,9 @@ Spring datasource outside явного SQLite bootstrap path.
 
 Но этот registry не читался как живой source of truth и только закреплял
 legacy multi-SQLite topology. Поэтому отдельный `settings.db` contour удалён,
-а `BotDatabaseRegistry` оставлен только как local helper для explicit
-`bot-<channelId>.db` shard bootstrap.
+а per-channel shard layer переведён из bootstrap-ветки в controlled import:
+legacy `bot-<channelId>.db` теперь рассматривается только как источник данных
+для последующей консолидации в canonical contour.
 
 ## 4. Как БД используются в `java-bot`
 
@@ -373,27 +375,18 @@ support-bot:
 
 Это нужно учитывать при любой работе по разделению panel и bot контуров.
 
-## 5. Отдельный слой `bot-<channelId>.db`
+## 5. Legacy слой `bot-<channelId>.db`
 
-Панель по-прежнему умеет создавать per-channel bot базы через
-`BotDatabaseRegistry` в каталоге, заданном `APP_BOT_DATABASE_DIR`, но этот
-shard-layer больше не должен расти автоматически.
+Per-channel bot shard-файлы больше не bootstrap-ятся панелью и не считаются
+допустимым live runtime storage. Каталог `APP_BOT_DATABASE_DIR` сохраняется
+только как import boundary для существующих legacy-файлов.
 
-Назначение этого слоя:
+Назначение этого слоя теперь ограничено:
 
-- хранить channel-local bot файлы;
-- создавать `bot_users`;
-- создавать `bot_chat_history`;
-- создавать локальные bot-side таблицы без отдельного registry DB.
-
-Теперь по умолчанию `app.bots.sqlite-per-channel-shard-enabled=false`, поэтому:
-
-- per-channel `bot-<channelId>.db` не bootstrap-ятся автоматически даже в
-  SQLite compatibility runtime;
-- registry/link metadata для bot shard layer больше не должны расти вообще
-  через отдельный `settings.db`;
-- сам слой остаётся только как legacy compatibility механизм, а не как
-  нормальная topology живой системы.
+- сохранить legacy channel-local bot данные до переноса;
+- дать backend-owned consolidation step импортировать `bot_users`,
+  `bot_chat_history` и `applications` в canonical PostgreSQL contour;
+- не участвовать в live business reads/writes и не расти как runtime topology.
 
 ## 6. Ключевые архитектурные выводы
 
@@ -420,8 +413,8 @@ shard-layer больше не должен расти автоматически
 - пользователей, ролей и прав - в `panel_identity.db`;
 - SSL/RMS/iiko monitoring - в `monitoring.db`;
 - паспортов объектов - в `objects.db`;
-- bot-side client/unblock/runtime хвостов - в `bot_runtime.db` и частично в
-  `bot-<channelId>.db`.
+- bot-side client/unblock/runtime хвостов - в `bot_runtime.db`; legacy
+  `bot-<channelId>.db` допускается только как import source для старых данных.
 
 ## 8. Связанные документы
 
@@ -440,7 +433,7 @@ shard-layer больше не должен расти автоматически
 - канонических выделенных контуров;
 - transitional secondary БД;
 - legacy-compatible fallback wiring;
-- channel-local shard-файлов для ботов.
+- legacy shard-файлов для controlled bot-data import.
 
 Главный практический вывод такой:
 

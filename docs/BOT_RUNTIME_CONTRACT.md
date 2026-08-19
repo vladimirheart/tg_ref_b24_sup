@@ -102,7 +102,7 @@ Platform-specific:
 - в `APP_DB_MODE=sqlite` warnings/blockers обязаны сигнализировать, что это только local/dev bootstrap perimeter;
 - production-ready статус для bot runtime допустим только при external PostgreSQL contract (`APP_DB_MODE=postgresql` + `SPRING_DATASOURCE_URL`) и при готовом jar launcher path.
 - normal runtime default для `spring-panel` и `java-bot` теперь `postgresql`, поэтому SQLite contract больше не должен восприниматься как implicit path.
-- per-channel `bot-<channelId>.db` больше не должен автоматически расти даже в SQLite mode: для этого нужен явный `app.bots.sqlite-per-channel-shard-enabled=true`.
+- per-channel `bot-<channelId>.db` больше не считается допустимым live runtime-path: legacy shard-файлы должны только импортироваться в canonical PostgreSQL contour.
 - в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` bot-side business reads/writes должны идти через internal panel API или queue boundary; silent fallback в local business storage больше не считается допустимым live поведением.
 
 ## Production Recipe

@@ -34,4 +34,8 @@ public class BotChatHistory {
     private Long messageId;
 
     private String messageType;
+
+    private String ticketId;
+
+    private String attachmentPath;
 }

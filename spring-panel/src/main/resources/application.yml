@@ -76,7 +76,6 @@ app:
       path: ${APP_DB_OBJECTS:objects.db}
   bots:
     database-dir: ${APP_BOT_DATABASE_DIR:../bot_databases}
-    sqlite-per-channel-shard-enabled: ${APP_BOT_SQLITE_PER_CHANNEL_SHARD_ENABLED:false}
     launch-mode: ${APP_BOT_LAUNCH_MODE:auto} # auto -> prefer explicit/prebuilt jar, fallback to spring-boot:run in dev
     executable-jars: {} # optional explicit module -> jar path map, relative to java-bot or absolute
     preferred-production-launcher: ${APP_BOT_PREFERRED_PRODUCTION_LAUNCHER:jar}

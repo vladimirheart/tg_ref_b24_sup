@@ -16,8 +16,8 @@
   Создаёт `clients.db`, `knowledge_base.db` и `objects.db` только в `APP_DB_MODE=sqlite`.
 - `MonitoringDatabaseBootstrapService`
   Поддерживает локальный `monitoring.db` и перенос старых monitoring-таблиц только в SQLite-режиме.
-- `BotDatabaseRegistry`
-  Ведёт только explicit local/dev bootstrap `bot-<channelId>.db`; отдельный `settings.db` registry layer больше не считается допустимым runtime ownership слоем.
+- `LegacyBotShardConsolidationService`
+  В PostgreSQL runtime backend-owned образом переносит данные из legacy `bot-<channelId>.db` в canonical таблицы; live bootstrap per-channel shard-файлов больше не считается допустимым runtime ownership слоем.
 - `SqliteSchemaBootstrapSupport`
   Общий helper для local SQLite schema bootstrap.
 - `EnvDefaultsInitializer`
@@ -55,7 +55,7 @@
 - неявное создание `bot-<channelId>.db`, `monitoring.db` или secondary SQLite-файлов при `APP_DB_MODE=postgresql`;
 - operator-facing live reads, которые в `APP_DB_MODE=postgresql` продолжают напрямую открывать per-channel SQLite-файлы вместо canonical datasource;
 - schema ownership вспомогательных SQLite-таблиц внутри live controller/service bean’ов (`PasswordResetRequestApiController`, `UiEventOutboxWatcher`, `ChatAttachmentMetadata*`);
-- автоматический import/recovery из legacy `*.db` в обычном PostgreSQL runtime без явного compatibility switch;
+- автоматический import/recovery из legacy `*.db` в обычном PostgreSQL runtime без backend-owned marker/guardrail механики;
 - перенос business ownership обратно в local SQLite только ради удобства dev-старта.
 
 ## 3. Практический смысл

@@ -118,7 +118,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 | `java-bot/` | код и runtime модулей ботов |
 | `config/shared/` | shared JSON-конфиги |
 | `attachments/` | пользовательские вложения, knowledge assets, аватары и другие файлы |
-| `bot_databases/` | по-ботовые SQLite-базы `bot-<channelId>.db` |
+| `bot_databases/` | legacy per-channel SQLite shard-файлы `bot-<channelId>.db` для import/диагностики |
 | `docs/` | эксплуатационная и архитектурная документация |
 | `ai-context/` | AI-контекст, правила проекта, task-tracking и changelog |
 
@@ -133,7 +133,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 - `clients.db` - transitional контур клиентов;
 - `knowledge_base.db` - transitional контур базы знаний;
 - `objects.db` - transitional контур паспортов объектов;
-- per-channel `bot-<channelId>.db` - только explicit legacy shard-layer при отдельном opt-in.
+- per-channel `bot-<channelId>.db` - legacy import-only слой, а не live source of truth.
 
 Подробная карта путей и canonical aliases описана в [docs/database-paths.md](docs/database-paths.md).
 

@@ -1,14 +1,11 @@
 package com.example.panel.service;
 
-import com.example.panel.config.BotProcessProperties;
 import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.ClientsSqliteDataSourceProperties;
 import com.example.panel.config.KnowledgeSqliteDataSourceProperties;
 import com.example.panel.config.ObjectsSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteConnectionConfigSupport;
-import com.example.panel.entity.Channel;
-import com.example.panel.repository.ChannelRepository;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,9 +24,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
     private final ClientsSqliteDataSourceProperties clientsProperties;
     private final KnowledgeSqliteDataSourceProperties knowledgeProperties;
     private final ObjectsSqliteDataSourceProperties objectsProperties;
-    private final ChannelRepository channelRepository;
-    private final BotDatabaseRegistry botDatabaseRegistry;
-    private final BotProcessProperties botProcessProperties;
     private final SqliteSchemaBootstrapSupport schemaBootstrapSupport;
     private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
@@ -37,18 +31,12 @@ public class DatabaseBootstrapService implements ApplicationRunner {
                                     ClientsSqliteDataSourceProperties clientsProperties,
                                     KnowledgeSqliteDataSourceProperties knowledgeProperties,
                                     ObjectsSqliteDataSourceProperties objectsProperties,
-                                    ChannelRepository channelRepository,
-                                    BotDatabaseRegistry botDatabaseRegistry,
-                                    BotProcessProperties botProcessProperties,
                                     SqliteSchemaBootstrapSupport schemaBootstrapSupport,
                                     PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.botProperties = botProperties;
         this.clientsProperties = clientsProperties;
         this.knowledgeProperties = knowledgeProperties;
         this.objectsProperties = objectsProperties;
-        this.channelRepository = channelRepository;
-        this.botDatabaseRegistry = botDatabaseRegistry;
-        this.botProcessProperties = botProcessProperties;
         this.schemaBootstrapSupport = schemaBootstrapSupport;
         this.databaseRuntimeMode = databaseRuntimeMode;
     }
@@ -63,7 +51,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
         initializeKnowledgeDatabase();
         initializeObjectsDatabase();
         initializeSharedBotRuntimeDatabase();
-        initializeBotDatabases();
     }
 
     private void initializeClientsDatabase() {
@@ -191,17 +178,6 @@ public class DatabaseBootstrapService implements ApplicationRunner {
             "CREATE INDEX IF NOT EXISTS idx_client_unblock_requests_user " +
                 "ON client_unblock_requests(user_id)"
         ), "bot_runtime.db");
-    }
-
-    private void initializeBotDatabases() {
-        if (!botProcessProperties.isSqlitePerChannelShardEnabled()) {
-            log.info("Skipping per-channel SQLite bot shard bootstrap because app.bots.sqlite-per-channel-shard-enabled=false");
-            return;
-        }
-        List<Channel> channels = channelRepository.findAll();
-        for (Channel channel : channels) {
-            botDatabaseRegistry.ensureBotDatabase(channel.getId(), channel.getPlatform());
-        }
     }
 
     private DataSource createClientsCompatibilityDataSource() {

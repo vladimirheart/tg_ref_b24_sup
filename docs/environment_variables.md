@@ -44,8 +44,7 @@
 | `APP_DB_CLIENTS` | база клиентов | `clients.db` |
 | `APP_DB_KNOWLEDGE` | база знаний | `knowledge_base.db` |
 | `APP_DB_OBJECTS` | база объектов | `objects.db` |
-| `APP_BOT_DATABASE_DIR` | каталог баз каждого бота | `../bot_databases` |
-| `APP_BOT_SQLITE_PER_CHANNEL_SHARD_ENABLED` | разрешить legacy bootstrap `bot-<channelId>.db` shard-layer даже в SQLite mode | `false` |
+| `APP_BOT_DATABASE_DIR` | каталог legacy per-channel shard-файлов `bot-<channelId>.db` для import/диагностики | `../bot_databases` |
 
 ## Хранилища
 

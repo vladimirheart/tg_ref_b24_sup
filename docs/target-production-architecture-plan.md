@@ -16,7 +16,7 @@
 - `clients.db`, `knowledge_base.db`, `objects.db`
   Создаются и bootstrap-ятся в `DatabaseBootstrapService`.
 - `bot-<channelId>.db`
-  Панель умеет создавать per-channel SQLite-файлы через `BotDatabaseRegistry.ensureBotDatabase(...)`, но после текущего cleanup это должен быть только explicit legacy opt-in.
+  Per-channel shard-файлы больше не должны создаваться как normal runtime path; legacy данные из них должны переноситься в canonical contour backend-owned consolidation step.
 
 ### `java-bot`
 
@@ -30,7 +30,7 @@
   - `panel_runtime.db` как основной business/source-of-truth контур UI;
   - `panel_identity.db` для auth, профилей, ролей, маршрутизации уведомлений;
   - `monitoring.db` только как SQLite compatibility/bootstrap слой, тогда как live monitoring runtime в external mode уже идёт через primary contour;
-  - `bot_runtime.db` и `bot-<channelId>.db` только для remaining compatibility/runtime-хвостов, а не как canonical owner `feedbacks`/`client_unblock_requests`;
+  - `bot_runtime.db` только для remaining compatibility/runtime-хвостов, а `bot-<channelId>.db` уже не live owner, а import-only legacy source;
   - `objects.db` для паспортов объектов;
   - transitional `clients.db`, `knowledge_base.db`.
 - `java-bot` читает:
@@ -54,7 +54,7 @@
   datasource в external runtime, но как compatibility/transport слой ещё не
   доведён до конечной RabbitMQ-first модели.
 - `bot-<channelId>.db`
-  Legacy/shard слой, не должен развиваться как самостоятельная доменная БД.
+  Legacy/import-only слой, не должен развиваться как самостоятельная доменная БД и не должен участвовать в live runtime reads/writes.
 
 ## 4. Mapping текущих контуров к target-state
 
@@ -67,19 +67,19 @@
 | `clients.db` | поглотить в `PostgreSQL.core` |
 | `knowledge_base.db` | поглотить в `PostgreSQL.knowledge` или `PostgreSQL.core` по фактическому ownership |
 | `bot_runtime.db` | оставить только как transport/runtime contour до полного перехода на RabbitMQ + backend-owned business writes |
-| `bot-<channelId>.db` | убрать как отдельный source of truth; при необходимости оставить только как runtime spool/shard abstraction |
+| `bot-<channelId>.db` | убрать как отдельный source of truth; допустим только как временный import source для legacy-данных |
 
 ## 5. Текущая process model ботов
 
 - Панель запускает процессы ботов через `BotProcessService`.
 - Контракт окружения ботов формируется `BotRuntimeContractService`.
-- Registry per-channel SQLite-файлов ведёт `BotDatabaseRegistry`, но automatic shard bootstrap теперь должен считаться legacy opt-in, а не normal runtime path.
+- Ownership per-channel SQLite shard-файлов переведён в backend-owned consolidation path; automatic shard bootstrap больше не считается допустимым runtime path.
 - `java-bot` сейчас может работать напрямую с business SQLite-контуром панели, что несовместимо с целевой production-моделью `provider -> worker -> queue/api -> backend -> PostgreSQL`.
 
 ## 6. Ключевые migration risks
 
 - Даже после ослабления default runtime contract прямой доступ `java-bot` к business DB смешивает transport и business ownership там, где ещё используется explicit SQLite compatibility bridge.
-- `bot-<channelId>.db` продолжает закреплять legacy topology и усложняет миграцию.
+- Legacy данные в `bot-<channelId>.db` ещё требуют controlled import и operational cleanup, но сам shard-layer уже выведен из live runtime topology.
 - `bot_runtime.db` уже ослаблен как physical datasource split, но transport/runtime ownership всё ещё не закрыт полностью.
 - Часть bootstrap-логики использует SQLite-specific SQL (`datetime('now')`, `INSERT OR IGNORE`, SQLite schema bootstrap).
 - `spring-panel` имеет split между primary/runtime, identity, monitoring и secondary DB, поэтому миграция к одной PostgreSQL БД со schema boundaries потребует переезда именованных `JdbcTemplate` и bootstrap-сервисов.
@@ -89,7 +89,7 @@
 
 - Прямая зависимость `java-bot` от `panel_runtime.db` как default business DB.
 - Возврат `bot_runtime.db` в роль отдельного live datasource source of truth для panel-side runtime.
-- Per-channel `bot-<channelId>.db` как скрытый доменный storage.
+- Per-channel `bot-<channelId>.db` как скрытый доменный storage или live runtime bridge.
 - SQLite-specific bootstrap для внешней production DB.
 - Неявное переключение панели на external DB только по факту наличия `DATABASE_URL`.
 
@@ -117,7 +117,7 @@
 ### Phase 1. Storage ownership cleanup
 
 - Перевести `java-bot` с default `panel_runtime.db` на явный transport contract.
-- Остановить дальнейший рост `bot-<channelId>.db`.
+- Удерживать `bot-<channelId>.db` только как read-only import source до полного operational cleanup.
 - Зафиксировать backend-only ownership для business writes в правилах и runtime контрактах.
 
 ### Phase 2. PostgreSQL schema bridge
@@ -148,7 +148,7 @@
 
 Сейчас к этому perimeter относятся:
 
-- `spring-panel`: `DatabaseBootstrapService`, `MonitoringDatabaseBootstrapService`, `BotDatabaseRegistry`, `SqliteSchemaBootstrapSupport`;
+- `spring-panel`: `DatabaseBootstrapService`, `MonitoringDatabaseBootstrapService`, `LegacyBotShardConsolidationService`, `SqliteSchemaBootstrapSupport`;
 - `java-bot`: `SqliteSchemaInitializer`, `SqliteTriggerInitializer`, `schema-sqlite.sql`;
 - explicit SQLite compatibility bootstrap, который включается только при сознательном выборе `IGUANA_BOOTSTRAP_DB_MODE=sqlite` или аварийном override.
 

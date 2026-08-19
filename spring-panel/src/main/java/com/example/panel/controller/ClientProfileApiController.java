@@ -1,14 +1,11 @@
 package com.example.panel.controller;
 
-import com.example.panel.config.PanelDatabaseRuntimeMode;
-import com.example.panel.config.SqliteConnectionConfigSupport;
 import com.example.panel.entity.Channel;
 import com.example.panel.entity.ClientPhone;
 import com.example.panel.entity.ClientStatus;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.ClientPhoneRepository;
 import com.example.panel.repository.ClientStatusRepository;
-import com.example.panel.service.BotDatabaseRegistry;
 import com.example.panel.service.NotificationService;
 import com.example.panel.support.JdbcSchemaInspector;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -62,31 +59,25 @@ public class ClientProfileApiController {
     private final JdbcTemplate jdbcTemplate;
     private final ClientStatusRepository clientStatusRepository;
     private final ClientPhoneRepository clientPhoneRepository;
-    private final BotDatabaseRegistry botDatabaseRegistry;
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
     private final NotificationService notificationService;
-    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
     private final Path avatarsRoot;
 
     public ClientProfileApiController(JdbcTemplate jdbcTemplate,
                                       ClientStatusRepository clientStatusRepository,
                                       ClientPhoneRepository clientPhoneRepository,
-                                      BotDatabaseRegistry botDatabaseRegistry,
                                       ChannelRepository channelRepository,
                                       ObjectMapper objectMapper,
                                       NotificationService notificationService,
-                                      PanelDatabaseRuntimeMode databaseRuntimeMode,
                                       @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir)
         throws IOException {
         this.jdbcTemplate = jdbcTemplate;
         this.clientStatusRepository = clientStatusRepository;
         this.clientPhoneRepository = clientPhoneRepository;
-        this.botDatabaseRegistry = botDatabaseRegistry;
         this.channelRepository = channelRepository;
         this.objectMapper = objectMapper;
         this.notificationService = notificationService;
-        this.databaseRuntimeMode = databaseRuntimeMode;
         this.avatarsRoot = ensureDirectory(avatarsDir);
     }
 
@@ -239,7 +230,7 @@ public class ClientProfileApiController {
         boolean avatarRefreshProcessed = false;
 
         for (ChannelSnapshot channel : channels) {
-            Optional<ExternalUserInfo> userInfo = loadExternalUserInfo(userId, channel.channelId());
+            Optional<ExternalUserInfo> userInfo = loadExternalUserInfo(userId);
             ExternalUserInfo info = userInfo.orElse(null);
             String channelUsername = info != null && StringUtils.hasText(info.username()) ? info.username().trim() : null;
             String channelClientName = info != null && StringUtils.hasText(info.clientName()) ? info.clientName().trim() : null;
@@ -325,18 +316,8 @@ public class ClientProfileApiController {
         return stored != null && stored == incoming;
     }
 
-    private Optional<ExternalUserInfo> loadExternalUserInfo(long userId, long channelId) {
-        Optional<ExternalUserInfo> info = Optional.empty();
-        Optional<Path> compatibilityDbPath = resolveCompatibilityBotDatabasePath(channelId);
-        if (compatibilityDbPath.isPresent()) {
-            Path dbPath = compatibilityDbPath.get();
-            JdbcTemplate template = buildBotJdbcTemplate(dbPath);
-            info = loadExternalUserInfo(template, userId);
-        }
-        if (info.isEmpty()) {
-            info = loadExternalUserInfo(jdbcTemplate, userId);
-        }
-        return info;
+    private Optional<ExternalUserInfo> loadExternalUserInfo(long userId) {
+        return loadExternalUserInfo(jdbcTemplate, userId);
     }
 
     private Optional<ExternalUserInfo> loadExternalUserInfo(JdbcTemplate template, long userId) {
@@ -476,18 +457,6 @@ public class ClientProfileApiController {
             log.debug("Failed to read {} from {}: {}", table, idColumn, ex.getMessage());
             return Optional.empty();
         }
-    }
-
-    Optional<Path> resolveCompatibilityBotDatabasePath(long channelId) {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return Optional.empty();
-        }
-        Path dbPath = botDatabaseRegistry.resolveBotDatabasePath(channelId);
-        return Files.exists(dbPath) ? Optional.of(dbPath) : Optional.empty();
-    }
-
-    private JdbcTemplate buildBotJdbcTemplate(Path dbPath) {
-        return new JdbcTemplate(SqliteConnectionConfigSupport.createDataSource("jdbc:sqlite:" + dbPath, null, null));
     }
 
     private Set<String> loadTableColumns(JdbcTemplate template, String table) {

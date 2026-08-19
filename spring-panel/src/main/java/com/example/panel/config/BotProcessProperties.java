@@ -20,7 +20,6 @@ public class BotProcessProperties {
     private String recommendedArtifactDirectory = "dist";
     private Duration startupReadinessTimeout = Duration.ofSeconds(45);
     private Duration startupPollInterval = Duration.ofMillis(250);
-    private boolean sqlitePerChannelShardEnabled;
 
     public String getDatabaseDir() {
         return databaseDir;
@@ -76,14 +75,6 @@ public class BotProcessProperties {
 
     public void setStartupPollInterval(Duration startupPollInterval) {
         this.startupPollInterval = startupPollInterval;
-    }
-
-    public boolean isSqlitePerChannelShardEnabled() {
-        return sqlitePerChannelShardEnabled;
-    }
-
-    public void setSqlitePerChannelShardEnabled(boolean sqlitePerChannelShardEnabled) {
-        this.sqlitePerChannelShardEnabled = sqlitePerChannelShardEnabled;
     }
 
     public String getPreferredProductionLauncher() {
