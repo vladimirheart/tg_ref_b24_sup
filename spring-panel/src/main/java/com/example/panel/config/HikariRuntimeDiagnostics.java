@@ -11,8 +11,6 @@ import javax.sql.DataSource;
 
 /**
  * Configures runtime diagnostics for the primary external Hikari datasource.
- * The datasource is still lazy at this point, so the leak detector can be set
- * before the first JDBC connection starts the pool.
  */
 @Component
 public class HikariRuntimeDiagnostics {
@@ -39,7 +37,7 @@ public class HikariRuntimeDiagnostics {
             leakDetectionMs = 2_000L;
         }
         try {
-            if (leakDetectionMs >= 2_000L && !hikari.isRunning()) {
+            if (leakDetectionMs >= 2_000L) {
                 hikari.setLeakDetectionThreshold(leakDetectionMs);
             }
         } catch (IllegalStateException ex) {
