@@ -8,6 +8,7 @@ import com.example.panel.repository.TaskCommentRepository;
 import com.example.panel.repository.TaskHistoryRepository;
 import com.example.panel.repository.TaskPersonRepository;
 import com.example.panel.repository.TaskRepository;
+import com.example.panel.service.IncidentService;
 import com.example.panel.service.NotificationRoutingService;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
@@ -54,17 +55,20 @@ public class TaskApiController {
     private final TaskHistoryRepository historyRepository;
     private final TaskPersonRepository taskPersonRepository;
     private final NotificationRoutingService notificationRoutingService;
+    private final IncidentService incidentService;
 
     public TaskApiController(TaskRepository taskRepository,
                              TaskCommentRepository commentRepository,
                              TaskHistoryRepository historyRepository,
                              TaskPersonRepository taskPersonRepository,
-                             NotificationRoutingService notificationRoutingService) {
+                             NotificationRoutingService notificationRoutingService,
+                             IncidentService incidentService) {
         this.taskRepository = taskRepository;
         this.commentRepository = commentRepository;
         this.historyRepository = historyRepository;
         this.taskPersonRepository = taskPersonRepository;
         this.notificationRoutingService = notificationRoutingService;
+        this.incidentService = incidentService;
     }
 
     @GetMapping
@@ -256,6 +260,7 @@ public class TaskApiController {
                 })
                 .toList();
         dto.put("history", history);
+        dto.put("incidents", incidentService.listIncidentSummariesForTask(task.getId()));
         return dto;
     }
 

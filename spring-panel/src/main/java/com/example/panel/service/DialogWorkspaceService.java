@@ -33,6 +33,7 @@ public class DialogWorkspaceService {
     private final DialogWorkspaceExternalKpiService dialogWorkspaceExternalKpiService;
     private final DialogWorkspaceRolloutGovernanceConfigService dialogWorkspaceRolloutGovernanceConfigService;
     private final DialogWorkspaceWorkflowSnapshotService dialogWorkspaceWorkflowSnapshotService;
+    private final IncidentService incidentService;
 
     public DialogWorkspaceService(DialogDetailsReadService dialogDetailsReadService,
                                   SharedConfigService sharedConfigService,
@@ -50,7 +51,8 @@ public class DialogWorkspaceService {
                                   DialogWorkspaceSlaViewService dialogWorkspaceSlaViewService,
                                   DialogWorkspaceExternalKpiService dialogWorkspaceExternalKpiService,
                                   DialogWorkspaceRolloutGovernanceConfigService dialogWorkspaceRolloutGovernanceConfigService,
-                                  DialogWorkspaceWorkflowSnapshotService dialogWorkspaceWorkflowSnapshotService) {
+                                  DialogWorkspaceWorkflowSnapshotService dialogWorkspaceWorkflowSnapshotService,
+                                  IncidentService incidentService) {
         this.dialogDetailsReadService = dialogDetailsReadService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
@@ -68,6 +70,7 @@ public class DialogWorkspaceService {
         this.dialogWorkspaceExternalKpiService = dialogWorkspaceExternalKpiService;
         this.dialogWorkspaceRolloutGovernanceConfigService = dialogWorkspaceRolloutGovernanceConfigService;
         this.dialogWorkspaceWorkflowSnapshotService = dialogWorkspaceWorkflowSnapshotService;
+        this.incidentService = incidentService;
     }
 
     public ResponseEntity<?> workspace(String ticketId,
@@ -99,6 +102,7 @@ public class DialogWorkspaceService {
         int workspaceRelatedEventsLimit = dialogWorkspaceRequestContractService.resolveDialogConfigRangeMinutes(settings, "workspace_context_related_events_limit", 5, 1, 20);
         List<Map<String, Object>> clientHistory = dialogClientContextReadService.loadClientDialogHistory(summary.userId(), ticketId, workspaceHistoryLimit);
         List<Map<String, Object>> relatedEvents = dialogClientContextReadService.loadRelatedEvents(ticketId, workspaceRelatedEventsLimit);
+        List<Map<String, Object>> incidents = incidentService.listIncidentSummariesForTicket(ticketId);
         Map<String, Object> profileEnrichment = dialogClientContextReadService.loadClientProfileEnrichment(summary.userId());
         DialogWorkspaceClientContextAssemblerService.WorkspaceClientContextBundle clientContextBundle =
                 dialogWorkspaceClientContextAssemblerService.assemble(
@@ -106,8 +110,8 @@ public class DialogWorkspaceService {
                         summary,
                         ticketId,
                         clientHistory,
-                        relatedEvents,
-                        profileEnrichment
+                relatedEvents,
+                profileEnrichment
                 );
 
         Map<String, Object> workspaceRollout = buildWorkspaceRolloutMeta(settings);
@@ -156,6 +160,7 @@ public class DialogWorkspaceService {
                 clientContextBundle.profileMatchCandidates(),
                 clientContextBundle.relatedEvents(),
                 clientContextBundle.profileHealth(),
+                incidents,
                 clientContextBundle.contextSources(),
                 clientContextBundle.attributePolicies(),
                 clientContextBundle.contextBlocks(),

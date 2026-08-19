@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.panel.service.IncidentService;
 import com.example.panel.service.ObjectPassportService;
 import com.example.panel.service.NotificationRoutingService;
 import java.util.List;
@@ -38,6 +39,9 @@ class ObjectPassportApiControllerWebMvcTest {
 
     @MockBean
     private NotificationRoutingService notificationRoutingService;
+
+    @MockBean
+    private IncidentService incidentService;
 
     @Test
     void createPassportDelegatesToService() throws Exception {
@@ -180,5 +184,18 @@ class ObjectPassportApiControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.photos").isArray());
+    }
+
+    @Test
+    void passportIncidentsEndpointReturnsIncidentSummaries() throws Exception {
+        when(incidentService.listIncidentSummariesForObjectPassport(12L))
+                .thenReturn(List.of(Map.of("incident_key", "INC-12", "status", "open")));
+
+        mockMvc.perform(get("/api/object_passports/12/incidents")
+                        .with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].incident_key").value("INC-12"));
     }
 }

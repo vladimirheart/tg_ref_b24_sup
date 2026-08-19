@@ -22,6 +22,7 @@ public class DialogWorkspacePayloadAssemblerService {
                                                      Map<String, Object> profileMatchCandidates,
                                                      List<Map<String, Object>> relatedEvents,
                                                      Map<String, Object> profileHealth,
+                                                     List<Map<String, Object>> incidents,
                                                      List<Map<String, Object>> contextSources,
                                                      List<Map<String, Object>> attributePolicies,
                                                      List<Map<String, Object>> contextBlocks,
@@ -57,22 +58,24 @@ public class DialogWorkspacePayloadAssemblerService {
                 "unavailable", true
         ));
         payload.put("context", includeSections.contains("context")
-                ? Map.of(
+                ? mapWithNullableValues(
                 "client", workspaceClient,
                 "history", clientHistory,
                 "profile_match_candidates", profileMatchCandidates,
                 "related_events", relatedEvents,
                 "profile_health", profileHealth,
+                "incidents", incidents,
                 "context_sources", contextSources,
                 "attribute_policies", attributePolicies,
                 "blocks", contextBlocks,
                 "blocks_health", contextBlocksHealth,
                 "contract", contextContract
         )
-                : Map.of(
+                : mapWithNullableValues(
                 "client", Map.of(),
                 "history", List.of(),
                 "related_events", List.of(),
+                "incidents", List.of(),
                 "context_sources", List.of(),
                 "attribute_policies", List.of(),
                 "blocks", List.of(),

@@ -2,7 +2,7 @@
 
 Документ фиксирует фактический gap между текущим состоянием репозитория после `01-181`/`01-182` и целевым production contour, где система живёт на canonical `PostgreSQL` с backend-owned transport boundary.
 
-Актуально на `2026-08-17`.
+Актуально на `2026-08-19`.
 
 ## 1. Что уже закрыто
 
@@ -12,36 +12,37 @@
 - `java-bot` не должен владеть production schema в external PostgreSQL path;
 - RabbitMQ уже начал использоваться как реальный transport boundary для части live flows.
 - `java-bot` в `rabbitmq` contour больше не должен молча откатываться в local `JPA/SQLite` business-path, если internal panel API для ticket/channel/feedback/blacklist операций не настроен.
+- отдельные `settings.db`, `bot_runtime.db`, `clients.db`, `knowledge_base.db`, `objects.db`, `panel_identity.db` и `monitoring.db` больше не висят как production-like Spring datasource graph в external PostgreSQL runtime;
+- legacy `bot-<channelId>.db` выведен из live topology и переведён в backend-owned consolidation/import path;
+- canonical incident domain реализован на backend-owned storage:
+  - `incidents`;
+  - `incident_relations`;
+  - `incident_events`;
+  - `incident_watchers`;
+  - `incident_routes`;
+- dialogs/tasks/object passports уже умеют читать incident summaries из canonical backend contour.
 
 ## 2. Что ещё не даёт считать проект PostgreSQL-only production system
 
-### 2.1. В `spring-panel` всё ещё есть отдельные SQLite runtime contours
+### 2.1. SQLite compatibility perimeter всё ещё существует
 
-По коду и документации остаются отдельные physical/runtime контуры:
+Проект уже не живёт на multi-SQLite production wiring, но explicit compatibility perimeter всё ещё остаётся:
 
-- `panel_identity.db`;
-- `monitoring.db`;
-- `bot_runtime.db`;
-- `clients.db`;
-- `knowledge_base.db`;
-- `objects.db`.
+- `application-sqlite.yml` и `APP_DB_MODE=sqlite`;
+- lazy bootstrap/helpers вокруг local SQLite path;
+- legacy import/consolidation flows для старых `*.db`;
+- SQLite-specific migrations/tests/dev runbooks.
 
-Это означает, что проект ещё не живёт на едином canonical PostgreSQL storage even if main path already supports PostgreSQL-first start.
+Это допустимо как transitional/dev/import perimeter, но не является финальным production contour.
 
-### 2.2. SQLite datasource graph всё ещё встроен в production wiring
+### 2.2. Runtime infra contour ещё не дожат до final production contract
 
-В `spring-panel` остаются отдельные SQLite datasource-конфигурации и runtime-mode helpers для:
+Основной незакрытый gap уже не в datasource split, а в infra/runtime ownership:
 
-- primary/secondary sqlite paths;
-- monitoring sqlite path;
-- users sqlite path;
-- objects/clients/knowledge sqlite paths;
-- env defaults, которые по-прежнему мыслят проект как multi-SQLite topology.
-
-Пока этот graph остаётся рабочим runtime wiring, система ещё не переведена в final PostgreSQL contour.
-
-При этом отдельные operator-facing direct SQLite probes уже вычищены: client profile refresh больше не открывает per-channel `bot-<channelId>.db` в external PostgreSQL runtime path.
-Дополнительно часть ad-hoc SQLite DDL уже снята с live-bean’ов и возвращена под Flyway ownership; removal отдельного `settings.db` registry contour, monitoring runtime alias, lazy-only bootstrap для `clients.db` / `knowledge_base.db`, runtime rewiring для `objects.db`, runtime alias для `panel_identity.db`, removal отдельного `bot_runtime` datasource bean, explicit `SUPPORT_BOT_DATABASE_PATH` bridge вместо implicit `APP_DB_PANEL_RUNTIME` contract, fail-fast removal silent local business fallback в `rabbitmq` mode и перевод `bot-<channelId>.db` в backend-owned consolidation path уже частично выведены из production-like graph, но transport/runtime логика и доменное разделение ещё остаются.
+- Redis ещё не зафиксирован как обязательный слой для sessions/leases/live coordination;
+- MinIO/S3 abstraction для attachments остаётся target-state, а не обязательным live contract;
+- stateless multi-backend / multi-worker coordination model ещё не закрыт end-to-end operational guardrail-ами;
+- transport boundary уже умеет работать через RabbitMQ, но runtime по-прежнему сохраняет compatibility-варианты и не везде жёстко мыслится как RabbitMQ-first production model.
 
 ### 2.3. Bootstrap всё ещё сохраняет SQLite compatibility mode
 
@@ -50,7 +51,17 @@
 Это уже лучше, чем normal fallback-path, но всё ещё не финальная цель, где живой проект полностью мыслится через canonical PostgreSQL contour и SQLite остаётся только в test/import/legacy compatibility ролях.
 Дополнительно one-time import/recovery из legacy SQLite уже переведён в explicit opt-in и больше не должен автоматически стартовать в каждом PostgreSQL runtime только из-за присутствия старых `*.db` файлов рядом с репозиторием.
 
-### 2.4. Часть документации всё ещё описывает систему как multi-SQLite architecture
+### 2.4. Attachment binaries всё ещё не закреплены за canonical object storage contour
+
+Сейчас runtime attachment path по-прежнему в значимой степени мыслится через local filesystem directories.
+
+Это лучше, чем хранить business state в SQLite, но для заявленного production contour остаётся отдельным gap:
+
+- нужна обязательная `S3/MinIO`-совместимая storage boundary;
+- нужны runbook/config contracts для multi-instance attachment serving;
+- local disk должен остаться только compatibility/dev perimeter.
+
+### 2.5. Часть документации всё ещё описывает систему как более split-топологию, чем она есть по факту
 
 Это видно по:
 
@@ -61,23 +72,22 @@
 
 Пока документация и код вместе описывают multiple SQLite contours как живой runtime, архитектурная миграция не завершена.
 
-### 2.5. Incident module ещё не реализован как canonical backend domain
+### 2.6. Incident module есть в backend contour, но ещё не закрывает весь operator/ops слой
 
-Изначальная постановка `01-181` включала не только infra/storage refactor, но и полноценный incident module.
+Canonical incident domain на backend-owned storage уже появился, но remaining scope по incident-теме ещё есть:
 
-На текущем состоянии:
-
-- есть target-model/specification;
-- есть частичные incident-related UI/ops артефакты;
-- но нет признака завершённого canonical incident domain на backend-owned PostgreSQL storage.
+- полноценный operator-facing UI lifecycle вокруг incident API;
+- richer signal ingestion / automatic incident creation;
+- завершённые alerting/runbook flows поверх новых incident сущностей;
+- operational reporting, которая считает incident module first-class production feature, а не просто linked metadata.
 
 ## 3. Что должно стать next production scope
 
 ### 3.1. Canonical PostgreSQL consolidation
 
-- свести live runtime/business/identity/monitoring/object/task/knowledge data к PostgreSQL;
-- убрать production-like SQLite data sources;
-- закрыть final schema ownership через Flyway/PostgreSQL.
+- удерживать уже достигнутую консолидацию как invariant;
+- продолжать вычищать только те SQLite helper-paths, которые ещё могут быть ошибочно приняты за live contour;
+- закрыть final schema ownership через Flyway/PostgreSQL для новых production-domain расширений.
 
 ### 3.2. Final transport/backend ownership
 
@@ -88,17 +98,16 @@
 ### 3.3. Infra contour
 
 - Redis для sessions/leases/live coordination;
-- RabbitMQ как завершённый transport backbone;
+- RabbitMQ как безусловный live transport backbone;
 - MinIO/S3 для binary attachments;
 - stateless multi-backend/multi-worker model.
 
 ### 3.4. Incident module
 
-- incident lifecycle;
-- signal -> incident model;
-- dialog/task/object links;
-- routes/watchers/history/alerts;
-- operator UI and delivery flows.
+- operator-facing lifecycle/UI поверх уже существующего backend domain;
+- signal -> incident model и richer automation;
+- alerts/delivery/runbook flows;
+- production analytics/reporting для incident operations.
 
 ## 4. Практический вывод
 
@@ -106,6 +115,7 @@
 
 - `PostgreSQL-first readiness`: да;
 - `backend-owned main runtime path`: в основном да;
+- `canonical incident backend domain`: да, базовый слой реализован;
 - `full PostgreSQL-only production contour`: ещё нет.
 
-Следующий корректный scope — не латать ещё одну SQLite-точку по месту, а выполнять отдельную production-задачу на финальную консолидацию storage, infra contour и incident domain.
+Следующий корректный scope — уже не chase за очередной SQLite-точкой, а финализация infra contour, attachment/object storage boundary, stronger multi-instance coordination и полноценный operator/ops слой вокруг incident domain.

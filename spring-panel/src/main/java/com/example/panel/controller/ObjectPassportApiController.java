@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.service.ObjectPassportService;
 import com.example.panel.service.NotificationRoutingService;
+import com.example.panel.service.IncidentService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -29,13 +30,16 @@ public class ObjectPassportApiController {
 
     private final ObjectPassportService objectPassportService;
     private final NotificationRoutingService notificationRoutingService;
+    private final IncidentService incidentService;
     private final ObjectMapper objectMapper;
 
     public ObjectPassportApiController(ObjectPassportService objectPassportService,
                                        NotificationRoutingService notificationRoutingService,
+                                       IncidentService incidentService,
                                        ObjectMapper objectMapper) {
         this.objectPassportService = objectPassportService;
         this.notificationRoutingService = notificationRoutingService;
+        this.incidentService = incidentService;
         this.objectMapper = objectMapper;
     }
 
@@ -75,6 +79,17 @@ public class ObjectPassportApiController {
     @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public Map<String, Object> getPassportTasks(@PathVariable long passportId) {
         return objectPassportService.getEmptyTasksPayload(passportId);
+    }
+
+    @GetMapping("/{passportId}/incidents")
+    @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
+    public Map<String, Object> getPassportIncidents(@PathVariable long passportId) {
+        java.util.List<Map<String, Object>> items = incidentService.listIncidentSummariesForObjectPassport(passportId);
+        return Map.of(
+                "success", true,
+                "items", items,
+                "total", items.size()
+        );
     }
 
     @PostMapping(value = "/{passportId}/photos", consumes = "multipart/form-data")

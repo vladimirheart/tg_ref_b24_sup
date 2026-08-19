@@ -10,11 +10,11 @@
   Используется как primary `DataSource`/JPA-контур через `SqliteDataSourceConfiguration`.
   Сюда пишутся диалоги, сообщения, задачи, каналы, уведомления, knowledge/article-сущности, client-related runtime-таблицы и большая часть operator-facing business state.
 - `panel_identity.db`
-  Отдельный users/roles/auth-контур; в external runtime `usersJdbcTemplate` уже должен опираться на primary contour, а SQLite identity path оставаться только compatibility-режимом.
+  Отдельный users/roles/auth-контур в historical topology; в external runtime `usersJdbcTemplate` уже должен опираться на primary contour, а SQLite identity path оставаться только compatibility-режимом.
 - `monitoring.db`
-  Отдельный monitoring-контур остаётся только как SQLite compatibility/bootstrap слой; live monitoring runtime в external mode должен идти через primary contour.
+  Historical monitoring split; в external runtime live monitoring reads/writes уже должны идти через primary contour, а `monitoring.db` оставаться только compatibility/bootstrap слоем.
 - `clients.db`, `knowledge_base.db`, `objects.db`
-  Создаются и bootstrap-ятся в `DatabaseBootstrapService`.
+  Создаются только в explicit SQLite compatibility path через `DatabaseBootstrapService`.
 - `bot-<channelId>.db`
   Per-channel shard-файлы больше не должны создаваться как normal runtime path; legacy данные из них должны переноситься в canonical contour backend-owned consolidation step.
 
@@ -28,11 +28,10 @@
 
 - `spring-panel` читает:
   - `panel_runtime.db` как основной business/source-of-truth контур UI;
-  - `panel_identity.db` для auth, профилей, ролей, маршрутизации уведомлений;
+  - `panel_identity.db` только как compatibility path; live auth/profile/runtime reads в external mode уже должны идти через primary contour;
   - `monitoring.db` только как SQLite compatibility/bootstrap слой, тогда как live monitoring runtime в external mode уже идёт через primary contour;
   - `bot_runtime.db` только для remaining compatibility/runtime-хвостов, а `bot-<channelId>.db` уже не live owner, а import-only legacy source;
-  - `objects.db` для паспортов объектов;
-  - transitional `clients.db`, `knowledge_base.db`.
+  - `objects.db`, `clients.db`, `knowledge_base.db` только как explicit SQLite compatibility/bootstrap perimeter.
 - `java-bot` читает:
   - explicit SQLite compatibility path через `SUPPORT_BOT_DATABASE_PATH`, если он действительно прокинут;
   - иначе `bot_runtime.db` / `APP_DB_BOT_RUNTIME` как собственный compatibility/runtime fallback;
@@ -44,17 +43,19 @@
 - `panel_runtime.db`
   Реальный business source of truth для support workflow и большинства operator-facing данных.
 - `panel_identity.db`
-  Канонический identity/access source of truth.
+  Historical identity contour; в external runtime canonical source of truth должен быть уже в основном PostgreSQL contour.
 - `monitoring.db`
-  Канонический monitoring source of truth.
+  Historical monitoring contour; в external runtime canonical source of truth должен быть уже в основном PostgreSQL contour.
 - `objects.db`
-  Physical datasource split уже ослаблен, но объектный контур всё ещё логически выделен и в target-state должен быть поглощён общим business storage.
+  Historical object contour; physical datasource split уже ослаблен и live reads/writes в external runtime должны опираться на canonical datasource.
 - `bot_runtime.db`
   Shared bot/runtime contour уже не поднимается как отдельный live Spring
   datasource в external runtime, но как compatibility/transport слой ещё не
   доведён до конечной RabbitMQ-first модели.
 - `bot-<channelId>.db`
   Legacy/import-only слой, не должен развиваться как самостоятельная доменная БД и не должен участвовать в live runtime reads/writes.
+- `incidents`
+  Новый canonical backend-owned domain для incident lifecycle, relations, watchers, routes и history.
 
 ## 4. Mapping текущих контуров к target-state
 
@@ -66,23 +67,24 @@
 | `objects.db` | `PostgreSQL.objects` |
 | `clients.db` | поглотить в `PostgreSQL.core` |
 | `knowledge_base.db` | поглотить в `PostgreSQL.knowledge` или `PostgreSQL.core` по фактическому ownership |
-| `bot_runtime.db` | оставить только как transport/runtime contour до полного перехода на RabbitMQ + backend-owned business writes |
+| `bot_runtime.db` | оставить только как compatibility/runtime contour до полного перехода на RabbitMQ + backend-owned business writes |
 | `bot-<channelId>.db` | убрать как отдельный source of truth; допустим только как временный import source для legacy-данных |
+| `incidents` domain | canonical PostgreSQL contour для incident lifecycle и связей с dialogs/tasks/objects |
 
 ## 5. Текущая process model ботов
 
 - Панель запускает процессы ботов через `BotProcessService`.
 - Контракт окружения ботов формируется `BotRuntimeContractService`.
 - Ownership per-channel SQLite shard-файлов переведён в backend-owned consolidation path; automatic shard bootstrap больше не считается допустимым runtime path.
-- `java-bot` сейчас может работать напрямую с business SQLite-контуром панели, что несовместимо с целевой production-моделью `provider -> worker -> queue/api -> backend -> PostgreSQL`.
+- `java-bot` в live `rabbitmq` contour уже не должен восприниматься как допустимый owner business state; прямой SQLite/JDBC bridge остаётся только compatibility path и несовместим с целевой production-моделью `provider -> worker -> queue/api -> backend -> PostgreSQL`.
 
 ## 6. Ключевые migration risks
 
-- Даже после ослабления default runtime contract прямой доступ `java-bot` к business DB смешивает transport и business ownership там, где ещё используется explicit SQLite compatibility bridge.
+- Даже после cleanup-а explicit SQLite compatibility bridge у `java-bot` остаётся architectural debt, если его ошибочно воспринимать как production path.
 - Legacy данные в `bot-<channelId>.db` ещё требуют controlled import и operational cleanup, но сам shard-layer уже выведен из live runtime topology.
-- `bot_runtime.db` уже ослаблен как physical datasource split, но transport/runtime ownership всё ещё не закрыт полностью.
+- `bot_runtime.db` уже ослаблен как physical datasource split, но final RabbitMQ-first runtime ownership всё ещё не закрыт полностью.
 - Часть bootstrap-логики использует SQLite-specific SQL (`datetime('now')`, `INSERT OR IGNORE`, SQLite schema bootstrap).
-- `spring-panel` имеет split между primary/runtime, identity, monitoring и secondary DB, поэтому миграция к одной PostgreSQL БД со schema boundaries потребует переезда именованных `JdbcTemplate` и bootstrap-сервисов.
+- attachment/object-storage contour пока ещё не доведён до обязательного MinIO/S3 production contract.
 - В `spring-panel` `testCompile` уже сломан несвязанными тестами, что ограничивает быструю автоматическую верификацию архитектурных изменений.
 
 ## 7. Legacy components, которые должны исчезнуть

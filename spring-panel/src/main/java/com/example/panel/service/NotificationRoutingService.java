@@ -464,6 +464,13 @@ public class NotificationRoutingService {
         passports.put("equipment_catalog_changed", defaultRoute());
         defaults.put("passports", passports);
 
+        Map<String, NotificationRouteConfig> incidents = new LinkedHashMap<>();
+        incidents.put("incident_created", new NotificationRouteConfig(true, "base_recipients", "", "all_operators", "all", List.of(), List.of()));
+        incidents.put("incident_updated", new NotificationRouteConfig(true, "base_recipients", "", "all_operators", "all", List.of(), List.of()));
+        incidents.put("incident_event", new NotificationRouteConfig(true, "base_recipients", "", "all_operators", "all", List.of(), List.of()));
+        incidents.put("incident_route_updated", new NotificationRouteConfig(true, "base_recipients", "", "all_operators", "all", List.of(), List.of()));
+        defaults.put("incidents", incidents);
+
         Map<String, NotificationRouteConfig> knowledge = new LinkedHashMap<>();
         knowledge.put("article_saved", defaultRoute());
         knowledge.put("notion_import", defaultRoute());

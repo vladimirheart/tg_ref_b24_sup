@@ -55,6 +55,8 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
             verifyAnalyticsReadPath();
             verifyKnowledgeSchema();
             verifyBooleanRuntimeSchema();
+            verifyTransportSchema();
+            verifyIncidentSchema();
             counts = loadRuntimeCounts();
             verifyRecoveredBusinessData(counts);
         } catch (RuntimeException ex) {
@@ -65,7 +67,7 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         }
 
         log.info(
-            "[READY] Iguana panel is ready on http://127.0.0.1:{}/ | PostgreSQL probes passed | data: channels={}, tickets={}, messages={}, chat_history={}, tasks={}, clients={}, avatars={}",
+            "[READY] Iguana panel is ready on http://127.0.0.1:{}/ | PostgreSQL probes passed | data: channels={}, tickets={}, messages={}, chat_history={}, tasks={}, clients={}, avatars={}, incidents={}, open_incidents={}",
             resolvePort(),
             counts.channels(),
             counts.tickets(),
@@ -73,7 +75,9 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
             counts.chatHistory(),
             counts.tasks(),
             counts.clients(),
-            counts.avatars()
+            counts.avatars(),
+            counts.incidents(),
+            counts.openIncidents()
         );
     }
 
@@ -178,6 +182,33 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         );
     }
 
+    private void verifyTransportSchema() {
+        jdbcTemplate.queryForList(
+            "SELECT id, event_type, ticket_id, channel_id, created_at FROM ui_event_outbox WHERE 1 = 0"
+        );
+        jdbcTemplate.queryForList(
+            "SELECT event_id, event_type, ticket_id, source, status FROM integration_inbound_event_inbox WHERE 1 = 0"
+        );
+    }
+
+    private void verifyIncidentSchema() {
+        jdbcTemplate.queryForList(
+            "SELECT id, incident_key, status, severity, title, created_at, updated_at FROM incidents WHERE 1 = 0"
+        );
+        jdbcTemplate.queryForList(
+            "SELECT incident_id, relation_type, relation_key, primary_relation FROM incident_relations WHERE 1 = 0"
+        );
+        jdbcTemplate.queryForList(
+            "SELECT incident_id, event_type, actor, created_at FROM incident_events WHERE 1 = 0"
+        );
+        jdbcTemplate.queryForList(
+            "SELECT incident_id, watcher_identity, added_at FROM incident_watchers WHERE 1 = 0"
+        );
+        jdbcTemplate.queryForList(
+            "SELECT incident_id, route_type, route_target, route_status, updated_at FROM incident_routes WHERE 1 = 0"
+        );
+    }
+
     private RuntimeCounts loadRuntimeCounts() {
         return jdbcTemplate.queryForObject("""
             SELECT
@@ -187,7 +218,9 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
                 (SELECT COUNT(*) FROM chat_history) AS chat_history_count,
                 (SELECT COUNT(*) FROM tasks) AS tasks_count,
                 (SELECT COUNT(DISTINCT user_id) FROM messages WHERE user_id IS NOT NULL) AS clients_count,
-                (SELECT COUNT(*) FROM client_avatar_history) AS avatars_count
+                (SELECT COUNT(*) FROM client_avatar_history) AS avatars_count,
+                (SELECT COUNT(*) FROM incidents) AS incidents_count,
+                (SELECT COUNT(*) FROM incidents WHERE status IN ('open', 'acknowledged', 'investigating')) AS open_incidents_count
             """,
             (rs, rowNum) -> new RuntimeCounts(
                 rs.getLong("channels_count"),
@@ -196,7 +229,9 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
                 rs.getLong("chat_history_count"),
                 rs.getLong("tasks_count"),
                 rs.getLong("clients_count"),
-                rs.getLong("avatars_count")
+                rs.getLong("avatars_count"),
+                rs.getLong("incidents_count"),
+                rs.getLong("open_incidents_count")
             )
         );
     }
@@ -223,7 +258,9 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         long chatHistory,
         long tasks,
         long clients,
-        long avatars
+        long avatars,
+        long incidents,
+        long openIncidents
     ) {
     }
 }

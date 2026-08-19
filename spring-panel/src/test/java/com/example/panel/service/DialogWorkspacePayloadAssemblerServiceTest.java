@@ -30,6 +30,7 @@ class DialogWorkspacePayloadAssemblerServiceTest {
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
                 Map.of(),
                 Map.of("enabled", true),
                 Map.of("can_reply", true),
@@ -108,6 +109,7 @@ class DialogWorkspacePayloadAssemblerServiceTest {
                 Map.of("matches", List.of("crm")),
                 List.of(Map.of("type", "audit")),
                 Map.of("enabled", true, "ready", true),
+                List.of(Map.of("incident_key", "INC-42", "status", "open")),
                 List.of(Map.of("key", "crm", "status", "ok")),
                 List.of(Map.of("key", "phone", "ready", true)),
                 List.of(Map.of("key", "customer_profile", "ready", true)),
@@ -157,6 +159,7 @@ class DialogWorkspacePayloadAssemblerServiceTest {
         assertThat(items.get(0).deletedAt()).isEqualTo("2026-05-26T10:03:30Z");
         assertThat(context).containsEntry("client", Map.of("id", 910096L, "name", "РљР»РёРµРЅС‚ Rich"));
         assertThat(context).containsEntry("profile_match_candidates", Map.of("matches", List.of("crm")));
+        assertThat(context).containsEntry("incidents", List.of(Map.of("incident_key", "INC-42", "status", "open")));
         assertThat(workflow).containsKey("responsible");
         assertThat(workflow).containsEntry("triage_preferences", Map.of("view", "sla_critical"));
         assertThat(workflow).containsKey("actions");
