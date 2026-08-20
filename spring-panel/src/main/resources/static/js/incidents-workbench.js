@@ -880,6 +880,18 @@ async function refreshIncidentIfStillSelected(
 }
 
   function renderTransportOverview() {
+    const focusedTransportControl =
+        document.activeElement instanceof Element
+            ? document.activeElement.closest(
+                '[data-transport-focus-key]'
+            )
+            : null;
+
+    const focusedTransportKey =
+        focusedTransportControl?.getAttribute(
+            'data-transport-focus-key'
+        ) || '';
+
     const payload = state.transportOverview || {};
     const inbound = payload.inbound || {};
     const outbound = payload.outbound || {};
@@ -898,6 +910,26 @@ async function refreshIncidentIfStillSelected(
     renderTransportIncidentItems(payload.transport_incidents || []);
     renderAlertItems(payload.alerts || []);
     renderOperationItems(payload.recent_operations || []);
+	if (focusedTransportKey) {
+    window.requestAnimationFrame(() => {
+        const nextControl = Array.from(
+            document.querySelectorAll(
+                '[data-transport-focus-key]'
+            )
+        ).find(
+            (item) =>
+                item.getAttribute(
+                    'data-transport-focus-key'
+                ) === focusedTransportKey
+        );
+
+        if (nextControl instanceof HTMLElement) {
+            nextControl.focus({
+                preventScroll: true
+            });
+        }
+    });
+}
   }
 
   function renderTransportItems(node, items, mode) {
@@ -915,10 +947,32 @@ async function refreshIncidentIfStillSelected(
           </div>
           <div class="d-flex gap-2">
             <span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status || '—')}</span>
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-transport-view="${mode}" data-event-id="${escapeHtml(item.event_id || '')}">Payload</button>
-            <button type="button" class="btn btn-sm btn-outline-primary" data-transport-action="${mode === 'inbound' ? 'replay' : 'requeue'}" data-event-id="${escapeHtml(item.event_id || '')}">
-              ${mode === 'inbound' ? 'Replay' : 'Requeue'}
-            </button>
+            <button type="button"
+					class="btn btn-sm btn-outline-secondary"
+					data-transport-view="${mode}"
+					data-event-id="${escapeHtml(item.event_id || '')}"
+					data-transport-focus-key="${escapeHtml(
+						'view:' +
+						mode +
+						':' +
+						(item.event_id || '')
+					)}">
+				Payload
+			</button>
+            <button type="button"
+					class="btn btn-sm btn-outline-primary"
+					data-transport-action="${mode === 'inbound' ? 'replay' : 'requeue'}"
+					data-event-id="${escapeHtml(item.event_id || '')}"
+					data-transport-focus-key="${escapeHtml(
+						'action:' +
+						(mode === 'inbound'
+							? 'replay'
+							: 'requeue') +
+						':' +
+						(item.event_id || '')
+					)}">
+				${mode === 'inbound' ? 'Replay' : 'Requeue'}
+			</button>
           </div>
         </div>
         <div class="small text-muted">attempts=${escapeHtml(item.attempt_count ?? 0)} · updated=${escapeHtml(formatDate(item.updated_at))}</div>
@@ -944,16 +998,37 @@ async function refreshIncidentIfStillSelected(
         </div>
         <div class="input-group input-group-sm mb-2">
           <input type="text"
-				   class="form-control incident-code"
-				   data-transport-checkpoint-input="${escapeHtml(item.worker_key || '')}"
-				   value="${escapeHtml(item.cursor_text || '')}"
-				   aria-label="Checkpoint cursor: ${escapeHtml(
-					   item.worker_label ||
-					   item.worker_key ||
-					   'worker'
-				   )}">
-          <button type="button" class="btn btn-outline-secondary" data-transport-save-checkpoint="${escapeHtml(item.worker_key || '')}">Save</button>
-          <button type="button" class="btn btn-outline-dark" data-transport-view="worker" data-worker-key="${escapeHtml(item.worker_key || '')}">Inspect</button>
+			   class="form-control incident-code"
+			   data-transport-checkpoint-input="${escapeHtml(item.worker_key || '')}"
+			   data-transport-focus-key="${escapeHtml(
+				   'checkpoint-input:' +
+				   (item.worker_key || '')
+			   )}"
+			   value="${escapeHtml(item.cursor_text || '')}"
+			   aria-label="Checkpoint cursor: ${escapeHtml(
+				   item.worker_label ||
+				   item.worker_key ||
+				   'worker'
+			   )}">
+          <button type="button"
+					class="btn btn-outline-secondary"
+					data-transport-save-checkpoint="${escapeHtml(item.worker_key || '')}"
+					data-transport-focus-key="${escapeHtml(
+						'checkpoint-save:' +
+						(item.worker_key || '')
+					)}">
+				Save
+			</button>
+          <button type="button"
+					class="btn btn-outline-dark"
+					data-transport-view="worker"
+					data-worker-key="${escapeHtml(item.worker_key || '')}"
+					data-transport-focus-key="${escapeHtml(
+						'worker-view:' +
+						(item.worker_key || '')
+					)}">
+				Inspect
+			</button>
         </div>
         <div class="small text-muted">
           updated=${escapeHtml(formatDate(item.updated_at))} · age=${escapeHtml(item.age_minutes ?? '—')}m · stale-threshold=${escapeHtml(item.stale_threshold_minutes ?? '—')}m
@@ -1314,6 +1389,32 @@ async function refreshIncidentIfStillSelected(
   });
   document.getElementById('transportWorkbenchInspectTicket')?.addEventListener('click', () => void inspectTicketTransport().catch((error) => showError(error.message)));
 
+	payloadModalElement?.addEventListener(
+    'hidden.bs.modal',
+    () => {
+        // Закрытие modal означает, что ожидаемый
+        // payload пользователю больше не нужен.
+        state.payloadRequestSerial += 1;
+    }
+);
+
+document
+    .getElementById('incidentWorkbenchTransportTab')
+    ?.addEventListener(
+        'hide.bs.tab',
+        () => {
+            // Не позволяем запросам из уже покинутой
+            // вкладки менять текущий UI.
+            state.payloadRequestSerial += 1;
+            state.ticketDebugRequestSerial += 1;
+
+            transportNodes.ticketDebug?.setAttribute(
+                'aria-busy',
+                'false'
+            );
+        }
+    );
+	
   void loadIncidents().catch((error) => showError(error.message));
   if (transportNodes.inboundList) {
     void loadTransportOverview().catch((error) => showError(error.message));
