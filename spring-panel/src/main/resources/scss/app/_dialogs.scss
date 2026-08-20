@@ -255,12 +255,36 @@
 
 .dialog-category-badge {
     cursor: pointer;
+
+    border-color: var(--color-border) !important;
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+}
+
+.dialog-category-badge:hover,
+.dialog-category-badge:focus-visible {
+    background: var(--surface-interactive);
+
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 32%,
+            var(--color-border)
+        ) !important;
 }
 
 .dialog-category-badge.is-selected {
     background: var(--primary) !important;
     color: var(--primary-foreground) !important;
     border-color: var(--primary) !important;
+}
+
+.dialog-macro-meta-badge {
+    border-color: var(--color-border) !important;
+
+    background: var(--surface-raised);
+    color: var(--color-text);
 }
 
 .dialog-details-categories {
@@ -364,7 +388,8 @@
     opacity: 0.78;
 }
 
-.dialog-template-icon:hover {
+.dialog-template-icon:hover,
+.dialog-template-icon:focus-visible {
     background: var(--surface-interactive);
 
     border-color:
@@ -378,7 +403,13 @@
     opacity: 1;
 }
 
-.dialog-template-icon[data-tooltip]:hover::after {
+.dialog-template-icon:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+}
+
+.dialog-template-icon[data-tooltip]:hover::after,
+.dialog-template-icon[data-tooltip]:focus-visible::after {
     content: attr(data-tooltip);
     position: absolute;
     top: calc(100% + 6px);

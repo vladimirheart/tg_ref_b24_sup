@@ -289,7 +289,8 @@
       const tags = Array.isArray(template?.tags) ? template.tags.filter(Boolean) : [];
       tags.forEach((tag) => {
         const badge = document.createElement('span');
-        badge.className = 'badge text-bg-light border';
+        badge.className =
+			'badge border dialog-macro-meta-badge';
         badge.textContent = String(tag);
         elements.macroTemplateMeta.appendChild(badge);
       });
@@ -315,14 +316,16 @@
       const namespace = String(template?.namespace || '').trim();
       if (namespace) {
         const badge = document.createElement('span');
-        badge.className = 'badge text-bg-light border';
+        badge.className =
+			'badge border dialog-macro-meta-badge';
         badge.textContent = `Namespace: ${namespace}`;
         elements.macroTemplateMeta.appendChild(badge);
       }
       const owner = String(template?.owner || '').trim();
       if (owner) {
         const badge = document.createElement('span');
-        badge.className = 'badge text-bg-light border';
+        badge.className =
+			'badge border dialog-macro-meta-badge';
         badge.textContent = `Owner: ${owner}`;
         elements.macroTemplateMeta.appendChild(badge);
       }

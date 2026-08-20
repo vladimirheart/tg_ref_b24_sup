@@ -176,7 +176,8 @@
       categories.forEach((category) => {
         const badge = document.createElement('button');
         const normalized = String(category).trim();
-        badge.className = 'badge rounded-pill text-bg-light border dialog-category-badge';
+        badge.className =
+			'badge rounded-pill border dialog-category-badge';
         badge.type = 'button';
         badge.dataset.categoryValue = normalized;
         badge.textContent = normalized;
@@ -530,6 +531,15 @@
 		}
 
       if (elements.completionTemplatesSection) {
+			const clearCompletionCloseTimer = () => {
+				if (!state.completionHideTimer) {
+					return;
+				}
+
+				clearTimeout(state.completionHideTimer);
+				state.completionHideTimer = null;
+			};
+
 			const setCompletionOpen = (open) => {
 				const shouldOpen = Boolean(open);
 
@@ -547,28 +557,34 @@
 			};
 
 			const openCompletion = () => {
+				clearCompletionCloseTimer();
 				setCompletionOpen(true);
 			};
 
 			const scheduleClose = () => {
-				if (state.completionHideTimer) {
-					clearTimeout(state.completionHideTimer);
-				}
+				clearCompletionCloseTimer();
 
 				state.completionHideTimer = setTimeout(() => {
+					state.completionHideTimer = null;
+
+					const activeElement = document.activeElement;
+
+					if (
+						activeElement instanceof Node &&
+						elements.completionTemplatesSection.contains(
+							activeElement
+						)
+					) {
+						return;
+					}
+
 					setCompletionOpen(false);
 				}, 2000);
 			};
 
 			elements.completionTemplatesSection.addEventListener(
 				'mouseenter',
-				() => {
-					if (state.completionHideTimer) {
-						clearTimeout(state.completionHideTimer);
-					}
-
-					openCompletion();
-				}
+				openCompletion
 			);
 
 			elements.completionTemplatesSection.addEventListener(
@@ -576,10 +592,35 @@
 				scheduleClose
 			);
 
+			elements.completionTemplatesSection.addEventListener(
+				'focusin',
+				openCompletion
+			);
+
+			elements.completionTemplatesSection.addEventListener(
+				'focusout',
+				(event) => {
+					const nextFocus = event.relatedTarget;
+
+					if (
+						nextFocus instanceof Node &&
+						elements.completionTemplatesSection.contains(
+							nextFocus
+						)
+					) {
+						return;
+					}
+
+					scheduleClose();
+				}
+			);
+
 			if (elements.completionTemplatesToggle) {
 				elements.completionTemplatesToggle.addEventListener(
 					'click',
 					() => {
+						clearCompletionCloseTimer();
+
 						setCompletionOpen(
 							!elements.completionTemplatesSection
 								.classList.contains('is-open')
