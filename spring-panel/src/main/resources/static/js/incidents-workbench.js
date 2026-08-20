@@ -16,8 +16,10 @@
     incidents: [],
     selectedIncidentId: null,
     selectedIncident: null,
-    transportOverview: null
-  };
+    transportOverview: null,
+    listRequestSerial: 0,
+    detailRequestSerial: 0
+};
 
   const filterNodes = {
     query: document.getElementById('incidentWorkbenchQuery'),
@@ -166,27 +168,103 @@
   }
 
   async function loadIncidents() {
+    const requestSerial =
+        ++state.listRequestSerial;
+
     clearFeedback();
+
     const params = new URLSearchParams();
-    if (filterNodes.query?.value.trim()) params.set('query', filterNodes.query.value.trim());
-    if (filterNodes.status?.value) params.set('status', filterNodes.status.value);
-    if (filterNodes.severity?.value) params.set('severity', filterNodes.severity.value);
-    if (filterNodes.signalType?.value) params.set('signal_type', filterNodes.signalType.value);
-    params.set('limit', filterNodes.limit?.value || '100');
-    const payload = await requestJson(`/api/incidents?${params.toString()}`);
-    state.incidents = Array.isArray(payload?.items) ? payload.items : [];
-    if (!state.selectedIncidentId || !state.incidents.some((item) => Number(item.id) === Number(state.selectedIncidentId))) {
-      state.selectedIncidentId = state.incidents[0]?.id || null;
+
+    if (filterNodes.query?.value.trim()) {
+        params.set(
+            'query',
+            filterNodes.query.value.trim()
+        );
     }
-    renderIncidentList();
-    listMetaNode.textContent = `Всего: ${state.incidents.length}`;
-    if (state.selectedIncidentId) {
-      await loadIncidentDetail(state.selectedIncidentId);
-    } else {
-      state.selectedIncident = null;
-      renderIncidentDetail();
+
+    if (filterNodes.status?.value) {
+        params.set(
+            'status',
+            filterNodes.status.value
+        );
     }
-  }
+
+    if (filterNodes.severity?.value) {
+        params.set(
+            'severity',
+            filterNodes.severity.value
+        );
+    }
+
+    if (filterNodes.signalType?.value) {
+        params.set(
+            'signal_type',
+            filterNodes.signalType.value
+        );
+    }
+
+    params.set(
+        'limit',
+        filterNodes.limit?.value || '100'
+    );
+
+    try {
+        const payload = await requestJson(
+            `/api/incidents?${params.toString()}`
+        );
+
+        // Между отправкой и ответом уже был запущен
+        // более новый запрос списка.
+        if (
+            requestSerial !==
+            state.listRequestSerial
+        ) {
+            return;
+        }
+
+        state.incidents =
+            Array.isArray(payload?.items)
+                ? payload.items
+                : [];
+
+        if (
+            !state.selectedIncidentId ||
+            !state.incidents.some(
+                (item) =>
+                    Number(item.id) ===
+                    Number(state.selectedIncidentId)
+            )
+        ) {
+            state.selectedIncidentId =
+                state.incidents[0]?.id || null;
+        }
+
+        renderIncidentList();
+
+        listMetaNode.textContent =
+            `Всего: ${state.incidents.length}`;
+
+        if (state.selectedIncidentId) {
+            await loadIncidentDetail(
+                state.selectedIncidentId
+            );
+        } else {
+            state.selectedIncident = null;
+            renderIncidentDetail();
+        }
+    } catch (error) {
+        // Не показываем ошибку запроса,
+        // который уже был заменён новым.
+        if (
+            requestSerial !==
+            state.listRequestSerial
+        ) {
+            return;
+        }
+
+        throw error;
+    }
+}
 
   function renderIncidentList() {
     const focusedTrigger =
@@ -261,12 +339,83 @@
   }
 
   async function loadIncidentDetail(incidentId) {
-    state.selectedIncidentId = incidentId;
+    const normalizedIncidentId =
+        String(incidentId || '').trim();
+
+    if (!normalizedIncidentId) {
+        return;
+    }
+
+    const requestSerial =
+        ++state.detailRequestSerial;
+
+    state.selectedIncidentId =
+        normalizedIncidentId;
+
+    // Старый detail больше нельзя использовать для действий,
+    // пока загружается новый incident.
+    state.selectedIncident = null;
+
     renderIncidentList();
-    const payload = await requestJson(`/api/incidents/${encodeURIComponent(incidentId)}`);
-    state.selectedIncident = payload?.incident || null;
-    renderIncidentDetail();
-  }
+
+    detailNode.setAttribute(
+        'aria-busy',
+        'true'
+    );
+
+    detailNode.innerHTML =
+        '<div class="text-muted" role="status">Загрузка incident...</div>';
+
+    try {
+        const payload = await requestJson(
+            `/api/incidents/${encodeURIComponent(normalizedIncidentId)}`
+        );
+
+        const isCurrentRequest =
+            requestSerial === state.detailRequestSerial &&
+            String(state.selectedIncidentId) ===
+                normalizedIncidentId;
+
+        if (!isCurrentRequest) {
+            return;
+        }
+
+        state.selectedIncident =
+            payload?.incident || null;
+
+        renderIncidentDetail();
+    } catch (error) {
+        const isCurrentRequest =
+            requestSerial === state.detailRequestSerial &&
+            String(state.selectedIncidentId) ===
+                normalizedIncidentId;
+
+        // Ошибка старого запроса уже не относится
+        // к текущему выбранному incident.
+        if (!isCurrentRequest) {
+            return;
+        }
+
+        state.selectedIncident = null;
+
+        detailNode.innerHTML =
+            '<div class="text-danger">Не удалось загрузить incident.</div>';
+
+        throw error;
+    } finally {
+        const isCurrentRequest =
+            requestSerial === state.detailRequestSerial &&
+            String(state.selectedIncidentId) ===
+                normalizedIncidentId;
+
+        if (isCurrentRequest) {
+            detailNode.setAttribute(
+                'aria-busy',
+                'false'
+            );
+        }
+    }
+}
 
   function renderKeyValue(label, value) {
     return `<div class="incident-surface-item"><div class="small text-muted mb-1">${escapeHtml(label)}</div><div>${escapeHtml(value || '—')}</div></div>`;
