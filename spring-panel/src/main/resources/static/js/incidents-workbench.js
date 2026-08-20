@@ -176,7 +176,54 @@
 				state.successHideTimer = null;
 			}, 3500);
 	}
+	async function runButtonAction(
+		button,
+		action
+	) {
+		if (
+			!(button instanceof HTMLButtonElement) ||
+			button.dataset.actionPending === 'true'
+		) {
+			return;
+		}
 
+		button.dataset.actionPending = 'true';
+
+		button.setAttribute(
+			'aria-disabled',
+			'true'
+		);
+
+		button.setAttribute(
+			'aria-busy',
+			'true'
+		);
+
+		button.classList.add('disabled');
+
+		try {
+			await action();
+		} finally {
+			// Dynamic controls могут уже исчезнуть
+			// после renderIncidentDetail /
+			// renderTransportOverview.
+			if (button.isConnected) {
+				delete button.dataset.actionPending;
+
+				button.removeAttribute(
+					'aria-disabled'
+				);
+
+				button.removeAttribute(
+					'aria-busy'
+				);
+
+				button.classList.remove(
+					'disabled'
+				);
+			}
+		}
+	}
   function clearFeedback() {
     errorNode?.classList.add('d-none');
   }
@@ -1750,17 +1797,52 @@ detailNode.addEventListener(
     markIncidentDetailDirty
 );
 
-  detailNode.addEventListener('click', (event) => {
-    const removeWatcherButton = event.target.closest('[data-incident-remove-watcher]');
-    if (removeWatcherButton) {
-      void removeWatcher(removeWatcherButton.getAttribute('data-incident-remove-watcher')).catch((error) => showError(error.message));
-      return;
+  detailNode.addEventListener(
+    'click',
+    (event) => {
+        const removeWatcherButton =
+            event.target.closest(
+                '[data-incident-remove-watcher]'
+            );
+
+        if (removeWatcherButton) {
+            void runButtonAction(
+                removeWatcherButton,
+                () =>
+                    removeWatcher(
+                        removeWatcherButton.getAttribute(
+                            'data-incident-remove-watcher'
+                        )
+                    )
+            ).catch(
+                (error) =>
+                    showError(error.message)
+            );
+
+            return;
+        }
+
+        const redeliverButton =
+            event.target.closest(
+                '[data-incident-redeliver-route]'
+            );
+
+        if (redeliverButton) {
+            void runButtonAction(
+                redeliverButton,
+                () =>
+                    redeliverRoute(
+                        redeliverButton.getAttribute(
+                            'data-incident-redeliver-route'
+                        )
+                    )
+            ).catch(
+                (error) =>
+                    showError(error.message)
+            );
+        }
     }
-    const redeliverButton = event.target.closest('[data-incident-redeliver-route]');
-    if (redeliverButton) {
-      void redeliverRoute(redeliverButton.getAttribute('data-incident-redeliver-route')).catch((error) => showError(error.message));
-    }
-  });
+);
 
   transportNodes.inboundList?.addEventListener('click', (event) => {
     const viewButton = event.target.closest('[data-transport-view="inbound"]');
@@ -1768,12 +1850,28 @@ detailNode.addEventListener(
       void showTransportPayload('inbound', viewButton.getAttribute('data-event-id')).catch((error) => showError(error.message));
       return;
     }
-    const replayButton = event.target.closest('[data-transport-action="replay"]');
-    if (replayButton) {
-      void invokeTransportAction(`/api/analytics/integration-transport/inbound-events/${encodeURIComponent(replayButton.getAttribute('data-event-id') || '')}/replay`, 'Inbound event replayed')
-        .catch((error) => showError(error.message));
-    }
-  });
+	const replayButton =
+		event.target.closest(
+			'[data-transport-action="replay"]'
+		);
+
+	if (replayButton) {
+		void runButtonAction(
+			replayButton,
+			() =>
+				invokeTransportAction(
+					`/api/analytics/integration-transport/inbound-events/${encodeURIComponent(
+						replayButton.getAttribute(
+							'data-event-id'
+						) || ''
+					)}/replay`,
+					'Inbound event replayed'
+				)
+		).catch(
+			(error) =>
+				showError(error.message)
+		);
+	}  });
 
   transportNodes.outboundList?.addEventListener('click', (event) => {
     const viewButton = event.target.closest('[data-transport-view="outbound"]');
@@ -1781,11 +1879,28 @@ detailNode.addEventListener(
       void showTransportPayload('outbound', viewButton.getAttribute('data-event-id')).catch((error) => showError(error.message));
       return;
     }
-    const requeueButton = event.target.closest('[data-transport-action="requeue"]');
-    if (requeueButton) {
-      void invokeTransportAction(`/api/analytics/integration-transport/outbox-events/${encodeURIComponent(requeueButton.getAttribute('data-event-id') || '')}/requeue`, 'Outbound event requeued')
-        .catch((error) => showError(error.message));
-    }
+    const requeueButton =
+		event.target.closest(
+			'[data-transport-action="requeue"]'
+		);
+
+	if (requeueButton) {
+		void runButtonAction(
+			requeueButton,
+			() =>
+				invokeTransportAction(
+					`/api/analytics/integration-transport/outbox-events/${encodeURIComponent(
+						requeueButton.getAttribute(
+							'data-event-id'
+						) || ''
+					)}/requeue`,
+					'Outbound event requeued'
+				)
+		).catch(
+			(error) =>
+				showError(error.message)
+		);
+	}
   });
 
   transportNodes.checkpointList?.addEventListener('click', (event) => {
@@ -1799,37 +1914,189 @@ detailNode.addEventListener(
     const workerKey = saveButton.getAttribute('data-transport-save-checkpoint') || '';
     const input = document.querySelector(`[data-transport-checkpoint-input="${CSS.escape(workerKey)}"]`);
     const cursorText = input ? input.value : '';
-    void invokeTransportAction(`/api/analytics/integration-transport/checkpoints/${encodeURIComponent(workerKey)}?cursor_text=${encodeURIComponent(cursorText || '')}`, 'Checkpoint updated')
-      .catch((error) => showError(error.message));
+		void runButtonAction(
+		saveButton,
+		() =>
+			invokeTransportAction(
+				`/api/analytics/integration-transport/checkpoints/${encodeURIComponent(
+					workerKey
+				)}?cursor_text=${encodeURIComponent(
+					cursorText || ''
+				)}`,
+				'Checkpoint updated'
+			)
+	).catch(
+		(error) =>
+			showError(error.message)
+	);
   });
 
   document.getElementById('incidentWorkbenchApplyFilters')?.addEventListener('click', () => void loadIncidents().catch((error) => showError(error.message)));
   document.getElementById('incidentWorkbenchRefresh')?.addEventListener('click', () => void loadIncidents().catch((error) => showError(error.message)));
-  document.getElementById('incidentWorkbenchCreate')?.addEventListener('click', () => void createIncident().catch((error) => showError(error.message)));
-  document.getElementById('incidentWorkbenchSaveIncident')?.addEventListener('click', () => void saveIncident().catch((error) => showError(error.message)));
-  document.getElementById('incidentWorkbenchRedeliverFailedRoutes')?.addEventListener('click', () => void redeliverFailedRoutes().catch((error) => showError(error.message)));
-  detailNode.addEventListener('click', (event) => {
-    if (event.target && event.target.id === 'incidentAddEventButton') {
-      void addIncidentEvent().catch((error) => showError(error.message));
+  document
+		.getElementById(
+			'incidentWorkbenchCreate'
+		)
+		?.addEventListener(
+			'click',
+			(event) => {
+				void runButtonAction(
+					event.currentTarget,
+					createIncident
+				).catch(
+					(error) =>
+						showError(error.message)
+				);
+			}
+		);
+
+	document
+		.getElementById(
+			'incidentWorkbenchSaveIncident'
+		)
+		?.addEventListener(
+			'click',
+			(event) => {
+				void runButtonAction(
+					event.currentTarget,
+					saveIncident
+				).catch(
+					(error) =>
+						showError(error.message)
+				);
+			}
+		);
+
+	document
+		.getElementById(
+			'incidentWorkbenchRedeliverFailedRoutes'
+		)
+		?.addEventListener(
+			'click',
+			(event) => {
+				void runButtonAction(
+					event.currentTarget,
+					redeliverFailedRoutes
+				).catch(
+					(error) =>
+						showError(error.message)
+				);
+			}
+		);
+  detailNode.addEventListener(
+    'click',
+    (event) => {
+        const button =
+            event.target.closest('button');
+
+        if (!button) {
+            return;
+        }
+
+        if (
+            button.id ===
+            'incidentAddEventButton'
+        ) {
+            void runButtonAction(
+                button,
+                addIncidentEvent
+            ).catch(
+                (error) =>
+                    showError(error.message)
+            );
+
+            return;
+        }
+
+        if (
+            button.id ===
+            'incidentAddWatcherButton'
+        ) {
+            void runButtonAction(
+                button,
+                addWatcher
+            ).catch(
+                (error) =>
+                    showError(error.message)
+            );
+
+            return;
+        }
+
+        if (
+            button.id ===
+            'incidentAddRouteButton'
+        ) {
+            void runButtonAction(
+                button,
+                addRoute
+            ).catch(
+                (error) =>
+                    showError(error.message)
+            );
+        }
     }
-    if (event.target && event.target.id === 'incidentAddWatcherButton') {
-      void addWatcher().catch((error) => showError(error.message));
-    }
-    if (event.target && event.target.id === 'incidentAddRouteButton') {
-      void addRoute().catch((error) => showError(error.message));
-    }
-  });
+);
 
   document.getElementById('transportWorkbenchRefresh')?.addEventListener('click', () => void loadTransportOverview().catch((error) => showError(error.message)));
-  document.getElementById('transportWorkbenchReplayFailed')?.addEventListener('click', () => void invokeTransportAction('/api/analytics/integration-transport/inbound-events/replay-failed?limit=25', 'Failed inbound batch replay started').catch((error) => showError(error.message)));
-  document.getElementById('transportWorkbenchRequeueFailed')?.addEventListener('click', () => void invokeTransportAction('/api/analytics/integration-transport/outbox-events/requeue-failed?limit=25', 'Failed outbound batch requeue started').catch((error) => showError(error.message)));
+  document
+		.getElementById(
+			'transportWorkbenchReplayFailed'
+		)
+		?.addEventListener(
+			'click',
+			(event) => {
+				void runButtonAction(
+					event.currentTarget,
+					() =>
+						invokeTransportAction(
+							'/api/analytics/integration-transport/inbound-events/replay-failed?limit=25',
+							'Failed inbound batch replay started'
+						)
+				).catch(
+					(error) =>
+						showError(error.message)
+				);
+			}
+		);
+
+	document
+		.getElementById(
+			'transportWorkbenchRequeueFailed'
+		)
+		?.addEventListener(
+			'click',
+			(event) => {
+				void runButtonAction(
+					event.currentTarget,
+					() =>
+						invokeTransportAction(
+							'/api/analytics/integration-transport/outbox-events/requeue-failed?limit=25',
+							'Failed outbound batch requeue started'
+						)
+				).catch(
+					(error) =>
+						showError(error.message)
+				);
+			}
+		);
   document.getElementById('transportWorkbenchReplayTicket')?.addEventListener('click', () => {
     const ticketId = transportNodes.ticketId?.value?.trim();
     if (!ticketId) {
       showError('Укажите ticket id для targeted inbound replay.');
       return;
     }
-    void invokeTransportAction(`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/replay-inbound?limit=25`, 'Ticket inbound replay requested').catch((error) => showError(error.message));
+    void runButtonAction(
+		event.currentTarget,
+		() =>
+			invokeTransportAction(
+				`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/replay-inbound?limit=25`,
+				'Ticket inbound replay requested'
+			)
+	).catch(
+		(error) =>
+			showError(error.message)
+	);
   });
   document.getElementById('transportWorkbenchRequeueTicket')?.addEventListener('click', () => {
     const ticketId = transportNodes.ticketId?.value?.trim();
@@ -1837,7 +2104,17 @@ detailNode.addEventListener(
       showError('Укажите ticket id для targeted outbound requeue.');
       return;
     }
-    void invokeTransportAction(`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/requeue-outbound?limit=25`, 'Ticket outbound requeue requested').catch((error) => showError(error.message));
+    void runButtonAction(
+		event.currentTarget,
+		() =>
+			invokeTransportAction(
+				`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/requeue-outbound?limit=25`,
+				'Ticket outbound requeue requested'
+			)
+	).catch(
+		(error) =>
+			showError(error.message)
+	);
   });
   document.getElementById('transportWorkbenchInspectTicket')?.addEventListener('click', () => void inspectTicketTransport().catch((error) => showError(error.message)));
 
