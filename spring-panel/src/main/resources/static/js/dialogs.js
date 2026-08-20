@@ -2299,18 +2299,49 @@
     dialogsParticipantsRuntime?.syncDialogAssignControls();
   }
 
-  function switchWorkspaceTab(tabName) {
-    const target = String(tabName || 'client').trim().toLowerCase() || 'client';
+  function switchWorkspaceTab(tabName, switchOptions = {}) {
+    const target =
+        String(tabName || 'client')
+            .trim()
+            .toLowerCase() || 'client';
+
+    let activeButton = null;
+
     workspaceTabButtons.forEach((button) => {
-      const active = String(button?.dataset?.workspaceTab || '').trim().toLowerCase() === target;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-selected', active ? 'true' : 'false');
+        const active =
+            String(button?.dataset?.workspaceTab || '')
+                .trim()
+                .toLowerCase() === target;
+
+        button.classList.toggle('is-active', active);
+
+        button.setAttribute(
+            'aria-selected',
+            active ? 'true' : 'false'
+        );
+
+        button.tabIndex = active ? 0 : -1;
+
+        if (active) {
+            activeButton = button;
+        }
     });
+
     workspaceTabPanels.forEach((panel) => {
-      const visible = String(panel?.dataset?.workspaceTabPanel || '').trim().toLowerCase() === target;
-      panel.classList.toggle('d-none', !visible);
+        const visible =
+            String(panel?.dataset?.workspaceTabPanel || '')
+                .trim()
+                .toLowerCase() === target;
+
+        panel.classList.toggle('d-none', !visible);
     });
-  }
+
+    if (switchOptions.focus === true && activeButton) {
+        activeButton.focus({
+            preventScroll: true
+        });
+    }
+}
 
   function exportWorkspaceIncidentCsv() {
     if (!activeWorkspaceTicketId) {
@@ -3843,12 +3874,45 @@
   }
 
   if (workspaceTabButtons.length) {
-    workspaceTabButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        switchWorkspaceTab(button.dataset.workspaceTab || 'client');
-      });
+    workspaceTabButtons.forEach((button, index) => {
+        button.addEventListener('click', () => {
+            switchWorkspaceTab(
+                button.dataset.workspaceTab || 'client'
+            );
+        });
+
+        button.addEventListener('keydown', (event) => {
+            let nextIndex = null;
+
+            if (event.key === 'ArrowRight') {
+                nextIndex =
+                    (index + 1) % workspaceTabButtons.length;
+            } else if (event.key === 'ArrowLeft') {
+                nextIndex =
+                    (index - 1 + workspaceTabButtons.length) %
+                    workspaceTabButtons.length;
+            } else if (event.key === 'Home') {
+                nextIndex = 0;
+            } else if (event.key === 'End') {
+                nextIndex = workspaceTabButtons.length - 1;
+            }
+
+            if (nextIndex === null) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const nextButton =
+                workspaceTabButtons[nextIndex];
+
+            switchWorkspaceTab(
+                nextButton.dataset.workspaceTab || 'client',
+                { focus: true }
+            );
+        });
     });
-  }
+}
 
   if (workspaceAiIncidentExport) {
     workspaceAiIncidentExport.addEventListener('click', () => {

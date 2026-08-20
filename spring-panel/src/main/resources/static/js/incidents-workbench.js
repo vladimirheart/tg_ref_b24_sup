@@ -196,10 +196,22 @@
     listNode.innerHTML = state.incidents.map((item) => `
       <tr class="incident-list-row ${Number(item.id) === Number(state.selectedIncidentId) ? 'is-active' : ''}" data-incident-id="${escapeHtml(item.id)}">
         <td>
-          <div class="fw-semibold">${escapeHtml(item.incident_key || '—')}</div>
-          <div>${escapeHtml(item.title || '')}</div>
-          <div class="small text-muted">${escapeHtml(item.summary || '')}</div>
-        </td>
+		  <button
+			type="button"
+			class="incident-list-row-button"
+			aria-label="Открыть incident ${escapeHtml(item.incident_key || '')}: ${escapeHtml(item.title || '')}"
+		  >
+			<span class="d-block fw-semibold">
+			  ${escapeHtml(item.incident_key || '—')}
+			</span>
+			<span class="d-block">
+			  ${escapeHtml(item.title || '')}
+			</span>
+			<span class="d-block small text-muted">
+			  ${escapeHtml(item.summary || '')}
+			</span>
+		  </button>
+		</td>
         <td><span class="badge ${badgeClass(item.severity)}">${escapeHtml(item.severity || '—')}</span></td>
         <td><span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status || '—')}</span></td>
         <td class="small text-muted">${escapeHtml(formatDate(item.updated_at))}</td>

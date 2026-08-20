@@ -205,13 +205,60 @@
                     </div>
                     <div class="col-12 col-xl-4">
                         <div class="workspace-panel-block mb-3" id="workspaceMetaTabs">
-                            <div class="workspace-tabs mb-3" role="tablist" aria-label="Вкладки workspace">
-                                <button class="workspace-tab-btn is-active" data-workspace-tab="client" type="button" role="tab" aria-selected="true">Клиент</button>
-                                <button class="workspace-tab-btn" data-workspace-tab="sla" type="button" role="tab" aria-selected="false">SLA</button>
-                                <button class="workspace-tab-btn" data-workspace-tab="ai" type="button" role="tab" aria-selected="false">AI</button>
-                                <button class="workspace-tab-btn" data-workspace-tab="history" type="button" role="tab" aria-selected="false">История</button>
-                            </div>
-                            <section class="workspace-tab-panel" data-workspace-tab-panel="client" id="workspaceClientBlock">
+                            <div class="workspace-tabs mb-3"
+								 role="tablist"
+								 aria-label="Вкладки workspace">
+
+								<button class="workspace-tab-btn is-active"
+										id="workspaceTabClient"
+										data-workspace-tab="client"
+										type="button"
+										role="tab"
+										aria-controls="workspaceClientBlock"
+										aria-selected="true"
+										tabindex="0">
+									Клиент
+								</button>
+
+								<button class="workspace-tab-btn"
+										id="workspaceTabSla"
+										data-workspace-tab="sla"
+										type="button"
+										role="tab"
+										aria-controls="workspaceSlaBlock"
+										aria-selected="false"
+										tabindex="-1">
+									SLA
+								</button>
+
+								<button class="workspace-tab-btn"
+										id="workspaceTabAi"
+										data-workspace-tab="ai"
+										type="button"
+										role="tab"
+										aria-controls="workspaceRelatedEventsBlock"
+										aria-selected="false"
+										tabindex="-1">
+									AI
+								</button>
+
+								<button class="workspace-tab-btn"
+										id="workspaceTabHistory"
+										data-workspace-tab="history"
+										type="button"
+										role="tab"
+										aria-controls="workspaceHistoryBlock"
+										aria-selected="false"
+										tabindex="-1">
+									История
+								</button>
+							</div>
+                            <section class="workspace-tab-panel d-none"
+									 data-workspace-tab-panel="sla"
+									 id="workspaceSlaBlock"
+									 role="tabpanel"
+									 aria-labelledby="workspaceTabSla"
+									 tabindex="0">
                                 <div class="small text-muted mb-2">Клиент</div>
                                 <div id="workspaceClientState" class="small text-muted">Загрузка данных</div>
                                 <div id="workspaceClientContent" class="d-none"></div>
@@ -220,7 +267,12 @@
                                     <button class="btn btn-link btn-sm p-0" id="workspaceClientRetry" type="button">Повторить</button>
                                 </div>
                             </section>
-                            <section class="workspace-tab-panel d-none" data-workspace-tab-panel="sla" id="workspaceSlaBlock">
+                            <section class="workspace-tab-panel d-none"
+									 data-workspace-tab-panel="sla"
+									 id="workspaceSlaBlock"
+									 role="tabpanel"
+									 aria-labelledby="workspaceTabSla"
+									 tabindex="0">
                                 <div class="small text-muted mb-2">SLA</div>
                                 <div id="workspaceSlaState" class="small text-muted">Загрузка SLA…</div>
                                 <div id="workspaceSlaContent" class="d-none"></div>
@@ -229,7 +281,12 @@
                                     <button class="btn btn-link btn-sm p-0" id="workspaceSlaRetry" type="button">Повторить</button>
                                 </div>
                             </section>
-                            <section class="workspace-tab-panel d-none" data-workspace-tab-panel="ai" id="workspaceRelatedEventsBlock">
+                            <section class="workspace-tab-panel d-none"
+									 data-workspace-tab-panel="ai"
+									 id="workspaceRelatedEventsBlock"
+									 role="tabpanel"
+									 aria-labelledby="workspaceTabAi"
+									 tabindex="0">
                                 <div class="small text-muted mb-2">Связанные события</div>
                                 <div id="workspaceRelatedEventsState" class="small text-muted">Загрузка событий</div>
                                 <div id="workspaceRelatedEventsContent" class="d-none"></div>
@@ -238,7 +295,12 @@
                                     <button class="btn btn-link btn-sm p-0" id="workspaceRelatedEventsRetry" type="button">Повторить</button>
                                 </div>
                             </section>
-                            <section class="workspace-tab-panel d-none" data-workspace-tab-panel="history" id="workspaceHistoryBlock">
+                            <section class="workspace-tab-panel d-none"
+									 data-workspace-tab-panel="history"
+									 id="workspaceHistoryBlock"
+									 role="tabpanel"
+									 aria-labelledby="workspaceTabHistory"
+									 tabindex="0">
                                 <div class="small text-muted mb-2">История изменений</div>
                                 <div id="workspaceHistoryState" class="small text-muted">Загрузка истории</div>
                                 <div id="workspaceHistoryContent" class="d-none"></div>

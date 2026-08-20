@@ -48,13 +48,43 @@
             transition: background-color .15s ease;
         }
 
-        .incident-list-row.is-active {
-            background: rgba(13, 110, 253, .08);
-        }
+		.incident-list-row-button {
+			width: 100%;
+			padding: 0;
 
-        .incident-list-row:hover {
-            background: rgba(13, 110, 253, .04);
-        }
+			border: 0;
+			background: transparent;
+			color: inherit;
+
+			font: inherit;
+			text-align: left;
+
+			cursor: pointer;
+		}
+
+		.incident-list-row-button:focus-visible {
+			outline: 2px solid var(--ring);
+			outline-offset: 3px;
+			border-radius: var(--radius-sm);
+		}
+
+        .incident-list-row.is-active {
+			background:
+				color-mix(
+					in srgb,
+					var(--primary) 12%,
+					transparent
+				);
+		}
+
+		.incident-list-row:hover {
+			background:
+				color-mix(
+					in srgb,
+					var(--primary) 6%,
+					transparent
+				);
+		}
 
         .incident-kpi-grid {
             display: grid;
@@ -63,24 +93,30 @@
         }
 
         .incident-kpi-card {
-            border: 1px solid rgba(15, 23, 42, .08);
-            border-radius: 1rem;
-            padding: .85rem 1rem;
-            background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,250,252,.92));
-        }
+			border: 1px solid var(--color-border);
+			border-radius: 1rem;
+			padding: .85rem 1rem;
 
-        .incident-kpi-label {
-            font-size: .78rem;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: .04em;
-        }
+			background:
+				linear-gradient(
+					180deg,
+					var(--surface-card),
+					var(--surface-raised)
+				);
+		}
 
-        .incident-kpi-value {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #0f172a;
-        }
+		.incident-kpi-label {
+			font-size: .78rem;
+			color: var(--color-text-muted);
+			text-transform: uppercase;
+			letter-spacing: .04em;
+		}
+
+		.incident-kpi-value {
+			font-size: 1.35rem;
+			font-weight: 700;
+			color: var(--color-text);
+		}
 
         .incident-detail-columns {
             display: grid;
@@ -98,12 +134,13 @@
         }
 
         .incident-surface-item,
-        .transport-item-card {
-            border: 1px solid rgba(15, 23, 42, .08);
-            border-radius: 1rem;
-            padding: .85rem 1rem;
-            background: #fff;
-        }
+		.transport-item-card {
+			border: 1px solid var(--color-border);
+			border-radius: 1rem;
+			padding: .85rem 1rem;
+			background: var(--surface-card);
+			color: var(--color-text);
+		}
 
         .incident-event-text {
             white-space: pre-wrap;
