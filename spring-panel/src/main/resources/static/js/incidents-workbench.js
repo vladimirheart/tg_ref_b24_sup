@@ -24,7 +24,9 @@
     payloadRequestSerial: 0,
     ticketDebugRequestSerial: 0,
 
-    successHideTimer: null
+    successHideTimer: null,
+
+	incidentDetailDirty: false
 };
 
   const filterNodes = {
@@ -245,6 +247,235 @@ async function refreshIncidentIfStillSelected(
     await loadIncidentDetail(incidentId);
 }
 
+const INCIDENT_DETAIL_FIELD_IDS = [
+    'incidentDetailTitle',
+    'incidentDetailSummary',
+    'incidentDetailSeverity',
+    'incidentDetailStatus',
+    'incidentDetailOwner',
+    'incidentDetailSource',
+    'incidentDetailDescription'
+];
+
+function isIncidentDetailField(element) {
+    return (
+        element instanceof Element &&
+        INCIDENT_DETAIL_FIELD_IDS.includes(
+            element.id
+        )
+    );
+}
+
+function captureIncidentDetailDraft(
+    incidentId
+) {
+    if (!state.incidentDetailDirty) {
+        return null;
+    }
+
+    const normalizedIncidentId =
+        String(incidentId || '').trim();
+
+    if (
+        !normalizedIncidentId ||
+        String(state.selectedIncidentId || '') !==
+            normalizedIncidentId
+    ) {
+        return null;
+    }
+
+    const values = {};
+
+    INCIDENT_DETAIL_FIELD_IDS.forEach(
+        (fieldId) => {
+            const field =
+                document.getElementById(fieldId);
+
+            if (
+                field instanceof HTMLInputElement ||
+                field instanceof HTMLTextAreaElement ||
+                field instanceof HTMLSelectElement
+            ) {
+                values[fieldId] =
+                    field.value;
+            }
+        }
+    );
+
+    return {
+        incidentId: normalizedIncidentId,
+        values
+    };
+}
+
+function restoreIncidentDetailDraft(draft) {
+    if (
+        !draft ||
+        String(state.selectedIncidentId || '') !==
+            String(draft.incidentId || '')
+    ) {
+        return;
+    }
+
+    Object.entries(
+        draft.values || {}
+    ).forEach(([fieldId, value]) => {
+        const field =
+            document.getElementById(fieldId);
+
+        if (
+            field instanceof HTMLInputElement ||
+            field instanceof HTMLTextAreaElement ||
+            field instanceof HTMLSelectElement
+        ) {
+            field.value =
+                String(value ?? '');
+        }
+    });
+
+    state.incidentDetailDirty = true;
+}
+
+function getIncidentDetailFocusKey(
+    element
+) {
+    if (
+        !(element instanceof Element) ||
+        !detailNode.contains(element)
+    ) {
+        return '';
+    }
+
+    if (element.id) {
+        return `id:${element.id}`;
+    }
+
+    const removeWatcherButton =
+        element.closest(
+            '[data-incident-remove-watcher]'
+        );
+
+    if (removeWatcherButton) {
+        return (
+            'watcher-remove:' +
+            (
+                removeWatcherButton.getAttribute(
+                    'data-incident-remove-watcher'
+                ) || ''
+            )
+        );
+    }
+
+    const redeliverRouteButton =
+        element.closest(
+            '[data-incident-redeliver-route]'
+        );
+
+    if (redeliverRouteButton) {
+        return (
+            'route-redeliver:' +
+            (
+                redeliverRouteButton.getAttribute(
+                    'data-incident-redeliver-route'
+                ) || ''
+            )
+        );
+    }
+
+    return '';
+}
+
+function restoreIncidentDetailFocus(
+    focusKey
+) {
+    if (!focusKey) {
+        return;
+    }
+
+    window.requestAnimationFrame(() => {
+        let target = null;
+
+        if (focusKey.startsWith('id:')) {
+            target =
+                document.getElementById(
+                    focusKey.slice(3)
+                );
+        }
+
+        if (
+            !target &&
+            focusKey.startsWith(
+                'watcher-remove:'
+            )
+        ) {
+            const watcherIdentity =
+                focusKey.slice(
+                    'watcher-remove:'.length
+                );
+
+            target = Array.from(
+                detailNode.querySelectorAll(
+                    '[data-incident-remove-watcher]'
+                )
+            ).find(
+                (item) =>
+                    item.getAttribute(
+                        'data-incident-remove-watcher'
+                    ) === watcherIdentity
+            ) || null;
+
+            // После удаления конкретной кнопки
+            // уже нет — возвращаем пользователя
+            // к полю добавления watcher.
+            if (!target) {
+                target =
+                    document.getElementById(
+                        'incidentWatcherInput'
+                    );
+            }
+        }
+
+        if (
+            !target &&
+            focusKey.startsWith(
+                'route-redeliver:'
+            )
+        ) {
+            const routeId =
+                focusKey.slice(
+                    'route-redeliver:'.length
+                );
+
+            target = Array.from(
+                detailNode.querySelectorAll(
+                    '[data-incident-redeliver-route]'
+                )
+            ).find(
+                (item) =>
+                    item.getAttribute(
+                        'data-incident-redeliver-route'
+                    ) === routeId
+            ) || null;
+
+            if (!target) {
+                target =
+                    document.getElementById(
+                        'incidentRouteTarget'
+                    );
+            }
+        }
+
+        if (
+            target instanceof HTMLElement &&
+            detailNode.contains(target)
+        ) {
+            target.focus({
+                preventScroll: true
+            });
+        }
+    });
+}
+
   async function loadIncidents() {
     const requestSerial =
         ++state.listRequestSerial;
@@ -425,14 +656,24 @@ async function refreshIncidentIfStillSelected(
     }
 
     const requestSerial =
-        ++state.detailRequestSerial;
+    ++state.detailRequestSerial;
 
-    state.selectedIncidentId =
-        normalizedIncidentId;
+	const detailDraft =
+		captureIncidentDetailDraft(
+			normalizedIncidentId
+		);
 
-    // Старый detail больше нельзя использовать для действий,
-    // пока загружается новый incident.
-    state.selectedIncident = null;
+	const detailFocusKey =
+		getIncidentDetailFocusKey(
+			document.activeElement
+		);
+
+	state.selectedIncidentId =
+		normalizedIncidentId;
+
+	// Старый detail больше нельзя использовать для действий,
+	// пока загружается новый incident.
+	state.selectedIncident = null;
 
     renderIncidentList();
 
@@ -459,9 +700,17 @@ async function refreshIncidentIfStillSelected(
         }
 
         state.selectedIncident =
-            payload?.incident || null;
+			payload?.incident || null;
 
-        renderIncidentDetail();
+		renderIncidentDetail();
+
+		restoreIncidentDetailDraft(
+			detailDraft
+		);
+
+		restoreIncidentDetailFocus(
+			detailFocusKey
+		);
     } catch (error) {
         const isCurrentRequest =
             requestSerial === state.detailRequestSerial &&
@@ -501,9 +750,14 @@ async function refreshIncidentIfStillSelected(
 
   function renderIncidentDetail() {
     const incident = state.selectedIncident;
+
     if (!incident) {
-      detailNode.innerHTML = '<div class="text-muted">Выберите incident слева, чтобы открыть workbench.</div>';
-      return;
+        state.incidentDetailDirty = false;
+
+        detailNode.innerHTML =
+            '<div class="text-muted">Выберите incident слева, чтобы открыть workbench.</div>';
+
+        return;
     }
     const relations = Array.isArray(incident.relations) ? incident.relations : [];
     const watchers = Array.isArray(incident.watchers) ? incident.watchers : [];
@@ -692,6 +946,7 @@ async function refreshIncidentIfStillSelected(
         </div>
       </div>
     `;
+	state.incidentDetailDirty = false;
   }
 
   async function saveIncident() {
@@ -706,13 +961,23 @@ async function refreshIncidentIfStillSelected(
       source: document.getElementById('incidentDetailSource')?.value?.trim() || '',
       description: document.getElementById('incidentDetailDescription')?.value?.trim() || ''
     };
-    await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    showSuccess('Incident обновлён');
-    await loadIncidents();
+    await requestJson(
+		`/api/incidents/${encodeURIComponent(incident.id)}`,
+		{
+			method: 'PATCH',
+			headers: {
+				'Content-Type':
+					'application/json'
+			},
+			body: JSON.stringify(payload)
+		}
+	);
+
+	state.incidentDetailDirty = false;
+
+	showSuccess('Incident обновлён');
+
+	await loadIncidents();
   }
 
   async function createIncident() {
@@ -1297,6 +1562,28 @@ async function refreshIncidentIfStillSelected(
       void loadIncidentDetail(incidentId).catch((error) => showError(error.message));
     }
   });
+
+	const markIncidentDetailDirty = (
+    event
+) => {
+    if (
+        isIncidentDetailField(
+            event.target
+        )
+    ) {
+        state.incidentDetailDirty = true;
+    }
+};
+
+detailNode.addEventListener(
+    'input',
+    markIncidentDetailDirty
+);
+
+detailNode.addEventListener(
+    'change',
+    markIncidentDetailDirty
+);
 
   detailNode.addEventListener('click', (event) => {
     const removeWatcherButton = event.target.closest('[data-incident-remove-watcher]');
