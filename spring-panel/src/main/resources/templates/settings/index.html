@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="_csrf" th:content="${_csrf.token}" />
   <title>Настройки — iguana</title>
-  <link rel="icon" type="image/svg+xml" href="/iguana-icon.svg" />
   <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
@@ -195,7 +194,8 @@
     .settings-page-hero {
 		position: relative;
 		isolation: isolate;
-		overflow: hidden;
+		overflow: visible;
+		z-index: 20;
 
 		border: 1px solid var(--color-border) !important;
 		border-radius: var(--radius-xl) !important;
@@ -231,35 +231,6 @@
       justify-content: space-between;
       gap: 1rem;
     }
-
-    .settings-page-hero__actions {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      flex-shrink: 0;
-    }
-
-    .settings-page-hero__details-toggle {
-      min-height: 2.35rem;
-      border-radius: 999px;
-      padding-inline: 0.9rem;
-      font-weight: 700;
-    }
-
-    .settings-page-hero__details-toggle i {
-      margin-right: 0.35rem;
-    }
-
-    .settings-hero-details-panel {
-		padding: 1rem 1.05rem;
-
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-
-		background: var(--surface-raised);
-
-		box-shadow: none;
-	}
 
     .settings-overview--chromed {
 	  position: relative;
@@ -2500,51 +2471,6 @@
           <span class="page-kicker">Admin</span>
           <h2 class="page-title">Настройки</h2>
           <p class="page-subtitle mb-0">Каналы, доступы, справочники и конфигурация панели в одном административном контуре.</p>
-        </div>
-        <div class="settings-page-hero__actions">
-          <button
-            class="btn btn-outline-secondary btn-sm settings-page-hero__details-toggle"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#settingsHeroDetails"
-            aria-expanded="false"
-            aria-controls="settingsHeroDetails"
-          >
-            <i class="bi bi-info-circle" aria-hidden="true"></i>
-            Подробнее
-          </button>
-        </div>
-      </div>
-      <div class="collapse mt-3" id="settingsHeroDetails">
-        <div class="settings-hero-details-panel">
-          <div class="row g-3 align-items-start">
-            <div class="col-xl-7">
-              <div class="fw-semibold mb-2">Что здесь собрано</div>
-              <p class="text-muted mb-3">Ключевые административные модули: доступы, маршрутизация, справочники и параметры рабочего UI.</p>
-              <div class="settings-overview__stats">
-                <div class="settings-overview__stat">
-                  <div class="settings-overview__stat-value">11</div>
-                  <div class="settings-overview__stat-label">рабочих модулей</div>
-                </div>
-                <div class="settings-overview__stat">
-                  <div class="settings-overview__stat-value">3</div>
-                  <div class="settings-overview__stat-label">канала ботов</div>
-                </div>
-                <div class="settings-overview__stat">
-                  <div class="settings-overview__stat-value">1</div>
-                  <div class="settings-overview__stat-label">точка администрирования</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-xl-5">
-              <div class="fw-semibold mb-2">Рекомендуемый порядок работы</div>
-              <ul class="settings-overview__list small">
-                <li>Сначала каналы и права доступа, затем структура локаций и справочники.</li>
-                <li>После изменения диалогов проверьте шаблоны и автоответы в каналах.</li>
-                <li>Оформление интерфейса меняйте в конце, когда данные и маршруты уже настроены.</li>
-              </ul>
-            </div>
-          </div>
         </div>
       </div>
     </div>

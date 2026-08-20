@@ -108,13 +108,13 @@ SPRING_RABBITMQ_PASSWORD=iguana
 EOF
 
   cat <<EOF
-APP_STORAGE_ATTACHMENTS=attachments
-APP_STORAGE_KNOWLEDGE_BASE=attachments/knowledge_base
-APP_STORAGE_AVATARS=attachments/avatars
-APP_STORAGE_WEBFORMS=attachments/forms
-APP_BOT_DATABASE_DIR=bot_databases
-APP_PANEL_LOG_DIR=logs
-APP_BOT_LOG_DIR=logs
+APP_STORAGE_ATTACHMENTS=../attachments
+APP_STORAGE_KNOWLEDGE_BASE=../attachments/knowledge_base
+APP_STORAGE_AVATARS=../attachments/avatars
+APP_STORAGE_WEBFORMS=../attachments/forms
+APP_BOT_DATABASE_DIR=../bot_databases
+APP_PANEL_LOG_DIR=../logs
+APP_BOT_LOG_DIR=../logs
 EOF
 }
 

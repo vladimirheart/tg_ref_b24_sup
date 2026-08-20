@@ -2193,3 +2193,71 @@ body[data-ui-page='dashboard'] {
         border-top-color: var(--surface-card);
     }
 }
+/* Reports — neutral KPI surface */
+
+body[data-ui-page='dashboard']
+.dashboard-overview-grid {
+    align-items: start;
+}
+
+body[data-ui-page='dashboard']
+.metrics-panel {
+    border: 1px solid var(--color-border);
+
+    background: var(--surface-card);
+    color: var(--color-text);
+
+    box-shadow: none;
+}
+
+body[data-ui-page='dashboard']
+.metrics-panel .section-kicker,
+body[data-ui-page='dashboard']
+.metrics-panel .metrics-headline__chip {
+    border:
+        1px solid
+        color-mix(
+            in srgb,
+            var(--primary) 22%,
+            var(--color-border)
+        );
+
+    background: var(--surface-selected);
+    color: var(--primary);
+}
+
+body[data-ui-page='dashboard']
+.metrics-panel .panel-title-row h3,
+body[data-ui-page='dashboard']
+.metrics-panel .metric-value,
+body[data-ui-page='dashboard']
+.metrics-panel .metric-mini-value {
+    color: var(--color-text);
+}
+
+body[data-ui-page='dashboard']
+.metrics-panel .metrics-headline__meta,
+body[data-ui-page='dashboard']
+.metrics-panel .metric-label,
+body[data-ui-page='dashboard']
+.metrics-panel .metric-foot,
+body[data-ui-page='dashboard']
+.metrics-panel .metric-mini-label,
+body[data-ui-page='dashboard']
+.metrics-panel .metric-note-text {
+    color: var(--color-text-muted);
+}
+
+body[data-ui-page='dashboard']
+.metrics-panel .metric-card {
+    min-height: 106px;
+    padding: 0.8rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+
+    box-shadow: none;
+}

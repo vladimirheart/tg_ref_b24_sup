@@ -4,7 +4,129 @@
   }
 
   function createRuntime(options = {}) {
-    const elements = options.elements || {};
+    const elements =
+        options.elements || {};
+
+    const pinnedSection =
+        elements.panel?.querySelector(
+            '[data-my-dialogs-pinned-section]'
+        ) || null;
+
+    const pinnedList =
+        elements.panel?.querySelector(
+            '[data-my-dialogs-pinned-list]'
+        ) || null;
+
+    const operatorIdentity =
+        String(
+            document.body?.dataset
+                ?.operatorIdentity ||
+            'anonymous'
+        ).trim() || 'anonymous';
+
+    const pinnedStorageKey =
+        `iguana:dialogs:my-dialog-pins:${operatorIdentity}`;
+
+    function getPinnedDialogIds() {
+        try {
+            const parsed =
+                JSON.parse(
+                    localStorage.getItem(
+                        pinnedStorageKey
+                    ) || '[]'
+                );
+
+            if (!Array.isArray(parsed)) {
+                return [];
+            }
+
+            return Array.from(
+                new Set(
+                    parsed
+                        .map(
+                            (value) =>
+                                String(
+                                    value || ''
+                                ).trim()
+                        )
+                        .filter(Boolean)
+                )
+            );
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function setPinnedDialogIds(ids) {
+        try {
+            const normalized =
+                Array.from(
+                    new Set(
+                        (
+                            Array.isArray(ids)
+                                ? ids
+                                : []
+                        )
+                            .map(
+                                (value) =>
+                                    String(
+                                        value || ''
+                                    ).trim()
+                            )
+                            .filter(Boolean)
+                    )
+                );
+
+            localStorage.setItem(
+                pinnedStorageKey,
+                JSON.stringify(
+                    normalized
+                )
+            );
+        } catch (error) {
+            // localStorage недоступен —
+            // список продолжает работать
+            // без persistence.
+        }
+    }
+
+    function togglePinnedDialog(
+        ticketId
+    ) {
+        const normalizedTicketId =
+            String(
+                ticketId || ''
+            ).trim();
+
+        if (!normalizedTicketId) {
+            return;
+        }
+
+        const pinnedIds =
+            getPinnedDialogIds();
+
+        const existingIndex =
+            pinnedIds.indexOf(
+                normalizedTicketId
+            );
+
+        if (existingIndex >= 0) {
+            pinnedIds.splice(
+                existingIndex,
+                1
+            );
+        } else {
+            pinnedIds.push(
+                normalizedTicketId
+            );
+        }
+
+        setPinnedDialogIds(
+            pinnedIds
+        );
+
+        renderMyDialogsPanel();
+    }
 
     function escapeHtml(value) {
       return typeof options.escapeHtml === 'function'
@@ -182,35 +304,166 @@
       return 'Активность пока не зафиксирована';
     }
 
-    function renderMyDialogItem(dialog) {
-      const ticketId = String(dialog?.ticketId || '').trim();
-      if (!ticketId) return '';
-      const requestNumber = String(dialog?.requestNumber || '').trim();
-      const title = requestNumber || ticketId;
-      const clientName = String(dialog?.clientName || dialog?.username || 'Клиент').trim();
-      const locationName = String(dialog?.location || '').trim();
-      const channelName = String(dialog?.channelName || dialog?.channel || 'Без канала').trim();
-      const unreadCount = Number(dialog?.unreadCount ?? dialog?.unread_count ?? 0) || 0;
-      const isActive = String(options.getActiveDialogTicketId?.() || '').trim() === ticketId;
-      const lastActivity = formatMyDialogLastActivity(dialog);
-      const problem = String(dialog?.problem || '').trim();
-      const metaParts = [clientName, channelName].filter(Boolean);
-      return `
-      <button type="button"
-        class="dialog-my-dialog-item ${isActive ? 'is-active' : ''}"
-        data-my-dialog-ticket-id="${escapeHtml(ticketId)}"
-        aria-current="${isActive ? 'true' : 'false'}">
-        <div class="dialog-my-dialog-item-head">
-          <div class="dialog-my-dialog-item-title">№ ${escapeHtml(title)}</div>
-          <span class="badge dialog-unread-count ${unreadCount > 0 ? '' : 'd-none'}">${unreadCount}</span>
-        </div>
-        <div class="dialog-my-dialog-item-meta">${metaParts.map((part) => `<span>${escapeHtml(part)}</span>`).join('')}</div>
-        ${locationName ? `<div class="dialog-my-dialog-item-last">Ресторан: ${escapeHtml(locationName)}</div>` : ''}
-        <div class="dialog-my-dialog-item-last">${escapeHtml(problem || lastActivity)}</div>
-        ${problem ? `<div class="dialog-my-dialog-item-last">${escapeHtml(lastActivity)}</div>` : ''}
-      </button>
-    `;
-    }
+    function renderMyDialogItem(
+		dialog,
+		{
+			pinned = false,
+		} = {}
+	) {
+		const ticketId =
+			String(
+				dialog?.ticketId || ''
+			).trim();
+
+		if (!ticketId) {
+			return '';
+		}
+
+		const requestNumber =
+			String(
+				dialog?.requestNumber || ''
+			).trim();
+
+		const title =
+			requestNumber ||
+			ticketId;
+
+		const clientName =
+			String(
+				dialog?.clientName ||
+				dialog?.username ||
+				'Клиент'
+			).trim();
+
+		const locationName =
+			String(
+				dialog?.location || ''
+			).trim();
+
+		const channelName =
+			String(
+				dialog?.channelName ||
+				dialog?.channel ||
+				'Без канала'
+			).trim();
+
+		const unreadCount =
+			Number(
+				dialog?.unreadCount ??
+				dialog?.unread_count ??
+				0
+			) || 0;
+
+		const isActive =
+			String(
+				options
+					.getActiveDialogTicketId
+					?.() || ''
+			).trim() === ticketId;
+
+		const lastActivity =
+			formatMyDialogLastActivity(
+				dialog
+			);
+
+		const problem =
+			String(
+				dialog?.problem || ''
+			).trim();
+
+		const metaParts =
+			[
+				clientName,
+				channelName,
+			].filter(Boolean);
+
+		const pinLabel =
+			pinned
+				? 'Открепить'
+				: 'Закрепить';
+
+		return `
+			<div class="
+				dialog-my-dialog-item-shell
+				${pinned ? 'is-pinned' : ''}
+			">
+				<button
+					type="button"
+					class="
+						dialog-my-dialog-item
+						${isActive ? 'is-active' : ''}
+					"
+					data-my-dialog-ticket-id="${escapeHtml(ticketId)}"
+					aria-current="${isActive ? 'true' : 'false'}"
+				>
+					<div class="dialog-my-dialog-item-head">
+						<div class="dialog-my-dialog-item-title">
+							№ ${escapeHtml(title)}
+						</div>
+
+						<span class="
+							badge
+							dialog-unread-count
+							${unreadCount > 0 ? '' : 'd-none'}
+						">
+							${unreadCount}
+						</span>
+					</div>
+
+					<div class="dialog-my-dialog-item-meta">
+						${metaParts
+							.map(
+								(part) =>
+									`<span>${escapeHtml(part)}</span>`
+							)
+							.join('')}
+					</div>
+
+					${
+						locationName
+							? `
+								<div class="dialog-my-dialog-item-last">
+									Ресторан:
+									${escapeHtml(locationName)}
+								</div>
+							`
+							: ''
+					}
+
+					<div class="dialog-my-dialog-item-last">
+						${escapeHtml(
+							problem ||
+							lastActivity
+						)}
+					</div>
+
+					${
+						problem
+							? `
+								<div class="dialog-my-dialog-item-last">
+									${escapeHtml(lastActivity)}
+								</div>
+							`
+							: ''
+					}
+				</button>
+
+				<button
+					type="button"
+					class="
+						dialog-my-dialog-pin
+						${pinned ? 'is-pinned' : ''}
+					"
+					data-my-dialog-pin-ticket-id="${escapeHtml(ticketId)}"
+					aria-pressed="${pinned ? 'true' : 'false'}"
+					aria-label="${pinLabel} диалог № ${escapeHtml(title)}"
+					title="${pinLabel}"
+				>
+					<span aria-hidden="true">📌</span>
+				</button>
+			</div>
+		`;
+	}
 
     function renderMyDialogsPanel() {
 		if (
@@ -218,82 +471,339 @@
 			!elements.newList ||
 			!elements.unansweredList ||
 			!elements.inWorkList
-		) return;
+		) {
+			return;
+		}
 
-		const focusedTrigger =
-			document.activeElement instanceof Element
-				? document.activeElement.closest(
-					'[data-my-dialog-ticket-id]'
-				)
+		const focusedElement =
+			document.activeElement
+				instanceof Element
+				? document.activeElement
 				: null;
 
-		const focusedTicketId =
-			focusedTrigger?.getAttribute(
-				'data-my-dialog-ticket-id'
-			) || '';
+		const focusedPin =
+			focusedElement?.closest(
+				'[data-my-dialog-pin-ticket-id]'
+			);
 
-		const state = getMyDialogsState();
-      const newDialogs = normalizeMyDialogsCollection(state.new);
-      const unanswered = normalizeMyDialogsCollection(state.unanswered);
-      const inWork = normalizeMyDialogsCollection(state.inWork);
-      const totalActive = newDialogs.length + unanswered.length + inWork.length;
-      elements.newList.innerHTML = newDialogs.map(renderMyDialogItem).join('');
-      elements.unansweredList.innerHTML = unanswered.map(renderMyDialogItem).join('');
-      elements.inWorkList.innerHTML = inWork.map(renderMyDialogItem).join('');
-      if (elements.count) {
-        elements.count.textContent = `(${totalActive})`;
-      }
-      if (elements.newSection) {
-        elements.newSection.classList.toggle('d-none', newDialogs.length === 0);
-      }
-      if (elements.unansweredSection) {
-        elements.unansweredSection.classList.toggle('d-none', unanswered.length === 0);
-      }
-      if (elements.inWorkSection) {
-        elements.inWorkSection.classList.toggle('d-none', inWork.length === 0);
-      }
-      if (elements.empty) {
-        elements.empty.classList.toggle('d-none', newDialogs.length > 0 || unanswered.length > 0 || inWork.length > 0);
-      }
-	  if (focusedTicketId) {
-			window.requestAnimationFrame(() => {
-				const nextTrigger = Array.from(
-					elements.panel.querySelectorAll(
-						'[data-my-dialog-ticket-id]'
-					)
-				).find(
-					(item) =>
-						item.getAttribute(
-							'data-my-dialog-ticket-id'
-						) === focusedTicketId
+		const focusedDialog =
+			focusedElement?.closest(
+				'[data-my-dialog-ticket-id]'
+			);
+
+		const focusedControlType =
+			focusedPin
+				? 'pin'
+				: (
+					focusedDialog
+						? 'dialog'
+						: ''
 				);
 
-				if (nextTrigger) {
-					nextTrigger.focus({
-						preventScroll: true
+		const focusedTicketId =
+			focusedPin?.getAttribute(
+				'data-my-dialog-pin-ticket-id'
+			) ||
+			focusedDialog?.getAttribute(
+				'data-my-dialog-ticket-id'
+			) ||
+			'';
+
+		const state =
+			getMyDialogsState();
+
+		const newDialogs =
+			normalizeMyDialogsCollection(
+				state.new
+			);
+
+		const unanswered =
+			normalizeMyDialogsCollection(
+				state.unanswered
+			);
+
+		const inWork =
+			normalizeMyDialogsCollection(
+				state.inWork
+			);
+
+		const activeById =
+			new Map();
+
+		[
+			...newDialogs,
+			...unanswered,
+			...inWork,
+		].forEach(
+			(dialog) => {
+				const ticketId =
+					String(
+						dialog?.ticketId || ''
+					).trim();
+
+				if (
+					ticketId &&
+					!activeById.has(ticketId)
+				) {
+					activeById.set(
+						ticketId,
+						dialog
+					);
+				}
+			}
+		);
+
+		const pinnedIds =
+			getPinnedDialogIds();
+
+		const pinnedDialogs =
+			pinnedIds
+				.map(
+					(ticketId) =>
+						activeById.get(
+							ticketId
+						)
+				)
+				.filter(Boolean);
+
+		const activePinnedIds =
+			new Set(
+				pinnedDialogs.map(
+					(dialog) =>
+						String(
+							dialog.ticketId
+						)
+				)
+			);
+
+		const regularNew =
+			newDialogs.filter(
+				(dialog) =>
+					!activePinnedIds.has(
+						String(
+							dialog.ticketId
+						)
+					)
+			);
+
+		const regularUnanswered =
+			unanswered.filter(
+				(dialog) =>
+					!activePinnedIds.has(
+						String(
+							dialog.ticketId
+						)
+					)
+			);
+
+		const regularInWork =
+			inWork.filter(
+				(dialog) =>
+					!activePinnedIds.has(
+						String(
+							dialog.ticketId
+						)
+					)
+			);
+
+		if (pinnedList) {
+			pinnedList.innerHTML =
+				pinnedDialogs
+					.map(
+						(dialog) =>
+							renderMyDialogItem(
+								dialog,
+								{
+									pinned: true,
+								}
+							)
+					)
+					.join('');
+		}
+
+		pinnedSection?.classList.toggle(
+			'd-none',
+			pinnedDialogs.length === 0
+		);
+
+		elements.newList.innerHTML =
+			regularNew
+				.map(
+					(dialog) =>
+						renderMyDialogItem(
+							dialog
+						)
+				)
+				.join('');
+
+		elements.unansweredList.innerHTML =
+			regularUnanswered
+				.map(
+					(dialog) =>
+						renderMyDialogItem(
+							dialog
+						)
+				)
+				.join('');
+
+		elements.inWorkList.innerHTML =
+			regularInWork
+				.map(
+					(dialog) =>
+						renderMyDialogItem(
+							dialog
+						)
+				)
+				.join('');
+
+		const totalActive =
+			activeById.size;
+
+		if (elements.count) {
+			elements.count.textContent =
+				`(${totalActive})`;
+		}
+
+		elements.newSection
+			?.classList.toggle(
+				'd-none',
+				regularNew.length === 0
+			);
+
+		elements.unansweredSection
+			?.classList.toggle(
+				'd-none',
+				regularUnanswered.length === 0
+			);
+
+		elements.inWorkSection
+			?.classList.toggle(
+				'd-none',
+				regularInWork.length === 0
+			);
+
+		elements.empty
+			?.classList.toggle(
+				'd-none',
+				totalActive > 0
+			);
+
+		if (
+			focusedTicketId &&
+			focusedControlType
+		) {
+			window.requestAnimationFrame(
+				() => {
+					const attributeName =
+						focusedControlType ===
+						'pin'
+							? 'data-my-dialog-pin-ticket-id'
+							: 'data-my-dialog-ticket-id';
+
+					const nextTrigger =
+						Array.from(
+							elements.panel
+								.querySelectorAll(
+									`[${attributeName}]`
+								)
+						).find(
+							(item) =>
+								item.getAttribute(
+									attributeName
+								) ===
+								focusedTicketId
+						);
+
+					nextTrigger?.focus({
+						preventScroll: true,
 					});
 				}
-			});
+			);
 		}
-    }
+	}
 
     function bindPanelEvents() {
       if (!elements.panel || elements.panel.dataset.myDialogsBound === 'true') return;
       elements.panel.dataset.myDialogsBound = 'true';
-      elements.panel.addEventListener('click', (event) => {
-        const trigger = event.target instanceof Element
-          ? event.target.closest('[data-my-dialog-ticket-id]')
-          : null;
-        if (!trigger) return;
-        event.preventDefault();
-        const ticketId = String(trigger.getAttribute('data-my-dialog-ticket-id') || '').trim();
-        if (!ticketId) return;
-        const row = typeof options.findRowByTicketId === 'function'
-          ? options.findRowByTicketId(ticketId)
-          : null;
-        options.setActiveDialogRow?.(row, { ensureVisible: true });
-        options.openDialogSurface?.(ticketId, row, { source: 'manual_open' });
-      });
+      elements.panel.addEventListener(
+		'click',
+		(event) => {
+			const target =
+				event.target
+					instanceof Element
+					? event.target
+					: null;
+
+			const pinTrigger =
+				target?.closest(
+					'[data-my-dialog-pin-ticket-id]'
+				);
+
+			if (pinTrigger) {
+				event.preventDefault();
+				event.stopPropagation();
+
+				const ticketId =
+					String(
+						pinTrigger.getAttribute(
+							'data-my-dialog-pin-ticket-id'
+						) || ''
+					).trim();
+
+				togglePinnedDialog(
+					ticketId
+				);
+
+				return;
+			}
+
+			const trigger =
+				target?.closest(
+					'[data-my-dialog-ticket-id]'
+				);
+
+			if (!trigger) {
+				return;
+			}
+
+			event.preventDefault();
+
+			const ticketId =
+				String(
+					trigger.getAttribute(
+						'data-my-dialog-ticket-id'
+					) || ''
+				).trim();
+
+			if (!ticketId) {
+				return;
+			}
+
+			const row =
+				typeof options.findRowByTicketId ===
+				'function'
+					? options.findRowByTicketId(
+						ticketId
+					)
+					: null;
+
+			options.setActiveDialogRow?.(
+				row,
+				{
+					ensureVisible: true,
+				}
+			);
+
+			options.openDialogSurface?.(
+				ticketId,
+				row,
+				{
+					source:
+						'manual_open',
+				}
+			);
+		}
+	);
     }
 
     return {

@@ -18,9 +18,14 @@
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <style>
         .incident-shell {
-            display: grid;
-            gap: 1rem;
-        }
+			display: grid;
+			align-content: start;
+			gap: 1rem;
+		}
+
+		.incident-shell > .page-header-card {
+			margin-bottom: 0;
+		}
 
         .incident-grid {
             display: grid;

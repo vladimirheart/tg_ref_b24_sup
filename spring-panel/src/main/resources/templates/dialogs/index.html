@@ -838,8 +838,24 @@
                         <div class="dialog-details-rail-scroll">
                             <div class="dialog-details-section" id="dialogMyDialogsPanel">
                                 <div class="fw-semibold mb-2">Мои диалоги <span class="text-muted fw-normal" id="dialogMyDialogsCount">(0)</span></div>
-                                <div class="text-muted small d-none" id="dialogMyDialogsEmpty">Нет новых и открытых диалогов</div>
-                                <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsNewSection">
+                                <div class="text-muted small d-none"
+									 id="dialogMyDialogsEmpty">
+									Нет новых и открытых диалогов
+								</div>
+
+								<div class="dialog-my-dialogs-section d-none"
+									 data-my-dialogs-pinned-section>
+									<div class="dialog-my-dialogs-heading">
+										Закреплённые
+									</div>
+
+									<div class="dialog-my-dialogs-list"
+										 data-my-dialogs-pinned-list>
+									</div>
+								</div>
+
+								<div class="dialog-my-dialogs-section d-none"
+									 id="dialogMyDialogsNewSection">
                                     <div class="dialog-my-dialogs-heading">Новые</div>
                                     <div class="dialog-my-dialogs-list" id="dialogMyDialogsNewList"></div>
                                 </div>

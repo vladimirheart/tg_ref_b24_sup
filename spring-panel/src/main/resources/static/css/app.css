@@ -17,7 +17,7 @@
 }
 
 .page-header-card--compact {
-  padding: var(--ui-panel-padding);
+  padding: 0.72rem 0.9rem;
 }
 
 .ui-panel,
@@ -170,6 +170,88 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
   margin-top: 0.4rem;
 }
 
+/* Page header information */
+.page-header-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.page-header-title-row .page-title {
+  min-width: 0;
+}
+
+.page-header-info {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.page-header-info__toggle {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  font-family: var(--font-sans);
+  line-height: 1;
+  cursor: help;
+}
+
+.page-header-info__toggle:hover,
+.page-header-info__toggle:focus-visible,
+.page-header-info.is-open .page-header-info__toggle {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+.page-header-info__toggle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.page-header-info__panel {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 0;
+  z-index: 50;
+  width: min(30rem, 100vw - 3rem);
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  color: var(--color-text);
+  box-shadow: 0 0.75rem 1.75rem color-mix(in srgb, var(--shadow-color) 14%, transparent);
+}
+
+.page-header-info__panel[hidden] {
+  display: none;
+}
+
+.page-header-info__copy {
+  margin: 0 !important;
+  max-width: none !important;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 575.98px) {
+  .page-header-info__panel {
+    width: min(22rem, 100vw - 2rem);
+  }
+}
 .content-disclosure--inline {
   margin-top: 0.25rem;
 }
@@ -2582,6 +2664,52 @@ body[data-ui-page=dialogs].dialog-list-only-mode .dialogs-extra-section {
     color: inherit !important;
   }
 }
+/* My dialogs — pinned items */
+.dialog-my-dialog-item-shell {
+  position: relative;
+}
+
+.dialog-my-dialog-item-shell .dialog-my-dialog-item {
+  padding-right: 3rem;
+}
+
+.dialog-my-dialog-pin {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  z-index: 2;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dialog-my-dialog-pin:hover,
+.dialog-my-dialog-pin:focus-visible,
+.dialog-my-dialog-pin.is-pinned {
+  border-color: color-mix(in srgb, var(--primary) 38%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+.dialog-my-dialog-pin:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.dialog-my-dialog-item-shell.is-pinned .dialog-my-dialog-item {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--color-border));
+  background: var(--surface-selected);
+}
+
 /* App-specific unified visual system */
 /* Density mode (global) */
 body.density-comfortable {
@@ -2594,8 +2722,7 @@ body.density-compact {
   --app-density-control-height: 1.95rem;
 }
 
-body.density-compact .card-body,
-body.density-compact .page-header-card {
+body.density-compact .card-body {
   padding: calc(var(--app-density-space) * 0.95) !important;
 }
 
@@ -2611,12 +2738,32 @@ body.density-compact .form-select {
   font-size: 0.875rem;
 }
 
-body.density-compact .page-title {
-  font-size: clamp(1.2rem, 1.4vw, 1.6rem);
+/* Canonical project page header */
+body .page-header-card {
+  gap: 0.3rem;
+  margin-bottom: 1rem !important;
+  padding: 0.78rem 0.95rem !important;
 }
 
-body[data-ui-density=compact] .page-title {
+body .page-header-card .page-kicker {
+  min-height: 22px;
+  padding-inline: 0.55rem;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+body .page-header-card .page-title {
   font-size: clamp(1.22rem, 1.5vw, 1.62rem);
+  line-height: 1.1;
+}
+
+body .page-header-card .page-subtitle {
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+body .page-header-card.page-header-card--has-info {
+  overflow: visible;
 }
 
 /* Project-wide unified UI language */
@@ -3415,11 +3562,8 @@ body {
   max-width: 1520px;
 }
 
-[data-ui-page=knowledge] .kb-page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+[data-ui-page=knowledge] .kb-page-header__layout {
+  width: 100%;
 }
 
 [data-ui-page=knowledge] .kb-page-header__actions {
@@ -3716,10 +3860,6 @@ body {
 }
 
 [data-ui-page=knowledge] .kb-page-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
   border: 1px solid var(--color-border);
   background: var(--surface-card);
   box-shadow: var(--ui-panel-shadow) !important;
@@ -3910,8 +4050,8 @@ body {
 }
 
 @media (max-width: 767.98px) {
-  [data-ui-page=knowledge] .kb-page-header {
-    align-items: stretch;
+  [data-ui-page=knowledge] .kb-page-header__layout {
+    align-items: stretch !important;
     flex-direction: column;
   }
   [data-ui-page=knowledge] .kb-page-header__actions {
@@ -4087,6 +4227,7 @@ body {
 /* Shared header */
 [data-ui-page=passports] .passports-page-header {
   display: flex;
+  flex-direction: row;
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
@@ -5449,6 +5590,7 @@ body {
 
 [data-ui-page=analytics] .analytics-page-header {
   display: flex;
+  flex-direction: row;
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
@@ -7895,6 +8037,49 @@ body[data-ui-page=dashboard] .flatpickr-calendar.arrowTop::after {
 }
 body[data-ui-page=dashboard] .flatpickr-calendar.arrowBottom::after {
   border-top-color: var(--surface-card);
+}
+
+/* Reports — neutral KPI surface */
+body[data-ui-page=dashboard] .dashboard-overview-grid {
+  align-items: start;
+}
+
+body[data-ui-page=dashboard] .metrics-panel {
+  border: 1px solid var(--color-border);
+  background: var(--surface-card);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+body[data-ui-page=dashboard] .metrics-panel .section-kicker,
+body[data-ui-page=dashboard] .metrics-panel .metrics-headline__chip {
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+body[data-ui-page=dashboard] .metrics-panel .panel-title-row h3,
+body[data-ui-page=dashboard] .metrics-panel .metric-value,
+body[data-ui-page=dashboard] .metrics-panel .metric-mini-value {
+  color: var(--color-text);
+}
+
+body[data-ui-page=dashboard] .metrics-panel .metrics-headline__meta,
+body[data-ui-page=dashboard] .metrics-panel .metric-label,
+body[data-ui-page=dashboard] .metrics-panel .metric-foot,
+body[data-ui-page=dashboard] .metrics-panel .metric-mini-label,
+body[data-ui-page=dashboard] .metrics-panel .metric-note-text {
+  color: var(--color-text-muted);
+}
+
+body[data-ui-page=dashboard] .metrics-panel .metric-card {
+  min-height: 106px;
+  padding: 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  box-shadow: none;
 }
 
 /* Compact admin directory pages: channels + users */

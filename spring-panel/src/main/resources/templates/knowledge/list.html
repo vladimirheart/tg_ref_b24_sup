@@ -14,25 +14,35 @@
 <body class="with-sidebar sidebar-pinned" data-ui-page="knowledge">
 <div th:replace="~{fragments/navbar :: navbar('knowledge')}"></div>
 <main class="main-content container-fluid py-4 page-shell">
-    <div class="page-header-card kb-page-header mb-4">
-		<div>
-			<span class="page-kicker">Знания</span>
+    <div class="page-header-card kb-page-header page-hero">
+		<div class="d-flex flex-wrap
+					justify-content-between
+					align-items-end
+					gap-3
+					kb-page-header__layout">
 
-			<h1 class="page-title">
-				База знаний
-			</h1>
+			<div>
+				<span class="page-kicker">
+					Знания
+				</span>
 
-			<p class="page-subtitle mb-0">
-				Инструкции, регламенты и рабочие материалы службы поддержки.
-			</p>
-		</div>
+				<h1 class="page-title">
+					База знаний
+				</h1>
 
-		<div class="kb-page-header__actions">
-			<a class="btn btn-primary"
-			   th:if="${canCreate}"
-			   th:href="@{/knowledge-base/new}">
-				Новая статья
-			</a>
+				<p class="page-subtitle mb-0">
+					Инструкции, регламенты и рабочие материалы службы поддержки.
+				</p>
+			</div>
+
+			<div class="kb-page-header__actions">
+				<a class="btn btn-primary"
+				   th:if="${canCreate}"
+				   th:href="@{/knowledge-base/new}">
+					Новая статья
+				</a>
+			</div>
+
 		</div>
 	</div>
 

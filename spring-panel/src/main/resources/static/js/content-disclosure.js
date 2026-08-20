@@ -59,6 +59,264 @@
     return false;
   }
 
+function buildHeaderInfoDisclosure(element) {
+    const rawText =
+        (element.textContent || '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+    if (!rawText) {
+        return;
+    }
+
+    const header =
+        element.closest(
+            '.page-header-card'
+        );
+
+    const title =
+        header?.querySelector(
+            '.page-title'
+        );
+
+    if (!header || !title) {
+        return;
+    }
+
+    disclosureCounter += 1;
+
+    const panelId =
+        `pageHeaderInfoPanel${disclosureCounter}`;
+
+    let titleRow =
+        title.parentElement
+            ?.classList
+            .contains(
+                'page-header-title-row'
+            )
+            ? title.parentElement
+            : null;
+
+    if (!titleRow) {
+        titleRow =
+            document.createElement(
+                'div'
+            );
+
+        titleRow.className =
+            'page-header-title-row';
+
+        title.parentNode.insertBefore(
+            titleRow,
+            title
+        );
+
+        titleRow.appendChild(
+            title
+        );
+    }
+
+    const info =
+        document.createElement(
+            'span'
+        );
+
+    info.className =
+        'page-header-info';
+
+    const toggle =
+        document.createElement(
+            'button'
+        );
+
+    toggle.type = 'button';
+
+    toggle.className =
+        'page-header-info__toggle';
+
+    toggle.textContent = 'i';
+
+    toggle.setAttribute(
+        'aria-label',
+        'Описание страницы'
+    );
+
+    toggle.setAttribute(
+        'aria-controls',
+        panelId
+    );
+
+    toggle.setAttribute(
+        'aria-expanded',
+        'false'
+    );
+
+    const panel =
+        document.createElement(
+            'div'
+        );
+
+    panel.id = panelId;
+
+    panel.className =
+        'page-header-info__panel';
+
+    panel.setAttribute(
+        'role',
+        'tooltip'
+    );
+
+    panel.hidden = true;
+
+    element.hidden = false;
+
+    element.classList.add(
+        'page-header-info__copy'
+    );
+
+    panel.appendChild(
+        element
+    );
+
+    info.appendChild(
+        toggle
+    );
+
+    info.appendChild(
+        panel
+    );
+
+    titleRow.appendChild(
+        info
+    );
+
+    header.classList.add(
+        'page-header-card--has-info'
+    );
+
+    element.dataset.disclosureProcessed =
+        'true';
+
+    let lockedOpen = false;
+
+    function setOpen(open) {
+        panel.hidden = !open;
+
+        info.classList.toggle(
+            'is-open',
+            open
+        );
+
+        toggle.setAttribute(
+            'aria-expanded',
+            String(open)
+        );
+    }
+
+    info.addEventListener(
+        'mouseenter',
+        () => {
+            setOpen(true);
+        }
+    );
+
+    info.addEventListener(
+        'mouseleave',
+        () => {
+            if (
+                !lockedOpen &&
+                !info.contains(
+                    document.activeElement
+                )
+            ) {
+                setOpen(false);
+            }
+        }
+    );
+
+    info.addEventListener(
+        'focusin',
+        () => {
+            setOpen(true);
+        }
+    );
+
+    info.addEventListener(
+        'focusout',
+        () => {
+            window.requestAnimationFrame(
+                () => {
+                    if (
+                        !lockedOpen &&
+                        !info.contains(
+                            document.activeElement
+                        )
+                    ) {
+                        setOpen(false);
+                    }
+                }
+            );
+        }
+    );
+
+    toggle.addEventListener(
+        'click',
+        (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            lockedOpen =
+                !lockedOpen;
+
+            setOpen(
+                lockedOpen ||
+                info.matches(':hover') ||
+                info.contains(
+                    document.activeElement
+                )
+            );
+        }
+    );
+
+    document.addEventListener(
+        'click',
+        (event) => {
+            if (
+                event.target instanceof Node &&
+                info.contains(
+                    event.target
+                )
+            ) {
+                return;
+            }
+
+            lockedOpen = false;
+
+            setOpen(false);
+        }
+    );
+
+    document.addEventListener(
+        'keydown',
+        (event) => {
+            if (
+                event.key !== 'Escape' ||
+                panel.hidden
+            ) {
+                return;
+            }
+
+            lockedOpen = false;
+
+            setOpen(false);
+
+            toggle.focus({
+                preventScroll: true
+            });
+        }
+    );
+}
+
   function buildDisclosure(element, options) {
     const rawText = (element.textContent || '').replace(/\s+/g, ' ').trim();
     if (!rawText || rawText.length < options.minLength) {
@@ -108,17 +366,26 @@
   }
 
   function initContentDisclosure() {
-    const subtitleCandidates = document.querySelectorAll('.page-subtitle');
-    subtitleCandidates.forEach((element) => {
-      if (shouldSkipElement(element)) {
-        return;
-      }
-      buildDisclosure(element, {
-        minLength: 45,
-        previewLength: 78,
-        variantClass: 'content-disclosure--subtitle',
-      });
-    });
+    const subtitleCandidates =
+		document.querySelectorAll(
+			'.page-header-card .page-subtitle'
+		);
+
+	subtitleCandidates.forEach(
+		(element) => {
+			if (
+				shouldSkipElement(
+					element
+				)
+			) {
+				return;
+			}
+
+			buildHeaderInfoDisclosure(
+				element
+			);
+		}
+	);
 
     const cardCandidates = document.querySelectorAll('.card .card-body > .card-text.text-muted');
     cardCandidates.forEach((element) => {

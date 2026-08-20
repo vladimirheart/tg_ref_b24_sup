@@ -1,4 +1,22 @@
 <th:block xmlns:th="http://www.thymeleaf.org" th:fragment="uiHead">
+    <link rel="icon"
+          type="image/png"
+          sizes="32x32"
+          th:href="@{/favicon-32x32.png?v=3}">
+
+    <link rel="icon"
+          type="image/png"
+          sizes="16x16"
+          th:href="@{/favicon-16x16.png?v=3}">
+
+    <link rel="shortcut icon"
+          type="image/x-icon"
+          th:href="@{/favicon.ico?v=3}">
+
+    <link rel="apple-touch-icon"
+          sizes="180x180"
+          th:href="@{/favicon-180x180.png?v=3}">
+
     <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}">
     <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : 'X-CSRF-TOKEN'}">
     <script th:inline="javascript">

@@ -11,8 +11,7 @@ body.density-compact {
     --app-density-control-height: 1.95rem;
 }
 
-body.density-compact .card-body,
-body.density-compact .page-header-card {
+body.density-compact .card-body {
     padding: calc(var(--app-density-space) * 0.95) !important;
 }
 
@@ -28,12 +27,41 @@ body.density-compact .form-select {
     font-size: 0.875rem;
 }
 
-body.density-compact .page-title {
-    font-size: clamp(1.2rem, 1.4vw, 1.6rem);
+/* Canonical project page header */
+
+body .page-header-card {
+    gap: 0.3rem;
+
+    margin-bottom: 1rem !important;
+    padding: 0.78rem 0.95rem !important;
 }
 
-body[data-ui-density='compact'] .page-title {
-    font-size: clamp(1.22rem, 1.5vw, 1.62rem);
+body .page-header-card .page-kicker {
+    min-height: 22px;
+
+    padding-inline: 0.55rem;
+
+    font-size: 0.68rem;
+    line-height: 1;
+}
+
+body .page-header-card .page-title {
+    font-size: clamp(
+        1.22rem,
+        1.5vw,
+        1.62rem
+    );
+
+    line-height: 1.1;
+}
+
+body .page-header-card .page-subtitle {
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+body .page-header-card.page-header-card--has-info {
+    overflow: visible;
 }
 
 /* Project-wide unified UI language */
