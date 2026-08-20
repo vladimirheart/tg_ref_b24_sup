@@ -17,8 +17,12 @@
     selectedIncidentId: null,
     selectedIncident: null,
     transportOverview: null,
+
     listRequestSerial: 0,
-    detailRequestSerial: 0
+    detailRequestSerial: 0,
+    transportRequestSerial: 0,
+
+    successHideTimer: null
 };
 
   const filterNodes = {
@@ -65,47 +69,95 @@
     return token ? { [headerName]: token } : {};
   }
 
-  async function requestJson(url, options) {
+  async function requestJson(url, options = {}) {
+    const {
+        headers: optionHeaders = {},
+        ...requestOptions
+    } = options || {};
+
     const response = await fetch(url, {
-      credentials: 'same-origin',
-      headers: {
-        'Accept': 'application/json',
-        ...csrfHeaders(),
-        ...(options?.headers || {})
-      },
-      ...options
-    });
-    if (!response.ok) {
-      let message = `Request failed with status ${response.status}`;
-      try {
-        const payload = await response.json();
-        message = payload?.message || payload?.error || message;
-      } catch (error) {
-        try {
-          message = await response.text() || message;
-        } catch (textError) {
-          // ignore
+        ...requestOptions,
+
+        credentials: 'same-origin',
+
+        headers: {
+            'Accept': 'application/json',
+            ...csrfHeaders(),
+            ...optionHeaders
         }
-      }
-      throw new Error(message);
+    });
+
+    if (!response.ok) {
+        let message =
+            `Request failed with status ${response.status}`;
+
+        try {
+            const payload = await response.json();
+
+            message =
+                payload?.message ||
+                payload?.error ||
+                message;
+        } catch (error) {
+            // Оставляем fallback message.
+        }
+
+        throw new Error(message);
     }
+
     return response.json();
-  }
+}
 
-  function showError(message) {
-    if (!errorNode) return;
-    errorNode.textContent = String(message || 'Unknown error');
-    errorNode.classList.remove('d-none');
-    successNode?.classList.add('d-none');
-  }
+  function clearSuccessHideTimer() {
+		if (!state.successHideTimer) {
+			return;
+		}
 
-  function showSuccess(message) {
-    if (!successNode) return;
-    successNode.textContent = String(message || 'Готово');
-    successNode.classList.remove('d-none');
-    errorNode?.classList.add('d-none');
-    window.setTimeout(() => successNode.classList.add('d-none'), 3500);
-  }
+		window.clearTimeout(
+			state.successHideTimer
+		);
+
+		state.successHideTimer = null;
+	}
+
+	function showError(message) {
+		if (!errorNode) {
+			return;
+		}
+
+		clearSuccessHideTimer();
+
+		errorNode.textContent =
+			String(message || 'Неизвестная ошибка');
+
+		errorNode.classList.remove('d-none');
+
+		successNode?.classList.add('d-none');
+	}
+
+	function showSuccess(message) {
+		if (!successNode) {
+			return;
+		}
+
+		clearSuccessHideTimer();
+
+		successNode.textContent =
+			String(message || 'Готово');
+
+		successNode.classList.remove('d-none');
+
+		errorNode?.classList.add('d-none');
+
+		state.successHideTimer =
+			window.setTimeout(() => {
+				successNode.classList.add(
+					'd-none'
+				);
+
+				state.successHideTimer = null;
+			}, 3500);
+	}
 
   function clearFeedback() {
     errorNode?.classList.add('d-none');
@@ -748,12 +800,39 @@
 
   async function loadTransportOverview() {
     if (!transportNodes.inboundList) {
-      return;
+        return;
     }
-    const payload = await requestJson('/api/analytics/integration-transport');
-    state.transportOverview = payload;
-    renderTransportOverview();
-  }
+
+    const requestSerial =
+        ++state.transportRequestSerial;
+
+    try {
+        const payload =
+            await requestJson(
+                '/api/analytics/integration-transport'
+            );
+
+        if (
+            requestSerial !==
+            state.transportRequestSerial
+        ) {
+            return;
+        }
+
+        state.transportOverview = payload;
+
+        renderTransportOverview();
+    } catch (error) {
+        if (
+            requestSerial !==
+            state.transportRequestSerial
+        ) {
+            return;
+        }
+
+        throw error;
+    }
+}
 
   function renderTransportOverview() {
     const payload = state.transportOverview || {};
@@ -819,7 +898,15 @@
           <span class="badge ${badgeClass(item.health_status)}">${escapeHtml(item.health_status || 'unknown')}</span>
         </div>
         <div class="input-group input-group-sm mb-2">
-          <input type="text" class="form-control incident-code" data-transport-checkpoint-input="${escapeHtml(item.worker_key || '')}" value="${escapeHtml(item.cursor_text || '')}">
+          <input type="text"
+				   class="form-control incident-code"
+				   data-transport-checkpoint-input="${escapeHtml(item.worker_key || '')}"
+				   value="${escapeHtml(item.cursor_text || '')}"
+				   aria-label="Checkpoint cursor: ${escapeHtml(
+					   item.worker_label ||
+					   item.worker_key ||
+					   'worker'
+				   )}">
           <button type="button" class="btn btn-outline-secondary" data-transport-save-checkpoint="${escapeHtml(item.worker_key || '')}">Save</button>
           <button type="button" class="btn btn-outline-dark" data-transport-view="worker" data-worker-key="${escapeHtml(item.worker_key || '')}">Inspect</button>
         </div>
