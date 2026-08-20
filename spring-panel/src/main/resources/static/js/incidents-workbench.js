@@ -21,6 +21,8 @@
     listRequestSerial: 0,
     detailRequestSerial: 0,
     transportRequestSerial: 0,
+    payloadRequestSerial: 0,
+    ticketDebugRequestSerial: 0,
 
     successHideTimer: null
 };
@@ -218,6 +220,30 @@
   function selectedIncident() {
     return state.incidents.find((item) => Number(item.id) === Number(state.selectedIncidentId)) || null;
   }
+
+function isIncidentStillSelected(incidentId) {
+    const normalizedIncidentId =
+        String(incidentId || '').trim();
+
+    if (!normalizedIncidentId) {
+        return false;
+    }
+
+    return (
+        String(state.selectedIncidentId || '') ===
+        normalizedIncidentId
+    );
+}
+
+async function refreshIncidentIfStillSelected(
+    incidentId
+) {
+    if (!isIncidentStillSelected(incidentId)) {
+        return;
+    }
+
+    await loadIncidentDetail(incidentId);
+}
 
   async function loadIncidents() {
     const requestSerial =
@@ -733,8 +759,8 @@
       body: JSON.stringify({ event_type: eventType, event_text: eventText })
     });
     showSuccess('Событие добавлено');
-    await loadIncidentDetail(incident.id);
-    await loadIncidents();
+
+	await loadIncidents();
   }
 
   async function addWatcher() {
@@ -747,7 +773,10 @@
       body: JSON.stringify({ watcher_identity: watcher })
     });
     showSuccess('Watcher добавлен');
-    await loadIncidentDetail(incident.id);
+
+	await refreshIncidentIfStillSelected(
+		incident.id
+	);
   }
 
   async function removeWatcher(watcher) {
@@ -757,7 +786,10 @@
       method: 'DELETE'
     });
     showSuccess('Watcher удалён');
-    await loadIncidentDetail(incident.id);
+
+	await refreshIncidentIfStillSelected(
+		incident.id
+	);
   }
 
   async function addRoute() {
@@ -775,7 +807,10 @@
       body: JSON.stringify({ route_type: routeType, route_target: routeTarget, note })
     });
     showSuccess('Route добавлен');
-    await loadIncidentDetail(incident.id);
+
+	await refreshIncidentIfStillSelected(
+		incident.id
+	);
   }
 
   async function redeliverRoute(routeId) {
@@ -784,8 +819,13 @@
     await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}/routes/${encodeURIComponent(routeId)}/redeliver`, {
       method: 'POST'
     });
-    showSuccess('Повторная доставка маршрута поставлена в очередь');
-    await loadIncidentDetail(incident.id);
+    showSuccess(
+		'Повторная доставка маршрута поставлена в очередь'
+	);
+
+	await refreshIncidentIfStillSelected(
+		incident.id
+	);
   }
 
   async function redeliverFailedRoutes() {
@@ -794,8 +834,13 @@
     await requestJson(`/api/incidents/${encodeURIComponent(incident.id)}/routes/redeliver-failed?limit=25`, {
       method: 'POST'
     });
-    showSuccess('Failed routes поставлены на повторную доставку');
-    await loadIncidentDetail(incident.id);
+    showSuccess(
+		'Failed routes поставлены на повторную доставку'
+	);
+
+	await refreshIncidentIfStillSelected(
+		incident.id
+	);
   }
 
   async function loadTransportOverview() {
@@ -1059,25 +1104,108 @@
   }
 
   async function inspectTicketTransport() {
-    const ticketId = transportNodes.ticketId?.value?.trim();
+    const ticketId =
+        transportNodes.ticketId?.value?.trim();
+
     if (!ticketId) {
-      throw new Error('Укажите ticket id для targeted transport debug.');
+        throw new Error(
+            'Укажите ticket id для targeted transport debug.'
+        );
     }
-    const payload = await requestJson(`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/debug`);
-    renderTicketDebug(payload);
-    showSuccess(`Ticket transport debug loaded for ${ticketId}`);
-  }
+
+    const requestSerial =
+        ++state.ticketDebugRequestSerial;
+
+    if (transportNodes.ticketDebug) {
+        transportNodes.ticketDebug.setAttribute(
+            'aria-busy',
+            'true'
+        );
+    }
+
+    try {
+        const payload =
+            await requestJson(
+                `/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/debug`
+            );
+
+        if (
+            requestSerial !==
+            state.ticketDebugRequestSerial
+        ) {
+            return;
+        }
+
+        renderTicketDebug(payload);
+
+        showSuccess(
+            `Ticket transport debug loaded for ${ticketId}`
+        );
+    } catch (error) {
+        if (
+            requestSerial !==
+            state.ticketDebugRequestSerial
+        ) {
+            return;
+        }
+
+        throw error;
+    } finally {
+        if (
+            requestSerial ===
+                state.ticketDebugRequestSerial &&
+            transportNodes.ticketDebug
+        ) {
+            transportNodes.ticketDebug.setAttribute(
+                'aria-busy',
+                'false'
+            );
+        }
+    }
+}
 
   async function showTransportPayload(mode, eventId) {
+    const requestSerial =
+        ++state.payloadRequestSerial;
+
     const url = mode === 'inbound'
-      ? `/api/analytics/integration-transport/inbound-events/${encodeURIComponent(eventId)}`
-      : mode === 'worker'
-        ? `/api/analytics/integration-transport/workers/${encodeURIComponent(eventId)}`
-        : `/api/analytics/integration-transport/outbox-events/${encodeURIComponent(eventId)}`;
-    const payload = await requestJson(url);
-    payloadContentNode.textContent = JSON.stringify(mode === 'worker' ? payload : (payload?.item || {}), null, 2);
-    payloadModal?.show();
-  }
+        ? `/api/analytics/integration-transport/inbound-events/${encodeURIComponent(eventId)}`
+        : mode === 'worker'
+            ? `/api/analytics/integration-transport/workers/${encodeURIComponent(eventId)}`
+            : `/api/analytics/integration-transport/outbox-events/${encodeURIComponent(eventId)}`;
+
+    try {
+        const payload =
+            await requestJson(url);
+
+        if (
+            requestSerial !==
+            state.payloadRequestSerial
+        ) {
+            return;
+        }
+
+        payloadContentNode.textContent =
+            JSON.stringify(
+                mode === 'worker'
+                    ? payload
+                    : (payload?.item || {}),
+                null,
+                2
+            );
+
+        payloadModal?.show();
+    } catch (error) {
+        if (
+            requestSerial !==
+            state.payloadRequestSerial
+        ) {
+            return;
+        }
+
+        throw error;
+    }
+}
 
   async function invokeTransportAction(url, successMessage) {
     await requestJson(url, { method: 'POST' });
