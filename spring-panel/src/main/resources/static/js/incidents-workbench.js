@@ -210,7 +210,6 @@
     listNode.innerHTML = state.incidents.map((item) => `
       <tr class="incident-list-row ${Number(item.id) === Number(state.selectedIncidentId) ? 'is-active' : ''}" data-incident-id="${escapeHtml(item.id)}">
         <td>
-		  <button
 			<button
 				type="button"
 				class="incident-list-row-button"

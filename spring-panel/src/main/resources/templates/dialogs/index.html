@@ -213,8 +213,18 @@
                                     <button class="btn btn-sm btn-outline-danger" id="workspaceAiDisableForDialog" type="button">Отключить AI для диалога</button>
                                     <button class="btn btn-sm btn-outline-warning" id="workspaceAiHandoffNoAutoReply" type="button">Передать мне и без автоответов</button>
                                 </div>
-                                <div class="small text-muted mt-1" id="workspaceAiControlState">Ответы AI для диалога не включены.</div>
-                                <div class="text-muted mt-1" id="workspaceAiSuggestionsState">Подсказки загружаются…</div>
+                                <div class="small text-muted mt-1"
+									 id="workspaceAiControlState"
+									 role="status"
+									 aria-live="polite">
+									Ответы AI для диалога не включены.
+								</div>
+                                <div class="text-muted mt-1"
+									 id="workspaceAiSuggestionsState"
+									 role="status"
+									 aria-live="polite">
+									Подсказки загружаются…
+								</div>
                                 <div class="alert alert-warning mt-2 mb-0 d-none" id="workspaceAiReviewBox">
                                     <div class="fw-semibold mb-1">Требуется ревизия AI-решения</div>
                                     <div class="small mb-1" id="workspaceAiReviewQuestion"></div>
@@ -678,7 +688,12 @@
                                         <div class="fw-semibold">AI-помощник</div>
                                         <button class="btn btn-sm btn-outline-secondary" id="dialogDetailsAiRefresh" type="button">Обновить</button>
                                     </div>
-                                    <div class="small text-muted" id="dialogDetailsAiState">Откройте диалог для загрузки подсказок.</div>
+                                    <div class="small text-muted"
+										 id="dialogDetailsAiState"
+										 role="status"
+										 aria-live="polite">
+										Откройте диалог для загрузки подсказок.
+									</div>
                                     <div class="d-flex flex-column gap-2 mt-2 d-none" id="dialogDetailsAiList"></div>
                                 </div>
                                 <div class="dialog-details-section dialog-templates-dropdown" id="dialogCompletionTemplatesSection">

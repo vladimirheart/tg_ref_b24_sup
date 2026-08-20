@@ -75,22 +75,28 @@
         }
         const items = Array.isArray(payload.items) ? payload.items : [];
         if (!items.length) {
-          elements.workspaceAiSuggestionsState.textContent = payload.processing
-            ? 'AI is processing this dialog, suggestions are not ready yet.'
-            : 'No suggestions yet. Reply manually or refresh later.';
-          return;
-        }
-        elements.workspaceAiSuggestionsState.textContent = payload.processing
-          ? 'Dialog is in automatic processing mode. Suggestions:'
-          : 'Suggestions ready:';
+			elements.workspaceAiSuggestionsState.textContent =
+				payload.processing
+					? 'AI обрабатывает этот диалог. Подсказки пока не готовы.'
+					: 'Подсказок пока нет. Ответьте вручную или обновите позже.';
+			return;
+		}
+
+		elements.workspaceAiSuggestionsState.textContent =
+			payload.processing
+				? 'Диалог обрабатывается автоматически. Доступные подсказки:'
+				: 'Подсказки готовы:';
         elements.workspaceAiSuggestionsList.innerHTML = items.map((item, index) => {
           const scoreLabel = String(item?.score_label || item?.score || '').trim();
           const source = String(item?.source || '').trim();
-          const title = escapeHtml(String(item?.title || `Suggestion ${index + 1}`));
+          const title = escapeHtml(
+				String(item?.title || `Вариант ${index + 1}`)
+			);
           const snippet = escapeHtml(String(item?.snippet || ''));
           const reply = escapeHtml(String(item?.reply || item?.snippet || ''));
           const explain = escapeHtml(String(item?.explain || '').trim());
-          const sourceBadge = `${escapeHtml(source || 'source')}${scoreLabel ? ` · ${escapeHtml(scoreLabel)}` : ''}`;
+          const sourceBadge =
+				`${escapeHtml(source || 'источник')}${scoreLabel ? ` · ${escapeHtml(scoreLabel)}` : ''}`;
           const rawSource = escapeHtml(String(item?.source || '').trim());
           const rawTitle = escapeHtml(String(item?.title || '').trim());
           const rawSnippet = escapeHtml(String(item?.snippet || '').trim());
@@ -114,7 +120,8 @@
         }).join('');
         elements.workspaceAiSuggestionsList.classList.remove('d-none');
       } catch (error) {
-        elements.workspaceAiSuggestionsState.textContent = `Failed to load suggestions: ${error.message || 'unknown_error'}`;
+        elements.workspaceAiSuggestionsState.textContent =
+			`Не удалось загрузить AI-подсказки: ${error.message || 'неизвестная ошибка'}`;
       }
     }
 
@@ -224,12 +231,17 @@
 				? 'Включить AI для диалога'
 				: 'Отключить AI для диалога';
         elements.workspaceAiControlState.textContent = disabled
-          ? 'AI is fully disabled for this dialog.'
-          : (blocked ? 'AI auto-reply is disabled for this dialog. Suggestions remain available.' : 'AI runs in standard mode.');
+			? 'AI полностью отключён для этого диалога.'
+			: (
+				blocked
+					? 'Автоответы AI отключены. Подсказки остаются доступными.'
+					: 'AI работает в стандартном режиме.'
+			);
         elements.workspaceAiDisableForDialog.disabled = false;
         elements.workspaceAiHandoffNoAutoReply.disabled = false;
       } catch (error) {
-        elements.workspaceAiControlState.textContent = `Failed to load AI control state: ${error.message || 'unknown_error'}`;
+        elements.workspaceAiControlState.textContent =
+				`Не удалось загрузить состояние AI: ${error.message || 'неизвестная ошибка'}`;
       }
     }
 
