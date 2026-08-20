@@ -214,8 +214,15 @@
         }
         const control = payload.control || {};
         const disabled = control.ai_disabled === true;
-        const blocked = control.auto_reply_blocked === true;
-        elements.workspaceAiDisableForDialog.textContent = disabled ? 'Включить AI для диалога' : 'Отключить AI для диалога';
+		const blocked = control.auto_reply_blocked === true;
+
+		elements.workspaceAiDisableForDialog.dataset.aiDisabled =
+			disabled ? 'true' : 'false';
+
+		elements.workspaceAiDisableForDialog.textContent =
+			disabled
+				? 'Включить AI для диалога'
+				: 'Отключить AI для диалога';
         elements.workspaceAiControlState.textContent = disabled
           ? 'AI is fully disabled for this dialog.'
           : (blocked ? 'AI auto-reply is disabled for this dialog. Suggestions remain available.' : 'AI runs in standard mode.');

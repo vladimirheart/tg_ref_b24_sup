@@ -4161,7 +4161,10 @@
     workspaceAiDisableForDialog.addEventListener('click', async () => {
       const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
       if (!ticketId) return;
-      const disableMode = !/enable/i.test(String(workspaceAiDisableForDialog.textContent || ''));
+      const currentlyDisabled =
+			workspaceAiDisableForDialog.dataset.aiDisabled === 'true';
+
+		const disableMode = !currentlyDisabled;
       try {
         await updateWorkspaceAiControl(ticketId, {
           ai_disabled: disableMode,

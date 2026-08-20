@@ -189,18 +189,38 @@
   }
 
   function renderIncidentList() {
+    const focusedTrigger =
+        document.activeElement instanceof Element
+            ? document.activeElement.closest(
+                '.incident-list-row-button'
+            )
+            : null;
+
+    const focusedIncidentId =
+        focusedTrigger
+            ?.closest('[data-incident-id]')
+            ?.getAttribute('data-incident-id') || '';
+
     if (!state.incidents.length) {
-      listNode.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Incidents не найдены</td></tr>';
-      return;
+        listNode.innerHTML =
+            '<tr><td colspan="4" class="text-center text-muted py-4">Incidents не найдены</td></tr>';
+        return;
     }
+
     listNode.innerHTML = state.incidents.map((item) => `
       <tr class="incident-list-row ${Number(item.id) === Number(state.selectedIncidentId) ? 'is-active' : ''}" data-incident-id="${escapeHtml(item.id)}">
         <td>
 		  <button
-			type="button"
-			class="incident-list-row-button"
-			aria-label="Открыть incident ${escapeHtml(item.incident_key || '')}: ${escapeHtml(item.title || '')}"
-		  >
+			<button
+				type="button"
+				class="incident-list-row-button"
+				aria-label="Открыть incident ${escapeHtml(item.incident_key || '')}: ${escapeHtml(item.title || '')}"
+				aria-current="${
+					Number(item.id) === Number(state.selectedIncidentId)
+						? 'true'
+						: 'false'
+				}"
+			>
 			<span class="d-block fw-semibold">
 			  ${escapeHtml(item.incident_key || '—')}
 			</span>
@@ -217,6 +237,28 @@
         <td class="small text-muted">${escapeHtml(formatDate(item.updated_at))}</td>
       </tr>
     `).join('');
+		if (focusedIncidentId) {
+		window.requestAnimationFrame(() => {
+			const nextRow = Array.from(
+				listNode.querySelectorAll('[data-incident-id]')
+			).find(
+				(row) =>
+					row.getAttribute('data-incident-id') ===
+					focusedIncidentId
+			);
+
+			const nextTrigger =
+				nextRow?.querySelector(
+					'.incident-list-row-button'
+				);
+
+			if (nextTrigger) {
+				nextTrigger.focus({
+					preventScroll: true
+				});
+			}
+		});
+	}
   }
 
   async function loadIncidentDetail(incidentId) {

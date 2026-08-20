@@ -197,8 +197,9 @@
       const metaParts = [clientName, channelName].filter(Boolean);
       return `
       <button type="button"
-              class="dialog-my-dialog-item ${isActive ? 'is-active' : ''}"
-              data-my-dialog-ticket-id="${escapeHtml(ticketId)}">
+        class="dialog-my-dialog-item ${isActive ? 'is-active' : ''}"
+        data-my-dialog-ticket-id="${escapeHtml(ticketId)}"
+        aria-current="${isActive ? 'true' : 'false'}">
         <div class="dialog-my-dialog-item-head">
           <div class="dialog-my-dialog-item-title">№ ${escapeHtml(title)}</div>
           <span class="badge dialog-unread-count ${unreadCount > 0 ? '' : 'd-none'}">${unreadCount}</span>
@@ -212,8 +213,26 @@
     }
 
     function renderMyDialogsPanel() {
-      if (!elements.panel || !elements.newList || !elements.unansweredList || !elements.inWorkList) return;
-      const state = getMyDialogsState();
+		if (
+			!elements.panel ||
+			!elements.newList ||
+			!elements.unansweredList ||
+			!elements.inWorkList
+		) return;
+
+		const focusedTrigger =
+			document.activeElement instanceof Element
+				? document.activeElement.closest(
+					'[data-my-dialog-ticket-id]'
+				)
+				: null;
+
+		const focusedTicketId =
+			focusedTrigger?.getAttribute(
+				'data-my-dialog-ticket-id'
+			) || '';
+
+		const state = getMyDialogsState();
       const newDialogs = normalizeMyDialogsCollection(state.new);
       const unanswered = normalizeMyDialogsCollection(state.unanswered);
       const inWork = normalizeMyDialogsCollection(state.inWork);
@@ -236,6 +255,26 @@
       if (elements.empty) {
         elements.empty.classList.toggle('d-none', newDialogs.length > 0 || unanswered.length > 0 || inWork.length > 0);
       }
+	  if (focusedTicketId) {
+			window.requestAnimationFrame(() => {
+				const nextTrigger = Array.from(
+					elements.panel.querySelectorAll(
+						'[data-my-dialog-ticket-id]'
+					)
+				).find(
+					(item) =>
+						item.getAttribute(
+							'data-my-dialog-ticket-id'
+						) === focusedTicketId
+				);
+
+				if (nextTrigger) {
+					nextTrigger.focus({
+						preventScroll: true
+					});
+				}
+			});
+		}
     }
 
     function bindPanelEvents() {
