@@ -329,8 +329,11 @@
             <div class="incident-grid">
                 <section class="card incident-list-shell">
                     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                        <strong>Список incidents</strong>
-                        <span class="small text-muted" id="incidentWorkbenchListMeta">Загрузка...</span>
+                        <span class="small text-muted"
+						  id="incidentWorkbenchListMeta"
+						  role="status"
+						  aria-live="polite"
+						  aria-atomic="true">Загрузка...</span>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -369,9 +372,24 @@
         <section class="tab-pane fade pt-3" id="incidentWorkbenchTransportPane" role="tabpanel" aria-labelledby="incidentWorkbenchTransportTab" th:if="${canViewAnalytics}">
             <div class="card mb-3">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <strong>Transport replay / compensation / checkpoints</strong>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="transportWorkbenchRefresh">Обновить</button>
-                </div>
+					<strong>
+						Transport replay / compensation / checkpoints
+					</strong>
+
+					<span class="visually-hidden"
+						  id="transportWorkbenchStatus"
+						  role="status"
+						  aria-live="polite"
+						  aria-atomic="true">
+						Загрузка данных integration recovery...
+					</span>
+
+					<button type="button"
+							class="btn btn-sm btn-outline-secondary"
+							id="transportWorkbenchRefresh">
+						Обновить
+					</button>
+				</div>
                 <div class="card-body">
                     <div class="incident-filter-grid mb-3">
                         <input type="text"
@@ -453,15 +471,25 @@
     </div>
 </main>
 
-<div class="modal fade" id="incidentWorkbenchPayloadModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade"
+     id="incidentWorkbenchPayloadModal"
+     tabindex="-1"
+     aria-hidden="true"
+     aria-labelledby="incidentWorkbenchPayloadModalLabel">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Transport payload detail</h5>
+                <h5 class="modal-title"
+					id="incidentWorkbenchPayloadModalLabel">
+					Transport payload detail
+				</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body">
-                <pre class="incident-code" id="incidentWorkbenchPayloadContent">Нет данных.</pre>
+                <pre class="incident-code"
+				 id="incidentWorkbenchPayloadContent"
+				 tabindex="0"
+				 aria-label="Transport payload JSON">Нет данных.</pre>
             </div>
         </div>
     </div>

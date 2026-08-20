@@ -50,7 +50,20 @@
   };
 
   const transportNodes = {
-    inboundList: document.getElementById('transportWorkbenchInboundList'),
+		pane:
+			document.getElementById(
+				'incidentWorkbenchTransportPane'
+			),
+
+		status:
+			document.getElementById(
+				'transportWorkbenchStatus'
+			),
+
+		inboundList:
+			document.getElementById(
+				'transportWorkbenchInboundList'
+			),
     outboundList: document.getElementById('transportWorkbenchOutboundList'),
     checkpointList: document.getElementById('transportWorkbenchCheckpointList'),
     incidentList: document.getElementById('transportWorkbenchIncidentList'),
@@ -482,7 +495,16 @@ function restoreIncidentDetailFocus(
 
     clearFeedback();
 
-    const params = new URLSearchParams();
+    listNode.setAttribute(
+        'aria-busy',
+        'true'
+    );
+
+    listMetaNode.textContent =
+        'Загрузка...';
+
+    const params =
+        new URLSearchParams();
 
     if (filterNodes.query?.value.trim()) {
         params.set(
@@ -518,12 +540,11 @@ function restoreIncidentDetailFocus(
     );
 
     try {
-        const payload = await requestJson(
-            `/api/incidents?${params.toString()}`
-        );
+        const payload =
+            await requestJson(
+                `/api/incidents?${params.toString()}`
+            );
 
-        // Между отправкой и ответом уже был запущен
-        // более новый запрос списка.
         if (
             requestSerial !==
             state.listRequestSerial
@@ -541,11 +562,14 @@ function restoreIncidentDetailFocus(
             !state.incidents.some(
                 (item) =>
                     Number(item.id) ===
-                    Number(state.selectedIncidentId)
+                    Number(
+                        state.selectedIncidentId
+                    )
             )
         ) {
             state.selectedIncidentId =
-                state.incidents[0]?.id || null;
+                state.incidents[0]?.id ||
+                null;
         }
 
         renderIncidentList();
@@ -553,17 +577,11 @@ function restoreIncidentDetailFocus(
         listMetaNode.textContent =
             `Всего: ${state.incidents.length}`;
 
-        if (state.selectedIncidentId) {
-            await loadIncidentDetail(
-                state.selectedIncidentId
-            );
-        } else {
-            state.selectedIncident = null;
-            renderIncidentDetail();
-        }
+        listNode.setAttribute(
+            'aria-busy',
+            'false'
+        );
     } catch (error) {
-        // Не показываем ошибку запроса,
-        // который уже был заменён новым.
         if (
             requestSerial !==
             state.listRequestSerial
@@ -571,7 +589,37 @@ function restoreIncidentDetailFocus(
             return;
         }
 
+        listMetaNode.textContent =
+            'Не удалось загрузить список incidents';
+
         throw error;
+    } finally {
+        if (
+            requestSerial ===
+            state.listRequestSerial
+        ) {
+            listNode.setAttribute(
+                'aria-busy',
+                'false'
+            );
+        }
+    }
+
+    if (
+        requestSerial !==
+        state.listRequestSerial
+    ) {
+        return;
+    }
+
+    if (state.selectedIncidentId) {
+        await loadIncidentDetail(
+            state.selectedIncidentId
+        );
+    } else {
+        state.selectedIncident = null;
+
+        renderIncidentDetail();
     }
 }
 
@@ -1116,6 +1164,16 @@ function restoreIncidentDetailFocus(
     const requestSerial =
         ++state.transportRequestSerial;
 
+    transportNodes.pane?.setAttribute(
+        'aria-busy',
+        'true'
+    );
+
+    if (transportNodes.status) {
+        transportNodes.status.textContent =
+            'Обновление данных integration recovery...';
+    }
+
     try {
         const payload =
             await requestJson(
@@ -1129,9 +1187,15 @@ function restoreIncidentDetailFocus(
             return;
         }
 
-        state.transportOverview = payload;
+        state.transportOverview =
+            payload;
 
         renderTransportOverview();
+
+        if (transportNodes.status) {
+            transportNodes.status.textContent =
+                'Данные integration recovery обновлены.';
+        }
     } catch (error) {
         if (
             requestSerial !==
@@ -1140,7 +1204,22 @@ function restoreIncidentDetailFocus(
             return;
         }
 
+        if (transportNodes.status) {
+            transportNodes.status.textContent =
+                'Не удалось обновить данные integration recovery.';
+        }
+
         throw error;
+    } finally {
+        if (
+            requestSerial ===
+                state.transportRequestSerial
+        ) {
+            transportNodes.pane?.setAttribute(
+                'aria-busy',
+                'false'
+            );
+        }
     }
 }
 
