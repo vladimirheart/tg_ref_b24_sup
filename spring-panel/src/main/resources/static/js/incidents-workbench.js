@@ -26,7 +26,8 @@
 
     successHideTimer: null,
 
-	incidentDetailDirty: false
+	incidentDetailDirty: false,
+	incidentDetailDrafts: new Map()
 };
 
   const filterNodes = {
@@ -349,6 +350,63 @@ function restoreIncidentDetailDraft(draft) {
     state.incidentDetailDirty = true;
 }
 
+function rememberCurrentIncidentDetailDraft() {
+    const incidentId =
+        String(
+            state.selectedIncidentId || ''
+        ).trim();
+
+    if (!incidentId) {
+        return;
+    }
+
+    const draft =
+        captureIncidentDetailDraft(
+            incidentId
+        );
+
+    if (!draft) {
+        return;
+    }
+
+    state.incidentDetailDrafts.set(
+        incidentId,
+        draft
+    );
+}
+
+function storedIncidentDetailDraft(
+    incidentId
+) {
+    const normalizedIncidentId =
+        String(incidentId || '').trim();
+
+    if (!normalizedIncidentId) {
+        return null;
+    }
+
+    return (
+        state.incidentDetailDrafts.get(
+            normalizedIncidentId
+        ) || null
+    );
+}
+
+function clearStoredIncidentDetailDraft(
+    incidentId
+) {
+    const normalizedIncidentId =
+        String(incidentId || '').trim();
+
+    if (!normalizedIncidentId) {
+        return;
+    }
+
+    state.incidentDetailDrafts.delete(
+        normalizedIncidentId
+    );
+}
+
 function getIncidentDetailFocusKey(
     element
 ) {
@@ -492,6 +550,12 @@ function restoreIncidentDetailFocus(
   async function loadIncidents() {
     const requestSerial =
         ++state.listRequestSerial;
+
+    // Фильтр или Refresh может сменить selection.
+    // До этого сохраняем текущие core fields.
+    rememberCurrentIncidentDetailDraft();
+
+    state.incidentDetailDirty = false;
 
     clearFeedback();
 
@@ -706,8 +770,16 @@ function restoreIncidentDetailFocus(
     const requestSerial =
     ++state.detailRequestSerial;
 
+	// Сначала сохраняем draft того incident,
+	// который открыт прямо сейчас.
+	rememberCurrentIncidentDetailDraft();
+
+	state.incidentDetailDirty = false;
+
+	// Теперь берём draft того incident,
+	// который собираемся открыть.
 	const detailDraft =
-		captureIncidentDetailDraft(
+		storedIncidentDetailDraft(
 			normalizedIncidentId
 		);
 
@@ -1023,6 +1095,10 @@ function restoreIncidentDetailFocus(
 
 	state.incidentDetailDirty = false;
 
+	clearStoredIncidentDetailDraft(
+		incident.id
+	);
+
 	showSuccess('Incident обновлён');
 
 	await loadIncidents();
@@ -1054,8 +1130,18 @@ function restoreIncidentDetailFocus(
       body: JSON.stringify(payload)
     });
     showSuccess('Incident создан');
-    state.selectedIncidentId = response?.incident?.id || null;
-    await loadIncidents();
+
+	// До переключения на только что созданный
+	// incident сохраняем несохранённые поля
+	// текущего.
+	rememberCurrentIncidentDetailDraft();
+
+	state.incidentDetailDirty = false;
+
+	state.selectedIncidentId =
+		response?.incident?.id || null;
+
+	await loadIncidents();
   }
 
   async function addIncidentEvent() {
