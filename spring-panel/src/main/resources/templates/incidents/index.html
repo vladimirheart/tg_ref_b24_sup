@@ -206,59 +206,123 @@
                 </div>
                 <div class="card-body">
                     <div class="incident-filter-grid mb-3">
-                        <input type="text" class="form-control form-control-sm" id="incidentWorkbenchQuery" placeholder="Поиск: INC-ключ, title, signal, owner">
-                        <select class="form-select form-select-sm" id="incidentWorkbenchStatusFilter">
-                            <option value="">Все статусы</option>
-                            <option value="open">open</option>
-                            <option value="acknowledged">acknowledged</option>
-                            <option value="investigating">investigating</option>
-                            <option value="resolved">resolved</option>
-                            <option value="closed">closed</option>
-                        </select>
-                        <select class="form-select form-select-sm" id="incidentWorkbenchSeverityFilter">
-                            <option value="">Все severity</option>
-                            <option value="critical">critical</option>
-                            <option value="high">high</option>
-                            <option value="medium">medium</option>
-                            <option value="low">low</option>
-                        </select>
-                        <select class="form-select form-select-sm" id="incidentWorkbenchSignalTypeFilter">
-                            <option value="">Все signal types</option>
-                            <option value="integration_transport">integration_transport</option>
-                        </select>
-                        <select class="form-select form-select-sm" id="incidentWorkbenchLimitFilter">
-                            <option value="50">50</option>
-                            <option value="100" selected>100</option>
-                            <option value="200">200</option>
-                        </select>
-                        <button type="button" class="btn btn-sm btn-primary" id="incidentWorkbenchApplyFilters">Применить</button>
-                    </div>
+						<input type="text"
+							   class="form-control form-control-sm"
+							   id="incidentWorkbenchQuery"
+							   placeholder="Поиск: INC-ключ, title, signal, owner"
+							   aria-label="Поиск incidents">
+
+						<select class="form-select form-select-sm"
+								id="incidentWorkbenchStatusFilter"
+								aria-label="Фильтр incidents по статусу">
+							<option value="">Все статусы</option>
+							<option value="open">open</option>
+							<option value="acknowledged">acknowledged</option>
+							<option value="investigating">investigating</option>
+							<option value="resolved">resolved</option>
+							<option value="closed">closed</option>
+						</select>
+
+						<select class="form-select form-select-sm"
+								id="incidentWorkbenchSeverityFilter"
+								aria-label="Фильтр incidents по severity">
+							<option value="">Все severity</option>
+							<option value="critical">critical</option>
+							<option value="high">high</option>
+							<option value="medium">medium</option>
+							<option value="low">low</option>
+						</select>
+
+						<select class="form-select form-select-sm"
+								id="incidentWorkbenchSignalTypeFilter"
+								aria-label="Фильтр incidents по типу сигнала">
+							<option value="">Все signal types</option>
+							<option value="integration_transport">integration_transport</option>
+						</select>
+
+						<select class="form-select form-select-sm"
+								id="incidentWorkbenchLimitFilter"
+								aria-label="Количество incidents в списке">
+							<option value="50">50</option>
+							<option value="100" selected>100</option>
+							<option value="200">200</option>
+						</select>
+
+						<button type="button"
+								class="btn btn-sm btn-primary"
+								id="incidentWorkbenchApplyFilters">
+							Применить
+						</button>
+					</div>
 
                     <div class="incident-create-grid">
-                        <input type="text" class="form-control form-control-sm" id="incidentCreateTitle" placeholder="Новый incident title">
-                        <input type="text" class="form-control form-control-sm" id="incidentCreateSummary" placeholder="Краткое summary">
-                        <select class="form-select form-select-sm" id="incidentCreateSeverity">
-                            <option value="critical">critical</option>
-                            <option value="high" selected>high</option>
-                            <option value="medium">medium</option>
-                            <option value="low">low</option>
-                        </select>
-                        <select class="form-select form-select-sm" id="incidentCreateStatus">
-                            <option value="open" selected>open</option>
-                            <option value="acknowledged">acknowledged</option>
-                            <option value="investigating">investigating</option>
-                        </select>
-                        <input type="text" class="form-control form-control-sm" id="incidentCreateOwner" placeholder="owner">
-                        <input type="text" class="form-control form-control-sm" id="incidentCreateSource" placeholder="source">
-                        <select class="form-select form-select-sm" id="incidentCreateRelationType">
-                            <option value="ticket" selected>ticket</option>
-                            <option value="task">task</option>
-                            <option value="object_passport">object_passport</option>
-                        </select>
-                        <input type="text" class="form-control form-control-sm" id="incidentCreateRelationKey" placeholder="relation key: T-123 / task id / passport id">
-                        <input type="text" class="form-control form-control-sm" id="incidentCreateWatchers" placeholder="watchers через запятую">
-                        <button type="button" class="btn btn-sm btn-success" id="incidentWorkbenchCreate">Создать incident</button>
-                    </div>
+						<input type="text"
+							   class="form-control form-control-sm"
+							   id="incidentCreateTitle"
+							   placeholder="Новый incident title"
+							   aria-label="Название нового incident">
+
+						<input type="text"
+							   class="form-control form-control-sm"
+							   id="incidentCreateSummary"
+							   placeholder="Краткое summary"
+							   aria-label="Краткое описание нового incident">
+
+						<select class="form-select form-select-sm"
+								id="incidentCreateSeverity"
+								aria-label="Severity нового incident">
+							<option value="critical">critical</option>
+							<option value="high" selected>high</option>
+							<option value="medium">medium</option>
+							<option value="low">low</option>
+						</select>
+
+						<select class="form-select form-select-sm"
+								id="incidentCreateStatus"
+								aria-label="Статус нового incident">
+							<option value="open" selected>open</option>
+							<option value="acknowledged">acknowledged</option>
+							<option value="investigating">investigating</option>
+						</select>
+
+						<input type="text"
+							   class="form-control form-control-sm"
+							   id="incidentCreateOwner"
+							   placeholder="owner"
+							   aria-label="Ответственный за incident">
+
+						<input type="text"
+							   class="form-control form-control-sm"
+							   id="incidentCreateSource"
+							   placeholder="source"
+							   aria-label="Источник incident">
+
+						<select class="form-select form-select-sm"
+								id="incidentCreateRelationType"
+								aria-label="Тип связи incident">
+							<option value="ticket" selected>ticket</option>
+							<option value="task">task</option>
+							<option value="object_passport">object_passport</option>
+						</select>
+
+						<input type="text"
+							   class="form-control form-control-sm"
+							   id="incidentCreateRelationKey"
+							   placeholder="relation key: T-123 / task id / passport id"
+							   aria-label="Идентификатор связанного объекта">
+
+						<input type="text"
+							   class="form-control form-control-sm"
+							   id="incidentCreateWatchers"
+							   placeholder="watchers через запятую"
+							   aria-label="Наблюдатели incident через запятую">
+
+						<button type="button"
+								class="btn btn-sm btn-success"
+								id="incidentWorkbenchCreate">
+							Создать incident
+						</button>
+					</div>
                 </div>
             </div>
 
@@ -310,7 +374,11 @@
                 </div>
                 <div class="card-body">
                     <div class="incident-filter-grid mb-3">
-                        <input type="text" class="form-control form-control-sm" id="transportWorkbenchTicketId" placeholder="Ticket id для targeted replay/requeue">
+                        <input type="text"
+						   class="form-control form-control-sm"
+						   id="transportWorkbenchTicketId"
+						   placeholder="Ticket id для targeted replay/requeue"
+						   aria-label="Ticket ID для targeted transport replay или requeue">
                         <button type="button" class="btn btn-sm btn-outline-dark" id="transportWorkbenchInspectTicket">Inspect ticket transport</button>
                         <button type="button" class="btn btn-sm btn-outline-primary" id="transportWorkbenchReplayTicket">Replay inbound by ticket</button>
                         <button type="button" class="btn btn-sm btn-outline-primary" id="transportWorkbenchRequeueTicket">Requeue outbound by ticket</button>

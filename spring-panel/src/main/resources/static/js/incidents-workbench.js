@@ -295,18 +295,49 @@
             <div class="card-header"><strong>Core fields</strong></div>
             <div class="card-body">
               <div class="incident-create-grid mb-3">
-                <input type="text" class="form-control form-control-sm" id="incidentDetailTitle" value="${escapeHtml(incident.title || '')}" placeholder="title">
-                <input type="text" class="form-control form-control-sm" id="incidentDetailSummary" value="${escapeHtml(incident.summary || '')}" placeholder="summary">
-                <select class="form-select form-select-sm" id="incidentDetailSeverity">
+                <input type="text"
+					   class="form-control form-control-sm"
+					   id="incidentDetailTitle"
+					   value="${escapeHtml(incident.title || '')}"
+					   placeholder="title"
+					   aria-label="Название incident">
+
+				<input type="text"
+					   class="form-control form-control-sm"
+					   id="incidentDetailSummary"
+					   value="${escapeHtml(incident.summary || '')}"
+					   placeholder="summary"
+					   aria-label="Краткое описание incident">
+
+				<select class="form-select form-select-sm"
+						id="incidentDetailSeverity"
+						aria-label="Severity incident">
                   ${['critical', 'high', 'medium', 'low'].map((value) => `<option value="${value}" ${value === incident.severity ? 'selected' : ''}>${value}</option>`).join('')}
                 </select>
-                <select class="form-select form-select-sm" id="incidentDetailStatus">
+                <select class="form-select form-select-sm"
+					id="incidentDetailStatus"
+					aria-label="Статус incident">
                   ${['open', 'acknowledged', 'investigating', 'resolved', 'closed'].map((value) => `<option value="${value}" ${value === incident.status ? 'selected' : ''}>${value}</option>`).join('')}
                 </select>
-                <input type="text" class="form-control form-control-sm" id="incidentDetailOwner" value="${escapeHtml(incident.owner || '')}" placeholder="owner">
-                <input type="text" class="form-control form-control-sm" id="incidentDetailSource" value="${escapeHtml(incident.source || '')}" placeholder="source">
+                <input type="text"
+					   class="form-control form-control-sm"
+					   id="incidentDetailOwner"
+					   value="${escapeHtml(incident.owner || '')}"
+					   placeholder="owner"
+					   aria-label="Ответственный за incident">
+
+				<input type="text"
+					   class="form-control form-control-sm"
+					   id="incidentDetailSource"
+					   value="${escapeHtml(incident.source || '')}"
+					   placeholder="source"
+					   aria-label="Источник incident">
               </div>
-              <textarea class="form-control form-control-sm" id="incidentDetailDescription" rows="4" placeholder="description">${escapeHtml(incident.description || '')}</textarea>
+              <textarea class="form-control form-control-sm"
+					  id="incidentDetailDescription"
+					  rows="4"
+					  placeholder="description"
+					  aria-label="Полное описание incident">${escapeHtml(incident.description || '')}</textarea>
             </div>
           </section>
           <section class="card">
@@ -322,8 +353,18 @@
             </div>
             <div class="card-body">
               <div class="incident-create-grid mb-3">
-                <input type="text" class="form-control form-control-sm" id="incidentEventType" value="comment" placeholder="event_type">
-                <input type="text" class="form-control form-control-sm" id="incidentEventText" placeholder="Короткий update / runbook note">
+                <input type="text"
+					   class="form-control form-control-sm"
+					   id="incidentEventType"
+					   value="comment"
+					   placeholder="event_type"
+					   aria-label="Тип события incident">
+
+				<input type="text"
+					   class="form-control form-control-sm"
+					   id="incidentEventText"
+					   placeholder="Короткий update / runbook note"
+					   aria-label="Текст события или runbook note">
               </div>
               <div class="incident-event-list">
                 ${events.length ? events.slice().reverse().map((event) => `
@@ -354,7 +395,11 @@
             <div class="card-header"><strong>Watchers</strong></div>
             <div class="card-body">
               <div class="input-group input-group-sm mb-3">
-                <input type="text" class="form-control" id="incidentWatcherInput" placeholder="username">
+                <input type="text"
+					   class="form-control"
+					   id="incidentWatcherInput"
+					   placeholder="username"
+					   aria-label="Username нового наблюдателя">
                 <button type="button" class="btn btn-outline-secondary" id="incidentAddWatcherButton">Добавить watcher</button>
               </div>
               <div class="incident-watcher-list">
@@ -374,15 +419,26 @@
             <div class="card-header"><strong>Routes / delivery</strong></div>
             <div class="card-body">
               <div class="incident-route-grid mb-3">
-                <select class="form-select form-select-sm" id="incidentRouteType">
+                <select class="form-select form-select-sm"
+						id="incidentRouteType"
+						aria-label="Тип маршрута incident">
                   <option value="webhook">webhook</option>
                   <option value="user">user</option>
                   <option value="users">users</option>
                   <option value="department">department</option>
                   <option value="all_operators">all_operators</option>
                 </select>
-                <input type="text" class="form-control form-control-sm" id="incidentRouteTarget" placeholder="target / usernames / URL / department">
-                <input type="text" class="form-control form-control-sm" id="incidentRouteNote" placeholder="note">
+                <input type="text"
+					   class="form-control form-control-sm"
+					   id="incidentRouteTarget"
+					   placeholder="target / usernames / URL / department"
+					   aria-label="Получатель или target маршрута incident">
+
+				<input type="text"
+					   class="form-control form-control-sm"
+					   id="incidentRouteNote"
+					   placeholder="note"
+					   aria-label="Комментарий к маршруту incident">
                 <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentAddRouteButton">Добавить route</button>
               </div>
               <div class="incident-route-list">
