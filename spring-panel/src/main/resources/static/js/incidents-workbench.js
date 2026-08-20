@@ -272,13 +272,23 @@
   }
 
   function formatDate(value) {
-    if (!value) return '—';
-    try {
-      return new Date(value).toLocaleString('ru-RU');
-    } catch (error) {
-      return String(value);
+    if (!value) {
+        return '—';
     }
-  }
+
+    const date =
+        new Date(value);
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return String(value);
+    }
+
+    return date.toLocaleString('ru-RU');
+}
 
   function selectedIncident() {
     return state.incidents.find((item) => Number(item.id) === Number(state.selectedIncidentId)) || null;
@@ -1656,17 +1666,25 @@ function restoreIncidentDetailFocus(
   }
 
   async function inspectTicketTransport() {
+    // Любая новая попытка Inspect инвалидирует
+    // предыдущий Ticket Debug request,
+    // даже если новое поле уже очищено.
+    const requestSerial =
+        ++state.ticketDebugRequestSerial;
+
     const ticketId =
         transportNodes.ticketId?.value?.trim();
 
     if (!ticketId) {
+        transportNodes.ticketDebug?.setAttribute(
+            'aria-busy',
+            'false'
+        );
+
         throw new Error(
             'Укажите ticket id для targeted transport debug.'
         );
     }
-
-    const requestSerial =
-        ++state.ticketDebugRequestSerial;
 
     if (transportNodes.ticketDebug) {
         transportNodes.ticketDebug.setAttribute(
