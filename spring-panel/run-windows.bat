@@ -307,6 +307,15 @@ if "!SKIP_MAVEN_CLEAN!"=="1" (
 call :RunMaven spring-boot:run %*
 set "EXIT_CODE=!ERRORLEVEL!"
 
+if not "!EXIT_CODE!"=="0" (
+    echo [WARN] Maven spring-boot:run failed with exit code !EXIT_CODE!.
+    echo [INFO] Retrying once with forced dependency refresh after clearing stale Maven transfer markers.
+
+    call :ClearMavenLastUpdatedMarkers
+    call :RunMavenForceUpdate spring-boot:run %*
+    set "EXIT_CODE=!ERRORLEVEL!"
+)
+
 goto :Exit
 
 rem ---------------------------------------------------------------------------
@@ -347,6 +356,33 @@ if "!MVN_CMD!"=="mvn" (
 )
 
 exit /b !ERRORLEVEL!
+
+:RunMavenForceUpdate
+
+if "!MVN_CMD!"=="mvn" (
+    call mvn -U !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_APP_ARG! %*
+) else (
+    call "!MVN_CMD!" -U !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_APP_ARG! %*
+)
+
+exit /b !ERRORLEVEL!
+
+:ClearMavenLastUpdatedMarkers
+
+if not exist "%MVN_REPO_DIR%" goto :eof
+
+set "LAST_UPDATED_COUNT=0"
+
+for /r "%MVN_REPO_DIR%" %%F in (*.lastUpdated) do (
+    del /q "%%~fF" >nul 2>&1
+    if not exist "%%~fF" set /a LAST_UPDATED_COUNT+=1
+)
+
+if !LAST_UPDATED_COUNT! GTR 0 (
+    echo [INFO] Cleared !LAST_UPDATED_COUNT! stale Maven *.lastUpdated marker^(s^).
+)
+
+goto :eof
 
 :CheckPort
 
