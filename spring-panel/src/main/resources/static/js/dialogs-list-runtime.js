@@ -998,9 +998,21 @@
       }
 
       filterState.view = resolvedView;
-      Array.from(elements.viewTabs || []).forEach((tab) => {
-        tab.classList.toggle('active', tab.dataset.dialogView === filterState.view);
-      });
+
+		Array.from(elements.viewTabs || []).forEach((tab) => {
+			const active =
+				tab.dataset.dialogView === filterState.view;
+
+			tab.classList.toggle(
+				'active',
+				active
+			);
+
+			tab.setAttribute(
+				'aria-pressed',
+				active ? 'true' : 'false'
+			);
+		});
       if (previousView !== resolvedView) {
         options.emitWorkspaceTelemetry('triage_view_switch', { reason: `${previousView}->${resolvedView}` });
       }

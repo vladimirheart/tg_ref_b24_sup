@@ -219,7 +219,8 @@
       elements.completionTemplateList.innerHTML = '';
       items.forEach((item) => {
         const wrapper = document.createElement('div');
-        wrapper.className = 'border rounded p-2 bg-light';
+        wrapper.className =
+			'border rounded p-2 dialog-completion-template-item';
         const question = document.createElement('div');
         question.className = 'fw-semibold';
         question.textContent = item?.question || 'Контрольный вопрос';
@@ -494,42 +495,99 @@
         });
       }
 
-      if (Array.isArray(elements.templateToggleButtons) && elements.templateToggleButtons.length) {
-        elements.templateToggleButtons.forEach((button) => {
-          button.addEventListener('click', () => {
-            const target = button.dataset.templateToggle;
-            const section = target === 'category'
-              ? elements.categoryTemplatesSection
-              : (target === 'macro' ? elements.macroTemplatesSection : elements.questionTemplatesSection);
-            if (!section) return;
-            section.classList.toggle('is-open');
-          });
-        });
-      }
+      if (
+			Array.isArray(elements.templateToggleButtons) &&
+			elements.templateToggleButtons.length
+		) {
+			elements.templateToggleButtons.forEach((button) => {
+				button.addEventListener('click', () => {
+					const target = button.dataset.templateToggle;
+
+					const section = target === 'category'
+						? elements.categoryTemplatesSection
+						: (
+							target === 'macro'
+								? elements.macroTemplatesSection
+								: elements.questionTemplatesSection
+						);
+
+					if (!section) return;
+
+					const shouldOpen =
+						!section.classList.contains('is-open');
+
+					section.classList.toggle(
+						'is-open',
+						shouldOpen
+					);
+
+					button.setAttribute(
+						'aria-expanded',
+						shouldOpen ? 'true' : 'false'
+					);
+				});
+			});
+		}
 
       if (elements.completionTemplatesSection) {
-        const openCompletion = () => {
-          elements.completionTemplatesSection.classList.add('is-open');
-        };
-        const scheduleClose = () => {
-          if (state.completionHideTimer) {
-            clearTimeout(state.completionHideTimer);
-          }
-          state.completionHideTimer = setTimeout(() => {
-            elements.completionTemplatesSection.classList.remove('is-open');
-          }, 2000);
-        };
-        elements.completionTemplatesSection.addEventListener('mouseenter', () => {
-          if (state.completionHideTimer) clearTimeout(state.completionHideTimer);
-          openCompletion();
-        });
-        elements.completionTemplatesSection.addEventListener('mouseleave', scheduleClose);
-        if (elements.completionTemplatesToggle) {
-          elements.completionTemplatesToggle.addEventListener('click', () => {
-            elements.completionTemplatesSection.classList.toggle('is-open');
-          });
-        }
-      }
+			const setCompletionOpen = (open) => {
+				const shouldOpen = Boolean(open);
+
+				elements.completionTemplatesSection.classList.toggle(
+					'is-open',
+					shouldOpen
+				);
+
+				if (elements.completionTemplatesToggle) {
+					elements.completionTemplatesToggle.setAttribute(
+						'aria-expanded',
+						shouldOpen ? 'true' : 'false'
+					);
+				}
+			};
+
+			const openCompletion = () => {
+				setCompletionOpen(true);
+			};
+
+			const scheduleClose = () => {
+				if (state.completionHideTimer) {
+					clearTimeout(state.completionHideTimer);
+				}
+
+				state.completionHideTimer = setTimeout(() => {
+					setCompletionOpen(false);
+				}, 2000);
+			};
+
+			elements.completionTemplatesSection.addEventListener(
+				'mouseenter',
+				() => {
+					if (state.completionHideTimer) {
+						clearTimeout(state.completionHideTimer);
+					}
+
+					openCompletion();
+				}
+			);
+
+			elements.completionTemplatesSection.addEventListener(
+				'mouseleave',
+				scheduleClose
+			);
+
+			if (elements.completionTemplatesToggle) {
+				elements.completionTemplatesToggle.addEventListener(
+					'click',
+					() => {
+						setCompletionOpen(
+							!elements.completionTemplatesSection
+								.classList.contains('is-open')
+						);
+					}
+				);
+			}
+		}
     }
 
     return {
