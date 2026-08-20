@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ public class SlaEscalationAutoAssignService {
     private final RuntimeCoordinationService runtimeCoordinationService;
     private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
 
+    @Autowired
     public SlaEscalationAutoAssignService(DialogLookupReadService dialogLookupReadService,
                                           RuntimeCoordinationService runtimeCoordinationService) {
         this.dialogLookupReadService = dialogLookupReadService;

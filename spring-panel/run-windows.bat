@@ -83,6 +83,30 @@ if exist "%WORKSPACE_ROOT%\.env" (
     echo [WARN] Repository .env file was not found.
 )
 
+rem ---------------------------------------------------------------------------
+rem Local PostgreSQL bootstrap compatibility defaults.
+rem
+rem The first-run bootstrap currently provisions PostgreSQL and RabbitMQ for a
+rem local/dev contour, but production-only Redis/S3 readiness must stay opt-in.
+rem Keep the launcher session usable even for older bootstrap-generated .env
+rem files that do not yet declare these compatibility flags explicitly.
+rem ---------------------------------------------------------------------------
+
+if /I "%IGUANA_BOOTSTRAP_DB_MODE%"=="postgresql" if /I "%APP_DB_MODE%"=="postgresql" (
+    if not defined APP_COORDINATION_MODE (
+        set "APP_COORDINATION_MODE=direct"
+        echo [INFO] APP_COORDINATION_MODE was not set. Using local direct coordination for bootstrap PostgreSQL mode.
+    )
+    if not defined APP_COORDINATION_REQUIRED_FOR_POSTGRESQL (
+        set "APP_COORDINATION_REQUIRED_FOR_POSTGRESQL=false"
+        echo [INFO] APP_COORDINATION_REQUIRED_FOR_POSTGRESQL was not set. Skipping Redis-only readiness for local bootstrap mode.
+    )
+    if not defined APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL (
+        set "APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL=false"
+        echo [INFO] APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL was not set. Keeping local filesystem object storage for bootstrap PostgreSQL mode.
+    )
+)
+
 rem Fail early with a useful message instead of letting Spring Boot fail deep
 rem inside Flyway/DataSource bean initialization.
 if /I "%APP_DB_MODE%"=="postgresql" (

@@ -287,6 +287,9 @@ function Build-EnvContent {
             "SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:$PostgresPort/iguana",
             "SPRING_DATASOURCE_USERNAME=iguana",
             "SPRING_DATASOURCE_PASSWORD=iguana",
+            "APP_COORDINATION_MODE=direct",
+            "APP_COORDINATION_REQUIRED_FOR_POSTGRESQL=false",
+            "APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL=false",
             ""
         )
     } else {

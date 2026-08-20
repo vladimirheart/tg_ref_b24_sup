@@ -5,6 +5,7 @@ import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogOperatorOption;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -28,6 +29,7 @@ public class ChannelAssignmentRoutingService {
     private final RuntimeCoordinationService runtimeCoordinationService;
     private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
 
+    @Autowired
     public ChannelAssignmentRoutingService(ObjectMapper objectMapper,
                                            SharedConfigService sharedConfigService,
                                            DialogParticipantService dialogParticipantService,
