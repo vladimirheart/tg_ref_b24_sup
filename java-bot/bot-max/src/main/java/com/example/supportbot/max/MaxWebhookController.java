@@ -6,6 +6,7 @@ import com.example.supportbot.entity.PendingFeedbackRequest;
 import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.service.ActiveInboundClientMessageCommand;
 import com.example.supportbot.service.BlacklistService;
+import com.example.supportbot.service.BotWebhookDeliveryGuardService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.ConversationHistoryEntry;
@@ -16,6 +17,7 @@ import com.example.supportbot.service.BotSessionStoreService;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.MessagingService;
 import com.example.supportbot.service.RuntimeConfigService;
+import com.example.supportbot.service.SessionStateConflictException;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
@@ -40,13 +42,19 @@ import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-@Component
-// @RestController
-// @RequestMapping("/webhooks/max")
+@RestController
+@RequestMapping("/webhooks/max")
 public class MaxWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(MaxWebhookController.class);
@@ -63,6 +71,7 @@ public class MaxWebhookController {
             "Ваш аккаунт заблокирован. Запрос уже на рассмотрении.";
     private static final String SESSION_PLATFORM = "max";
     private static final String EXPIRE_SESSIONS_JOB = "expire-silent-question-flow-sessions";
+    private static final int SESSION_MUTATION_MAX_RETRIES = 3;
 
     private final MaxBotProperties properties;
     private final BlacklistService blacklistService;
@@ -73,6 +82,7 @@ public class MaxWebhookController {
     private final FeedbackService feedbackService;
     private final BotSettingsService botSettingsService;
     private final BotIngressCoordinationService ingressCoordinationService;
+    private final BotWebhookDeliveryGuardService webhookDeliveryGuardService;
     private final BotSessionStoreService sessionStoreService;
     private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
@@ -95,6 +105,7 @@ public class MaxWebhookController {
                                 FeedbackService feedbackService,
                                 BotSettingsService botSettingsService,
                                 BotIngressCoordinationService ingressCoordinationService,
+                                BotWebhookDeliveryGuardService webhookDeliveryGuardService,
                                 BotSessionStoreService sessionStoreService,
                                 RuntimeConfigService runtimeConfigService,
                                 ObjectMapper objectMapper) {
@@ -107,16 +118,42 @@ public class MaxWebhookController {
         this.feedbackService = feedbackService;
         this.botSettingsService = botSettingsService;
         this.ingressCoordinationService = ingressCoordinationService;
+        this.webhookDeliveryGuardService = webhookDeliveryGuardService;
         this.sessionStoreService = sessionStoreService;
         this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
     }
 
-    // @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> handleUpdate(
-        JsonNode update,
-        String secret
+        @RequestBody JsonNode update,
+        @RequestHeader(value = "X-Max-Bot-Api-Secret", required = false) String secret
     ) {
+        return handleUpdate(update, secret, 0);
+    }
+
+    private ResponseEntity<Map<String, Object>> handleUpdate(JsonNode update, String secret, int attempt) {
+        try {
+            return handleUpdateOnce(update, secret);
+        } catch (SessionStateConflictException ex) {
+            Long userId = asLong(update.path("message").path("sender").path("user_id"));
+            if (attempt + 1 >= SESSION_MUTATION_MAX_RETRIES) {
+                log.warn("MAX session mutation conflict for user {} after {} attempt(s): {}",
+                        userId,
+                        attempt + 1,
+                        ex.getMessage());
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Map.of("ok", false, "error", "session-conflict", "retryable", true));
+            }
+            log.info("Retrying MAX session mutation for user {} after optimistic conflict (attempt {}/{})",
+                    userId,
+                    attempt + 2,
+                    SESSION_MUTATION_MAX_RETRIES);
+            return handleUpdate(update, secret, attempt + 1);
+        }
+    }
+
+    private ResponseEntity<Map<String, Object>> handleUpdateOnce(JsonNode update, String secret) {
         if (!properties.isEnabled()) {
             return ResponseEntity.ok(Map.of("ok", true, "ignored", "max-bot-disabled"));
         }
@@ -127,6 +164,21 @@ public class MaxWebhookController {
         if (!"message_created".equals(updateType)) {
             return ResponseEntity.ok(Map.of("ok", true, "ignored", updateType));
         }
+        if (!ingressCoordinationService.tryAcquireOrRenew(SESSION_PLATFORM, properties.getChannelId())) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("ok", false, "error", "not-owner", "retryable", true));
+        }
+        BotWebhookDeliveryGuardService.DeliveryClaim claim = webhookDeliveryGuardService.tryClaim(
+                SESSION_PLATFORM,
+                properties.getChannelId(),
+                buildDeliveryKey(update));
+        if (claim.alreadyProcessed()) {
+            return ResponseEntity.ok(Map.of("ok", true, "duplicate", true));
+        }
+        if (claim.inFlight()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("ok", false, "error", "delivery-inflight", "retryable", true));
+        }
 
         JsonNode message = update.path("message");
         Long userId = asLong(message.path("sender").path("user_id"));
@@ -135,41 +187,50 @@ public class MaxWebhookController {
         MaxClientProfile clientProfile = resolveClientProfile(message, userId);
         List<MaxIncomingAttachment> attachments = extractIncomingAttachments(message);
         boolean hasAttachments = !attachments.isEmpty();
-        if (userId == null || (text.isBlank() && !hasAttachments)) {
-            return ResponseEntity.ok(Map.of("ok", true, "ignored", "missing-user-or-text"));
-        }
-
-        Channel channel = channelService.resolveConfiguredChannel(properties.getChannelId(), properties.getToken(), "MAX", "max");
-        BlacklistService.ResolvedBlacklistStatus resolvedBlacklist = blacklistService.resolveStatus(
-                userId,
-                clientProfile.identity(),
-                clientProfile.username(),
-                chatId != null ? String.valueOf(chatId) : null
-        );
-        BlacklistService.BlacklistStatus status = resolvedBlacklist.status();
-        if (status.blacklisted()) {
-            log.info("Blocked message from blacklisted MAX user {} (matched key: {})",
-                    userId,
-                    resolvedBlacklist.matchedUserId());
-            if ("/unblock".equalsIgnoreCase(text)) {
-                handleUnblockRequest(channel, userId);
-                return ResponseEntity.ok(Map.of("ok", true, "unblock_requested", true));
+        try {
+            if (userId == null || (text.isBlank() && !hasAttachments)) {
+                return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ignored", "missing-user-or-text")));
             }
-            handleBlacklistedUser(channel, userId, status);
-            return ResponseEntity.ok(Map.of("ok", true, "blocked", true));
-        }
 
+            Channel channel = getChannel();
+            BlacklistService.ResolvedBlacklistStatus resolvedBlacklist = blacklistService.resolveStatus(
+                    userId,
+                    clientProfile.identity(),
+                    clientProfile.username(),
+                    chatId != null ? String.valueOf(chatId) : null
+            );
+            BlacklistService.BlacklistStatus status = resolvedBlacklist.status();
+            if (status.blacklisted()) {
+                log.info("Blocked message from blacklisted MAX user {} (matched key: {})",
+                        userId,
+                        resolvedBlacklist.matchedUserId());
+                if ("/unblock".equalsIgnoreCase(text)) {
+                    handleUnblockRequest(channel, userId);
+                    return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "unblock_requested", true)));
+                }
+                handleBlacklistedUser(channel, userId, status);
+                return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "blocked", true)));
+            }
+
+        ConversationSession session = loadSession(userId);
         if ("/start".equalsIgnoreCase(text)) {
-            ConversationSession session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
+            if (session != null) {
+                deleteSession(session);
+            }
+            session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
             saveSession(session);
             promptCurrentQuestion(channel, session);
-            return ResponseEntity.ok(Map.of("ok", true));
+            return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true)));
         }
 
         if (isCancelCommand(text)) {
-            deleteSession(userId);
+            if (session != null) {
+                deleteSession(session);
+            } else {
+                deleteSession(userId);
+            }
             messagingService.sendToUser(channel, userId, "Текущая заявка отменена.");
-            return ResponseEntity.ok(Map.of("ok", true, "cancelled", true));
+            return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "cancelled", true)));
         }
 
         Optional<TicketActive> active = ticketService.findActiveTicketForUser(
@@ -182,7 +243,9 @@ public class MaxWebhookController {
             active = Optional.empty();
         }
         if (active.isPresent()) {
-            deleteSession(userId);
+            if (session != null) {
+                deleteSession(session);
+            }
             String ticketId = active.get().getTicketId();
             String clientText = !text.isBlank() ? text : "[вложение от клиента]";
             String messageType = hasAttachments ? normalizeAttachmentType(attachments.get(0).type()) : "text";
@@ -204,14 +267,13 @@ public class MaxWebhookController {
                 OffsetDateTime.now()
             ));
             notifyOperatorsAboutActiveMessage(channel, ticketId, clientProfile, clientText, messageType, attachmentRef, attachments.size());
-            return ResponseEntity.ok(Map.of("ok", true, "ticket_id", ticketId));
+            return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ticket_id", ticketId)));
         }
 
-        ConversationSession session = loadSession(userId);
         if (session == null) {
             ResponseEntity<Map<String, Object>> feedbackResponse = tryHandleFeedback(channel, userId, text);
             if (feedbackResponse != null) {
-                return feedbackResponse;
+                return completeDelivery(claim, feedbackResponse);
             }
             session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
             if (shouldCaptureBootstrapProblemText(text)) {
@@ -219,7 +281,7 @@ public class MaxWebhookController {
             }
             saveSession(session);
             promptCurrentQuestion(channel, session);
-            return ResponseEntity.ok(Map.of("ok", true, "session_started", true));
+            return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "session_started", true)));
         }
 
         session.markClientResponseReceived();
@@ -229,25 +291,25 @@ public class MaxWebhookController {
             if (!session.consumeReuseDecision(text)) {
                 messagingService.sendToUser(channel, userId,
                         "Ответьте 'да', чтобы использовать прошлые значения, или 'нет', чтобы заполнить заново.");
-                return ResponseEntity.ok(Map.of("ok", true, "awaiting_reuse_decision", true));
+                return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "awaiting_reuse_decision", true)));
             }
             if (session.isComplete()) {
                 TicketService.TicketCreationResult created = finalizeConversation(channel, session);
-                return ResponseEntity.ok(Map.of("ok", true, "ticket_id", created.ticketId()));
+                return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ticket_id", created.ticketId())));
             }
             saveSession(session);
             promptCurrentQuestion(channel, session);
-            return ResponseEntity.ok(Map.of("ok", true, "question_prompted", true));
+            return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "question_prompted", true)));
         }
 
         if (BACK_BUTTON.equalsIgnoreCase(Optional.ofNullable(text).orElse("").trim())) {
             if (session.stepBack()) {
                 saveSession(session);
                 promptCurrentQuestion(channel, session);
-                return ResponseEntity.ok(Map.of("ok", true, "stepped_back", true));
+                return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "stepped_back", true)));
             }
             promptCurrentQuestion(channel, session);
-            return ResponseEntity.ok(Map.of("ok", true, "already_at_first_question", true));
+            return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "already_at_first_question", true)));
         }
 
         QuestionFlowItemDto current = session.currentQuestion();
@@ -259,30 +321,34 @@ public class MaxWebhookController {
             if (options.isEmpty()) {
                 messagingService.sendToUser(channel, userId,
                         "Сейчас нет доступных вариантов для выбора. Обратитесь к администратору.");
-                return ResponseEntity.ok(Map.of("ok", true, "missing_options", true));
+                return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "missing_options", true)));
             }
             resolvedAnswer = resolveChoiceAnswer(resolvedAnswer, options);
             if (!options.contains(resolvedAnswer)) {
                 messagingService.sendToUser(channel, userId,
                         "Введите один из вариантов: " + String.join(", ", options));
-                return ResponseEntity.ok(Map.of("ok", true, "invalid_option", true));
+                return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "invalid_option", true)));
             }
         }
 
         if (resolvedAnswer.isBlank() && !isOptionalFreeQuestion(current)) {
             promptCurrentQuestion(channel, session);
-            return ResponseEntity.ok(Map.of("ok", true, "blank_answer", true));
+            return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "blank_answer", true)));
         }
 
         session.recordAnswer(resolvedAnswer);
         if (session.isComplete()) {
             TicketService.TicketCreationResult created = finalizeConversation(channel, session);
-            return ResponseEntity.ok(Map.of("ok", true, "ticket_id", created.ticketId()));
+            return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ticket_id", created.ticketId())));
         }
 
         saveSession(session);
         promptCurrentQuestion(channel, session);
-        return ResponseEntity.ok(Map.of("ok", true, "question_prompted", true));
+        return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "question_prompted", true)));
+        } catch (RuntimeException ex) {
+            webhookDeliveryGuardService.release(claim);
+            throw ex;
+        }
     }
 
     private ResponseEntity<Map<String, Object>> tryHandleFeedback(Channel channel, Long userId, String text) {
@@ -325,7 +391,7 @@ public class MaxWebhookController {
         }
         OffsetDateTime now = OffsetDateTime.now();
         sessionStoreService.loadAll(SESSION_PLATFORM, properties.getChannelId(), ConversationSessionState.class).forEach(storedSession -> {
-            ConversationSession session = restoreSession(storedSession.payload());
+            ConversationSession session = restoreSession(storedSession);
             int timeoutMinutes = botSettingsService.firstResponseTimeoutMinutes(
                     session.settings(),
                     DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES
@@ -555,7 +621,7 @@ public class MaxWebhookController {
     }
 
     private TicketService.TicketCreationResult finalizeConversation(Channel channel, ConversationSession session) {
-        deleteSession(session.userId());
+        deleteSession(session);
         TicketService.TicketCreationResult created = ticketService.createConversationTicket(
                 new ConversationTicketCreationCommand(
                         session.userId(),
@@ -584,6 +650,12 @@ public class MaxWebhookController {
         messagingService.sendToUser(channel, session.userId(), "Заявка создана. Номер: " + requestNumber);
         messagingService.sendToSupportChat(channel, session.buildSummary(created.ticketId()));
         return created;
+    }
+
+    private ResponseEntity<Map<String, Object>> completeDelivery(BotWebhookDeliveryGuardService.DeliveryClaim claim,
+                                                                 ResponseEntity<Map<String, Object>> response) {
+        webhookDeliveryGuardService.markProcessed(claim);
+        return response;
     }
 
     private boolean isPresetQuestion(QuestionFlowItemDto current) {
@@ -993,6 +1065,39 @@ public class MaxWebhookController {
         return expected.equals(provided);
     }
 
+    private String buildDeliveryKey(JsonNode update) {
+        String updateId = firstNonBlank(
+                text(update, "update_id"),
+                text(update, "event_id")
+        );
+        if (updateId != null) {
+            return "update:" + updateId;
+        }
+        JsonNode message = update.path("message");
+        String messageId = firstNonBlank(
+                text(message, "message_id"),
+                text(message.path("body"), "mid"),
+                text(message.path("body"), "message_id")
+        );
+        if (messageId != null) {
+            return "message:" + messageId;
+        }
+        String senderId = text(message.path("sender"), "user_id");
+        String chatId = firstNonBlank(
+                text(message.path("recipient"), "chat_id"),
+                text(message.path("recipient"), "user_id")
+        );
+        String createdAt = firstNonBlank(
+                text(message, "timestamp"),
+                text(message.path("body"), "created_at"),
+                text(message.path("body"), "timestamp")
+        );
+        if (StringUtils.hasText(senderId) || StringUtils.hasText(chatId) || StringUtils.hasText(createdAt)) {
+            return "message_created|sender=" + senderId + "|chat=" + chatId + "|created_at=" + createdAt;
+        }
+        return update != null ? update.toString() : "missing-update";
+    }
+
     private String text(JsonNode node, String field) {
         JsonNode value = node != null ? node.path(field) : null;
         return value == null || value.isMissingNode() || value.isNull() ? "" : value.asText("");
@@ -1081,6 +1186,7 @@ public class MaxWebhookController {
         private final OffsetDateTime startedAt;
         private Map<String, String> cachedAnswers = new LinkedHashMap<>();
         private String bootstrapProblemText;
+        private String persistedRawPayload;
         private boolean firstClientResponseReceived = false;
         private boolean reuseDecisionPending = false;
         private int currentIndex = 0;
@@ -1100,6 +1206,7 @@ public class MaxWebhookController {
             this.questionIndexes = indexQuestions(flow);
             this.startedAt = OffsetDateTime.now();
             this.bootstrapProblemText = null;
+            this.persistedRawPayload = null;
         }
 
         ConversationSession(ConversationSessionState state) {
@@ -1122,6 +1229,7 @@ public class MaxWebhookController {
             }
             this.cachedAnswers = state.cachedAnswers() != null ? new LinkedHashMap<>(state.cachedAnswers()) : new LinkedHashMap<>();
             this.bootstrapProblemText = state.bootstrapProblemText();
+            this.persistedRawPayload = null;
             this.firstClientResponseReceived = state.firstClientResponseReceived();
             this.reuseDecisionPending = state.reuseDecisionPending();
             this.currentIndex = Math.max(0, state.currentIndex());
@@ -1218,6 +1326,14 @@ public class MaxWebhookController {
 
         BotSettingsDto settings() {
             return settings;
+        }
+
+        String persistedRawPayload() {
+            return persistedRawPayload;
+        }
+
+        void restorePersistedRawPayload(String rawPayload) {
+            this.persistedRawPayload = rawPayload;
         }
 
         void enableReusePrompt(Map<String, String> defaults) {
@@ -1439,22 +1555,54 @@ public class MaxWebhookController {
 
     private ConversationSession loadSession(Long userId) {
         return sessionStoreService.load(SESSION_PLATFORM, properties.getChannelId(), userId, ConversationSessionState.class)
-                .map(stored -> restoreSession(stored.payload()))
+                .map(this::restoreSession)
                 .orElse(null);
     }
 
-    private ConversationSession restoreSession(ConversationSessionState state) {
-        return state == null ? null : new ConversationSession(state);
+    private ConversationSession restoreSession(BotSessionStoreService.StoredBotSession<ConversationSessionState> stored) {
+        if (stored == null || stored.payload() == null) {
+            return null;
+        }
+        ConversationSession session = new ConversationSession(stored.payload());
+        session.restorePersistedRawPayload(stored.rawPayload());
+        return session;
     }
 
     private void saveSession(ConversationSession session) {
         if (session == null) {
             return;
         }
-        sessionStoreService.save(SESSION_PLATFORM, properties.getChannelId(), session.userId(), session.snapshot());
+        String rawPayload = sessionStoreService.saveIfUnchanged(
+                SESSION_PLATFORM,
+                properties.getChannelId(),
+                session.userId(),
+                session.persistedRawPayload(),
+                session.snapshot())
+            .orElseThrow(() -> new SessionStateConflictException(
+                    "MAX session changed concurrently for user " + session.userId()));
+        session.restorePersistedRawPayload(rawPayload);
     }
 
     private void deleteSession(Long userId) {
         sessionStoreService.delete(SESSION_PLATFORM, properties.getChannelId(), userId);
+    }
+
+    private void deleteSession(ConversationSession session) {
+        if (session == null) {
+            return;
+        }
+        if (!StringUtils.hasText(session.persistedRawPayload())) {
+            deleteSession(session.userId());
+            return;
+        }
+        if (!sessionStoreService.deleteIfUnchanged(
+                SESSION_PLATFORM,
+                properties.getChannelId(),
+                session.userId(),
+                session.persistedRawPayload())) {
+            throw new SessionStateConflictException(
+                    "MAX session delete conflicted for user " + session.userId());
+        }
+        session.restorePersistedRawPayload(null);
     }
 }

@@ -71,13 +71,17 @@ Production contour теперь предполагает следующий live
 - `BotProcessService` — локальный process-control слой панели. В production его нужно считать convenience/control-plane функцией, а не shared distributed orchestrator.
 - Telegram question-flow session state всё ещё остаётся локальным runtime concern, но его ingress уже constrained через distributed singleton ownership на канал.
 - `VK` и `MAX` webhook question-flow state больше не должен фрагментироваться между instance: session snapshots externalized в shared bot session store.
+- `VK` и `MAX` webhook delivery path на `2026-08-20` уже не ограничен только shared read-model:
+  - update delivery fenced через shared ingress ownership;
+  - duplicate/in-flight webhook deliveries dedupe'ятся через общий delivery guard;
+  - session mutation/save/delete идут через optimistic CAS, а не через last-write-wins overwrite.
 
 Практический вывод:
 
 - backend/transport contour уже multi-instance safe на стороне PostgreSQL/Redis/RabbitMQ;
 - long-poll bot ingress теперь тоже закрыт через distributed singleton ownership;
-- webhook question-flow state для `VK`/`MAX` уже externalized;
-- remaining non-ideal zone теперь смещена в более глубокий worker replay/observability/debug слой, а не в базовое session-sharing.
+- webhook question-flow state и mutation semantics для `VK`/`MAX` уже externalized и coordinated;
+- remaining non-ideal zone теперь смещена в более глубокий worker replay/observability/debug слой и внешний observability/alerting closeout, а не в базовое session-sharing.
 
 ## 4. Operator workbench and recovery surface
 
@@ -125,7 +129,7 @@ Production contour теперь предполагает следующий live
 
 ## 6. Residual production debt
 
-На `2026-08-19` remaining contour debt уже не про SQLite datasources, не про transport ownership и не про базовый webhook session-sharing. Основной незакрытый хвост:
+На `2026-08-20` remaining contour debt уже не про SQLite datasources, не про transport ownership и не про базовый webhook session-sharing. Основной незакрытый хвост:
 
 - deeper worker-forensics/replay surface за пределами panel-side transport snapshots и текущего recovery audit trail;
 - более широкий внешний alerting/integration observability слой поверх уже собранного contour.

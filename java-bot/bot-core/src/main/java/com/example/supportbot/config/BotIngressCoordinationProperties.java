@@ -15,6 +15,8 @@ public class BotIngressCoordinationProperties {
     private Duration ingressFollowerBackoff = Duration.ofSeconds(5);
     private Duration jobLeaseTtl = Duration.ofMinutes(2);
     private Duration botSessionTtl = Duration.ofHours(24);
+    private Duration webhookDeliveryInflightTtl = Duration.ofMinutes(2);
+    private Duration webhookDeliveryProcessedTtl = Duration.ofHours(6);
 
     public String getMode() {
         return mode;
@@ -70,6 +72,22 @@ public class BotIngressCoordinationProperties {
 
     public void setBotSessionTtl(Duration botSessionTtl) {
         this.botSessionTtl = botSessionTtl;
+    }
+
+    public Duration getWebhookDeliveryInflightTtl() {
+        return webhookDeliveryInflightTtl;
+    }
+
+    public void setWebhookDeliveryInflightTtl(Duration webhookDeliveryInflightTtl) {
+        this.webhookDeliveryInflightTtl = webhookDeliveryInflightTtl;
+    }
+
+    public Duration getWebhookDeliveryProcessedTtl() {
+        return webhookDeliveryProcessedTtl;
+    }
+
+    public void setWebhookDeliveryProcessedTtl(Duration webhookDeliveryProcessedTtl) {
+        this.webhookDeliveryProcessedTtl = webhookDeliveryProcessedTtl;
     }
 
     public boolean isRedisMode() {

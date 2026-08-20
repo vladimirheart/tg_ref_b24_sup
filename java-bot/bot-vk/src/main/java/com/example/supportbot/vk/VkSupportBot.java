@@ -16,6 +16,7 @@ import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.BotIngressCoordinationService;
 import com.example.supportbot.service.BotSessionStoreService;
 import com.example.supportbot.service.RuntimeConfigService;
+import com.example.supportbot.service.SessionStateConflictException;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.service.UnblockRequestService;
 import com.example.supportbot.settings.BotSettingsService;
@@ -89,6 +90,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private static final String SESSION_PLATFORM = "vk";
     private static final String UNBLOCK_DIGEST_JOB = "unblock-digest";
     private static final String EXPIRE_SESSIONS_JOB = "expire-silent-question-flow-sessions";
+    private static final int SESSION_MUTATION_MAX_RETRIES = 3;
 
     private final VkBotProperties properties;
     private final BlacklistService blacklistService;
@@ -169,7 +171,28 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
         GroupActor actor = createActor();
-        onMessage(actor, message);
+        handleIncomingMessage(actor, message, 0);
+    }
+
+    private void handleIncomingMessage(GroupActor actor, Message message, int attempt) {
+        try {
+            onMessage(actor, message);
+        } catch (SessionStateConflictException ex) {
+            if (attempt + 1 >= SESSION_MUTATION_MAX_RETRIES) {
+                Long userId = message != null ? message.getFromId() : null;
+                log.warn("VK session mutation conflict for user {} after {} attempt(s): {}",
+                    userId,
+                    attempt + 1,
+                    ex.getMessage());
+                return;
+            }
+            Long userId = message != null ? message.getFromId() : null;
+            log.info("Retrying VK session mutation for user {} after optimistic conflict (attempt {}/{})",
+                userId,
+                attempt + 2,
+                SESSION_MUTATION_MAX_RETRIES);
+            handleIncomingMessage(actor, message, attempt + 1);
+        }
     }
 
     private void runLoop() {
@@ -284,7 +307,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         ConversationSession session = loadSession(fromId);
         if ("/cancel".equalsIgnoreCase(text)) {
             log.info("Received /cancel from VK user {}", fromId);
-            deleteSession(fromId);
+            if (session != null) {
+                deleteSession(session);
+            }
             sendText(actor, peerId, "Текущая заявка отменена.");
             return;
         }
@@ -827,7 +852,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     }
 
     private void finalizeConversation(GroupActor actor, ConversationSession session) {
-        deleteSession(session.userId());
+        deleteSession(session);
         Channel channel = getChannel();
         TicketService.TicketCreationResult result = ticketService.createConversationTicket(
                 new ConversationTicketCreationCommand(
@@ -998,7 +1023,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         GroupActor actor = createActor();
         OffsetDateTime now = OffsetDateTime.now();
         sessionStoreService.loadAll(SESSION_PLATFORM, properties.getChannelId(), ConversationSessionState.class).forEach(storedSession -> {
-            ConversationSession session = restoreSession(storedSession.payload());
+            ConversationSession session = restoreSession(storedSession);
             int timeoutMinutes = botSettingsService.firstResponseTimeoutMinutes(
                     session.settings(),
                     DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES
@@ -1255,6 +1280,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         private final OffsetDateTime startedAt;
         private Map<String, String> cachedAnswers = new LinkedHashMap<>();
         private String bootstrapProblemText;
+        private String persistedRawPayload;
         private boolean firstClientResponseReceived = false;
         private boolean reuseDecisionPending = false;
         private int currentIndex = 0;
@@ -1296,6 +1322,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             }
             this.cachedAnswers = state.cachedAnswers() != null ? new LinkedHashMap<>(state.cachedAnswers()) : new LinkedHashMap<>();
             this.bootstrapProblemText = state.bootstrapProblemText();
+            this.persistedRawPayload = null;
             this.firstClientResponseReceived = state.firstClientResponseReceived();
             this.reuseDecisionPending = state.reuseDecisionPending();
             this.currentIndex = Math.max(0, state.currentIndex());
@@ -1393,6 +1420,14 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
         BotSettingsDto settings() {
             return settings;
+        }
+
+        String persistedRawPayload() {
+            return persistedRawPayload;
+        }
+
+        void restorePersistedRawPayload(String rawPayload) {
+            this.persistedRawPayload = rawPayload;
         }
 
         void enableReusePrompt(Map<String, String> defaults) {
@@ -1650,22 +1685,54 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private ConversationSession loadSession(Long userId) {
         return sessionStoreService.load(SESSION_PLATFORM, properties.getChannelId(), userId, ConversationSessionState.class)
-                .map(stored -> restoreSession(stored.payload()))
+                .map(this::restoreSession)
                 .orElse(null);
     }
 
-    private ConversationSession restoreSession(ConversationSessionState state) {
-        return state == null ? null : new ConversationSession(state);
+    private ConversationSession restoreSession(BotSessionStoreService.StoredBotSession<ConversationSessionState> stored) {
+        if (stored == null || stored.payload() == null) {
+            return null;
+        }
+        ConversationSession session = new ConversationSession(stored.payload());
+        session.restorePersistedRawPayload(stored.rawPayload());
+        return session;
     }
 
     private void saveSession(ConversationSession session) {
         if (session == null) {
             return;
         }
-        sessionStoreService.save(SESSION_PLATFORM, properties.getChannelId(), session.userId(), session.snapshot());
+        String rawPayload = sessionStoreService.saveIfUnchanged(
+                SESSION_PLATFORM,
+                properties.getChannelId(),
+                session.userId(),
+                session.persistedRawPayload(),
+                session.snapshot())
+            .orElseThrow(() -> new SessionStateConflictException(
+                "VK session changed concurrently for user " + session.userId()));
+        session.restorePersistedRawPayload(rawPayload);
     }
 
     private void deleteSession(Long userId) {
         sessionStoreService.delete(SESSION_PLATFORM, properties.getChannelId(), userId);
+    }
+
+    private void deleteSession(ConversationSession session) {
+        if (session == null) {
+            return;
+        }
+        if (!StringUtils.hasText(session.persistedRawPayload())) {
+            deleteSession(session.userId());
+            return;
+        }
+        if (!sessionStoreService.deleteIfUnchanged(
+                SESSION_PLATFORM,
+                properties.getChannelId(),
+                session.userId(),
+                session.persistedRawPayload())) {
+            throw new SessionStateConflictException(
+                "VK session delete conflicted for user " + session.userId());
+        }
+        session.restorePersistedRawPayload(null);
     }
 }

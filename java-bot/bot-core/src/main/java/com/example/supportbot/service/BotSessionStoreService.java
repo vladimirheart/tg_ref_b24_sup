@@ -30,6 +30,26 @@ public class BotSessionStoreService {
         Long.class
     );
 
+    private static final DefaultRedisScript<Long> SAVE_IF_MATCHES_SCRIPT = new DefaultRedisScript<>(
+        """
+        local current = redis.call('get', KEYS[1])
+        if ARGV[1] == '1' then
+            if current then
+                return 0
+            end
+        else
+            if current ~= ARGV[2] then
+                return 0
+            end
+        end
+        redis.call('set', KEYS[1], ARGV[3], 'PX', ARGV[4])
+        redis.call('sadd', KEYS[2], ARGV[5])
+        redis.call('pexpire', KEYS[2], ARGV[4])
+        return 1
+        """,
+        Long.class
+    );
+
     private final BotIngressCoordinationProperties properties;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate stringRedisTemplate;
@@ -88,6 +108,47 @@ public class BotSessionStoreService {
         redis.opsForValue().set(sessionKey, rawPayload, ttl);
         redis.opsForSet().add(indexKey, userIdValue);
         redis.expire(indexKey, ttl);
+    }
+
+    public Optional<String> saveIfUnchanged(String platform,
+                                            Long channelId,
+                                            Long userId,
+                                            String expectedRawPayload,
+                                            Object payload) {
+        if (userId == null || payload == null) {
+            return Optional.empty();
+        }
+        String sessionKey = buildSessionKey(platform, channelId, userId);
+        String indexKey = buildIndexKey(platform, channelId);
+        String userIdValue = Long.toString(userId);
+        String rawPayload = serialize(payload);
+        if (!properties.isRedisMode()) {
+            boolean saved;
+            if (expectedRawPayload == null) {
+                saved = localSessions.putIfAbsent(sessionKey, rawPayload) == null;
+            } else {
+                saved = localSessions.replace(sessionKey, expectedRawPayload, rawPayload);
+            }
+            if (!saved) {
+                return Optional.empty();
+            }
+            localIndexes.computeIfAbsent(indexKey, ignored -> ConcurrentHashMap.newKeySet()).add(userIdValue);
+            return Optional.of(rawPayload);
+        }
+        Duration ttl = sessionTtl();
+        Long updated = requireRedisTemplate().execute(
+            SAVE_IF_MATCHES_SCRIPT,
+            List.of(sessionKey, indexKey),
+            expectedRawPayload == null ? "1" : "0",
+            expectedRawPayload == null ? "" : expectedRawPayload,
+            rawPayload,
+            Long.toString(ttl.toMillis()),
+            userIdValue
+        );
+        if (updated != null && updated > 0L) {
+            return Optional.of(rawPayload);
+        }
+        return Optional.empty();
     }
 
     public void delete(String platform, Long channelId, Long userId) {

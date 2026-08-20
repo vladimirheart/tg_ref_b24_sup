@@ -68,6 +68,34 @@ class BotSessionStoreServiceTest {
         assertThat(service.loadAll("max", 9L, DemoSessionState.class)).isEqualTo(List.of());
     }
 
+    @Test
+    void saveIfUnchangedSupportsOptimisticCreateAndReplace() {
+        BotIngressCoordinationProperties properties = new BotIngressCoordinationProperties();
+        properties.setMode("direct");
+        BotSessionStoreService service = new BotSessionStoreService(
+            properties,
+            new ObjectMapper(),
+            emptyProvider()
+        );
+
+        assertThat(service.saveIfUnchanged("vk", 17L, 501L, null, new DemoSessionState("created", 1)))
+            .isPresent();
+        assertThat(service.saveIfUnchanged("vk", 17L, 501L, null, new DemoSessionState("duplicate", 2)))
+            .isEmpty();
+
+        String currentRawPayload = service.load("vk", 17L, 501L, DemoSessionState.class)
+            .orElseThrow()
+            .rawPayload();
+
+        assertThat(service.saveIfUnchanged("vk", 17L, 501L, "{\"stale\":true}", new DemoSessionState("stale", 2)))
+            .isEmpty();
+        assertThat(service.saveIfUnchanged("vk", 17L, 501L, currentRawPayload, new DemoSessionState("updated", 2)))
+            .isPresent();
+        assertThat(service.load("vk", 17L, 501L, DemoSessionState.class))
+            .map(BotSessionStoreService.StoredBotSession::payload)
+            .contains(new DemoSessionState("updated", 2));
+    }
+
     private record DemoSessionState(String status, int step) {
     }
 
