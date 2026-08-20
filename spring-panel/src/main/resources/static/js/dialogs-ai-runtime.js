@@ -174,7 +174,10 @@
         }).join('');
         elements.detailsAiList.classList.remove('d-none');
       } catch (error) {
-        elements.detailsAiState.textContent = `Не удалось загрузить подсказки: ${error.message || 'unknown_error'}`;
+        elements.detailsAiState.textContent =
+			`Не удалось загрузить подсказки: ${
+				error.message || 'неизвестная ошибка'
+			}`;
       }
     }
 
@@ -319,7 +322,10 @@
           : 'Очередь ревизий пуста.';
         renderAiReviewQueueRows(items);
       } catch (error) {
-        elements.aiReviewQueueState.textContent = `Не удалось загрузить очередь ревизий: ${error.message || 'unknown_error'}`;
+        elements.aiReviewQueueState.textContent =
+			`Не удалось загрузить очередь ревизий: ${
+				error.message || 'неизвестная ошибка'
+			}`;
         elements.aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Ошибка загрузки очереди ревизий.</td></tr>';
       }
     }
@@ -459,7 +465,10 @@
         const windowDays = Number(summary.window_days || days);
         elements.aiMonitoringState.textContent = `Окно: ${Number.isFinite(windowDays) ? windowDays : days} дн / обновлено ${formatUtcDate(summary.generated_at, { includeTime: true })}`;
       } catch (error) {
-        elements.aiMonitoringState.textContent = `Не удалось загрузить AI-сводку: ${error.message || 'unknown_error'}`;
+        elements.aiMonitoringState.textContent =
+			`Не удалось загрузить AI-сводку: ${
+				error.message || 'неизвестная ошибка'
+			}`;
         renderAiMonitoringAlerts([]);
         renderAiMonitoringRunbook([]);
         renderAiMonitoringEvents([]);

@@ -54,7 +54,11 @@
         <div class="card-body py-3">
             <div class="d-flex flex-wrap gap-2 align-items-center">
                 <h2 class="dialogs-title me-2">Диалоги</h2>
-                <input type="search" id="dialogQuickSearch" class="form-control form-control-sm dialog-toolbar-search flex-grow-1" placeholder="Поиск по обращению, клиенту или каналу">
+                <input type="search"
+				   id="dialogQuickSearch"
+				   class="form-control form-control-sm dialog-toolbar-search flex-grow-1"
+				   placeholder="Поиск по обращению, клиенту или каналу"
+				   aria-label="Поиск по обращениям, клиентам и каналам">
                 <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogFiltersModal">Фильтры</button>
                 <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogColumnsModal">Колонки</button>
                 <button class="btn btn-outline-secondary btn-sm" id="dialogCompactToggle" type="button">Компактный режим</button>
@@ -178,7 +182,10 @@
                             </div>
                         </div>
                         <div class="workspace-panel-block" id="workspaceComposerBlock">
-                            <div class="small text-muted mb-2">Ответ оператору</div>
+                            <label class="small text-muted mb-2"
+								   for="workspaceComposerText">
+								Ответ оператору
+							</label>
                             <div class="workspace-composer-macro d-none mb-2" id="workspaceComposerMacroSection">
                                 <label class="form-label form-label-sm mb-1" for="workspaceComposerMacroSearch">Макросы</label>
                                 <input
@@ -251,7 +258,13 @@
                                 <button class="btn btn-sm btn-primary" id="workspaceComposerSend" type="button">Отправить (Ctrl/Cmd/Alt+Enter)</button>
                                 <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerMediaTrigger" type="button">Прикрепить медиа</button>
                                 <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerSaveDraft" type="button">Сохранить черновик (Ctrl/Cmd/Alt+S)</button>
-                                <span class="small text-muted" id="workspaceComposerDraftState">Черновик не сохранён</span>
+                                <span class="small text-muted"
+									  id="workspaceComposerDraftState"
+									  role="status"
+									  aria-live="polite"
+									  aria-atomic="true">
+									Черновик не сохранён
+								</span>
                             </div>
                             <div class="d-none mt-2" id="workspaceComposerMediaPreview" aria-live="polite"></div>
                             <input class="d-none" type="file" id="workspaceComposerMedia" multiple>

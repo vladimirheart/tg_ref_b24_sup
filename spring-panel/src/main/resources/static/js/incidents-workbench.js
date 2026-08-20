@@ -107,7 +107,7 @@
 
     if (!response.ok) {
         let message =
-            `Request failed with status ${response.status}`;
+			`Ошибка запроса: HTTP ${response.status}`;
 
         try {
             const payload = await response.json();
@@ -1281,7 +1281,7 @@ function restoreIncidentDetailFocus(
       method: 'POST'
     });
     showSuccess(
-		'Failed routes поставлены на повторную доставку'
+		'Маршруты с ошибкой поставлены на повторную доставку'
 	);
 
 	await refreshIncidentIfStillSelected(
@@ -1691,7 +1691,7 @@ function restoreIncidentDetailFocus(
         renderTicketDebug(payload);
 
         showSuccess(
-            `Ticket transport debug loaded for ${ticketId}`
+            `Transport debug для ticket ${ticketId} загружен`
         );
     } catch (error) {
         if (
@@ -1865,7 +1865,7 @@ detailNode.addEventListener(
 							'data-event-id'
 						) || ''
 					)}/replay`,
-					'Inbound event replayed'
+					'Inbound event отправлен на повторную обработку'
 				)
 		).catch(
 			(error) =>
@@ -1894,7 +1894,7 @@ detailNode.addEventListener(
 							'data-event-id'
 						) || ''
 					)}/requeue`,
-					'Outbound event requeued'
+					'Outbound event повторно поставлен в очередь'
 				)
 		).catch(
 			(error) =>
@@ -1923,7 +1923,7 @@ detailNode.addEventListener(
 				)}?cursor_text=${encodeURIComponent(
 					cursorText || ''
 				)}`,
-				'Checkpoint updated'
+				'Checkpoint обновлён'
 			)
 	).catch(
 		(error) =>
@@ -2051,7 +2051,7 @@ detailNode.addEventListener(
 					() =>
 						invokeTransportAction(
 							'/api/analytics/integration-transport/inbound-events/replay-failed?limit=25',
-							'Failed inbound batch replay started'
+							'Повторная обработка failed inbound batch запущена'
 						)
 				).catch(
 					(error) =>
@@ -2072,7 +2072,7 @@ detailNode.addEventListener(
 					() =>
 						invokeTransportAction(
 							'/api/analytics/integration-transport/outbox-events/requeue-failed?limit=25',
-							'Failed outbound batch requeue started'
+							'Повторная постановка failed outbound batch в очередь запущена'
 						)
 				).catch(
 					(error) =>
@@ -2091,7 +2091,7 @@ detailNode.addEventListener(
 		() =>
 			invokeTransportAction(
 				`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/replay-inbound?limit=25`,
-				'Ticket inbound replay requested'
+				'Запрошен inbound replay для ticket'
 			)
 	).catch(
 		(error) =>
@@ -2109,7 +2109,7 @@ detailNode.addEventListener(
 		() =>
 			invokeTransportAction(
 				`/api/analytics/integration-transport/tickets/${encodeURIComponent(ticketId)}/requeue-outbound?limit=25`,
-				'Ticket outbound requeue requested'
+				'Запрошен outbound requeue для ticket'
 			)
 	).catch(
 		(error) =>
