@@ -3529,3 +3529,233 @@ body.sidebar-collapsed #partnerContactEditorModal {
     padding: 0.9rem 0.9rem 1.15rem !important;
   }
 }
+/* Settings legal entities workspace v9 */
+/* Clickable Settings tiles stay spatially still; only the open affordance reacts. */
+@media (hover: hover) {
+  .settings-tiles .settings-tile:not(.is-active):hover {
+    transform: none !important;
+    filter: none !important;
+    box-shadow: var(--ui-panel-shadow) !important;
+  }
+  .settings-tiles .settings-tile:not(.settings-tile--accent):not(.is-active):hover {
+    background: var(--surface-card) !important;
+    border-color: var(--color-border) !important;
+  }
+  .settings-tiles .settings-tile.settings-tile--accent:not(.is-active):hover {
+    background: var(--surface-interactive) !important;
+    border-color: color-mix(in srgb, var(--primary) 24%, var(--color-border)) !important;
+  }
+  .settings-tiles .settings-tile:hover .settings-tile__open {
+    color: var(--primary);
+  }
+  .settings-surface .modal .card:hover,
+  .settings-surface .modal .accordion-item:hover,
+  .settings-surface .modal .table-responsive:hover {
+    transform: none !important;
+    filter: none !important;
+  }
+}
+#legalEntitiesModal .settings-workspace-main--legal-entities {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+#legalEntitiesModal .settings-legal-entity-nav {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--color-border);
+  background: var(--surface-raised);
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__head {
+  flex: 0 0 auto;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__title {
+  margin-bottom: 0.55rem;
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__add {
+  width: 100%;
+  justify-content: flex-start;
+  box-shadow: none;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 0;
+  padding: 0.55rem;
+  overflow-y: auto;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  padding: 0.62rem 0.68rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item:hover,
+#legalEntitiesModal .settings-legal-entity-nav__item:focus-visible {
+  transform: none;
+  background: var(--surface-interactive);
+  color: var(--color-text);
+  outline: none;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item.active {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item.is-deleted {
+  opacity: 0.62;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item-title {
+  width: 100%;
+  overflow: hidden;
+  color: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item-meta {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+#legalEntitiesModal .settings-legal-entity-workspace-content {
+  min-width: 0;
+  min-height: 0;
+  padding: 1rem 1.1rem 1.25rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-card);
+}
+
+#legalEntitiesModal .settings-legal-entity-content-head {
+  padding-bottom: 0.8rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#legalEntitiesModal [data-legal-entities-list] {
+  display: block !important;
+  margin: 0 !important;
+}
+
+#legalEntitiesModal [data-legal-entities-list] > .col {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+#legalEntitiesModal .legal-entity-card {
+  max-width: 62rem;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+#legalEntitiesModal .legal-entity-card > .card-header {
+  padding: 0 0 0.85rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+#legalEntitiesModal .legal-entity-card > .card-body {
+  padding: 1rem 0 0;
+}
+
+#legalEntitiesModal .legal-entity-card .badge.bg-secondary {
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised) !important;
+  color: var(--color-text-muted) !important;
+}
+
+#legalEntitiesModal [data-legal-entities-empty] {
+  margin: 0;
+}
+
+@media (max-width: 767.98px) {
+  #legalEntitiesModal .settings-workspace-main--legal-entities {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+  #legalEntitiesModal .settings-legal-entity-nav {
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  #legalEntitiesModal .settings-legal-entity-nav__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    padding: 0.55rem 0.65rem;
+  }
+  #legalEntitiesModal .settings-legal-entity-nav__title {
+    margin: 0;
+  }
+  #legalEntitiesModal .settings-legal-entity-nav__add {
+    width: auto;
+  }
+  #legalEntitiesModal .settings-legal-entity-nav__list {
+    flex-direction: row;
+    flex: 0 0 auto;
+    gap: 0.25rem;
+    padding: 0.5rem 0.65rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  #legalEntitiesModal .settings-legal-entity-nav__item {
+    width: auto;
+    min-width: 11rem;
+    flex: 0 0 auto;
+  }
+  #legalEntitiesModal .settings-legal-entity-workspace-content {
+    overflow: visible;
+    padding: 0.9rem 0.9rem 1.15rem;
+  }
+}

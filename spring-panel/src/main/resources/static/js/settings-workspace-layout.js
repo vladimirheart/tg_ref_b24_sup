@@ -229,12 +229,222 @@
     activateSection(0);
     modal.dataset.settingsWorkspaceReady = 'true';
   }
+  // Settings legal entities workspace v9
+  function enhanceLegalEntitiesWorkspace(modal) {
+    if (!(modal instanceof HTMLElement) || modal.dataset.settingsWorkspaceReady === 'true') {
+      return;
+    }
+
+    const body = modal.querySelector(':scope > .modal-dialog > .modal-content > .modal-body');
+    if (!(body instanceof HTMLElement)) {
+      return;
+    }
+
+    const list = body.querySelector('[data-legal-entities-list]');
+    const empty = body.querySelector('[data-legal-entities-empty]');
+    const addButton = body.querySelector('[data-legal-entity-add]');
+    const lead = body.querySelector(':scope > .settings-modal-lead');
+    const toolbar = addButton instanceof HTMLElement
+      ? Array.from(body.children).find((child) => child instanceof HTMLElement && child.contains(addButton))
+      : null;
+
+    if (!(list instanceof HTMLElement) || !(addButton instanceof HTMLElement) || !(toolbar instanceof HTMLElement)) {
+      modal.dataset.settingsWorkspaceReady = 'unsupported';
+      return;
+    }
+
+    modal.classList.add('settings-workspace-modal', 'settings-workspace-modal--legal-entities');
+    body.classList.add('settings-workspace-body', 'settings-workspace-host', 'settings-workspace-host--legal-entities');
+    if (lead instanceof HTMLElement) {
+      lead.classList.add('settings-workspace-wide');
+    }
+
+    const main = document.createElement('div');
+    main.className = 'settings-workspace-main settings-workspace-main--legal-entities';
+
+    const nav = document.createElement('aside');
+    nav.className = 'settings-legal-entity-nav';
+    nav.setAttribute('aria-label', 'Юридические лица');
+
+    const navHead = document.createElement('div');
+    navHead.className = 'settings-legal-entity-nav__head';
+
+    const navTitle = document.createElement('div');
+    navTitle.className = 'settings-legal-entity-nav__title';
+    navTitle.textContent = 'Юридические лица';
+
+    addButton.className = 'btn btn-sm btn-outline-primary settings-legal-entity-nav__add';
+    navHead.append(navTitle, addButton);
+
+    const navList = document.createElement('div');
+    navList.className = 'settings-legal-entity-nav__list';
+    nav.append(navHead, navList);
+
+    const content = document.createElement('div');
+    content.className = 'settings-legal-entity-workspace-content';
+
+    body.insertBefore(main, toolbar);
+    main.append(nav, content);
+
+    toolbar.classList.add('settings-legal-entity-content-head');
+    toolbar.classList.remove('mb-3');
+    content.append(toolbar, list);
+    if (empty instanceof HTMLElement) {
+      content.append(empty);
+    }
+
+    let selectedKey = '';
+    let selectedIndex = 0;
+    let initialized = false;
+    let rebuildQueued = false;
+
+    function getEntries() {
+      return Array.from(list.querySelectorAll(':scope > .col > [data-legal-entity-card]'))
+        .filter((card) => card instanceof HTMLElement)
+        .map((card, index) => {
+          const persistedId = String(card.dataset.paramId || '').trim();
+          const draftId = String(card.dataset.legalEntityDraftId || '').trim();
+          const key = persistedId
+            ? `id:${persistedId}`
+            : draftId
+              ? `draft:${draftId}`
+              : `index:${index}`;
+          const title = String(card.querySelector('[data-legal-entity-title]')?.textContent || 'Без названия').trim() || 'Без названия';
+          const state = String(card.querySelector('[data-legal-entity-state-label]')?.textContent || '').trim();
+          return {
+            card,
+            wrapper: card.parentElement,
+            key,
+            title,
+            state,
+            index,
+            isDraft: card.dataset.legalEntityDraft === 'true',
+            isDeleted: card.dataset.legalEntityDeleted === 'true',
+          };
+        })
+        .filter((entry) => entry.wrapper instanceof HTMLElement);
+    }
+
+    function applySelection(entries = getEntries()) {
+      if (!entries.length) {
+        selectedKey = '';
+        selectedIndex = 0;
+        navList.querySelectorAll('[data-legal-entity-workspace-key]').forEach((button) => {
+          button.classList.remove('active');
+          button.setAttribute('aria-pressed', 'false');
+        });
+        return;
+      }
+
+      let targetIndex = entries.findIndex((entry) => entry.key === selectedKey);
+      if (targetIndex < 0) {
+        targetIndex = Math.max(0, Math.min(entries.length - 1, selectedIndex));
+      }
+
+      const target = entries[targetIndex];
+      selectedKey = target.key;
+      selectedIndex = targetIndex;
+
+      entries.forEach((entry, index) => {
+        const active = index === targetIndex;
+        entry.wrapper.hidden = !active;
+        entry.wrapper.classList.toggle('is-active', active);
+        entry.card.setAttribute('aria-hidden', active ? 'false' : 'true');
+      });
+
+      navList.querySelectorAll('[data-legal-entity-workspace-key]').forEach((button) => {
+        const active = button.getAttribute('data-legal-entity-workspace-key') === selectedKey;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    }
+
+    function rebuildNavigation({ selectNewestDraft = false } = {}) {
+      const entries = getEntries();
+
+      if (selectNewestDraft && entries.length) {
+        const draftEntries = entries.filter((entry) => entry.isDraft);
+        const newestDraft = draftEntries[draftEntries.length - 1];
+        if (newestDraft) {
+          selectedKey = newestDraft.key;
+          selectedIndex = newestDraft.index;
+        }
+      } else if (!initialized && entries.length) {
+        selectedKey = entries[0].key;
+        selectedIndex = 0;
+      } else if (entries.length && !entries.some((entry) => entry.key === selectedKey)) {
+        selectedIndex = Math.max(0, Math.min(entries.length - 1, selectedIndex));
+        selectedKey = entries[selectedIndex].key;
+      }
+
+      const fragment = document.createDocumentFragment();
+      entries.forEach((entry) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'settings-legal-entity-nav__item';
+        button.setAttribute('data-legal-entity-workspace-key', entry.key);
+        button.setAttribute('aria-pressed', entry.key === selectedKey ? 'true' : 'false');
+
+        const title = document.createElement('span');
+        title.className = 'settings-legal-entity-nav__item-title';
+        title.textContent = entry.title;
+
+        const meta = document.createElement('span');
+        meta.className = 'settings-legal-entity-nav__item-meta';
+        if (entry.isDraft) {
+          meta.textContent = 'Новая запись';
+        } else if (entry.isDeleted) {
+          meta.textContent = 'Удалено';
+        } else {
+          meta.textContent = entry.state || '—';
+        }
+
+        button.append(title, meta);
+        if (entry.isDraft) {
+          button.classList.add('is-draft');
+        }
+        if (entry.isDeleted) {
+          button.classList.add('is-deleted');
+        }
+        button.addEventListener('click', () => {
+          selectedKey = entry.key;
+          selectedIndex = entry.index;
+          applySelection(getEntries());
+        });
+        fragment.appendChild(button);
+      });
+
+      navList.replaceChildren(fragment);
+      applySelection(entries);
+      initialized = true;
+    }
+
+    const observer = new MutationObserver(() => {
+      if (rebuildQueued) {
+        return;
+      }
+      rebuildQueued = true;
+      queueMicrotask(() => {
+        rebuildQueued = false;
+        rebuildNavigation();
+      });
+    });
+    observer.observe(list, { childList: true, subtree: true, characterData: true });
+
+    addButton.addEventListener('click', () => {
+      window.setTimeout(() => rebuildNavigation({ selectNewestDraft: true }), 0);
+    });
+
+    rebuildNavigation();
+    modal.dataset.settingsWorkspaceReady = 'true';
+  }
   function init() {
     TARGET_MODAL_IDS.forEach((id) => {
       enhanceWorkspace(document.getElementById(id));
     });
     enhanceItWorkspace(document.getElementById('itConnectionsModal'));
     enhanceInputFormattingWorkspace(document.getElementById('inputFormattingModal'));
+    enhanceLegalEntitiesWorkspace(document.getElementById('legalEntitiesModal'));
   }
 
   if (document.readyState === 'loading') {

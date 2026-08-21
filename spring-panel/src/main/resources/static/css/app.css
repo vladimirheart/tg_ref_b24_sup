@@ -8326,3 +8326,45 @@ body[data-ui-page=users] .admin-empty-cell {
     min-width: 760px;
   }
 }
+
+/* Calm Operations interaction policy v9 */
+/*
+ * Structural surfaces stay spatially stable on hover.
+ * Interactive controls may still change color/background, but never move.
+ * Modal opening, tooltip disclosure and other state transitions are untouched.
+ */
+@media (hover: hover) {
+  .btn:hover,
+  .btn:focus-visible,
+  .nav-link:hover,
+  .nav-link:focus-visible,
+  .page-link:hover,
+  .page-link:focus-visible,
+  [role=button]:hover,
+  .period-preset-btn:hover,
+  .period-preset-btn:focus-visible,
+  .panel-info-button:hover,
+  .panel-info-button:focus-visible {
+    transform: none !important;
+  }
+  .card:hover,
+  .modal-content:hover,
+  .accordion-item:hover,
+  .ui-panel:hover,
+  .control-panel:hover,
+  .data-panel:hover,
+  .page-header-card:hover,
+  .workspace-panel-block:hover,
+  .chart-panel:hover,
+  .filter-panel:hover,
+  .metrics-panel:hover,
+  .gradient-border-hover:hover,
+  .gradient-border-stop-hover:hover {
+    transform: none !important;
+    filter: none !important;
+  }
+  .gradient-border-hover:hover,
+  .gradient-border-stop-hover:hover {
+    animation: none !important;
+  }
+}

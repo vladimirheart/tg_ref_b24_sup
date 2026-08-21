@@ -549,7 +549,7 @@ body.modal-resize-active * {
 .btn-outline-success:focus-visible,
 .btn-outline-dark:focus-visible,
 .btn-outline-light:focus-visible {
-  transform: translateY(-1px);
+  transform: none;
 
   background: var(--surface-selected);
 

@@ -985,7 +985,7 @@ body.modal-resize-active * {
 .btn-outline-success:focus-visible,
 .btn-outline-dark:focus-visible,
 .btn-outline-light:focus-visible {
-  transform: translateY(-1px);
+  transform: none;
   background: var(--surface-selected);
   border-color: color-mix(in srgb, var(--color-accent) 32%, var(--color-border));
 }
@@ -2236,56 +2236,4 @@ h1.page-title, .content h1, .container h1 {
   background: var(--surface-selected);
   color: var(--primary);
   border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border)) !important;
-}
-
-/* Global no-hover mode requested for operator workspace */
-.btn,
-.nav-link,
-.dropdown-item,
-.list-group-item,
-.page-link,
-.table,
-.card {
-  transition: none !important;
-}
-
-.btn {
-  --bs-btn-hover-bg: var(--bs-btn-bg);
-  --bs-btn-hover-border-color: var(--bs-btn-border-color);
-  --bs-btn-hover-color: var(--bs-btn-color);
-  --bs-btn-active-bg: var(--bs-btn-bg);
-  --bs-btn-active-border-color: var(--bs-btn-border-color);
-}
-
-@media (hover: hover) {
-  .btn:hover,
-  .btn:active,
-  .nav-link:hover,
-  .dropdown-item:hover,
-  .list-group-item:hover,
-  .page-link:hover,
-  .card:hover,
-  .modal-content:hover,
-  .gradient-border-hover:hover,
-  .gradient-border-stop-hover:hover,
-  .settings-tile:hover,
-  .client-analytics-row:hover {
-    background-color: inherit !important;
-    color: inherit !important;
-    border-color: inherit !important;
-    box-shadow: none !important;
-    transform: none !important;
-    filter: none !important;
-    transition: none !important;
-    animation: none !important;
-    text-decoration: none !important;
-  }
-  .table-hover > tbody > tr:hover > * {
-    --bs-table-accent-bg: transparent !important;
-    color: inherit !important;
-  }
-  a:hover {
-    color: inherit !important;
-    text-decoration: none !important;
-  }
 }
