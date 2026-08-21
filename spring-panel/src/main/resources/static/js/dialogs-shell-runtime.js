@@ -549,6 +549,24 @@
       });
     }
 
+    // Dialog column personalization v8
+    function syncColumnOrderControls() {
+      const columnsList = options.elements?.columnsList;
+      if (!columnsList) return;
+      const items = Array.from(columnsList.querySelectorAll('[data-column-item]'));
+      items.forEach((item, index) => {
+        const position = item.querySelector('[data-column-position]');
+        if (position) {
+          position.textContent = String(index + 1);
+          position.setAttribute('aria-label', `Позиция ${index + 1} из ${items.length}`);
+        }
+        const moveUp = item.querySelector('[data-column-move="-1"]');
+        const moveDown = item.querySelector('[data-column-move="1"]');
+        if (moveUp instanceof HTMLButtonElement) moveUp.disabled = index === 0;
+        if (moveDown instanceof HTMLButtonElement) moveDown.disabled = index === items.length - 1;
+      });
+    }
+
     function syncColumnsList() {
       const columnsList = options.elements?.columnsList;
       if (!columnsList) return;
@@ -563,6 +581,7 @@
           columnsList.appendChild(item);
         }
       });
+      syncColumnOrderControls();
     }
 
     function buildColumnsList() {
@@ -573,18 +592,31 @@
       normalizeColumnOrder(getColumnOrder()).forEach((key) => {
         const meta = metaByKey.get(key);
         if (!meta) return;
-        const col = document.createElement('div');
-        col.className = 'col-12 col-sm-6';
-        col.setAttribute('data-column-item', key);
-        col.setAttribute('draggable', 'true');
-        col.innerHTML = `
-        <label class="dialog-column-option">
-          <span class="dialog-column-option__drag" aria-hidden="true">⋮⋮</span>
-          <input type="checkbox" class="form-check-input" data-column-toggle="${key}">
-          <span class="dialog-column-option__label">${meta.label}</span>
-        </label>
-      `;
-        columnsList.appendChild(col);
+        const item = document.createElement('div');
+        item.className = 'dialog-column-order-item';
+        item.setAttribute('data-column-item', key);
+        item.innerHTML = `
+          <div class="dialog-column-option">
+            <button
+              type="button"
+              class="dialog-column-option__drag"
+              draggable="true"
+              data-column-drag-handle
+              aria-label="Перетащить колонку ${meta.label}"
+              title="Перетащить"
+            >⋮⋮</button>
+            <span class="dialog-column-option__position" data-column-position></span>
+            <label class="dialog-column-option__visibility">
+              <input type="checkbox" class="form-check-input" data-column-toggle="${key}">
+              <span class="dialog-column-option__label">${meta.label}</span>
+            </label>
+            <span class="dialog-column-option__actions" aria-label="Изменить позицию колонки">
+              <button type="button" class="dialog-column-option__move" data-column-move="-1" aria-label="Переместить ${meta.label} выше" title="Выше">↑</button>
+              <button type="button" class="dialog-column-option__move" data-column-move="1" aria-label="Переместить ${meta.label} ниже" title="Ниже">↓</button>
+            </span>
+          </div>
+        `;
+        columnsList.appendChild(item);
       });
       syncColumnsList();
     }
@@ -594,9 +626,30 @@
       if (!columnsList || columnsList.dataset.columnOrderBound === 'true') return;
       let draggingItem = null;
 
+      columnsList.addEventListener('click', (event) => {
+        const moveButton = event.target instanceof Element
+          ? event.target.closest('[data-column-move]')
+          : null;
+        if (!(moveButton instanceof HTMLButtonElement)) return;
+        const item = moveButton.closest('[data-column-item]');
+        if (!(item instanceof HTMLElement)) return;
+        const direction = Number.parseInt(moveButton.dataset.columnMove || '0', 10);
+        if (direction < 0) {
+          const previous = item.previousElementSibling;
+          if (previous) columnsList.insertBefore(item, previous);
+        } else if (direction > 0) {
+          const next = item.nextElementSibling;
+          if (next) columnsList.insertBefore(next, item);
+        }
+        syncColumnOrderControls();
+      });
+
       columnsList.addEventListener('dragstart', (event) => {
-        const item = event.target.closest('[data-column-item]');
-        if (!item) {
+        const handle = event.target instanceof Element
+          ? event.target.closest('[data-column-drag-handle]')
+          : null;
+        const item = handle?.closest('[data-column-item]');
+        if (!(handle instanceof HTMLElement) || !(item instanceof HTMLElement)) {
           event.preventDefault();
           return;
         }
@@ -610,14 +663,17 @@
 
       columnsList.addEventListener('dragover', (event) => {
         if (!draggingItem) return;
-        const target = event.target.closest('[data-column-item]');
-        if (!target || target === draggingItem) return;
+        const target = event.target instanceof Element
+          ? event.target.closest('[data-column-item]')
+          : null;
+        if (!(target instanceof HTMLElement) || target === draggingItem) return;
         event.preventDefault();
         const targetRect = target.getBoundingClientRect();
         const insertAfter = event.clientY > targetRect.top + (targetRect.height / 2);
         const referenceNode = insertAfter ? target.nextElementSibling : target;
         if (referenceNode === draggingItem) return;
         columnsList.insertBefore(draggingItem, referenceNode);
+        syncColumnOrderControls();
       });
 
       columnsList.addEventListener('drop', (event) => {
@@ -629,6 +685,7 @@
         if (!draggingItem) return;
         draggingItem.classList.remove('is-dragging');
         draggingItem = null;
+        syncColumnOrderControls();
       });
 
       columnsList.dataset.columnOrderBound = 'true';
@@ -682,7 +739,6 @@
         });
       }
     }
-
     function saveColumnWidths() {
       const storageKey = resolveStorageKey(options.storage?.widths);
       if (!storageKey) return;

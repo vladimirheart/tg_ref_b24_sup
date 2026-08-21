@@ -121,11 +121,120 @@
 
     modal.dataset.settingsWorkspaceReady = 'true';
   }
+  // Settings input formatting workspace v8
+  function enhanceInputFormattingWorkspace(modal) {
+    if (!(modal instanceof HTMLElement) || modal.dataset.settingsWorkspaceReady === 'true') {
+      return;
+    }
+
+    const body = modal.querySelector(':scope > .modal-dialog > .modal-content > .modal-body');
+    if (!(body instanceof HTMLElement)) {
+      return;
+    }
+
+    const sections = Array.from(body.children).filter(
+      (child) => child instanceof HTMLElement && child.classList.contains('card'),
+    );
+    if (sections.length < 2) {
+      modal.dataset.settingsWorkspaceReady = 'unsupported';
+      return;
+    }
+
+    const sectionMeta = sections.map((section, index) => {
+      const title = String(section.querySelector(':scope > .card-header h5')?.textContent || `Раздел ${index + 1}`).trim();
+      const normalized = title.toLowerCase();
+      let icon = 'bi-sliders';
+      if (normalized.includes('телефон')) icon = 'bi-telephone';
+      else if (normalized.includes('mail') || normalized.includes('почт')) icon = 'bi-envelope';
+      else if (normalized.includes('адрес')) icon = 'bi-geo-alt';
+      return { section, title, icon, index };
+    });
+
+    modal.classList.add('settings-workspace-modal', 'settings-workspace-modal--input-formatting');
+    body.classList.add('settings-workspace-body', 'settings-workspace-host');
+
+    const lead = body.querySelector(':scope > .settings-modal-lead');
+    if (lead instanceof HTMLElement) {
+      lead.classList.add('settings-workspace-wide');
+    }
+
+    const main = document.createElement('div');
+    main.className = 'settings-workspace-main settings-workspace-main--input-formatting';
+
+    const nav = document.createElement('ul');
+    nav.className = 'nav nav-tabs settings-menu-tabs settings-workspace-nav settings-section-workspace-nav';
+    nav.setAttribute('role', 'tablist');
+    nav.setAttribute('aria-label', 'Разделы настройки вводимых данных');
+
+    const content = document.createElement('div');
+    content.className = 'settings-tab-content settings-workspace-content settings-section-workspace-content';
+
+    body.insertBefore(main, sections[0]);
+    main.append(nav, content);
+
+    const buttons = [];
+    sectionMeta.forEach(({ section, title, icon, index }) => {
+      const paneId = `input-formatting-pane-${index + 1}`;
+      section.id = section.id || paneId;
+      section.classList.add('settings-section-workspace-pane');
+      section.classList.remove('mb-4');
+
+      const item = document.createElement('li');
+      item.className = 'nav-item';
+      item.setAttribute('role', 'presentation');
+
+      const button = document.createElement('button');
+      button.className = 'nav-link';
+      button.type = 'button';
+      button.setAttribute('role', 'tab');
+      button.setAttribute('aria-controls', section.id);
+      button.innerHTML = `<i class="bi ${icon}" aria-hidden="true"></i><span>${title}</span>`;
+      item.appendChild(button);
+      nav.appendChild(item);
+      buttons.push(button);
+      content.appendChild(section);
+    });
+
+    function activateSection(nextIndex, focusButton = false) {
+      const safeIndex = Math.max(0, Math.min(sectionMeta.length - 1, Number(nextIndex) || 0));
+      sectionMeta.forEach(({ section }, index) => {
+        const active = index === safeIndex;
+        section.hidden = !active;
+        buttons[index].classList.toggle('active', active);
+        buttons[index].setAttribute('aria-selected', active ? 'true' : 'false');
+        buttons[index].tabIndex = active ? 0 : -1;
+      });
+      if (focusButton) {
+        buttons[safeIndex]?.focus();
+      }
+    }
+
+    buttons.forEach((button, index) => {
+      button.addEventListener('click', () => activateSection(index));
+    });
+
+    nav.addEventListener('keydown', (event) => {
+      const currentIndex = buttons.indexOf(document.activeElement);
+      if (currentIndex < 0) return;
+      let nextIndex = currentIndex;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % buttons.length;
+      else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+      else if (event.key === 'Home') nextIndex = 0;
+      else if (event.key === 'End') nextIndex = buttons.length - 1;
+      else return;
+      event.preventDefault();
+      activateSection(nextIndex, true);
+    });
+
+    activateSection(0);
+    modal.dataset.settingsWorkspaceReady = 'true';
+  }
   function init() {
     TARGET_MODAL_IDS.forEach((id) => {
       enhanceWorkspace(document.getElementById(id));
-    });    enhanceItWorkspace(document.getElementById('itConnectionsModal'));
-
+    });
+    enhanceItWorkspace(document.getElementById('itConnectionsModal'));
+    enhanceInputFormattingWorkspace(document.getElementById('inputFormattingModal'));
   }
 
   if (document.readyState === 'loading') {

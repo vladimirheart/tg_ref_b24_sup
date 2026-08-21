@@ -3483,3 +3483,49 @@ body.sidebar-collapsed #partnerContactEditorModal {
     padding: 0.9rem 0.9rem 1.15rem;
   }
 }
+/* Settings input formatting workspace v8 */
+#inputFormattingModal .settings-workspace-main--input-formatting {
+  background: var(--surface-card);
+}
+
+#inputFormattingModal .settings-section-workspace-content {
+  padding: 0;
+}
+
+#inputFormattingModal .settings-section-workspace-pane {
+  margin: 0 !important;
+  padding: 1rem 1.1rem 1.25rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+#inputFormattingModal .settings-section-workspace-pane > .card-header {
+  padding: 0 0 0.9rem;
+  border: 0;
+  background: transparent !important;
+  text-align: left;
+}
+
+#inputFormattingModal .settings-section-workspace-pane > .card-header h5 {
+  margin-bottom: 0.2rem !important;
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+#inputFormattingModal .settings-section-workspace-pane > .card-body {
+  padding: 0;
+}
+
+#inputFormattingModal .settings-section-workspace-pane [data-font-settings] {
+  background: var(--surface-raised);
+}
+
+@media (max-width: 767.98px) {
+  #inputFormattingModal .settings-section-workspace-pane {
+    padding: 0.9rem 0.9rem 1.15rem !important;
+  }
+}

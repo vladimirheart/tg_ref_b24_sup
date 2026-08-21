@@ -2750,3 +2750,124 @@ body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
 
     background: var(--surface-selected);
 }
+/* Dialog column personalization v8 */
+
+#dialogColumnsModal .modal-dialog {
+  max-width: 38rem;
+}
+
+#dialogColumnsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+}
+
+#dialogColumnsList > .dialog-column-order-item {
+  width: 100%;
+  padding: 0;
+}
+
+#dialogColumnsModal .dialog-column-option {
+  display: grid;
+  grid-template-columns: 2rem 1.8rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 3.15rem;
+  padding: 0.5rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  cursor: default;
+}
+
+#dialogColumnsModal .dialog-column-option__drag,
+#dialogColumnsModal .dialog-column-option__move {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  line-height: 1;
+}
+
+#dialogColumnsModal .dialog-column-option__drag {
+  cursor: grab;
+  letter-spacing: -0.08em;
+  touch-action: none;
+}
+
+#dialogColumnsModal .dialog-column-option__drag:active {
+  cursor: grabbing;
+}
+
+#dialogColumnsModal .dialog-column-option__drag:hover,
+#dialogColumnsModal .dialog-column-option__drag:focus-visible,
+#dialogColumnsModal .dialog-column-option__move:hover,
+#dialogColumnsModal .dialog-column-option__move:focus-visible {
+  border-color: var(--color-border);
+  background: var(--surface-interactive);
+  color: var(--primary);
+  outline: none;
+}
+
+#dialogColumnsModal .dialog-column-option__move:disabled {
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+#dialogColumnsModal .dialog-column-option__position {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7rem;
+  height: 1.7rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+#dialogColumnsModal .dialog-column-option__visibility {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+#dialogColumnsModal .dialog-column-option__label {
+  overflow: hidden;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#dialogColumnsModal .dialog-column-option__actions {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+#dialogColumnsList > .dialog-column-order-item.is-dragging .dialog-column-option {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--color-border));
+  background: var(--surface-selected);
+  opacity: 0.7;
+}
+
+@media (max-width: 575.98px) {
+  #dialogColumnsModal .dialog-column-option {
+    grid-template-columns: 2rem 1.7rem minmax(0, 1fr);
+  }
+
+  #dialogColumnsModal .dialog-column-option__actions {
+    grid-column: 3;
+    justify-self: end;
+  }
+}
