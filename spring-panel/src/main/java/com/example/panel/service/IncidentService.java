@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -71,14 +72,35 @@ public class IncidentService {
         this.incidentRouteRepository = incidentRouteRepository;
         this.ticketRepository = ticketRepository;
         this.taskRepository = taskRepository;
-        this.jdbcTemplate = jdbcTemplate;
+                this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.notificationRoutingService = notificationRoutingService;
         this.incidentRouteDeliveryOutboxService = incidentRouteDeliveryOutboxService;
-    }
+			}
 
-    public Map<String, Object> listIncidents(String status,
-                                             String severity,
+			private Incident saveNewIncidentWithGeneratedKey(
+					Incident incident) {
+
+				incident.setIncidentKey(
+					"INC-PENDING-" + UUID.randomUUID()
+				);
+
+				incident =
+					incidentRepository.saveAndFlush(
+						incident
+					);
+
+				incident.setIncidentKey(
+					"INC-" + incident.getId()
+				);
+
+				return incidentRepository.saveAndFlush(
+					incident
+				);
+			}
+
+	public Map<String, Object> listIncidents(String status,
+											 String severity,
                                              String relationType,
                                              String relationKey,
                                              String query,
@@ -176,9 +198,10 @@ public class IncidentService {
         if (isResolvedStatus(incident.getStatus())) {
             incident.setResolvedAt(now);
         }
-        incident = incidentRepository.save(incident);
-        incident.setIncidentKey("INC-" + incident.getId());
-        incident = incidentRepository.save(incident);
+        incident =
+			saveNewIncidentWithGeneratedKey(
+				incident
+			);
 
         syncRelations(incident, payload, actor);
         syncWatchers(incident, extractWatchers(payload), actor);
@@ -367,9 +390,10 @@ public class IncidentService {
             incident.setCreatedBy(normalizeNullableIdentity(actor));
             incident.setCreatedAt(now);
             incident.setUpdatedAt(now);
-            incident = incidentRepository.save(incident);
-            incident.setIncidentKey("INC-" + incident.getId());
-            incident = incidentRepository.save(incident);
+            incident =
+				saveNewIncidentWithGeneratedKey(
+					incident
+				);
             appendEvent(incident, "signal_opened", "Signal incident created", payload, actor, now);
         } else {
             incident.setTitle(requiredText(title, "Укажите заголовок incident."));
