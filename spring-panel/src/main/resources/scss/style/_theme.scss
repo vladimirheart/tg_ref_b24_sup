@@ -63,9 +63,9 @@
 
   --spacing: 0.25rem;
 
-  --font-mono: 'Space Mono', 'IBM Plex Mono', monospace;
-  --font-sans: 'DM Sans', sans-serif;
-  --font-serif: 'DM Sans', sans-serif;
+  --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 
   --shadow-blur: 24px;
   --shadow-color: #102e39;
@@ -412,7 +412,7 @@ body[data-ui-page='public'] {
   --sidebar: #e6e9ef;
   --secondary: #1e66f5;
   --background: #e6e9ef;
-  --font-serif: 'DM Sans', sans-serif;
+  --font-serif: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --foreground: #4c4f69;
   --destructive: #d20f39;
   --sidebar-ring: #8839ef;

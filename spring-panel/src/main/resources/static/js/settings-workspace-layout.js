@@ -34,21 +34,27 @@
     nav.classList.add('settings-workspace-nav');
     content.classList.add('settings-workspace-content');
 
-    const wideChildren = Array.from(host.children).filter(
-      (child) => child !== nav && child !== content,
-    );
+    let main = host.querySelector(':scope > .settings-workspace-main');
+    if (!(main instanceof HTMLElement)) {
+      main = document.createElement('div');
+      main.className = 'settings-workspace-main';
+      host.insertBefore(main, nav);
+      main.append(nav, content);
+    }
 
-    wideChildren.forEach((child, index) => {
-      if (!(child instanceof HTMLElement)) {
+    Array.from(host.children).forEach((child) => {
+      if (!(child instanceof HTMLElement) || child === main) {
         return;
       }
       child.classList.add('settings-workspace-wide');
-      child.style.gridRow = String(index + 1);
+      child.style.removeProperty('grid-row');
+      child.style.removeProperty('grid-column');
     });
 
-    const contentRow = String(wideChildren.length + 1);
-    nav.style.gridRow = contentRow;
-    content.style.gridRow = contentRow;
+    nav.style.removeProperty('grid-row');
+    nav.style.removeProperty('grid-column');
+    content.style.removeProperty('grid-row');
+    content.style.removeProperty('grid-column');
 
     modal.dataset.settingsWorkspaceReady = 'true';
   }

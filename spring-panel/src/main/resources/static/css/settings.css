@@ -3095,14 +3095,13 @@ body.sidebar-collapsed #partnerContactEditorModal {
     margin-left: 0.55rem;
   }
 }
-/* Settings workspace navigation v6 */
+/* Settings workspace stability v6.1 */
 /*
  * Workspace primitive
  * -------------------
- * Large Settings modals use the same information architecture as the
- * panel-design workspace: quiet navigation on the left, task content on
- * the right. Bootstrap tab behavior is unchanged; JS only annotates the
- * existing tab host with reusable classes.
+ * Wide lead/status rows stay outside the navigation/content plane.
+ * The inner main wrapper owns the two-column layout, so free modal height
+ * can no longer stretch an auto grid row and push tabs down the screen.
  */
 .settings-workspace-body {
   padding: 0 !important;
@@ -3112,6 +3111,7 @@ body.sidebar-collapsed #partnerContactEditorModal {
 .settings-workspace-body:not(.settings-workspace-host) {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .settings-workspace-body > .settings-modal-lead {
@@ -3123,22 +3123,27 @@ body.sidebar-collapsed #partnerContactEditorModal {
 }
 
 .settings-workspace-host {
-  display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr);
-  grid-auto-rows: auto;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   background: var(--surface-card);
 }
 
-.settings-workspace-body:not(.settings-workspace-host) > .settings-workspace-host {
-  flex: 1 1 auto;
+.settings-workspace-host > .settings-workspace-wide {
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
-.settings-workspace-host > .settings-workspace-wide {
-  grid-column: 1/-1;
+.settings-workspace-main {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .settings-workspace-nav.settings-menu-tabs {
@@ -3232,52 +3237,45 @@ body.sidebar-collapsed #partnerContactEditorModal {
   margin-top: 0 !important;
 }
 
-/* Keep runtime/status messages readable when a workspace host owns them. */
+/* Bootstrap light diagnostics must follow the active Iguana theme. */
+.modal .alert.alert-light {
+  --bs-alert-color: var(--color-text-muted);
+  --bs-alert-bg: var(--surface-raised);
+  --bs-alert-border-color: var(--color-border);
+  color: var(--color-text-muted) !important;
+  background: var(--surface-raised) !important;
+  border-color: var(--color-border) !important;
+}
+
 .settings-workspace-host > .settings-workspace-wide.alert {
   margin: 0.75rem 1rem 0;
 }
 
-/* Users has its tabs inside the auth-management runtime root. */
-#usersModal .settings-workspace-host {
-  height: 100%;
-}
-
-/* Location actions belong to the content plane, not to the navigation rail. */
 #locationsModal .settings-workspace-content > .tab-pane > .d-flex.flex-wrap.gap-2:first-child {
   padding-bottom: 0.75rem;
   margin-bottom: 0.9rem !important;
   border-bottom: 1px solid var(--color-border);
 }
 
-/* Dialogue tabs can be numerous; keep the rail dense enough for one screen. */
 #categoriesModal .settings-workspace-nav.settings-menu-tabs .nav-link {
   min-height: 2.45rem;
   padding-top: 0.58rem;
   padding-bottom: 0.58rem;
 }
 
-/* Channels benefits from slightly more room for operational labels. */
-#channelsModal .settings-workspace-nav.settings-menu-tabs {
-  width: auto;
-}
-
 @media (max-width: 767.98px) {
   .settings-workspace-body {
     overflow-y: auto !important;
   }
-  .settings-workspace-body:not(.settings-workspace-host) {
-    display: block;
-  }
+  .settings-workspace-body:not(.settings-workspace-host),
   .settings-workspace-host {
+    display: block;
+    overflow: visible;
+  }
+  .settings-workspace-main {
     display: flex;
     flex-direction: column;
     overflow: visible;
-  }
-  .settings-workspace-host > .settings-workspace-wide,
-  .settings-workspace-nav.settings-menu-tabs,
-  .settings-workspace-content.settings-tab-content {
-    grid-column: auto !important;
-    grid-row: auto !important;
   }
   .settings-workspace-nav.settings-menu-tabs {
     position: sticky;

@@ -1,5 +1,5 @@
 /* Generated from scss/style.scss. Edit SCSS sources instead of css/style.css. */
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+/* External web fonts are intentionally disabled; use local system stacks for reliable first paint. */
 @property --gradient-angle {
   syntax: "<angle>";
   inherits: false;
@@ -63,9 +63,9 @@
   --sidebar: #e5efec;
   --destructive: #c85d58;
   --spacing: 0.25rem;
-  --font-mono: "Space Mono", "IBM Plex Mono", monospace;
-  --font-sans: "DM Sans", sans-serif;
-  --font-serif: "DM Sans", sans-serif;
+  --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --shadow-blur: 24px;
   --shadow-color: #102e39;
   --shadow-spread: -18px;
@@ -352,7 +352,7 @@ body[data-ui-page=public] {
   --sidebar: #e6e9ef;
   --secondary: #1e66f5;
   --background: #e6e9ef;
-  --font-serif: "DM Sans", sans-serif;
+  --font-serif: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --foreground: #4c4f69;
   --destructive: #d20f39;
   --sidebar-ring: #8839ef;
