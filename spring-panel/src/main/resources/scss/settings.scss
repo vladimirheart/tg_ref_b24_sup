@@ -3286,3 +3286,222 @@
         margin-left: 0.55rem;
       }
     }
+/* Settings workspace navigation v6 */
+
+/*
+ * Workspace primitive
+ * -------------------
+ * Large Settings modals use the same information architecture as the
+ * panel-design workspace: quiet navigation on the left, task content on
+ * the right. Bootstrap tab behavior is unchanged; JS only annotates the
+ * existing tab host with reusable classes.
+ */
+
+.settings-workspace-body {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.settings-workspace-body:not(.settings-workspace-host) {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-workspace-body > .settings-modal-lead {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--surface-card);
+}
+
+.settings-workspace-host {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  grid-auto-rows: auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+.settings-workspace-body:not(.settings-workspace-host) > .settings-workspace-host {
+  flex: 1 1 auto;
+}
+
+.settings-workspace-host > .settings-workspace-wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.settings-workspace-nav.settings-menu-tabs {
+  grid-column: 1;
+  align-self: stretch;
+  align-content: flex-start;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0.75rem !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0 !important;
+  border-right: 1px solid var(--color-border) !important;
+  border-radius: 0 !important;
+  background: var(--surface-raised) !important;
+  backdrop-filter: none;
+}
+
+.settings-workspace-nav.settings-menu-tabs .nav-item {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.settings-workspace-nav.settings-menu-tabs .nav-link {
+  width: 100%;
+  min-height: 2.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.68rem 0.72rem;
+  border: 0 !important;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  text-align: left;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: normal;
+  box-shadow: none;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.settings-workspace-nav.settings-menu-tabs .nav-link:hover,
+.settings-workspace-nav.settings-menu-tabs .nav-link:focus-visible {
+  background: var(--surface-interactive);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+.settings-workspace-nav.settings-menu-tabs .nav-link.active {
+  background: var(--surface-selected);
+  color: var(--primary);
+  box-shadow: none;
+}
+
+.settings-workspace-nav.settings-menu-tabs .nav-link i {
+  width: 1.05rem;
+  flex: 0 0 1.05rem;
+  color: currentColor;
+  text-align: center;
+  opacity: 0.9;
+}
+
+.settings-workspace-content.settings-tab-content {
+  grid-column: 2;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 1rem 1.1rem 1.25rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-card);
+}
+
+.settings-workspace-content.settings-tab-content > .tab-pane {
+  min-width: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.settings-workspace-content.settings-tab-content > .tab-pane > :first-child {
+  margin-top: 0 !important;
+}
+
+/* Keep runtime/status messages readable when a workspace host owns them. */
+.settings-workspace-host > .settings-workspace-wide.alert {
+  margin: 0.75rem 1rem 0;
+}
+
+/* Users has its tabs inside the auth-management runtime root. */
+#usersModal .settings-workspace-host {
+  height: 100%;
+}
+
+/* Location actions belong to the content plane, not to the navigation rail. */
+#locationsModal .settings-workspace-content > .tab-pane > .d-flex.flex-wrap.gap-2:first-child {
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.9rem !important;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Dialogue tabs can be numerous; keep the rail dense enough for one screen. */
+#categoriesModal .settings-workspace-nav.settings-menu-tabs .nav-link {
+  min-height: 2.45rem;
+  padding-top: 0.58rem;
+  padding-bottom: 0.58rem;
+}
+
+/* Channels benefits from slightly more room for operational labels. */
+#channelsModal .settings-workspace-nav.settings-menu-tabs {
+  width: auto;
+}
+
+@media (max-width: 767.98px) {
+  .settings-workspace-body {
+    overflow-y: auto !important;
+  }
+
+  .settings-workspace-body:not(.settings-workspace-host) {
+    display: block;
+  }
+
+  .settings-workspace-host {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .settings-workspace-host > .settings-workspace-wide,
+  .settings-workspace-nav.settings-menu-tabs,
+  .settings-workspace-content.settings-tab-content {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .settings-workspace-nav.settings-menu-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex-direction: row;
+    gap: 0.25rem;
+    padding: 0.55rem 0.65rem !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--color-border) !important;
+  }
+
+  .settings-workspace-nav.settings-menu-tabs .nav-item {
+    width: auto;
+  }
+
+  .settings-workspace-nav.settings-menu-tabs .nav-link {
+    width: auto;
+    min-width: max-content;
+    min-height: 2.4rem;
+    white-space: nowrap;
+  }
+
+  .settings-workspace-content.settings-tab-content {
+    overflow: visible;
+    padding: 0.9rem 0.9rem 1.15rem;
+  }
+}
