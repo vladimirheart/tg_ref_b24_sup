@@ -38,6 +38,7 @@
           questionTemplates: [],
           completionTemplates: [],
           emoji: [],
+          emojiGroups: [],
         };
     }
 
@@ -252,18 +253,99 @@
       });
     }
 
+    function normalizeEmojiGroups() {
+      const config = getTemplateConfig();
+      const configuredGroups = Array.isArray(config.emojiGroups) ? config.emojiGroups : [];
+      const normalizedGroups = configuredGroups
+        .map((group, groupIndex) => {
+          const items = Array.isArray(group?.items) ? group.items : [];
+          const normalizedItems = items
+            .map((item) => {
+              if (typeof item === 'string') {
+                return { value: item, label: item };
+              }
+              const value = String(item?.value || '').trim();
+              if (!value) return null;
+              return {
+                value,
+                label: String(item?.label || value).trim() || value,
+              };
+            })
+            .filter(Boolean);
+          if (!normalizedItems.length) return null;
+          return {
+            key: String(group?.key || `group-${groupIndex + 1}`).trim(),
+            label: String(group?.label || `Группа ${groupIndex + 1}`).trim(),
+            items: normalizedItems,
+          };
+        })
+        .filter(Boolean);
+
+      if (normalizedGroups.length) {
+        return normalizedGroups;
+      }
+
+      const fallbackItems = (Array.isArray(config.emoji) ? config.emoji : [])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .map((value) => ({ value, label: value }));
+      return fallbackItems.length
+        ? [{ key: 'frequent', label: 'Частые', items: fallbackItems }]
+        : [];
+    }
+
     function renderEmojiPanel() {
       if (!elements.emojiList) return;
-      const safeEmoji = Array.isArray(getTemplateConfig().emoji) ? getTemplateConfig().emoji : [];
+      const groups = normalizeEmojiGroups();
       elements.emojiList.innerHTML = '';
-      safeEmoji.forEach((emoji) => {
-        const button = document.createElement('button');
-        button.className = 'btn btn-outline-secondary btn-sm';
-        button.type = 'button';
-        button.dataset.emojiValue = emoji;
-        button.textContent = emoji;
-        elements.emojiList.appendChild(button);
+      elements.emojiList.classList.add('dialog-emoji-picker');
+
+      groups.forEach((group) => {
+        const section = document.createElement('section');
+        section.className = 'dialog-emoji-group';
+        section.dataset.emojiGroup = group.key;
+
+        const title = document.createElement('div');
+        title.className = 'dialog-emoji-group__title';
+        title.textContent = group.label;
+
+        const grid = document.createElement('div');
+        grid.className = 'dialog-emoji-grid';
+        grid.setAttribute('role', 'group');
+        grid.setAttribute('aria-label', group.label);
+
+        group.items.forEach((item) => {
+          const button = document.createElement('button');
+          button.className = 'dialog-emoji-button';
+          button.type = 'button';
+          button.dataset.emojiValue = item.value;
+          button.textContent = item.value;
+          button.setAttribute('aria-label', item.label);
+          button.setAttribute('title', item.label);
+          grid.appendChild(button);
+        });
+
+        section.append(title, grid);
+        elements.emojiList.appendChild(section);
       });
+    }
+
+    function insertEmojiAtCaret(value) {
+      const textarea = elements.detailsReplyText;
+      const emoji = String(value || '');
+      if (!(textarea instanceof HTMLTextAreaElement) || !emoji) return;
+
+      const start = Number.isInteger(textarea.selectionStart) ? textarea.selectionStart : textarea.value.length;
+      const end = Number.isInteger(textarea.selectionEnd) ? textarea.selectionEnd : start;
+      if (typeof textarea.setRangeText === 'function') {
+        textarea.setRangeText(emoji, start, end, 'end');
+      } else {
+        textarea.value = `${textarea.value.slice(0, start)}${emoji}${textarea.value.slice(end)}`;
+        const caret = start + emoji.length;
+        textarea.setSelectionRange?.(caret, caret);
+      }
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      textarea.focus({ preventScroll: true });
     }
 
     function insertReplyText(value) {
@@ -484,7 +566,7 @@
         elements.emojiList.addEventListener('click', (event) => {
           const button = event.target.closest('[data-emoji-value]');
           if (!button) return;
-          insertReplyText(button.dataset.emojiValue || '');
+          insertEmojiAtCaret(button.dataset.emojiValue || '');
         });
       }
 

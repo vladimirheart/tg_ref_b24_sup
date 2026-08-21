@@ -803,6 +803,58 @@
         }
         updateDetailsReplySendLabel();
       });
+      const detailsDropTarget = elements.detailsReplyText.closest('.dialog-details-composer') || elements.detailsReplyText;
+      if (detailsDropTarget instanceof HTMLElement && elements.detailsReplyMedia) {
+        let fileDragDepth = 0;
+        const dragHasFiles = (event) => {
+          const dataTransfer = event?.dataTransfer;
+          if (!dataTransfer) return false;
+          const types = Array.from(dataTransfer.types || []);
+          if (types.includes('Files')) return true;
+          return Array.from(dataTransfer.items || []).some((item) => item?.kind === 'file');
+        };
+        const setDropActive = (active) => {
+          detailsDropTarget.classList.toggle('is-dragover', Boolean(active));
+        };
+
+        detailsDropTarget.addEventListener('dragenter', (event) => {
+          if (!dragHasFiles(event)) return;
+          event.preventDefault();
+          fileDragDepth += 1;
+          setDropActive(true);
+        });
+        detailsDropTarget.addEventListener('dragover', (event) => {
+          if (!dragHasFiles(event)) return;
+          event.preventDefault();
+          if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'copy';
+          }
+          setDropActive(true);
+        });
+        detailsDropTarget.addEventListener('dragleave', (event) => {
+          if (!dragHasFiles(event)) return;
+          fileDragDepth = Math.max(0, fileDragDepth - 1);
+          if (fileDragDepth === 0) {
+            setDropActive(false);
+          }
+        });
+        detailsDropTarget.addEventListener('drop', (event) => {
+          if (!dragHasFiles(event)) return;
+          event.preventDefault();
+          fileDragDepth = 0;
+          setDropActive(false);
+
+          const files = Array.from(event.dataTransfer?.files || []);
+          if (!files.length) return;
+          const beforeCount = options.getPendingMediaFiles?.(elements.detailsReplyMedia)?.length || 0;
+          const totalFiles = options.stageMediaFilesInInput?.(elements.detailsReplyMedia, files) || 0;
+          if (totalFiles <= beforeCount) {
+            notify('Не удалось добавить перетащенные файлы. Используйте кнопку прикрепления медиа.', 'warning');
+            return;
+          }
+          updateDetailsReplySendLabel();
+        });
+      }
       elements.detailsReplyMedia?.addEventListener('dialogs:pending-media-files-changed', () => {
         updateDetailsReplySendLabel();
       });

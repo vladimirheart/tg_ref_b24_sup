@@ -752,7 +752,56 @@
     ? window.DIALOG_CONFIG.summary_badges
     : {};
 
-  const DIALOG_EMOJI = ['😀','😁','😂','😊','😍','🤔','😢','😡','👍','🙏','🔥','🎉','✅','❗','📌'];
+  const DIALOG_EMOJI_GROUPS = [
+    {
+      key: 'frequent',
+      label: 'Частые',
+      items: [
+        { value: '🙂', label: 'Улыбка' },
+        { value: '😊', label: 'Тёплая улыбка' },
+        { value: '👍', label: 'Хорошо' },
+        { value: '🙏', label: 'Спасибо' },
+        { value: '🤝', label: 'Договорились' },
+        { value: '👌', label: 'Окей' },
+        { value: '🙌', label: 'Отлично' },
+        { value: '❤️', label: 'Сердце' },
+      ],
+    },
+    {
+      key: 'reactions',
+      label: 'Реакции',
+      items: [
+        { value: '😄', label: 'Радость' },
+        { value: '😅', label: 'Облегчение' },
+        { value: '😂', label: 'Смех' },
+        { value: '😉', label: 'Подмигивание' },
+        { value: '😍', label: 'Нравится' },
+        { value: '🤔', label: 'Думаю' },
+        { value: '😌', label: 'Спокойствие' },
+        { value: '😕', label: 'Непонимание' },
+        { value: '😢', label: 'Грусть' },
+      ],
+    },
+    {
+      key: 'work',
+      label: 'Работа',
+      items: [
+        { value: '✅', label: 'Готово' },
+        { value: '☑️', label: 'Проверено' },
+        { value: '📌', label: 'Закрепить' },
+        { value: '📎', label: 'Вложение' },
+        { value: '📝', label: 'Записать' },
+        { value: '🔎', label: 'Поиск' },
+        { value: '⏳', label: 'Ожидание' },
+        { value: '⚠️', label: 'Внимание' },
+        { value: '❗', label: 'Важно' },
+        { value: '🎉', label: 'Поздравление' },
+        { value: '🔥', label: 'Актуально' },
+      ],
+    },
+  ];
+
+  const DIALOG_EMOJI = DIALOG_EMOJI_GROUPS.flatMap((group) => group.items.map((item) => item.value));
 
   function canRunAction(permissionKey) {
     if (!permissionKey) return true;
@@ -1892,6 +1941,7 @@
       questionTemplates: DIALOG_TEMPLATES.questionTemplates,
       completionTemplates: DIALOG_TEMPLATES.completionTemplates,
       emoji: DIALOG_EMOJI,
+      emojiGroups: DIALOG_EMOJI_GROUPS,
     }),
     getDialogState: () => ({
       activeDialogTicketId,

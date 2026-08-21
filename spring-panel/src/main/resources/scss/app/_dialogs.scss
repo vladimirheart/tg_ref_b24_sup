@@ -2871,3 +2871,145 @@ body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
     justify-self: end;
   }
 }
+/* Dialog composer UX v10 */
+
+.dialog-details-composer {
+  position: relative;
+  isolation: isolate;
+}
+
+.dialog-details-composer::after {
+  content: 'Отпустите файлы, чтобы прикрепить';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 1rem;
+  border: 2px dashed color-mix(in srgb, var(--primary) 58%, var(--color-border));
+  border-radius: var(--radius-lg);
+
+  background: color-mix(in srgb, var(--surface-card) 92%, var(--primary));
+  color: var(--color-text);
+
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.14s ease, visibility 0.14s ease;
+}
+
+.dialog-details-composer.is-dragover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.dialog-details-composer.is-dragover .dialog-composer-textarea textarea {
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--color-border));
+}
+
+.dialog-emoji-panel {
+  padding: 0.8rem !important;
+}
+
+.dialog-emoji-picker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+
+.dialog-emoji-picker {
+  display: grid;
+  gap: 0.85rem;
+  max-height: min(20rem, 42vh);
+  padding-right: 0.2rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.dialog-emoji-group {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.dialog-emoji-group + .dialog-emoji-group {
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.dialog-emoji-group__title {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dialog-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.55rem, 1fr));
+  gap: 0.35rem;
+}
+
+.dialog-emoji-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  min-width: 0;
+  min-height: 2.55rem;
+  aspect-ratio: 1;
+  padding: 0.2rem;
+
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+
+  background: transparent;
+  color: var(--color-text);
+
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  font-size: 1.28rem;
+  line-height: 1;
+
+  cursor: pointer;
+  box-shadow: none;
+  transform: none;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.dialog-emoji-button:hover,
+.dialog-emoji-button:focus-visible {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
+  background: var(--surface-selected);
+  box-shadow: none;
+  transform: none;
+}
+
+.dialog-emoji-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+@media (max-width: 575.98px) {
+  .dialog-emoji-picker-head {
+    display: block;
+  }
+
+  .dialog-emoji-picker-head .text-muted {
+    margin-top: 0.15rem;
+  }
+
+  .dialog-emoji-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}

@@ -749,9 +749,12 @@
                                 <div class="dialog-details-composer mt-3">
                                     <label class="form-label small text-muted" for="dialogReplyText">Ответ клиенту</label>
                                     <div class="dialog-composer-panels">
-                                        <div class="dialog-template-panel" id="dialogEmojiPanel">
-                                            <div class="fw-semibold small mb-2">Эмодзи</div>
-                                            <div class="d-flex flex-wrap gap-2" id="dialogEmojiList"></div>
+                                        <div class="dialog-template-panel dialog-emoji-panel" id="dialogEmojiPanel">
+                                            <div class="dialog-emoji-picker-head">
+                                                <div class="fw-semibold">Эмодзи</div>
+                                                <div class="small text-muted">Вставляются в позицию курсора</div>
+                                            </div>
+                                            <div id="dialogEmojiList"></div>
                                         </div>
                                         <div class="dialog-template-panel" id="dialogQuestionTemplatesSection">
                                             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -812,8 +815,8 @@
 					aria-controls="dialogEmojiPanel"
 					aria-expanded="false"
 					data-tooltip="Добавить эмодзи">
-				😀
-			</button>
+                ☺
+            </button>
             <button class="dialog-template-icon" type="button" id="dialogReplyMediaTrigger"
                     aria-label="Добавить медиа" data-tooltip="Добавить медиа">
                 📎
