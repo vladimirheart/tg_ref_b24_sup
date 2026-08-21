@@ -684,6 +684,51 @@ p {
   border-radius: var(--ui-panel-radius);
 }
 
+/* Bootstrap dropdowns — theme-aware */
+.dropdown-menu {
+  --bs-dropdown-bg: var(--surface-card);
+  --bs-dropdown-color: var(--color-text);
+  --bs-dropdown-border-color: var(--color-border);
+  --bs-dropdown-link-color: var(--color-text);
+  --bs-dropdown-link-hover-color:
+    var(--color-text);
+  --bs-dropdown-link-hover-bg:
+    var(--surface-selected);
+  --bs-dropdown-link-active-color:
+    var(--primary);
+  --bs-dropdown-link-active-bg:
+    var(--surface-selected);
+  background: var(--surface-card);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.dropdown-item {
+  color: var(--color-text);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background: var(--surface-selected);
+  color: var(--color-text);
+}
+
+.dropdown-item.active,
+.dropdown-item:active {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+.dropdown-item:disabled,
+.dropdown-item.disabled {
+  color: var(--color-text-muted);
+  opacity: 0.55;
+}
+
+.dropdown-divider {
+  border-top-color: var(--color-border);
+}
+
 .list-group-item {
   border-radius: var(--radius-lg);
 }

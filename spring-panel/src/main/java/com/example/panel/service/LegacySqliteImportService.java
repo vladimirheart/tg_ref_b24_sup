@@ -132,19 +132,27 @@ public class LegacySqliteImportService implements ApplicationRunner {
     );
 
     private final DataSource dataSource;
-    private final Environment environment;
-    private final PanelDatabaseRuntimeMode runtimeMode;
-    private final LegacySqliteCompatibilitySettings compatibilitySettings;
+	private final Environment environment;
+	private final PanelDatabaseRuntimeMode runtimeMode;
+	private final LegacySqliteCompatibilitySettings compatibilitySettings;
+	private final MonitoringCredentialsCryptoService credentialsCryptoService;
 
-    public LegacySqliteImportService(DataSource dataSource,
-                                     Environment environment,
-                                     PanelDatabaseRuntimeMode runtimeMode,
-                                     LegacySqliteCompatibilitySettings compatibilitySettings) {
-        this.dataSource = dataSource;
-        this.environment = environment;
-        this.runtimeMode = runtimeMode;
-        this.compatibilitySettings = compatibilitySettings;
-    }
+    public LegacySqliteImportService(
+			DataSource dataSource,
+			Environment environment,
+			PanelDatabaseRuntimeMode runtimeMode,
+			LegacySqliteCompatibilitySettings compatibilitySettings,
+			MonitoringCredentialsCryptoService credentialsCryptoService) {
+
+		this.dataSource = dataSource;
+		this.environment = environment;
+		this.runtimeMode = runtimeMode;
+		this.compatibilitySettings =
+			compatibilitySettings;
+
+		this.credentialsCryptoService =
+			credentialsCryptoService;
+	}
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
@@ -167,10 +175,29 @@ public class LegacySqliteImportService implements ApplicationRunner {
         int processedSources = 0;
         try (Connection target = dataSource.getConnection()) {
             for (LegacySource source : sources) {
-                if (wasImported(target, source.path())) {
-                    continue;
-                }
-                ImportResult result = importSource(target, source);
+
+				/*
+				 * RMS seed мог попасть в PostgreSQL раньше
+				 * legacy monitoring.db.
+				 *
+				 * В таком случае generic importer не заменит
+				 * строку из-за ON CONFLICT DO NOTHING.
+				 * Поэтому отдельно восстанавливаем отсутствующие
+				 * credentials ещё до проверки import ledger.
+				 */
+				if ("monitoring".equals(source.label())) {
+					recoverMissingRmsCredentials(
+						target,
+						source.path()
+					);
+				}
+
+				if (wasImported(target, source.path())) {
+					continue;
+				}
+
+				ImportResult result =
+					importSource(target, source);
                 recordImport(target, source, result.importedRows());
                 importedTotal += result.importedRows();
                 processedSources++;
@@ -238,7 +265,183 @@ public class LegacySqliteImportService implements ApplicationRunner {
             target.setAutoCommit(previousAutoCommit);
         }
     }
+	
+	private int recoverMissingRmsCredentials(
+        Connection target,
+        Path source) {
 
+    String sqliteUrl =
+        "jdbc:sqlite:"
+            + source
+                .toAbsolutePath()
+                .normalize();
+
+    int recovered = 0;
+
+    try (
+        Connection sqlite =
+            java.sql.DriverManager.getConnection(
+                sqliteUrl
+            )
+    ) {
+        boolean rmsTableExists =
+            loadSqliteTables(sqlite)
+                .stream()
+                .anyMatch(
+                    name ->
+                        "rms_license_monitors"
+                            .equalsIgnoreCase(name)
+                );
+
+        if (!rmsTableExists) {
+            return 0;
+        }
+
+        try (
+            PreparedStatement read =
+                sqlite.prepareStatement(
+                    """
+                    SELECT
+                        rms_address,
+                        auth_login,
+                        auth_password,
+                        enabled,
+                        license_monitoring_enabled,
+                        network_monitoring_enabled
+                    FROM rms_license_monitors
+                    WHERE auth_password IS NOT NULL
+                      AND trim(auth_password) <> ''
+                    """
+                );
+
+            ResultSet rows =
+                read.executeQuery();
+
+            PreparedStatement update =
+                target.prepareStatement(
+                    """
+                    UPDATE rms_license_monitors
+                       SET auth_password = ?,
+                           auth_login = CASE
+                               WHEN auth_login IS NULL
+                                 OR btrim(auth_login) = ''
+                               THEN ?
+                               ELSE auth_login
+                           END,
+                           enabled = ?,
+                           license_monitoring_enabled = ?,
+                           network_monitoring_enabled = ?,
+                           updated_at = CURRENT_TIMESTAMP
+                     WHERE lower(btrim(rms_address))
+                           = lower(btrim(?))
+                       AND (
+                           auth_password IS NULL
+                           OR btrim(auth_password) = ''
+                       )
+                    """
+                )
+        ) {
+            while (rows.next()) {
+                String rmsAddress =
+                    rows.getString(
+                        "rms_address"
+                    );
+
+                String authLogin =
+                    rows.getString(
+                        "auth_login"
+                    );
+
+                String storedPassword =
+                    rows.getString(
+                        "auth_password"
+                    );
+
+                if (
+                    !StringUtils.hasText(
+                        rmsAddress
+                    ) ||
+                    !StringUtils.hasText(
+                        storedPassword
+                    )
+                ) {
+                    continue;
+                }
+
+                /*
+                 * Если старый пароль уже enc:v1: —
+                 * encryptIfNeeded оставит его как есть.
+                 *
+                 * Если старый monitoring.db хранит
+                 * plaintext — при переносе в PostgreSQL
+                 * он будет зашифрован.
+                 */
+                String targetPassword =
+                    credentialsCryptoService
+                        .encryptIfNeeded(
+                            storedPassword
+                        );
+
+                update.setString(
+                    1,
+                    targetPassword
+                );
+
+                update.setString(
+                    2,
+                    authLogin
+                );
+
+                update.setBoolean(
+                    3,
+                    rows.getBoolean(
+                        "enabled"
+                    )
+                );
+
+                update.setBoolean(
+                    4,
+                    rows.getBoolean(
+                        "license_monitoring_enabled"
+                    )
+                );
+
+                update.setBoolean(
+                    5,
+                    rows.getBoolean(
+                        "network_monitoring_enabled"
+                    )
+                );
+
+                update.setString(
+                    6,
+                    rmsAddress
+                );
+
+                recovered +=
+                    update.executeUpdate();
+            }
+        }
+    } catch (Exception ex) {
+        log.warn(
+            "[MIGRATION] Failed to recover RMS credentials from {}: {}",
+            source,
+            ex.getMessage()
+        );
+
+        return recovered;
+    }
+
+    if (recovered > 0) {
+        log.info(
+            "[MIGRATION] Recovered {} RMS credential(s) from {}.",
+            recovered,
+            source
+        );
+    }
+
+    return recovered;
+}
     private long copyTable(Connection source, Connection target, String table) throws SQLException {
         Map<String, TargetColumn> targetColumns = loadTargetColumns(target, table);
         if (targetColumns.isEmpty()) {
