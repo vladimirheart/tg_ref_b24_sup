@@ -3502,3 +3502,189 @@
     padding: 0.9rem 0.9rem 1.15rem;
   }
 }
+/* Settings workspace expansion v7 */
+
+/* Partner parameters now use the same tab workspace primitive as Design, Channels, Users and Locations. */
+#parametersModal .settings-workspace-nav.settings-menu-tabs .nav-link {
+  min-height: 2.55rem;
+}
+
+#parametersModal .settings-workspace-content.settings-tab-content {
+  padding-top: 1rem;
+}
+
+#parametersModal .settings-workspace-content [data-partner-contacts-empty] {
+  border: 1px dashed var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface-raised) !important;
+  color: var(--color-text-muted) !important;
+  box-shadow: none !important;
+}
+
+/*
+ * IT keeps the existing collapse runtime as its switching engine.
+ * The five old overview tiles become the workspace navigation rail, while
+ * the currently open top-level accordion section becomes the content plane.
+ */
+#itConnectionsModal .settings-workspace-main--it {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav].settings-workspace-nav--it {
+  display: flex !important;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-content: stretch;
+  gap: 0.25rem !important;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0.75rem !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border);
+  background: var(--surface-raised);
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] > .col {
+  width: 100%;
+  max-width: none;
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile {
+  min-height: 0;
+  border: 0 !important;
+  border-radius: var(--radius-md) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile:hover,
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile:focus-visible {
+  background: var(--surface-interactive) !important;
+  outline: none;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile.is-active {
+  background: var(--surface-selected) !important;
+  color: var(--primary);
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile .card-body {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  height: auto;
+  padding: 0.68rem 0.72rem;
+  text-align: left !important;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile .tile-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: currentColor;
+  font-size: 0.95rem;
+  line-height: 1.25rem;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile .card-title {
+  min-width: 0;
+  margin: 0 !important;
+  color: inherit;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: left;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile .card-text {
+  display: none;
+}
+
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 0 !important;
+  background: var(--surface-card);
+}
+
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it > .accordion-item {
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it > .accordion-item > .accordion-header {
+  display: none;
+}
+
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it > .accordion-item > .accordion-collapse > .accordion-body {
+  padding: 1rem 1.1rem 1.25rem;
+  background: transparent;
+}
+
+/* Preserve nested category accordions inside the Connections section. */
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it .it-section-accordion--nested {
+  margin-top: 0;
+}
+
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it .it-section-accordion--nested .accordion-header {
+  display: block;
+}
+
+@media (max-width: 767.98px) {
+  #itConnectionsModal .settings-workspace-main--it {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  #itConnectionsModal [data-it-settings-tiles-nav].settings-workspace-nav--it {
+    flex-direction: row;
+    gap: 0.25rem !important;
+    padding: 0.55rem 0.65rem !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  #itConnectionsModal [data-it-settings-tiles-nav] > .col {
+    width: auto;
+    min-width: max-content;
+  }
+
+  #itConnectionsModal [data-it-settings-tiles-nav] .settings-tile .card-body {
+    display: flex;
+    min-width: max-content;
+    padding: 0.58rem 0.68rem;
+  }
+
+  #itConnectionsModal #itSettingsAccordion.settings-workspace-content--it {
+    overflow: visible;
+  }
+
+  #itConnectionsModal #itSettingsAccordion.settings-workspace-content--it > .accordion-item > .accordion-collapse > .accordion-body {
+    padding: 0.9rem 0.9rem 1.15rem;
+  }
+}

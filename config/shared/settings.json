@@ -2,15 +2,15 @@
   "categories" : [ "Консультация", "Основной шаблон", "Не работает акция", "Ошибка отдела обращения", "Техническая проблема", "Другое" ],
   "client_statuses" : [ ],
   "client_status_colors" : {
-	  "Сотрудник локации" : "#3a87a6",
-	  "Менеджер" : "#6d6aae",
-	  "ТУ" : "#0f5e66",
-	  "Сотрудник офиса" : "#167d73",
-	  "VIP" : "#e6a23c",
-	  "Постоянный клиент" : "#2d8b69",
-	  "Новый клиент" : "#1f9d8a",
-	  "Проблемный клиент" : "#c85d58"
-	},
+    "Сотрудник локации" : "#3a87a6",
+    "Менеджер" : "#6d6aae",
+    "ТУ" : "#0f5e66",
+    "Сотрудник офиса" : "#167d73",
+    "VIP" : "#e6a23c",
+    "Постоянный клиент" : "#2d8b69",
+    "Новый клиент" : "#1f9d8a",
+    "Проблемный клиент" : "#c85d58"
+  },
   "dialog_config" : {
     "category_templates" : [ {
       "id" : "cat-default",
@@ -39,37 +39,37 @@
       "good_limit" : 30,
       "warning_limit" : 60,
       "colors" : {
-		  "good" : "#ddf1e8",
-		  "warning" : "#fff0d3",
-		  "danger" : "#f7dfdc"
-		}
+        "good" : "#ddf1e8",
+        "warning" : "#fff0d3",
+        "danger" : "#f7dfdc"
+      }
     },
     "summary_badges" : {
       "default" : {
-		  "background" : "#e7f0ed",
-		  "text" : "#102e39"
-		},
+        "background" : "#e7f0ed",
+        "text" : "#102e39"
+      },
       "status" : {
         "новый" : {
-		  "background" : "#e0eff3",
-		  "text" : "#3a87a6"
-		},
+          "background" : "#e0eff3",
+          "text" : "#3a87a6"
+        },
         "ожидает ответа оператора" : {
-		  "background" : "#fff0d3",
-		  "text" : "#c98422"
-		},
+          "background" : "#fff0d3",
+          "text" : "#c98422"
+        },
         "ожидает ответа клиента" : {
-		  "background" : "#e0eff3",
-		  "text" : "#0f5e66"
-		},
+          "background" : "#e0eff3",
+          "text" : "#0f5e66"
+        },
         "закрыт" : {
-		  "background" : "#ddf1e8",
-		  "text" : "#2d8b69"
-		},
+          "background" : "#ddf1e8",
+          "text" : "#2d8b69"
+        },
         "закрыт автоматически" : {
-		  "background" : "#e7f0ed",
-		  "text" : "#60757a"
-		}
+          "background" : "#e7f0ed",
+          "text" : "#60757a"
+        }
       },
       "channel" : {
         "telegram" : {
