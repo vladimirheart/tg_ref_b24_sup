@@ -1,3 +1,5 @@
+/* Settings dead DOM and pre-workspace cleanup v16 */
+/* Hidden overview metadata and obsolete pre-workspace selectors have been removed. */
 /* Settings foundation cleanup v15 */
 /* Redundant presentation declarations are owned by settings/_calm.scss. */
 /* Iguana Settings stylesheet - migrated from settings/index.html */
@@ -280,35 +282,6 @@
       text-align: left;
       font-size: 0.88rem;
       line-height: 1.45;
-    }
-    .settings-tiles .settings-tile__tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.35rem;
-      margin-top: auto;
-      padding-top: 0.25rem;
-    }
-    .settings-tiles .settings-tile__tag {
-		display: inline-flex;
-		align-items: center;
-
-		padding: 0.12rem 0.48rem;
-
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-pill);
-
-		background: var(--surface-raised);
-		color: var(--color-text-muted);
-
-		font-size: 0.7rem;
-		font-weight: 600;
-}
-    .settings-tiles .settings-tile__footer {
-      margin-top: 0.2rem;
-      font-size: 0.74rem;
-      font-weight: 600;
-      color: var(--primary);
-      letter-spacing: 0.01em;
     }
     .settings-tiles .settings-tile--accent .card-text {
       color: var(--color-text-muted);

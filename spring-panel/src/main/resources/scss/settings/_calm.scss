@@ -1,8 +1,4 @@
 /* Settings Calm UI pass v2 */
-    .settings-tiles .settings-tile__tags,
-    .settings-tiles .settings-tile__footer {
-      display: none;
-    }
 
     .modal .modal-content {
       border-radius: var(--radius-lg);
@@ -323,56 +319,6 @@
       background: var(--surface-card) !important;
     }
 
-    /*
-     * Input formatting used three large colored cards plus nested cards.
-     * Treat the three domains as plain document sections instead.
-     */
-    #inputFormattingModal .modal-body > .card {
-      margin-bottom: 0 !important;
-      padding: 1.15rem 0 1.25rem;
-      border: 0 !important;
-      border-radius: 0 !important;
-      background: transparent !important;
-      box-shadow: none !important;
-      overflow: visible;
-    }
-
-    #inputFormattingModal .modal-body > .settings-modal-lead + .card {
-      padding-top: 0.15rem;
-    }
-
-    #inputFormattingModal .modal-body > .card + .card {
-      border-top: 1px solid var(--color-border) !important;
-    }
-
-    #inputFormattingModal .modal-body > .card > .card-header {
-      padding: 0 0 0.85rem;
-      border: 0;
-      background: transparent !important;
-      text-align: left;
-    }
-
-    #inputFormattingModal .modal-body > .card > .card-header:not(.d-flex) {
-      text-align: left;
-    }
-
-    #inputFormattingModal .modal-body > .card > .card-body {
-      padding: 0;
-    }
-
-    #inputFormattingModal .modal-body > .card > .card-header h5 {
-      margin-bottom: 0.2rem !important;
-      color: var(--color-text);
-      font-size: 1rem;
-      font-weight: 700;
-    }
-
-    #inputFormattingModal .modal-body > .card > .card-header p {
-      max-width: 64rem;
-      font-size: 0.82rem;
-      line-height: 1.4;
-    }
-
     #inputFormattingModal [data-font-settings] {
       padding: 0.72rem 0.8rem;
       border: 1px solid var(--color-border);
@@ -411,11 +357,6 @@
     @media (max-width: 767.98px) {
       .settings-menu-tabs {
         padding-bottom: 0.3rem;
-      }
-
-      #inputFormattingModal .modal-body > .card {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
       }
     }
 

@@ -4,6 +4,8 @@
  * Keep this file as the stable Sass entrypoint; edit the partials instead.
  * Import order preserves the pre-consolidation cascade.
  */
+/* Settings dead DOM and pre-workspace cleanup v16 */
+/* Hidden overview metadata and obsolete pre-workspace selectors have been removed. */
 /* Settings foundation cleanup v15 */
 /* Redundant presentation declarations are owned by settings/_calm.scss. */
 /* Iguana Settings stylesheet - migrated from settings/index.html */
@@ -239,34 +241,6 @@ body.with-sidebar.sidebar-hovering {
   text-align: left;
   font-size: 0.88rem;
   line-height: 1.45;
-}
-
-.settings-tiles .settings-tile__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: auto;
-  padding-top: 0.25rem;
-}
-
-.settings-tiles .settings-tile__tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.12rem 0.48rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--surface-raised);
-  color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 600;
-}
-
-.settings-tiles .settings-tile__footer {
-  margin-top: 0.2rem;
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: var(--primary);
-  letter-spacing: 0.01em;
 }
 
 .settings-tiles .settings-tile--accent .card-text {
@@ -2220,11 +2194,6 @@ body.sidebar-collapsed #partnerContactEditorModal {
   }
 }
 /* Settings Calm UI pass v2 */
-.settings-tiles .settings-tile__tags,
-.settings-tiles .settings-tile__footer {
-  display: none;
-}
-
 .modal .modal-content {
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 44px color-mix(in srgb, var(--shadow-color) 14%, transparent);
@@ -2538,56 +2507,6 @@ body.sidebar-collapsed #partnerContactEditorModal {
   background: var(--surface-card) !important;
 }
 
-/*
- * Input formatting used three large colored cards plus nested cards.
- * Treat the three domains as plain document sections instead.
- */
-#inputFormattingModal .modal-body > .card {
-  margin-bottom: 0 !important;
-  padding: 1.15rem 0 1.25rem;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  overflow: visible;
-}
-
-#inputFormattingModal .modal-body > .settings-modal-lead + .card {
-  padding-top: 0.15rem;
-}
-
-#inputFormattingModal .modal-body > .card + .card {
-  border-top: 1px solid var(--color-border) !important;
-}
-
-#inputFormattingModal .modal-body > .card > .card-header {
-  padding: 0 0 0.85rem;
-  border: 0;
-  background: transparent !important;
-  text-align: left;
-}
-
-#inputFormattingModal .modal-body > .card > .card-header:not(.d-flex) {
-  text-align: left;
-}
-
-#inputFormattingModal .modal-body > .card > .card-body {
-  padding: 0;
-}
-
-#inputFormattingModal .modal-body > .card > .card-header h5 {
-  margin-bottom: 0.2rem !important;
-  color: var(--color-text);
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-#inputFormattingModal .modal-body > .card > .card-header p {
-  max-width: 64rem;
-  font-size: 0.82rem;
-  line-height: 1.4;
-}
-
 #inputFormattingModal [data-font-settings] {
   padding: 0.72rem 0.8rem;
   border: 1px solid var(--color-border);
@@ -2626,10 +2545,6 @@ body.sidebar-collapsed #partnerContactEditorModal {
 @media (max-width: 767.98px) {
   .settings-menu-tabs {
     padding-bottom: 0.3rem;
-  }
-  #inputFormattingModal .modal-body > .card {
-    padding-top: 1rem;
-    padding-bottom: 1rem;
   }
 }
 /* ---- migrated inline block 4 ---- */
