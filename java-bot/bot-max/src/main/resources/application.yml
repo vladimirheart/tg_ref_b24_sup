@@ -1,3 +1,8 @@
+# Iguana MAX launcher config v13
+# MAX needs the same shared integration/database defaults as other bot modules,
+# while keeping a servlet web runtime for its local HTTP endpoint.
 spring:
+  config:
+    import: "classpath:/application-shared.yml"
   main:
     web-application-type: servlet
