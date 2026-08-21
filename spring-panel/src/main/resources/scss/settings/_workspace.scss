@@ -1,0 +1,700 @@
+/* Settings workspace stability v6.1 */
+
+/*
+ * Workspace primitive
+ * -------------------
+ * Wide lead/status rows stay outside the navigation/content plane.
+ * The inner main wrapper owns the two-column layout, so free modal height
+ * can no longer stretch an auto grid row and push tabs down the screen.
+ */
+
+.settings-workspace-body {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.settings-workspace-body:not(.settings-workspace-host) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.settings-workspace-body > .settings-modal-lead {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--surface-card);
+}
+
+.settings-workspace-host {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+.settings-workspace-host > .settings-workspace-wide {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.settings-workspace-main {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.settings-workspace-nav.settings-menu-tabs {
+  grid-column: 1;
+  align-self: stretch;
+  align-content: flex-start;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0.75rem !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0 !important;
+  border-right: 1px solid var(--color-border) !important;
+  border-radius: 0 !important;
+  background: var(--surface-raised) !important;
+  backdrop-filter: none;
+}
+
+.settings-workspace-nav.settings-menu-tabs .nav-item {
+  width: 100%;
+  flex: 0 0 auto;
+}
+
+.settings-workspace-nav.settings-menu-tabs .nav-link {
+  width: 100%;
+  min-height: 2.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.68rem 0.72rem;
+  border: 0 !important;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  text-align: left;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: normal;
+  box-shadow: none;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.settings-workspace-nav.settings-menu-tabs .nav-link:hover,
+.settings-workspace-nav.settings-menu-tabs .nav-link:focus-visible {
+  background: var(--surface-interactive);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+.settings-workspace-nav.settings-menu-tabs .nav-link.active {
+  background: var(--surface-selected);
+  color: var(--primary);
+  box-shadow: none;
+}
+
+.settings-workspace-nav.settings-menu-tabs .nav-link i {
+  width: 1.05rem;
+  flex: 0 0 1.05rem;
+  color: currentColor;
+  text-align: center;
+  opacity: 0.9;
+}
+
+.settings-workspace-content.settings-tab-content {
+  grid-column: 2;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 1rem 1.1rem 1.25rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-card);
+}
+
+.settings-workspace-content.settings-tab-content > .tab-pane {
+  min-width: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.settings-workspace-content.settings-tab-content > .tab-pane > :first-child {
+  margin-top: 0 !important;
+}
+
+/* Bootstrap light diagnostics must follow the active Iguana theme. */
+.modal .alert.alert-light {
+  --bs-alert-color: var(--color-text-muted);
+  --bs-alert-bg: var(--surface-raised);
+  --bs-alert-border-color: var(--color-border);
+  color: var(--color-text-muted) !important;
+  background: var(--surface-raised) !important;
+  border-color: var(--color-border) !important;
+}
+
+.settings-workspace-host > .settings-workspace-wide.alert {
+  margin: 0.75rem 1rem 0;
+}
+
+#locationsModal .settings-workspace-content > .tab-pane > .d-flex.flex-wrap.gap-2:first-child {
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.9rem !important;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#categoriesModal .settings-workspace-nav.settings-menu-tabs .nav-link {
+  min-height: 2.45rem;
+  padding-top: 0.58rem;
+  padding-bottom: 0.58rem;
+}
+
+@media (max-width: 767.98px) {
+  .settings-workspace-body {
+    overflow-y: auto !important;
+  }
+
+  .settings-workspace-body:not(.settings-workspace-host),
+  .settings-workspace-host {
+    display: block;
+    overflow: visible;
+  }
+
+  .settings-workspace-main {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .settings-workspace-nav.settings-menu-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex-direction: row;
+    gap: 0.25rem;
+    padding: 0.55rem 0.65rem !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--color-border) !important;
+  }
+
+  .settings-workspace-nav.settings-menu-tabs .nav-item {
+    width: auto;
+  }
+
+  .settings-workspace-nav.settings-menu-tabs .nav-link {
+    width: auto;
+    min-width: max-content;
+    min-height: 2.4rem;
+    white-space: nowrap;
+  }
+
+  .settings-workspace-content.settings-tab-content {
+    overflow: visible;
+    padding: 0.9rem 0.9rem 1.15rem;
+  }
+}
+/* Settings workspace expansion v7 */
+
+/* Partner parameters now use the same tab workspace primitive as Design, Channels, Users and Locations. */
+#parametersModal .settings-workspace-nav.settings-menu-tabs .nav-link {
+  min-height: 2.55rem;
+}
+
+#parametersModal .settings-workspace-content.settings-tab-content {
+  padding-top: 1rem;
+}
+
+#parametersModal .settings-workspace-content [data-partner-contacts-empty] {
+  border: 1px dashed var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface-raised) !important;
+  color: var(--color-text-muted) !important;
+  box-shadow: none !important;
+}
+
+/*
+ * IT keeps the existing collapse runtime as its switching engine.
+ * The five old overview tiles become the workspace navigation rail, while
+ * the currently open top-level accordion section becomes the content plane.
+ */
+#itConnectionsModal .settings-workspace-main--it {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav].settings-workspace-nav--it {
+  display: flex !important;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-content: stretch;
+  gap: 0.25rem !important;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0.75rem !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border);
+  background: var(--surface-raised);
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] > .col {
+  width: 100%;
+  max-width: none;
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile {
+  min-height: 0;
+  border: 0 !important;
+  border-radius: var(--radius-md) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile:hover,
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile:focus-visible {
+  background: var(--surface-interactive) !important;
+  outline: none;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile.is-active {
+  background: var(--surface-selected) !important;
+  color: var(--primary);
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile .card-body {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  height: auto;
+  padding: 0.68rem 0.72rem;
+  text-align: left !important;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile .tile-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: currentColor;
+  font-size: 0.95rem;
+  line-height: 1.25rem;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile .card-title {
+  min-width: 0;
+  margin: 0 !important;
+  color: inherit;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: left;
+}
+
+#itConnectionsModal [data-it-settings-tiles-nav] .settings-tile .card-text {
+  display: none;
+}
+
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 0 !important;
+  background: var(--surface-card);
+}
+
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it > .accordion-item {
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it > .accordion-item > .accordion-header {
+  display: none;
+}
+
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it > .accordion-item > .accordion-collapse > .accordion-body {
+  padding: 1rem 1.1rem 1.25rem;
+  background: transparent;
+}
+
+/* Preserve nested category accordions inside the Connections section. */
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it .it-section-accordion--nested {
+  margin-top: 0;
+}
+
+#itConnectionsModal #itSettingsAccordion.settings-workspace-content--it .it-section-accordion--nested .accordion-header {
+  display: block;
+}
+
+@media (max-width: 767.98px) {
+  #itConnectionsModal .settings-workspace-main--it {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  #itConnectionsModal [data-it-settings-tiles-nav].settings-workspace-nav--it {
+    flex-direction: row;
+    gap: 0.25rem !important;
+    padding: 0.55rem 0.65rem !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  #itConnectionsModal [data-it-settings-tiles-nav] > .col {
+    width: auto;
+    min-width: max-content;
+  }
+
+  #itConnectionsModal [data-it-settings-tiles-nav] .settings-tile .card-body {
+    display: flex;
+    min-width: max-content;
+    padding: 0.58rem 0.68rem;
+  }
+
+  #itConnectionsModal #itSettingsAccordion.settings-workspace-content--it {
+    overflow: visible;
+  }
+
+  #itConnectionsModal #itSettingsAccordion.settings-workspace-content--it > .accordion-item > .accordion-collapse > .accordion-body {
+    padding: 0.9rem 0.9rem 1.15rem;
+  }
+}
+/* Settings input formatting workspace v8 */
+
+#inputFormattingModal .settings-workspace-main--input-formatting {
+  background: var(--surface-card);
+}
+
+#inputFormattingModal .settings-section-workspace-content {
+  padding: 0;
+}
+
+#inputFormattingModal .settings-section-workspace-pane {
+  margin: 0 !important;
+  padding: 1rem 1.1rem 1.25rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+#inputFormattingModal .settings-section-workspace-pane > .card-header {
+  padding: 0 0 0.9rem;
+  border: 0;
+  background: transparent !important;
+  text-align: left;
+}
+
+#inputFormattingModal .settings-section-workspace-pane > .card-header h5 {
+  margin-bottom: 0.2rem !important;
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+#inputFormattingModal .settings-section-workspace-pane > .card-body {
+  padding: 0;
+}
+
+#inputFormattingModal .settings-section-workspace-pane [data-font-settings] {
+  background: var(--surface-raised);
+}
+
+@media (max-width: 767.98px) {
+  #inputFormattingModal .settings-section-workspace-pane {
+    padding: 0.9rem 0.9rem 1.15rem !important;
+  }
+}
+/* Settings legal entities workspace v9 */
+
+/* Clickable Settings tiles stay spatially still; only the open affordance reacts. */
+@media (hover: hover) {
+  .settings-tiles .settings-tile:not(.is-active):hover {
+    transform: none !important;
+    filter: none !important;
+    box-shadow: var(--ui-panel-shadow) !important;
+  }
+
+  .settings-tiles .settings-tile:not(.settings-tile--accent):not(.is-active):hover {
+    background: var(--surface-card) !important;
+    border-color: var(--color-border) !important;
+  }
+
+  .settings-tiles .settings-tile.settings-tile--accent:not(.is-active):hover {
+    background: var(--surface-interactive) !important;
+    border-color:
+      color-mix(
+        in srgb,
+        var(--primary) 24%,
+        var(--color-border)
+      ) !important;
+  }
+
+  .settings-tiles .settings-tile:hover .settings-tile__open {
+    color: var(--primary);
+  }
+
+  .settings-surface .modal .card:hover,
+  .settings-surface .modal .accordion-item:hover,
+  .settings-surface .modal .table-responsive:hover {
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+#legalEntitiesModal .settings-workspace-main--legal-entities {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+#legalEntitiesModal .settings-legal-entity-nav {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--color-border);
+  background: var(--surface-raised);
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__head {
+  flex: 0 0 auto;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__title {
+  margin-bottom: 0.55rem;
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__add {
+  width: 100%;
+  justify-content: flex-start;
+  box-shadow: none;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 0;
+  padding: 0.55rem;
+  overflow-y: auto;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  padding: 0.62rem 0.68rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item:hover,
+#legalEntitiesModal .settings-legal-entity-nav__item:focus-visible {
+  transform: none;
+  background: var(--surface-interactive);
+  color: var(--color-text);
+  outline: none;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item:focus-visible {
+  box-shadow:
+    inset 0 0 0 2px
+    color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item.active {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item.is-deleted {
+  opacity: 0.62;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item-title {
+  width: 100%;
+  overflow: hidden;
+  color: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#legalEntitiesModal .settings-legal-entity-nav__item-meta {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+#legalEntitiesModal .settings-legal-entity-workspace-content {
+  min-width: 0;
+  min-height: 0;
+  padding: 1rem 1.1rem 1.25rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-card);
+}
+
+#legalEntitiesModal .settings-legal-entity-content-head {
+  padding-bottom: 0.8rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#legalEntitiesModal [data-legal-entities-list] {
+  display: block !important;
+  margin: 0 !important;
+}
+
+#legalEntitiesModal [data-legal-entities-list] > .col {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+#legalEntitiesModal .legal-entity-card {
+  max-width: 62rem;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+#legalEntitiesModal .legal-entity-card > .card-header {
+  padding: 0 0 0.85rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+#legalEntitiesModal .legal-entity-card > .card-body {
+  padding: 1rem 0 0;
+}
+
+#legalEntitiesModal .legal-entity-card .badge.bg-secondary {
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised) !important;
+  color: var(--color-text-muted) !important;
+}
+
+#legalEntitiesModal [data-legal-entities-empty] {
+  margin: 0;
+}
+
+@media (max-width: 767.98px) {
+  #legalEntitiesModal .settings-workspace-main--legal-entities {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  #legalEntitiesModal .settings-legal-entity-nav {
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  #legalEntitiesModal .settings-legal-entity-nav__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    padding: 0.55rem 0.65rem;
+  }
+
+  #legalEntitiesModal .settings-legal-entity-nav__title {
+    margin: 0;
+  }
+
+  #legalEntitiesModal .settings-legal-entity-nav__add {
+    width: auto;
+  }
+
+  #legalEntitiesModal .settings-legal-entity-nav__list {
+    flex-direction: row;
+    flex: 0 0 auto;
+    gap: 0.25rem;
+    padding: 0.5rem 0.65rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  #legalEntitiesModal .settings-legal-entity-nav__item {
+    width: auto;
+    min-width: 11rem;
+    flex: 0 0 auto;
+  }
+
+  #legalEntitiesModal .settings-legal-entity-workspace-content {
+    overflow: visible;
+    padding: 0.9rem 0.9rem 1.15rem;
+  }
+}
+

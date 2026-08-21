@@ -1,3 +1,9 @@
+/* Settings SCSS consolidation v14.1 */
+/*
+ * Settings styles are split by responsibility.
+ * Keep this file as the stable Sass entrypoint; edit the partials instead.
+ * Import order preserves the pre-consolidation cascade.
+ */
 /* Iguana Settings stylesheet - migrated from settings/index.html */
 /* Generated source: keep page-specific Settings styles here; do not edit static/css/settings.css directly. */
 /* ---- migrated inline block 1 ---- */

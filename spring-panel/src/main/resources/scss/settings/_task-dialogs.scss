@@ -1,0 +1,289 @@
+/* Settings compact task dialogs v11 */
+/*
+ * One-purpose Settings modals use a compact task-dialog composition.
+ * Saved user resize dimensions still win through the global modal resize runtime.
+ */
+.settings-task-modal .modal-dialog {
+  width: min(960px, calc(100vw - 1.7rem));
+  max-width: min(960px, calc(100vw - 1.7rem));
+  height: auto;
+  min-height: 0;
+  max-height: calc(100vh - 1.7rem);
+  margin: 0.85rem auto;
+}
+
+.settings-task-modal .modal-content {
+  height: auto;
+  min-height: 0;
+  max-height: calc(100vh - 1.7rem);
+}
+
+.settings-task-modal .modal-body {
+  min-height: 0;
+  padding: 1rem 1.15rem 1.15rem;
+  background: var(--surface-card);
+}
+
+.settings-task-modal .settings-modal-lead {
+  margin: 0 0 1rem;
+  padding: 0 0 0.85rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-task-modal .modal-footer {
+  justify-content: flex-end;
+}
+
+.settings-task-modal .modal-body > .alert:not(.d-none) {
+  margin-bottom: 0.9rem;
+}
+
+/* Auto reports: compact form, no decorative card layers. */
+.settings-task-modal--reporting .modal-dialog {
+  width: min(860px, calc(100vw - 1.7rem));
+  max-width: min(860px, calc(100vw - 1.7rem));
+}
+
+#reportingModal .modal-body > .form-check.form-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 2.75rem;
+  margin-bottom: 1rem !important;
+  padding: 0 0 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#reportingModal .modal-body > .form-check.form-switch .form-check-input {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+#reportingModal .modal-body > .form-check.form-switch .form-check-label {
+  margin: 0;
+  font-weight: 700;
+}
+
+#reportingModal .row.g-3 {
+  --bs-gutter-x: 1rem;
+  --bs-gutter-y: 0.9rem;
+}
+
+#reportingModal .row.g-3 > .col-12:last-child {
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+#reportingModal .row.g-3 > .col-12:last-child > .form-label {
+  margin-bottom: 0.65rem;
+}
+
+#reportingModal .form-check-inline {
+  margin-right: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+/* Manager bindings: the table is the workspace, not a card inside a card. */
+.settings-task-modal--bindings .modal-dialog {
+  width: min(1160px, calc(100vw - 1.7rem));
+  max-width: min(1160px, calc(100vw - 1.7rem));
+}
+
+#managerBindingsModal .modal-body {
+  display: flex;
+  flex-direction: column;
+}
+
+#managerBindingsModal .table-responsive {
+  max-height: min(58vh, 38rem);
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface-card) !important;
+  overflow: auto;
+}
+
+#managerBindingsModal .table {
+  margin-bottom: 0;
+}
+
+#managerBindingsModal .table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  white-space: nowrap;
+  background: var(--surface-raised) !important;
+}
+
+#managerBindingsModal .table td,
+#managerBindingsModal .table th {
+  vertical-align: middle;
+}
+
+#managerBindingsModal .table td .form-control,
+#managerBindingsModal .table td .form-select {
+  min-width: 8.5rem;
+}
+
+#managerBindingsModal .table td:first-child .form-control,
+#managerBindingsModal .table td:first-child .form-select {
+  min-width: 13rem;
+}
+
+#managerBindingsModal [data-manager-bindings-add] {
+  align-self: flex-start;
+  margin-top: 0.8rem;
+}
+
+/* Storage inventory: command strip -> status -> results -> raw report. */
+.settings-task-modal--runner .modal-dialog {
+  width: min(1140px, calc(100vw - 1.7rem));
+  max-width: min(1140px, calc(100vw - 1.7rem));
+}
+
+#storageInventoryModal [data-storage-inventory] > .row:first-child {
+  margin-bottom: 1rem !important;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#storageInventoryModal [data-storage-inventory-meta],
+#storageInventoryModal [data-storage-inventory-last-info] {
+  margin-bottom: 0.45rem !important;
+  line-height: 1.4;
+}
+
+#storageInventoryModal [data-storage-inventory-summary] {
+  margin-top: 1rem;
+  margin-bottom: 1.2rem !important;
+}
+
+#storageInventoryModal .settings-storage-inventory__stats {
+  gap: 0.6rem;
+}
+
+#storageInventoryModal .settings-storage-inventory__stat {
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+#storageInventoryModal [data-storage-inventory] > .row.g-3.mb-4 {
+  margin-top: 0 !important;
+  margin-bottom: 1.15rem !important;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+#storageInventoryModal .settings-storage-inventory__root-item {
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+#storageInventoryModal [data-storage-inventory-output] {
+  max-height: min(36vh, 24rem);
+  border-color: var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface-raised) !important;
+  color: var(--color-text) !important;
+  font-size: 0.78rem !important;
+  line-height: 1.5;
+}
+
+@media (max-width: 767.98px) {
+  .settings-task-modal .modal-dialog,
+  .settings-task-modal--reporting .modal-dialog,
+  .settings-task-modal--bindings .modal-dialog,
+  .settings-task-modal--runner .modal-dialog {
+    width: calc(100vw - 1rem);
+    max-width: calc(100vw - 1rem);
+    margin: 0.5rem auto;
+  }
+
+  .settings-task-modal .modal-content {
+    max-height: calc(100dvh - 1rem);
+  }
+
+  #managerBindingsModal .table-responsive {
+    max-height: 52vh;
+  }
+}
+/* Settings child task dialogs v12 */
+/*
+ * Secondary one-purpose editors follow the same compact task-dialog language
+ * as v11. Complex editors remain workspace/sheet modals.
+ */
+.settings-child-modal.settings-task-modal--compact .modal-dialog {
+  width: min(640px, calc(100vw - 1.7rem));
+  max-width: min(640px, calc(100vw - 1.7rem));
+}
+
+.settings-child-modal.settings-task-modal--medium .modal-dialog {
+  width: min(820px, calc(100vw - 1.7rem));
+  max-width: min(820px, calc(100vw - 1.7rem));
+}
+
+.settings-child-modal.settings-task-modal--wide .modal-dialog {
+  width: min(1080px, calc(100vw - 1.7rem));
+  max-width: min(1080px, calc(100vw - 1.7rem));
+}
+
+.settings-child-modal.settings-task-modal .modal-content {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: calc(100vh - 1.7rem);
+}
+
+.settings-child-modal.settings-task-modal .modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface-card);
+}
+
+.settings-child-modal.settings-task-modal .modal-footer {
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
+.settings-child-modal.settings-task-modal .modal-body > .card,
+.settings-child-modal.settings-task-modal .modal-body > form > .card {
+  box-shadow: none !important;
+}
+
+#passwordResetRequestsModal .table-responsive {
+  max-height: min(58vh, 36rem);
+  overflow: auto;
+}
+
+#passwordResetRequestsModal .table-responsive thead th,
+#parameterItemsModal .table-responsive thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-raised);
+}
+
+#networkProfileEditorModal .modal-body,
+#integrationNetworkProfileEditorModal .modal-body,
+#itConnectionAddModal .modal-body,
+#itEquipmentAddModal .modal-body,
+#authUserPasswordModal .modal-body,
+#locationWizardModal .modal-body {
+  padding-top: 1rem;
+}
+
+@media (max-width: 767.98px) {
+  .settings-child-modal.settings-task-modal--compact .modal-dialog,
+  .settings-child-modal.settings-task-modal--medium .modal-dialog,
+  .settings-child-modal.settings-task-modal--wide .modal-dialog {
+    width: calc(100vw - 1rem);
+    max-width: calc(100vw - 1rem);
+    margin: 0.5rem auto;
+  }
+
+  .settings-child-modal.settings-task-modal .modal-content {
+    max-height: calc(100dvh - 1rem);
+  }
+}
