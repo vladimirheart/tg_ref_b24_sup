@@ -4197,3 +4197,81 @@
     max-height: 52vh;
   }
 }
+/* Settings child task dialogs v12 */
+/*
+ * Secondary one-purpose editors follow the same compact task-dialog language
+ * as v11. Complex editors remain workspace/sheet modals.
+ */
+.settings-child-modal.settings-task-modal--compact .modal-dialog {
+  width: min(640px, calc(100vw - 1.7rem));
+  max-width: min(640px, calc(100vw - 1.7rem));
+}
+
+.settings-child-modal.settings-task-modal--medium .modal-dialog {
+  width: min(820px, calc(100vw - 1.7rem));
+  max-width: min(820px, calc(100vw - 1.7rem));
+}
+
+.settings-child-modal.settings-task-modal--wide .modal-dialog {
+  width: min(1080px, calc(100vw - 1.7rem));
+  max-width: min(1080px, calc(100vw - 1.7rem));
+}
+
+.settings-child-modal.settings-task-modal .modal-content {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: calc(100vh - 1.7rem);
+}
+
+.settings-child-modal.settings-task-modal .modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface-card);
+}
+
+.settings-child-modal.settings-task-modal .modal-footer {
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
+.settings-child-modal.settings-task-modal .modal-body > .card,
+.settings-child-modal.settings-task-modal .modal-body > form > .card {
+  box-shadow: none !important;
+}
+
+#passwordResetRequestsModal .table-responsive {
+  max-height: min(58vh, 36rem);
+  overflow: auto;
+}
+
+#passwordResetRequestsModal .table-responsive thead th,
+#parameterItemsModal .table-responsive thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-raised);
+}
+
+#networkProfileEditorModal .modal-body,
+#integrationNetworkProfileEditorModal .modal-body,
+#itConnectionAddModal .modal-body,
+#itEquipmentAddModal .modal-body,
+#authUserPasswordModal .modal-body,
+#locationWizardModal .modal-body {
+  padding-top: 1rem;
+}
+
+@media (max-width: 767.98px) {
+  .settings-child-modal.settings-task-modal--compact .modal-dialog,
+  .settings-child-modal.settings-task-modal--medium .modal-dialog,
+  .settings-child-modal.settings-task-modal--wide .modal-dialog {
+    width: calc(100vw - 1rem);
+    max-width: calc(100vw - 1rem);
+    margin: 0.5rem auto;
+  }
+
+  .settings-child-modal.settings-task-modal .modal-content {
+    max-height: calc(100dvh - 1rem);
+  }
+}
