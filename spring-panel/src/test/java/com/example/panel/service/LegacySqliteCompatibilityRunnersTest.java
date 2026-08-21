@@ -19,11 +19,12 @@ class LegacySqliteCompatibilityRunnersTest {
         DataSource dataSource = mock(DataSource.class);
         MockEnvironment environment = new MockEnvironment();
         LegacySqliteImportService service = new LegacySqliteImportService(
-            dataSource,
-            environment,
-            postgresMode(),
-            new LegacySqliteCompatibilitySettings(environment)
-        );
+			dataSource,
+			environment,
+			postgresMode(),
+			new LegacySqliteCompatibilitySettings(environment),
+			mock(MonitoringCredentialsCryptoService.class)
+		);
 
         service.run(mock(ApplicationArguments.class));
 

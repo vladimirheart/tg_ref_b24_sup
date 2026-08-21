@@ -105,6 +105,9 @@ SPRING_RABBITMQ_PORT=${rabbit_amqp_port}
 SPRING_RABBITMQ_USERNAME=iguana
 SPRING_RABBITMQ_PASSWORD=iguana
 
+# One-time legacy SQLite migration compatibility
+IGUANA_LEGACY_SQLITE_AUTO_IMPORT=${IGUANA_LEGACY_SQLITE_AUTO_IMPORT:-false}
+
 EOF
 
   cat <<EOF

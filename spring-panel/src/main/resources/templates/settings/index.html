@@ -2415,6 +2415,220 @@
         white-space: nowrap;
       }
     }
+
+    /* Settings Calm UI pass v2 */
+    .settings-tiles .settings-tile__tags,
+    .settings-tiles .settings-tile__footer {
+      display: none;
+    }
+
+    .modal .modal-content {
+      border-radius: var(--radius-lg);
+      box-shadow: 0 16px 44px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+    }
+
+    .modal .modal-header {
+      padding: 0.9rem 1rem;
+      backdrop-filter: none;
+    }
+
+    .modal .modal-body {
+      background: var(--surface-card);
+    }
+
+    .modal .modal-footer {
+      padding: 0.75rem 1rem;
+    }
+
+    .modal .btn-close {
+      padding: 0.55rem;
+      border: 0;
+      background-color: transparent;
+      box-shadow: none;
+      opacity: 0.65;
+    }
+
+    .modal .btn-close:hover,
+    .modal .btn-close:focus-visible {
+      background-color: var(--surface-raised);
+      box-shadow: none;
+      opacity: 1;
+    }
+
+    .settings-modal-lead {
+      display: block;
+      margin: -0.1rem 0 0.9rem;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--color-text-muted);
+      font-size: 0.84rem;
+      line-height: 1.45;
+      box-shadow: none;
+    }
+
+    .settings-modal-lead i {
+      display: none;
+    }
+
+    #panelDesignSettingsModal .modal-body.settings-design-workspace {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .settings-design-workspace {
+      display: grid;
+      grid-template-columns: 15rem minmax(0, 1fr);
+      min-height: 0;
+      height: 100%;
+    }
+
+    .settings-design-workspace__nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      padding: 0.75rem;
+      border-right: 1px solid var(--color-border);
+      background: var(--surface-raised);
+    }
+
+    .settings-design-nav-item {
+      width: 100%;
+      padding: 0.7rem 0.75rem;
+      border: 0;
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--color-text-muted);
+      text-align: left;
+      transition: background-color 0.16s ease, color 0.16s ease;
+    }
+
+    .settings-design-nav-item:hover {
+      background: var(--surface-interactive);
+      color: var(--color-text);
+    }
+
+    .settings-design-nav-item.active {
+      background: var(--surface-selected);
+      color: var(--primary);
+    }
+
+    .settings-design-nav-item__title {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .settings-design-nav-item__hint {
+      display: block;
+      margin-top: 0.2rem;
+      color: var(--color-text-muted);
+      font-size: 0.74rem;
+      line-height: 1.3;
+    }
+
+    .settings-design-workspace__content {
+      min-width: 0;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 1rem 1.1rem 1.25rem;
+      background: var(--surface-card);
+    }
+
+    .settings-design-section__head {
+      margin-bottom: 1rem;
+      padding-bottom: 0.8rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .settings-design-section__title {
+      margin: 0;
+      color: var(--color-text);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .settings-design-section__description {
+      margin: 0.25rem 0 0;
+      color: var(--color-text-muted);
+      font-size: 0.82rem;
+      line-height: 1.4;
+    }
+
+    .settings-design-workspace [data-theme-form] > .mb-3 {
+      margin-bottom: 1.25rem !important;
+    }
+
+    .settings-design-workspace [data-theme-form] .form-check {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      min-height: 2.7rem;
+      margin: 0 0 0.45rem;
+      padding: 0.62rem 0.75rem 0.62rem 2.25rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--surface-card);
+    }
+
+    .settings-design-workspace [data-theme-form] .form-check:hover {
+      background: var(--surface-interactive);
+    }
+
+    .settings-design-workspace [data-theme-form] .form-check:has(.form-check-input:checked) {
+      border-color: color-mix(in srgb, var(--primary) 38%, var(--color-border));
+      background: var(--surface-selected);
+    }
+
+    .settings-design-workspace #panelDesignStatusesPane .client-status-toolbar {
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .settings-design-workspace #panelDesignBusinessStylesPane > p.text-muted {
+      max-width: 54rem;
+      margin-bottom: 1rem;
+      font-size: 0.84rem;
+    }
+
+    .settings-design-section__actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 1rem;
+      padding-top: 0.9rem;
+      border-top: 1px solid var(--color-border);
+    }
+
+    @media (max-width: 767.98px) {
+      #panelDesignSettingsModal .modal-body.settings-design-workspace {
+        overflow-y: auto;
+      }
+
+      .settings-design-workspace {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+
+      .settings-design-workspace__nav {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        flex-direction: row;
+        overflow-x: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--color-border);
+      }
+
+      .settings-design-nav-item {
+        min-width: 10rem;
+      }
+
+      .settings-design-workspace__content {
+        overflow: visible;
+      }
+    }
   </style>
   <style>
     .settings-page-hero {
@@ -5013,69 +5227,8 @@
     </div>
 
     <!-- Статусы клиентов -->
-    <div class="modal fade settings-child-modal" id="statusesModal" tabindex="-1" aria-labelledby="statusesModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="statusesModalLabel">Статусы клиентов</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-          </div>
-          <div class="modal-body">
-            <div class="client-status-toolbar mb-3">
-              <div class="d-flex align-items-center gap-2">
-                <h6 class="mb-0">Список статусов</h6>
-                <span class="text-muted small">Изменения можно вносить в режиме редактирования.</span>
-              </div>
-              <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-primary btn-sm" id="editStatusesBtn">
-                  <i class="bi bi-pencil-square me-1"></i> Редактировать
-                </button>
-                <button type="button" class="btn btn-success btn-sm d-none" id="saveStatusesBtn">
-                  <i class="bi bi-check-lg me-1"></i> Сохранить
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="cancelStatusesBtn">
-                  Отмена
-                </button>
-              </div>
-            </div>
-            <div id="statusesList" class="list-group"></div>
-            <div id="statusesEmptyPlaceholder" class="text-muted fst-italic small d-none">
-              Пока нет статусов. Нажмите «Редактировать», чтобы добавить первый статус.
-            </div>
-            <button class="btn btn-sm btn-success mt-3 d-none" id="addStatusBtn" type="button">+ Добавить статус</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Цвета и иконки бизнесов -->
-    <div class="modal fade settings-child-modal" id="businessStylesModal" tabindex="-1" aria-labelledby="businessStylesModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="businessStylesModalLabel">Метки бизнесов</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-          </div>
-          <div class="modal-body">
-            <p class="text-muted">
-              Настройте цвет заливки, цвет текста и мини-иконку для столбца «Бизнес» на главной странице.
-              Иконка отображается в левом верхнем углу ячейки и имеет размер 4×4 пикселя.
-            </p>
-            <div id="businessStylesEmpty" class="alert alert-light border d-none">
-              Пока нет ни одной настройки. Добавьте бизнес, чтобы настроить отображение в таблице.
-            </div>
-            <div id="businessStylesContainer" class="d-flex flex-column gap-3"></div>
-            <button type="button" class="btn btn-outline-primary btn-sm mt-3" id="addBusinessStyleBtn">+ Добавить бизнес</button>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
-            <button type="button" class="btn btn-primary" id="saveBusinessStylesBtn">Сохранить изменения</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Параметры партнёров -->
+        <!-- Цвета и иконки бизнесов -->
+        <!-- Параметры партнёров -->
     <div class="modal fade settings-primary-modal" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -6065,36 +6218,35 @@
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="panelDesignSettingsModalLabel">Настройки оформления панели</h5>
+            <div>
+              <h5 class="modal-title" id="panelDesignSettingsModalLabel">Настройки оформления панели</h5>
+              <div class="small text-muted mt-1">Внешний вид интерфейса и визуальные справочники</div>
+            </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
-          <div class="modal-body">
-            <div class="settings-modal-lead" role="note">
-              <i class="bi bi-palette-fill" aria-hidden="true"></i>
-              <div class="settings-modal-lead__text">Сначала выберите раздел оформления, затем внесите точечные изменения в тему, статусы и бизнес-метки.</div>
+          <div class="modal-body settings-design-workspace">
+            <div class="settings-design-workspace__nav" role="tablist" aria-label="Разделы оформления">
+              <button type="button" class="settings-design-nav-item active" id="panelDesignAppearanceTab" data-bs-toggle="tab" data-bs-target="#panelDesignAppearancePane" role="tab" aria-controls="panelDesignAppearancePane" aria-selected="true">
+                <span class="settings-design-nav-item__title">Оформление интерфейса</span>
+                <span class="settings-design-nav-item__hint">Тема и визуальный стиль</span>
+              </button>
+              <button type="button" class="settings-design-nav-item" id="panelDesignStatusesTab" data-bs-toggle="tab" data-bs-target="#panelDesignStatusesPane" role="tab" aria-controls="panelDesignStatusesPane" aria-selected="false">
+                <span class="settings-design-nav-item__title">Статусы клиентов</span>
+                <span class="settings-design-nav-item__hint">Названия и цветовая семантика</span>
+              </button>
+              <button type="button" class="settings-design-nav-item" id="panelDesignBusinessStylesTab" data-bs-toggle="tab" data-bs-target="#panelDesignBusinessStylesPane" role="tab" aria-controls="panelDesignBusinessStylesPane" aria-selected="false">
+                <span class="settings-design-nav-item__title">Метки бизнесов</span>
+                <span class="settings-design-nav-item__hint">Цвета и мини-иконки</span>
+              </button>
             </div>
-            <div class="d-grid gap-2">
-              <button type="button" class="btn btn-outline-primary text-start" data-panel-design-open-appearance>Оформление интерфейса</button>
-              <button type="button" class="btn btn-outline-primary text-start" data-panel-design-open-statuses>Статусы клиентов</button>
-              <button type="button" class="btn btn-outline-primary text-start" data-panel-design-open-business-styles>Метки бизнесов</button>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Каналы (боты) -->
-    <div class="modal fade settings-child-modal" id="appearanceModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Оформление интерфейса</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-          </div>
-          <div class="modal-body">
+            <div class="tab-content settings-design-workspace__content">
+              <section class="tab-pane fade show active" id="panelDesignAppearancePane" role="tabpanel" aria-labelledby="panelDesignAppearanceTab" tabindex="0">
+                <div class="settings-design-section__head">
+                  <div>
+                    <h6 class="settings-design-section__title">Оформление интерфейса</h6>
+                    <p class="settings-design-section__description">Настройки применяются ко всем страницам панели.</p>
+                  </div>
+                </div>
             <form data-theme-form>
               <div class="mb-3">
                 <label class="form-label fw-semibold">Выберите тему</label>
@@ -6128,15 +6280,68 @@
               </div>
               <p class="text-muted small mb-0">Настройка сохраняется в вашем браузере и применяется ко всем страницам панели.</p>
             </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+          
+              </section>
+              <section class="tab-pane fade" id="panelDesignStatusesPane" role="tabpanel" aria-labelledby="panelDesignStatusesTab" tabindex="0">
+                <div class="settings-design-section__head">
+                  <div>
+                    <h6 class="settings-design-section__title">Статусы клиентов</h6>
+                    <p class="settings-design-section__description">Названия и цветовая семантика статусов клиентов.</p>
+                  </div>
+                </div>
+            <div class="client-status-toolbar mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <h6 class="mb-0">Список статусов</h6>
+                <span class="text-muted small">Изменения можно вносить в режиме редактирования.</span>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="editStatusesBtn">
+                  <i class="bi bi-pencil-square me-1"></i> Редактировать
+                </button>
+                <button type="button" class="btn btn-success btn-sm d-none" id="saveStatusesBtn">
+                  <i class="bi bi-check-lg me-1"></i> Сохранить
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="cancelStatusesBtn">
+                  Отмена
+                </button>
+              </div>
+            </div>
+            <div id="statusesList" class="list-group"></div>
+            <div id="statusesEmptyPlaceholder" class="text-muted fst-italic small d-none">
+              Пока нет статусов. Нажмите «Редактировать», чтобы добавить первый статус.
+            </div>
+            <button class="btn btn-sm btn-success mt-3 d-none" id="addStatusBtn" type="button">+ Добавить статус</button>
+          
+              </section>
+              <section class="tab-pane fade" id="panelDesignBusinessStylesPane" role="tabpanel" aria-labelledby="panelDesignBusinessStylesTab" tabindex="0">
+                <div class="settings-design-section__head">
+                  <div>
+                    <h6 class="settings-design-section__title">Метки бизнесов</h6>
+                    <p class="settings-design-section__description">Цвета, текст и мини-иконки для бизнесов.</p>
+                  </div>
+                </div>
+            <p class="text-muted">
+              Настройте цвет заливки, цвет текста и мини-иконку для столбца «Бизнес» на главной странице.
+              Иконка отображается в левом верхнем углу ячейки и имеет размер 4×4 пикселя.
+            </p>
+            <div id="businessStylesEmpty" class="alert alert-light border d-none">
+              Пока нет ни одной настройки. Добавьте бизнес, чтобы настроить отображение в таблице.
+            </div>
+            <div id="businessStylesContainer" class="d-flex flex-column gap-3"></div>
+            <button type="button" class="btn btn-outline-primary btn-sm mt-3" id="addBusinessStyleBtn">+ Добавить бизнес</button>
+          
+                <div class="settings-design-section__actions">
+                  <button type="button" class="btn btn-primary btn-sm" id="saveBusinessStylesBtn">Сохранить изменения</button>
+                </div>
+              </section>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="modal fade settings-primary-modal" id="storageInventoryModal" tabindex="-1" aria-labelledby="storageInventoryModalLabel" aria-hidden="true" th:if="${canRunStorageInventory}">
+    <!-- Каналы (боты) -->
+        <div class="modal fade settings-primary-modal" id="storageInventoryModal" tabindex="-1" aria-labelledby="storageInventoryModalLabel" aria-hidden="true" th:if="${canRunStorageInventory}">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">

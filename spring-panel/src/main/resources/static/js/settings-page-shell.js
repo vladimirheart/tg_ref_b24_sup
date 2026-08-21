@@ -284,24 +284,6 @@
       callbackName: '',
     }),
     Object.freeze({
-      selector: '[data-panel-design-open-appearance]',
-      openTarget: 'appearanceModal',
-      hideTarget: 'self',
-      callbackName: '',
-    }),
-    Object.freeze({
-      selector: '[data-panel-design-open-statuses]',
-      openTarget: 'statusesModal',
-      hideTarget: 'self',
-      callbackName: '',
-    }),
-    Object.freeze({
-      selector: '[data-panel-design-open-business-styles]',
-      openTarget: 'businessStylesModal',
-      hideTarget: 'self',
-      callbackName: '',
-    }),
-    Object.freeze({
       selector: '[data-add-channel-open]',
       openTarget: 'addChannelModal',
       callbackName: '',
