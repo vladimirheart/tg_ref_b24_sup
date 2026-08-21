@@ -2838,6 +2838,468 @@
       }
     }
   </style>
+
+  <style>
+    /* Settings Calm UI workspace pass v4 */
+
+    /* ---------- shared modal rhythm ---------- */
+
+    .settings-primary-modal .settings-modal-lead {
+      max-width: 78rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .settings-primary-modal .card-header:not(.d-flex),
+    .settings-child-modal .card-header:not(.d-flex) {
+      text-align: left;
+    }
+
+    .settings-primary-modal .bg-light,
+    .settings-primary-modal .bg-light-subtle,
+    .settings-child-modal .bg-light,
+    .settings-child-modal .bg-light-subtle {
+      background-color: var(--surface-raised) !important;
+      color: var(--color-text) !important;
+    }
+
+    .settings-primary-modal .badge.bg-secondary,
+    .settings-primary-modal .badge.text-bg-secondary {
+      border: 1px solid var(--color-border);
+      background: var(--surface-selected) !important;
+      color: var(--color-text-muted) !important;
+    }
+
+    /* ---------- channels: overview ---------- */
+
+    #channelsModal .channels-quick-grid {
+      gap: 0.65rem;
+    }
+
+    #channelsModal .channels-quick-card,
+    #channelsModal .channels-quick-card--accent {
+      gap: 0.6rem;
+      padding: 0.85rem 0.9rem;
+      border-color: var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+    }
+
+    #channelsModal .channels-quick-card__head {
+      gap: 0.65rem;
+    }
+
+    #channelsModal .channels-quick-card__title {
+      font-size: 0.92rem;
+    }
+
+    #channelsModal .channels-quick-card__icon {
+      width: 2rem;
+      height: 2rem;
+      border: 0;
+      border-radius: var(--radius-md);
+      background: transparent;
+      font-size: 1rem;
+    }
+
+    #channelsModal .channels-quick-card__pill {
+      padding: 0.18rem 0.48rem;
+      border: 0;
+      background: var(--surface-selected);
+      font-size: 0.72rem;
+    }
+
+    #channelsModal .channels-quick-card__note {
+      display: none;
+    }
+
+    #channelsModal .channels-manage-table-card {
+      border-radius: var(--radius-md);
+      box-shadow: none !important;
+    }
+
+    #channelsModal .channels-manage-table-card > .d-flex:first-child {
+      padding: 0.62rem 0.75rem !important;
+      border: 0 !important;
+      border-bottom: 1px solid var(--color-border) !important;
+      border-radius: 0 !important;
+      background: var(--surface-raised) !important;
+    }
+
+    #channelsModal .channels-manage-accordion {
+      gap: 0.55rem;
+    }
+
+    #channelsModal .channels-manage-accordion .accordion-item {
+      border-radius: var(--radius-md) !important;
+    }
+
+    #channelsModal .channels-manage-accordion .accordion-button {
+      padding: 0.72rem 0.8rem;
+    }
+
+    /* ---------- channel editor: sections, not cards ---------- */
+
+    #channelEditorModal .channel-editor-pane {
+      gap: 0;
+    }
+
+    #channelEditorModal .channel-editor-section,
+    #channelEditorModal .channel-editor-section--accent {
+      padding: 1rem 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    #channelEditorModal .channel-editor-shell > .channel-editor-section:first-child,
+    #channelEditorModal .channel-editor-pane > .channel-editor-section:first-child {
+      padding-top: 0.2rem;
+    }
+
+    #channelEditorModal .channel-editor-pane > .channel-editor-section + .channel-editor-section {
+      border-top: 1px solid var(--color-border);
+    }
+
+    #channelEditorModal .channel-editor-section__head {
+      margin-bottom: 0.7rem;
+    }
+
+    #channelEditorModal .channel-editor-section__title {
+      font-size: 0.94rem;
+    }
+
+    #channelEditorModal .channel-editor-section__hint {
+      max-width: 72rem;
+      font-size: 0.81rem;
+      line-height: 1.4;
+    }
+
+    #channelEditorModal .channel-editor-summary {
+      gap: 0.55rem;
+    }
+
+    #channelEditorModal .channel-editor-summary__item {
+      padding: 0.62rem 0.72rem;
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+    }
+
+    #channelEditorModal .channel-editor-switches {
+      gap: 0;
+    }
+
+    #channelEditorModal .channel-editor-switch {
+      padding: 0.72rem 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    #channelEditorModal .channel-editor-switch + .channel-editor-switch {
+      border-top: 1px solid var(--color-border);
+    }
+
+    #channelEditorModal .channel-editor-inline-note {
+      padding: 0.6rem 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--color-text-muted);
+    }
+
+    #channelEditorModal .channel-editor-status-strip {
+      padding: 0.45rem 0.62rem;
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+    }
+
+    /* ---------- dialog templates ---------- */
+
+    #categoriesModal .template-card,
+    #categoriesModal .bot-question-card {
+      border-radius: var(--radius-md) !important;
+      box-shadow: none !important;
+    }
+
+    #categoriesModal .template-card-header {
+      padding: 0.75rem 0.8rem;
+      border-radius: 0;
+      background: var(--surface-raised);
+      text-align: left;
+    }
+
+    #categoriesModal .template-card-header h6,
+    #categoriesModal .template-card-header p,
+    #categoriesModal .template-card-header .small {
+      text-align: left;
+    }
+
+    #categoriesModal .dialog-template-editor {
+      padding: 0.8rem 0;
+      border: 0;
+      border-top: 1px solid var(--color-border);
+      border-radius: 0;
+      background: transparent;
+    }
+
+    #categoriesModal .dialog-template-editor .form-label {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    /* ---------- partner parameters ---------- */
+
+    #parametersModal .parameter-card {
+      border-radius: var(--radius-md) !important;
+      box-shadow: none !important;
+    }
+
+    #parametersModal .parameter-card .card-header {
+      min-height: 2.7rem;
+      padding: 0.62rem 0.72rem;
+      background: var(--surface-raised);
+    }
+
+    #parametersModal .parameter-card.is-expanded .card-header {
+      background: var(--surface-selected);
+    }
+
+    #parametersModal .parameter-card .card-header .btn-link {
+      color: var(--color-text);
+      text-decoration: none;
+    }
+
+    #parametersModal .parameter-card .card-body {
+      padding: 0.72rem;
+      border-top: 1px solid var(--color-border);
+    }
+
+    #parametersModal .parameter-card .badge {
+      border: 1px solid var(--color-border);
+      background: var(--surface-selected) !important;
+      color: var(--color-text-muted) !important;
+      font-weight: 600;
+    }
+
+    #parametersModal .parameter-card .list-group-item {
+      padding: 0.42rem 0.15rem !important;
+      border-right: 0;
+      border-left: 0;
+      background: transparent;
+    }
+
+    #parametersModal .parameter-card .param-items .empty-placeholder {
+      padding: 0.45rem 0;
+      font-size: 0.82rem;
+    }
+
+    /* ---------- users and access ---------- */
+
+    #usersModal [data-auth-role-create] {
+      padding: 0.75rem 0.8rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+    }
+
+    #usersModal [data-auth-roles-container] {
+      gap: 0.6rem !important;
+    }
+
+    #usersModal .role-card {
+      border-radius: var(--radius-md) !important;
+      box-shadow: none !important;
+    }
+
+    #usersModal .role-card .card-header {
+      padding: 0.65rem 0.75rem;
+      background: var(--surface-raised);
+      text-align: left;
+    }
+
+    #usersModal .role-card .card-body {
+      padding: 0.8rem;
+    }
+
+    #usersModal .role-card__summary {
+      margin-top: 0.12rem;
+      line-height: 1.35;
+    }
+
+    #usersModal .org-tree-wrapper {
+      min-height: 4rem;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    #usersModal [data-org-empty],
+    #usersModal [data-auth-users-empty],
+    #usersModal [data-auth-roles-empty] {
+      padding: 0.8rem 0.9rem;
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+      color: var(--color-text-muted);
+    }
+
+    #authUserDetailsModal .auth-user-photo-dropzone {
+      min-height: 12rem;
+      padding: 1rem;
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+    }
+
+    #authUserDetailsModal .modal-body .col-12 > .border.rounded-3.p-3,
+    #authUserDetailsModal .modal-body .col-12 > .border.rounded-3.p-3.bg-light-subtle {
+      padding: 1rem 0 !important;
+      border: 0 !important;
+      border-top: 1px solid var(--color-border) !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+    }
+
+    #authUserDetailsModal .modal-body .col-12:first-child > .border.rounded-3.p-3 {
+      border-top: 0 !important;
+    }
+
+    /* ---------- IT block ---------- */
+
+    #itConnectionsModal #itSettingsAccordion {
+      border-top: 1px solid var(--color-border);
+    }
+
+    #itConnectionsModal #itSettingsAccordion > .accordion-item {
+      border: 0 !important;
+      border-bottom: 1px solid var(--color-border) !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+    }
+
+    #itConnectionsModal #itSettingsAccordion > .accordion-item > .accordion-header .accordion-button {
+      padding: 0.78rem 0.15rem;
+      background: transparent;
+      color: var(--color-text);
+      font-weight: 650;
+    }
+
+    #itConnectionsModal #itSettingsAccordion > .accordion-item > .accordion-header .accordion-button:not(.collapsed) {
+      background: transparent;
+      color: var(--primary);
+      box-shadow: none;
+    }
+
+    #itConnectionsModal #itSettingsAccordion > .accordion-item > .accordion-collapse > .accordion-body {
+      padding: 0.15rem 0 1rem;
+      background: transparent;
+    }
+
+    #itConnectionsModal .it-section-accordion--nested {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    #itConnectionsModal .it-section-accordion--nested .accordion-item {
+      margin: 0;
+      border-color: var(--color-border) !important;
+      border-radius: var(--radius-md) !important;
+    }
+
+    #itConnectionsModal .it-section-accordion--nested .accordion-button,
+    #itConnectionsModal .it-section-accordion--nested .accordion-button.collapsed {
+      padding: 0.65rem 0.72rem;
+      background: var(--surface-raised);
+    }
+
+    #itConnectionsModal .it-section-accordion--nested .accordion-button:not(.collapsed) {
+      background: var(--surface-selected);
+      color: var(--primary);
+    }
+
+    /* ---------- locations ---------- */
+
+    #locationsModal .location-tree-wrapper {
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    #locationsModal .location-type-header {
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--color-border);
+      border-radius: 0;
+      background: transparent;
+    }
+
+    #locationsModal .location-type-body {
+      padding: 0.65rem 0 0.25rem 1.2rem;
+    }
+
+    #locationsModal .location-city-block {
+      padding: 0.65rem 0.72rem;
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+    }
+
+    #locationsModal .location-structure-row {
+      padding: 0.48rem 0.6rem;
+      border-radius: var(--radius-md);
+    }
+
+    #locationsModal .location-tree__children {
+      margin-left: 1rem;
+      padding-left: 0.7rem;
+      border-left-width: 1px;
+    }
+
+    #locationsModal .location-actions .btn-icon {
+      width: 2.1rem;
+      height: 2.1rem;
+      border-radius: var(--radius-md);
+    }
+
+    /* ---------- neutral empty states ---------- */
+
+    [data-partner-contacts-empty],
+    [data-legal-entities-empty] {
+      padding-top: 1.4rem !important;
+      padding-bottom: 1.4rem !important;
+      border: 1px dashed var(--color-border) !important;
+      border-radius: var(--radius-md) !important;
+      background: var(--surface-raised) !important;
+      color: var(--color-text-muted);
+      box-shadow: none !important;
+    }
+
+    @media (max-width: 991.98px) {
+      #channelsModal .channels-quick-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #channelEditorModal .channel-editor-summary {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 767.98px) {
+      #usersModal [data-auth-role-create] {
+        padding: 0.7rem;
+      }
+
+      #locationsModal .location-type-body {
+        padding-left: 0.5rem;
+      }
+
+      #locationsModal .location-tree__children {
+        margin-left: 0.55rem;
+      }
+    }
+  </style>
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="settings">
   <div th:replace="~{fragments/navbar :: navbar('settings')}"></div>
@@ -3420,7 +3882,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="usersModalLabel">Пользователи панели и настройки доступа</h5>
-            <button type="button" class="btn btn-outline-warning btn-sm me-2" data-users-open-password-reset th:if="${canManagePasswordResetRequests}">Заявки на восстановление</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2" data-users-open-password-reset th:if="${canManagePasswordResetRequests}">Заявки на восстановление</button>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
@@ -3503,7 +3965,7 @@
                         </div>
                         <div class="d-flex flex-wrap gap-2 justify-content-end">
                           <button type="button" class="btn btn-outline-primary btn-sm" data-org-action="add-root">+ Добавить корневую ветку</button>
-                          <button type="button" class="btn btn-success btn-sm" data-org-save disabled>Сохранить оргструктуру</button>
+                          <button type="button" class="btn btn-primary btn-sm" data-org-save disabled>Сохранить оргструктуру</button>
                         </div>
                       </div>
                       <div class="org-tree-wrapper" data-org-tree-wrapper>
@@ -3892,7 +4354,7 @@
                 <section class="mb-4">
                   <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="mb-0">Шаблоны категорий обращений</h6>
-                    <button class="btn btn-sm btn-outline-success" type="button" data-category-template-add>+ Шаблон</button>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-category-template-add>+ Шаблон</button>
                   </div>
                   <p class="small text-muted">Сгруппируйте категории обращений в отдельные шаблоны и задайте имена, чтобы быстро переключаться между наборами категорий.</p>
                   <div id="categoryTemplatesList" class="d-flex flex-column gap-3"></div>
@@ -3908,7 +4370,7 @@
                 <section class="mb-4">
                   <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="mb-0">Шаблоны операторских вопросов</h6>
-                    <button class="btn btn-sm btn-outline-success" type="button" data-question-template-add>+ Шаблон</button>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-question-template-add>+ Шаблон</button>
                   </div>
                   <div class="alert alert-warning small py-2 px-3 mb-3" role="alert">
                     Это отдельный legacy-домен `dialog_config.question_templates` для операторского workspace.
@@ -3931,7 +4393,7 @@
                 <section>
                   <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="mb-0">Шаблоны действий после завершения</h6>
-                    <button class="btn btn-sm btn-outline-success" type="button" data-completion-template-add>+ Шаблон</button>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-completion-template-add>+ Шаблон</button>
                   </div>
                   <p class="small text-muted">Опишите список действий и контрольных вопросов, которые нужно выполнить после закрытия диалога. Эти шаблоны будут доступны при завершении обращения.</p>
                   <div id="completionTemplatesList" class="d-flex flex-column gap-3"></div>
@@ -3947,7 +4409,7 @@
                 <section>
                   <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="mb-0">Макросы ответов</h6>
-                    <button class="btn btn-sm btn-outline-success" type="button" data-macro-template-add>+ Макрос</button>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-macro-template-add>+ Макрос</button>
                   </div>
                   <p class="small text-muted">Настройте библиотеку макросов для композера: текст, теги и стабильный ID. Макросы сразу доступны операторам в workspace.</p>
                   <div class="row g-3 mb-3">
@@ -5214,7 +5676,7 @@
                 <section>
                   <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
                     <h6 class="mb-0">Цвета бейджа «Статус»</h6>
-                    <button class="btn btn-sm btn-outline-success" type="button" data-dialog-status-badge-add>+ Статус</button>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-dialog-status-badge-add>+ Статус</button>
                   </div>
                   <p class="small text-muted">
                     Настройте фон и цвет текста для статусов диалогов. Значения применяются в карточке обращения.
@@ -5264,7 +5726,7 @@
               <div class="tab-pane fade show active" id="locations-structure-pane" role="tabpanel" aria-labelledby="locations-structure-tab" tabindex="0">
                 <div class="d-flex flex-wrap gap-2 mb-3">
                   <button class="btn btn-sm btn-primary" type="button" data-location-wizard-open>Добавить запись</button>
-                  <button class="btn btn-sm btn-success" type="button" data-add-business-trigger>+ Добавить бизнес</button>
+                  <button class="btn btn-sm btn-outline-primary" type="button" data-add-business-trigger>+ Добавить бизнес</button>
                 </div>
                 <div id="locationsEditor" class="mb-3">
                   <!-- Дерево будет построено динамически -->
@@ -5384,7 +5846,7 @@
             </div>
             <div class="d-flex gap-2">
               <button type="button" class="btn btn-primary" id="wizardNextStep">Далее</button>
-              <button type="button" class="btn btn-success d-none" id="wizardFinish">Создать запись</button>
+              <button type="button" class="btn btn-primary d-none" id="wizardFinish">Создать запись</button>
             </div>
           </div>
         </div>
@@ -5463,7 +5925,7 @@
                     <h6 class="mb-1">Контактные данные контрагентов</h6>
                     <p class="small text-muted mb-0">Фиксируйте телефоны, e-mail и связь с юридическими лицами контрагентов.</p>
                   </div>
-                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="partner">+ Добавить контакт</button>
+                  <button class="btn btn-sm btn-outline-primary" type="button" data-partner-contact-add="partner">+ Добавить контакт</button>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
                 <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
@@ -5485,7 +5947,7 @@
                     <h6 class="mb-1">Контакты франчайзи</h6>
                     <p class="small text-muted mb-0">Храните данные о франчайзи: телефоны, почту и ответственных лиц.</p>
                   </div>
-                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="ka">+ Добавить контакт</button>
+                  <button class="btn btn-sm btn-outline-primary" type="button" data-partner-contact-add="ka">+ Добавить контакт</button>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
                 <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
@@ -5583,7 +6045,7 @@
                 <h6 class="mb-1">Справочник юридических лиц</h6>
                 <p class="small text-muted mb-0">Храните реквизиты и контакты менеджеров для партнёров.</p>
               </div>
-              <button class="btn btn-sm btn-success" type="button" data-legal-entity-add>+ Добавить ЮЛ</button>
+              <button class="btn btn-sm btn-outline-primary" type="button" data-legal-entity-add>+ Добавить ЮЛ</button>
             </div>
             <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-legal-entities-list></div>
             <div class="card border-0 bg-light text-center py-5 d-none" data-legal-entities-empty>
@@ -5853,7 +6315,7 @@
                       </table>
                     </div>
                     <button
-                      class="btn btn-sm btn-success mt-3"
+                      class="btn btn-sm btn-outline-primary mt-3"
                       type="button"
                       data-it-equipment-add-open
                     >
@@ -5891,7 +6353,7 @@
                       data-it-connections-container
                     ></div>
                     <button
-                      class="btn btn-sm btn-success mt-3"
+                      class="btn btn-sm btn-outline-primary mt-3"
                       type="button"
                       data-it-connection-add-open
                     >
@@ -5940,9 +6402,9 @@
                       </table>
                     </div>
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-3">
-                      <button class="btn btn-sm btn-success" type="button" data-network-profiles-add>+ Добавить профиль</button>
+                      <button class="btn btn-sm btn-outline-primary" type="button" data-network-profiles-add>+ Добавить профиль</button>
                       <button class="btn btn-sm btn-primary" type="button" data-network-profiles-save>
-                        💾 Сохранить изменения
+                        Сохранить изменения
                       </button>
                     </div>
                     <div class="form-text text-muted mt-2">Эти данные будут автоматически подставляться в паспорт объекта.</div>
@@ -6463,7 +6925,7 @@
                 <button type="button" class="btn btn-outline-primary btn-sm" id="editStatusesBtn">
                   <i class="bi bi-pencil-square me-1"></i> Редактировать
                 </button>
-                <button type="button" class="btn btn-success btn-sm d-none" id="saveStatusesBtn">
+                <button type="button" class="btn btn-primary btn-sm d-none" id="saveStatusesBtn">
                   <i class="bi bi-check-lg me-1"></i> Сохранить
                 </button>
                 <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="cancelStatusesBtn">
@@ -6761,7 +7223,7 @@
                         <span class="channels-quick-card__pill" data-channels-manage-summary="profiles-count">Профили не созданы</span>
                       </div>
                       <div class="channels-quick-card__actions">
-                        <button type="button" class="btn btn-outline-success" data-channels-network-profile-quick-add data-channels-open-profiles>Новый профиль</button>
+                        <button type="button" class="btn btn-outline-primary" data-channels-network-profile-quick-add data-channels-open-profiles>Новый профиль</button>
                         <button type="button" class="btn btn-outline-secondary" data-channels-open-profiles>Открыть список</button>
                       </div>
                     </section>
@@ -6835,7 +7297,7 @@
                               <p class="text-muted mb-0">Создайте именованные профили маршрутизации, чтобы потом выбирать их для проекта, подсистемы ботов и отдельных интеграций.</p>
                             </div>
                             <div class="d-flex gap-2 flex-wrap">
-                              <button type="button" class="btn btn-outline-success btn-sm" data-integration-network-profile-add>+ Добавить профиль</button>
+                              <button type="button" class="btn btn-outline-primary btn-sm" data-integration-network-profile-add>+ Добавить профиль</button>
                               <button type="button" class="btn btn-outline-secondary btn-sm" data-integration-network-profiles-probe-all>Проверить доступность</button>
                               <button type="button" class="btn btn-outline-primary btn-sm" data-integration-network-profiles-save>Сохранить профили</button>
                             </div>
@@ -7079,7 +7541,7 @@
                           Создайте несколько сценариев вопросов для бота и выберите основной. Каждый шаблон можно редактировать отдельно.
                         </p>
                       </div>
-                      <button class="btn btn-sm btn-outline-success" type="button" data-bot-template-create>+ Шаблон</button>
+                      <button class="btn btn-sm btn-outline-primary" type="button" data-bot-template-create>+ Шаблон</button>
                     </div>
                     <div class="alert alert-light border small mb-3" data-bot-question-active-diagnostic>
                       Активный шаблон вопросов будет показан здесь после загрузки настроек.
@@ -7095,7 +7557,7 @@
                         <h6 class="mb-1">Система оценок</h6>
                         <p class="small text-muted mb-0">Создайте несколько сценариев оценок для ботов и выберите активный шаблон.</p>
                       </div>
-                      <button class="btn btn-sm btn-outline-success" type="button" data-bot-rating-template-create>+ Шаблон</button>
+                      <button class="btn btn-sm btn-outline-primary" type="button" data-bot-rating-template-create>+ Шаблон</button>
                     </div>
                     <div class="alert alert-light border small mb-3" data-bot-legacy-diagnostic hidden>
                       Диагностика legacy-совместимости шаблонов будет показана здесь при необходимости.
