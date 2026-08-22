@@ -11,6 +11,7 @@ attachments/
 /spring-panel/logs/
 /java-bot/target/
 /java-bot/**/target/
+/java-bot/**/logs/
 /java-bot/.m2/
 /spring-panel/.m2/
 /spring-panel/target/
@@ -27,3 +28,5 @@ attachments/
 *.db-shm
 *.db-wal
 
+# local patch helpers
+/apply-*.ps1
