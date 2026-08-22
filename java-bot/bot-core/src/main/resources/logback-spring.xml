@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <springProperty scope="context" name="LOG_FILE" source="logging.file.name" defaultValue="logs/bot-telegram.log"/>
+    <springProperty scope="context" name="LOG_FILE" source="logging.file.name" defaultValue="logs/support-bot.log"/>
     <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSSXXX} %-5level [%thread] %logger{36} - %msg%n"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">

@@ -274,14 +274,21 @@ public class BotProcessService {
     }
 
     private Path resolveLogFile(Path botWorkingDir, Channel channel) {
-        String override = System.getenv("APP_BOT_LOG_PATH");
-        if (override != null && !override.isBlank()) {
-            return Paths.get(override).toAbsolutePath().normalize();
+        String configuredLogDir = System.getenv("APP_BOT_LOG_DIR");
+        Path logDir;
+        if (configuredLogDir != null && !configuredLogDir.isBlank()) {
+            Path configuredPath = Paths.get(configuredLogDir);
+            logDir = configuredPath.isAbsolute()
+                ? configuredPath
+                : botWorkingDir.resolve(configuredPath);
+        } else {
+            logDir = botWorkingDir.resolve("../logs");
         }
-        Path logDir = botWorkingDir.resolve("../logs").normalize();
+        logDir = logDir.toAbsolutePath().normalize();
+
         String platform = sanitizeFileNameSegment(Objects.toString(channel != null ? channel.getPlatform() : null, "telegram"));
         String channelId = channel != null && channel.getId() != null ? String.valueOf(channel.getId()) : "unknown";
-        return logDir.resolve("support-bot-" + platform + "-" + channelId + ".log").toAbsolutePath().normalize();
+        return logDir.resolve("support-bot-" + platform + "-" + channelId + ".log").normalize();
     }
 
     private Path resolvePidFile(Path botWorkingDir, Long channelId) {
