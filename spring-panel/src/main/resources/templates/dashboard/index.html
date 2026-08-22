@@ -51,9 +51,9 @@
 <body class="with-sidebar sidebar-pinned" data-ui-page="dashboard" data-ui-density="compact">
   <div th:replace="~{fragments/navbar :: navbar(${activePage})}"></div>
   <main class="main-content container-fluid">
-	  <div class="reports-shell page-shell page-shell--dashboard">
+	  <div class="reports-shell page-shell page-shell--dashboard ops-page-shell">
 
-		<div class="page-header-card page-header-card--compact reports-page-header mb-3">
+		<div class="page-header-card page-header-card--compact reports-page-header mb-3 ops-page-header">
 		  <span class="page-kicker">Операционная отчётность</span>
 
 		  <h1 class="page-title">Отчёты</h1>
@@ -64,7 +64,7 @@
 		  </p>
 		</div>
 
-		<ul class="nav nav-tabs reports-tab-nav" id="reportsTabs" role="tablist">
+		<ul class="nav nav-tabs reports-tab-nav ops-tab-nav" id="reportsTabs" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link active" id="tab-dashboard" data-bs-toggle="tab" data-bs-target="#reports-dashboard" type="button" role="tab">Дашборд</button>
       </li>
@@ -79,7 +79,7 @@
     <div class="tab-content">
       <div class="tab-pane fade show active" id="reports-dashboard" role="tabpanel">
         <section class="dashboard-overview-grid">
-          <div class="filter-panel control-panel">
+          <div class="filter-panel control-panel ops-panel">
             <div class="panel-head">
               <div>
                 <span class="section-kicker">Фильтры</span>
@@ -124,7 +124,7 @@
             </div>
           </div>
 
-          <div class="metrics-panel control-panel">
+          <div class="metrics-panel control-panel ops-panel">
             <div class="panel-head">
               <div>
                 <span class="section-kicker">Control center</span>
@@ -190,7 +190,7 @@
         </div>
 
         <section class="dashboard-grid">
-          <article class="chart-panel chart-panel--wide data-panel dashboard-team-panel" data-panel-id="staff-time">
+          <article class="chart-panel chart-panel--wide data-panel dashboard-team-panel ops-panel" data-panel-id="staff-time">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Команда</span>
@@ -210,7 +210,7 @@
 			</div>
           </article>
 
-          <article class="chart-panel chart-panel--wide data-panel" data-panel-id="activity-heatmap">
+          <article class="chart-panel chart-panel--wide data-panel ops-panel" data-panel-id="activity-heatmap">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Активность</span>
@@ -251,7 +251,7 @@
             </div>
           </article>
 
-          <article class="chart-panel data-panel" data-panel-id="channel-chart">
+          <article class="chart-panel data-panel ops-panel" data-panel-id="channel-chart">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Каналы</span>
@@ -269,7 +269,7 @@
             </div>
           </article>
 
-          <article class="chart-panel data-panel" data-panel-id="staff-workload">
+          <article class="chart-panel data-panel ops-panel" data-panel-id="staff-workload">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Команда</span>
@@ -287,7 +287,7 @@
             </div>
           </article>
 
-          <article class="chart-panel data-panel" data-panel-id="business-chart">
+          <article class="chart-panel data-panel ops-panel" data-panel-id="business-chart">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Бизнес</span>
@@ -308,7 +308,7 @@
             </div>
           </article>
 
-          <article class="chart-panel data-panel" data-panel-id="network-chart">
+          <article class="chart-panel data-panel ops-panel" data-panel-id="network-chart">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Сети</span>
@@ -329,7 +329,7 @@
             </div>
           </article>
 
-          <article class="chart-panel data-panel" data-panel-id="category-chart">
+          <article class="chart-panel data-panel ops-panel" data-panel-id="category-chart">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Направления</span>
@@ -347,7 +347,7 @@
             </div>
           </article>
 
-          <article class="chart-panel data-panel" data-panel-id="bot-product-chart">
+          <article class="chart-panel data-panel ops-panel" data-panel-id="bot-product-chart">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Боты</span>
@@ -365,7 +365,7 @@
             </div>
           </article>
 
-          <article class="chart-panel data-panel" data-panel-id="city-chart">
+          <article class="chart-panel data-panel ops-panel" data-panel-id="city-chart">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">География</span>
@@ -383,7 +383,7 @@
             </div>
           </article>
 
-          <article class="chart-panel chart-panel--wide data-panel" data-panel-id="restaurant-chart">
+          <article class="chart-panel chart-panel--wide data-panel ops-panel" data-panel-id="restaurant-chart">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Локации</span>
@@ -405,7 +405,7 @@
       </div>
 
       <div class="tab-pane fade" id="reports-managers" role="tabpanel">
-			<div class="reports-subpanel">
+			<div class="reports-subpanel ops-panel">
 
 				<div class="reports-subpanel-head">
 					<div>
@@ -452,7 +452,7 @@
       </div>
 
       <div class="tab-pane fade" id="reports-olap" role="tabpanel">
-		<div class="reports-subpanel">
+		<div class="reports-subpanel ops-panel">
 
 			<div class="reports-subpanel-head">
 				<div>
@@ -487,7 +487,7 @@
                 <button class="btn btn-primary w-100" id="buildOlap">Собрать</button>
               </div>
             </div>
-            <div class="table-responsive reports-table-shell mt-3">
+            <div class="table-responsive reports-table-shell mt-3 ops-table-shell">
 				<table class="table table-sm align-middle mb-0 reports-table">
                 <thead><tr><th>Измерение</th><th>Обращения</th><th>Задачи</th><th>Изменения системы</th></tr></thead>
                 <tbody id="olapTableBody"><tr><td colspan="4" class="text-muted">Нет данных</td></tr></tbody>

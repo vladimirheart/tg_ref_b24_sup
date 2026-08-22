@@ -9064,6 +9064,189 @@ body[data-ui-page=users] .admin-empty-cell {
     box-shadow: none !important;
   }
 }
+/* Calm Operations AI Ops + reports rollout v20 */
+/* Shared compact workspace tabs. */
+.ops-tab-nav.nav-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+
+.ops-tab-nav.nav-tabs .nav-item {
+  margin: 0;
+}
+
+.ops-tab-nav.nav-tabs .nav-link {
+  margin: 0;
+  padding: 0.48rem 0.72rem;
+  border: 0 !important;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  box-shadow: none !important;
+}
+
+.ops-tab-nav.nav-tabs .nav-link:hover,
+.ops-tab-nav.nav-tabs .nav-link:focus-visible {
+  border: 0 !important;
+  background: var(--surface-interactive);
+  color: var(--color-text);
+  transform: none !important;
+}
+
+.ops-tab-nav.nav-tabs .nav-link.active {
+  border: 0 !important;
+  background: var(--surface-selected);
+  color: var(--primary);
+  box-shadow: none !important;
+}
+
+/* Generic non-Bootstrap operational panel. */
+.ops-panel {
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface-card) !important;
+  box-shadow: none !important;
+}
+
+/* AI Ops */
+[data-ui-page=ai-ops] .aiops-shell.ops-page-shell {
+  max-width: 1600px;
+}
+
+[data-ui-page=ai-ops] .aiops-page-header.ops-page-header {
+  border-color: var(--color-border) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+[data-ui-page=ai-ops] .aiops-tab-nav.ops-tab-nav {
+  margin-bottom: 1rem !important;
+}
+
+[data-ui-page=ai-ops] .aiops-section-card.ops-section-card,
+[data-ui-page=ai-ops] .aiops-automation-card.ops-section-card {
+  border-radius: var(--radius-lg) !important;
+}
+
+[data-ui-page=ai-ops] .aiops-section-card.ops-section-card > .card-header,
+[data-ui-page=ai-ops] .aiops-automation-card.ops-section-card > .card-header {
+  padding: 0.8rem 0.95rem;
+  background: var(--surface-card) !important;
+}
+
+[data-ui-page=ai-ops] .aiops-filterbar.ops-list-toolbar {
+  margin-bottom: 0.75rem;
+  padding: 0.55rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+[data-ui-page=ai-ops] .aiops-subpanel,
+[data-ui-page=ai-ops] .aiops-stream-item,
+[data-ui-page=ai-ops] .aiops-memory-item,
+[data-ui-page=ai-ops] .aiops-history-item {
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+[data-ui-page=ai-ops] .aiops-table-shell.ops-table-shell {
+  border-radius: var(--radius-md) !important;
+}
+
+/* Reports / Dashboard */
+[data-ui-page=dashboard] .reports-shell.ops-page-shell {
+  max-width: 1600px;
+}
+
+[data-ui-page=dashboard] .reports-page-header.ops-page-header {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=dashboard] .reports-tab-nav.ops-tab-nav {
+  margin-bottom: 1rem;
+  border-radius: var(--radius-lg);
+}
+
+[data-ui-page=dashboard] .filter-panel.ops-panel,
+[data-ui-page=dashboard] .metrics-panel.ops-panel,
+[data-ui-page=dashboard] .chart-panel.ops-panel,
+[data-ui-page=dashboard] .reports-subpanel.ops-panel {
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface-card) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=dashboard] .filter-panel.ops-panel::before,
+[data-ui-page=dashboard] .metrics-panel.ops-panel::before,
+[data-ui-page=dashboard] .chart-panel.ops-panel::before {
+  content: none !important;
+}
+
+[data-ui-page=dashboard] .metrics-panel.ops-panel .section-kicker {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+[data-ui-page=dashboard] .metrics-panel.ops-panel .panel-head p,
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metrics-headline__meta,
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metric-label,
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metric-foot,
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metric-mini-label,
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metric-note-text {
+  color: var(--color-text-muted) !important;
+}
+
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metric-value,
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metric-mini-value {
+  color: var(--color-text) !important;
+}
+
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metric-card,
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metric-card--primary,
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metric-card--spotlight,
+[data-ui-page=dashboard] .metrics-panel.ops-panel .metric-card--note {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=dashboard] .reports-table-shell.ops-table-shell {
+  border-radius: var(--radius-md) !important;
+}
+
+/* Calm hover policy for the final rollout surfaces. */
+@media (hover: hover) {
+  .ops-panel:hover,
+  [data-ui-page=dashboard] .period-preset-btn:hover,
+  [data-ui-page=dashboard] .panel-info-button:hover,
+  [data-ui-page=dashboard] .panel-info-button:focus-visible {
+    transform: none !important;
+    filter: none !important;
+  }
+}
+@media (max-width: 767.98px) {
+  .ops-tab-nav.nav-tabs {
+    display: flex;
+    width: 100%;
+  }
+  .ops-tab-nav.nav-tabs .nav-item {
+    flex: 1 1 auto;
+  }
+  .ops-tab-nav.nav-tabs .nav-link {
+    width: 100%;
+    text-align: center;
+  }
+}
 /* Calm Operations interaction policy v9 */
 /*
  * Structural surfaces stay spatially stable on hover.

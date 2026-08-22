@@ -36,8 +36,8 @@
 <body class="with-sidebar sidebar-pinned" data-ui-page="ai-ops" data-ui-density="compact">
 <div th:replace="~{fragments/navbar :: navbar('ai-ops')}"></div>
 
-<main class="main-content container-fluid py-4 page-shell aiops-shell">
-    <div class="page-header-card page-header-card--compact mb-4 aiops-page-header">
+<main class="main-content container-fluid py-4 page-shell aiops-shell ops-page-shell">
+    <div class="page-header-card page-header-card--compact mb-4 aiops-page-header ops-page-header">
 		<span class="page-kicker">Операционный контроль</span>
 		<h1 class="page-title">AI Ops</h1>
 		<p class="page-subtitle">
@@ -46,7 +46,7 @@
 		</p>
 	</div>
 
-    <ul class="nav nav-tabs mb-4 aiops-tab-nav" id="aiOpsTabs" role="tablist">
+    <ul class="nav nav-tabs mb-4 aiops-tab-nav ops-tab-nav" id="aiOpsTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="aiOpsOverviewTab" data-bs-toggle="tab" data-bs-target="#aiOpsOverviewPane" type="button" role="tab" aria-controls="aiOpsOverviewPane" aria-selected="true">AI Ops</button>
         </li>
@@ -63,7 +63,7 @@
         <div class="aiops-refresh-pill" id="aiOpsAutoRefreshState">Автообновление: подготовка...</div>
     </div>
 
-    <section class="card mb-4 aiops-section-card">
+    <section class="card mb-4 aiops-section-card ops-section-card">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <strong>AI Monitoring</strong>
             <button class="btn btn-sm btn-outline-secondary" id="aiOpsRefresh" type="button">Обновить</button>
@@ -81,7 +81,7 @@
             <div class="small fw-semibold mb-1">Runbook</div>
             <ul id="aiOpsRunbook" class="small ps-3 mb-3 aiops-runbook"></ul>
             <div class="small fw-semibold mb-1">События</div>
-            <div class="aiops-filterbar">
+            <div class="aiops-filterbar ops-list-toolbar">
                 <input type="text" class="form-control form-control-sm ai-ops-filter-input" id="aiOpsEventType" placeholder="event type">
                 <input type="text" class="form-control form-control-sm ai-ops-filter-input" id="aiOpsActor" placeholder="actor">
                 <button class="btn btn-sm btn-outline-secondary" id="aiOpsApplyFilters" type="button">Применить</button>
@@ -91,7 +91,7 @@
         </div>
     </section>
 
-    <section class="card mb-4 aiops-section-card">
+    <section class="card mb-4 aiops-section-card ops-section-card">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <strong>AI Solution Memory</strong>
             <button class="btn btn-sm btn-outline-secondary" id="aiOpsMemoryRefresh" type="button">Обновить</button>
@@ -108,14 +108,14 @@
 
     <div class="row g-3 mb-4">
         <div class="col-xl-7">
-            <section class="card h-100 aiops-section-card">
+            <section class="card h-100 aiops-section-card ops-section-card">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <strong>AI Review Queue</strong>
                     <button class="btn btn-sm btn-outline-secondary" id="aiOpsReviewRefresh" type="button">Обновить</button>
                 </div>
                 <div class="card-body">
                     <div class="small text-muted mb-2" id="aiOpsReviewState">Загрузка...</div>
-                    <div class="table-responsive aiops-table-shell">
+                    <div class="table-responsive aiops-table-shell ops-table-shell">
 						<table class="table table-sm align-middle mb-0 aiops-table">
                             <thead>
                             <tr>
@@ -137,7 +137,7 @@
             </section>
         </div>
         <div class="col-xl-5">
-            <section class="card h-100 aiops-section-card">
+            <section class="card h-100 aiops-section-card ops-section-card">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <strong>AI Offline Eval</strong>
                     <div class="d-flex flex-wrap gap-2">
@@ -159,13 +159,13 @@
         </div>
         <div class="tab-pane fade" id="aiOpsAutomationPane" role="tabpanel" aria-labelledby="aiOpsAutomationTab" tabindex="0">
 
-    <section class="card mb-4 aiops-automation-card">
+    <section class="card mb-4 aiops-automation-card ops-section-card">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <strong>Bitrix24 + iiko automation</strong>
             <div class="d-flex flex-wrap gap-2">
                 <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountRefresh" type="button">Обновить</button>
                 <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountSaveCredentials" type="button">Сохранить личные доступы</button>
-                <button class="btn btn-sm btn-outline-primary" id="employeeDiscountSave" type="button">Сохранить настройки</button>
+                <button class="btn btn-sm btn-primary" id="employeeDiscountSave" type="button">Сохранить настройки</button>
             </div>
         </div>
         <div class="card-body">
