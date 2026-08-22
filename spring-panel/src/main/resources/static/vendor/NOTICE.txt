@@ -1,0 +1,16 @@
+Iguana vendored frontend assets v22
+
+Runtime copies are committed into spring-panel/src/main/resources/static/vendor
+so the panel no longer needs public CDNs for its core frontend runtime.
+
+Packages:
+- Bootstrap 5.3.0 and 5.3.3 — MIT
+- Bootstrap Icons 1.10.0 and 1.10.5 — MIT
+- Select2 4.1.0-rc.0 — MIT
+- Flatpickr 4.6.13 — MIT
+- Chart.js 4.5.1 — MIT
+- jQuery 3.6.0 — MIT
+- Lottie Web 5.12.2 — MIT
+
+The package version is encoded in each vendor directory.
+Keep upgrades explicit and reviewable rather than switching back to unpinned CDN URLs.

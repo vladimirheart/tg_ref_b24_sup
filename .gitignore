@@ -29,4 +29,6 @@ attachments/
 *.db-wal
 
 # local patch helpers
-/apply-*.ps1/repair-*.ps1
+/apply-*.ps1
+/fix-*.ps1
+/repair-*.ps1
