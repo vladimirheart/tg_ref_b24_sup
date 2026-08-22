@@ -38,10 +38,10 @@
   <option th:each="u : ${users}" th:value="${u.username}"></option>
 </datalist>
 
-  <main class="main-content container-fluid py-4 page-shell tasks-page-shell">
+  <main class="main-content container-fluid py-4 page-shell tasks-page-shell ops-page-shell">
 
-    <div class="page-header-card tasks-sticky-bar">
-      <div class="tasks-header-row">
+    <div class="page-header-card tasks-sticky-bar ops-list-shell">
+      <div class="tasks-header-row ops-page-head">
         <div>
           <span class="page-kicker">Операционный backlog</span>
           <h1 class="page-title">Задачи</h1>
@@ -50,7 +50,7 @@
           </p>
         </div>
 
-        <div class="tasks-page-actions">
+        <div class="tasks-page-actions ops-page-actions">
           <button id="filtersBtn"
                   class="btn btn-outline-secondary"
                   type="button">
@@ -71,7 +71,7 @@
         </div>
       </div>
 
-      <div class="tasks-metrics-row">
+      <div class="tasks-metrics-row ops-list-toolbar">
         <div class="tasks-metrics">
           <span class="tasks-metric-chip tasks-metric-chip--primary">
             Всего задач:
@@ -112,7 +112,7 @@
     </div>
 
     <!-- Фильтры как на аналитике: сворачиваемый блок -->
-  <div class="modal" tabindex="-1" id="filtersModal">
+  <div class="modal fade ops-task-modal" tabindex="-1" id="filtersModal">
           <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                   <div class="modal-header">
@@ -175,7 +175,7 @@
           </div>
     </div>
 
-    <div class="card tasks-table-card">
+    <div class="card tasks-table-card ops-table-card">
 	  <div class="table-responsive tasks-table-shell">
 		<table class="table align-middle mb-0" id="tasksTable">
 		  <thead>
@@ -244,7 +244,7 @@
 			</thead>
 
 		  <tbody id="tasksBody">
-			<tr th:if="${#lists.isEmpty(tasks)}">
+			<tr class="ops-empty-state-row" th:if="${#lists.isEmpty(tasks)}">
 			  <td colspan="10"
 				  class="text-center text-muted py-4">
 				Задачи не загружены
@@ -298,7 +298,7 @@
     </div>
 
     <!-- Modal -->
-    <div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
+    <div class="modal fade ops-editor-modal" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content tasks-modal-content">
           <div class="modal-header">

@@ -1,0 +1,223 @@
+/* Calm Operations list primitives v17 */
+/*
+ * Shared visual grammar for operational list pages:
+ * page head -> quiet toolbar -> one table surface -> task/editor modal.
+ * Structural surfaces stay spatially stable on hover.
+ */
+
+.ops-page-shell {
+  width: 100%;
+  max-width: 1600px;
+}
+
+.ops-page-header {
+  background: var(--surface-card) !important;
+  box-shadow: none !important;
+}
+
+.ops-page-header__row,
+.ops-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.ops-page-header__row {
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.ops-page-actions {
+  flex-wrap: wrap;
+}
+
+.ops-list-shell.page-header-card {
+  position: static;
+  top: auto;
+  z-index: auto;
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem !important;
+  padding: 0 !important;
+  overflow: visible;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.ops-page-head,
+.ops-list-toolbar {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+
+.ops-page-head {
+  padding: 0.78rem 0.95rem;
+}
+
+.ops-list-toolbar {
+  padding: 0.7rem 0.85rem;
+}
+
+.ops-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.85rem;
+  padding: 0.25rem 0.58rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-table-card {
+  overflow: hidden;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface-card) !important;
+  box-shadow: none !important;
+}
+
+.ops-table-card .table {
+  margin-bottom: 0;
+  --bs-table-bg: var(--surface-card);
+  --bs-table-color: var(--color-text);
+  --bs-table-border-color: var(--color-border);
+}
+
+.ops-table-card thead th {
+  background: var(--surface-raised) !important;
+  color: var(--color-text-muted) !important;
+  border-bottom-color: var(--color-border);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ops-table-card tbody td {
+  border-color: var(--color-border);
+}
+
+.ops-empty-state-row > td {
+  padding: 2.75rem 1rem !important;
+  background: var(--surface-card) !important;
+  color: var(--color-text-muted) !important;
+  text-align: center;
+}
+
+.ops-task-modal .modal-dialog {
+  width: min(860px, calc(100vw - 1.7rem));
+  max-width: min(860px, calc(100vw - 1.7rem));
+  margin: 0.85rem auto;
+}
+
+.ops-task-modal .modal-content,
+.ops-editor-modal .modal-content {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: 0 16px 44px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+}
+
+.ops-task-modal .modal-header,
+.ops-editor-modal .modal-header {
+  border-bottom-color: var(--color-border);
+  background: var(--surface-card);
+}
+
+.ops-task-modal .modal-body,
+.ops-editor-modal .modal-body {
+  background: var(--surface-card);
+}
+
+.ops-task-modal .modal-footer,
+.ops-editor-modal .modal-footer {
+  border-top-color: var(--color-border);
+  background: var(--surface-card);
+}
+
+/* Tasks: the former sticky mega-header becomes two calm stationary surfaces. */
+[data-ui-page='tasks'] .tasks-sticky-bar.ops-list-shell {
+  position: static;
+}
+
+[data-ui-page='tasks'] .tasks-header-row.ops-page-head {
+  margin: 0;
+}
+
+[data-ui-page='tasks'] .tasks-metrics-row.ops-list-toolbar {
+  margin: 0;
+}
+
+[data-ui-page='tasks'] .tasks-table-card.ops-table-card {
+  border-radius: var(--radius-lg) !important;
+}
+
+[data-ui-page='tasks'] #filtersModal.ops-task-modal .modal-body {
+  padding: 1rem 1.05rem 1.1rem;
+}
+
+[data-ui-page='tasks'] #filtersModal.ops-task-modal .modal-footer {
+  padding-top: 0.75rem;
+}
+
+[data-ui-page='tasks'] #taskModal.ops-editor-modal .tasks-modal-content {
+  box-shadow: 0 16px 44px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+}
+
+/* Clients: search/blacklist are one quiet working toolbar. */
+[data-ui-page='clients'] .clients-page-shell {
+  max-width: 1600px;
+}
+
+[data-ui-page='clients'] .clients-filter-panel.ops-list-toolbar {
+  padding: 0.72rem 0.85rem;
+  background: var(--surface-card);
+}
+
+[data-ui-page='clients'] .clients-toolbar {
+  grid-template-columns: minmax(18rem, 1fr) minmax(12rem, auto);
+  gap: 0.75rem;
+}
+
+[data-ui-page='clients'] .clients-table-card.ops-table-card {
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .ops-table-card tbody tr:not(.ops-empty-state-row):hover > td {
+    background: color-mix(in srgb, var(--primary) 3%, var(--surface-card));
+  }
+
+  .ops-page-head:hover,
+  .ops-list-toolbar:hover,
+  .ops-table-card:hover {
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .ops-page-header__row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ops-page-actions {
+    width: 100%;
+  }
+
+  [data-ui-page='clients'] .clients-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-task-modal .modal-dialog {
+    width: calc(100vw - 1rem);
+    max-width: calc(100vw - 1rem);
+    margin: 0.5rem auto;
+  }
+}
