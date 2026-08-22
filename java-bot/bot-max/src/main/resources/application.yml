@@ -6,8 +6,3 @@ spring:
     import: "classpath:/application-shared.yml"
   main:
     web-application-type: servlet
-
-# MAX-specific log identity; shared Logback falls back to bot-telegram.log otherwise.
-logging:
-  file:
-    name: logs/bot-max.log

@@ -1,12 +1,16 @@
 package com.example.panel.service;
 
 import com.example.panel.storage.AttachmentObjectStorageService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -17,9 +21,17 @@ public class PanelUserPhotoService {
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
 
     private final AttachmentObjectStorageService attachmentObjectStorageService;
+    private Path legacyLocalAvatarsRoot = Paths.get("attachments/avatars").toAbsolutePath().normalize();
 
     public PanelUserPhotoService(AttachmentObjectStorageService attachmentObjectStorageService) {
         this.attachmentObjectStorageService = attachmentObjectStorageService;
+    }
+
+    @Value("${app.storage.avatars:attachments/avatars}")
+    void configureLegacyLocalAvatarsRoot(String avatarsDir) {
+        if (StringUtils.hasText(avatarsDir)) {
+            this.legacyLocalAvatarsRoot = Paths.get(avatarsDir).toAbsolutePath().normalize();
+        }
     }
 
     public String resolveUrl(String photo) {
@@ -69,7 +81,8 @@ public class PanelUserPhotoService {
 
     private String resolveLegacyUserPhotoPath(String value) {
         String filename = extractFilename(value);
-        if (StringUtils.hasText(filename) && avatarExists(filename)) {
+        if (StringUtils.hasText(filename)
+                && (avatarExists(filename) || migrateLegacyLocalAvatar(filename))) {
             return buildStoredAvatarUrl(filename);
         }
         return value.startsWith("/") ? value : "/" + value;
@@ -77,7 +90,10 @@ public class PanelUserPhotoService {
 
     private String resolveStoredAvatarPath(String rawFilename) {
         String filename = extractFilename(rawFilename);
-        if (!StringUtils.hasText(filename) || !avatarExists(filename)) {
+        if (!StringUtils.hasText(filename)) {
+            return null;
+        }
+        if (!avatarExists(filename) && !migrateLegacyLocalAvatar(filename)) {
             return null;
         }
         return buildStoredAvatarUrl(filename);
@@ -89,6 +105,24 @@ public class PanelUserPhotoService {
 
     private boolean avatarExists(String filename) {
         return attachmentObjectStorageService.avatarExists(filename);
+    }
+
+    private boolean migrateLegacyLocalAvatar(String filename) {
+        if (!StringUtils.hasText(filename)) {
+            return false;
+        }
+        Path source = legacyLocalAvatarsRoot.resolve(filename).normalize();
+        if (!source.startsWith(legacyLocalAvatarsRoot) || !Files.isRegularFile(source)) {
+            return false;
+        }
+        try (InputStream inputStream = Files.newInputStream(source)) {
+            attachmentObjectStorageService
+                    .storeAvatar(filename, Files.probeContentType(source), inputStream)
+                    .close();
+            return avatarExists(filename);
+        } catch (IOException | RuntimeException ex) {
+            return false;
+        }
     }
 
     private String extractFilename(String rawValue) {
