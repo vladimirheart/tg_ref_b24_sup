@@ -16,173 +16,12 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
-    <style>
-        .incident-shell {
-			display: grid;
-			align-content: start;
-			gap: 1rem;
-		}
-
-		.incident-shell > .page-header-card {
-			margin-bottom: 0;
-		}
-
-        .incident-grid {
-            display: grid;
-            gap: 1rem;
-            grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
-            align-items: start;
-        }
-
-        .incident-filter-grid,
-        .incident-create-grid,
-        .incident-route-grid {
-            display: grid;
-            gap: .75rem;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        }
-
-        .incident-list-shell,
-        .incident-detail-shell,
-        .incident-stream-shell {
-            min-height: 240px;
-        }
-
-        .incident-list-row {
-            cursor: pointer;
-            transition: background-color .15s ease;
-        }
-
-		.incident-list-row-button {
-			width: 100%;
-			padding: 0;
-
-			border: 0;
-			background: transparent;
-			color: inherit;
-
-			font: inherit;
-			text-align: left;
-
-			cursor: pointer;
-		}
-
-		.incident-list-row-button:focus-visible {
-			outline: 2px solid var(--ring);
-			outline-offset: 3px;
-			border-radius: var(--radius-sm);
-		}
-
-        .incident-list-row.is-active {
-			background:
-				color-mix(
-					in srgb,
-					var(--primary) 12%,
-					transparent
-				);
-		}
-
-		.incident-list-row:hover {
-			background:
-				color-mix(
-					in srgb,
-					var(--primary) 6%,
-					transparent
-				);
-		}
-
-        .incident-kpi-grid {
-            display: grid;
-            gap: .75rem;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        }
-
-        .incident-kpi-card {
-			border: 1px solid var(--color-border);
-			border-radius: 1rem;
-			padding: .85rem 1rem;
-
-			background:
-				linear-gradient(
-					180deg,
-					var(--surface-card),
-					var(--surface-raised)
-				);
-		}
-
-		.incident-kpi-label {
-			font-size: .78rem;
-			color: var(--color-text-muted);
-			text-transform: uppercase;
-			letter-spacing: .04em;
-		}
-
-		.incident-kpi-value {
-			font-size: 1.35rem;
-			font-weight: 700;
-			color: var(--color-text);
-		}
-
-        .incident-detail-columns {
-            display: grid;
-            gap: 1rem;
-            grid-template-columns: minmax(0, 1.2fr) minmax(290px, .8fr);
-        }
-
-        .incident-meta-list,
-        .incident-event-list,
-        .incident-route-list,
-        .incident-watcher-list,
-        .transport-log-list {
-            display: grid;
-            gap: .75rem;
-        }
-
-        .incident-surface-item,
-		.transport-item-card {
-			border: 1px solid var(--color-border);
-			border-radius: 1rem;
-			padding: .85rem 1rem;
-			background: var(--surface-card);
-			color: var(--color-text);
-		}
-
-        .incident-event-text {
-            white-space: pre-wrap;
-        }
-
-        .incident-code {
-            font-family: Consolas, "SFMono-Regular", Menlo, monospace;
-            font-size: .82rem;
-        }
-
-        .transport-columns {
-            display: grid;
-            gap: 1rem;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        }
-
-        .transport-item-card pre,
-        .incident-surface-item pre {
-            white-space: pre-wrap;
-            word-break: break-word;
-            margin: 0;
-        }
-
-        @media (max-width: 1199px) {
-            .incident-grid,
-            .incident-detail-columns,
-            .transport-columns {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="incidents" data-ui-density="compact">
 <div th:replace="~{fragments/navbar :: navbar('incidents')}"></div>
 
-<main class="main-content container-fluid py-4 page-shell incident-shell">
-    <div class="page-header-card page-header-card--compact">
+<main class="main-content container-fluid py-4 page-shell incident-shell ops-page-shell">
+    <div class="page-header-card page-header-card--compact ops-page-header">
         <span class="page-kicker">Incident command surface</span>
         <h1 class="page-title">Инциденты и integration recovery</h1>
         <p class="page-subtitle mb-0">
@@ -204,7 +43,7 @@
 
     <div class="tab-content">
         <section class="tab-pane fade show active pt-3" id="incidentWorkbenchIncidentsPane" role="tabpanel" aria-labelledby="incidentWorkbenchIncidentsTab">
-            <div class="card mb-3">
+            <div class="card mb-3 ops-section-card">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <strong>Фильтры и создание incident</strong>
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentWorkbenchRefresh">Обновить</button>
@@ -323,7 +162,7 @@
 							   aria-label="Наблюдатели incident через запятую">
 
 						<button type="button"
-								class="btn btn-sm btn-success"
+								class="btn btn-sm btn-primary"
 								id="incidentWorkbenchCreate">
 							Создать incident
 						</button>
@@ -332,7 +171,7 @@
             </div>
 
             <div class="incident-grid">
-                <section class="card incident-list-shell">
+                <section class="card incident-list-shell ops-section-card">
                     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
 						<strong>Список incidents</strong>
 
@@ -361,11 +200,11 @@
                     </div>
                 </section>
 
-                <section class="card incident-detail-shell">
+                <section class="card incident-detail-shell ops-section-card">
                     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                         <strong>Incident detail</strong>
                         <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentWorkbenchSaveIncident">Сохранить</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="incidentWorkbenchSaveIncident">Сохранить</button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentWorkbenchRedeliverFailedRoutes">Redeliver failed routes</button>
                         </div>
                     </div>
@@ -377,7 +216,7 @@
         </section>
 
         <section class="tab-pane fade pt-3" id="incidentWorkbenchTransportPane" role="tabpanel" aria-labelledby="incidentWorkbenchTransportTab" th:if="${canViewAnalytics}">
-            <div class="card mb-3">
+            <div class="card mb-3 ops-section-card">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
 					<strong>
 						Transport replay / compensation / checkpoints

@@ -18,10 +18,10 @@
 </head>
 <body class="with-sidebar sidebar-pinned passport-detail-page" data-ui-page="passports">
 <div th:replace="~{fragments/navbar :: navbar('passports')}"></div>
-<main class="main-content container-fluid py-4 page-shell passports-page-shell"
+<main class="main-content container-fluid py-4 page-shell passports-page-shell ops-page-shell"
 		  th:if="${item != null}">
 
-		<div class="page-header-card passports-page-header mb-4">
+		<div class="page-header-card passports-page-header mb-4 ops-page-header">
 			<div>
 				<span class="page-kicker">Паспорт объекта</span>
 
@@ -35,7 +35,7 @@
 				</p>
 			</div>
 
-			<div class="passports-page-actions">
+			<div class="passports-page-actions ops-page-actions">
 				<a class="btn btn-outline-secondary"
 				   th:href="@{/object-passports}">
 					К каталогу
@@ -45,7 +45,7 @@
 
     <div class="row g-4">
         <div class="col-12 col-lg-8">
-            <div class="card passport-detail-card h-100">
+            <div class="card passport-detail-card h-100 ops-section-card">
 				<div class="card-body">
 					<dl class="row mb-0 passport-detail-list">
                         <dt class="col-sm-4">Тип</dt>
@@ -73,7 +73,7 @@
             </div>
         </div>
         <div class="col-12 col-lg-4">
-            <div class="card passport-detail-card passport-photo-card h-100">
+            <div class="card passport-detail-card passport-photo-card h-100 ops-section-card">
 				<div class="card-body">
 					<div class="passport-detail-section-title">
 						Фото

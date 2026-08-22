@@ -8813,6 +8813,257 @@ body[data-ui-page=users] .admin-empty-cell {
     border-radius: var(--radius-md) !important;
   }
 }
+/* Calm Operations monitoring + passports + incidents rollout v19 */
+/* Analytics child monitoring */
+[data-ui-page=analytics].analytics-monitoring-page .analytics-page-header.ops-page-header {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=analytics].analytics-monitoring-page .analytics-section-card.ops-section-card {
+  margin-bottom: 1rem !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+[data-ui-page=analytics].analytics-monitoring-page .analytics-monitor-overview-panel {
+  padding: 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: none;
+}
+
+[data-ui-page=analytics].analytics-monitoring-page .ops-task-modal .modal-content,
+[data-ui-page=analytics].analytics-monitoring-page .ops-editor-modal .modal-content {
+  background: var(--surface-card) !important;
+}
+
+[data-ui-page=analytics].analytics-monitoring-page .ops-task-modal .modal-body,
+[data-ui-page=analytics].analytics-monitoring-page .ops-editor-modal .modal-body {
+  background: var(--surface-card) !important;
+}
+
+/* Passports */
+[data-ui-page=passports] .passports-page-header.ops-page-header {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=passports].passports-list-page .passport-summary-panel.ops-list-toolbar {
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+[data-ui-page=passports].passports-list-page .passport-table-card.ops-table-card {
+  border-radius: var(--radius-lg) !important;
+}
+
+[data-ui-page=passports].passport-detail-page .passport-detail-card.ops-section-card,
+[data-ui-page=passports].passport-editor-page .passport-card.ops-section-card,
+[data-ui-page=passports].passport-editor-page .equipment-card.ops-section-card,
+[data-ui-page=passports].passport-editor-page .photo-card.ops-section-card {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=passports].passport-editor-page .ops-section-card > .card-header {
+  background: var(--surface-card) !important;
+}
+
+/* Incidents — migrated from incidents/index.html */
+.incident-shell {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.incident-shell > .page-header-card {
+  margin-bottom: 0;
+}
+
+.incident-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.incident-filter-grid,
+.incident-create-grid,
+.incident-route-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.incident-list-shell,
+.incident-detail-shell,
+.incident-stream-shell {
+  min-height: 240px;
+}
+
+.incident-list-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.incident-list-row-button {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.incident-list-row-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.incident-list-row.is-active {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.incident-list-row:hover {
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+.incident-kpi-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.incident-kpi-card {
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(180deg, var(--surface-card), var(--surface-raised));
+}
+
+.incident-kpi-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.incident-kpi-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.incident-detail-columns {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.2fr) minmax(290px, 0.8fr);
+}
+
+.incident-meta-list,
+.incident-event-list,
+.incident-route-list,
+.incident-watcher-list,
+.transport-log-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.incident-surface-item,
+.transport-item-card {
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface-card);
+  color: var(--color-text);
+}
+
+.incident-event-text {
+  white-space: pre-wrap;
+}
+
+.incident-code {
+  font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.82rem;
+}
+
+.transport-columns {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.transport-item-card pre,
+.incident-surface-item pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+@media (max-width: 1199px) {
+  .incident-grid,
+  .incident-detail-columns,
+  .transport-columns {
+    grid-template-columns: 1fr;
+  }
+}
+/* Calm incident composition overrides */
+[data-ui-page=incidents] .incident-shell {
+  max-width: 1600px;
+}
+
+[data-ui-page=incidents] .page-header-card.ops-page-header {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=incidents] .ops-section-card {
+  border-radius: var(--radius-lg) !important;
+}
+
+[data-ui-page=incidents] .incident-kpi-card {
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: none;
+}
+
+[data-ui-page=incidents] .incident-surface-item,
+[data-ui-page=incidents] .transport-item-card {
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: none;
+}
+
+[data-ui-page=incidents] #incidentWorkbenchTabs {
+  gap: 0.25rem;
+  padding: 0 0 0.4rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+[data-ui-page=incidents] #incidentWorkbenchTabs .nav-link {
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+}
+
+[data-ui-page=incidents] #incidentWorkbenchTabs .nav-link.active {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+@media (hover: hover) {
+  [data-ui-page=incidents] .incident-kpi-card:hover,
+  [data-ui-page=incidents] .incident-surface-item:hover,
+  [data-ui-page=incidents] .transport-item-card:hover {
+    transform: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+  }
+}
 /* Calm Operations interaction policy v9 */
 /*
  * Structural surfaces stay spatially stable on hover.

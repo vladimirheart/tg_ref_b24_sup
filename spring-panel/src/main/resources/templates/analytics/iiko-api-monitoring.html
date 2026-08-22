@@ -17,8 +17,8 @@
 <body class="with-sidebar sidebar-pinned analytics-monitoring-page" data-ui-page="analytics">
 <div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
 
-<main class="main-content container-fluid py-4 page-shell">
-    <div class="page-header-card analytics-page-header mb-4">
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
+    <div class="page-header-card analytics-page-header mb-4 ops-page-header">
         <div>
             <span class="page-kicker">Мониторинг интеграций</span>
             <h1 class="page-title">Мониторинг iiko API</h1>
@@ -28,7 +28,7 @@
             </p>
         </div>
 
-        <div class="analytics-page-actions">
+        <div class="analytics-page-actions ops-page-actions">
             <a class="btn btn-outline-secondary"
                th:href="@{/analytics}">
                 Назад в аналитику
@@ -38,7 +38,7 @@
                     type="button">
                 Добавить монитор
             </button>
-            <button class="btn btn-outline-primary"
+            <button class="btn btn-outline-secondary"
                     id="refreshIikoBtn"
                     type="button">
                 Запустить проверки
@@ -46,7 +46,7 @@
         </div>
     </div>
 
-    <div class="card analytics-section-card mb-4">
+    <div class="card analytics-section-card mb-4 ops-section-card">
         <div class="card-body">
             <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
                 <span class="badge text-bg-success">OK</span>
@@ -71,9 +71,9 @@
         </div>
     </div>
 
-    <div class="card analytics-section-card">
+    <div class="card analytics-section-card ops-section-card">
         <div class="card-body">
-            <div class="table-responsive analytics-table-shell">
+            <div class="table-responsive analytics-table-shell ops-table-shell">
                 <table class="table align-middle mb-0">
                     <thead>
                     <tr>
@@ -98,7 +98,7 @@
     </div>
 </main>
 
-<div class="modal fade" id="iikoCreateModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ops-editor-modal" id="iikoCreateModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <form class="modal-content" id="iikoCreateForm">
             <div class="modal-header">
@@ -198,7 +198,7 @@
     </div>
 </div>
 
-<div class="modal fade" id="iikoEditModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ops-editor-modal" id="iikoEditModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <form class="modal-content" id="iikoEditForm">
             <div class="modal-header">

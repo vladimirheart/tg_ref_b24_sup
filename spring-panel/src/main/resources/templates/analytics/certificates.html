@@ -17,8 +17,8 @@
 <body class="with-sidebar sidebar-pinned analytics-monitoring-page" data-ui-page="analytics">
 <div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
 
-<main class="main-content container-fluid py-4 page-shell">
-    <div class="page-header-card analytics-page-header mb-4">
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
+    <div class="page-header-card analytics-page-header mb-4 ops-page-header">
         <div>
             <span class="page-kicker">Мониторинг инфраструктуры</span>
             <h1 class="page-title">SSL сертификаты</h1>
@@ -28,7 +28,7 @@
             </p>
         </div>
 
-        <div class="analytics-page-actions">
+        <div class="analytics-page-actions ops-page-actions">
             <a class="btn btn-outline-secondary"
                th:href="@{/analytics}">
                 Назад в аналитику
@@ -38,7 +38,7 @@
                     type="button">
                 Добавить сайт
             </button>
-            <button class="btn btn-outline-primary"
+            <button class="btn btn-outline-secondary"
                     id="refreshAllCertificatesBtn"
                     type="button">
                 Обновить сертификаты
@@ -46,7 +46,7 @@
         </div>
     </div>
 
-    <div class="card analytics-section-card mb-4">
+    <div class="card analytics-section-card mb-4 ops-section-card">
         <div class="card-body">
             <div class="row g-4">
                 <div class="col-12 col-xl-7">
@@ -89,9 +89,9 @@
         </div>
     </div>
 
-    <div class="card analytics-section-card">
+    <div class="card analytics-section-card ops-section-card">
         <div class="card-body">
-            <div class="table-responsive analytics-table-shell">
+            <div class="table-responsive analytics-table-shell ops-table-shell">
                 <table class="table align-middle mb-0" id="certificateMonitoringTable">
                     <thead>
                     <tr>
@@ -149,7 +149,7 @@
     </div>
 </main>
 
-<div class="modal fade" id="certificateCreateModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ops-task-modal" id="certificateCreateModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <form class="modal-content" id="certificateSiteCreateForm">
             <div class="modal-header">
@@ -185,7 +185,7 @@
     </div>
 </div>
 
-<div class="modal fade" id="certificateEditModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ops-task-modal" id="certificateEditModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <form class="modal-content" id="certificateEditForm">
             <div class="modal-header">

@@ -36,9 +36,9 @@
 </head>
 <body class="with-sidebar sidebar-pinned passport-editor-page" data-ui-page="passports">
   <div th:replace="~{fragments/navbar :: navbar('passports')}"></div>
-  <main class="main-content container-fluid py-4 page-shell passports-page-shell">
+  <main class="main-content container-fluid py-4 page-shell passports-page-shell ops-page-shell">
     <div class="passport-container">
-      <div class="page-header-card passports-page-header passport-editor-header mb-4">
+      <div class="page-header-card passports-page-header passport-editor-header mb-4 ops-page-header">
 			<div class="passport-editor-identity">
 				<div>
 					<span class="page-kicker">Инфраструктура объекта</span>
@@ -73,7 +73,7 @@
 				</div>
 			</div>
 
-			<div class="passports-page-actions">
+			<div class="passports-page-actions ops-page-actions">
 				<a class="btn btn-outline-secondary"
 				   href="/object-passports"
 				   target="_self">
@@ -93,7 +93,7 @@
 			 id="saveStatus">
 		</div>
 
-      <div class="card passport-card mb-4" id="basicInfoCard">
+      <div class="card passport-card mb-4 ops-section-card" id="basicInfoCard">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#basicInfoBody">
           <span>Основная информация</span>
           <div class="d-flex gap-2">
@@ -315,7 +315,7 @@
       </div>
       </div>
 
-      <div class="card passport-card mb-4" id="networkCard">
+      <div class="card passport-card mb-4 ops-section-card" id="networkCard">
       <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#networkBody">
           <span>Информация о сети</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#networkBody" aria-expanded="false">Развернуть ▼</button>
@@ -414,7 +414,7 @@
         </div>
       </div>
 
-      <div class="card passport-card mb-4" id="scheduleCard">
+      <div class="card passport-card mb-4 ops-section-card" id="scheduleCard">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#scheduleBody">
           <span>Расписание</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#scheduleBody" aria-expanded="false">Развернуть ▼</button>
@@ -451,7 +451,7 @@
         </div>
       </div>
 
-      <div class="card passport-card mb-4" id="casesCard">
+      <div class="card passport-card mb-4 ops-section-card" id="casesCard">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#casesBody">
           <span>Обращения по локации</span>
           <div class="d-flex gap-2">
@@ -480,7 +480,7 @@
         </div>
       </div>
 
-      <div class="card passport-card mb-4" id="tasksCard">
+      <div class="card passport-card mb-4 ops-section-card" id="tasksCard">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#tasksBody">
           <span>Задачи по локации</span>
           <div class="d-flex gap-2">
@@ -510,7 +510,7 @@
         </div>
       </div>
 
-      <div class="card passport-card mb-4" id="photosSection">
+      <div class="card passport-card mb-4 ops-section-card" id="photosSection">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#photosBody">
           <span>Фотографии объекта</span>
           <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#photosBody" aria-expanded="false">Развернуть ▼</button>
@@ -544,7 +544,7 @@
         </div>
       </div>
 
-      <div class="card passport-card mb-5" id="equipmentSection">
+      <div class="card passport-card mb-5 ops-section-card" id="equipmentSection">
         <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#equipmentBody">
           <span>Структура оборудования</span>
 			<div class="d-flex gap-2">
@@ -3080,7 +3080,7 @@
         const isTitleCategory = categoryValue === 'title';
         const categoryLabel = isTitleCategory ? 'Титульное' : 'Архивное';
         col.innerHTML = `
-          <div class="card h-100 photo-card" data-id="${photo.id != null ? photo.id : ''}">
+          <div class="card h-100 photo-card ops-section-card" data-id="${photo.id != null ? photo.id : ''}">
             <div class="position-relative">
               ${isTitleCategory ? '<span class="title-indicator">✔</span>' : ''}
               <div class="dropdown photo-toolbar">
@@ -3498,7 +3498,7 @@
         const isNew = item.id === null || typeof item.id === 'undefined';
         const equipmentKey = ensureEquipmentKey(item, index);
         const card = document.createElement('div');
-        card.className = 'card mb-4 equipment-card';
+        card.className = 'card mb-4 equipment-card ops-section-card';
         card.dataset.id = isNew ? `new-${index}` : item.id;
         card.dataset.equipmentKey = equipmentKey;
         const typeValues = getCombinedCatalogOptions('equipment_type', {
