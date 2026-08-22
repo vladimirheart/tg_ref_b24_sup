@@ -12,8 +12,8 @@
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="analytics">
 <div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
-<main class="main-content container-fluid py-4 page-shell">
-    <div class="page-header-card analytics-page-header mb-4">
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
+    <div class="page-header-card analytics-page-header mb-4 ops-page-header">
         <div>
             <span class="page-kicker">
                 Операционная аналитика
@@ -29,10 +29,10 @@
             </p>
         </div>
 
-        <div class="analytics-page-actions">
-            <a class="btn btn-outline-primary" th:href="@{/analytics/certificates}">Мониторинг SSL</a>
-            <a class="btn btn-outline-primary" th:href="@{/analytics/rms-control}">Контроль RMS</a>
-            <a class="btn btn-outline-primary" th:href="@{/analytics/iiko-api-monitoring}">Мониторинг iiko API</a>
+        <div class="analytics-page-actions ops-page-actions">
+            <a class="btn btn-outline-secondary" th:href="@{/analytics/certificates}">Мониторинг SSL</a>
+            <a class="btn btn-outline-secondary" th:href="@{/analytics/rms-control}">Контроль RMS</a>
+            <a class="btn btn-outline-secondary" th:href="@{/analytics/iiko-api-monitoring}">Мониторинг iiko API</a>
             <form method="post" th:action="@{/analytics/export}">
                 <input type="hidden" name="_csrf" th:value="${_csrf.token}">
                 <button class="btn btn-outline-secondary"
@@ -43,7 +43,7 @@
         </div>
     </div>
 
-    <div class="card analytics-section-card mb-4"
+    <div class="card analytics-section-card mb-4 ops-section-card"
 		id="analyticsBotRuntimeCard">
         <div class="card-header analytics-section-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
             <div>
@@ -65,7 +65,7 @@
                 <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Ошибки</div><div class="h5 mb-0 text-danger" data-bot-runtime-metric="error">—</div></div></div>
             </div>
             <div class="alert alert-danger d-none" id="analyticsBotRuntimeError" role="alert"></div>
-            <div class="table-responsive analytics-table-shell analytics-scroll-area">
+            <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                 <table class="table align-middle">
                     <thead>
                     <tr>
@@ -86,7 +86,7 @@
         </div>
     </div>
 
-    <div class="card analytics-section-card mb-4" id="analyticsIntegrationTransportCard">
+    <div class="card analytics-section-card mb-4 ops-section-card" id="analyticsIntegrationTransportCard">
         <div class="card-header analytics-section-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
             <div>
                 <h2 class="h5 mb-1">Integration Transport Ops</h2>
@@ -129,7 +129,7 @@
             <div class="row g-3">
                 <div class="col-12 col-xl-6">
                     <h3 class="h6 mb-2">Replayable inbound events</h3>
-                    <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                    <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                         <table class="table align-middle table-sm">
                             <thead>
                             <tr>
@@ -148,7 +148,7 @@
                 </div>
                 <div class="col-12 col-xl-6">
                     <h3 class="h6 mb-2">Replayable outbound publish events</h3>
-                    <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                    <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                         <table class="table align-middle table-sm">
                             <thead>
                             <tr>
@@ -169,7 +169,7 @@
                     <h3 class="h6 mb-2">Transport incidents / worker checkpoints</h3>
                     <div class="row g-3">
                         <div class="col-12 col-xl-7">
-                            <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                            <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                                 <table class="table align-middle table-sm">
                                     <thead>
                                     <tr>
@@ -186,7 +186,7 @@
                             </div>
                         </div>
                         <div class="col-12 col-xl-5">
-                            <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                            <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                                 <table class="table align-middle table-sm">
                                     <thead>
                                     <tr>
@@ -226,7 +226,7 @@
                             </div>
                             <div class="col-12 col-xl-8">
                                 <h4 class="h6 mb-2">Worker incidents</h4>
-                                <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                                <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                                     <table class="table align-middle table-sm">
                                         <thead>
                                         <tr>
@@ -244,7 +244,7 @@
                             </div>
                             <div class="col-12 col-xl-7">
                                 <h4 class="h6 mb-2">Worker history</h4>
-                                <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                                <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                                     <table class="table align-middle table-sm">
                                         <thead>
                                         <tr>
@@ -263,7 +263,7 @@
                             </div>
                             <div class="col-12 col-xl-5">
                                 <h4 class="h6 mb-2">Worker recovery operations</h4>
-                                <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                                <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                                     <table class="table align-middle table-sm">
                                         <thead>
                                         <tr>
@@ -284,7 +284,7 @@
                 </div>
                 <div class="col-12 col-xl-7">
                     <h3 class="h6 mb-2">Recent transport health snapshots</h3>
-                    <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                    <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                         <table class="table align-middle table-sm">
                             <thead>
                             <tr>
@@ -304,7 +304,7 @@
                 </div>
                 <div class="col-12 col-xl-5">
                     <h3 class="h6 mb-2">Recent recovery operations</h3>
-                    <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                    <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                         <table class="table align-middle table-sm">
                             <thead>
                             <tr>
@@ -325,7 +325,7 @@
         </div>
     </div>
 
-    <div class="card analytics-section-card mb-4">
+    <div class="card analytics-section-card mb-4 ops-section-card">
         <div class="card-body analytics-bridge-body">
             <div>
                 <h2 class="h5 mb-1">Кросс-продуктовые KPI дашборды</h2>
@@ -373,7 +373,7 @@
 
     <div class="row g-4">
         <div class="col-12">
-            <div class="card analytics-section-card" id="workspaceTelemetryCard">
+            <div class="card analytics-section-card ops-section-card" id="workspaceTelemetryCard">
                 <div class="card-header analytics-section-header analytics-telemetry-header">
 					<div>
 						<h2 class="h5 mb-0">Workspace rollout guardrails</h2>
@@ -382,7 +382,7 @@
 						</small>
 					</div>
 
-					<div class="analytics-filter-bar">
+					<div class="analytics-filter-bar ops-list-toolbar">
 						<label class="small text-muted"
 							   for="workspaceTelemetryDays">
 							Окно:
@@ -1315,7 +1315,7 @@
             </div>
         </div>
         <div class="col-12 col-lg-7">
-            <div class="card analytics-section-card h-100">
+            <div class="card analytics-section-card h-100 ops-section-card">
 				<div class="card-header analytics-section-header">
 					<div>
 						<h2 class="h5 mb-0">Заявки по направлениям</h2>
@@ -1325,7 +1325,7 @@
 					</div>
 				</div>
                 <div class="card-body">
-                    <div class="table-responsive analytics-table-shell analytics-scroll-area">
+                    <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
                         <table class="table align-middle">
                             <thead>
                             <tr>
@@ -1355,7 +1355,7 @@
             </div>
         </div>
         <div class="col-12 col-lg-5">
-            <div class="card analytics-section-card h-100">
+            <div class="card analytics-section-card h-100 ops-section-card">
 				<div class="card-header analytics-section-header">
 					<h2 class="h5 mb-0">Активные клиенты</h2>
 				</div>

@@ -14,10 +14,10 @@
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="knowledge">
 <div th:replace="~{fragments/navbar :: navbar('knowledge')}"></div>
-<main class="main-content container-fluid py-4 page-shell">
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
     <div class="row g-4">
         <div class="col-12 col-xl-8">
-            <div class="card kb-editor-main">
+            <div class="card kb-editor-main ops-section-card">
                 <div class="card-body p-4">
                     <div class="alert mb-4"
                          th:if="${message != null and !message.isBlank()}"
@@ -40,7 +40,7 @@
 									Обновить из Notion
 								</button>
                             </form>
-                            <button class="btn btn-outline-primary"
+                            <button class="btn btn-outline-secondary"
                                     type="button"
                                     id="knowledgeArticleEditToggle"
                                     aria-expanded="false"
@@ -181,7 +181,7 @@
         </div>
 
         <div class="col-12 col-xl-4">
-            <div class="card mb-4 kb-editor-side">
+            <div class="card mb-4 kb-editor-side ops-section-card">
                 <div class="card-header kb-editor-side__header fw-semibold">Вложения</div>
                 <div class="card-body">
                     <p class="text-muted" th:if="${#lists.isEmpty(article.attachments)}">Нет загруженных файлов.</p>
@@ -193,7 +193,7 @@
                             </div>
                             <div class="d-flex flex-column align-items-end gap-2">
                                 <span class="badge text-bg-light" th:text="${file.size} != null ? ${#numbers.formatDecimal(file.size / 1024.0, 0, 'NONE', 1, 'HALF_UP')} + ' КБ' : ''"></span>
-                                <a class="btn btn-sm btn-outline-primary"
+                                <a class="btn btn-sm btn-outline-secondary"
                                    th:href="@{/api/attachments/knowledge-base/{fileId}(fileId=${file.storedPath})}">
                                     Скачать
                                 </a>

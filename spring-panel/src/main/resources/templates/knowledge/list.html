@@ -13,13 +13,9 @@
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="knowledge">
 <div th:replace="~{fragments/navbar :: navbar('knowledge')}"></div>
-<main class="main-content container-fluid py-4 page-shell">
-    <div class="page-header-card kb-page-header page-hero">
-		<div class="d-flex flex-wrap
-					justify-content-between
-					align-items-end
-					gap-3
-					kb-page-header__layout">
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
+    <div class="page-header-card kb-page-header page-hero ops-page-header">
+		<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 kb-page-header__layout ops-page-header__row">
 
 			<div>
 				<span class="page-kicker">
@@ -35,7 +31,7 @@
 				</p>
 			</div>
 
-			<div class="kb-page-header__actions">
+			<div class="kb-page-header__actions ops-page-actions">
 				<a class="btn btn-primary"
 				   th:if="${canCreate}"
 				   th:href="@{/knowledge-base/new}">
@@ -46,7 +42,7 @@
 		</div>
 	</div>
 
-    <div class="card mb-4 kb-import-card" id="notion-import">
+    <div class="card mb-4 kb-import-card ops-section-card" id="notion-import">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
                 <div>
@@ -184,7 +180,7 @@
 
                     <form th:action="@{/knowledge-base/notion/import}" method="post">
                         <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-                        <div class="table-responsive kb-notion-preview-table">
+                        <div class="table-responsive kb-notion-preview-table ops-table-shell">
                             <table class="table table-sm align-middle mb-0" id="notionImportPreviewTable">
                                 <thead>
                                 <tr>
@@ -331,7 +327,7 @@
         </div>
     </div>
 
-    <div class="card kb-index-card">
+    <div class="card kb-index-card ops-section-card">
         <div class="card-body">
             <div class="input-group mb-3">
                 <span class="input-group-text" aria-hidden="true">🔎</span>

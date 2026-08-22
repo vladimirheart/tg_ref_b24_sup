@@ -8458,13 +8458,9 @@ body[data-ui-page=users] .admin-empty-cell {
 
 /* Calm Operations list primitives v17 */
 /*
-
  * Shared visual grammar for operational list pages:
-
  * page head -> quiet toolbar -> one table surface -> task/editor modal.
-
  * Structural surfaces stay spatially stable on hover.
-
  */
 .ops-page-shell {
   width: 100%;
@@ -8675,6 +8671,146 @@ body[data-ui-page=users] .admin-empty-cell {
     width: calc(100vw - 1rem);
     max-width: calc(100vw - 1rem);
     margin: 0.5rem auto;
+  }
+}
+/* Calm Operations knowledge + analytics rollout v18 */
+/*
+ * Larger operational sections use one quiet surface. Table shells are separate
+ * from card surfaces so scroll containers keep their runtime overflow behavior.
+ */
+.ops-section-card {
+  overflow: hidden;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface-card) !important;
+  box-shadow: none !important;
+}
+
+.ops-section-card > .card-header {
+  padding: 0.8rem 0.95rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--surface-raised) !important;
+  color: var(--color-text);
+}
+
+.ops-section-card > .card-body {
+  background: var(--surface-card);
+}
+
+.ops-table-shell {
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface-card) !important;
+  box-shadow: none !important;
+}
+
+.ops-table-shell .table {
+  margin-bottom: 0;
+  --bs-table-bg: var(--surface-card);
+  --bs-table-color: var(--color-text);
+  --bs-table-border-color: var(--color-border);
+}
+
+.ops-table-shell thead th {
+  background: var(--surface-raised) !important;
+  color: var(--color-text-muted) !important;
+  border-bottom-color: var(--color-border);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* Knowledge */
+[data-ui-page=knowledge] .kb-page-header.ops-page-header {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=knowledge] .kb-import-card.ops-section-card,
+[data-ui-page=knowledge] .kb-index-card.ops-section-card,
+[data-ui-page=knowledge] .kb-editor-main.ops-section-card,
+[data-ui-page=knowledge] .kb-editor-side.ops-section-card {
+  border-radius: var(--radius-lg) !important;
+}
+
+[data-ui-page=knowledge] .kb-import-card.ops-section-card,
+[data-ui-page=knowledge] .kb-index-card.ops-section-card {
+  margin-bottom: 1rem !important;
+}
+
+[data-ui-page=knowledge] .kb-notion-status-card,
+[data-ui-page=knowledge] .kb-editor-meta-card {
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: none;
+}
+
+[data-ui-page=knowledge] .kb-notion-sync-card,
+[data-ui-page=knowledge] .kb-notion-preview,
+[data-ui-page=knowledge] .kb-article-content-card,
+[data-ui-page=knowledge] .kb-edit-source-card {
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface-raised) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=knowledge] .kb-notion-sync-card > .card-body,
+[data-ui-page=knowledge] .kb-notion-preview > .card-body,
+[data-ui-page=knowledge] .kb-article-content-card > .card-body,
+[data-ui-page=knowledge] .kb-edit-source-card > .card-body {
+  background: transparent;
+}
+
+[data-ui-page=knowledge] .kb-index-card .table-responsive,
+[data-ui-page=knowledge] .kb-import-card .table-responsive {
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+/* Analytics */
+[data-ui-page=analytics] .analytics-page-header.ops-page-header {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+
+[data-ui-page=analytics] .analytics-section-card.ops-section-card {
+  margin-bottom: 1rem !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+[data-ui-page=analytics] .analytics-section-card.ops-section-card > .card-header {
+  background: var(--surface-card) !important;
+}
+
+[data-ui-page=analytics] .analytics-metric-card {
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+[data-ui-page=analytics] .analytics-filter-bar.ops-list-toolbar {
+  padding: 0.6rem 0.7rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+[data-ui-page=analytics] .bg-body-tertiary {
+  border-color: var(--color-border) !important;
+  background: var(--surface-raised) !important;
+  color: var(--color-text) !important;
+}
+
+@media (hover: hover) {
+  .ops-section-card:hover,
+  .ops-table-shell:hover {
+    transform: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+  }
+}
+@media (max-width: 767.98px) {
+  .ops-section-card,
+  .ops-table-shell {
+    border-radius: var(--radius-md) !important;
   }
 }
 /* Calm Operations interaction policy v9 */
