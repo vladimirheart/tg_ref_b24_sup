@@ -953,7 +953,6 @@
             }
             return;
           }
-          return;
           options.handleMediaSurfaceClick?.(event);
         });
       }

@@ -497,8 +497,6 @@ body.with-sidebar.sidebar-hovering {
   transition: max-height 0.18s ease, opacity 0.18s ease, transform 0.18s ease, margin-top 0.18s ease;
 }
 
-.sidebar-nav .nav-link:hover .nav-label-sub,
-.sidebar-nav .nav-link:focus-visible .nav-label-sub,
 .sidebar-nav .nav-link.active .nav-label-sub {
   max-height: 2.8em;
   opacity: 1;
@@ -513,7 +511,7 @@ body.with-sidebar.sidebar-hovering {
 }
 
 .sidebar-nav .nav-link.active .icon {
-  transform: scale(1.02);
+  transform: none;
   border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
   background: var(--surface-selected);
   color: var(--primary);
