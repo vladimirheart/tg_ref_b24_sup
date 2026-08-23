@@ -4,6 +4,7 @@ import com.example.panel.config.RuntimeCoordinationProperties;
 import java.time.Instant;
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.UUID;
@@ -123,6 +124,36 @@ public class RuntimeCoordinationService {
         }
     }
 
+    public long cooldownRemainingSeconds(String cooldownName) {
+        String cooldownKey = buildCooldownKey(cooldownName);
+        if (!properties.isRedisMode()) {
+            return localCooldownRemainingSeconds(cooldownKey, Instant.now());
+        }
+        try {
+            Long ttlSeconds = stringRedisTemplate.getExpire(cooldownKey, TimeUnit.SECONDS);
+            return ttlSeconds == null || ttlSeconds <= 0L ? 0L : ttlSeconds;
+        } catch (RuntimeException ex) {
+            log.warn("Falling back to local cooldown TTL {} because Redis coordination is unavailable: {}",
+                cooldownName, ex.getMessage());
+            return localCooldownRemainingSeconds(cooldownKey, Instant.now());
+        }
+    }
+
+    public void clearCooldown(String cooldownName) {
+        String cooldownKey = buildCooldownKey(cooldownName);
+        if (!properties.isRedisMode()) {
+            localCooldowns.remove(cooldownKey);
+            return;
+        }
+        try {
+            stringRedisTemplate.delete(cooldownKey);
+        } catch (RuntimeException ex) {
+            log.warn("Falling back to local cooldown clear {} because Redis coordination is unavailable: {}",
+                cooldownName, ex.getMessage());
+            localCooldowns.remove(cooldownKey);
+        }
+    }
+
     public void runWithLease(String leaseName, Duration ttl, Runnable action) {
         if (action == null) {
             return;
@@ -184,6 +215,18 @@ public class RuntimeCoordinationService {
             return false;
         }
         return true;
+    }
+
+    private long localCooldownRemainingSeconds(String cooldownKey, Instant now) {
+        Instant expiresAt = localCooldowns.get(cooldownKey);
+        if (expiresAt == null) {
+            return 0L;
+        }
+        if (!expiresAt.isAfter(now)) {
+            localCooldowns.remove(cooldownKey, expiresAt);
+            return 0L;
+        }
+        return Math.max(1L, Duration.between(now, expiresAt).getSeconds());
     }
 
     private String buildLeaseKey(String leaseName) {

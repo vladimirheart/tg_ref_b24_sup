@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.service.IncidentOpsEscalationService;
 import com.example.panel.service.IncidentOpsMetricsService;
 import com.example.panel.service.IncidentService;
 import java.util.Map;
@@ -22,11 +23,14 @@ public class IncidentApiController {
 
     private final IncidentService incidentService;
     private final IncidentOpsMetricsService incidentOpsMetricsService;
+    private final IncidentOpsEscalationService incidentOpsEscalationService;
 
     public IncidentApiController(IncidentService incidentService,
-                                 IncidentOpsMetricsService incidentOpsMetricsService) {
+                                 IncidentOpsMetricsService incidentOpsMetricsService,
+                                 IncidentOpsEscalationService incidentOpsEscalationService) {
         this.incidentService = incidentService;
         this.incidentOpsMetricsService = incidentOpsMetricsService;
+        this.incidentOpsEscalationService = incidentOpsEscalationService;
     }
 
     @GetMapping
@@ -43,6 +47,35 @@ public class IncidentApiController {
     @GetMapping("/ops-summary")
     public Map<String, Object> opsSummary() {
         return incidentOpsMetricsService.buildSummary();
+    }
+
+    @GetMapping("/{id}/escalation-control")
+    public Map<String, Object> escalationControl(@PathVariable("id") Long id) {
+        return incidentOpsEscalationService.controlState(id);
+    }
+
+    @PostMapping("/{id}/escalation-mutes/{policy}")
+    public Map<String, Object> muteEscalation(@PathVariable("id") Long id,
+                                              @PathVariable("policy") String policy,
+                                              @RequestBody(required = false) Map<String, Object> payload,
+                                              Authentication authentication) {
+        return incidentOpsEscalationService.mutePolicy(
+            id,
+            policy,
+            payload == null ? null : payload.get("minutes"),
+            authentication != null ? authentication.getName() : null
+        );
+    }
+
+    @DeleteMapping("/{id}/escalation-mutes/{policy}")
+    public Map<String, Object> unmuteEscalation(@PathVariable("id") Long id,
+                                                @PathVariable("policy") String policy,
+                                                Authentication authentication) {
+        return incidentOpsEscalationService.unmutePolicy(
+            id,
+            policy,
+            authentication != null ? authentication.getName() : null
+        );
     }
 
     @GetMapping("/{id}")

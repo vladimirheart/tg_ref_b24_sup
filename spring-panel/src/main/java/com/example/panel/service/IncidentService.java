@@ -412,6 +412,36 @@ public class IncidentService {
         return true;
     }
     @Transactional
+    public boolean recordEscalationControlEvent(Long id,
+                                                String eventType,
+                                                String eventText,
+                                                Map<String, Object> details,
+                                                String actor) {
+        Incident incident = requireIncident(id);
+        OffsetDateTime now = OffsetDateTime.now();
+        String normalizedEventType = normalizeEventType(eventType);
+        String normalizedEventText = requiredText(eventText, "Укажите текст escalation control event.");
+        appendEvent(
+            incident,
+            normalizedEventType,
+            normalizedEventText,
+            details == null ? Map.of() : new LinkedHashMap<>(details),
+            actor,
+            now
+        );
+        incident.setUpdatedAt(now);
+        incidentRepository.save(incident);
+        log.info(
+            "Incident escalation control id={} key={} eventType={} actor={}",
+            incident.getId(),
+            incident.getIncidentKey(),
+            normalizedEventType,
+            normalizeNullableIdentity(actor)
+        );
+        return true;
+    }
+
+    @Transactional
     public Map<String, Object> addIncidentEvent(Long id, Map<String, Object> payload, String actor) {
         Incident incident = requireIncident(id);
         OffsetDateTime now = OffsetDateTime.now();

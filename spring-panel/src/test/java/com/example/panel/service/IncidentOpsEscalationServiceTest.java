@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
@@ -9,12 +11,16 @@ import static org.mockito.Mockito.when;
 
 import com.example.panel.entity.Incident;
 import com.example.panel.entity.IncidentRoute;
+import com.example.panel.repository.IncidentEventRepository;
 import com.example.panel.repository.IncidentRepository;
 import com.example.panel.repository.IncidentRouteRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +35,8 @@ class IncidentOpsEscalationServiceTest {
     @Mock
     private IncidentRouteRepository incidentRouteRepository;
     @Mock
+    private IncidentEventRepository incidentEventRepository;
+    @Mock
     private IncidentService incidentService;
     @Mock
     private RuntimeCoordinationService runtimeCoordinationService;
@@ -40,6 +48,8 @@ class IncidentOpsEscalationServiceTest {
         service = new IncidentOpsEscalationService(
             incidentRepository,
             incidentRouteRepository,
+            incidentEventRepository,
+            new ObjectMapper(),
             incidentService,
             runtimeCoordinationService,
             true,
@@ -100,6 +110,65 @@ class IncidentOpsEscalationServiceTest {
         );
     }
 
+    @Test
+    void mutedPolicySuppressesEscalationBeforeAutomaticCooldown() {
+        OffsetDateTime now = OffsetDateTime.of(2026, 8, 24, 0, 0, 0, 0, ZoneOffset.UTC);
+        Incident critical = incident(9L, "critical", "open", now.minusMinutes(15));
+
+        when(incidentRepository.findTop100BySeverityAndStatusNotInOrderByCreatedAtAscIdAsc(eq("critical"), any()))
+            .thenReturn(List.of(critical));
+        when(incidentRepository.findTop100ByCreatedAtBeforeAndStatusNotInOrderByCreatedAtAscIdAsc(any(OffsetDateTime.class), any()))
+            .thenReturn(List.of());
+        when(incidentRouteRepository.findTop200ByRouteStatusOrderByUpdatedAtAscIdAsc("failed"))
+            .thenReturn(List.of());
+        when(runtimeCoordinationService.isCooldownActive("incident-ops-escalation-mute:critical:9"))
+            .thenReturn(true);
+
+        service.evaluateOnce(now);
+
+        verify(runtimeCoordinationService, never()).tryAcquireCooldown(
+            eq("incident-ops-escalation:critical:9"),
+            any(Duration.class)
+        );
+        verify(incidentService, never()).escalateIncident(any(), any(), any(), anyMap(), any());
+    }
+
+    @Test
+    void mutePolicyUsesSharedCooldownAndReportsRemainingTtl() {
+        OffsetDateTime now = OffsetDateTime.of(2026, 8, 24, 0, 0, 0, 0, ZoneOffset.UTC);
+        Incident incident = incident(11L, "high", "investigating", now.minusMinutes(120));
+        when(incidentRepository.findById(11L)).thenReturn(Optional.of(incident));
+        when(incidentEventRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(11L)).thenReturn(List.of());
+        when(runtimeCoordinationService.cooldownRemainingSeconds(any()))
+            .thenAnswer(invocation ->
+                "incident-ops-escalation-mute:aged:11".equals(invocation.getArgument(0))
+                    ? 3600L
+                    : 0L
+            );
+
+        Map<String, Object> result = service.mutePolicy(11L, "aged", 60, "operator@example.test");
+
+        verify(runtimeCoordinationService).refreshCooldown(
+            "incident-ops-escalation-mute:aged:11",
+            Duration.ofMinutes(60)
+        );
+        verify(incidentService).recordEscalationControlEvent(
+            eq(11L),
+            eq("escalation_muted"),
+            any(),
+            anyMap(),
+            eq("operator@example.test")
+        );
+        assertEquals(true, result.get("success"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> policies = (List<Map<String, Object>>) result.get("policies");
+        Map<String, Object> agedPolicy = policies.stream()
+            .filter(item -> "aged".equals(item.get("policy")))
+            .findFirst()
+            .orElseThrow();
+        assertTrue(Boolean.TRUE.equals(agedPolicy.get("muted")));
+        assertEquals(3600L, agedPolicy.get("mute_remaining_seconds"));
+    }
     private Incident incident(Long id,
                               String severity,
                               String status,

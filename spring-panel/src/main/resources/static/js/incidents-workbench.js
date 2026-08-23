@@ -963,6 +963,9 @@ function restoreIncidentDetailFocus(
 	state.selectedIncidentId =
 		normalizedIncidentId;
 
+	detailNode.dataset.incidentId =
+		normalizedIncidentId;
+
 	// Старый detail больше нельзя использовать для действий,
 	// пока загружается новый incident.
 	state.selectedIncident = null;
@@ -1045,6 +1048,7 @@ function restoreIncidentDetailFocus(
 
     if (!incident) {
         state.incidentDetailDirty = false;
+        delete detailNode.dataset.incidentId;
 
         detailNode.innerHTML =
             '<div class="text-muted">Выберите incident слева, чтобы открыть workbench.</div>';
