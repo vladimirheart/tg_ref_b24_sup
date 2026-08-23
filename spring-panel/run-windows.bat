@@ -172,19 +172,58 @@ rem ---------------------------------------------------------------------------
 set "DEFAULT_PORT=%APP_HTTP_PORT%"
 if not defined DEFAULT_PORT set "DEFAULT_PORT=8080"
 
+set "PORT_RESOLVER=%SCRIPT_DIR%\scripts\resolve-panel-port.ps1"
+set "PORT_RESULT_FILE=%TEMP%\iguana-panel-port-!RANDOM!-!RANDOM!.txt"
+
+if not exist "!PORT_RESOLVER!" (
+    echo [ERROR] Missing port resolver:
+    echo [ERROR] !PORT_RESOLVER!
+    set "EXIT_CODE=1"
+    goto :Exit
+)
+
 if not defined APP_HTTP_PORT (
-    call :FindAvailablePort !DEFAULT_PORT!
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass ^
+        -File "!PORT_RESOLVER!" ^
+        -StartPort !DEFAULT_PORT! ^
+        -OutputPath "!PORT_RESULT_FILE!"
+
+    set "PORT_RESOLVE_EXIT=!ERRORLEVEL!"
+
+    if not "!PORT_RESOLVE_EXIT!"=="0" (
+        echo [ERROR] Unable to resolve a free panel HTTP port. Exit code !PORT_RESOLVE_EXIT!.
+        del "!PORT_RESULT_FILE!" >nul 2>&1
+        set "EXIT_CODE=1"
+        goto :Exit
+    )
+
+    set "APP_HTTP_PORT="
+    if exist "!PORT_RESULT_FILE!" set /p "APP_HTTP_PORT="<"!PORT_RESULT_FILE!"
+    del "!PORT_RESULT_FILE!" >nul 2>&1
+
+    if not defined APP_HTTP_PORT (
+        echo [ERROR] Port resolver returned no HTTP port.
+        set "EXIT_CODE=1"
+        goto :Exit
+    )
 
     if not "!APP_HTTP_PORT!"=="!DEFAULT_PORT!" (
-        call :DescribePortOwner !DEFAULT_PORT!
-        echo [INFO] Port !DEFAULT_PORT! is already in use!PORT_OWNER_MESSAGE! Falling back to APP_HTTP_PORT=!APP_HTTP_PORT!.
+        echo [INFO] Port !DEFAULT_PORT! is already listening. Falling back to APP_HTTP_PORT=!APP_HTTP_PORT!.
     )
 ) else (
-    call :CheckPort %APP_HTTP_PORT%
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass ^
+        -File "!PORT_RESOLVER!" ^
+        -StartPort !APP_HTTP_PORT! ^
+        -Exact
 
-    if "!PORT_BUSY!"=="1" (
-        call :DescribePortOwner %APP_HTTP_PORT%
-        echo [WARN] APP_HTTP_PORT=%APP_HTTP_PORT% appears to be in use!PORT_OWNER_MESSAGE! The application may fail to start.
+    set "PORT_CHECK_EXIT=!ERRORLEVEL!"
+
+    if "!PORT_CHECK_EXIT!"=="10" (
+        echo [WARN] APP_HTTP_PORT=!APP_HTTP_PORT! already has a TCP listener. The application may fail to start.
+    ) else if not "!PORT_CHECK_EXIT!"=="0" (
+        echo [ERROR] Unable to check APP_HTTP_PORT=!APP_HTTP_PORT!. Exit code !PORT_CHECK_EXIT!.
+        set "EXIT_CODE=1"
+        goto :Exit
     )
 )
 
@@ -404,72 +443,6 @@ if !LAST_UPDATED_COUNT! GTR 0 (
 
 goto :eof
 
-:CheckPort
-
-set "PORT_BUSY=0"
-set "PORT_TO_CHECK=%~1"
-
-if "%PORT_TO_CHECK%"=="" goto :eof
-
-for /f "tokens=1" %%P in ('netstat -ano -p tcp ^| findstr /R ":%PORT_TO_CHECK% .*LISTENING" 2^>nul') do (
-    set "PORT_BUSY=1"
-    goto :eof
-)
-
-goto :eof
-
-:DescribePortOwner
-
-set "PORT_OWNER_MESSAGE="
-set "PORT_OWNER_PID="
-set "PORT_OWNER_NAME="
-set "PORT_OWNER_PORT=%~1"
-
-if "%PORT_OWNER_PORT%"=="" goto :eof
-
-for /f "tokens=5" %%P in ('netstat -ano -p tcp ^| findstr /R ":%PORT_OWNER_PORT% .*LISTENING" 2^>nul') do (
-    set "PORT_OWNER_PID=%%P"
-    goto :DescribePortOwnerFound
-)
-
-goto :eof
-
-:DescribePortOwnerFound
-
-for /f "usebackq tokens=1 delims=," %%N in (`tasklist /FI "PID eq !PORT_OWNER_PID!" /FO CSV /NH 2^>nul`) do (
-    set "PORT_OWNER_NAME=%%~N"
-    goto :DescribePortOwnerReady
-)
-
-:DescribePortOwnerReady
-
-if defined PORT_OWNER_PID (
-    if defined PORT_OWNER_NAME (
-        set "PORT_OWNER_MESSAGE= (PID !PORT_OWNER_PID!, process !PORT_OWNER_NAME!)"
-    ) else (
-        set "PORT_OWNER_MESSAGE= (PID !PORT_OWNER_PID!)"
-    )
-)
-
-goto :eof
-
-:FindAvailablePort
-
-set "PORT_CANDIDATE=%~1"
-
-if "%PORT_CANDIDATE%"=="" set "PORT_CANDIDATE=8080"
-
-:FindAvailablePortLoop
-
-call :CheckPort !PORT_CANDIDATE!
-
-if "!PORT_BUSY!"=="0" (
-    set "APP_HTTP_PORT=!PORT_CANDIDATE!"
-    goto :eof
-)
-
-set /a PORT_CANDIDATE+=1
-goto :FindAvailablePortLoop
 
 :Exit
 
