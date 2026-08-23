@@ -9353,6 +9353,32 @@ body[data-ui-page=users] .admin-empty-cell {
     overflow: visible;
   }
 }
+/* Incident quick status v28 */
+[data-ui-page=incidents] .incident-kpi-card--status {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+[data-ui-page=incidents] .incident-kpi-value--control {
+  margin-top: 0.28rem;
+  font-size: 1rem;
+}
+
+[data-ui-page=incidents] .incident-status-quick-select {
+  width: 100%;
+  min-width: 8.5rem;
+  border-color: var(--color-border);
+  background: var(--surface-card);
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+[data-ui-page=incidents] .incident-status-quick-select:focus {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--color-border));
+  box-shadow: 0 0 0 0.16rem color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
 /* Calm Operations interaction policy v9 */
 /*
  * Structural surfaces stay spatially stable on hover.

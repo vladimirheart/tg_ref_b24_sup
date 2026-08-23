@@ -30,6 +30,25 @@
 	incidentDetailDrafts: new Map()
 };
 
+  const INCIDENT_STATUS_OPTIONS = Object.freeze([
+    { value: 'open', label: 'Открыт' },
+    { value: 'acknowledged', label: 'Принят' },
+    { value: 'investigating', label: 'В работе' },
+    { value: 'resolved', label: 'Решён' },
+    { value: 'closed', label: 'Закрыт' }
+  ]);
+
+  function incidentStatusLabel(value) {
+    const normalized = String(value || '').trim();
+    return INCIDENT_STATUS_OPTIONS.find((item) => item.value === normalized)?.label || normalized || '—';
+  }
+
+  function renderIncidentStatusOptions(currentStatus) {
+    return INCIDENT_STATUS_OPTIONS.map((item) => `
+      <option value="${escapeHtml(item.value)}" ${item.value === currentStatus ? 'selected' : ''}>${escapeHtml(item.label)}</option>
+    `).join('');
+  }
+
   const filterNodes = {
     query: document.getElementById('incidentWorkbenchQuery'),
     status: document.getElementById('incidentWorkbenchStatusFilter'),
@@ -322,7 +341,6 @@ const INCIDENT_DETAIL_FIELD_IDS = [
     'incidentDetailTitle',
     'incidentDetailSummary',
     'incidentDetailSeverity',
-    'incidentDetailStatus',
     'incidentDetailOwner',
     'incidentDetailSource',
     'incidentDetailDescription'
@@ -788,7 +806,7 @@ function restoreIncidentDetailFocus(
 		  </button>
 		</td>
         <td><span class="badge ${badgeClass(item.severity)}">${escapeHtml(item.severity || '—')}</span></td>
-        <td><span class="badge ${badgeClass(item.status)}">${escapeHtml(item.status || '—')}</span></td>
+        <td><span class="badge ${badgeClass(item.status)}">${escapeHtml(incidentStatusLabel(item.status))}</span></td>
         <td class="small text-muted">${escapeHtml(formatDate(item.updated_at))}</td>
       </tr>
     `).join('');
@@ -943,7 +961,14 @@ function restoreIncidentDetailFocus(
     detailNode.innerHTML = `
       <div class="incident-kpi-grid mb-3">
         <div class="incident-kpi-card"><div class="incident-kpi-label">Номер</div><div class="incident-kpi-value">${escapeHtml(incident.incident_key || '—')}</div></div>
-        <div class="incident-kpi-card"><div class="incident-kpi-label">Статус</div><div class="incident-kpi-value">${escapeHtml(incident.status || '—')}</div></div>
+        <div class="incident-kpi-card incident-kpi-card--status">
+          <label class="incident-kpi-label" for="incidentQuickStatus">Статус</label>
+          <div class="incident-kpi-value incident-kpi-value--control">
+            <select class="form-select form-select-sm incident-status-quick-select" id="incidentQuickStatus" aria-label="Статус incident ${escapeHtml(incident.incident_key || '')}">
+              ${renderIncidentStatusOptions(incident.status)}
+            </select>
+          </div>
+        </div>
         <div class="incident-kpi-card"><div class="incident-kpi-label">Приоритет</div><div class="incident-kpi-value">${escapeHtml(incident.severity || '—')}</div></div>
         <div class="incident-kpi-card"><div class="incident-kpi-label">Ошибки доставки</div><div class="incident-kpi-value">${escapeHtml(incident.failed_route_count || 0)}</div></div>
       </div>
@@ -971,11 +996,6 @@ function restoreIncidentDetailFocus(
 						id="incidentDetailSeverity"
 						aria-label="Severity incident">
                   ${['critical', 'high', 'medium', 'low'].map((value) => `<option value="${value}" ${value === incident.severity ? 'selected' : ''}>${value}</option>`).join('')}
-                </select>
-                <select class="form-select form-select-sm"
-					id="incidentDetailStatus"
-					aria-label="Статус incident">
-                  ${['open', 'acknowledged', 'investigating', 'resolved', 'closed'].map((value) => `<option value="${value}" ${value === incident.status ? 'selected' : ''}>${value}</option>`).join('')}
                 </select>
                 <input type="text"
 					   class="form-control form-control-sm"
@@ -1133,7 +1153,6 @@ function restoreIncidentDetailFocus(
       title: document.getElementById('incidentDetailTitle')?.value?.trim() || '',
       summary: document.getElementById('incidentDetailSummary')?.value?.trim() || '',
       severity: document.getElementById('incidentDetailSeverity')?.value || '',
-      status: document.getElementById('incidentDetailStatus')?.value || '',
       owner: document.getElementById('incidentDetailOwner')?.value?.trim() || '',
       source: document.getElementById('incidentDetailSource')?.value?.trim() || '',
       description: document.getElementById('incidentDetailDescription')?.value?.trim() || ''
@@ -1159,6 +1178,39 @@ function restoreIncidentDetailFocus(
 	showSuccess('Incident обновлён');
 
 	await loadIncidents();
+  }
+
+  async function updateIncidentStatus(nextStatus) {
+    const incident = state.selectedIncident;
+    if (!incident) {
+      return;
+    }
+
+    const normalizedStatus = String(nextStatus || '').trim();
+    if (!INCIDENT_STATUS_OPTIONS.some((item) => item.value === normalizedStatus)) {
+      throw new Error('Неизвестный статус incident.');
+    }
+    if (normalizedStatus === incident.status) {
+      return;
+    }
+
+    await requestJson(
+      `/api/incidents/${encodeURIComponent(incident.id)}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: normalizedStatus })
+      }
+    );
+
+    incident.status = normalizedStatus;
+    const listItem = state.incidents.find((item) => Number(item.id) === Number(incident.id));
+    if (listItem) {
+      listItem.status = normalizedStatus;
+    }
+    renderIncidentList();
+    showSuccess(`Статус incident: ${incidentStatusLabel(normalizedStatus)}`);
+    await refreshIncidentIfStillSelected(incident.id);
   }
 
   async function createIncident() {
@@ -1812,7 +1864,38 @@ detailNode.addEventListener(
 
 detailNode.addEventListener(
     'change',
-    markIncidentDetailDirty
+    (event) => {
+        markIncidentDetailDirty(event);
+
+        const statusSelect =
+            event.target instanceof Element
+                ? event.target.closest('#incidentQuickStatus')
+                : null;
+
+        if (!(statusSelect instanceof HTMLSelectElement)) {
+            return;
+        }
+
+        const previousStatus =
+            state.selectedIncident?.status || '';
+
+        statusSelect.disabled = true;
+
+        void updateIncidentStatus(
+            statusSelect.value
+        ).catch(
+            (error) => {
+                if (statusSelect.isConnected) {
+                    statusSelect.value = previousStatus;
+                }
+                showError(error.message);
+            }
+        ).finally(() => {
+            if (statusSelect.isConnected) {
+                statusSelect.disabled = false;
+            }
+        });
+    }
 );
 
   detailNode.addEventListener(

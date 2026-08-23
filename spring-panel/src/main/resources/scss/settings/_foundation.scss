@@ -2383,3 +2383,145 @@
   background: var(--surface-raised);
   border-radius: var(--radius-md);
 }
+
+/* Compact locations tree v28 */
+#locationsEditor.location-tree-wrapper {
+  padding: 0.4rem;
+}
+
+#locationsEditor .location-tree__item {
+  margin-bottom: 0.35rem;
+}
+
+#locationsEditor .location-tree__children {
+  margin-top: 0.25rem;
+  margin-left: 1rem;
+  padding-left: 0.55rem;
+  border-left-width: 1px;
+}
+
+#locationsEditor .location-tree-card {
+  gap: 0.18rem;
+}
+
+#locationsEditor .location-tree-row {
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  padding-block: 0.2rem;
+}
+
+#locationsEditor .location-tree-bubble {
+  min-height: 2.2rem;
+  flex: 1 1 18rem;
+  padding: 0.25rem 0.45rem;
+}
+
+#locationsEditor .location-tree-row .location-name-input {
+  min-width: 8rem;
+  min-height: 1.9rem;
+  padding-block: 0.2rem;
+}
+
+#locationsEditor .location-tree-controls {
+  min-width: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+#locationsEditor .location-tree-controls .location-status-wrapper,
+#locationsEditor .location-tree-controls .location-actions {
+  width: auto;
+}
+
+#locationsEditor .location-status-select {
+  width: auto;
+  min-width: 9.25rem;
+}
+
+#locationsEditor .location-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+#locationsEditor .location-status-badge.status-active {
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+}
+
+#locationsEditor .location-status-badge.status-closed {
+  border-color: var(--state-danger-border);
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
+}
+
+#locationsEditor .location-status-badge.status-prelaunch {
+  border-color: var(--state-warning-border);
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+}
+
+#locationsEditor .location-status-badge.status-frozen {
+  border-color: var(--state-info-border);
+  background: var(--state-info-bg);
+  color: var(--state-info-text, var(--color-text));
+}
+
+#locationsEditor .location-status-badge.status-paused,
+#locationsEditor .location-status-badge.status-default {
+  border-color: var(--color-border);
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+}
+
+#locationsEditor .location-actions {
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+}
+
+#locationsEditor .location-actions .btn-icon,
+#locationsEditor .location-tree-toggle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-sm, 0.4rem);
+}
+
+#locationsEditor .location-node-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+#locationsEditor .location-node-meta .badge {
+  padding: 0.15rem 0.42rem;
+  font-size: 0.7rem;
+}
+
+@media (max-width: 991.98px) {
+  #locationsEditor .location-tree-row {
+    flex-wrap: wrap;
+  }
+
+  #locationsEditor .location-tree-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 768px) {
+  #locationsEditor .location-tree-controls {
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}

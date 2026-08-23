@@ -457,7 +457,7 @@
       }
     }
 
-    function configureEditControls({ input, statusSelect, editButton, deleteButton, onSubmit, onReset }) {
+    function configureEditControls({ input, statusSelect, statusBadge, editButton, deleteButton, onSubmit, onReset }) {
       const fields = [];
       if (input) {
         input.disabled = true;
@@ -468,7 +468,11 @@
       if (statusSelect) {
         statusSelect.disabled = true;
         statusSelect.dataset.originalValue = statusSelect.value;
+        statusSelect.classList.add('d-none');
         fields.push(statusSelect);
+      }
+      if (statusBadge) {
+        statusBadge.setAttribute('data-no-toggle', 'true');
       }
       if (!editButton) {
         return;
@@ -487,6 +491,8 @@
         fields.forEach((field) => {
           field.disabled = false;
         });
+        statusSelect?.classList.remove('d-none');
+        statusBadge?.classList.add('d-none');
         editButton.dataset.mode = 'edit';
         editButton.innerHTML = SAVE_ICON_HTML;
         editButton.title = 'Сохранить';
@@ -505,6 +511,12 @@
         fields.forEach((field) => {
           field.disabled = true;
         });
+        statusSelect?.classList.add('d-none');
+        if (statusBadge) {
+          statusBadge.textContent = statusSelect?.value || DEFAULT_LOCATION_STATUS;
+          applyStatusStyle(statusBadge, statusSelect?.value || DEFAULT_LOCATION_STATUS);
+          statusBadge.classList.remove('d-none');
+        }
         editButton.dataset.mode = 'view';
         editButton.innerHTML = EDIT_ICON_HTML;
         editButton.title = 'Редактировать';
@@ -668,6 +680,11 @@
       const statusContainer = document.createElement('div');
       statusContainer.className = 'location-status-wrapper';
       const statusSelect = createStatusSelect(level, statusPath);
+      const statusBadge = document.createElement('span');
+      statusBadge.className = 'badge rounded-pill location-status-badge';
+      statusBadge.textContent = statusSelect.value;
+      applyStatusStyle(statusBadge, statusSelect.value);
+      statusContainer.appendChild(statusBadge);
       statusContainer.appendChild(statusSelect);
       controls.appendChild(statusContainer);
 
@@ -696,13 +713,18 @@
       configureEditControls({
         input,
         statusSelect,
+        statusBadge,
         editButton,
         deleteButton,
         onSubmit,
         onReset,
       });
 
-      const updateAppearance = () => applyStatusStyle(bubble, statusSelect.value);
+      const updateAppearance = () => {
+        applyStatusStyle(bubble, statusSelect.value);
+        statusBadge.textContent = statusSelect.value;
+        applyStatusStyle(statusBadge, statusSelect.value);
+      };
       statusSelect.addEventListener('change', updateAppearance);
       updateAppearance();
 

@@ -28,6 +28,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class IncidentService {
 
+    private static final Logger log = LoggerFactory.getLogger(IncidentService.class);
     private static final Set<String> STATUSES = Set.of("open", "acknowledged", "investigating", "resolved", "closed");
     private static final Set<String> SEVERITIES = Set.of("low", "medium", "high", "critical");
     private static final Set<String> RELATION_TYPES = Set.of("ticket", "task", "object_passport");
@@ -209,6 +212,14 @@ public class IncidentService {
         appendEvent(incident, "created", "Incident создан", payload, actor, now);
         notifyIncidentParticipants(incident, "incident_created", "Создан incident " + incident.getIncidentKey() + ": " + incident.getTitle(), actor);
         incidentRouteDeliveryOutboxService.enqueueIncidentRoutes(incident, "incident_created", "Incident создан", payload, actor);
+        log.info(
+            "Incident created id={} key={} status={} severity={} actor={}",
+            incident.getId(),
+            incident.getIncidentKey(),
+            incident.getStatus(),
+            incident.getSeverity(),
+            normalizeNullableIdentity(actor)
+        );
         return Map.of(
             "success", true,
             "incident", buildIncidentDetails(incident)
@@ -332,6 +343,14 @@ public class IncidentService {
                 Map.of("changes", changes),
                 actor
             );
+            log.info(
+                "Incident updated id={} key={} changes={} status={} actor={}",
+                incident.getId(),
+                incident.getIncidentKey(),
+                changes,
+                incident.getStatus(),
+                normalizeNullableIdentity(actor)
+            );
         }
 
         return Map.of(
@@ -351,6 +370,13 @@ public class IncidentService {
         incidentRepository.save(incident);
         notifyIncidentParticipants(incident, "incident_event", "Новое событие в incident " + incident.getIncidentKey() + ": " + eventText, actor);
         incidentRouteDeliveryOutboxService.enqueueIncidentRoutes(incident, eventType, eventText, payload.get("payload"), actor);
+        log.info(
+            "Incident event appended id={} key={} eventType={} actor={}",
+            incident.getId(),
+            incident.getIncidentKey(),
+            eventType,
+            normalizeNullableIdentity(actor)
+        );
         return Map.of(
             "success", true,
             "incident", buildIncidentDetails(incident)

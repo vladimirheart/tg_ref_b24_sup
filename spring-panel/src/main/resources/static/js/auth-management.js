@@ -72,6 +72,8 @@
         userForm: resolveFrom(userModal, '[data-auth-user-form]'),
         userModalTitle: resolveFrom(userModal, '[data-auth-user-modal-title]'),
         userModalError: resolveFrom(userModal, '[data-auth-user-modal-error]'),
+        userSaveStatus: resolveFrom(userModal, '[data-auth-user-save-status]'),
+        userSubmitButton: resolveFrom(userModal, '[data-auth-user-submit]'),
         userRoleSelect: resolveFrom(userModal, '[data-auth-user-role-select]'),
         userPasswordDisplay: resolveFrom(userModal, '[data-auth-user-password-display]'),
         userPasswordToggle: resolveFrom(userModal, '[data-auth-user-password-toggle]'),
@@ -1057,6 +1059,8 @@
       };
       this.elements.userForm.dataset.mode = mode;
       this.setUserModalError('');
+      this.setUserSaveStatus('');
+      this.setUserSubmitLabel('Сохранить');
 
       const username = user?.username || '';
       const fullName = user?.full_name || '';
@@ -1233,6 +1237,30 @@
         box.textContent = message;
         box.classList.remove('d-none');
       }
+    }
+
+    setUserSaveStatus(message, variant = 'muted') {
+      const status = this.elements.userSaveStatus;
+      if (!status) {
+        return;
+      }
+      const text = String(message || '').trim();
+      status.textContent = text;
+      status.classList.remove('d-none', 'text-muted', 'text-success', 'text-danger');
+      if (!text) {
+        status.classList.add('d-none', 'text-muted');
+        return;
+      }
+      status.classList.add(
+        variant === 'success' ? 'text-success' : variant === 'danger' ? 'text-danger' : 'text-muted',
+      );
+    }
+
+    setUserSubmitLabel(label) {
+      if (!this.elements.userSubmitButton) {
+        return;
+      }
+      this.elements.userSubmitButton.textContent = String(label || 'Сохранить');
     }
 
     formatRegistrationDate(value) {
@@ -1947,6 +1975,7 @@
         submitButton.disabled = true;
       }
       this.setUserModalError('');
+      this.setUserSaveStatus('');
       const { mode, original, permissions, userId } = this.modalState;
       const payload = {};
       const username = this.elements.userUsernameInput ? this.elements.userUsernameInput.value.trim() : '';
@@ -2068,7 +2097,7 @@
       }
 
       if (mode === 'edit' && Object.keys(payload).length === 0) {
-        this.setMessage('Нет изменений для сохранения.', 'info');
+        this.setUserSaveStatus('Нет изменений для сохранения.', 'muted');
         if (submitButton) {
           submitButton.disabled = false;
         }
@@ -2077,6 +2106,9 @@
 
       const requestUrl = mode === 'create' ? this.usersEndpoint : `${this.usersEndpoint}/${userId}`;
       const method = mode === 'create' ? 'POST' : 'PUT';
+
+      this.setUserSaveStatus('Сохраняем изменения…', 'muted');
+      this.setUserSubmitLabel('Сохраняем…');
 
       fetch(requestUrl, {
         method,
@@ -2091,14 +2123,25 @@
               data.error || (mode === 'create' ? 'Не удалось создать пользователя' : 'Не удалось сохранить пользователя')
             );
           }
-          this.closeUserModal();
-          this.setMessage(mode === 'create' ? 'Пользователь создан.' : 'Данные пользователя обновлены.', 'success');
+          if (mode === 'create') {
+            this.closeUserModal();
+            this.setMessage('Пользователь создан.', 'success');
+            return this.refresh();
+          }
+
+          if (original && this.modalState?.mode === 'edit') {
+            Object.assign(original, payload);
+          }
+          this.setUserSaveStatus('Сохранено. Изменения применены.', 'success');
+          this.setMessage('Данные пользователя обновлены.', 'success');
           return this.refresh();
         })
         .catch((error) => {
           this.setUserModalError(error.message || String(error));
+          this.setUserSaveStatus('Не удалось сохранить изменения.', 'danger');
         })
         .finally(() => {
+          this.setUserSubmitLabel('Сохранить');
           if (submitButton) {
             submitButton.disabled = false;
           }
@@ -2176,6 +2219,8 @@
       this.setPasswordBlockVisible(false);
       this.resetModalPasswordDisplay();
       this.setUserModalError('');
+      this.setUserSaveStatus('');
+      this.setUserSubmitLabel('Сохранить');
       if (this.elements.userBlockWrapper) {
         this.elements.userBlockWrapper.classList.add('d-none');
       }
