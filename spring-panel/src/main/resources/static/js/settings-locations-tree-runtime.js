@@ -138,6 +138,7 @@
 
   function createRuntime(options = {}) {
     const collapsedLocationNodes = new Set();
+    let defaultCollapseSeeded = false;
     const config = resolveConfig(options);
     const initialLocations = readConfigObject(config, 'tree') || options.initialLocations || {};
     const hasInitialLocationsPayload = initialLocations && typeof initialLocations === 'object'
@@ -919,6 +920,19 @@
       return item;
     }
 
+    function seedDefaultCollapsedNodes(tree) {
+      if (defaultCollapseSeeded) {
+        return;
+      }
+
+      Object.entries(tree || {}).forEach(([business, types]) => {
+        if (types && typeof types === 'object' && Object.keys(types).length > 0) {
+          collapsedLocationNodes.add(makeCollapseKey('business', business));
+        }
+      });
+
+      defaultCollapseSeeded = true;
+    }
     function renderLocationsTree() {
       const container = document.getElementById('locationsEditor');
       if (!(container instanceof HTMLElement)) {
@@ -927,9 +941,12 @@
 
       state.tree = normalizeLocationTree(state.tree);
       container.innerHTML = '';
+      container.classList.remove('is-loading');
+      container.removeAttribute('aria-busy');
       container.classList.add('org-tree-wrapper', 'location-tree-wrapper');
 
       const tree = state.tree || {};
+      seedDefaultCollapsedNodes(tree);
       pruneCollapsedNodes(tree);
       const businessNames = Object.keys(tree);
       if (!businessNames.length) {
@@ -955,13 +972,22 @@
       }
       const forceReload = Boolean(runtimeOptions && runtimeOptions.forceReload);
       if (forceReload || !state.locationsLoaded) {
-        container.innerHTML = '<div class="alert alert-light small mb-0">Загружаем структуру локаций...</div>';
+        container.classList.add('is-loading');
+        container.setAttribute('aria-busy', 'true');
+        container.innerHTML = `
+          <div class="settings-locations-loading" role="status">
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            <span>Подготавливаем структуру локаций...</span>
+          </div>
+        `;
         return ensureLocationsLoaded(forceReload)
           .then(() => {
             renderLocationsTree();
             return state;
           })
           .catch((error) => {
+            container.classList.remove('is-loading');
+            container.removeAttribute('aria-busy');
             container.innerHTML = `<div class="alert alert-danger small mb-0">${String(error?.message || 'Не удалось загрузить структуру локаций.')}</div>`;
             return state;
           });
@@ -1326,6 +1352,7 @@
     return {
       getState,
       isLoaded,
+      prefetchLocations: () => ensureLocationsLoaded(false),
       buildLocationsTree,
       addBusiness,
       saveLocationsChanges,

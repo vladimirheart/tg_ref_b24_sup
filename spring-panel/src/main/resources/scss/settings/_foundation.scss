@@ -2344,3 +2344,42 @@
     }
 
     
+
+/* Settings first-paint + calm locations tree v27 */
+.settings-page-hero .page-subtitle[data-disclosure-pending] {
+  display: none !important;
+}
+
+#locationsEditor {
+  min-height: 12rem;
+}
+
+#locationsEditor.is-loading {
+  display: grid;
+  align-items: start;
+}
+
+.settings-locations-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 3.25rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+}
+
+#locationsEditor.location-tree-wrapper {
+  padding: 0.7rem;
+}
+
+#locationsEditor .location-tree-row {
+  padding-block: 0.45rem;
+}
+
+#locationsEditor .location-level-business > .location-tree-row {
+  background: var(--surface-raised);
+  border-radius: var(--radius-md);
+}

@@ -131,6 +131,13 @@
       markLocationsIikoServerSourcesSaved: () => settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(),
     }) || null;
 
+    const locationsPrefetch = settingsLocationsTreeRuntime?.prefetchLocations?.();
+    if (locationsPrefetch && typeof locationsPrefetch.catch === 'function') {
+      locationsPrefetch.catch(() => {
+        // Opening the modal still has its normal retry/error path.
+      });
+    }
+
     const settingsLocationWizardRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationWizardRuntime', {
       getParameterData: () => settingsParametersShellRuntime?.getParameterData() || {},
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},

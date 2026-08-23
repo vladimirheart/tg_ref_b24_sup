@@ -9271,6 +9271,88 @@ body[data-ui-page=users] .admin-empty-cell {
     text-align: center;
   }
 }
+/* Calm Operations incident master-detail v27 */
+[data-ui-page=incidents] .incident-grid {
+  grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+[data-ui-page=incidents] .incident-list-shell,
+[data-ui-page=incidents] .incident-detail-shell {
+  display: flex;
+  flex-direction: column;
+  height: min(70vh, 760px);
+  min-height: 34rem;
+}
+
+[data-ui-page=incidents] .incident-list-shell > .card-header,
+[data-ui-page=incidents] .incident-detail-shell > .card-header {
+  flex: 0 0 auto;
+}
+
+[data-ui-page=incidents] .incident-list-shell > .card-body,
+[data-ui-page=incidents] #incidentWorkbenchDetail {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+[data-ui-page=incidents] .incident-list-shell > .card-body {
+  scrollbar-gutter: stable;
+}
+
+[data-ui-page=incidents] #incidentWorkbenchDetail {
+  padding: 0.9rem;
+  scrollbar-gutter: stable;
+}
+
+[data-ui-page=incidents] .incident-create-grid {
+  background: var(--surface-raised);
+  border-radius: var(--radius-md);
+}
+
+[data-ui-page=incidents] .incident-create-grid.show {
+  padding: 0.85rem;
+}
+
+[data-ui-page=incidents] .incident-detail-columns {
+  gap: 0.85rem;
+}
+
+[data-ui-page=incidents] .incident-detail-columns .card {
+  box-shadow: none !important;
+}
+
+[data-ui-page=incidents] .incident-kpi-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1199.98px) {
+  [data-ui-page=incidents] .incident-grid {
+    grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
+  }
+  [data-ui-page=incidents] .incident-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 991.98px) {
+  [data-ui-page=incidents] .incident-grid {
+    grid-template-columns: 1fr;
+  }
+  [data-ui-page=incidents] .incident-list-shell,
+  [data-ui-page=incidents] .incident-detail-shell {
+    height: auto;
+    min-height: 0;
+  }
+  [data-ui-page=incidents] .incident-list-shell > .card-body {
+    max-height: 24rem;
+  }
+  [data-ui-page=incidents] #incidentWorkbenchDetail {
+    max-height: none;
+    overflow: visible;
+  }
+}
 /* Calm Operations interaction policy v9 */
 /*
  * Structural surfaces stay spatially stable on hover.

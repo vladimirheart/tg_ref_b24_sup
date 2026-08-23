@@ -22,10 +22,10 @@
 
 <main class="main-content container-fluid py-4 page-shell incident-shell ops-page-shell">
     <div class="page-header-card page-header-card--compact ops-page-header">
-        <span class="page-kicker">Incident command surface</span>
-        <h1 class="page-title">Инциденты и integration recovery</h1>
+        <span class="page-kicker">Операционная очередь</span>
+        <h1 class="page-title">Инциденты</h1>
         <p class="page-subtitle mb-0">
-            Единый workbench для incident lifecycle, маршрутов оповещений, signal incidents и transport replay/debug поверх canonical backend contour.
+            Очередь событий, которые требуют реакции оператора: оцените приоритет, назначьте ответственного, зафиксируйте решение и при необходимости повторите доставку.
         </p>
     </div>
 
@@ -34,10 +34,10 @@
 
     <ul class="nav nav-tabs" id="incidentWorkbenchTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="incidentWorkbenchIncidentsTab" data-bs-toggle="tab" data-bs-target="#incidentWorkbenchIncidentsPane" type="button" role="tab" aria-controls="incidentWorkbenchIncidentsPane" aria-selected="true">Incident workbench</button>
+            <button class="nav-link active" id="incidentWorkbenchIncidentsTab" data-bs-toggle="tab" data-bs-target="#incidentWorkbenchIncidentsPane" type="button" role="tab" aria-controls="incidentWorkbenchIncidentsPane" aria-selected="true">Инциденты</button>
         </li>
         <li class="nav-item" role="presentation" th:if="${canViewAnalytics}">
-            <button class="nav-link" id="incidentWorkbenchTransportTab" data-bs-toggle="tab" data-bs-target="#incidentWorkbenchTransportPane" type="button" role="tab" aria-controls="incidentWorkbenchTransportPane" aria-selected="false">Integration recovery</button>
+            <button class="nav-link" id="incidentWorkbenchTransportTab" data-bs-toggle="tab" data-bs-target="#incidentWorkbenchTransportPane" type="button" role="tab" aria-controls="incidentWorkbenchTransportPane" aria-selected="false">Восстановление интеграций</button>
         </li>
     </ul>
 
@@ -45,42 +45,53 @@
         <section class="tab-pane fade show active pt-3" id="incidentWorkbenchIncidentsPane" role="tabpanel" aria-labelledby="incidentWorkbenchIncidentsTab">
             <div class="card mb-3 ops-section-card">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <strong>Фильтры и создание incident</strong>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentWorkbenchRefresh">Обновить</button>
+                    <strong>Очередь инцидентов</strong>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button"
+                                class="btn btn-sm btn-primary"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#incidentCreatePanel"
+                                aria-controls="incidentCreatePanel"
+                                aria-expanded="false">
+                            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                            Новый инцидент
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentWorkbenchRefresh">Обновить</button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="incident-filter-grid mb-3">
 						<input type="text"
 							   class="form-control form-control-sm"
 							   id="incidentWorkbenchQuery"
-							   placeholder="Поиск: INC-ключ, title, signal, owner"
+							   placeholder="Поиск по номеру, названию, сигналу или ответственному"
 							   aria-label="Поиск incidents">
 
 						<select class="form-select form-select-sm"
 								id="incidentWorkbenchStatusFilter"
 								aria-label="Фильтр incidents по статусу">
 							<option value="">Все статусы</option>
-							<option value="open">open</option>
-							<option value="acknowledged">acknowledged</option>
-							<option value="investigating">investigating</option>
-							<option value="resolved">resolved</option>
-							<option value="closed">closed</option>
+							<option value="open">Открыт</option>
+							<option value="acknowledged">Принят</option>
+							<option value="investigating">В работе</option>
+							<option value="resolved">Решён</option>
+							<option value="closed">Закрыт</option>
 						</select>
 
 						<select class="form-select form-select-sm"
 								id="incidentWorkbenchSeverityFilter"
 								aria-label="Фильтр incidents по severity">
-							<option value="">Все severity</option>
-							<option value="critical">critical</option>
-							<option value="high">high</option>
-							<option value="medium">medium</option>
-							<option value="low">low</option>
+							<option value="">Любой приоритет</option>
+							<option value="critical">Критический</option>
+							<option value="high">Высокий</option>
+							<option value="medium">Средний</option>
+							<option value="low">Низкий</option>
 						</select>
 
 						<select class="form-select form-select-sm"
 								id="incidentWorkbenchSignalTypeFilter"
 								aria-label="Фильтр incidents по типу сигнала">
-							<option value="">Все signal types</option>
+							<option value="">Любой тип сигнала</option>
 							<option value="integration_transport">integration_transport</option>
 						</select>
 
@@ -99,46 +110,46 @@
 						</button>
 					</div>
 
-                    <div class="incident-create-grid">
+                    <div class="incident-create-grid collapse mt-3 pt-3 border-top" id="incidentCreatePanel">
 						<input type="text"
 							   class="form-control form-control-sm"
 							   id="incidentCreateTitle"
-							   placeholder="Новый incident title"
+							   placeholder="Название инцидента"
 							   aria-label="Название нового incident">
 
 						<input type="text"
 							   class="form-control form-control-sm"
 							   id="incidentCreateSummary"
-							   placeholder="Краткое summary"
+							   placeholder="Краткое описание"
 							   aria-label="Краткое описание нового incident">
 
 						<select class="form-select form-select-sm"
 								id="incidentCreateSeverity"
 								aria-label="Severity нового incident">
-							<option value="critical">critical</option>
-							<option value="high" selected>high</option>
-							<option value="medium">medium</option>
-							<option value="low">low</option>
+							<option value="critical">Критический</option>
+							<option value="high" selected>Высокий</option>
+							<option value="medium">Средний</option>
+							<option value="low">Низкий</option>
 						</select>
 
 						<select class="form-select form-select-sm"
 								id="incidentCreateStatus"
 								aria-label="Статус нового incident">
-							<option value="open" selected>open</option>
-							<option value="acknowledged">acknowledged</option>
-							<option value="investigating">investigating</option>
+							<option value="open" selected>Открыт</option>
+							<option value="acknowledged">Принят</option>
+							<option value="investigating">В работе</option>
 						</select>
 
 						<input type="text"
 							   class="form-control form-control-sm"
 							   id="incidentCreateOwner"
-							   placeholder="owner"
+							   placeholder="Ответственный"
 							   aria-label="Ответственный за incident">
 
 						<input type="text"
 							   class="form-control form-control-sm"
 							   id="incidentCreateSource"
-							   placeholder="source"
+							   placeholder="Источник"
 							   aria-label="Источник incident">
 
 						<select class="form-select form-select-sm"
@@ -152,19 +163,19 @@
 						<input type="text"
 							   class="form-control form-control-sm"
 							   id="incidentCreateRelationKey"
-							   placeholder="relation key: T-123 / task id / passport id"
+							   placeholder="ID связанного тикета, задачи или паспорта"
 							   aria-label="Идентификатор связанного объекта">
 
 						<input type="text"
 							   class="form-control form-control-sm"
 							   id="incidentCreateWatchers"
-							   placeholder="watchers через запятую"
+							   placeholder="Наблюдатели через запятую"
 							   aria-label="Наблюдатели incident через запятую">
 
 						<button type="button"
 								class="btn btn-sm btn-primary"
 								id="incidentWorkbenchCreate">
-							Создать incident
+							Создать инцидент
 						</button>
 					</div>
                 </div>
@@ -173,7 +184,7 @@
             <div class="incident-grid">
                 <section class="card incident-list-shell ops-section-card">
                     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-						<strong>Список incidents</strong>
+						<strong>Очередь</strong>
 
 						<span class="small text-muted"
 							  id="incidentWorkbenchListMeta"
@@ -186,10 +197,10 @@
                             <table class="table table-hover align-middle mb-0">
                                 <thead>
                                 <tr>
-                                    <th>Incident</th>
-                                    <th>Severity</th>
-                                    <th>Status</th>
-                                    <th>Updated</th>
+                                    <th>Инцидент</th>
+                                    <th>Приоритет</th>
+                                    <th>Статус</th>
+                                    <th>Обновлён</th>
                                 </tr>
                                 </thead>
                                 <tbody id="incidentWorkbenchList">
@@ -202,14 +213,14 @@
 
                 <section class="card incident-detail-shell ops-section-card">
                     <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                        <strong>Incident detail</strong>
+                        <strong>Карточка инцидента</strong>
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-sm btn-primary" id="incidentWorkbenchSaveIncident">Сохранить</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentWorkbenchRedeliverFailedRoutes">Redeliver failed routes</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentWorkbenchRedeliverFailedRoutes">Повторить ошибки доставки</button>
                         </div>
                     </div>
                     <div class="card-body" id="incidentWorkbenchDetail">
-                        <div class="text-muted">Выберите incident слева, чтобы открыть workbench.</div>
+                        <div class="text-muted">Выберите инцидент слева, чтобы открыть карточку.</div>
                     </div>
                 </section>
             </div>

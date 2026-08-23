@@ -169,6 +169,7 @@ function buildHeaderInfoDisclosure(element) {
     panel.hidden = true;
 
     element.hidden = false;
+    element.removeAttribute('data-disclosure-pending');
 
     element.classList.add(
         'page-header-info__copy'

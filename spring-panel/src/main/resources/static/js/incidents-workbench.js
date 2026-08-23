@@ -942,29 +942,29 @@ function restoreIncidentDetailFocus(
     const events = Array.isArray(incident.events) ? incident.events : [];
     detailNode.innerHTML = `
       <div class="incident-kpi-grid mb-3">
-        <div class="incident-kpi-card"><div class="incident-kpi-label">Incident</div><div class="incident-kpi-value">${escapeHtml(incident.incident_key || '—')}</div></div>
-        <div class="incident-kpi-card"><div class="incident-kpi-label">Status</div><div class="incident-kpi-value">${escapeHtml(incident.status || '—')}</div></div>
-        <div class="incident-kpi-card"><div class="incident-kpi-label">Severity</div><div class="incident-kpi-value">${escapeHtml(incident.severity || '—')}</div></div>
-        <div class="incident-kpi-card"><div class="incident-kpi-label">Failed routes</div><div class="incident-kpi-value">${escapeHtml(incident.failed_route_count || 0)}</div></div>
+        <div class="incident-kpi-card"><div class="incident-kpi-label">Номер</div><div class="incident-kpi-value">${escapeHtml(incident.incident_key || '—')}</div></div>
+        <div class="incident-kpi-card"><div class="incident-kpi-label">Статус</div><div class="incident-kpi-value">${escapeHtml(incident.status || '—')}</div></div>
+        <div class="incident-kpi-card"><div class="incident-kpi-label">Приоритет</div><div class="incident-kpi-value">${escapeHtml(incident.severity || '—')}</div></div>
+        <div class="incident-kpi-card"><div class="incident-kpi-label">Ошибки доставки</div><div class="incident-kpi-value">${escapeHtml(incident.failed_route_count || 0)}</div></div>
       </div>
       <div class="incident-detail-columns">
         <div class="d-grid gap-3">
           <section class="card">
-            <div class="card-header"><strong>Core fields</strong></div>
+            <div class="card-header"><strong>Основное</strong></div>
             <div class="card-body">
               <div class="incident-create-grid mb-3">
                 <input type="text"
 					   class="form-control form-control-sm"
 					   id="incidentDetailTitle"
 					   value="${escapeHtml(incident.title || '')}"
-					   placeholder="title"
+					   placeholder="Название"
 					   aria-label="Название incident">
 
 				<input type="text"
 					   class="form-control form-control-sm"
 					   id="incidentDetailSummary"
 					   value="${escapeHtml(incident.summary || '')}"
-					   placeholder="summary"
+					   placeholder="Краткое описание"
 					   aria-label="Краткое описание incident">
 
 				<select class="form-select form-select-sm"
@@ -981,32 +981,32 @@ function restoreIncidentDetailFocus(
 					   class="form-control form-control-sm"
 					   id="incidentDetailOwner"
 					   value="${escapeHtml(incident.owner || '')}"
-					   placeholder="owner"
+					   placeholder="Ответственный"
 					   aria-label="Ответственный за incident">
 
 				<input type="text"
 					   class="form-control form-control-sm"
 					   id="incidentDetailSource"
 					   value="${escapeHtml(incident.source || '')}"
-					   placeholder="source"
+					   placeholder="Источник"
 					   aria-label="Источник incident">
               </div>
               <textarea class="form-control form-control-sm"
 					  id="incidentDetailDescription"
 					  rows="4"
-					  placeholder="description"
+					  placeholder="Описание и ход решения"
 					  aria-label="Полное описание incident">${escapeHtml(incident.description || '')}</textarea>
             </div>
           </section>
           <section class="card">
-            <div class="card-header"><strong>Relations</strong></div>
+            <div class="card-header"><strong>Связи</strong></div>
             <div class="card-body incident-meta-list">
               ${relations.length ? relations.map((relation) => renderKeyValue(relation.relation_type, `${relation.relation_label || relation.relation_key}${relation.primary ? ' · primary' : ''}`)).join('') : '<div class="text-muted">Связи ещё не добавлены.</div>'}
             </div>
           </section>
           <section class="card">
             <div class="card-header d-flex justify-content-between align-items-center gap-2">
-              <strong>Events / runbook notes</strong>
+              <strong>Хронология</strong>
               <button type="button" class="btn btn-sm btn-outline-secondary" id="incidentAddEventButton">Добавить note</button>
             </div>
             <div class="card-body">
@@ -1045,12 +1045,12 @@ function restoreIncidentDetailFocus(
             <div class="card-body incident-meta-list">
               ${renderKeyValue('Signal type', incident.signal_type || '—')}
               ${renderKeyValue('Signal key', incident.signal_key || '—')}
-              ${renderKeyValue('Created by', incident.created_by || '—')}
-              ${renderKeyValue('Updated', formatDate(incident.updated_at))}
+              ${renderKeyValue('Создал', incident.created_by || '—')}
+              ${renderKeyValue('Обновлён', formatDate(incident.updated_at))}
             </div>
           </section>
           <section class="card">
-            <div class="card-header"><strong>Watchers</strong></div>
+            <div class="card-header"><strong>Наблюдатели</strong></div>
             <div class="card-body">
               <div class="input-group input-group-sm mb-3">
                 <input type="text"
@@ -1074,7 +1074,7 @@ function restoreIncidentDetailFocus(
             </div>
           </section>
           <section class="card">
-            <div class="card-header"><strong>Routes / delivery</strong></div>
+            <div class="card-header"><strong>Маршруты доставки</strong></div>
             <div class="card-body">
               <div class="incident-route-grid mb-3">
                 <select class="form-select form-select-sm"
