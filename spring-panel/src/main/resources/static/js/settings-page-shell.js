@@ -291,7 +291,7 @@
   ]);
 
   const DEFAULT_SETTINGS_DECLARATIVE_CALLBACKS = Object.freeze([
-    Object.freeze({ eventName: 'click', selector: '[data-save-settings]', callbackName: 'saveSettings', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '[data-save-settings]', callbackName: 'saveSettings', args: '$element' }),
     Object.freeze({ eventName: 'click', selector: '[data-add-business-trigger]', callbackName: 'addBusiness', args: '' }),
     Object.freeze({ eventName: 'click', selector: '[data-locations-source-add-trigger]', callbackName: 'addLocationsIikoServerSource', args: '' }),
     Object.freeze({ eventName: 'change', selector: '#locationsIikoSyncEnabled', callbackName: 'updateLocationsIikoSyncSetting', args: 'enabled,$checked' }),

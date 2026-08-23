@@ -199,8 +199,8 @@
       getSaveUrl: () => '/settings',
     }) || null;
 
-    async function saveSettings() {
-      return settingsSaveRuntime?.saveSettings();
+    async function saveSettings(source) {
+      return settingsSaveRuntime?.saveSettings(source);
     }
 
     return {

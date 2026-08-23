@@ -126,6 +126,22 @@
     <logger name="org.springframework.boot" additivity="true">
         <appender-ref ref="STARTUP"/>
     </logger>
+    <!-- Platform dependencies required by the production contour. -->
+    <logger name="org.springframework.amqp" additivity="true">
+        <appender-ref ref="STARTUP"/>
+    </logger>
+    <logger name="com.rabbitmq.client" additivity="true">
+        <appender-ref ref="STARTUP"/>
+    </logger>
+    <logger name="org.springframework.data.redis" additivity="true">
+        <appender-ref ref="STARTUP"/>
+    </logger>
+    <logger name="io.lettuce.core" additivity="true">
+        <appender-ref ref="STARTUP"/>
+    </logger>
+    <logger name="io.minio" additivity="true">
+        <appender-ref ref="STARTUP"/>
+    </logger>
     <logger name="org.flywaydb" additivity="true">
         <appender-ref ref="STARTUP"/>
     </logger>
