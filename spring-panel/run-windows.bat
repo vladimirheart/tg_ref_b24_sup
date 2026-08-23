@@ -411,7 +411,7 @@ set "PORT_TO_CHECK=%~1"
 
 if "%PORT_TO_CHECK%"=="" goto :eof
 
-for /f "tokens=1" %%P in ('netstat -ano -p tcp ^| findstr /R ":%PORT_TO_CHECK% " 2^>nul') do (
+for /f "tokens=1" %%P in ('netstat -ano -p tcp ^| findstr /R ":%PORT_TO_CHECK% .*LISTENING" 2^>nul') do (
     set "PORT_BUSY=1"
     goto :eof
 )

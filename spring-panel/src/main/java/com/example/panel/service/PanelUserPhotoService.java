@@ -11,6 +11,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -21,7 +23,9 @@ public class PanelUserPhotoService {
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
 
     private final AttachmentObjectStorageService attachmentObjectStorageService;
-    private Path legacyLocalAvatarsRoot = Paths.get("attachments/avatars").toAbsolutePath().normalize();
+    private List<Path> legacyLocalAvatarRoots = List.of(
+            Paths.get("attachments/avatars").toAbsolutePath().normalize()
+    );
 
     public PanelUserPhotoService(AttachmentObjectStorageService attachmentObjectStorageService) {
         this.attachmentObjectStorageService = attachmentObjectStorageService;
@@ -29,9 +33,46 @@ public class PanelUserPhotoService {
 
     @Value("${app.storage.avatars:attachments/avatars}")
     void configureLegacyLocalAvatarsRoot(String avatarsDir) {
-        if (StringUtils.hasText(avatarsDir)) {
-            this.legacyLocalAvatarsRoot = Paths.get(avatarsDir).toAbsolutePath().normalize();
+        Path workingDirectory = Paths.get("").toAbsolutePath().normalize();
+        Path workspaceRoot = locateWorkspaceRoot(workingDirectory);
+        LinkedHashSet<Path> roots = new LinkedHashSet<>();
+
+        addLegacyAvatarRoot(roots, avatarsDir, workingDirectory);
+
+        // Historical panel-user uploads used "attachments/avatars" while the
+        // launcher working directory was spring-panel.
+        roots.add(workingDirectory.resolve("attachments/avatars").normalize());
+        roots.add(workspaceRoot.resolve("spring-panel/attachments/avatars").normalize());
+
+        // Current canonical local path.
+        roots.add(workspaceRoot.resolve("attachments/avatars").normalize());
+
+        // Very old users.photo values may still point at static/user_photos.
+        roots.add(workspaceRoot.resolve("spring-panel/src/main/resources/static/user_photos").normalize());
+
+        this.legacyLocalAvatarRoots = List.copyOf(roots);
+    }
+
+    private void addLegacyAvatarRoot(Set<Path> roots, String configuredPath, Path workingDirectory) {
+        if (!StringUtils.hasText(configuredPath)) {
+            return;
         }
+        Path configured = Paths.get(configuredPath.trim());
+        Path resolved = configured.isAbsolute()
+                ? configured.normalize()
+                : workingDirectory.resolve(configured).normalize();
+        roots.add(resolved);
+    }
+
+    private Path locateWorkspaceRoot(Path start) {
+        Path current = start;
+        while (current != null) {
+            if (Files.isDirectory(current.resolve(".git"))) {
+                return current;
+            }
+            current = current.getParent();
+        }
+        return start;
     }
 
     public String resolveUrl(String photo) {
@@ -45,7 +86,7 @@ public class PanelUserPhotoService {
 
     public String resolveUserAvatarUrl(Long userId, String photo, String fallbackUrl) {
         String resolved = resolveUrlInternal(photo);
-        if (StringUtils.hasText(resolved)) {
+        if (StringUtils.hasText(resolved) && !"/avatar_default.svg".equals(resolved)) {
             return resolved;
         }
         if (userId != null && userId > 0) {
@@ -102,7 +143,10 @@ public class PanelUserPhotoService {
                 && (avatarExists(filename) || migrateLegacyLocalAvatar(filename))) {
             return buildStoredAvatarUrl(filename);
         }
-        return value.startsWith("/") ? value : "/" + value;
+
+        // A stale /static/user_photos/... value must not block the user-id
+        // fallback in resolveUserAvatarUrl().
+        return null;
     }
 
     private String resolveStoredAvatarPath(String rawFilename) {
@@ -128,18 +172,27 @@ public class PanelUserPhotoService {
         if (!StringUtils.hasText(filename)) {
             return false;
         }
-        Path source = legacyLocalAvatarsRoot.resolve(filename).normalize();
-        if (!source.startsWith(legacyLocalAvatarsRoot) || !Files.isRegularFile(source)) {
-            return false;
+
+        for (Path root : legacyLocalAvatarRoots) {
+            if (root == null) {
+                continue;
+            }
+            Path source = root.resolve(filename).normalize();
+            if (!source.startsWith(root) || !Files.isRegularFile(source)) {
+                continue;
+            }
+            try (InputStream inputStream = Files.newInputStream(source)) {
+                attachmentObjectStorageService
+                        .storeAvatar(filename, Files.probeContentType(source), inputStream)
+                        .close();
+                if (avatarExists(filename)) {
+                    return true;
+                }
+            } catch (IOException | RuntimeException ignored) {
+                // Try the next historical location.
+            }
         }
-        try (InputStream inputStream = Files.newInputStream(source)) {
-            attachmentObjectStorageService
-                    .storeAvatar(filename, Files.probeContentType(source), inputStream)
-                    .close();
-            return avatarExists(filename);
-        } catch (IOException | RuntimeException ex) {
-            return false;
-        }
+        return false;
     }
 
     private String extractFilename(String rawValue) {
