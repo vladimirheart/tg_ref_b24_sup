@@ -168,6 +168,9 @@
     <logger name="com.example.panel.service.IncidentService" additivity="true">
         <appender-ref ref="INCIDENTS"/>
     </logger>
+    <logger name="com.example.panel.service.IncidentOpsEscalationService" additivity="true">
+        <appender-ref ref="INCIDENTS"/>
+    </logger>
     <logger name="com.example.panel.service.IncidentRouteDeliveryService" additivity="true">
         <appender-ref ref="INCIDENTS"/>
     </logger>

@@ -32,4 +32,14 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
     long countByResolvedAtGreaterThanEqual(OffsetDateTime threshold);
 
     List<Incident> findByCreatedAtGreaterThanEqual(OffsetDateTime threshold);
+
+    List<Incident> findTop100BySeverityAndStatusNotInOrderByCreatedAtAscIdAsc(
+        String severity,
+        Collection<String> statuses
+    );
+
+    List<Incident> findTop100ByCreatedAtBeforeAndStatusNotInOrderByCreatedAtAscIdAsc(
+        OffsetDateTime threshold,
+        Collection<String> statuses
+    );
 }

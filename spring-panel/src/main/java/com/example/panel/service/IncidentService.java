@@ -360,6 +360,58 @@ public class IncidentService {
     }
 
     @Transactional
+    public boolean escalateIncident(Long id,
+                                    String policy,
+                                    String eventText,
+                                    Map<String, Object> details,
+                                    String actor) {
+        Incident incident = requireIncident(id);
+        if (isResolvedStatus(incident.getStatus())) {
+            return false;
+        }
+
+        String normalizedPolicy = requiredText(policy, "Укажите escalation policy.");
+        String normalizedEventText = requiredText(eventText, "Укажите текст escalation event.");
+        OffsetDateTime now = OffsetDateTime.now();
+        LinkedHashMap<String, Object> eventPayload = new LinkedHashMap<>();
+        eventPayload.put("policy", normalizedPolicy);
+        eventPayload.put("details", details == null ? Map.of() : new LinkedHashMap<>(details));
+
+        appendEvent(
+            incident,
+            "escalation",
+            normalizedEventText,
+            eventPayload,
+            actor,
+            now
+        );
+        incident.setUpdatedAt(now);
+        incidentRepository.save(incident);
+        notifyIncidentParticipants(
+            incident,
+            "incident_escalation",
+            "Эскалация " + incident.getIncidentKey() + ": " + normalizedEventText,
+            actor
+        );
+        incidentRouteDeliveryOutboxService.enqueueIncidentRoutes(
+            incident,
+            "incident_escalation",
+            normalizedEventText,
+            eventPayload,
+            actor
+        );
+        log.info(
+            "Incident escalation id={} key={} policy={} status={} severity={} actor={}",
+            incident.getId(),
+            incident.getIncidentKey(),
+            normalizedPolicy,
+            incident.getStatus(),
+            incident.getSeverity(),
+            normalizeNullableIdentity(actor)
+        );
+        return true;
+    }
+    @Transactional
     public Map<String, Object> addIncidentEvent(Long id, Map<String, Object> payload, String actor) {
         Incident incident = requireIncident(id);
         OffsetDateTime now = OffsetDateTime.now();

@@ -130,6 +130,16 @@ app:
     repository-root: ${APP_ADMIN_REPOSITORY_ROOT:}
     storage-inventory-timeout: ${APP_ADMIN_STORAGE_INVENTORY_TIMEOUT:90s}
 
+panel:
+  incidents:
+    escalation:
+      enabled: ${PANEL_INCIDENT_ESCALATION_ENABLED:true}
+      interval-ms: ${PANEL_INCIDENT_ESCALATION_INTERVAL_MS:300000}
+      aging-threshold-minutes: ${PANEL_INCIDENT_ESCALATION_AGING_THRESHOLD_MINUTES:60}
+      critical-cooldown-minutes: ${PANEL_INCIDENT_ESCALATION_CRITICAL_COOLDOWN_MINUTES:30}
+      aging-cooldown-minutes: ${PANEL_INCIDENT_ESCALATION_AGING_COOLDOWN_MINUTES:120}
+      failed-route-cooldown-minutes: ${PANEL_INCIDENT_ESCALATION_FAILED_ROUTE_COOLDOWN_MINUTES:30}
+
 server:
   port: ${APP_HTTP_PORT:8080}
   tomcat:
