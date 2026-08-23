@@ -43,6 +43,50 @@
 
     <div class="tab-content">
         <section class="tab-pane fade show active pt-3" id="incidentWorkbenchIncidentsPane" role="tabpanel" aria-labelledby="incidentWorkbenchIncidentsTab">
+            <section class="incident-ops-summary mb-3" id="incidentOpsSummary" aria-busy="true" aria-label="Операционная сводка по инцидентам">
+                <div class="incident-ops-summary__head">
+                    <div>
+                        <div class="fw-semibold">Операционная сводка</div>
+                        <div class="small text-muted">Глобальные показатели очереди, независимо от фильтра списка.</div>
+                    </div>
+                    <div class="small text-muted" id="incidentOpsSummaryMeta" role="status" aria-live="polite">Загрузка метрик...</div>
+                </div>
+                <div class="incident-ops-summary__grid">
+                    <div class="incident-ops-metric">
+                        <div class="incident-ops-metric__label">Активные</div>
+                        <div class="incident-ops-metric__value" id="incidentOpsActive">—</div>
+                    </div>
+                    <div class="incident-ops-metric incident-ops-metric--critical" id="incidentOpsCriticalCard">
+                        <div class="incident-ops-metric__label">Критические</div>
+                        <div class="incident-ops-metric__value" id="incidentOpsCritical">—</div>
+                    </div>
+                    <div class="incident-ops-metric incident-ops-metric--warning" id="incidentOpsAgedCard">
+                        <div class="incident-ops-metric__label">Старше 60 мин</div>
+                        <div class="incident-ops-metric__value" id="incidentOpsAged">—</div>
+                    </div>
+                    <div class="incident-ops-metric incident-ops-metric--critical" id="incidentOpsFailedRoutesCard">
+                        <div class="incident-ops-metric__label">Ошибки доставки</div>
+                        <div class="incident-ops-metric__value" id="incidentOpsFailedRoutes">—</div>
+                    </div>
+                    <div class="incident-ops-metric">
+                        <div class="incident-ops-metric__label">Создано / 24ч</div>
+                        <div class="incident-ops-metric__value" id="incidentOpsCreated24h">—</div>
+                    </div>
+                    <div class="incident-ops-metric">
+                        <div class="incident-ops-metric__label">Решено / 24ч</div>
+                        <div class="incident-ops-metric__value" id="incidentOpsResolved24h">—</div>
+                    </div>
+                    <div class="incident-ops-metric">
+                        <div class="incident-ops-metric__label">Среднее принятие / 7д</div>
+                        <div class="incident-ops-metric__value" id="incidentOpsMtta">—</div>
+                    </div>
+                    <div class="incident-ops-metric">
+                        <div class="incident-ops-metric__label">Среднее решение / 7д</div>
+                        <div class="incident-ops-metric__value" id="incidentOpsMttr">—</div>
+                    </div>
+                </div>
+            </section>
+
             <div class="card mb-3 ops-section-card">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <strong>Очередь инцидентов</strong>

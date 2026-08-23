@@ -8,6 +8,21 @@
   const errorNode = document.getElementById('incidentWorkbenchError');
   const successNode = document.getElementById('incidentWorkbenchSuccess');
   const listMetaNode = document.getElementById('incidentWorkbenchListMeta');
+  const opsNodes = {
+    root: document.getElementById('incidentOpsSummary'),
+    meta: document.getElementById('incidentOpsSummaryMeta'),
+    active: document.getElementById('incidentOpsActive'),
+    critical: document.getElementById('incidentOpsCritical'),
+    criticalCard: document.getElementById('incidentOpsCriticalCard'),
+    aged: document.getElementById('incidentOpsAged'),
+    agedCard: document.getElementById('incidentOpsAgedCard'),
+    failedRoutes: document.getElementById('incidentOpsFailedRoutes'),
+    failedRoutesCard: document.getElementById('incidentOpsFailedRoutesCard'),
+    created24h: document.getElementById('incidentOpsCreated24h'),
+    resolved24h: document.getElementById('incidentOpsResolved24h'),
+    mtta: document.getElementById('incidentOpsMtta'),
+    mttr: document.getElementById('incidentOpsMttr')
+  };
   const payloadModalElement = document.getElementById('incidentWorkbenchPayloadModal');
   const payloadContentNode = document.getElementById('incidentWorkbenchPayloadContent');
   const payloadModal = payloadModalElement && window.bootstrap ? new window.bootstrap.Modal(payloadModalElement) : null;
@@ -23,6 +38,7 @@
     transportRequestSerial: 0,
     payloadRequestSerial: 0,
     ticketDebugRequestSerial: 0,
+    incidentOpsSummaryRequestSerial: 0,
 
     successHideTimer: null,
 
@@ -622,7 +638,88 @@ function restoreIncidentDetailFocus(
     });
 }
 
+  function formatMetricNumber(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? String(number) : '—';
+  }
+
+  function formatMetricMinutes(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) {
+      return '—';
+    }
+    if (number < 60) {
+      return `${number.toLocaleString('ru-RU', { maximumFractionDigits: 1 })} мин`;
+    }
+    const hours = number / 60;
+    return `${hours.toLocaleString('ru-RU', { maximumFractionDigits: 1 })} ч`;
+  }
+
+  function toggleOpsAlert(card, active) {
+    card?.classList.toggle('is-active', Boolean(active));
+  }
+
+  function renderIncidentOpsSummary(payload) {
+    if (!opsNodes.root) {
+      return;
+    }
+
+    const active = Number(payload?.active_count || 0);
+    const critical = Number(payload?.critical_active_count || 0);
+    const aged = Number(payload?.aged_open_count || 0);
+    const failedRoutes = Number(payload?.failed_route_count || 0);
+
+    if (opsNodes.active) opsNodes.active.textContent = formatMetricNumber(active);
+    if (opsNodes.critical) opsNodes.critical.textContent = formatMetricNumber(critical);
+    if (opsNodes.aged) opsNodes.aged.textContent = formatMetricNumber(aged);
+    if (opsNodes.failedRoutes) opsNodes.failedRoutes.textContent = formatMetricNumber(failedRoutes);
+    if (opsNodes.created24h) opsNodes.created24h.textContent = formatMetricNumber(payload?.created_24h_count);
+    if (opsNodes.resolved24h) opsNodes.resolved24h.textContent = formatMetricNumber(payload?.resolved_24h_count);
+    if (opsNodes.mtta) opsNodes.mtta.textContent = formatMetricMinutes(payload?.avg_ack_minutes_7d);
+    if (opsNodes.mttr) opsNodes.mttr.textContent = formatMetricMinutes(payload?.avg_resolve_minutes_7d);
+
+    toggleOpsAlert(opsNodes.criticalCard, critical > 0);
+    toggleOpsAlert(opsNodes.agedCard, aged > 0);
+    toggleOpsAlert(opsNodes.failedRoutesCard, failedRoutes > 0);
+
+    if (opsNodes.meta) {
+      const days = Number(payload?.duration_window_days || 7);
+      const ackSamples = Number(payload?.ack_sample_count_7d || 0);
+      const resolveSamples = Number(payload?.resolve_sample_count_7d || 0);
+      opsNodes.meta.textContent = `Обновлено ${formatDate(payload?.generated_at)} · средние за ${days} дн. · выборка ${ackSamples}/${resolveSamples}`;
+    }
+  }
+
+  async function loadIncidentOpsSummary() {
+    if (!opsNodes.root) {
+      return;
+    }
+
+    const requestSerial = ++state.incidentOpsSummaryRequestSerial;
+    opsNodes.root.setAttribute('aria-busy', 'true');
+    try {
+      const payload = await requestJson('/api/incidents/ops-summary');
+      if (requestSerial !== state.incidentOpsSummaryRequestSerial) {
+        return;
+      }
+      renderIncidentOpsSummary(payload);
+    } catch (error) {
+      if (requestSerial !== state.incidentOpsSummaryRequestSerial) {
+        return;
+      }
+      if (opsNodes.meta) {
+        opsNodes.meta.textContent = `Сводка временно недоступна: ${error.message}`;
+      }
+    } finally {
+      if (requestSerial === state.incidentOpsSummaryRequestSerial) {
+        opsNodes.root.removeAttribute('aria-busy');
+      }
+    }
+  }
+
   async function loadIncidents() {
+    void loadIncidentOpsSummary();
+
     const requestSerial =
         ++state.listRequestSerial;
 

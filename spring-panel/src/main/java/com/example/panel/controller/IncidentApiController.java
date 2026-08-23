@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.service.IncidentOpsMetricsService;
 import com.example.panel.service.IncidentService;
 import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,9 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class IncidentApiController {
 
     private final IncidentService incidentService;
+    private final IncidentOpsMetricsService incidentOpsMetricsService;
 
-    public IncidentApiController(IncidentService incidentService) {
+    public IncidentApiController(IncidentService incidentService,
+                                 IncidentOpsMetricsService incidentOpsMetricsService) {
         this.incidentService = incidentService;
+        this.incidentOpsMetricsService = incidentOpsMetricsService;
     }
 
     @GetMapping
@@ -34,6 +38,11 @@ public class IncidentApiController {
                                     @RequestParam(name = "signal_type", required = false) String signalType,
                                     @RequestParam(name = "limit", required = false) Integer limit) {
         return incidentService.listIncidents(status, severity, relationType, relationKey, query, signalType, limit);
+    }
+
+    @GetMapping("/ops-summary")
+    public Map<String, Object> opsSummary() {
+        return incidentOpsMetricsService.buildSummary();
     }
 
     @GetMapping("/{id}")

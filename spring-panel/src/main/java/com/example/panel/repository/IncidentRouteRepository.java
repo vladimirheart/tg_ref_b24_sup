@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface IncidentRouteRepository extends JpaRepository<IncidentRoute, Long> {
 
     List<IncidentRoute> findByIncidentIdOrderByCreatedAtAscIdAsc(Long incidentId);
+
+    long countByRouteStatus(String routeStatus);
 }
