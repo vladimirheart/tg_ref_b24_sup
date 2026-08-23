@@ -76,7 +76,7 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         }
 
         log.info(
-            "[READY] Iguana panel is ready on http://127.0.0.1:{}/ | PostgreSQL probes passed | data: channels={}, tickets={}, messages={}, chat_history={}, tasks={}, clients={}, avatars={}, incidents={}, open_incidents={}",
+            "[READY] Iguana panel is ready on http://127.0.0.1:{}/ | PostgreSQL probes passed | data: channels={}, tickets={}, messages={}, chat_history={}, tasks={}, clients={}, client_avatars={}, panel_user_photos={}, incidents={}, open_incidents={}",
             resolvePort(),
             counts.channels(),
             counts.tickets(),
@@ -84,7 +84,8 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
             counts.chatHistory(),
             counts.tasks(),
             counts.clients(),
-            counts.avatars(),
+            counts.clientAvatars(),
+            counts.panelUserPhotos(),
             counts.incidents(),
             counts.openIncidents()
         );
@@ -269,7 +270,8 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
                 (SELECT COUNT(*) FROM chat_history) AS chat_history_count,
                 (SELECT COUNT(*) FROM tasks) AS tasks_count,
                 (SELECT COUNT(DISTINCT user_id) FROM messages WHERE user_id IS NOT NULL) AS clients_count,
-                (SELECT COUNT(*) FROM client_avatar_history) AS avatars_count,
+                (SELECT COUNT(*) FROM client_avatar_history) AS client_avatars_count,
+                (SELECT COUNT(*) FROM users WHERE photo IS NOT NULL AND BTRIM(photo) <> '') AS panel_user_photos_count,
                 (SELECT COUNT(*) FROM incidents) AS incidents_count,
                 (SELECT COUNT(*) FROM incidents WHERE status IN ('open', 'acknowledged', 'investigating')) AS open_incidents_count
             """,
@@ -280,7 +282,8 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
                 rs.getLong("chat_history_count"),
                 rs.getLong("tasks_count"),
                 rs.getLong("clients_count"),
-                rs.getLong("avatars_count"),
+                rs.getLong("client_avatars_count"),
+                rs.getLong("panel_user_photos_count"),
                 rs.getLong("incidents_count"),
                 rs.getLong("open_incidents_count")
             )
@@ -309,7 +312,8 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         long chatHistory,
         long tasks,
         long clients,
-        long avatars,
+        long clientAvatars,
+        long panelUserPhotos,
         long incidents,
         long openIncidents
     ) {

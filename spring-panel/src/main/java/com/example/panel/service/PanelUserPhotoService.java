@@ -209,6 +209,10 @@ public class PanelUserPhotoService {
     }
 
     public StoredAvatar storeUploadedAvatar(MultipartFile file) throws IOException {
+        return storeUploadedAvatar(null, file);
+    }
+
+    public StoredAvatar storeUploadedAvatar(Long userId, MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Файл не может быть пустым");
         }
@@ -216,11 +220,40 @@ public class PanelUserPhotoService {
         if (!isAllowedImageExtension(extension)) {
             throw new IllegalArgumentException("Поддерживаются изображения PNG, JPG, GIF или WebP.");
         }
-        String storedName = System.currentTimeMillis() + "_" + UUID.randomUUID() + extension;
+
+        String storedName = userId != null && userId > 0
+                ? userAvatarFileName(userId, extension)
+                : System.currentTimeMillis() + "_" + UUID.randomUUID() + extension;
+
         try (InputStream inputStream = file.getInputStream()) {
             attachmentObjectStorageService.storeAvatar(storedName, file.getContentType(), inputStream).close();
         }
+
+        if (userId != null && userId > 0) {
+            removeObsoleteUserAvatarVariants(userId, storedName);
+        }
+
         return new StoredAvatar(storedName, buildStoredAvatarUrl(storedName));
+    }
+
+    private String userAvatarFileName(long userId, String extension) {
+        return "panel-user-" + userId + extension;
+    }
+
+    private void removeObsoleteUserAvatarVariants(long userId, String keepStoredName) {
+        for (String extension : ALLOWED_EXTENSIONS) {
+            String candidate = userAvatarFileName(userId, extension);
+            if (candidate.equals(keepStoredName)) {
+                continue;
+            }
+            try {
+                if (attachmentObjectStorageService.avatarExists(candidate)) {
+                    attachmentObjectStorageService.deleteAvatar(candidate);
+                }
+            } catch (IOException | RuntimeException ignored) {
+                // A stale variant must never make a successful upload fail.
+            }
+        }
     }
 
     public String storeNamedAvatar(String storedName, String contentType, byte[] data) throws IOException {
@@ -238,15 +271,33 @@ public class PanelUserPhotoService {
     }
 
     public boolean avatarExists(long userId, boolean full) {
-        return attachmentObjectStorageService.avatarExists(avatarFileName(userId, full));
+        return StringUtils.hasText(resolveAvatarUrl(userId, full));
     }
 
     public String resolveAvatarUrl(long userId, boolean full) {
-        String storedName = avatarFileName(userId, full);
-        if (!avatarExists(storedName) && !migrateLegacyLocalAvatar(storedName)) {
-            return null;
+        for (String storedName : userAvatarCandidates(userId, full)) {
+            if (avatarExists(storedName) || migrateLegacyLocalAvatar(storedName)) {
+                return buildStoredAvatarUrl(storedName);
+            }
         }
-        return buildStoredAvatarUrl(storedName);
+        return null;
+    }
+
+    private List<String> userAvatarCandidates(long userId, boolean full) {
+        java.util.ArrayList<String> candidates = new java.util.ArrayList<>();
+
+        // New canonical panel-user name.
+        for (String extension : ALLOWED_EXTENSIONS) {
+            candidates.add(userAvatarFileName(userId, extension));
+        }
+
+        // Historical id.jpg / id_full.jpg naming, now with every accepted extension.
+        String legacyBase = userId + (full ? "_full" : "");
+        for (String extension : ALLOWED_EXTENSIONS) {
+            candidates.add(legacyBase + extension);
+        }
+
+        return candidates;
     }
 
     private String extractExtension(String filename) {
@@ -264,6 +315,23 @@ public class PanelUserPhotoService {
         return ALLOWED_EXTENSIONS.contains(extension);
     }
 
+    public void deleteUserAvatarFiles(long userId) {
+        if (userId <= 0) {
+            return;
+        }
+        LinkedHashSet<String> candidates = new LinkedHashSet<>();
+        candidates.addAll(userAvatarCandidates(userId, false));
+        candidates.addAll(userAvatarCandidates(userId, true));
+        for (String candidate : candidates) {
+            try {
+                if (attachmentObjectStorageService.avatarExists(candidate)) {
+                    attachmentObjectStorageService.deleteAvatar(candidate);
+                }
+            } catch (IOException | RuntimeException ignored) {
+                // Best-effort cleanup; DB photo removal remains authoritative.
+            }
+        }
+    }
     public record StoredAvatar(String storedName, String url) {
     }
 }

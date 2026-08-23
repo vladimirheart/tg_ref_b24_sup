@@ -272,6 +272,11 @@ public class AuthManagementApiController {
         params.add(userId);
         String sql = "UPDATE users SET " + String.join(", ", updates) + " WHERE id = ?";
         usersJdbcTemplate.update(sql, params.toArray());
+
+        if (payload.containsKey("photo") && !StringUtils.hasText(stringValue(payload.get("photo")))) {
+            panelUserPhotoService.deleteUserAvatarFiles(userId);
+        }
+
         return Map.of("success", true);
     }
 
@@ -420,10 +425,13 @@ public class AuthManagementApiController {
         if (!isAllowedImageExtension(extension)) {
             return Map.of("success", false, "error", "Поддерживаются изображения PNG, JPG, GIF или WebP.");
         }
-        PanelUserPhotoService.StoredAvatar storedAvatar = panelUserPhotoService.storeUploadedAvatar(file);
+        PanelUserPhotoService.StoredAvatar storedAvatar = panelUserPhotoService.storeUploadedAvatar(userId, file);
         String url = storedAvatar.url();
-        if (userId != null) {
-            persistUserPhoto(userId, url);
+        if (userId != null && !persistUserPhoto(userId, url)) {
+            return Map.of(
+                "success", false,
+                "error", "Файл загружен, но ссылка на фото не сохранилась в профиле пользователя."
+            );
         }
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("success", true);
@@ -521,12 +529,23 @@ public class AuthManagementApiController {
         return isSelf || hasEditPermission(authentication, "user.username");
     }
 
-    private void persistUserPhoto(long userId, String photoUrl) {
+    private boolean persistUserPhoto(long userId, String photoUrl) {
         Set<String> userColumns = loadUserColumns();
         if (!userColumns.contains("photo")) {
-            return;
+            return false;
         }
-        usersJdbcTemplate.update("UPDATE users SET photo = ? WHERE id = ?", photoUrl, userId);
+
+        int updated = usersJdbcTemplate.update("UPDATE users SET photo = ? WHERE id = ?", photoUrl, userId);
+        if (updated != 1) {
+            return false;
+        }
+
+        List<String> persisted = usersJdbcTemplate.query(
+            "SELECT photo FROM users WHERE id = ?",
+            (rs, rowNum) -> rs.getString("photo"),
+            userId
+        );
+        return persisted.size() == 1 && photoUrl.equals(stringValue(persisted.get(0)));
     }
 
     private boolean hasFieldPermission(Authentication authentication, String permissionKey, String mode) {
