@@ -43,6 +43,23 @@ public class PanelUserPhotoService {
         return StringUtils.hasText(resolved) ? resolved : fallbackUrl;
     }
 
+    public String resolveUserAvatarUrl(Long userId, String photo, String fallbackUrl) {
+        String resolved = resolveUrlInternal(photo);
+        if (StringUtils.hasText(resolved)) {
+            return resolved;
+        }
+        if (userId != null && userId > 0) {
+            String byId = resolveAvatarUrl(userId, false);
+            if (!StringUtils.hasText(byId)) {
+                byId = resolveAvatarUrl(userId, true);
+            }
+            if (StringUtils.hasText(byId)) {
+                return byId;
+            }
+        }
+        return fallbackUrl;
+    }
+
     private String resolveUrlInternal(String photo) {
         if (!StringUtils.hasText(photo)) {
             return null;
@@ -173,7 +190,10 @@ public class PanelUserPhotoService {
 
     public String resolveAvatarUrl(long userId, boolean full) {
         String storedName = avatarFileName(userId, full);
-        return attachmentObjectStorageService.avatarExists(storedName) ? buildStoredAvatarUrl(storedName) : null;
+        if (!avatarExists(storedName) && !migrateLegacyLocalAvatar(storedName)) {
+            return null;
+        }
+        return buildStoredAvatarUrl(storedName);
     }
 
     private String extractExtension(String filename) {

@@ -69,7 +69,8 @@ public class NavigationService {
             }
             avatar = user.getPhoto();
         }
-        String avatarUrl = panelUserPhotoService.resolveUrl(avatar, "/avatar_default.svg");
+        Long userId = user != null ? user.getId() : null;
+        String avatarUrl = panelUserPhotoService.resolveUserAvatarUrl(userId, avatar, "/avatar_default.svg");
         model.addAttribute("sidebarUserDisplayName", displayName);
         model.addAttribute("sidebarUserUsername", resolvedUsername);
         model.addAttribute("sidebarUserAvatarUrl", avatarUrl);

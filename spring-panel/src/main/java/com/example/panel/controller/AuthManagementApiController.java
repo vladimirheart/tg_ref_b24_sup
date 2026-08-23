@@ -456,7 +456,7 @@ public class AuthManagementApiController {
             user.put("full_name", row.get("full_name"));
             user.put("role", row.getOrDefault("role_name", row.get("role")));
             user.put("role_id", row.get("role_id"));
-            user.put("photo", panelUserPhotoService.resolveUrl(stringValue(row.get("photo"))));
+            user.put("photo", panelUserPhotoService.resolveUserAvatarUrl(userId, stringValue(row.get("photo")), null));
             user.put("registration_date", row.get("registration_date"));
             user.put("birth_date", row.get("birth_date"));
             user.put("email", row.get("email"));

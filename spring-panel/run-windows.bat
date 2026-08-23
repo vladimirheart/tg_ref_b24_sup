@@ -332,12 +332,8 @@ call :RunMaven spring-boot:run %*
 set "EXIT_CODE=!ERRORLEVEL!"
 
 if not "!EXIT_CODE!"=="0" (
-    echo [WARN] Maven spring-boot:run failed with exit code !EXIT_CODE!.
-    echo [INFO] Retrying once with forced dependency refresh after clearing stale Maven transfer markers.
-
-    call :ClearMavenLastUpdatedMarkers
-    call :RunMavenForceUpdate spring-boot:run %*
-    set "EXIT_CODE=!ERRORLEVEL!"
+    echo [INFO] Maven spring-boot:run exited with code !EXIT_CODE!.
+    echo [INFO] Runtime launch is not retried automatically; Ctrl+C must stop the panel exactly once.
 )
 
 goto :Exit
@@ -476,6 +472,15 @@ set /a PORT_CANDIDATE+=1
 goto :FindAvailablePortLoop
 
 :Exit
+
+if defined APP_HTTP_PORT (
+    if exist "%SCRIPT_DIR%\scripts\cleanup-panel-port.ps1" (
+        powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass ^
+            -File "%SCRIPT_DIR%\scripts\cleanup-panel-port.ps1" ^
+            -Port !APP_HTTP_PORT! ^
+            -RepoRoot "%WORKSPACE_ROOT%"
+    )
+)
 
 popd >nul
 exit /b %EXIT_CODE%

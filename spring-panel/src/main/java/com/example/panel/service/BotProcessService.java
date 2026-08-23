@@ -79,9 +79,9 @@ public class BotProcessService {
             Path processOutputLogFile = resolveProcessOutputLogFile(logFile);
             Files.createDirectories(logFile.getParent());
             Files.createDirectories(processOutputLogFile.getParent());
-            long processOutputStartOffset = Files.exists(processOutputLogFile) ? Files.size(processOutputLogFile) : 0L;
+            long processOutputStartOffset = 0L;
             builder.redirectErrorStream(true);
-            builder.redirectOutput(ProcessBuilder.Redirect.appendTo(processOutputLogFile.toFile()));
+            builder.redirectOutput(ProcessBuilder.Redirect.to(processOutputLogFile.toFile()));
             builder.environment().putAll(botRuntimeContractService.buildEnvironment(channel, credential, logFile));
             Process process = builder.start();
             OffsetDateTime now = OffsetDateTime.now();
