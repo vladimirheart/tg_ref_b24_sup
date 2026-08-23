@@ -140,6 +140,9 @@
   const workspaceComposerMediaTrigger = document.getElementById('workspaceComposerMediaTrigger');
   const workspaceComposerMedia = document.getElementById('workspaceComposerMedia');
   const workspaceComposerMediaPreview = document.getElementById('workspaceComposerMediaPreview');
+  const workspaceComposerEmojiTrigger = document.getElementById('workspaceComposerEmojiTrigger');
+  const workspaceEmojiPanel = document.getElementById('workspaceEmojiPanel');
+  const workspaceEmojiList = document.getElementById('workspaceEmojiList');
   const workspaceComposerSaveDraft = document.getElementById('workspaceComposerSaveDraft');
   const workspaceComposerDraftState = document.getElementById('workspaceComposerDraftState');
   const workspaceComposerMacroSection = document.getElementById('workspaceComposerMacroSection');
@@ -1628,6 +1631,8 @@
       workspaceComposerMediaTrigger,
       workspaceComposerMedia,
       workspaceComposerMediaPreview,
+      workspaceComposerEmojiTrigger,
+      workspaceEmojiPanel,
       workspaceComposerSaveDraft,
       workspaceComposerDraftState,
       workspaceComposerMacroApply,
@@ -1906,6 +1911,10 @@
       detailsReplyEmojiTrigger,
       emojiPanel,
       emojiList,
+      workspaceComposerText,
+      workspaceComposerEmojiTrigger,
+      workspaceEmojiPanel,
+      workspaceEmojiList,
       categoryTemplatesSection,
       categoryTemplateSelect,
       categoryTemplateList,
@@ -4393,4 +4402,3 @@
   initDetailsResize();
   window.__dialogsPrimaryReady = true;
 })();
-

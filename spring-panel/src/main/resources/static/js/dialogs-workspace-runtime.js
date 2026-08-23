@@ -1043,7 +1043,80 @@
           updateWorkspaceComposerSendLabel();
         });
       }
+      const workspaceDropTarget = elements.workspaceComposerText?.closest('#workspaceComposerBlock')
+        || elements.workspaceComposerText;
+      if (workspaceDropTarget instanceof HTMLElement && elements.workspaceComposerMedia) {
+        let workspaceFileDragDepth = 0;
 
+        const workspaceDragHasFiles = (event) => {
+          const dataTransfer = event?.dataTransfer;
+          if (!dataTransfer) return false;
+          const types = Array.from(dataTransfer.types || []);
+          if (types.includes('Files')) return true;
+          return Array.from(dataTransfer.items || []).some((item) => item?.kind === 'file');
+        };
+
+        const canAcceptWorkspaceDrop = () => {
+          const activeState = getActiveWorkspaceState();
+          return Boolean(activeState.ticketId)
+            && !activeState.readonlyMode
+            && elements.workspaceComposerMedia.disabled !== true;
+        };
+
+        const setWorkspaceDropActive = (active) => {
+          workspaceDropTarget.classList.toggle('is-dragover', Boolean(active));
+        };
+
+        workspaceDropTarget.addEventListener('dragenter', (event) => {
+          if (!workspaceDragHasFiles(event) || !canAcceptWorkspaceDrop()) return;
+          event.preventDefault();
+          workspaceFileDragDepth += 1;
+          setWorkspaceDropActive(true);
+        });
+
+        workspaceDropTarget.addEventListener('dragover', (event) => {
+          if (!workspaceDragHasFiles(event) || !canAcceptWorkspaceDrop()) return;
+          event.preventDefault();
+          if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'copy';
+          }
+          setWorkspaceDropActive(true);
+        });
+
+        workspaceDropTarget.addEventListener('dragleave', (event) => {
+          if (!workspaceDragHasFiles(event)) return;
+          workspaceFileDragDepth = Math.max(0, workspaceFileDragDepth - 1);
+          if (workspaceFileDragDepth === 0) {
+            setWorkspaceDropActive(false);
+          }
+        });
+
+        workspaceDropTarget.addEventListener('drop', (event) => {
+          if (!workspaceDragHasFiles(event)) return;
+          event.preventDefault();
+          workspaceFileDragDepth = 0;
+          setWorkspaceDropActive(false);
+
+          if (!canAcceptWorkspaceDrop()) {
+            return;
+          }
+
+          const files = Array.from(event.dataTransfer?.files || []);
+          if (!files.length) return;
+
+          const beforeCount = options.getPendingMediaFiles?.(elements.workspaceComposerMedia)?.length || 0;
+          const totalFiles = options.stageMediaFilesInInput?.(elements.workspaceComposerMedia, files) || 0;
+
+          if (totalFiles <= beforeCount) {
+            notify('Не удалось добавить перетащенные файлы. Используйте кнопку прикрепления медиа.', 'warning');
+            return;
+          }
+
+          updateWorkspacePendingMediaTrigger(totalFiles);
+          updateWorkspacePendingMediaPreview();
+          updateWorkspaceComposerSendLabel();
+        });
+      }
       if (elements.workspaceComposerSaveDraft) {
         elements.workspaceComposerSaveDraft.addEventListener('click', () => {
           const activeState = getActiveWorkspaceState();
@@ -2251,6 +2324,12 @@
       if (elements.workspaceComposerText) elements.workspaceComposerText.disabled = !canReplyInWorkspace;
       if (elements.workspaceComposerSend) elements.workspaceComposerSend.disabled = !canReplyInWorkspace;
       if (elements.workspaceComposerMediaTrigger) elements.workspaceComposerMediaTrigger.disabled = !canReplyInWorkspace || composer.media_supported === false;
+      if (elements.workspaceComposerEmojiTrigger) elements.workspaceComposerEmojiTrigger.disabled = !canReplyInWorkspace;
+      if (elements.workspaceEmojiPanel && !canReplyInWorkspace) {
+        elements.workspaceEmojiPanel.classList.remove('is-open');
+        elements.workspaceEmojiPanel.setAttribute('aria-hidden', 'true');
+        elements.workspaceComposerEmojiTrigger?.setAttribute('aria-expanded', 'false');
+      }
       if (elements.workspaceComposerSaveDraft) elements.workspaceComposerSaveDraft.disabled = !canReplyInWorkspace;
       if (elements.workspaceComposerMacroApply) elements.workspaceComposerMacroApply.disabled = !canReplyInWorkspace || !composerMeta.hasActiveMacroTemplate;
       if (elements.workspaceComposerMacroSelect) elements.workspaceComposerMacroSelect.disabled = !canReplyInWorkspace || Number(composerMeta.macroTemplatesLength || 0) === 0;

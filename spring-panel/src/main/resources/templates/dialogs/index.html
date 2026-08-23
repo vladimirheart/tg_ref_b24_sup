@@ -257,6 +257,13 @@
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <button class="btn btn-sm btn-primary" id="workspaceComposerSend" type="button">Отправить (Ctrl/Cmd/Alt+Enter)</button>
                                 <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerMediaTrigger" type="button">Прикрепить медиа</button>
+                                <button class="btn btn-sm btn-outline-secondary"
+                                        id="workspaceComposerEmojiTrigger"
+                                        type="button"
+                                        aria-expanded="false"
+                                        aria-controls="workspaceEmojiPanel">
+                                    Emoji
+                                </button>
                                 <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerSaveDraft" type="button">Сохранить черновик (Ctrl/Cmd/Alt+S)</button>
                                 <span class="small text-muted"
 									  id="workspaceComposerDraftState"
@@ -265,6 +272,11 @@
 									  aria-atomic="true">
 									Черновик не сохранён
 								</span>
+                            </div>
+                            <div class="dialog-template-panel workspace-emoji-panel mt-2"
+                                 id="workspaceEmojiPanel"
+                                 aria-hidden="true">
+                                <div id="workspaceEmojiList"></div>
                             </div>
                             <div class="d-none mt-2" id="workspaceComposerMediaPreview" aria-live="polite"></div>
                             <input class="d-none" type="file" id="workspaceComposerMedia" multiple>
@@ -1199,7 +1211,7 @@
     in_work: Array.isArray(RAW_MY_IN_WORK_DIALOGS) ? RAW_MY_IN_WORK_DIALOGS : [],
   };
 </script>
-<th:block th:with="dialogsAssetVersion='20260715-2'">
+<th:block th:with="dialogsAssetVersion='20260822-1'">
 <script th:src="@{/js/dialogs-list-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-avatar-runtime.js(v=${dialogsAssetVersion})}"></script>

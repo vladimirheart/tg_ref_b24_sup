@@ -294,11 +294,12 @@
         : [];
     }
 
-    function renderEmojiPanel() {
-      if (!elements.emojiList) return;
+    function renderEmojiList(listElement) {
+      if (!(listElement instanceof HTMLElement)) return;
+
       const groups = normalizeEmojiGroups();
-      elements.emojiList.innerHTML = '';
-      elements.emojiList.classList.add('dialog-emoji-picker');
+      listElement.innerHTML = '';
+      listElement.classList.add('dialog-emoji-picker');
 
       groups.forEach((group) => {
         const section = document.createElement('section');
@@ -326,17 +327,22 @@
         });
 
         section.append(title, grid);
-        elements.emojiList.appendChild(section);
+        listElement.appendChild(section);
       });
     }
 
-    function insertEmojiAtCaret(value) {
-      const textarea = elements.detailsReplyText;
+    function renderEmojiPanel() {
+      renderEmojiList(elements.emojiList);
+      renderEmojiList(elements.workspaceEmojiList);
+    }
+
+    function insertEmojiAtCaret(textarea, value) {
       const emoji = String(value || '');
       if (!(textarea instanceof HTMLTextAreaElement) || !emoji) return;
 
       const start = Number.isInteger(textarea.selectionStart) ? textarea.selectionStart : textarea.value.length;
       const end = Number.isInteger(textarea.selectionEnd) ? textarea.selectionEnd : start;
+
       if (typeof textarea.setRangeText === 'function') {
         textarea.setRangeText(emoji, start, end, 'end');
       } else {
@@ -344,10 +350,49 @@
         const caret = start + emoji.length;
         textarea.setSelectionRange?.(caret, caret);
       }
+
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
       textarea.focus({ preventScroll: true });
     }
 
+    function setEmojiPanelOpen(trigger, panel, open) {
+      if (!(trigger instanceof HTMLElement) || !(panel instanceof HTMLElement)) return;
+
+      const shouldOpen = Boolean(open);
+      panel.classList.toggle('is-open', shouldOpen);
+      panel.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+      trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+    }
+
+    function bindEmojiPicker(trigger, panel, list, textarea) {
+      if (!(trigger instanceof HTMLElement)
+          || !(panel instanceof HTMLElement)
+          || !(list instanceof HTMLElement)
+          || !(textarea instanceof HTMLTextAreaElement)) {
+        return;
+      }
+
+      trigger.addEventListener('click', () => {
+        setEmojiPanelOpen(trigger, panel, !panel.classList.contains('is-open'));
+      });
+
+      list.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-emoji-value]');
+        if (!button) return;
+        insertEmojiAtCaret(textarea, button.dataset.emojiValue || '');
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || !panel.classList.contains('is-open')) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        setEmojiPanelOpen(trigger, panel, false);
+        trigger.focus({ preventScroll: true });
+      });
+    }
     function insertReplyText(value) {
       if (!elements.detailsReplyText || !value) return;
       const existing = elements.detailsReplyText.value.trim();
@@ -519,57 +564,19 @@
         });
       }
 
-      if (elements.detailsReplyEmojiTrigger && elements.emojiPanel) {
-			const setEmojiPanelOpen = (open) => {
-				const shouldOpen = Boolean(open);
+      bindEmojiPicker(
+        elements.detailsReplyEmojiTrigger,
+        elements.emojiPanel,
+        elements.emojiList,
+        elements.detailsReplyText
+      );
 
-				elements.emojiPanel.classList.toggle(
-					'is-open',
-					shouldOpen
-				);
-
-				elements.detailsReplyEmojiTrigger.setAttribute(
-					'aria-expanded',
-					shouldOpen ? 'true' : 'false'
-				);
-			};
-
-			elements.detailsReplyEmojiTrigger.addEventListener(
-				'click',
-				() => {
-					setEmojiPanelOpen(
-						!elements.emojiPanel.classList.contains('is-open')
-					);
-				}
-			);
-
-			document.addEventListener('keydown', (event) => {
-				if (
-					event.key !== 'Escape' ||
-					!elements.emojiPanel.classList.contains('is-open')
-				) {
-					return;
-				}
-
-				event.preventDefault();
-				event.stopPropagation();
-
-				setEmojiPanelOpen(false);
-
-				elements.detailsReplyEmojiTrigger.focus({
-					preventScroll: true
-				});
-			});
-		}
-
-      if (elements.emojiList) {
-        elements.emojiList.addEventListener('click', (event) => {
-          const button = event.target.closest('[data-emoji-value]');
-          if (!button) return;
-          insertEmojiAtCaret(button.dataset.emojiValue || '');
-        });
-      }
-
+      bindEmojiPicker(
+        elements.workspaceComposerEmojiTrigger,
+        elements.workspaceEmojiPanel,
+        elements.workspaceEmojiList,
+        elements.workspaceComposerText
+      );
       if (elements.questionTemplateList) {
         elements.questionTemplateList.addEventListener('click', (event) => {
           const button = event.target.closest('[data-question-template-item]');
