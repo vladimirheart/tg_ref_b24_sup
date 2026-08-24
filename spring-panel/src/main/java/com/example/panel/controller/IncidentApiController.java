@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.service.IncidentOpsEscalationService;
 import com.example.panel.service.IncidentOpsMetricsService;
+import com.example.panel.service.IncidentRouteDeliveryDiagnosticsService;
 import com.example.panel.service.IncidentService;
 import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,13 +25,16 @@ public class IncidentApiController {
     private final IncidentService incidentService;
     private final IncidentOpsMetricsService incidentOpsMetricsService;
     private final IncidentOpsEscalationService incidentOpsEscalationService;
+    private final IncidentRouteDeliveryDiagnosticsService incidentRouteDeliveryDiagnosticsService;
 
     public IncidentApiController(IncidentService incidentService,
                                  IncidentOpsMetricsService incidentOpsMetricsService,
-                                 IncidentOpsEscalationService incidentOpsEscalationService) {
+                                 IncidentOpsEscalationService incidentOpsEscalationService,
+                                 IncidentRouteDeliveryDiagnosticsService incidentRouteDeliveryDiagnosticsService) {
         this.incidentService = incidentService;
         this.incidentOpsMetricsService = incidentOpsMetricsService;
         this.incidentOpsEscalationService = incidentOpsEscalationService;
+        this.incidentRouteDeliveryDiagnosticsService = incidentRouteDeliveryDiagnosticsService;
     }
 
     @GetMapping
@@ -76,6 +80,11 @@ public class IncidentApiController {
             policy,
             authentication != null ? authentication.getName() : null
         );
+    }
+
+    @GetMapping("/{id}/route-delivery-health")
+    public Map<String, Object> routeDeliveryHealth(@PathVariable("id") Long id) {
+        return incidentRouteDeliveryDiagnosticsService.buildHealth(id);
     }
 
     @GetMapping("/{id}")

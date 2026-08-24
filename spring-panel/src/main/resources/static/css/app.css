@@ -9500,6 +9500,74 @@ body[data-ui-page=users] .admin-empty-cell {
     flex-wrap: wrap;
   }
 }
+/* Incident route delivery diagnostics v33 */
+.incident-route-health__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.incident-route-health__metric {
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-muted);
+}
+
+.incident-route-health__metric-label {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.incident-route-health__metric-value {
+  margin-top: 0.18rem;
+  font-size: 1rem;
+  font-weight: 720;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.incident-route-health__routes,
+.incident-route-health__history-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.incident-route-health__route,
+.incident-route-health__event {
+  padding: 0.6rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.incident-route-health__route-meta,
+.incident-route-health__event-meta {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.incident-route-health__error {
+  max-height: 9rem;
+  margin: 0.45rem 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.incident-route-health details > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+@media (max-width: 991.98px) {
+  .incident-route-health__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 /* Calm Operations interaction policy v9 */
 /*
  * Structural surfaces stay spatially stable on hover.
