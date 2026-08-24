@@ -44,7 +44,9 @@ public class EmployeeDiscountAutomationSettingsService {
         EmployeeDiscountAutomationSettings current = load();
         EmployeeDiscountAutomationSettings updated = new EmployeeDiscountAutomationSettings(
             parseLong(payload.getOrDefault("bitrix_group_id", current.bitrixGroupId())),
-            normalizeStringListOrDefault(payload.get("task_title_markers"), current.taskTitleMarkers()),
+            payload.containsKey("task_title_markers")
+                ? normalizeStringList(payload.get("task_title_markers"))
+                : current.taskTitleMarkers(),
             normalizeStringListOrDefault(payload.get("checklist_labels"), current.checklistLabels()),
             defaultIfBlank(asText(payload.getOrDefault("phone_regex", current.phoneRegex())), current.phoneRegex()),
             normalizeStringListOrDefault(payload.get("selected_discount_category_ids"), current.selectedDiscountCategoryIds()),

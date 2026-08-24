@@ -179,8 +179,8 @@ public class EmployeeDiscountAutomationCredentialService {
             resolvePlain(node, fallback.apiLogin(), "api_login", "apiLogin", "login"),
             resolveSecret(node, fallback.apiSecret(), "api_secret", "apiSecret", "password"),
             resolvePlain(node, fallback.organizationId(), "organization_id", "organizationId"),
-            normalizeStringListOrDefault(node.get("selected_discount_category_ids"), fallback.selectedDiscountCategoryIds()),
-            normalizeStringListOrDefault(node.get("selected_wallet_ids"), fallback.selectedWalletIds())
+            resolveStringList(node, "selected_discount_category_ids", fallback.selectedDiscountCategoryIds()),
+            resolveStringList(node, "selected_wallet_ids", fallback.selectedWalletIds())
         );
     }
 
@@ -207,22 +207,27 @@ public class EmployeeDiscountAutomationCredentialService {
         if (!StringUtils.hasText(username)) {
             return Map.of();
         }
+        List<Map<String, Object>> rows;
         try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT extra_json FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = 0 LIMIT 1",
+            rows = jdbcTemplate.queryForList(
+                "SELECT extra_json FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = FALSE LIMIT 1",
                 PARAM_TYPE,
                 username.trim()
             );
-            if (rows.isEmpty()) {
-                return Map.of();
-            }
-            Object rawJson = rows.get(0).get("extra_json");
-            if (!(rawJson instanceof String json) || !StringUtils.hasText(json)) {
-                return Map.of();
-            }
+        } catch (DataAccessException ex) {
+            throw new IllegalStateException("Failed to load employee discount credentials for current user", ex);
+        }
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+        Object rawJson = rows.get(0).get("extra_json");
+        if (!(rawJson instanceof String json) || !StringUtils.hasText(json)) {
+            return Map.of();
+        }
+        try {
             return objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, Object>>() {});
         } catch (Exception ex) {
-            return Map.of();
+            throw new IllegalStateException("Stored employee discount credentials are malformed", ex);
         }
     }
 
@@ -230,31 +235,38 @@ public class EmployeeDiscountAutomationCredentialService {
         Map<String, Object> payload = credentials.toStorageMap();
         payload.put("updated_at_utc", OffsetDateTime.now(ZoneOffset.UTC).toString());
         String json = writeJson(payload);
-        if (json == null) {
-            return;
-        }
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = 0 LIMIT 1",
+                "SELECT id FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = FALSE LIMIT 1",
                 PARAM_TYPE,
                 username.trim()
             );
             if (rows.isEmpty()) {
-                jdbcTemplate.update(
-                    "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', 0, ?)",
+                int inserted = jdbcTemplate.update(
+                    "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', FALSE, ?)",
                     PARAM_TYPE,
                     username.trim(),
                     json
                 );
+                if (inserted != 1) {
+                    throw new IllegalStateException("Employee discount credentials insert was not acknowledged by the database");
+                }
             } else {
                 Number id = (Number) rows.get(0).get("id");
-                jdbcTemplate.update(
-                    "UPDATE settings_parameters SET state = 'Активен', is_deleted = 0, deleted_at = NULL, extra_json = ? WHERE id = ?",
+                if (id == null) {
+                    throw new IllegalStateException("Employee discount credential row has no id");
+                }
+                int updated = jdbcTemplate.update(
+                    "UPDATE settings_parameters SET state = 'Активен', is_deleted = FALSE, deleted_at = NULL, extra_json = ? WHERE id = ?",
                     json,
-                    id != null ? id.longValue() : null
+                    id.longValue()
                 );
+                if (updated != 1) {
+                    throw new IllegalStateException("Employee discount credentials update was not acknowledged by the database");
+                }
             }
-        } catch (DataAccessException ignored) {
+        } catch (DataAccessException ex) {
+            throw new IllegalStateException("Failed to persist employee discount credentials for current user", ex);
         }
     }
 
@@ -262,7 +274,7 @@ public class EmployeeDiscountAutomationCredentialService {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (Exception ex) {
-            return null;
+            throw new IllegalStateException("Failed to serialize employee discount credentials", ex);
         }
     }
 
@@ -297,12 +309,11 @@ public class EmployeeDiscountAutomationCredentialService {
         return values;
     }
 
-    private List<String> normalizeStringListOrDefault(Object raw, List<String> fallback) {
-        if (raw == null) {
+    private List<String> resolveStringList(Map<String, Object> node, String key, List<String> fallback) {
+        if (!node.containsKey(key)) {
             return fallback;
         }
-        List<String> values = normalizeStringList(raw);
-        return values.isEmpty() ? fallback : values;
+        return normalizeStringList(node.get(key));
     }
 
     private String normalizeProfileKey(String rawUrl) {

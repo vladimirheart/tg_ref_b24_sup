@@ -116,3 +116,19 @@
 7. Под другим пользователем панели убедиться, что этот run не появляется в history и прямой `/runs/{id}` возвращает 404.
 
 После этого `01-033` можно вручную перевести из `🟣` в `🟢`.
+
+## Runtime-аудит v42 — 2026-08-24
+
+Повторная проверка `01-033` выявила несколько скрытых runtime-дефектов, которые не были покрыты v40:
+
+- `tasks.task.list` читался только одной страницей, поэтому задачи Bitrix24 после первых 50 могли не попадать в автоматизацию;
+- `task.checklistitem.complete` вызывался именованными параметрами и без проверки `result=true`; теперь используется позиционный контракт `0=TASKID`, `1=ITEMID`, а `result=false` считается ошибкой;
+- повторный execute после сценария «iiko уже изменён, а Bitrix checklist не подтвердился» мог повторно вызвать `remove_category`; теперь явный пустой snapshot категорий и ignorable removal errors трактуются идемпотентно;
+- ошибки HTTP iiko теперь сохраняют API reason, когда он присутствует в JSON, вместо потери тела ошибки;
+- credential storage использует PostgreSQL/SQLite-portable `BOOLEAN` SQL (`FALSE`) и больше не проглатывает DB/JSON failures: успешный ответ save означает, что user-scoped запись действительно сохранена;
+- пустой список выбранных iiko categories/wallet programs теперь действительно очищает selection, а не восстанавливает старый fallback;
+- Bitrix статус `6` (deferred/postponed) больше не считается закрытым: отложенная незакрытая задача остаётся кандидатом;
+- явный пустой `task_title_markers` теперь снимает старый title-фильтр; UI после failed run перечитывает durable history, чтобы error-run сразу был виден оператору;
+- `run()` больше не держит одну БД-транзакцию вокруг внешних HTTP-вызовов; run сохраняется до Bitrix discovery, discovery failure попадает в durable history, а execute-item записывается как `running` до внешнего mutation.
+
+После v42 остаётся обязательный live acceptance: реальный webhook Bitrix24, активный iiko URL-профиль, dry-run и безопасный execute на тестовой записи. Отдельно нужно подтвердить бизнес-смысл «кошельков» как corporate nutrition programs в конкретном iiko-контуре.

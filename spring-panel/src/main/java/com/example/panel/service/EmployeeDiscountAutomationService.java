@@ -7,7 +7,6 @@ import com.example.panel.repository.AutomationRunRepository;
 import com.example.panel.service.EmployeeDiscountAutomationSettingsService.EmployeeDiscountAutomationSettings;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -92,21 +91,31 @@ public class EmployeeDiscountAutomationService {
         );
     }
 
-    @Transactional
     public Map<String, Object> run(Boolean dryRunRequested, String actor) {
+        String effectiveActor = requireActor(actor);
         EmployeeDiscountAutomationSettings settings = settingsService.load();
         boolean dryRun = dryRunRequested != null ? dryRunRequested : settings.dryRunByDefault();
-        List<CandidateTask> candidates = collectCandidates(actor, settings);
         OffsetDateTime now = OffsetDateTime.now();
 
         AutomationRun run = new AutomationRun();
         run.setAutomationKey(AUTOMATION_KEY);
         run.setMode(dryRun ? "dry_run" : "execute");
         run.setStatus("running");
-        run.setActor(actor);
+        run.setActor(effectiveActor);
         run.setStartedAt(now);
         run.setCreatedAt(now);
         automationRunRepository.save(run);
+
+        if (settings.bitrixGroupId() == null || settings.bitrixGroupId() <= 0) {
+            return failRun(run, "Конфигурация автоматизации", "Сначала задайте bitrix_group_id в настройках автоматизации.");
+        }
+
+        List<CandidateTask> candidates;
+        try {
+            candidates = collectCandidates(effectiveActor, settings);
+        } catch (Exception ex) {
+            return failRun(run, "Bitrix24 discovery", integrationErrorMessage(ex, "Не удалось загрузить задачи Bitrix24."));
+        }
 
         int successCount = 0;
         int errorCount = 0;
@@ -134,23 +143,33 @@ public class EmployeeDiscountAutomationService {
                 continue;
             }
 
+            AutomationRunItem pendingItem = saveRunItem(
+                run,
+                candidate.taskId(),
+                candidate.title(),
+                candidate.phone(),
+                "running",
+                "Запущена обработка iiko; checklist Bitrix24 будет отмечен только после подтвержденного успеха.",
+                candidate.checklistItemId()
+            );
             try {
-                IikoDirectoryService.MutationResult iikoResult = iikoDirectoryService.disableCorporateDiscount(actor, candidate.phone());
+                IikoDirectoryService.MutationResult iikoResult = iikoDirectoryService.disableCorporateDiscount(effectiveActor, candidate.phone());
                 if (!iikoResult.success()) {
                     errorCount++;
-                    saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "error", iikoResult.message(), candidate.checklistItemId());
+                    updateRunItem(pendingItem, "error", iikoResult.message());
                     itemPayloads.add(buildItemPayload(candidate, "error", iikoResult.message()));
                     continue;
                 }
 
-                bitrix24RestService.completeChecklistItem(actor, candidate.taskId(), candidate.checklistItemId());
+                bitrix24RestService.completeChecklistItem(effectiveActor, candidate.taskId(), candidate.checklistItemId());
                 successCount++;
-                saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "success", "Чеклист Bitrix24 отмечен после успешной обработки iiko.", candidate.checklistItemId());
-                itemPayloads.add(buildItemPayload(candidate, "success", "Чеклист Bitrix24 отмечен после успешной обработки iiko."));
+                String message = "Чеклист Bitrix24 отмечен после успешной обработки iiko.";
+                updateRunItem(pendingItem, "success", message);
+                itemPayloads.add(buildItemPayload(candidate, "success", message));
             } catch (Exception ex) {
                 errorCount++;
-                String message = StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "Неизвестная ошибка интеграции.";
-                saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "error", message, candidate.checklistItemId());
+                String message = integrationErrorMessage(ex, "Неизвестная ошибка интеграции.");
+                updateRunItem(pendingItem, "error", message);
                 itemPayloads.add(buildItemPayload(candidate, "error", message));
             }
         }
@@ -247,13 +266,13 @@ public class EmployeeDiscountAutomationService {
         );
     }
 
-    private void saveRunItem(AutomationRun run,
-                             String taskId,
-                             String title,
-                             String phone,
-                             String status,
-                             String message,
-                             String checklistItemId) {
+    private AutomationRunItem saveRunItem(AutomationRun run,
+                                          String taskId,
+                                          String title,
+                                          String phone,
+                                          String status,
+                                          String message,
+                                          String checklistItemId) {
         AutomationRunItem item = new AutomationRunItem();
         item.setRun(run);
         item.setExternalTaskId(taskId);
@@ -263,7 +282,41 @@ public class EmployeeDiscountAutomationService {
         item.setMessage(message);
         item.setChecklistItemId(checklistItemId);
         item.setCreatedAt(OffsetDateTime.now());
+        return automationRunItemRepository.save(item);
+    }
+
+    private void updateRunItem(AutomationRunItem item, String status, String message) {
+        item.setStatus(status);
+        item.setMessage(message);
         automationRunItemRepository.save(item);
+    }
+
+    private Map<String, Object> failRun(AutomationRun run, String title, String message) {
+        saveRunItem(run, "", title, "", "error", message, "");
+        run.setFinishedAt(OffsetDateTime.now());
+        run.setStatus("error");
+        run.setSummary("success=0, error=1, skipped=0");
+        automationRunRepository.save(run);
+        return Map.of(
+            "success", false,
+            "error", message,
+            "run", toRunMap(run),
+            "items", List.of(Map.of(
+                "task_id", "",
+                "title", title,
+                "phone", "",
+                "status", "error",
+                "message", message
+            ))
+        );
+    }
+
+    private String integrationErrorMessage(Exception ex, String fallback) {
+        if (ex instanceof ResponseStatusException responseStatusException
+            && StringUtils.hasText(responseStatusException.getReason())) {
+            return responseStatusException.getReason();
+        }
+        return StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : fallback;
     }
 
     private Map<String, Object> toRunMap(AutomationRun run) {
@@ -379,7 +432,6 @@ public class EmployeeDiscountAutomationService {
         }
         String normalized = StringUtils.hasText(status) ? status.trim().toLowerCase(Locale.ROOT) : "";
         return "5".equals(normalized)
-            || "6".equals(normalized)
             || "7".equals(normalized)
             || "completed".equals(normalized)
             || "closed".equals(normalized)

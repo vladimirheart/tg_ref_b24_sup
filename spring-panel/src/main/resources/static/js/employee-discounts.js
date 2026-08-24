@@ -405,6 +405,7 @@
       await loadRuns();
       stateEl.textContent = dryRun ? 'Dry-run завершён.' : 'Боевой запуск завершён.';
     } catch (error) {
+      await loadRuns();
       stateEl.textContent = `Ошибка запуска: ${error.message || 'unknown_error'}`;
     }
   }
