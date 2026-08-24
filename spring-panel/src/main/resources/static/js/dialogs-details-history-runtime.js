@@ -720,18 +720,20 @@
       return `
         <div class="chat-message-row ${senderType} ${archivedHistory ? 'is-archived-history' : ''}" data-telegram-message-id="${message?.telegramMessageId || ''}">
           ${avatarMarkup}
-          <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''} ${archivedHistory ? 'is-archived-history' : ''}" data-message-preview="${escapeAttribute(messagePreviewText)}">
-            <div class="chat-message-header">
-              <span>${escapeHtml(senderLabel)}</span>
-              <span>${escapeHtml(timestamp)}</span>
+          <div class="chat-message-stack">
+            <div class="chat-message-meta-line">
+              <span class="chat-message-meta-sender">${escapeHtml(senderLabel)}</span>
+              <span class="chat-message-meta-time">${escapeHtml(timestamp)}</span>
+              ${statusBadges}
             </div>
-            ${statusBadges ? `<div class="small text-muted mb-1">${statusBadges}</div>` : ''}
             ${forwardedBadge}
-            ${replyPreview}
-            ${body ? `<div class="chat-message-body">${body}</div>` : ''}
+            <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''} ${archivedHistory ? 'is-archived-history' : ''}" data-message-preview="${escapeAttribute(messagePreviewText)}">
+              ${replyPreview}
+              ${body ? `<div class="chat-message-body">${body}</div>` : ''}
+              ${media}
+              ${actionButtons}
+            </div>
             ${originalBlock}
-            ${media}
-            ${actionButtons}
           </div>
         </div>
       `;
@@ -837,17 +839,16 @@
 
     function renderPreviousDialogHistoryControls() {
       const activeDialogState = getActiveDialogState();
-      const disabled = state.previousLoading || !activeDialogState.ticketId || !state.previousHasMore;
+      if (!state.previousHasMore && !state.previousLoading) {
+        return '';
+      }
+      const disabled = state.previousLoading || !activeDialogState.ticketId;
       const buttonLabel = state.previousLoading
-        ? 'Загружаем предыдущие обращения…'
-        : (state.previousHasMore ? 'Загрузить предыдущие сообщения' : 'Предыдущих обращений больше нет');
-      const helperText = state.previousBatches.length > 0
-        ? `Подгружено обращений: ${state.previousBatches.length}. Архив показан отдельным цветом.`
-        : 'Можно подгрузить переписку из предыдущих обращений этого клиента.';
+        ? 'Загружаем предыдущие сообщения…'
+        : 'Загрузить предыдущие сообщения';
       return `
-        <div class="dialog-history-controls">
-          <button class="btn btn-sm btn-outline-secondary" type="button" data-action="load-previous-history" ${disabled ? 'disabled' : ''}>${escapeHtml(buttonLabel)}</button>
-          <div class="small text-muted mt-2">${escapeHtml(helperText)}</div>
+        <div class="dialog-history-controls" data-history-boundary-control>
+          <button class="btn btn-sm dialog-history-load-previous" type="button" data-action="load-previous-history" ${disabled ? 'disabled' : ''}>${escapeHtml(buttonLabel)}</button>
         </div>
       `;
     }

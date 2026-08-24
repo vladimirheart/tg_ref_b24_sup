@@ -1,4 +1,4 @@
-# Task List
+﻿# Task List
 
 Живой рабочий список задач для AI.
 Подробные правила task-flow описаны в `ai-context/baseline/guides/tasks.md`.
@@ -205,4 +205,5 @@
 🟣 [01-184] Довести AI Ops до управляемого runtime: memory governance, feedback learning и безопасный auto-reply
 
 🟣 [01-185] Починить PostgreSQL Rabbit ingestion нового обращения и не показывать клиенту технический UUID вместо номера
-🟣 [01-186] Зафиксировать exact-text solution memory и починить PostgreSQL reply/audit runtime🟠 [01-187] Убрать ложный Maven BUILD FAILURE при штатной остановке Windows runtime
+🟣 [01-186] Зафиксировать exact-text solution memory и починить PostgreSQL reply/audit runtime
+🟠 [01-187] Убрать ложный Maven BUILD FAILURE при штатной остановке Windows runtime

@@ -204,17 +204,18 @@ public class AiOpsRuntimeService {
             return preview;
         }
 
-        String effectiveMode = applyIntentModeOverride(
-                preRouting.effectiveMode(),
-                retrievalResult.context().intentPolicy()
-        );
-        preview.put("effective_mode", effectiveMode);
         double suggestThreshold = dialogAiAssistantConfigService.resolveSuggestThreshold();
-        double autoReplyThreshold = dialogAiAssistantConfigService.resolveAutoReplyThreshold();
+        double configuredAutoReplyThreshold = dialogAiAssistantConfigService.resolveAutoReplyThreshold();
         preview.put("suggest_threshold", suggestThreshold);
-        preview.put("auto_reply_threshold", autoReplyThreshold);
+        preview.put("auto_reply_threshold", configuredAutoReplyThreshold);
 
         if (retrievalResult.candidates().isEmpty()) {
+            String effectiveMode = applyIntentModeOverride(
+                    preRouting.effectiveMode(),
+                    retrievalResult.context().intentPolicy(),
+                    false
+            );
+            preview.put("effective_mode", effectiveMode);
             preview.put("base_action", "escalate");
             preview.put("base_reason", "no_evidence");
             preview.put("final_action", "escalate");
@@ -224,28 +225,44 @@ public class AiOpsRuntimeService {
         }
 
         AiRetrievalService.Candidate top = retrievalResult.candidates().get(0);
-        boolean memoryExplicitlyAllowed = !"memory".equalsIgnoreCase(top.source())
-                || aiPolicyService.isMemoryAutoReplyAllowed(top.memoryKey());
+        AiIntentService.IntentPolicy intentPolicy = retrievalResult.context().intentPolicy();
+        boolean isMemory = "memory".equalsIgnoreCase(top.source());
+        boolean memoryExplicitlyAllowed = isMemory
+                && aiPolicyService.isMemoryAutoReplyAllowed(top.memoryKey());
+        boolean explicitMemoryIntentOverride = memoryExplicitlyAllowed
+                && aiPolicyService.isExplicitMemoryAutoReplyIntentEligible(intentPolicy);
+        String effectiveMode = applyIntentModeOverride(
+                preRouting.effectiveMode(),
+                intentPolicy,
+                explicitMemoryIntentOverride
+        );
+        double effectiveAutoReplyThreshold = memoryExplicitlyAllowed
+                ? suggestThreshold
+                : configuredAutoReplyThreshold;
+        boolean intentEligibleForAutoReply = intentPolicy.autoReplyAllowed() || explicitMemoryIntentOverride;
         boolean sourceEligibleForAutoReply = aiPolicyService.isAutoReplyEligibleSource(
                 top.source(),
                 top.status(),
                 top.trustLevel(),
                 top.sourceType(),
                 top.safetyLevel()
-        ) && retrievalResult.context().intentPolicy().autoReplyAllowed()
-                && !retrievalResult.context().intentPolicy().requiresOperator()
-                && memoryExplicitlyAllowed;
+        ) && intentEligibleForAutoReply
+                && !intentPolicy.requiresOperator()
+                && (!isMemory || memoryExplicitlyAllowed);
+        preview.put("effective_mode", effectiveMode);
         preview.put("top_source", top.source());
         preview.put("top_memory_key", top.memoryKey());
         preview.put("top_score", top.score());
         preview.put("memory_auto_reply_allowed", memoryExplicitlyAllowed);
+        preview.put("memory_intent_override", explicitMemoryIntentOverride);
+        preview.put("effective_auto_reply_threshold", effectiveAutoReplyThreshold);
         preview.put("source_auto_reply_eligible", sourceEligibleForAutoReply);
 
         AiDecisionService.Decision baseDecision = aiDecisionService.evaluateCandidateDecision(
                 effectiveMode,
                 top.score(),
                 suggestThreshold,
-                autoReplyThreshold,
+                effectiveAutoReplyThreshold,
                 control.autoReplyBlocked(),
                 sourceEligibleForAutoReply
         );
@@ -256,7 +273,10 @@ public class AiOpsRuntimeService {
 
         if (baseDecision.action() == AiDecisionService.DecisionAction.AUTO_REPLY) {
             AiRetrievalService.ConsistencyCheck consistency = retrievalResult.consistency();
-            if (!consistency.autoReplyAllowed()) {
+            boolean explicitMemorySingleEvidenceAllowed = memoryExplicitlyAllowed
+                    && !consistency.hasConflict()
+                    && "insufficient_confirmations".equals(consistency.reason());
+            if (!consistency.autoReplyAllowed() && !explicitMemorySingleEvidenceAllowed) {
                 finalAction = consistency.hasConflict() ? "escalate" : "suggest_only";
                 finalReason = consistency.reason();
             } else {
@@ -580,13 +600,21 @@ public class AiOpsRuntimeService {
     }
 
     private String applyIntentModeOverride(String currentMode, AiIntentService.IntentPolicy intentPolicy) {
+        return applyIntentModeOverride(currentMode, intentPolicy, false);
+    }
+
+    private String applyIntentModeOverride(String currentMode,
+                                           AiIntentService.IntentPolicy intentPolicy,
+                                           boolean explicitMemoryIntentOverride) {
         if (intentPolicy == null) {
             return currentMode;
         }
         if (intentPolicy.requiresOperator()) {
             return "escalate_only";
         }
-        if (intentPolicy.assistOnly() && !"escalate_only".equals(currentMode)) {
+        if (intentPolicy.assistOnly()
+                && !explicitMemoryIntentOverride
+                && !"escalate_only".equals(currentMode)) {
             return "assist_only";
         }
         return currentMode;

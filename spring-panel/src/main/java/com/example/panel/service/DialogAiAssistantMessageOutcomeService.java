@@ -122,6 +122,15 @@ public class DialogAiAssistantMessageOutcomeService {
         if (consistency.autoReplyAllowed()) {
             return false;
         }
+        boolean explicitMemoryDecision = context.decision() != null
+                && context.decision().action() == AiDecisionService.DecisionAction.AUTO_REPLY
+                && context.topSuggestion() != null
+                && "memory".equalsIgnoreCase(context.topSuggestion().source());
+        if (explicitMemoryDecision
+                && !consistency.hasConflict()
+                && "insufficient_confirmations".equals(consistency.reason())) {
+            return false;
+        }
         String detail = "evidence_conflict".equals(consistency.reason())
                 ? "Conflicting evidence across top candidates."
                 : "Not enough independent confirmations for auto-reply.";

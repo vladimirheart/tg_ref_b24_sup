@@ -490,7 +490,7 @@
                             </div>
                         </td>
                         <td data-column-key="status">
-                            <div class="d-flex align-items-center gap-2">
+                            <div class="dialog-status-line">
                                 <span class="badge rounded-pill" th:classappend="${dialog.statusClass()}" th:text="${dialog.statusLabel()}">Открыт</span>
                                 <span class="badge dialog-unread-count"
                                       th:classappend="${dialog.unreadCount() != null and dialog.unreadCount() > 0} ? '' : ' d-none'"
@@ -680,9 +680,18 @@
                     <button type="button" class="btn btn-outline-secondary btn-sm" id="dialogDetailsParticipantsBtn">Участники</button>
                     <button type="button" class="btn btn-outline-primary btn-sm" id="dialogDetailsReassignBtn">Передать</button>
                     <a class="btn btn-outline-secondary btn-sm" id="dialogDetailsCreateTask" th:href="@{/tasks(create=1)}">Задача</a>
-                    <button type="button" class="btn btn-outline-danger btn-sm" id="dialogDetailsSpam">Спам</button>
-                    <button type="button" class="btn btn-outline-success btn-sm" id="dialogDetailsResolve">Закрыть</button>
-                    <button type="button" class="btn btn-outline-warning btn-sm d-none" id="dialogDetailsReopen">Переоткрыть</button>
+                    <div class="dialog-details-resolution-stack">
+                        <div class="dialog-details-resolution-actions">
+                            <button type="button" class="btn btn-outline-danger btn-sm" id="dialogDetailsSpam">Спам</button>
+                            <button class="btn btn-outline-secondary btn-sm" type="button" id="dialogDetailsCategoriesBtn">Категории</button>
+                            <button type="button" class="btn btn-outline-success btn-sm" id="dialogDetailsResolve">Закрыть</button>
+                            <button type="button" class="btn btn-outline-warning btn-sm d-none" id="dialogDetailsReopen">Переоткрыть</button>
+                        </div>
+                        <label class="dialog-font-control dialog-font-control--header small text-muted">
+                            Размер текста
+                            <input type="range" class="form-range" id="dialogFontSizeRange" min="12" max="18" step="1" value="14">
+                        </label>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
             </div>
@@ -745,19 +754,7 @@
                     <div class="dialog-details-main">
                         <div class="card h-100 dialog-details-history-card">
                             <div class="card-body d-flex flex-column">
-                                <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-                                    <div class="fw-semibold">История сообщений</div>
-                                    <div class="dialog-details-main-actions">
-                                        <button class="btn btn-outline-secondary btn-sm" type="button" id="dialogDetailsCategoriesBtn">
-                                            Категории
-                                        </button>
-                                        <label class="dialog-font-control small text-muted">
-                                            Размер текста
-                                            <input type="range" class="form-range" id="dialogFontSizeRange" min="12" max="18" step="1" value="14">
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="d-flex flex-column gap-2 chat-history flex-grow-1" id="dialogDetailsHistory"></div>
+                                <div class="d-flex flex-column chat-history flex-grow-1" id="dialogDetailsHistory"></div>
                                 <div class="dialog-details-composer mt-3">
                                     <label class="form-label small text-muted" for="dialogReplyText">Ответ клиенту</label>
                                     <div class="dialog-composer-panels">

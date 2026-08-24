@@ -46,13 +46,17 @@ public class AlertQueueService {
     }
 
     public boolean notifyQueueForNewPublicAppeal(Channel channel, String ticketId, String previewText) {
+        return !notifyQueueForNewPublicAppealRecipients(channel, ticketId, previewText).isEmpty();
+    }
+
+    public Set<String> notifyQueueForNewPublicAppealRecipients(Channel channel, String ticketId, String previewText) {
         if (channel == null) {
-            return false;
+            return Set.of();
         }
         String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
         String text = "Новое обращение (" + channelLabel + "): " + trimPreview(previewText);
         String url = notificationService.buildDialogUrl(ticketId);
-        return notifyChannelEvent(channel, AlertEvent.NEW_PUBLIC_APPEAL, ticketId, text, url);
+        return notifyChannelEventRecipients(channel, AlertEvent.NEW_PUBLIC_APPEAL, ticketId, text, url);
     }
 
     public boolean notifyFirstResponseOverdue(Channel channel, String ticketId, long overdueMinutes) {
@@ -79,30 +83,41 @@ public class AlertQueueService {
     }
 
     private boolean notifyChannelEvent(Channel channel, AlertEvent event, String ticketId, String text, String url) {
+        return !notifyChannelEventRecipients(channel, event, ticketId, text, url).isEmpty();
+    }
+
+    private Set<String> notifyChannelEventRecipients(Channel channel,
+                                                     AlertEvent event,
+                                                     String ticketId,
+                                                     String text,
+                                                     String url) {
         ChannelAssignmentRoutingService.ResolvedAssignmentRouting assignmentRouting =
                 channelAssignmentRoutingService.resolve(channel, mapRoutingEvent(event), ticketId);
         if (assignmentRouting.enabled() && !assignmentRouting.recipients().isEmpty()) {
-            notificationService.notifyUsers(new LinkedHashSet<>(assignmentRouting.recipients()), text, url);
-            log.info("Queued {} '{}' notifications for channel {} via assignmentRouting",
-                    assignmentRouting.recipients().size(),
-                    event.key(),
-                    channel.getId());
-            return true;
+            Set<String> recipients = normalizeRecipientSet(assignmentRouting.recipients());
+            if (!recipients.isEmpty()) {
+                notificationService.notifyUsers(recipients, text, url);
+                log.info("Queued {} '{}' notifications for channel {} via assignmentRouting",
+                        recipients.size(),
+                        event.key(),
+                        channel.getId());
+                return recipients;
+            }
         }
         ResolvedAlertConfig config = parseConfig(channel, event);
         if (!config.enabled()) {
-            return false;
+            return Set.of();
         }
-        List<String> recipients = selectRecipients(config.routing());
+        Set<String> recipients = normalizeRecipientSet(selectRecipients(config.routing()));
         if (recipients.isEmpty()) {
-            return false;
+            return Set.of();
         }
-        notificationService.notifyUsers(new LinkedHashSet<>(recipients), text, url);
+        notificationService.notifyUsers(recipients, text, url);
         log.info("Queued {} '{}' notifications for channel {}",
                 recipients.size(),
                 event.key(),
                 channel.getId());
-        return true;
+        return recipients;
     }
 
     private ChannelAssignmentRoutingService.RoutingEvent mapRoutingEvent(AlertEvent event) {
@@ -119,6 +134,20 @@ public class AlertQueueService {
             return safe;
         }
         return safe.substring(0, 140) + "...";
+    }
+
+    private Set<String> normalizeRecipientSet(Iterable<String> values) {
+        if (values == null) {
+            return Set.of();
+        }
+        Set<String> normalized = new LinkedHashSet<>();
+        for (String value : values) {
+            if (!StringUtils.hasText(value)) {
+                continue;
+            }
+            normalized.add(value.trim().toLowerCase(Locale.ROOT));
+        }
+        return normalized;
     }
 
     private List<String> selectRecipients(AlertRouteConfig config) {

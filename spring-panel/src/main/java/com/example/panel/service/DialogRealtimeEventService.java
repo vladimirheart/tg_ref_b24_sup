@@ -5,6 +5,7 @@ import com.example.panel.repository.ChannelRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 @Service
@@ -58,14 +59,18 @@ public class DialogRealtimeEventService {
                 );
             }
         }
-        boolean handledByQueue = channel != null
-                && alertQueueService.notifyQueueForNewPublicAppeal(channel, normalizedTicketId, previewText);
-        if (!handledByQueue) {
-            String channelLabel = channel != null && StringUtils.hasText(channel.getChannelName())
-                    ? channel.getChannelName().trim()
-                    : "Канал";
-            String text = "Новое обращение (" + channelLabel + "): " + trimPreview(previewText);
-            notificationService.notifyAllOperators(text, notificationService.buildDialogUrl(normalizedTicketId), null);
+        String channelLabel = channel != null && StringUtils.hasText(channel.getChannelName())
+                ? channel.getChannelName().trim()
+                : "Канал";
+        String text = "Новое обращение (" + channelLabel + "): " + trimPreview(previewText);
+        String url = notificationService.buildDialogUrl(normalizedTicketId);
+        Set<String> routedRecipients = channel != null
+                ? alertQueueService.notifyQueueForNewPublicAppealRecipients(channel, normalizedTicketId, previewText)
+                : Set.of();
+        Set<String> remainingOperators = new LinkedHashSet<>(notificationService.findAllOperatorRecipients());
+        remainingOperators.removeAll(routedRecipients);
+        if (!remainingOperators.isEmpty()) {
+            notificationService.notifyUsers(remainingOperators, text, url);
         }
         uiEventStreamService.publishDialogsChanged("ticket_created", normalizedTicketId);
     }

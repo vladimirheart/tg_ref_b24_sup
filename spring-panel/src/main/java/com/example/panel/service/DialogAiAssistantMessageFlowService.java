@@ -111,11 +111,11 @@ public class DialogAiAssistantMessageFlowService {
         AiControlledLlmService.RewriteResult rewriteResult = aiControlledLlmService.rewriteQuery(normalizedTicketId, clientMessage);
         String retrievalQuery = firstNonBlank(trim(rewriteResult.effectiveQuery()), clientMessage);
         AiRetrievalService.RetrievalResult retrievalResult = aiRetrievalService.retrieve(normalizedTicketId, retrievalQuery, DEFAULT_SUGGESTION_LIMIT);
-        mode = applyIntentModeOverride(mode, retrievalResult.context().intentPolicy());
         List<DialogAiAssistantSuggestionCandidate> suggestions = mapSuggestions(retrievalResult.candidates());
         String sourceHits = dialogAiAssistantEventService.encodeSourceHits(suggestions);
 
         if (suggestions.isEmpty()) {
+            mode = applyIntentModeOverride(mode, retrievalResult.context().intentPolicy(), false);
             dialogAiAssistantMessageOutcomeService.handleNoSuggestions(
                     normalizedTicketId,
                     clientMessage,
@@ -129,17 +129,31 @@ public class DialogAiAssistantMessageFlowService {
         }
 
         DialogAiAssistantSuggestionCandidate top = suggestions.get(0);
-        double autoReplyThreshold = dialogAiAssistantConfigService.resolveAutoReplyThreshold();
+        AiIntentService.IntentPolicy intentPolicy = retrievalResult.context().intentPolicy();
+        double configuredAutoReplyThreshold = dialogAiAssistantConfigService.resolveAutoReplyThreshold();
         double suggestThreshold = dialogAiAssistantConfigService.resolveSuggestThreshold();
-        boolean memoryExplicitlyAllowed = !"memory".equalsIgnoreCase(top.source())
-                || aiPolicyService.isMemoryAutoReplyAllowed(top.memoryKey());
+        boolean isMemory = "memory".equalsIgnoreCase(top.source());
+        boolean memoryExplicitlyAllowed = isMemory
+                && aiPolicyService.isMemoryAutoReplyAllowed(top.memoryKey());
+        boolean explicitMemoryIntentOverride = memoryExplicitlyAllowed
+                && aiPolicyService.isExplicitMemoryAutoReplyIntentEligible(intentPolicy);
+        mode = applyIntentModeOverride(mode, intentPolicy, explicitMemoryIntentOverride);
+        boolean intentEligibleForAutoReply = intentPolicy.autoReplyAllowed() || explicitMemoryIntentOverride;
         boolean sourceEligibleForAutoReply = aiPolicyService.isAutoReplyEligibleSource(
                 top.source(), top.status(), top.trustLevel(), top.sourceType(), top.safetyLevel()
-        ) && retrievalResult.context().intentPolicy().autoReplyAllowed()
-                && !retrievalResult.context().intentPolicy().requiresOperator()
-                && memoryExplicitlyAllowed;
+        ) && intentEligibleForAutoReply
+                && !intentPolicy.requiresOperator()
+                && (!isMemory || memoryExplicitlyAllowed);
+        double effectiveAutoReplyThreshold = memoryExplicitlyAllowed
+                ? suggestThreshold
+                : configuredAutoReplyThreshold;
         AiDecisionService.Decision decision = aiDecisionService.evaluateCandidateDecision(
-                mode, top.score(), suggestThreshold, autoReplyThreshold, control.autoReplyBlocked(), sourceEligibleForAutoReply
+                mode,
+                top.score(),
+                suggestThreshold,
+                effectiveAutoReplyThreshold,
+                control.autoReplyBlocked(),
+                sourceEligibleForAutoReply
         );
         DialogAiAssistantMessageOutcomeContext context = new DialogAiAssistantMessageOutcomeContext(
                 normalizedTicketId,
@@ -148,7 +162,7 @@ public class DialogAiAssistantMessageFlowService {
                 sourceHits,
                 top,
                 suggestThreshold,
-                autoReplyThreshold,
+                effectiveAutoReplyThreshold,
                 decision,
                 retrievalResult,
                 rewriteResult,
@@ -233,14 +247,18 @@ public class DialogAiAssistantMessageFlowService {
         return payload;
     }
 
-    private String applyIntentModeOverride(String currentMode, AiIntentService.IntentPolicy intentPolicy) {
+    private String applyIntentModeOverride(String currentMode,
+                                           AiIntentService.IntentPolicy intentPolicy,
+                                           boolean explicitMemoryIntentOverride) {
         if (intentPolicy == null) {
             return currentMode;
         }
         if (intentPolicy.requiresOperator()) {
             return MODE_ESCALATE_ONLY;
         }
-        if (intentPolicy.assistOnly() && !MODE_ESCALATE_ONLY.equals(currentMode)) {
+        if (intentPolicy.assistOnly()
+                && !explicitMemoryIntentOverride
+                && !MODE_ESCALATE_ONLY.equals(currentMode)) {
             return MODE_ASSIST_ONLY;
         }
         return currentMode;

@@ -108,6 +108,19 @@ public class AiPolicyService {
             return false;
         }
     }
+
+    public boolean isExplicitMemoryAutoReplyIntentEligible(AiIntentService.IntentPolicy intentPolicy) {
+        if (intentPolicy == null || intentPolicy.requiresOperator()) {
+            return false;
+        }
+        String safetyLevel = normalizeOrDefault(intentPolicy.safetyLevel(), "normal");
+        if ("high_risk".equals(safetyLevel)) {
+            return false;
+        }
+        String intentKey = normalizeOrDefault(intentPolicy.intentKey(), "general_support");
+        return "general_support".equals(intentKey);
+    }
+
     public String normalizeTrustLevel(String value, String fallback) {
         String normalized = normalizeOrDefault(value, normalizeOrDefault(fallback, "low"));
         return switch (normalized) {
