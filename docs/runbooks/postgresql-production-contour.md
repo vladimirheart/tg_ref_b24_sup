@@ -153,3 +153,22 @@ Production contour теперь предполагает следующий live
 - operator может начать разбор с runtime checkpoint row и уйти в `Inspect`, не собирая историю worker'а вручную по таблицам;
 - incident trail теперь есть не только по overall transport degradation, но и по конкретному watcher/worker pressure;
 - remaining residual debt по worker-side observability смещён уже не в отсутствие базового drilldown, а в более глубокий replay/forensics и внешний alerting/automation слой.
+## Operator readiness surface
+
+В `Settings -> Production readiness` доступен read-only snapshot основных runtime gates. Он не заменяет startup fail-fast verifier и не выполняет никаких repair/restart/provision действий.
+
+Интерпретация общего статуса:
+
+- `ready` — datasource mode `postgresql`, и все обязательные production-компоненты отвечают без деградации;
+- `degraded` — хотя бы один обязательный probe недоступен/деградирован, Rabbit transport не `rabbitmq`, DLQ не пуст, либо durable incident delivery имеет unresolved failed/stale-processing записи;
+- `compatibility` — приложение запущено не в canonical PostgreSQL mode; такой snapshot пригоден для dev/legacy диагностики, но не является production readiness.
+
+Проверяемые компоненты:
+
+- PostgreSQL: активный JDBC datasource + `SELECT 1` + product check в canonical mode;
+- Redis: существующий shared coordination readiness ping;
+- RabbitMQ: наличие/доступность inbound и ticket-created queues, плюс видимость DLQ backlog;
+- MinIO/S3: тот же `HeadBucket` probe, который используется startup readiness;
+- Incident alert delivery: текущие failed/queued/processing, stale processing и terminal success rate за 24 часа.
+
+Если snapshot `degraded`, сначала устранить конкретный component reason в UI и только затем повторить проверку. Само обновление snapshot безопасно и не меняет runtime state.

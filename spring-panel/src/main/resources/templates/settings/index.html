@@ -95,6 +95,19 @@
       </div>
 
       <div class="col">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="productionReadinessModal">
+          <div class="card-body">
+            <div class="settings-tile__head">
+              <div class="settings-tile__lead">
+                <div class="tile-icon"><i class="bi bi-activity" aria-hidden="true"></i></div>
+                <h5 class="card-title">Production readiness</h5>
+              </div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
+            <p class="card-text text-muted">Проверьте PostgreSQL, Redis, RabbitMQ, MinIO/S3 и контур incident delivery.</p>
+          </div>
+        </div>
+      </div>      <div class="col">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="panelDesignSettingsModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -222,7 +235,32 @@
       </div>
     </div>
 
-    <!-- Настройка вводимых данных -->
+    <div class="modal fade settings-primary-modal" id="productionReadinessModal" tabindex="-1" aria-labelledby="productionReadinessModalLabel" aria-hidden="true" data-settings-primary-modal>
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div>
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <h5 class="modal-title mb-0" id="productionReadinessModalLabel">Production readiness</h5>
+                <span class="production-readiness-state is-compatibility" data-production-readiness-overall>Не проверено</span>
+              </div>
+              <div class="small text-muted mt-1" data-production-readiness-meta>Откройте проверку или нажмите «Обновить».</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div data-production-readiness-body>
+              <div class="text-muted">Readiness snapshot загружается при открытии окна.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <span class="small text-muted me-auto">Read-only operational probe. Никаких restart/provision действий из этого окна.</span>
+            <button type="button" class="btn btn-outline-secondary" data-production-readiness-refresh>Обновить</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+          </div>
+        </div>
+      </div>
+    </div>    <!-- Настройка вводимых данных -->
     <div class="modal fade settings-primary-modal" id="inputFormattingModal" tabindex="-1" aria-labelledby="inputFormattingModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -4966,6 +5004,7 @@
     <script src="/js/settings-page-callback-registry.js"></script>
     <script src="/js/settings-runtime-access.js"></script>
     <script src="/js/settings-page-shell.js"></script>
+    <script src="/js/settings-production-readiness.js"></script>
     <script src="/js/settings-save-runtime.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
     <script src="/js/settings-dialog-shell-runtime.js"></script>

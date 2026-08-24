@@ -3171,6 +3171,160 @@ body.sidebar-collapsed #partnerContactEditorModal {
     margin-left: 0.55rem;
   }
 }
+/* Production readiness v34 */
+#productionReadinessModal .modal-dialog {
+  max-width: min(1180px, 100vw - 2rem);
+}
+
+.production-readiness-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.production-readiness-intro code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+}
+
+.production-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+
+.production-readiness-card {
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+
+.production-readiness-card.is-healthy {
+  border-color: var(--state-success-border);
+}
+
+.production-readiness-card.is-degraded,
+.production-readiness-card.is-unavailable {
+  border-color: var(--state-danger-border);
+}
+
+.production-readiness-card.is-compatibility {
+  border-color: var(--state-info-border);
+}
+
+.production-readiness-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.production-readiness-card__title {
+  color: var(--color-text);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.production-readiness-card__summary {
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.production-readiness-card__meta {
+  margin-top: 0.55rem;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.production-readiness-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.6rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.production-readiness-state.is-healthy {
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+}
+
+.production-readiness-state.is-degraded,
+.production-readiness-state.is-unavailable {
+  border-color: var(--state-danger-border);
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
+}
+
+.production-readiness-state.is-compatibility {
+  border-color: var(--state-info-border);
+  background: var(--state-info-bg);
+  color: var(--state-info-text);
+}
+
+.production-readiness-details {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.65rem 0 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.production-readiness-details__row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.8fr) minmax(0, 1.2fr);
+  gap: 0.55rem;
+  align-items: baseline;
+}
+
+.production-readiness-details__row dt,
+.production-readiness-details__row dd {
+  margin: 0;
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
+.production-readiness-details__row dt {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.production-readiness-details__row dd {
+  color: var(--color-text);
+  text-align: right;
+}
+
+@media (max-width: 575.98px) {
+  .production-readiness-grid {
+    grid-template-columns: 1fr;
+  }
+  .production-readiness-details__row {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+  .production-readiness-details__row dd {
+    text-align: left;
+  }
+}
 /* Settings workspace stability v6.1 */
 /*
  * Workspace primitive

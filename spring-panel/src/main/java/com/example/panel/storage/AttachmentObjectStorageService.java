@@ -49,8 +49,12 @@ public class AttachmentObjectStorageService {
         if (!properties.isRequiredForPostgresql()) {
             return;
         }
+        verifyAvailable();
+    }
+
+    public void verifyAvailable() {
         if (!properties.isS3Mode()) {
-            throw new IllegalStateException("PostgreSQL runtime requires app.storage.object.mode=s3.");
+            throw new IllegalStateException("S3 object storage requires app.storage.object.mode=s3.");
         }
         if (!StringUtils.hasText(properties.getBucket())) {
             throw new IllegalStateException("S3 object storage bucket is not configured.");

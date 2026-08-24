@@ -46,8 +46,12 @@ public class RuntimeCoordinationService {
         if (!properties.isRequiredForPostgresql()) {
             return;
         }
+        verifyAvailable();
+    }
+
+    public void verifyAvailable() {
         if (!properties.isRedisMode()) {
-            throw new IllegalStateException("PostgreSQL runtime requires app.coordination.mode=redis.");
+            throw new IllegalStateException("Redis coordination requires app.coordination.mode=redis.");
         }
         try {
             String result = stringRedisTemplate.execute((RedisCallback<String>) connection -> connection.ping());
