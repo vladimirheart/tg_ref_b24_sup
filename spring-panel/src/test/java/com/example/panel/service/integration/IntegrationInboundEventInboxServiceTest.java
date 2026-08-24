@@ -36,6 +36,24 @@ class IntegrationInboundEventInboxServiceTest {
     }
 
     @Test
+    void beginProcessingAcceptsOpaqueEventIdAndDuplicateDoesNotCreateAnotherRow() throws Exception {
+        JdbcTemplate jdbcTemplate = jdbcTemplate();
+        createSchema(jdbcTemplate);
+        IntegrationInboundEventInboxService service = new IntegrationInboundEventInboxService(jdbcTemplate, new ObjectMapper());
+
+        String eventId = "ticket-created:telegram:450028723";
+        assertThat(service.beginProcessing(eventId, "kind", "telegram", 1L, "T-opaque", "routing.opaque", java.util.Map.of(), null)).isTrue();
+        service.markProcessed(eventId);
+        assertThat(service.beginProcessing(eventId, "kind", "telegram", 1L, "T-opaque", "routing.opaque", java.util.Map.of("retry", true), null)).isFalse();
+
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM integration_inbound_event_inbox WHERE event_id = ?",
+            Integer.class,
+            eventId
+        )).isEqualTo(1);
+    }
+
+    @Test
     void beginProcessingSkipsProcessedEvent() throws Exception {
         JdbcTemplate jdbcTemplate = jdbcTemplate();
         createSchema(jdbcTemplate);

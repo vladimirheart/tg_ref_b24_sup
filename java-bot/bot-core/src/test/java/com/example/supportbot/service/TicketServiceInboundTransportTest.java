@@ -19,6 +19,7 @@ import com.example.supportbot.repository.TicketActiveRepository;
 import com.example.supportbot.repository.TicketMessageRepository;
 import com.example.supportbot.repository.TicketRepository;
 import com.example.supportbot.repository.TicketSpanRepository;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -175,6 +176,58 @@ class TicketServiceInboundTransportTest {
         verify(messageRepository, never()).save(any());
         verify(ticketActiveRepository, never()).save(any());
         verify(chatHistoryService, never()).storeEntry(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void awaitClientTicketNumberWaitsForCanonicalPanelNumberInRabbitMode() {
+        PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
+        when(panelTicketReadClient.isEnabled()).thenReturn(true);
+        when(panelTicketReadClient.resolveRequestNumber("2e9f7e2b-6162-483b-8f3d-0dc3829ef6af"))
+                .thenReturn(Optional.empty(), Optional.of("20260824-029"));
+
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            mock(TicketActiveRepository.class),
+            mock(ChatHistoryService.class),
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            panelTicketReadClient,
+            mock(PanelTicketWriteClient.class),
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
+        );
+
+        Optional<String> number = service.awaitClientTicketNumber(
+            new TicketService.TicketCreationResult("2e9f7e2b-6162-483b-8f3d-0dc3829ef6af", null, "queued"),
+            Duration.ofMillis(500)
+        );
+
+        assertThat(number).contains("20260824-029");
+    }
+
+    @Test
+    void awaitClientTicketNumberNeverReturnsTechnicalUuidAsClientNumber() {
+        PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
+        when(panelTicketReadClient.isEnabled()).thenReturn(true);
+        when(panelTicketReadClient.resolveRequestNumber("2e9f7e2b-6162-483b-8f3d-0dc3829ef6af"))
+                .thenReturn(Optional.of("2e9f7e2b-6162-483b-8f3d-0dc3829ef6af"));
+
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            mock(TicketActiveRepository.class),
+            mock(ChatHistoryService.class),
+            mock(InboundClientMessagePublisher.class),
+            mock(ConversationTicketCreatedPublisher.class),
+            panelTicketReadClient,
+            mock(PanelTicketWriteClient.class),
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
+        );
+
+        Optional<String> number = service.awaitClientTicketNumber(
+            new TicketService.TicketCreationResult("2e9f7e2b-6162-483b-8f3d-0dc3829ef6af", null, "queued"),
+            Duration.ZERO
+        );
+
+        assertThat(number).isEmpty();
     }
 
     @Test

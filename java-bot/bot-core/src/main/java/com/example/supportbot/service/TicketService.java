@@ -42,6 +42,8 @@ public class TicketService {
     private static final Logger log = LoggerFactory.getLogger(TicketService.class);
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final DateTimeFormatter CLIENT_TICKET_NUMBER_DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
+    private static final Duration CLIENT_TICKET_NUMBER_WAIT_TIMEOUT = Duration.ofSeconds(6);
+    private static final Duration CLIENT_TICKET_NUMBER_POLL_INTERVAL = Duration.ofMillis(150);
     private static final String AUTO_CLOSE_RESOLVED_BY = "auto_close";
     private static final List<String> ACTIVITY_SENDERS = Arrays.asList("client", "operator", "support", "admin", "ai_agent");
 
@@ -340,7 +342,11 @@ public class TicketService {
             return null;
         }
         if (usePanelReadBoundary("resolve client ticket number")) {
-            return panelTicketReadClient.resolveRequestNumber(ticketId).orElse(ticketId);
+            return panelTicketReadClient.resolveRequestNumber(ticketId)
+                    .map(String::trim)
+                    .filter(StringUtils::hasText)
+                    .filter(number -> !ticketId.equals(number))
+                    .orElse(null);
         }
         return messageRepository.findByTicketId(ticketId)
                 .map(this::resolveClientTicketNumber)
@@ -353,6 +359,59 @@ public class TicketService {
             return null;
         }
         return resolveClientTicketNumber(ticket.ticketId());
+    }
+
+    public Optional<String> awaitClientTicketNumber(TicketCreationResult ticket) {
+        return awaitClientTicketNumber(ticket, CLIENT_TICKET_NUMBER_WAIT_TIMEOUT);
+    }
+
+    Optional<String> awaitClientTicketNumber(TicketCreationResult ticket, Duration timeout) {
+        if (ticket == null || !StringUtils.hasText(ticket.ticketId())) {
+            return Optional.empty();
+        }
+        if (!integrationTransportMode.isRabbitMqMode()) {
+            return Optional.ofNullable(resolveClientTicketNumber(ticket));
+        }
+        if (!panelTicketReadClient.isEnabled()) {
+            log.warn("Canonical request number cannot be resolved for ticket {} because panel read API is unavailable", ticket.ticketId());
+            return Optional.empty();
+        }
+
+        Duration safeTimeout = timeout == null ? CLIENT_TICKET_NUMBER_WAIT_TIMEOUT : timeout;
+        if (safeTimeout.isNegative()) {
+            safeTimeout = Duration.ZERO;
+        }
+        if (safeTimeout.compareTo(Duration.ofSeconds(10)) > 0) {
+            safeTimeout = Duration.ofSeconds(10);
+        }
+        long deadline = System.nanoTime() + safeTimeout.toNanos();
+        do {
+            Optional<String> resolved = panelTicketReadClient.resolveRequestNumber(ticket.ticketId())
+                    .map(String::trim)
+                    .filter(StringUtils::hasText)
+                    .filter(number -> !ticket.ticketId().equals(number));
+            if (resolved.isPresent()) {
+                return resolved;
+            }
+            long remainingNanos = deadline - System.nanoTime();
+            if (remainingNanos <= 0L) {
+                break;
+            }
+            long sleepMillis = Math.min(
+                    CLIENT_TICKET_NUMBER_POLL_INTERVAL.toMillis(),
+                    Math.max(1L, Duration.ofNanos(remainingNanos).toMillis())
+            );
+            try {
+                Thread.sleep(sleepMillis);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        } while (true);
+
+        log.warn("Canonical request number was not available for ticket {} within {} ms; technical ticket id will not be shown to client",
+                ticket.ticketId(), safeTimeout.toMillis());
+        return Optional.empty();
     }
 
     @Transactional(readOnly = true)

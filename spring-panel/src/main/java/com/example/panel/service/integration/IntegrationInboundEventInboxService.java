@@ -36,45 +36,42 @@ public class IntegrationInboundEventInboxService {
                                    OffsetDateTime receivedAt) {
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime effectiveReceivedAt = receivedAt != null ? receivedAt : now;
-        try {
-            jdbcTemplate.update("""
-                    INSERT INTO integration_inbound_event_inbox (
-                        event_id,
-                        event_kind,
-                        platform,
-                        channel_id,
-                        ticket_id,
-                        transport_source,
-                        routing_key,
-                        payload_json,
-                        status,
-                        received_at,
-                        attempt_count,
-                        processing_started_at,
-                        updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                eventId,
-                eventKind,
-                platform,
-                channelId,
-                ticketId,
-                "rabbitmq",
-                routingKey,
-                serialize(payload),
-                "processing",
-                effectiveReceivedAt,
-                1,
-                now,
-                now
-            );
+        int inserted = jdbcTemplate.update("""
+                INSERT INTO integration_inbound_event_inbox (
+                    event_id,
+                    event_kind,
+                    platform,
+                    channel_id,
+                    ticket_id,
+                    transport_source,
+                    routing_key,
+                    payload_json,
+                    status,
+                    received_at,
+                    attempt_count,
+                    processing_started_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(event_id) DO NOTHING
+                """,
+            eventId,
+            eventKind,
+            platform,
+            channelId,
+            ticketId,
+            "rabbitmq",
+            routingKey,
+            serialize(payload),
+            "processing",
+            effectiveReceivedAt,
+            1,
+            now,
+            now
+        );
+        if (inserted > 0) {
             return true;
-        } catch (RuntimeException ex) {
-            if (loadExistingRecord(eventId) != null) {
-                return reclaimExistingEvent(eventId, routingKey, payload, now);
-            }
-            throw ex;
         }
+        return reclaimExistingEvent(eventId, routingKey, payload, now);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

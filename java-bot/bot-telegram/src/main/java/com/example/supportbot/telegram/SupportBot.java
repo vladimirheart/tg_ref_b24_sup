@@ -2048,8 +2048,7 @@ public class SupportBot extends TelegramLongPollingBot {
         String summary = session.buildSummary(ticket.ticketId());
         sendTicketSummaryToOperatorChannel(summary);
 
-        String requestNumber = Optional.ofNullable(ticketService.resolveClientTicketNumber(ticket))
-                .orElse(Optional.ofNullable(ticket.ticketId()).orElse("—"));
+        String requestNumber = ticketService.awaitClientTicketNumber(ticket).orElse(null);
         sendConversationConfirmation(session, requestNumber);
 
     }
@@ -2070,9 +2069,12 @@ public class SupportBot extends TelegramLongPollingBot {
     }
 
     private void sendConversationConfirmation(ConversationSession session, String requestNumber) {
+        String text = requestNumber != null && !requestNumber.isBlank()
+                ? "Спасибо! Ваше обращение №" + requestNumber + " отправлено оператору. Мы свяжемся с вами после обработки."
+                : "Спасибо! Ваше обращение принято и передано оператору. Номер появится после регистрации. Мы свяжемся с вами после обработки.";
         SendMessage confirmation = SendMessage.builder()
                 .chatId(session.chatId())
-                .text("Спасибо! Ваше обращение №" + requestNumber + " отправлено оператору. Мы свяжемся с вами после обработки.")
+                .text(text)
                 .replyMarkup(new ReplyKeyboardRemove(true))
                 .build();
         try {

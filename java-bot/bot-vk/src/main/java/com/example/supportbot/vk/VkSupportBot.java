@@ -877,17 +877,24 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         session.startedAt()
                 )
         );
-        String requestNumber = result.groupMessageId() != null ? result.groupMessageId().toString() : result.ticketId();
+        Optional<String> requestNumber = ticketService.awaitClientTicketNumber(result);
         log.info("Created VK ticket {} for user {}", result.ticketId(), session.userId());
-        sendText(actor, session.peerId(), "Спасибо! Ваше обращение №" + requestNumber + " отправлено оператору.");
+        sendText(
+                actor,
+                session.peerId(),
+                requestNumber.map(number -> "Спасибо! Ваше обращение №" + number + " отправлено оператору.")
+                        .orElse("Спасибо! Ваше обращение принято и передано оператору. Номер появится после регистрации.")
+        );
         if (properties.getChannelId() != null && properties.getChannelId() > 0) {
             sendText(actor, properties.getChannelId().longValue(), session.buildSummary(result.ticketId()));
         }
-        int scale = botSettingsService.ratingScale(session.settings(), 5);
-        String prompt = botSettingsService.ratingPrompt(session.settings(), "Оцените заявку {ticket_id} по шкале 1-{scale}")
-                .replace("{ticket_id}", requestNumber)
-                .replace("{scale}", Integer.toString(scale));
-        sendText(actor, session.peerId(), prompt);
+        requestNumber.ifPresent(number -> {
+            int scale = botSettingsService.ratingScale(session.settings(), 5);
+            String prompt = botSettingsService.ratingPrompt(session.settings(), "Оцените заявку {ticket_id} по шкале 1-{scale}")
+                    .replace("{ticket_id}", number)
+                    .replace("{scale}", Integer.toString(scale));
+            sendText(actor, session.peerId(), prompt);
+        });
     }
 
     private void storeAttachments(Message message, ConversationSession session) {

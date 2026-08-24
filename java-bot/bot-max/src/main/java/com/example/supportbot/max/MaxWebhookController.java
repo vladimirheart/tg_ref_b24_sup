@@ -645,9 +645,13 @@ public class MaxWebhookController {
                         session.startedAt()
                 )
         );
-        String requestNumber = Optional.ofNullable(ticketService.resolveClientTicketNumber(created))
-                .orElse(Optional.ofNullable(created.ticketId()).orElse("—"));
-        messagingService.sendToUser(channel, session.userId(), "Заявка создана. Номер: " + requestNumber);
+        Optional<String> requestNumber = ticketService.awaitClientTicketNumber(created);
+        messagingService.sendToUser(
+                channel,
+                session.userId(),
+                requestNumber.map(number -> "Заявка создана. Номер: " + number)
+                        .orElse("Заявка принята и передана оператору. Номер появится после регистрации.")
+        );
         messagingService.sendToSupportChat(channel, session.buildSummary(created.ticketId()));
         return created;
     }

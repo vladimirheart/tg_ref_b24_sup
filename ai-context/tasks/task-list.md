@@ -1,4 +1,4 @@
-﻿# Task List
+# Task List
 
 Живой рабочий список задач для AI.
 Подробные правила task-flow описаны в `ai-context/baseline/guides/tasks.md`.
@@ -203,3 +203,5 @@
 🟣 [01-182] Выпилить legacy business fallback из java-bot после завершения PostgreSQL-first boundary
 🟣 [01-183] Довести Iguana до full production contour: PostgreSQL-only runtime, backend-owned transport и incident module
 🟣 [01-184] Довести AI Ops до управляемого runtime: memory governance, feedback learning и безопасный auto-reply
+
+🟣 [01-185] Починить PostgreSQL Rabbit ingestion нового обращения и не показывать клиенту технический UUID вместо номера
