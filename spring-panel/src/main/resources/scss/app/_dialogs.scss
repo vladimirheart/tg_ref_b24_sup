@@ -3449,3 +3449,44 @@ body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
     background: var(--surface-interactive);
     transform: none !important;
 }
+
+/* v51 sticker compact bubble fix */
+.chat-media--sticker {
+    width: 220px;
+    max-width: min(220px, 100%);
+    align-self: flex-start;
+}
+
+.chat-media--sticker > .chat-media-preview,
+.chat-media--sticker > .chat-media-sticker,
+.chat-media--sticker > video.chat-media-preview,
+.chat-media--sticker > img.chat-media-preview {
+    width: 220px;
+    max-width: 100%;
+}
+
+.chat-media--sticker > .chat-media-sticker {
+    height: 220px;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+}
+
+.chat-media--sticker > .chat-media-sticker > svg,
+.chat-media--sticker > .chat-media-sticker > canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.chat-message:has(.chat-media--sticker) {
+    width: fit-content;
+    min-width: 0;
+    max-width: min(100%, 18rem);
+}
+
+.chat-message:has(.chat-media--sticker) .chat-media-info-panel {
+    min-width: 11rem;
+    max-width: min(15rem, calc(100vw - 3rem));
+}

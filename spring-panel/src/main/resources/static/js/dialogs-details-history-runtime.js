@@ -441,20 +441,20 @@
       const normalizedName = String(name || '').trim() || typeLabel;
       const sizeLabel = formatAttachmentSize(message?.attachmentSize);
       const noteLabel = String(message?.attachmentNote || '').trim();
-      const typeDetails = [typeLabel, sizeLabel].filter(Boolean).join(' В· ');
+      const typeDetails = [typeLabel, sizeLabel].filter(Boolean).join(' / ');
       const isExternal = message?.attachmentProvider === 'external_url';
       const actionMarkup = message?.attachment
-        ? `<a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" ${isExternal ? '' : 'download'} target="_blank" rel="noopener">${isExternal ? 'РћС‚РєСЂС‹С‚СЊ' : 'РЎРєР°С‡Р°С‚СЊ'}</a>`
-        : '<span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">РќРµРґРѕСЃС‚СѓРїРЅРѕ</span>';
+        ? `<a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" ${isExternal ? '' : 'download'} target="_blank" rel="noopener">${isExternal ? '&#1054;&#1090;&#1082;&#1088;&#1099;&#1090;&#1100;' : '&#1057;&#1082;&#1072;&#1095;&#1072;&#1090;&#1100;'}</a>`
+        : '<span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">&#1053;&#1077;&#1076;&#1086;&#1089;&#1090;&#1091;&#1087;&#1085;&#1086;</span>';
       return `
         <details class="chat-media-info" data-media-info-menu>
-          <summary class="chat-media-info-toggle" aria-label="РРЅС„РѕСЂРјР°С†РёСЏ Рѕ РІР»РѕР¶РµРЅРёРё" title="РРЅС„РѕСЂРјР°С†РёСЏ Рѕ РІР»РѕР¶РµРЅРёРё">в‹Ї</summary>
+          <summary class="chat-media-info-toggle" aria-label="&#1048;&#1085;&#1092;&#1086;&#1088;&#1084;&#1072;&#1094;&#1080;&#1103; &#1086; &#1074;&#1083;&#1086;&#1078;&#1077;&#1085;&#1080;&#1080;" title="&#1048;&#1085;&#1092;&#1086;&#1088;&#1084;&#1072;&#1094;&#1080;&#1103; &#1086; &#1074;&#1083;&#1086;&#1078;&#1077;&#1085;&#1080;&#1080;">&#8230;</summary>
           <div class="chat-media-info-panel" role="menu">
-            <div class="chat-media-info-label">Р¤Р°Р№Р»</div>
+            <div class="chat-media-info-label">&#1060;&#1072;&#1081;&#1083;</div>
             <div class="chat-media-info-value">${escapeHtml(normalizedName)}</div>
-            <div class="chat-media-info-label">РўРёРї</div>
+            <div class="chat-media-info-label">&#1058;&#1080;&#1087;</div>
             <div class="chat-media-info-value">${escapeHtml(typeDetails || typeLabel)}</div>
-            ${noteLabel ? `<div class="chat-media-info-label">РЎС‚Р°С‚СѓСЃ</div><div class="chat-media-info-value">${escapeHtml(noteLabel)}</div>` : ''}
+            ${noteLabel ? `<div class="chat-media-info-label">&#1057;&#1090;&#1072;&#1090;&#1091;&#1089;</div><div class="chat-media-info-value">${escapeHtml(noteLabel)}</div>` : ''}
             ${actionMarkup}
           </div>
         </details>
@@ -524,7 +524,7 @@
           preview = `<img class="chat-media-preview" src="${attachmentUrl}" alt="${escapeAttribute(name)}" data-image-src="${attachmentUrl}" data-media-name="${escapeAttribute(name)}">`;
         }
         return `
-          <div class="chat-media">
+          <div class="chat-media chat-media--sticker">
             ${preview}
             ${mediaInfo}
           </div>
