@@ -3213,3 +3213,149 @@ body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
 .workspace-emoji-panel.is-open {
   display: block;
 }
+
+
+/* v50: media preview/player and operator send-mode control */
+.chat-media-preview {
+    width: auto;
+    max-width: min(18rem, 100%);
+    max-height: 16rem;
+    object-fit: contain;
+}
+
+.chat-media-preview.is-unavailable,
+.chat-media-audio-source {
+    display: none;
+}
+
+.chat-media-animation {
+    min-width: 8rem;
+    min-height: 5rem;
+    background: var(--surface-raised);
+}
+
+.dialog-custom-audio-player {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(10rem, 1fr);
+    gap: 0.7rem;
+    align-items: center;
+    width: min(22rem, calc(100vw - 5rem));
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.9rem;
+    background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+}
+
+.dialog-custom-audio-toggle {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--color-border));
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--primary) 11%, var(--surface-card));
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.dialog-custom-audio-toggle:hover,
+.dialog-custom-audio-toggle:focus-visible {
+    background: color-mix(in srgb, var(--primary) 17%, var(--surface-card));
+    border-color: color-mix(in srgb, var(--primary) 46%, var(--color-border));
+}
+
+.dialog-custom-audio-toggle:focus-visible,
+.dialog-custom-audio-progress:focus-visible,
+.dialog-send-mode-select:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+}
+
+.dialog-custom-audio-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.dialog-custom-audio-body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.dialog-custom-audio-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.dialog-custom-audio-progress {
+    width: 100%;
+    height: 0.25rem;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.dialog-custom-audio-time {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.chat-media-load-error {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: center;
+    max-width: 20rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    background: var(--surface-raised);
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+}
+
+.chat-media-load-error-link {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.chat-media-load-error-link:hover,
+.chat-media-load-error-link:focus-visible {
+    text-decoration: underline;
+}
+
+.dialog-send-mode-control {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.dialog-send-mode-label,
+.dialog-send-mode-hint {
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+}
+
+.dialog-send-mode-select {
+    width: auto;
+    min-width: 7.4rem;
+}
+
+.dialog-send-mode-hint {
+    max-width: 15rem;
+    line-height: 1.25;
+}

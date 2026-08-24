@@ -6,6 +6,7 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -23,6 +24,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.OffsetDateTime;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -43,35 +45,54 @@ public class AttachmentService {
     }
 
     public ResponseEntity<Resource> downloadTicketAttachment(Authentication authentication, String ticketId, String filename) throws IOException {
-        requireAuthority(authentication, "PAGE_DIALOGS");
-        AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, filename);
-        return buildResponse(binary, buildContentDisposition("attachment", filename));
+        return downloadTicketAttachment(authentication, ticketId, filename, null);
     }
 
+    public ResponseEntity<Resource> downloadTicketAttachment(Authentication authentication,
+                                                             String ticketId,
+                                                             String filename,
+                                                             String rangeHeader) throws IOException {
+        requireAuthority(authentication, "PAGE_DIALOGS");
+        AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, filename);
+        return buildResponse(binary, buildContentDisposition("attachment", filename), filename, rangeHeader);
+    }
 
     public ResponseEntity<Resource> downloadTicketAttachmentByPath(Authentication authentication, String path) throws IOException {
+        return downloadTicketAttachmentByPath(authentication, path, null);
+    }
+
+    public ResponseEntity<Resource> downloadTicketAttachmentByPath(Authentication authentication,
+                                                                   String path,
+                                                                   String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
         Path resolved = resolveByStoredPath(attachmentsRoot, path);
-        return buildInlineResponse(resolved);
+        return buildInlineResponse(resolved, rangeHeader);
     }
 
     public ResponseEntity<Resource> downloadTicketAttachmentByStorageKey(Authentication authentication, String storageKey) throws IOException {
+        return downloadTicketAttachmentByStorageKey(authentication, storageKey, null);
+    }
+
+    public ResponseEntity<Resource> downloadTicketAttachmentByStorageKey(Authentication authentication,
+                                                                         String storageKey,
+                                                                         String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachmentByStorageKey(storageKey);
         String filename = AttachmentStorageKeyResolver.extractFileName(storageKey);
-        return buildResponse(binary, buildContentDisposition("inline", StringUtils.hasText(filename) ? filename : "file"));
+        String safeFilename = StringUtils.hasText(filename) ? filename : "file";
+        return buildResponse(binary, buildContentDisposition("inline", safeFilename), safeFilename, rangeHeader);
     }
 
     public ResponseEntity<Resource> downloadKnowledgeBaseFile(Authentication authentication, String fileId) throws IOException {
         requireAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openKnowledgeBaseFile(fileId);
-        return buildResponse(binary, buildContentDisposition("attachment", fileId));
+        return buildResponse(binary, buildContentDisposition("attachment", fileId), fileId, null);
     }
 
     public ResponseEntity<Resource> downloadAvatar(Authentication authentication, String avatarId) throws IOException {
         requireAuthenticated(authentication);
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openAvatar(avatarId);
-        return buildResponse(binary, buildContentDisposition("inline", avatarId));
+        return buildResponse(binary, buildContentDisposition("inline", avatarId), avatarId, null);
     }
 
     public AttachmentUploadMetadata storeKnowledgeBaseFile(Authentication authentication, MultipartFile file) throws IOException {
@@ -216,34 +237,82 @@ public class AttachmentService {
     }
 
     private ResponseEntity<Resource> buildDownloadResponse(Path file, String downloadName) throws IOException {
-        return buildResponse(file, buildContentDisposition("attachment", downloadName));
+        return buildResponse(file, buildContentDisposition("attachment", downloadName), downloadName, null);
     }
 
     private ResponseEntity<Resource> buildInlineResponse(Path file) throws IOException {
+        return buildInlineResponse(file, null);
+    }
+
+    private ResponseEntity<Resource> buildInlineResponse(Path file, String rangeHeader) throws IOException {
         String filename = file.getFileName() != null ? file.getFileName().toString() : "file";
-        return buildResponse(file, buildContentDisposition("inline", filename));
+        return buildResponse(file, buildContentDisposition("inline", filename), filename, rangeHeader);
     }
 
-    private ResponseEntity<Resource> buildResponse(Path file, String disposition) throws IOException {
-        MediaType mediaType = MediaTypeFactory.detect(file);
-        InputStreamResource resource = new InputStreamResource(Files.newInputStream(file));
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
-                .contentType(mediaType)
-                .contentLength(Files.size(file))
-                .body(resource);
+    private ResponseEntity<Resource> buildResponse(Path file,
+                                                   String disposition,
+                                                   String filename,
+                                                   String rangeHeader) throws IOException {
+        long totalSize = Files.size(file);
+        MediaType mediaType = MediaTypeFactory.detect(filename, Files.probeContentType(file));
+        return buildStreamResponse(Files.newInputStream(file), totalSize, mediaType, disposition, rangeHeader);
     }
 
-    private ResponseEntity<Resource> buildResponse(AttachmentObjectStorageService.StoredBinary binary, String disposition) {
-        MediaType mediaType = StringUtils.hasText(binary.contentType())
-                ? MediaType.parseMediaType(binary.contentType())
-                : MediaType.APPLICATION_OCTET_STREAM;
-        InputStreamResource resource = new InputStreamResource(binary.inputStream());
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
-                .contentType(mediaType)
-                .contentLength(binary.size())
-                .body(resource);
+    private ResponseEntity<Resource> buildResponse(AttachmentObjectStorageService.StoredBinary binary,
+                                                   String disposition,
+                                                   String filename,
+                                                   String rangeHeader) {
+        MediaType mediaType = MediaTypeFactory.detect(filename, binary.contentType());
+        return buildStreamResponse(binary.inputStream(), binary.size(), mediaType, disposition, rangeHeader);
+    }
+
+    private ResponseEntity<Resource> buildStreamResponse(InputStream source,
+                                                         long totalSize,
+                                                         MediaType mediaType,
+                                                         String disposition,
+                                                         String rangeHeader) {
+        ByteRange range = ByteRange.parse(rangeHeader, totalSize);
+        if (range == null) {
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                    .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                    .contentType(mediaType)
+                    .contentLength(totalSize)
+                    .body(new InputStreamResource(source));
+        }
+        try {
+            skipFully(source, range.start());
+            InputStreamResource resource = new InputStreamResource(new BoundedInputStream(source, range.length()));
+            return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                    .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                    .header(HttpHeaders.CONTENT_RANGE, "bytes " + range.start() + "-" + range.end() + "/" + totalSize)
+                    .contentType(mediaType)
+                    .contentLength(range.length())
+                    .body(resource);
+        } catch (IOException ex) {
+            try {
+                source.close();
+            } catch (IOException ignored) {
+                // Preserve the original range error.
+            }
+            throw new UncheckedIOException("Failed to prepare attachment byte range", ex);
+        }
+    }
+
+    private void skipFully(InputStream input, long byteCount) throws IOException {
+        long remaining = byteCount;
+        while (remaining > 0) {
+            long skipped = input.skip(remaining);
+            if (skipped > 0) {
+                remaining -= skipped;
+                continue;
+            }
+            if (input.read() < 0) {
+                throw new IOException("Unexpected end of attachment stream");
+            }
+            remaining--;
+        }
     }
 
     private String buildContentDisposition(String type, String filename) {
@@ -355,9 +424,123 @@ public class AttachmentService {
     }
 
     private static final class MediaTypeFactory {
-        private static MediaType detect(Path file) throws IOException {
-            String probe = Files.probeContentType(file);
-            return probe != null ? MediaType.parseMediaType(probe) : MediaType.APPLICATION_OCTET_STREAM;
+        private static MediaType detect(String filename, String fallbackMimeType) {
+            String normalizedName = StringUtils.hasText(filename) ? filename.trim().toLowerCase(Locale.ROOT) : "";
+            int dot = normalizedName.lastIndexOf('.');
+            String extension = dot >= 0 && dot < normalizedName.length() - 1
+                    ? normalizedName.substring(dot + 1)
+                    : "";
+            String knownMimeType = switch (extension) {
+                case "jpg", "jpeg" -> "image/jpeg";
+                case "png" -> "image/png";
+                case "webp" -> "image/webp";
+                case "gif" -> "image/gif";
+                case "bmp" -> "image/bmp";
+                case "mp4", "m4v" -> "video/mp4";
+                case "webm" -> "video/webm";
+                case "ogg", "oga" -> "audio/ogg";
+                case "mp3" -> "audio/mpeg";
+                case "m4a" -> "audio/mp4";
+                case "wav" -> "audio/wav";
+                case "pdf" -> "application/pdf";
+                default -> null;
+            };
+            if (StringUtils.hasText(knownMimeType)) {
+                return MediaType.parseMediaType(knownMimeType);
+            }
+            if (StringUtils.hasText(fallbackMimeType) && !fallbackMimeType.contains("*")) {
+                try {
+                    return MediaType.parseMediaType(fallbackMimeType);
+                } catch (IllegalArgumentException ignored) {
+                    // Use the safe binary fallback below.
+                }
+            }
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+    }
+
+    private record ByteRange(long start, long end) {
+        long length() {
+            return end - start + 1;
+        }
+
+        static ByteRange parse(String rangeHeader, long totalSize) {
+            if (!StringUtils.hasText(rangeHeader) || totalSize <= 0) {
+                return null;
+            }
+            String normalized = rangeHeader.trim().toLowerCase(Locale.ROOT);
+            if (!normalized.startsWith("bytes=") || normalized.contains(",")) {
+                return null;
+            }
+            String spec = normalized.substring("bytes=".length()).trim();
+            int dash = spec.indexOf('-');
+            if (dash < 0) {
+                return null;
+            }
+            String startValue = spec.substring(0, dash).trim();
+            String endValue = spec.substring(dash + 1).trim();
+            try {
+                if (startValue.isEmpty()) {
+                    long suffixLength = Long.parseLong(endValue);
+                    if (suffixLength <= 0) {
+                        return null;
+                    }
+                    long start = Math.max(0, totalSize - suffixLength);
+                    return new ByteRange(start, totalSize - 1);
+                }
+                long start = Long.parseLong(startValue);
+                if (start < 0 || start >= totalSize) {
+                    return null;
+                }
+                long end = endValue.isEmpty() ? totalSize - 1 : Long.parseLong(endValue);
+                end = Math.min(end, totalSize - 1);
+                if (end < start) {
+                    return null;
+                }
+                return new ByteRange(start, end);
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+    }
+
+    private static final class BoundedInputStream extends InputStream {
+        private final InputStream delegate;
+        private long remaining;
+
+        private BoundedInputStream(InputStream delegate, long remaining) {
+            this.delegate = delegate;
+            this.remaining = Math.max(0, remaining);
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (remaining <= 0) {
+                return -1;
+            }
+            int value = delegate.read();
+            if (value >= 0) {
+                remaining--;
+            }
+            return value;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            if (remaining <= 0) {
+                return -1;
+            }
+            int requested = (int) Math.min(length, remaining);
+            int read = delegate.read(buffer, offset, requested);
+            if (read > 0) {
+                remaining -= read;
+            }
+            return read;
+        }
+
+        @Override
+        public void close() throws IOException {
+            delegate.close();
         }
     }
 

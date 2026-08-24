@@ -209,3 +209,4 @@
 🟠 [01-187] Убрать ложный Maven BUILD FAILURE при штатной остановке Windows runtime
 🟣 [01-188] Починить PostgreSQL media/rating/edit runtime, защитить reply от дублей и стабилизировать questionnaire/unread UI
 🟠 [01-189] Добавить полную историю редакций сообщений и service-event timeline в диалоге
+🟣 [01-190] Починить inline media preview/player и добавить выбор Enter или Ctrl+Enter для ответа оператора

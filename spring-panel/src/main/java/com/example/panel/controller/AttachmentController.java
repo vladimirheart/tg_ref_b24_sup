@@ -1,12 +1,14 @@
 package com.example.panel.controller;
 
 import com.example.panel.storage.AttachmentService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,20 +30,23 @@ public class AttachmentController {
     @GetMapping("/tickets/{ticketId}/{filename:.+}")
     public ResponseEntity<?> downloadTicket(Authentication authentication,
                                             @PathVariable String ticketId,
-                                            @PathVariable String filename) throws IOException {
-        return attachmentService.downloadTicketAttachment(authentication, ticketId, filename);
+                                            @PathVariable String filename,
+                                            @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) throws IOException {
+        return attachmentService.downloadTicketAttachment(authentication, ticketId, filename, rangeHeader);
     }
 
     @GetMapping("/tickets/by-path")
     public ResponseEntity<?> downloadTicketByPath(Authentication authentication,
-                                                  @RequestParam("path") String path) throws IOException {
-        return attachmentService.downloadTicketAttachmentByPath(authentication, path);
+                                                  @RequestParam("path") String path,
+                                                  @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) throws IOException {
+        return attachmentService.downloadTicketAttachmentByPath(authentication, path, rangeHeader);
     }
 
     @GetMapping("/tickets/by-storage-key")
     public ResponseEntity<?> downloadTicketByStorageKey(Authentication authentication,
-                                                        @RequestParam("key") String storageKey) throws IOException {
-        return attachmentService.downloadTicketAttachmentByStorageKey(authentication, storageKey);
+                                                        @RequestParam("key") String storageKey,
+                                                        @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) throws IOException {
+        return attachmentService.downloadTicketAttachmentByStorageKey(authentication, storageKey, rangeHeader);
     }
 
     @GetMapping("/knowledge-base/{fileId:.+}")

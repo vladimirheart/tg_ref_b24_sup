@@ -84,7 +84,7 @@
       const pendingCount = options.getPendingMediaFiles?.(elements.workspaceComposerMedia)?.length || 0;
       elements.workspaceComposerSend.textContent = pendingCount > 0
         ? (message ? `Отправить сообщение и вложения (${pendingCount})` : `Отправить вложения (${pendingCount})`)
-        : 'Отправить (Ctrl/Cmd/Alt+Enter)';
+        : 'Отправить';
     }
 
     function escapeHtml(value) {
