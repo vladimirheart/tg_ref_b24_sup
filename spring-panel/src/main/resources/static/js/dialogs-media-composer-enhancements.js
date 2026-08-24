@@ -420,25 +420,44 @@
     }
     video.dataset.mediaEnhancementReady = 'true';
     resolveOriginalMediaSource(video);
-    if (video.loop) {
+
+    const shouldAutoplayInline = video.autoplay
+      || video.loop
+      || video.classList.contains('chat-media-sticker-video');
+
+    const requestInlineAutoplay = () => {
+      if (!shouldAutoplayInline || !video.paused || video.ended) {
+        return;
+      }
+      video.muted = true;
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {});
+      }
+    };
+
+    if (shouldAutoplayInline) {
       video.classList.add('chat-media-animation');
       video.muted = true;
       video.autoplay = true;
+      video.loop = true;
       video.playsInline = true;
       video.removeAttribute('controls');
-      video.play().catch(async () => {
-        const recovered = await installBlobFallback(video, 'Не удалось загрузить видео или анимацию.');
-        if (recovered) {
-          video.play().catch(() => {});
-        }
+      ['loadedmetadata', 'loadeddata', 'canplay'].forEach((eventName) => {
+        video.addEventListener(eventName, requestInlineAutoplay);
       });
+      requestInlineAutoplay();
     }
+
     video.addEventListener('error', async () => {
       if (video.dataset.blobFallbackState === 'ready') {
-        markMediaUnavailable(video, 'Не удалось загрузить видео или анимацию.');
+        markMediaUnavailable(video, 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РІРёРґРµРѕ РёР»Рё Р°РЅРёРјР°С†РёСЋ.');
         return;
       }
-      await installBlobFallback(video, 'Не удалось загрузить видео или анимацию.');
+      const recovered = await installBlobFallback(video, 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РІРёРґРµРѕ РёР»Рё Р°РЅРёРјР°С†РёСЋ.');
+      if (recovered && shouldAutoplayInline) {
+        requestInlineAutoplay();
+      }
     });
   }
 
@@ -474,6 +493,11 @@
     enhanceMedia(document);
 
     document.addEventListener('click', (event) => {
+      document.querySelectorAll('details[data-media-info-menu][open]').forEach((menu) => {
+        if (!menu.contains(event.target)) {
+          menu.removeAttribute('open');
+        }
+      });
       document.querySelectorAll('.dialog-send-split.is-open').forEach((wrapper) => {
         if (!wrapper.contains(event.target)) {
           closeSendModeMenu(wrapper);

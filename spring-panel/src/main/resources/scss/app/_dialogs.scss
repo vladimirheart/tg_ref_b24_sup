@@ -271,8 +271,7 @@
     transform: translateY(4px);
 }
 
-.chat-media-info:hover .chat-media-info-panel,
-.chat-media-info:focus-within .chat-media-info-panel {
+.chat-media-info[open] .chat-media-info-panel {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
@@ -3423,4 +3422,30 @@ body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
     color: var(--primary);
     font-weight: 800;
     text-align: center;
+}
+
+/* Compact media attachment menu: keep filename/type/download out of the message flow. */
+.chat-media-info > summary.chat-media-info-toggle {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    transform: none !important;
+}
+
+.chat-media-info > summary.chat-media-info-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.chat-media-info[open] {
+    z-index: 8;
+}
+
+.chat-media-info[open] > .chat-media-info-toggle,
+.chat-media-info > .chat-media-info-toggle:hover,
+.chat-media-info > .chat-media-info-toggle:focus-visible {
+    color: var(--color-text);
+    background: var(--surface-interactive);
+    transform: none !important;
 }

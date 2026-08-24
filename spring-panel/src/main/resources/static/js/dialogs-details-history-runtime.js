@@ -441,20 +441,23 @@
       const normalizedName = String(name || '').trim() || typeLabel;
       const sizeLabel = formatAttachmentSize(message?.attachmentSize);
       const noteLabel = String(message?.attachmentNote || '').trim();
-      const metaLine = [typeLabel, sizeLabel, noteLabel].filter(Boolean).join(' · ');
+      const typeDetails = [typeLabel, sizeLabel].filter(Boolean).join(' В· ');
+      const isExternal = message?.attachmentProvider === 'external_url';
       const actionMarkup = message?.attachment
-        ? `<div class="chat-media-actions">
-            <a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" ${message?.attachmentProvider === 'external_url' ? '' : 'download'} target="_blank" rel="noopener">
-              ${message?.attachmentProvider === 'external_url' ? 'Открыть' : 'Скачать'}
-            </a>
-          </div>`
-        : `<div class="chat-media-actions"><span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">Недоступно</span></div>`;
+        ? `<a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" ${isExternal ? '' : 'download'} target="_blank" rel="noopener">${isExternal ? 'РћС‚РєСЂС‹С‚СЊ' : 'РЎРєР°С‡Р°С‚СЊ'}</a>`
+        : '<span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">РќРµРґРѕСЃС‚СѓРїРЅРѕ</span>';
       return `
-        <div class="chat-media-meta">
-          <div class="chat-media-meta-title">${escapeHtml(normalizedName)}</div>
-          ${metaLine ? `<div class="chat-media-meta-details">${escapeHtml(metaLine)}</div>` : ''}
-          ${actionMarkup}
-        </div>
+        <details class="chat-media-info" data-media-info-menu>
+          <summary class="chat-media-info-toggle" aria-label="РРЅС„РѕСЂРјР°С†РёСЏ Рѕ РІР»РѕР¶РµРЅРёРё" title="РРЅС„РѕСЂРјР°С†РёСЏ Рѕ РІР»РѕР¶РµРЅРёРё">в‹Ї</summary>
+          <div class="chat-media-info-panel" role="menu">
+            <div class="chat-media-info-label">Р¤Р°Р№Р»</div>
+            <div class="chat-media-info-value">${escapeHtml(normalizedName)}</div>
+            <div class="chat-media-info-label">РўРёРї</div>
+            <div class="chat-media-info-value">${escapeHtml(typeDetails || typeLabel)}</div>
+            ${noteLabel ? `<div class="chat-media-info-label">РЎС‚Р°С‚СѓСЃ</div><div class="chat-media-info-value">${escapeHtml(noteLabel)}</div>` : ''}
+            ${actionMarkup}
+          </div>
+        </details>
       `;
     }
 
@@ -516,7 +519,7 @@
             </div>
           `;
         } else if (isVideoStickerAttachment(message.attachment)) {
-          preview = `<video class="chat-media-preview" src="${attachmentUrl}" autoplay loop muted playsinline preload="metadata"></video>`;
+          preview = `<video class="chat-media-preview chat-media-sticker-video" src="${attachmentUrl}" autoplay loop muted playsinline preload="metadata"></video>`;
         } else if (isImageStickerAttachment(message.attachment)) {
           preview = `<img class="chat-media-preview" src="${attachmentUrl}" alt="${escapeAttribute(name)}" data-image-src="${attachmentUrl}" data-media-name="${escapeAttribute(name)}">`;
         }
@@ -600,7 +603,7 @@
       try {
         const animationData = await loadTgsAnimationData(src);
         container.innerHTML = '';
-        window.lottie.loadAnimation({
+        const stickerAnimation = window.lottie.loadAnimation({
           container,
           renderer: 'svg',
           loop: true,
@@ -610,6 +613,12 @@
             preserveAspectRatio: 'xMidYMid meet',
           },
         });
+        if (stickerAnimation && typeof stickerAnimation.play === 'function') {
+          stickerAnimation.play();
+          if (typeof stickerAnimation.addEventListener === 'function') {
+            stickerAnimation.addEventListener('DOMLoaded', () => stickerAnimation.play());
+          }
+        }
         container.dataset.stickerState = 'ready';
         notifyLayoutChange();
       } catch (_error) {
