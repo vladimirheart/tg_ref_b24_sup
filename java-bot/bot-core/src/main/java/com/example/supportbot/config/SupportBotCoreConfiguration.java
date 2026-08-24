@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class SupportBotCoreConfiguration {
 
-    @Value("${support-bot.attachments-dir:attachments}")
+    @Value("${support-bot.attachments-dir:${APP_STORAGE_ATTACHMENTS:../attachments}}")
     private String attachmentsDir;
 
     @Value("${logging.file.name:}")

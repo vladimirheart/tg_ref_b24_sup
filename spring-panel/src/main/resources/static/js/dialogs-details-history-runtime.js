@@ -308,6 +308,25 @@
       return escapeHtml(value).replace(/"/g, '&quot;');
     }
 
+    function normalizeRenderableAttachmentUrl(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      if (/^(https?:|blob:|data:)/i.test(raw) || raw.startsWith('//') || raw.startsWith('/')) {
+        return raw;
+      }
+      if (raw.startsWith('api/')) {
+        return `/${raw}`;
+      }
+      const normalized = raw.replace(/\\/g, '/');
+      if (normalized.startsWith('attachments/') || normalized.includes('/attachments/')) {
+        return `/api/attachments/tickets/by-path?path=${encodeURIComponent(raw)}`;
+      }
+      if (normalized.includes('/')) {
+        return `/api/attachments/tickets/by-storage-key?key=${encodeURIComponent(normalized)}`;
+      }
+      return raw;
+    }
+
     function extractAttachmentFilename(value) {
       if (!value) return '';
       let clean = String(value).trim().split('?')[0].split('#')[0];
@@ -416,7 +435,8 @@
 
     function buildMediaInlineMetaMarkup(message, name, kind) {
       if (!message?.attachment && !message?.attachmentStatus) return '';
-      const attachmentUrl = message?.attachment ? escapeAttribute(message.attachment) : '';
+      const normalizedAttachment = normalizeRenderableAttachmentUrl(message?.attachment);
+      const attachmentUrl = normalizedAttachment ? escapeAttribute(normalizedAttachment) : '';
       const typeLabel = resolveAttachmentTypeLabel(message, kind);
       const normalizedName = String(name || '').trim() || typeLabel;
       const sizeLabel = formatAttachmentSize(message?.attachmentSize);
@@ -453,7 +473,7 @@
       }
       const kind = resolveAttachmentKind(message.messageType, message.attachment);
       const name = resolveAttachmentDisplayName(message, kind);
-      const attachmentUrl = escapeAttribute(message.attachment);
+      const attachmentUrl = escapeAttribute(normalizeRenderableAttachmentUrl(message.attachment));
       const mediaInfo = buildMediaInlineMetaMarkup(message, name, kind);
       if (kind === 'audio') {
         return `

@@ -85,9 +85,9 @@ app:
     internal-api:
       token: ${APP_INTERNAL_BOT_API_TOKEN:iguana-internal-bot-token}
   storage:
-    attachments: ${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}
-    knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}/knowledge_base}
-    passport-photos: ${APP_STORAGE_PASSPORT_PHOTOS:${APP_STORAGE_ATTACHMENTS:../java-bot/attachments}/passport_photos}
+    attachments: ${APP_STORAGE_ATTACHMENTS:../attachments}
+    knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
+    passport-photos: ${APP_STORAGE_PASSPORT_PHOTOS:${APP_STORAGE_ATTACHMENTS:../attachments}/passport_photos}
     avatars: ${APP_STORAGE_AVATARS:../attachments/avatars}
     object:
       mode: ${APP_STORAGE_OBJECT_MODE:local_fs}

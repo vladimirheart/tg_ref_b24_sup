@@ -94,6 +94,30 @@ class DialogConversationReadServiceTest {
     }
 
     @Test
+    void loadHistoryBuildsStorageKeyUrlForNestedRawAttachmentWithoutMetadata() {
+        String storageKey = "3d543ab982d2f414aa9dc8b135805291/2026/08/24/f50aeb246b294a9d00991bd6.jpg";
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(
+                    ticket_id, sender, message, timestamp, message_type, attachment,
+                    tg_message_id, reply_to_tg_id, channel_id, original_message, edited_at, deleted_at, forwarded_from
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                "T-12", "client", "", "2026-08-24T17:29:50+03:00", "photo", storageKey,
+                13L, null, 5L, "", null, null, null
+        );
+
+        List<ChatMessageDto> history = service.loadHistory("T-12", 5L);
+
+        assertThat(history).hasSize(1);
+        assertThat(history.get(0).attachment()).isEqualTo(
+                "/api/attachments/tickets/by-storage-key?key="
+                        + org.springframework.web.util.UriUtils.encodeQueryParam(
+                                storageKey,
+                                java.nio.charset.StandardCharsets.UTF_8
+                        )
+        );
+    }
+    @Test
     void loadPreviousHistoryResolvesSourceLabelsAndNestedMessages() {
         jdbcTemplate.update("INSERT INTO tickets(ticket_id, status, created_at) VALUES (?, ?, ?)", "T-CUR", "pending", "2026-04-21T10:00:00Z");
         jdbcTemplate.update("INSERT INTO tickets(ticket_id, status, created_at) VALUES (?, ?, ?)", "T-OLD", "resolved", "2026-04-20T08:00:00Z");

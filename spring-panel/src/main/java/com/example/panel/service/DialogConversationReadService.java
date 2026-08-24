@@ -296,7 +296,7 @@ public class DialogConversationReadService {
             return "/api/attachments/tickets/by-storage-key?key="
                     + UriUtils.encodeQueryParam(storageKey.trim(), StandardCharsets.UTF_8);
         }
-        if (!StringUtils.hasText(attachment) || !StringUtils.hasText(ticketId)) {
+        if (!StringUtils.hasText(attachment)) {
             return attachment;
         }
         String trimmed = attachment.trim();
@@ -310,6 +310,13 @@ public class DialogConversationReadService {
         if (normalized.startsWith("attachments/") || normalized.contains("/attachments/")) {
             return "/api/attachments/tickets/by-path?path="
                     + UriUtils.encodeQueryParam(trimmed, StandardCharsets.UTF_8);
+        }
+        if (normalized.contains("/")) {
+            return "/api/attachments/tickets/by-storage-key?key="
+                    + UriUtils.encodeQueryParam(normalized, StandardCharsets.UTF_8);
+        }
+        if (!StringUtils.hasText(ticketId)) {
+            return trimmed;
         }
         return "/api/attachments/tickets/"
                 + UriUtils.encodePathSegment(ticketId.trim(), StandardCharsets.UTF_8)

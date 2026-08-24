@@ -152,6 +152,7 @@ public class BotRuntimeContractService {
         } else {
             applyDatabaseEnvironment(env);
         }
+        applyStorageEnvironment(env);
         env.put("TELEGRAM_BOT_TOKEN", credential.token());
         env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
         env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
@@ -264,6 +265,18 @@ public class BotRuntimeContractService {
         return env;
     }
 
+    private void applyStorageEnvironment(Map<String, String> env) {
+        String configuredAttachments = environment.getProperty("app.storage.attachments", "../attachments");
+        if (!StringUtils.hasText(configuredAttachments)) {
+            configuredAttachments = "../attachments";
+        }
+        Path configuredPath = Paths.get(configuredAttachments.trim());
+        Path canonicalAttachments = configuredPath.isAbsolute()
+            ? configuredPath.normalize()
+            : Paths.get("").toAbsolutePath().normalize().resolve(configuredPath).normalize();
+        env.put("APP_STORAGE_ATTACHMENTS", canonicalAttachments.toString());
+        env.put("SUPPORT_BOT_ATTACHMENTS_DIR", canonicalAttachments.toString());
+    }
     public BotReadinessContract readinessContract() {
         return new BotReadinessContract(
             botProcessProperties.resolveStartupReadinessTimeout().toMillis(),
@@ -292,6 +305,8 @@ public class BotRuntimeContractService {
             "TELEGRAM_BOT_TOKEN",
             "TELEGRAM_BOT_USERNAME",
             "GROUP_CHAT_ID",
+            "APP_STORAGE_ATTACHMENTS",
+            "SUPPORT_BOT_ATTACHMENTS_DIR",
             "APP_BOT_LOG_PATH",
             "APP_INTEGRATION_TRANSPORT_MODE",
             "SPRING_PROFILES_ACTIVE",

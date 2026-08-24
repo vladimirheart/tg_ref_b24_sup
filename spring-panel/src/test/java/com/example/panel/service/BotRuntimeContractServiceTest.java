@@ -145,6 +145,29 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
+    void buildEnvironmentPinsCanonicalAttachmentsRootForBotProcess() {
+        Path canonicalRoot = tempDir.resolve("shared-attachments").toAbsolutePath().normalize();
+        BotRuntimeContractService service = createService(
+            "auto",
+            Map.of(),
+            Map.of(),
+            Map.of("app.storage.attachments", canonicalRoot.toString())
+        );
+        Channel channel = new Channel();
+        channel.setId(118L);
+        channel.setPlatform("telegram");
+
+        Map<String, String> env = service.buildEnvironment(
+            channel,
+            new com.example.panel.model.channel.BotCredential(7L, "tg", "telegram", "token", true),
+            tempDir.resolve("storage-root.log")
+        );
+
+        assertThat(env)
+            .containsEntry("APP_STORAGE_ATTACHMENTS", canonicalRoot.toString())
+            .containsEntry("SUPPORT_BOT_ATTACHMENTS_DIR", canonicalRoot.toString());
+    }
+    @Test
     void describeWarnsWhenAutoModeUsesTargetScanArtifact() throws Exception {
         Path botWorkingDir = tempDir.resolve("java-bot");
         Path jar = botWorkingDir.resolve("bot-telegram").resolve("target").resolve("bot-telegram-0.0.1-SNAPSHOT.jar");

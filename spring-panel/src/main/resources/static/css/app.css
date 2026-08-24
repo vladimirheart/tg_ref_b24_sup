@@ -3168,7 +3168,8 @@ body[data-ui-page=dialogs].dialog-list-only-mode .dialogs-extra-section {
 
 .dialog-custom-audio-toggle:focus-visible,
 .dialog-custom-audio-progress:focus-visible,
-.dialog-send-mode-select:focus-visible {
+.dialog-send-mode-toggle:focus-visible,
+.dialog-send-mode-option:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
@@ -3235,28 +3236,92 @@ body[data-ui-page=dialogs].dialog-list-only-mode .dialogs-extra-section {
   text-decoration: underline;
 }
 
-.dialog-send-mode-control {
+.dialog-send-split {
+  position: relative;
   display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  align-items: stretch;
+  flex: 0 0 auto;
   min-width: 0;
+  isolation: isolate;
 }
 
-.dialog-send-mode-label,
-.dialog-send-mode-hint {
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
+.dialog-send-split > #dialogReplySend,
+.dialog-send-split > #workspaceComposerSend {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
-.dialog-send-mode-select {
-  width: auto;
-  min-width: 7.4rem;
+.dialog-send-mode-toggle {
+  width: 2.15rem;
+  min-width: 2.15rem;
+  padding-inline: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left-color: color-mix(in srgb, var(--primary-foreground) 24%, transparent);
+  box-shadow: none;
+  transform: none !important;
 }
 
-.dialog-send-mode-hint {
-  max-width: 15rem;
-  line-height: 1.25;
+.dialog-send-mode-toggle:hover,
+.dialog-send-mode-toggle:active,
+.dialog-send-mode-toggle:focus-visible {
+  transform: none !important;
+  box-shadow: none;
+}
+
+.dialog-send-mode-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.35rem);
+  z-index: 60;
+  display: none;
+  min-width: 10.5rem;
+  padding: 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--surface-card);
+  box-shadow: 0 10px 24px -20px color-mix(in srgb, var(--shadow-color) 58%, transparent);
+}
+
+.dialog-send-split.is-open .dialog-send-mode-menu {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.dialog-send-mode-option {
+  display: grid;
+  grid-template-columns: 1.1rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+  transform: none !important;
+}
+
+.dialog-send-mode-option:hover,
+.dialog-send-mode-option:focus-visible,
+.dialog-send-mode-option.is-active {
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--color-text);
+  box-shadow: none;
+  transform: none !important;
+}
+
+.dialog-send-mode-check {
+  width: 1.1rem;
+  color: var(--primary);
+  font-weight: 800;
+  text-align: center;
 }
 
 /* App-specific unified visual system */
