@@ -29,6 +29,11 @@
   const offlineEvalFailuresEl = document.getElementById('aiOpsOfflineEvalFailures');
   const offlineEvalRefreshBtn = document.getElementById('aiOpsOfflineEvalRefresh');
   const offlineEvalRunBtn = document.getElementById('aiOpsOfflineEvalRun');
+  const testTicketInput = document.getElementById('aiOpsTestTicket');
+  const testMessageInput = document.getElementById('aiOpsTestMessage');
+  const testRunBtn = document.getElementById('aiOpsTestRun');
+  const testStateEl = document.getElementById('aiOpsTestState');
+  const testResultEl = document.getElementById('aiOpsTestResult');
 
   if (!stateEl) return;
 
@@ -226,7 +231,7 @@
     if (!memoryListEl) return;
     let html = '';
     if (!Array.isArray(items) || !items.length) {
-      html = '<div class="text-muted">No records.</div>';
+      html = '<div class="text-muted">Нет сохранённых решений.</div>';
       setHtmlIfChanged(memoryListEl, html);
       return;
     }
@@ -235,25 +240,46 @@
       const queryText = escapeHtml(item?.query_text || '');
       const solutionText = escapeHtml(item?.solution_text || '');
       const reviewRequired = Number(item?.review_required || 0) > 0;
+      const autoReplyAllowed = Number(item?.auto_reply_allowed || 0) > 0;
+      const status = String(item?.status || 'draft').trim() || 'draft';
+      const trust = String(item?.trust_level || 'low').trim() || 'low';
+      const intent = String(item?.intent_key || '').trim();
+      const sourceType = String(item?.source_type || '').trim();
+      const safety = String(item?.safety_level || 'normal').trim() || 'normal';
       const updatedAt = formatUtcDate(item?.updated_at || item?.created_at);
       const stats = `used: ${Number(item?.times_used || 0)} | confirmed: ${Number(item?.times_confirmed || 0)} | corrected: ${Number(item?.times_corrected || 0)}`;
+      const disabled = status.toLowerCase() === 'deprecated';
       return `<div class="aiops-memory-item" data-memory-row="${key}">
         <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
           <span class="fw-semibold">${queryText || '(empty query)'}</span>
           <span class="text-muted">${escapeHtml(updatedAt)}</span>
         </div>
+        <div class="d-flex flex-wrap gap-1 mb-2">
+          <span class="badge text-bg-light">status: ${escapeHtml(status)}</span>
+          <span class="badge text-bg-light">trust: ${escapeHtml(trust)}</span>
+          ${intent ? `<span class="badge text-bg-light">intent: ${escapeHtml(intent)}</span>` : ''}
+          ${sourceType ? `<span class="badge text-bg-light">source: ${escapeHtml(sourceType)}</span>` : ''}
+          <span class="badge text-bg-light">safety: ${escapeHtml(safety)}</span>
+          ${disabled ? '<span class="badge text-bg-secondary">отключено</span>' : ''}
+        </div>
         <div class="text-muted mb-2">${escapeHtml(stats)}</div>
-        <textarea class="form-control form-control-sm mb-2" rows="2" data-memory-query>${queryText}</textarea>
+        <label class="form-label form-label-sm mb-1">Вопрос / триггер (идентификатор памяти, только чтение)</label>
+        <textarea class="form-control form-control-sm mb-2" rows="2" data-memory-query readonly>${queryText}</textarea>
+        <label class="form-label form-label-sm mb-1">Сохранённая подсказка / текст ответа</label>
         <textarea class="form-control form-control-sm mb-2" rows="4" data-memory-solution>${solutionText}</textarea>
-        <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="d-flex flex-wrap align-items-center gap-3">
           <label class="form-check-label small">
-            <input type="checkbox" class="form-check-input me-1" data-memory-review ${reviewRequired ? 'checked' : ''}> review required
+            <input type="checkbox" class="form-check-input me-1" data-memory-review ${reviewRequired ? 'checked' : ''}> отправить на ревизию
           </label>
-			<button class="btn btn-sm btn-ai-soft" type="button" data-memory-save="${key}">Сохранить</button>
-			<button class="btn btn-sm btn-outline-secondary" type="button" data-memory-history="${key}">История</button>
-			<button class="btn btn-sm btn-outline-danger" type="button" data-memory-delete="${key}">Удалить</button>
+          <label class="form-check-label small">
+            <input type="checkbox" class="form-check-input me-1" data-memory-auto-reply ${autoReplyAllowed ? 'checked' : ''} ${reviewRequired ? 'disabled' : ''}> разрешить автоответ этой записью
+          </label>
+          <button class="btn btn-sm btn-ai-soft" type="button" data-memory-save="${key}">Сохранить / активировать</button>
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-memory-history="${key}">История</button>
+          <button class="btn btn-sm btn-outline-danger" type="button" data-memory-delete="${key}">Отключить</button>
           <span class="small text-muted" data-memory-row-state></span>
         </div>
+        <div class="small text-muted mt-2">Автоответ разрешается только явно. Ревизия всегда выключает auto-reply до следующего подтверждения оператором.</div>
         <div class="small mt-2" data-memory-history-list></div>
       </div>`;
     }).join('');
@@ -525,6 +551,99 @@
     }
   }
 
+  function renderDecisionTestbench(classification, debug) {
+    if (!testResultEl) return;
+    const decision = debug?.decision_preview || {};
+    const context = debug?.context || {};
+    const intent = context?.intent || classification?.intent || {};
+    const policy = context?.intent_policy || classification?.intent_policy || {};
+    const consistency = debug?.consistency || {};
+    const candidates = Array.isArray(debug?.candidates) ? debug.candidates : [];
+    const top = candidates[0] || {};
+    const finalAction = String(decision?.final_action || 'unknown').trim();
+    const finalReason = String(decision?.final_reason || consistency?.reason || '').trim();
+    const actionClass = finalAction === 'auto_reply'
+      ? 'text-bg-success'
+      : (finalAction === 'escalate' || finalAction === 'suppressed' ? 'text-bg-danger' : 'text-bg-warning');
+    const evidenceHtml = candidates.length
+      ? candidates.slice(0, 5).map((item, index) => `
+          <div class="aiops-stream-item">
+            <div class="d-flex flex-wrap justify-content-between gap-2">
+              <span class="fw-semibold">#${index + 1} ${escapeHtml(item?.title || item?.source || 'candidate')}</span>
+              <span>${escapeHtml(Number(item?.score || 0).toFixed(3))}</span>
+            </div>
+            <div class="small text-muted">
+              source=${escapeHtml(item?.source || '-')}
+              · trust=${escapeHtml(item?.trust_level || '-')}
+              · evidence=${escapeHtml(item?.evidence_count ?? '-')}
+              ${item?.memory_key ? ` · memory=${escapeHtml(item.memory_key)}` : ''}
+              ${item?.source === 'memory' ? ` · auto=${item?.memory_auto_reply_allowed ? 'allowed' : 'suggest-only'}` : ''}
+            </div>
+            <div class="small">${escapeHtml(item?.snippet || '')}</div>
+          </div>`).join('')
+      : '<div class="text-muted">Retrieval не нашёл кандидатов.</div>';
+
+    setHtmlIfChanged(testResultEl, `
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        <span class="badge ${actionClass}">${escapeHtml(finalAction)}</span>
+        <span class="small"><strong>Причина:</strong> ${escapeHtml(finalReason || '-')}</span>
+      </div>
+      <div class="row g-2 small mb-3">
+        <div class="col-md-4"><strong>Intent:</strong> ${escapeHtml(intent?.intent_key || '-')} (${escapeHtml(Number(intent?.confidence || 0).toFixed(2))})</div>
+        <div class="col-md-4"><strong>Mode:</strong> ${escapeHtml(decision?.effective_mode || classification?.effective_mode || '-')}</div>
+        <div class="col-md-4"><strong>Consistency:</strong> ${escapeHtml(consistency?.reason || '-')} / support=${escapeHtml(consistency?.support_count ?? 0)}</div>
+        <div class="col-md-4"><strong>Intent auto:</strong> ${policy?.auto_reply_allowed ? 'yes' : 'no'}</div>
+        <div class="col-md-4"><strong>Source auto:</strong> ${decision?.source_auto_reply_eligible ? 'yes' : 'no'}</div>
+        <div class="col-md-4"><strong>Thresholds:</strong> suggest=${escapeHtml(decision?.suggest_threshold ?? '-')} / auto=${escapeHtml(decision?.auto_reply_threshold ?? '-')}</div>
+      </div>
+      <div class="fw-semibold small mb-1">Retrieval evidence</div>
+      <div class="aiops-stream">${evidenceHtml}</div>
+    `);
+  }
+
+  async function runDecisionTestbench() {
+    const ticketId = String(testTicketInput?.value || '').trim();
+    const message = String(testMessageInput?.value || '').trim();
+    if (!ticketId || !message) {
+      setTextIfChanged(testStateEl, 'Ticket ID и сообщение обязательны.');
+      return;
+    }
+    if (testRunBtn) testRunBtn.disabled = true;
+    setTextIfChanged(testStateEl, 'Проверяю intent, retrieval и policy без отправки клиенту...');
+    setHtmlIfChanged(testResultEl, '');
+    const body = JSON.stringify({ message, message_type: 'text', attachment: '' });
+    try {
+      const [classificationResp, debugResp] = await Promise.all([
+        fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-reclassify`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+          body,
+        }),
+        fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-retrieve-debug`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ message, message_type: 'text', attachment: '', limit: 5 }),
+        }),
+      ]);
+      const classificationPayload = await classificationResp.json().catch(() => ({}));
+      const debugPayload = await debugResp.json().catch(() => ({}));
+      if (!classificationResp.ok || classificationPayload.success === false) {
+        throw new Error(classificationPayload.error || `reclassify HTTP ${classificationResp.status}`);
+      }
+      if (!debugResp.ok || debugPayload.success === false) {
+        throw new Error(debugPayload.error || `retrieve-debug HTTP ${debugResp.status}`);
+      }
+      renderDecisionTestbench(classificationPayload.result || {}, debugPayload.result || {});
+      setTextIfChanged(testStateEl, 'Готово. Это dry decision preview: клиенту ничего не отправлено.');
+    } catch (error) {
+      setTextIfChanged(testStateEl, `Ошибка testbench: ${error.message || 'unknown_error'}`);
+      setHtmlIfChanged(testResultEl, '');
+    } finally {
+      if (testRunBtn) testRunBtn.disabled = false;
+    }
+  }
   async function refreshAutoSlices() {
     if (document.hidden) return;
     const [reviewResult, offlineResult] = await Promise.all([
@@ -555,6 +674,7 @@
     const queryEl = row?.querySelector('[data-memory-query]');
     const solutionEl = row?.querySelector('[data-memory-solution]');
     const reviewEl = row?.querySelector('[data-memory-review]');
+    const autoReplyEl = row?.querySelector('[data-memory-auto-reply]');
     const stateRowEl = row?.querySelector('[data-memory-row-state]');
     if (!key || !queryEl || !solutionEl) return;
 
@@ -562,6 +682,7 @@
       query_text: String(queryEl.value || '').trim(),
       solution_text: String(solutionEl.value || '').trim(),
       review_required: !!(reviewEl && reviewEl.checked),
+      auto_reply_allowed: !!(autoReplyEl && autoReplyEl.checked && !(reviewEl && reviewEl.checked)),
     };
     if (!body.query_text || !body.solution_text) {
       if (stateRowEl) stateRowEl.textContent = 'query/solution required';
@@ -580,7 +701,8 @@
       if (!resp.ok || payload.success === false || payload.updated === false) {
         throw new Error(payload.error || 'update_failed');
       }
-      if (stateRowEl) stateRowEl.textContent = 'saved';
+      showActionStatus('Решение сохранено. Runtime-политика памяти обновлена.', 'success');
+      await loadSolutionMemory(100, { silent: true });
     } catch (error) {
       if (stateRowEl) stateRowEl.textContent = `error: ${error.message || 'unknown_error'}`;
     } finally {
@@ -667,10 +789,10 @@
     const row = button.closest('[data-memory-row]');
     const stateRowEl = row?.querySelector('[data-memory-row-state]');
     if (!key || !row) return;
-    const confirmed = window.confirm('Delete this memory record? This action cannot be undone.');
+    const confirmed = window.confirm('Отключить эту запись? Она останется в истории, но перестанет участвовать в подсказках и автоответах.');
     if (!confirmed) return;
     button.disabled = true;
-    if (stateRowEl) stateRowEl.textContent = 'deleting...';
+    if (stateRowEl) stateRowEl.textContent = 'disabling...';
     try {
       const resp = await fetch(`/api/dialogs/ai-solution-memory/${encodeURIComponent(key)}`, {
         method: 'DELETE',
@@ -758,6 +880,9 @@
   if (offlineEvalRunBtn) offlineEvalRunBtn.addEventListener('click', () => {
     runOfflineEvalNow();
   });
+  if (testRunBtn) testRunBtn.addEventListener('click', () => {
+    runDecisionTestbench();
+  });
   if (reviewTableBodyEl) {
     reviewTableBodyEl.addEventListener('click', (event) => {
       const row = event.target.closest('[data-ai-review-key]');
@@ -793,6 +918,21 @@
     });
   }
 
+  if (memoryListEl) {
+    memoryListEl.addEventListener('change', (event) => {
+      const reviewEl = event.target.closest('[data-memory-review]');
+      if (!reviewEl) return;
+      const row = reviewEl.closest('[data-memory-row]');
+      const autoReplyEl = row?.querySelector('[data-memory-auto-reply]');
+      if (!autoReplyEl) return;
+      if (reviewEl.checked) {
+        autoReplyEl.checked = false;
+        autoReplyEl.disabled = true;
+      } else {
+        autoReplyEl.disabled = false;
+      }
+    });
+  }
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       refreshAutoSlices();

@@ -211,7 +211,7 @@ class DialogAiAssistantMessageFlowServiceTest {
         when(aiRetrievalService.retrieve("T-2", "vpn reset", 3)).thenReturn(retrievalResult);
         when(dialogAiAssistantEventService.encodeSourceHits(any())).thenReturn("[{\"source\":\"memory\"}]");
         when(aiPolicyService.isAutoReplyEligibleSource("memory", "approved", "high", "memory", "normal")).thenReturn(true);
-        when(aiDecisionService.evaluateCandidateDecision(anyString(), anyDouble(), anyDouble(), anyDouble(), anyBoolean(), eq(true)))
+        when(aiPolicyService.isMemoryAutoReplyAllowed("mem-1")).thenReturn(true);        when(aiDecisionService.evaluateCandidateDecision(anyString(), anyDouble(), anyDouble(), anyDouble(), anyBoolean(), eq(true)))
                 .thenReturn(new AiDecisionService.Decision(
                         AiDecisionService.DecisionAction.AUTO_REPLY,
                         "auto_reply",

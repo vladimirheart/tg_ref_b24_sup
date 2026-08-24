@@ -84,6 +84,27 @@ class AiRetrievalServiceTest {
         assertNotNull(result.candidates().get(0).canonicalKey());
     }
 
+    @Test
+    void singleMemoryDerivedKnowledgeDoesNotSelfConfirmAutoReply() {
+        seedTicketScope("T-SELF", 30L, "telegram", "блинбери", "центр");
+        String key = insertApprovedMemory(
+                "Где заказ #SELF-1",
+                "Заказ SELF-1 в пути и скоро будет у вас.",
+                1,
+                "telegram",
+                "блинбери",
+                "центр"
+        );
+        knowledgeService.syncFromMemory(key);
+
+        AiRetrievalService.RetrievalResult result =
+                retrievalService.retrieve("T-SELF", "Где мой заказ #SELF-1?", 3);
+
+        assertFalse(result.candidates().isEmpty());
+        assertEquals(1, result.consistency().supportCount());
+        assertFalse(result.consistency().autoReplyAllowed());
+        assertEquals("insufficient_confirmations", result.consistency().reason());
+    }
     private void createSchema() {
         jdbcTemplate.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY, platform VARCHAR(32), channel_name VARCHAR(120))");
         jdbcTemplate.execute("CREATE TABLE tickets (user_id BIGINT, ticket_id VARCHAR(120), channel_id BIGINT, PRIMARY KEY (user_id, ticket_id))");

@@ -4150,6 +4150,23 @@
         const reply = String(applyBtn.dataset.aiSuggestionReply || '').trim();
         if (!reply) return;
         appendToWorkspaceComposer(reply);
+        const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+        if (ticketId) {
+          try {
+            await sendAiSuggestionFeedback(ticketId, {
+              decision: 'accepted',
+              source: String(applyBtn.dataset.aiSuggestionSource || '').trim(),
+              title: String(applyBtn.dataset.aiSuggestionTitle || '').trim(),
+              snippet: String(applyBtn.dataset.aiSuggestionSnippet || '').trim(),
+              suggested_reply: reply,
+              memory_key: String(applyBtn.dataset.aiSuggestionMemoryKey || '').trim(),
+            });
+          } catch (_error) {
+            if (typeof showNotification === 'function') {
+              showNotification('Подсказка вставлена, но feedback не удалось сохранить.', 'warning');
+            }
+          }
+        }
         return;
       }
       const applyEditBtn = event.target.closest('[data-ai-suggestion-apply-edit]');
@@ -4179,6 +4196,7 @@
           title,
           snippet,
           suggested_reply: suggestedReply,
+          memory_key: String(rejectBtn.dataset.aiSuggestionMemoryKey || '').trim(),
         });
         const card = rejectBtn.closest('article');
         if (card) card.remove();

@@ -282,6 +282,7 @@ public class AiRetrievalService {
                       FROM ai_agent_knowledge_unit ku
                      WHERE lower(COALESCE(ku.status, 'active')) = 'active'
                        AND trim(COALESCE(ku.body_text, '')) <> ''
+                       AND (ku.source_ref IS NULL OR lower(ku.source_ref) NOT LIKE 'memory:%')
                      ORDER BY %s,
                               ku.unit_key DESC
                      LIMIT ?

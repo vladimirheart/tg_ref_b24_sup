@@ -107,7 +107,7 @@ public class DialogAiAssistantConfigService {
             if (!rows.isEmpty()) {
                 String lastAction = persistenceService.trim(persistenceService.safe(rows.get(0).get("last_action")));
                 Instant updatedAt = persistenceService.parseInstant(rows.get(0).get("updated_at"));
-                if ("auto_reply".equalsIgnoreCase(lastAction) && updatedAt != null) {
+                if (("auto_reply".equalsIgnoreCase(lastAction) || "auto_replied".equalsIgnoreCase(lastAction)) && updatedAt != null) {
                     long elapsed = Duration.between(updatedAt, Instant.now()).getSeconds();
                     if (elapsed >= 0 && elapsed < cooldownSeconds) {
                         return new AutoReplyGuard(false, "cooldown:" + elapsed + "/" + cooldownSeconds + "s");

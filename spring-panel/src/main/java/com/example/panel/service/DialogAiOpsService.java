@@ -33,6 +33,7 @@ public class DialogAiOpsService {
                                          String title,
                                          String snippet,
                                          String suggestedReply,
+                                         String memoryKey,
                                          String operator) {
         dialogAiAssistantService.recordSuggestionFeedback(
                 ticketId,
@@ -41,6 +42,7 @@ public class DialogAiOpsService {
                 title,
                 snippet,
                 suggestedReply,
+                memoryKey,
                 operator
         );
     }
@@ -151,12 +153,14 @@ public class DialogAiOpsService {
                                                     String queryText,
                                                     String solutionText,
                                                     Boolean reviewRequired,
+                                                    Boolean autoReplyAllowed,
                                                     String operator) {
         boolean updated = dialogAiAssistantService.updateSolutionMemory(
                 queryKey,
                 queryText,
                 solutionText,
                 reviewRequired,
+                autoReplyAllowed,
                 operator
         );
         return Map.of("success", true, "updated", updated);

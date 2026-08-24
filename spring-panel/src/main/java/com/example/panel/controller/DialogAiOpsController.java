@@ -59,6 +59,7 @@ public class DialogAiOpsController {
                 request.title(),
                 request.snippet(),
                 request.suggestedReply(),
+                request.memoryKey(),
                 operator
         );
         return ResponseEntity.ok(Map.of("success", true));
@@ -240,6 +241,7 @@ public class DialogAiOpsController {
                 request.queryText(),
                 request.solutionText(),
                 request.reviewRequired(),
+                request.autoReplyAllowed(),
                 operator
         ));
     }
@@ -394,7 +396,8 @@ public class DialogAiOpsController {
                                               String source,
                                               String title,
                                               String snippet,
-                                              @JsonAlias({"suggested_reply", "suggestedReply"}) String suggestedReply) {
+                                              @JsonAlias({"suggested_reply", "suggestedReply"}) String suggestedReply,
+                                              @JsonAlias({"memory_key", "memoryKey"}) String memoryKey) {
     }
 
     public record AiControlRequest(@JsonAlias({"ai_disabled", "aiDisabled"}) Boolean aiDisabled,
@@ -423,7 +426,8 @@ public class DialogAiOpsController {
 
     public record AiSolutionMemoryUpdateRequest(@JsonAlias({"query_text", "queryText"}) String queryText,
                                                 @JsonAlias({"solution_text", "solutionText"}) String solutionText,
-                                                @JsonAlias({"review_required", "reviewRequired"}) Boolean reviewRequired) {
+                                                @JsonAlias({"review_required", "reviewRequired"}) Boolean reviewRequired,
+                                                @JsonAlias({"auto_reply_allowed", "autoReplyAllowed"}) Boolean autoReplyAllowed) {
     }
 
     public record AiSolutionMemoryRollbackRequest(@JsonAlias({"history_id", "historyId"}) Long historyId) {

@@ -39,18 +39,39 @@ class DialogAiSolutionMemoryServiceTest {
         when(persistenceService.trim("key")).thenReturn("key");
         when(persistenceService.trim("query")).thenReturn("query");
         when(persistenceService.trim("solution")).thenReturn("solution");
-        when(persistenceService.trim("operator")).thenReturn("operator");
         when(persistenceService.loadSolutionMemoryByKey("key")).thenReturn(null);
 
         DialogAiSolutionMemoryService service =
                 new DialogAiSolutionMemoryService(jdbcTemplate, persistenceService);
 
-        assertThat(service.updateSolutionMemory("key", "query", "solution", false, "operator")).isFalse();
-        verify(jdbcTemplate, never()).update(anyString(), eq("query"), eq("solution"), eq(0), eq(0), eq("operator"), eq("key"));
+        assertThat(service.updateSolutionMemory("key", "query", "solution", false, false, "operator")).isFalse();
+        verify(jdbcTemplate, never()).update(anyString(), eq("solution"), eq(0), eq(0), eq(0), eq("solution"), eq("operator"), eq("key"));
     }
 
     @Test
-    void deleteSolutionMemoryForgetsKnowledgeAndWritesHistory() {
+    void updateRejectsQuestionIdentityChange() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        DialogAiAssistantPersistenceService persistenceService = mock(DialogAiAssistantPersistenceService.class);
+        when(persistenceService.trim("key")).thenReturn("key");
+        when(persistenceService.trim("changed query")).thenReturn("changed query");
+        when(persistenceService.trim("solution")).thenReturn("solution");
+        when(persistenceService.safe("original query")).thenReturn("original query");
+        when(persistenceService.trim("original query")).thenReturn("original query");
+        when(persistenceService.loadSolutionMemoryByKey("key")).thenReturn(Map.of(
+                "query_text", "original query",
+                "solution_text", "old solution",
+                "review_required", 0
+        ));
+
+        DialogAiSolutionMemoryService service =
+                new DialogAiSolutionMemoryService(jdbcTemplate, persistenceService);
+
+        assertThat(service.updateSolutionMemory("key", "changed query", "solution", false, false, "operator")).isFalse();
+        verify(jdbcTemplate, never()).update(anyString(), eq("solution"), eq(0), eq(0), eq(0), eq("solution"), eq("operator"), eq("key"));
+    }
+
+    @Test
+    void deleteEndpointSoftDisablesMemoryAndKeepsHistory() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         DialogAiAssistantPersistenceService persistenceService = mock(DialogAiAssistantPersistenceService.class);
         when(persistenceService.trim("key")).thenReturn("key");
@@ -63,27 +84,27 @@ class DialogAiSolutionMemoryServiceTest {
         when(persistenceService.safe("old query")).thenReturn("old query");
         when(persistenceService.safe("old solution")).thenReturn("old solution");
         when(persistenceService.isTrue(0)).thenReturn(false);
-        when(jdbcTemplate.update(anyString(), eq("key"))).thenReturn(1);
+        when(jdbcTemplate.update(anyString(), eq("operator"), eq("key"))).thenReturn(1);
 
         DialogAiSolutionMemoryService service =
                 new DialogAiSolutionMemoryService(jdbcTemplate, persistenceService);
 
-        boolean deleted = service.deleteSolutionMemory("key", "operator");
+        boolean disabled = service.deleteSolutionMemory("key", "operator");
 
-        assertThat(deleted).isTrue();
+        assertThat(disabled).isTrue();
         verify(persistenceService).forgetMemory("key");
         verify(persistenceService).insertSolutionMemoryHistory(
                 eq("key"),
                 eq("operator"),
                 eq("manual"),
-                eq("delete"),
+                eq("disable"),
                 eq("old query"),
                 eq("old solution"),
                 eq(false),
-                eq(null),
-                eq(null),
+                eq("old query"),
+                eq("old solution"),
                 eq(false),
-                eq("manual_delete")
+                eq("manual_disable")
         );
     }
 

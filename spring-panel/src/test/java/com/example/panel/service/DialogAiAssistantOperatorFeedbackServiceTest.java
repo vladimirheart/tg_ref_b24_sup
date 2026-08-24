@@ -88,6 +88,7 @@ class DialogAiAssistantOperatorFeedbackServiceTest {
                 new ObjectMapper()
         ));
         doNothing().when(persistenceService).persistSuggestionFeedback(any(), any(), any(), any(), any(), any(), any());
+        doNothing().when(persistenceService).applySuggestionFeedbackToMemory(any(), any(), any());
         doNothing().when(persistenceService).recordAiEvent(any(), any(), any(), any(), any(), any(), any(), any(), any());
 
         DialogAiAssistantOperatorFeedbackService service = new DialogAiAssistantOperatorFeedbackService(
@@ -98,9 +99,20 @@ class DialogAiAssistantOperatorFeedbackServiceTest {
                 mock(DialogAiAssistantConfigService.class)
         );
 
-        service.recordSuggestionFeedback("T-1", "accepted", "knowledge", "title", "snippet", "reply", "operator");
+        service.recordSuggestionFeedback("T-1", "accepted", "memory", "title", "snippet", "reply", "mem-1", "operator");
 
-        verify(persistenceService).persistSuggestionFeedback("T-1", "accepted", "knowledge", "title", "snippet", "reply", "operator");
-        verify(persistenceService).recordAiEvent(eq("T-1"), eq("ai_agent_suggestion_applied"), eq("operator"), eq("suggestion_feedback"), eq("accepted"), eq("knowledge"), eq(null), eq("title"), eq(Map.of("decision", "accepted")));
+        verify(persistenceService).persistSuggestionFeedback("T-1", "accepted", "memory", "title", "snippet", "reply", "operator");
+        verify(persistenceService).applySuggestionFeedbackToMemory("mem-1", "accepted", "operator");
+        verify(persistenceService).recordAiEvent(
+                eq("T-1"),
+                eq("ai_agent_suggestion_applied"),
+                eq("operator"),
+                eq("suggestion_feedback"),
+                eq("accepted"),
+                eq("memory"),
+                eq(null),
+                eq("title"),
+                eq(Map.of("decision", "accepted", "memory_key", "mem-1"))
+        );
     }
 }

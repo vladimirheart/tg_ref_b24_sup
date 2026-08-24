@@ -91,7 +91,7 @@ class DialogAiAssistantConfigServiceTest {
         when(sharedConfigService.loadSettings()).thenReturn(settings);
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("T-1"), eq("-60 minutes"))).thenReturn(0);
         when(jdbcTemplate.queryForList(anyString(), eq("T-1"))).thenReturn(List.of(Map.of(
-                "last_action", "auto_reply",
+                "last_action", "auto_replied",
                 "updated_at", "2026-05-12T10:00:00Z"
         )));
         when(persistenceService.parseInstant("2026-05-12T10:00:00Z")).thenReturn(Instant.now().minusSeconds(30));

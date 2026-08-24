@@ -27,6 +27,10 @@ public class AiOpsRuntimeService {
     private final AiIntentService aiIntentService;
     private final AiRetrievalService aiRetrievalService;
     private final AiPolicyService aiPolicyService;
+    private final AiDecisionService aiDecisionService;
+    private final DialogAiAssistantConfigService dialogAiAssistantConfigService;
+    private final DialogAiAssistantStateService dialogAiAssistantStateService;
+    private final DialogAiAssistantPolicyService dialogAiAssistantPolicyService;
     private final AiInputNormalizerService aiInputNormalizerService;
     private final AiControlledLlmService aiControlledLlmService;
     private final AiOfflineEvaluationService aiOfflineEvaluationService;
@@ -39,6 +43,10 @@ public class AiOpsRuntimeService {
                                AiIntentService aiIntentService,
                                AiRetrievalService aiRetrievalService,
                                AiPolicyService aiPolicyService,
+                               AiDecisionService aiDecisionService,
+                               DialogAiAssistantConfigService dialogAiAssistantConfigService,
+                               DialogAiAssistantStateService dialogAiAssistantStateService,
+                               DialogAiAssistantPolicyService dialogAiAssistantPolicyService,
                                AiInputNormalizerService aiInputNormalizerService,
                                AiControlledLlmService aiControlledLlmService,
                                AiOfflineEvaluationService aiOfflineEvaluationService,
@@ -50,6 +58,10 @@ public class AiOpsRuntimeService {
         this.aiIntentService = aiIntentService;
         this.aiRetrievalService = aiRetrievalService;
         this.aiPolicyService = aiPolicyService;
+        this.aiDecisionService = aiDecisionService;
+        this.dialogAiAssistantConfigService = dialogAiAssistantConfigService;
+        this.dialogAiAssistantStateService = dialogAiAssistantStateService;
+        this.dialogAiAssistantPolicyService = dialogAiAssistantPolicyService;
         this.aiInputNormalizerService = aiInputNormalizerService;
         this.aiControlledLlmService = aiControlledLlmService;
         this.aiOfflineEvaluationService = aiOfflineEvaluationService;
@@ -130,28 +142,137 @@ public class AiOpsRuntimeService {
             item.put("trace", candidate.trace());
             item.put("updated_at", candidate.updatedAt());
             item.put("stale", candidate.stale());
+            item.put("memory_auto_reply_allowed",
+                    "memory".equalsIgnoreCase(candidate.source())
+                            && aiPolicyService.isMemoryAutoReplyAllowed(candidate.memoryKey()));
             candidates.add(item);
         }
 
-        return Map.of(
-                "ticket_id", ticket,
-                "message", normalizedMessage,
-                "rewrite", rewriteResult,
-                "context", Map.of(
-                        "intent", intentToMap(retrievalResult.context().intentMatch()),
-                        "intent_policy", intentPolicyToMap(retrievalResult.context().intentPolicy()),
-                        "channel", retrievalResult.context().channel(),
-                        "business", retrievalResult.context().business(),
-                        "location", retrievalResult.context().location()
-                ),
-                "consistency", Map.of(
-                        "auto_reply_allowed", retrievalResult.consistency().autoReplyAllowed(),
-                        "has_conflict", retrievalResult.consistency().hasConflict(),
-                        "support_count", retrievalResult.consistency().supportCount(),
-                        "reason", retrievalResult.consistency().reason()
-                ),
-                "candidates", candidates
+        Map<String, Object> contextMap = new LinkedHashMap<>();
+        contextMap.put("intent", intentToMap(retrievalResult.context().intentMatch()));
+        contextMap.put("intent_policy", intentPolicyToMap(retrievalResult.context().intentPolicy()));
+        contextMap.put("channel", retrievalResult.context().channel());
+        contextMap.put("business", retrievalResult.context().business());
+        contextMap.put("location", retrievalResult.context().location());
+
+        Map<String, Object> consistencyMap = new LinkedHashMap<>();
+        consistencyMap.put("auto_reply_allowed", retrievalResult.consistency().autoReplyAllowed());
+        consistencyMap.put("has_conflict", retrievalResult.consistency().hasConflict());
+        consistencyMap.put("support_count", retrievalResult.consistency().supportCount());
+        consistencyMap.put("reason", retrievalResult.consistency().reason());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("ticket_id", ticket);
+        result.put("message", normalizedMessage);
+        result.put("rewrite", rewriteResult);
+        result.put("context", contextMap);
+        result.put("consistency", consistencyMap);
+        result.put("candidates", candidates);
+        result.put("decision_preview", buildDecisionPreview(ticket, normalizedMessage, retrievalResult));
+        return result;
+    }
+
+    private Map<String, Object> buildDecisionPreview(String ticketId,
+                                                     String message,
+                                                     AiRetrievalService.RetrievalResult retrievalResult) {
+        Map<String, Object> preview = new LinkedHashMap<>();
+        DialogAiAssistantStateService.DialogAiControl control =
+                dialogAiAssistantStateService.loadDialogControl(ticketId);
+        String configuredMode = dialogAiAssistantConfigService.resolveAgentMode();
+        boolean agentEnabled = dialogAiAssistantConfigService.isAgentEnabled();
+        DialogAiAssistantPolicyService.PreRoutingDecision preRouting =
+                dialogAiAssistantPolicyService.evaluatePreRoutingPolicy(
+                        message,
+                        configuredMode,
+                        control,
+                        agentEnabled
+                );
+        preview.put("configured_mode", configuredMode);
+        preview.put("agent_enabled", agentEnabled);
+        preview.put("dialog_ai_disabled", control.aiDisabled());
+        preview.put("dialog_auto_reply_blocked", control.autoReplyBlocked());
+        preview.put("pre_routing_action", preRouting.action());
+        preview.put("pre_routing_reason", preRouting.decisionReason());
+
+        if (preRouting.stopProcessing()) {
+            preview.put("effective_mode", preRouting.effectiveMode());
+            preview.put("base_action", preRouting.decisionType());
+            preview.put("base_reason", preRouting.decisionReason());
+            preview.put("final_action", preRouting.decisionType());
+            preview.put("final_reason", preRouting.decisionReason());
+            preview.put("source_auto_reply_eligible", false);
+            return preview;
+        }
+
+        String effectiveMode = applyIntentModeOverride(
+                preRouting.effectiveMode(),
+                retrievalResult.context().intentPolicy()
         );
+        preview.put("effective_mode", effectiveMode);
+        double suggestThreshold = dialogAiAssistantConfigService.resolveSuggestThreshold();
+        double autoReplyThreshold = dialogAiAssistantConfigService.resolveAutoReplyThreshold();
+        preview.put("suggest_threshold", suggestThreshold);
+        preview.put("auto_reply_threshold", autoReplyThreshold);
+
+        if (retrievalResult.candidates().isEmpty()) {
+            preview.put("base_action", "escalate");
+            preview.put("base_reason", "no_evidence");
+            preview.put("final_action", "escalate");
+            preview.put("final_reason", "no_evidence");
+            preview.put("source_auto_reply_eligible", false);
+            return preview;
+        }
+
+        AiRetrievalService.Candidate top = retrievalResult.candidates().get(0);
+        boolean memoryExplicitlyAllowed = !"memory".equalsIgnoreCase(top.source())
+                || aiPolicyService.isMemoryAutoReplyAllowed(top.memoryKey());
+        boolean sourceEligibleForAutoReply = aiPolicyService.isAutoReplyEligibleSource(
+                top.source(),
+                top.status(),
+                top.trustLevel(),
+                top.sourceType(),
+                top.safetyLevel()
+        ) && retrievalResult.context().intentPolicy().autoReplyAllowed()
+                && !retrievalResult.context().intentPolicy().requiresOperator()
+                && memoryExplicitlyAllowed;
+        preview.put("top_source", top.source());
+        preview.put("top_memory_key", top.memoryKey());
+        preview.put("top_score", top.score());
+        preview.put("memory_auto_reply_allowed", memoryExplicitlyAllowed);
+        preview.put("source_auto_reply_eligible", sourceEligibleForAutoReply);
+
+        AiDecisionService.Decision baseDecision = aiDecisionService.evaluateCandidateDecision(
+                effectiveMode,
+                top.score(),
+                suggestThreshold,
+                autoReplyThreshold,
+                control.autoReplyBlocked(),
+                sourceEligibleForAutoReply
+        );
+        String finalAction = baseDecision.decisionType();
+        String finalReason = baseDecision.decisionReason();
+        preview.put("base_action", baseDecision.decisionType());
+        preview.put("base_reason", baseDecision.decisionReason());
+
+        if (baseDecision.action() == AiDecisionService.DecisionAction.AUTO_REPLY) {
+            AiRetrievalService.ConsistencyCheck consistency = retrievalResult.consistency();
+            if (!consistency.autoReplyAllowed()) {
+                finalAction = consistency.hasConflict() ? "escalate" : "suggest_only";
+                finalReason = consistency.reason();
+            } else {
+                DialogAiAssistantConfigService.AutoReplyGuard guard =
+                        dialogAiAssistantConfigService.evaluateAutoReplyGuard(ticketId);
+                preview.put("loop_guard_allowed", guard.allowed());
+                preview.put("loop_guard_reason", guard.reason());
+                if (!guard.allowed()) {
+                    finalAction = "suppressed";
+                    finalReason = guard.reason();
+                }
+            }
+        }
+        preview.put("final_action", finalAction);
+        preview.put("final_reason", finalReason);
+        return preview;
     }
 
     public List<Map<String, Object>> listIntents(Integer limit, String query, Boolean enabled) {

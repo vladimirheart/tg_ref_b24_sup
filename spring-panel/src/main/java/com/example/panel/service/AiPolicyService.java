@@ -93,6 +93,21 @@ public class AiPolicyService {
         return !"high_risk".equals(normalizedSafety);
     }
 
+    public boolean isMemoryAutoReplyAllowed(String memoryKey) {
+        if (!StringUtils.hasText(memoryKey)) {
+            return false;
+        }
+        try {
+            Integer value = jdbcTemplate.queryForObject(
+                    "SELECT COALESCE(auto_reply_allowed, 0) FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
+                    Integer.class,
+                    memoryKey.trim()
+            );
+            return value != null && value > 0;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
     public String normalizeTrustLevel(String value, String fallback) {
         String normalized = normalizeOrDefault(value, normalizeOrDefault(fallback, "low"));
         return switch (normalized) {

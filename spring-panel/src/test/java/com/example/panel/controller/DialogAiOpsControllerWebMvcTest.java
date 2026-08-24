@@ -278,10 +278,11 @@ class DialogAiOpsControllerWebMvcTest {
                 .content("""
                     {
                       "decision": "accepted",
-                      "source": "rag",
+                      "source": "memory",
                       "title": "KB article",
                       "snippet": "snippet",
-                      "suggested_reply": "готовый ответ"
+                      "suggested_reply": "готовый ответ",
+                      "memory_key": "mem-706"
                     }
                     """))
             .andExpect(status().isOk())
@@ -290,10 +291,11 @@ class DialogAiOpsControllerWebMvcTest {
         verify(dialogAiOpsService).recordSuggestionFeedback(
             "T-706",
             "accepted",
-            "rag",
+            "memory",
             "KB article",
             "snippet",
             "готовый ответ",
+            "mem-706",
             "operator"
         );
     }
@@ -460,7 +462,7 @@ class DialogAiOpsControllerWebMvcTest {
     void aiSolutionMemoryUpdateAcceptsCamelCaseAliases() throws Exception {
         when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_update"), eq((String) null)))
             .thenReturn(null);
-        when(dialogAiOpsService.updateSolutionMemory("query-3", "Q", "A", true, "operator"))
+        when(dialogAiOpsService.updateSolutionMemory("query-3", "Q", "A", true, false, "operator"))
             .thenReturn(Map.of("success", true, "updated", true));
 
         mockMvc.perform(post("/api/dialogs/ai-solution-memory/query-3")
@@ -471,7 +473,8 @@ class DialogAiOpsControllerWebMvcTest {
                     {
                       "queryText": "Q",
                       "solutionText": "A",
-                      "reviewRequired": true
+                      "reviewRequired": true,
+                      "autoReplyAllowed": false
                     }
                     """))
             .andExpect(status().isOk())

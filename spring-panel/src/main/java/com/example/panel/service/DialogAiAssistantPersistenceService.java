@@ -110,7 +110,16 @@ public class DialogAiAssistantPersistenceService {
         }
         try {
             java.util.List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT query_text, solution_text, review_required FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
+                    """
+                    SELECT query_text, solution_text, review_required,
+                           status, trust_level, intent_key, slot_signature,
+                           scope_channel, scope_business, scope_location,
+                           safety_level, source_type, auto_reply_allowed,
+                           last_verified_at, verified_by
+                      FROM ai_agent_solution_memory
+                     WHERE query_key = ?
+                     LIMIT 1
+                    """,
                     key
             );
             return rows.isEmpty() ? null : rows.get(0);
@@ -338,6 +347,74 @@ public class DialogAiAssistantPersistenceService {
         );
     }
 
+    public void applySuggestionFeedbackToMemory(String queryKey,
+                                                String decision,
+                                                String actor) {
+        String key = trim(queryKey);
+        String normalizedDecision = trim(decision);
+        if (key == null || normalizedDecision == null) {
+            return;
+        }
+        normalizedDecision = normalizedDecision.toLowerCase(Locale.ROOT);
+        if (!"accepted".equals(normalizedDecision) && !"rejected".equals(normalizedDecision)) {
+            return;
+        }
+        Map<String, Object> before = loadSolutionMemoryByKey(key);
+        if (before == null) {
+            return;
+        }
+        try {
+            if ("accepted".equals(normalizedDecision)) {
+                jdbcTemplate.update(
+                        """
+                        UPDATE ai_agent_solution_memory
+                           SET times_confirmed = COALESCE(times_confirmed, 0) + 1,
+                               last_operator = ?,
+                               updated_at = CURRENT_TIMESTAMP
+                         WHERE query_key = ?
+                        """,
+                        trim(actor),
+                        key
+                );
+                return;
+            }
+
+            jdbcTemplate.update(
+                    """
+                    UPDATE ai_agent_solution_memory
+                       SET times_corrected = COALESCE(times_corrected, 0) + 1,
+                           review_required = 1,
+                           pending_solution_text = solution_text,
+                           status = 'draft',
+                           trust_level = 'low',
+                           auto_reply_allowed = 0,
+                           last_operator = ?,
+                           last_verified_at = NULL,
+                           verified_by = NULL,
+                           updated_at = CURRENT_TIMESTAMP
+                     WHERE query_key = ?
+                    """,
+                    trim(actor),
+                    key
+            );
+            forgetMemory(key);
+            insertSolutionMemoryHistory(
+                    key,
+                    trim(actor),
+                    "suggestion_feedback",
+                    "reject",
+                    safe(before.get("query_text")),
+                    safe(before.get("solution_text")),
+                    isTrue(before.get("review_required")),
+                    safe(before.get("query_text")),
+                    safe(before.get("solution_text")),
+                    true,
+                    "feedback_rejected_auto_reply_disabled"
+            );
+        } catch (Exception ex) {
+            log.debug("Failed to apply suggestion feedback to memory {}: {}", key, ex.getMessage());
+        }
+    }
     public void markMemoryUsage(String queryKey) {
         try {
             jdbcTemplate.update(

@@ -131,10 +131,13 @@ public class DialogAiAssistantMessageFlowService {
         DialogAiAssistantSuggestionCandidate top = suggestions.get(0);
         double autoReplyThreshold = dialogAiAssistantConfigService.resolveAutoReplyThreshold();
         double suggestThreshold = dialogAiAssistantConfigService.resolveSuggestThreshold();
+        boolean memoryExplicitlyAllowed = !"memory".equalsIgnoreCase(top.source())
+                || aiPolicyService.isMemoryAutoReplyAllowed(top.memoryKey());
         boolean sourceEligibleForAutoReply = aiPolicyService.isAutoReplyEligibleSource(
                 top.source(), top.status(), top.trustLevel(), top.sourceType(), top.safetyLevel()
         ) && retrievalResult.context().intentPolicy().autoReplyAllowed()
-                && !retrievalResult.context().intentPolicy().requiresOperator();
+                && !retrievalResult.context().intentPolicy().requiresOperator()
+                && memoryExplicitlyAllowed;
         AiDecisionService.Decision decision = aiDecisionService.evaluateCandidateDecision(
                 mode, top.score(), suggestThreshold, autoReplyThreshold, control.autoReplyBlocked(), sourceEligibleForAutoReply
         );

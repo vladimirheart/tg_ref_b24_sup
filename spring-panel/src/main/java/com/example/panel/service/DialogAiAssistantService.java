@@ -84,6 +84,12 @@ public class DialogAiAssistantService {
             item.put("score", s.score());
             item.put("score_label", formatScore(s.score()));
             item.put("snippet", s.snippet());
+            item.put("memory_key", s.memoryKey());
+            item.put("status", s.status());
+            item.put("trust_level", s.trustLevel());
+            item.put("source_type", s.sourceType());
+            item.put("safety_level", s.safetyLevel());
+            item.put("evidence_count", s.evidenceCount());
             item.put("reply", dialogAiAssistantSuggestionService.buildOperatorReplySuggestion(t, lastClient, s));
             item.put("explain", dialogAiAssistantSuggestionService.buildSuggestionExplain(t, lastClient, s));
             result.add(item);
@@ -116,6 +122,7 @@ public class DialogAiAssistantService {
                                          String title,
                                          String snippet,
                                          String suggestedReply,
+                                         String memoryKey,
                                          String actor) {
         dialogAiAssistantOperatorFeedbackService.recordSuggestionFeedback(
                 ticketId,
@@ -124,6 +131,7 @@ public class DialogAiAssistantService {
                 title,
                 snippet,
                 suggestedReply,
+                memoryKey,
                 actor
         );
     }
@@ -197,8 +205,16 @@ public class DialogAiAssistantService {
                                         String queryText,
                                         String solutionText,
                                         Boolean reviewRequired,
+                                        Boolean autoReplyAllowed,
                                         String operator) {
-        return dialogAiSolutionMemoryService.updateSolutionMemory(queryKey, queryText, solutionText, reviewRequired, operator);
+        return dialogAiSolutionMemoryService.updateSolutionMemory(
+                queryKey,
+                queryText,
+                solutionText,
+                reviewRequired,
+                autoReplyAllowed,
+                operator
+        );
     }
 
     public boolean deleteSolutionMemory(String queryKey, String operator) {

@@ -100,6 +100,7 @@
           const rawSource = escapeHtml(String(item?.source || '').trim());
           const rawTitle = escapeHtml(String(item?.title || '').trim());
           const rawSnippet = escapeHtml(String(item?.snippet || '').trim());
+          const rawMemoryKey = escapeHtml(String(item?.memory_key || '').trim());
           return `
             <article class="dialog-ai-suggestion">
               <div class="d-flex justify-content-between align-items-start gap-2">
@@ -110,9 +111,9 @@
               ${explain ? `<div class="small mt-1"><strong>Почему выбрано:</strong> ${explain}</div>` : ''}
               <div class="mt-2">
                 <div class="btn-group btn-group-sm" role="group">
-                  <button type="button" class="btn btn-outline-primary" data-ai-suggestion-apply="${index}" data-ai-suggestion-reply="${reply}">Вставить как есть</button>
+                  <button type="button" class="btn btn-outline-primary" data-ai-suggestion-apply="${index}" data-ai-suggestion-reply="${reply}" data-ai-suggestion-source="${rawSource}" data-ai-suggestion-title="${rawTitle}" data-ai-suggestion-snippet="${rawSnippet}" data-ai-suggestion-memory-key="${rawMemoryKey}">Вставить как есть</button>
                   <button type="button" class="btn btn-outline-secondary" data-ai-suggestion-apply-edit="${index}" data-ai-suggestion-reply="${reply}">Вставить и отредактировать</button>
-                  <button type="button" class="btn btn-outline-danger" data-ai-suggestion-reject="${index}" data-ai-suggestion-source="${rawSource}" data-ai-suggestion-title="${rawTitle}" data-ai-suggestion-snippet="${rawSnippet}" data-ai-suggestion-reply="${reply}">Отклонить</button>
+                  <button type="button" class="btn btn-outline-danger" data-ai-suggestion-reject="${index}" data-ai-suggestion-source="${rawSource}" data-ai-suggestion-title="${rawTitle}" data-ai-suggestion-snippet="${rawSnippet}" data-ai-suggestion-reply="${reply}" data-ai-suggestion-memory-key="${rawMemoryKey}">Отклонить</button>
                 </div>
               </div>
             </article>

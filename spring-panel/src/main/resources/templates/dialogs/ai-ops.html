@@ -106,6 +106,31 @@
         </div>
     </section>
 
+    <section class="card mb-4 aiops-section-card ops-section-card">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <strong>AI Decision Testbench</strong>
+                <div class="small text-muted">Проверка runtime-решения без отправки ответа клиенту.</div>
+            </div>
+            <button class="btn btn-sm btn-ai-soft" id="aiOpsTestRun" type="button">Проверить решение</button>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-lg-3">
+                    <label class="form-label form-label-sm" for="aiOpsTestTicket">Ticket ID</label>
+                    <input class="form-control form-control-sm" id="aiOpsTestTicket" placeholder="Например: 12345">
+                    <div class="form-text">Нужен существующий диалог, чтобы учесть канал, бизнес, локацию и dialog-level AI control.</div>
+                </div>
+                <div class="col-lg-9">
+                    <label class="form-label form-label-sm" for="aiOpsTestMessage">Сообщение клиента</label>
+                    <textarea class="form-control form-control-sm" id="aiOpsTestMessage" rows="3" placeholder="Что написал клиент"></textarea>
+                </div>
+            </div>
+            <div class="small text-muted mt-3" id="aiOpsTestState">Введите ticket и сообщение.</div>
+            <div class="mt-2" id="aiOpsTestResult"></div>
+        </div>
+    </section>
+
     <div class="row g-3 mb-4">
         <div class="col-xl-7">
             <section class="card h-100 aiops-section-card ops-section-card">

@@ -159,6 +159,7 @@ public class DialogAiAssistantOperatorFeedbackService {
                                          String title,
                                          String snippet,
                                          String suggestedReply,
+                                         String memoryKey,
                                          String actor) {
         String ticket = persistenceService.trim(ticketId);
         String normalizedDecision = persistenceService.trim(decision);
@@ -167,6 +168,12 @@ public class DialogAiAssistantOperatorFeedbackService {
         }
         try {
             persistenceService.persistSuggestionFeedback(ticket, normalizedDecision, source, title, snippet, suggestedReply, actor);
+            persistenceService.applySuggestionFeedbackToMemory(memoryKey, normalizedDecision, actor);
+            Map<String, Object> eventPayload = new java.util.LinkedHashMap<>();
+            eventPayload.put("decision", normalizedDecision.toLowerCase(Locale.ROOT));
+            if (StringUtils.hasText(memoryKey)) {
+                eventPayload.put("memory_key", memoryKey.trim());
+            }
             persistenceService.recordAiEvent(
                     ticket,
                     resolveFeedbackEventType(normalizedDecision),
@@ -176,7 +183,7 @@ public class DialogAiAssistantOperatorFeedbackService {
                     persistenceService.trim(source),
                     null,
                     persistenceService.trim(title),
-                    Map.of("decision", normalizedDecision.toLowerCase(Locale.ROOT))
+                    eventPayload
             );
         } catch (Exception ex) {
             log.debug("Failed to persist ai feedback for {}: {}", ticket, ex.getMessage());
