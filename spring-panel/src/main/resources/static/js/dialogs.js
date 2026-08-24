@@ -2246,7 +2246,7 @@
           </div>
         </td>
         <td data-column-key="status">
-          <div class="d-flex align-items-center gap-2">
+          <div class="dialog-status-line">
             <span class="badge rounded-pill ${statusClassByKey(statusKey)}">${escapeHtml(statusLabel)}</span>
             <span class="badge text-bg-danger dialog-unread-count ${unreadCount > 0 ? '' : 'd-none'}">${unreadCount}</span>
           </div>

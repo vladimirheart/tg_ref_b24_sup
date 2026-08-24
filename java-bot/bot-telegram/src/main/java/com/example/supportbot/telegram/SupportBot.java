@@ -285,10 +285,15 @@ public class SupportBot extends TelegramLongPollingBot {
                 && message.getSticker() == null
                 && message.getVideoNote() == null
                 && !hasMemberEvent) {
+            Long unsupportedUserId = Optional.ofNullable(message.getFrom()).map(User::getId).orElse(null);
+            ConversationSession unsupportedSession = unsupportedUserId != null ? conversations.get(unsupportedUserId) : null;
+            if (unsupportedSession != null && isChoiceQuestion(unsupportedSession.currentQuestion())) {
+                notifyChoiceQuestionRequiresText(unsupportedSession);
+            }
             log.info("Ignoring update {} from chat {} user {}: unsupported message payload",
                     update.getUpdateId(),
                     message.getChatId(),
-                    message.getFrom() != null ? message.getFrom().getId() : null);
+                    unsupportedUserId);
             return;
         }
 
@@ -339,6 +344,20 @@ public class SupportBot extends TelegramLongPollingBot {
             } else {
                 handleTextMessage(message, channel);
             }
+        }
+
+        if (session != null
+                && isChoiceQuestion(session.currentQuestion())
+                && (message.hasAnimation()
+                    || message.getSticker() != null
+                    || message.getVideoNote() != null
+                    || message.hasPhoto()
+                    || message.hasVideo()
+                    || message.hasVoice()
+                    || message.hasAudio()
+                    || message.hasDocument())) {
+            notifyChoiceQuestionRequiresText(session);
+            return;
         }
 
         if (message.hasAnimation()) {
@@ -818,6 +837,32 @@ public class SupportBot extends TelegramLongPollingBot {
         } catch (IOException | TelegramApiException e) {
             log.error("Failed to store video note", e);
         }
+    }
+
+    private void notifyChoiceQuestionRequiresText(ConversationSession session) {
+        if (session == null || session.currentQuestion() == null) {
+            return;
+        }
+        List<String> options = resolveQuestionOptions(session.currentQuestion(), session.answers());
+        String text = choiceQuestionMediaGuidance(options);
+        SendMessage retry = SendMessage.builder()
+                .chatId(session.chatId())
+                .text(text)
+                .replyMarkup(new ReplyKeyboardRemove(true))
+                .build();
+        try {
+            execute(retry);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send choice-question media guidance", e);
+        }
+    }
+
+    static String choiceQuestionMediaGuidance(List<String> options) {
+        String prefix = "\u0414\u043b\u044f \u044d\u0442\u043e\u0433\u043e \u0432\u043e\u043f\u0440\u043e\u0441\u0430 \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043e\u0434\u0438\u043d \u0438\u0437 \u0432\u0430\u0440\u0438\u0430\u043d\u0442\u043e\u0432";
+        if (options == null || options.isEmpty()) {
+            return prefix + ".";
+        }
+        return prefix + ": " + String.join(", ", options) + ".";
     }
 
     private void acceptAttachmentAsSessionAnswer(Message message,

@@ -64,7 +64,7 @@ public class UiEventOutboxAppendService {
                 trimToNull(messageType),
                 trimToNull(attachment),
                 rating,
-                OffsetDateTime.now().toString()
+                OffsetDateTime.now()
         );
     }
 

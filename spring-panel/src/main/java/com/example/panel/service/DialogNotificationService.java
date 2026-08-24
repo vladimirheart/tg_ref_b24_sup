@@ -401,7 +401,7 @@ public class DialogNotificationService {
     }
 
     private void logSystemMessage(DialogTarget target, String ticketId, String message) {
-        String timestamp = OffsetDateTime.now().toString();
+        OffsetDateTime timestamp = OffsetDateTime.now();
         jdbcTemplate.update("""
                 INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?)

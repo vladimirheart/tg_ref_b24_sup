@@ -136,9 +136,8 @@ public class DialogTicketLifecycleService {
             return;
         }
         String source = isAutoCloseResolvedBy(resolvedBy) ? "auto_close" : "operator_close";
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        String createdAt = now.toString();
-        String expiresAt = now.plusDays(1).toString();
+        OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime expiresAt = createdAt.plusDays(1);
         try {
             int updated = jdbcTemplate.update(
                     "UPDATE pending_feedback_requests "

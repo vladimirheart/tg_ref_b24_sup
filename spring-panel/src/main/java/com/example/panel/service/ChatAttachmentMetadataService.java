@@ -43,7 +43,7 @@ public class ChatAttachmentMetadataService {
                 : (StringUtils.hasText(storageKey) ? "available" : "unresolved");
         String resolvedOriginalName = AttachmentStorageKeyResolver.resolveOriginalName(originalName, rawAttachment, storageKey);
         String resolvedMimeType = AttachmentStorageKeyResolver.guessMimeType(mimeType, resolvedOriginalName, storageKey, messageType);
-        String timestamp = OffsetDateTime.now().toString();
+        OffsetDateTime timestamp = OffsetDateTime.now();
 
         jdbcTemplate.update("DELETE FROM chat_attachment_metadata WHERE chat_history_id = ?", chatHistoryId);
         jdbcTemplate.update("""

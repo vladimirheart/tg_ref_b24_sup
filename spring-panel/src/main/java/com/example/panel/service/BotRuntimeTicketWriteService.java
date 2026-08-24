@@ -226,7 +226,7 @@ public class BotRuntimeTicketWriteService {
                 """,
                 ticket.userId(),
                 text,
-                OffsetDateTime.now().toString(),
+                OffsetDateTime.now(),
                 ticket.ticketId(),
                 ticket.channelId()
         );

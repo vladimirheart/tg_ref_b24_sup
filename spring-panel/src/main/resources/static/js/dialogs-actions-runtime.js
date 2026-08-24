@@ -733,21 +733,30 @@
         const ticketId = resolveDetailsTicketId();
         const replyToTelegramId = options.getActiveReplyToTelegramId?.() ?? null;
         if ((!message && !pendingMediaFiles.length) || !ticketId) return;
+        if (elements.detailsReplySend.dataset.replyInFlight === '1') return;
+        elements.detailsReplySend.dataset.replyInFlight = '1';
+        elements.detailsReplySend.disabled = true;
+        elements.detailsReplySend.textContent = '\u041e\u0442\u043f\u0440\u0430\u0432\u043a\u0430...';
         if (pendingMediaFiles.length) {
-          await options.sendMediaFiles?.(pendingMediaFiles, {
-            ticketId,
-            caption: message,
-            sendButton: elements.detailsReplySend,
-            mediaInput: elements.detailsReplyMedia,
-            replyToTelegramId,
-            afterSuccess: () => {
-              elements.detailsReplyText.value = '';
-              options.resetReplyTarget?.();
-            },
-          });
+          try {
+            await options.sendMediaFiles?.(pendingMediaFiles, {
+              ticketId,
+              caption: message,
+              sendButton: elements.detailsReplySend,
+              mediaInput: elements.detailsReplyMedia,
+              replyToTelegramId,
+              afterSuccess: () => {
+                elements.detailsReplyText.value = '';
+                options.resetReplyTarget?.();
+              },
+            });
+          } finally {
+            delete elements.detailsReplySend.dataset.replyInFlight;
+            elements.detailsReplySend.disabled = false;
+            updateDetailsReplySendLabel();
+          }
           return;
         }
-        elements.detailsReplySend.disabled = true;
         try {
           const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/reply`, {
             method: 'POST',
@@ -779,7 +788,9 @@
         } catch (error) {
           notify(error?.message || 'Не удалось отправить сообщение', 'error');
         } finally {
+          delete elements.detailsReplySend.dataset.replyInFlight;
           elements.detailsReplySend.disabled = false;
+          updateDetailsReplySendLabel();
         }
       };
 

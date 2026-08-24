@@ -367,7 +367,7 @@
       }, {
         "id" : "location_type",
         "type" : "preset",
-        "text" : "Тип бизнесаx",
+        "text" : "Тип бизнеса",
         "order" : 2,
         "required" : true,
         "preset" : {

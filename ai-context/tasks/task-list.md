@@ -1,4 +1,4 @@
-﻿# Task List
+# Task List
 
 Живой рабочий список задач для AI.
 Подробные правила task-flow описаны в `ai-context/baseline/guides/tasks.md`.
@@ -207,3 +207,5 @@
 🟣 [01-185] Починить PostgreSQL Rabbit ingestion нового обращения и не показывать клиенту технический UUID вместо номера
 🟣 [01-186] Зафиксировать exact-text solution memory и починить PostgreSQL reply/audit runtime
 🟠 [01-187] Убрать ложный Maven BUILD FAILURE при штатной остановке Windows runtime
+🟣 [01-188] Починить PostgreSQL media/rating/edit runtime, защитить reply от дублей и стабилизировать questionnaire/unread UI
+🟠 [01-189] Добавить полную историю редакций сообщений и service-event timeline в диалоге

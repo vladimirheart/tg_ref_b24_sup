@@ -78,7 +78,7 @@ public class UiEventOutboxWatcher {
             if (safeThresholdId <= 0) {
                 return;
             }
-            String thresholdCreatedAt = OffsetDateTime.now(ZoneOffset.UTC).minusDays(3).toString();
+            OffsetDateTime thresholdCreatedAt = OffsetDateTime.now(ZoneOffset.UTC).minusDays(3);
             jdbcTemplate.update("""
                 DELETE FROM ui_event_outbox
                  WHERE id <= ?
