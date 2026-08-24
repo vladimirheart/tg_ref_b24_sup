@@ -6,6 +6,9 @@
     activeProfileUrl: '',
     selectedCategoryIds: new Set(),
     selectedWalletIds: new Set(),
+    selectedTaskIds: new Set(),
+    previewItems: [],
+    previewLoaded: false,
   };
 
   const refreshBtn = document.getElementById('employeeDiscountRefresh');
@@ -18,6 +21,9 @@
   const loadWalletsBtn = document.getElementById('employeeDiscountLoadWallets');
   const runDryBtn = document.getElementById('employeeDiscountRunDry');
   const runExecBtn = document.getElementById('employeeDiscountRunExec');
+  const previewSelectAllBtn = document.getElementById('employeeDiscountPreviewSelectAll');
+  const previewClearBtn = document.getElementById('employeeDiscountPreviewClear');
+  const previewSelectedCountEl = document.getElementById('employeeDiscountPreviewSelectedCount');
 
   const scopeEl = document.getElementById('employeeDiscountConfigScope');
   const bitrixStateEl = document.getElementById('employeeDiscountBitrixState');
@@ -44,6 +50,7 @@
   const titleMarkersInput = document.getElementById('employeeDiscountTitleMarkers');
   const checklistLabelsInput = document.getElementById('employeeDiscountChecklistLabels');
   const phoneRegexInput = document.getElementById('employeeDiscountPhoneRegex');
+  const ignoredPhonesInput = document.getElementById('employeeDiscountIgnoredPhones');
   const dryRunDefaultInput = document.getElementById('employeeDiscountDryRunDefault');
 
   function getCookieValue(name) {
@@ -96,6 +103,7 @@
     if (titleMarkersInput) titleMarkersInput.value = Array.isArray(data.task_title_markers) ? data.task_title_markers.join('\n') : '';
     if (checklistLabelsInput) checklistLabelsInput.value = Array.isArray(data.checklist_labels) ? data.checklist_labels.join('\n') : '';
     if (phoneRegexInput) phoneRegexInput.value = data.phone_regex || '';
+    if (ignoredPhonesInput) ignoredPhonesInput.value = Array.isArray(data.ignored_phone_numbers) ? data.ignored_phone_numbers.join('\n') : '';
     if (dryRunDefaultInput) dryRunDefaultInput.checked = !!data.dry_run_by_default;
   }
 
@@ -187,22 +195,68 @@
     }).join('');
   }
 
+  function updatePreviewSelectionCount() {
+    if (!previewSelectedCountEl) return;
+    const eligibleIds = new Set(
+      (state.previewItems || [])
+        .filter((item) => item.status === 'selected')
+        .map((item) => String(item.task_id || ''))
+        .filter(Boolean)
+    );
+    const selectedCount = Array.from(state.selectedTaskIds).filter((taskId) => eligibleIds.has(taskId)).length;
+    previewSelectedCountEl.textContent = `выбрано ${selectedCount} / ${eligibleIds.size}`;
+  }
+
+  function addPhoneToIgnore(phone) {
+    if (!ignoredPhonesInput || !phone) return;
+    const values = parseLines(ignoredPhonesInput.value);
+    if (!values.includes(phone)) values.push(phone);
+    ignoredPhonesInput.value = values.join('\n');
+    (state.previewItems || [])
+      .filter((item) => String(item.phone || '') === phone)
+      .forEach((item) => state.selectedTaskIds.delete(String(item.task_id || '')));
+    renderPreview(state.previewItems);
+    stateEl.textContent = `Номер ${phone} добавлен в ignore-list формы и снят с текущего запуска. Нажмите «Сохранить настройки».`;
+  }
+
   function renderPreview(items) {
     if (!previewEl) return;
-    if (!Array.isArray(items) || !items.length) {
+    state.previewItems = Array.isArray(items) ? items : [];
+    if (!state.previewItems.length) {
       previewEl.innerHTML = '<div class="text-muted">Нет задач.</div>';
+      updatePreviewSelectionCount();
       return;
     }
-    previewEl.innerHTML = items.map((item) => `
-      <div class="aiops-stream-item">
-        <div class="d-flex justify-content-between gap-2">
-          <span class="fw-semibold">${escapeHtml(item.title || '(без названия)')}</span>
-          <span class="text-muted">${escapeHtml(item.status)}</span>
+    previewEl.innerHTML = state.previewItems.map((item) => {
+      const taskId = String(item.task_id || '');
+      const selectable = item.status === 'selected' && !!taskId;
+      const checked = selectable && state.selectedTaskIds.has(taskId) ? 'checked' : '';
+      const selector = selectable
+        ? `<input class="form-check-input mt-0" type="checkbox" data-employee-task-select="${escapeHtml(taskId)}" ${checked} aria-label="Выбрать задачу ${escapeHtml(taskId)}">`
+        : `<span class="badge text-bg-secondary">${escapeHtml(item.status || '-')}</span>`;
+      const ignoreButton = item.phone && item.status !== 'ignored'
+        ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-employee-ignore-phone="${escapeHtml(item.phone)}" data-employee-ignore-task-id="${escapeHtml(taskId)}">В ignore-list</button>`
+        : '';
+      return `
+        <div class="aiops-stream-item">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="d-flex align-items-start gap-2">
+              ${selector}
+              <div>
+                <div class="fw-semibold">${escapeHtml(item.title || '(без названия)')}</div>
+                <div class="text-muted">task: ${escapeHtml(taskId)} | phone: ${escapeHtml(item.phone || '-')}</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="text-muted">${escapeHtml(item.status)}</span>
+              ${ignoreButton}
+            </div>
+          </div>
+          <div class="mt-1">${escapeHtml(item.message || '')}</div>
         </div>
-        <div class="text-muted">task: ${escapeHtml(item.task_id)} | phone: ${escapeHtml(item.phone || '-')}</div>
-        <div>${escapeHtml(item.message || '')}</div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
+    updatePreviewSelectionCount();
   }
 
   function renderRuns(items) {
@@ -323,6 +377,7 @@
           task_title_markers: parseLines(titleMarkersInput?.value),
           checklist_labels: parseLines(checklistLabelsInput?.value),
           phone_regex: phoneRegexInput?.value || '',
+          ignored_phone_numbers: parseLines(ignoredPhonesInput?.value),
           dry_run_by_default: !!dryRunDefaultInput?.checked,
         }),
       });
@@ -361,9 +416,20 @@
     stateEl.textContent = 'Строю preview задач...';
     try {
       const payload = await requestJson('/api/ai-ops/employee-discounts/preview');
-      renderPreview(payload.items);
-      stateEl.textContent = `Preview готов: ${(payload.items || []).length} задач.`;
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      state.previewLoaded = true;
+      state.previewItems = items;
+      state.selectedTaskIds = new Set(
+        items.filter((item) => item.status === 'selected').map((item) => String(item.task_id || '')).filter(Boolean)
+      );
+      renderPreview(items);
+      const ignoredCount = items.filter((item) => item.status === 'ignored').length;
+      stateEl.textContent = `Preview готов: ${items.length} задач; к обработке ${state.selectedTaskIds.size}; ignored ${ignoredCount}.`;
     } catch (error) {
+      state.previewLoaded = false;
+      state.previewItems = [];
+      state.selectedTaskIds.clear();
+      updatePreviewSelectionCount();
       previewEl.innerHTML = '<div class="text-danger">Не удалось построить preview.</div>';
       stateEl.textContent = `Ошибка preview: ${error.message || 'unknown_error'}`;
     }
@@ -394,17 +460,34 @@
   }
 
   async function runAutomation(dryRun) {
+    if (!dryRun && !state.previewLoaded) {
+      stateEl.textContent = 'Перед боевым запуском сначала выполните Preview и проверьте список задач.';
+      return;
+    }
+    if (state.previewLoaded && state.selectedTaskIds.size === 0) {
+      stateEl.textContent = 'Не выбрано ни одной задачи для запуска.';
+      return;
+    }
+
     stateEl.textContent = dryRun ? 'Запускаю dry-run...' : 'Запускаю боевой режим...';
+    const requestBody = { dry_run: dryRun };
+    if (state.previewLoaded) {
+      requestBody.selected_task_ids = Array.from(state.selectedTaskIds);
+    }
     try {
       const payload = await requestJson('/api/ai-ops/employee-discounts/runs', {
         method: 'POST',
         headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ dry_run: dryRun }),
+        body: JSON.stringify(requestBody),
       });
       renderRunDetails(payload);
       await loadRuns();
+      if (!dryRun) {
+        await loadPreview();
+      }
       stateEl.textContent = dryRun ? 'Dry-run завершён.' : 'Боевой запуск завершён.';
     } catch (error) {
+      await loadRuns();
       stateEl.textContent = `Ошибка запуска: ${error.message || 'unknown_error'}`;
     }
   }
@@ -446,6 +529,39 @@
   if (loadWalletsBtn) loadWalletsBtn.addEventListener('click', loadWallets);
   if (runDryBtn) runDryBtn.addEventListener('click', () => runAutomation(true));
   if (runExecBtn) runExecBtn.addEventListener('click', () => runAutomation(false));
+  if (previewSelectAllBtn) {
+    previewSelectAllBtn.addEventListener('click', () => {
+      state.selectedTaskIds = new Set(
+        (state.previewItems || [])
+          .filter((item) => item.status === 'selected')
+          .map((item) => String(item.task_id || ''))
+          .filter(Boolean)
+      );
+      renderPreview(state.previewItems);
+    });
+  }
+  if (previewClearBtn) {
+    previewClearBtn.addEventListener('click', () => {
+      state.selectedTaskIds.clear();
+      renderPreview(state.previewItems);
+    });
+  }
+  if (previewEl) {
+    previewEl.addEventListener('change', (event) => {
+      const input = event.target.closest('[data-employee-task-select]');
+      if (!input) return;
+      const taskId = input.getAttribute('data-employee-task-select') || '';
+      if (!taskId) return;
+      if (input.checked) state.selectedTaskIds.add(taskId);
+      else state.selectedTaskIds.delete(taskId);
+      updatePreviewSelectionCount();
+    });
+    previewEl.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-employee-ignore-phone]');
+      if (!button) return;
+      addPhoneToIgnore(button.getAttribute('data-employee-ignore-phone') || '');
+    });
+  }
 
   if (profilesEl) {
     profilesEl.addEventListener('click', (event) => {

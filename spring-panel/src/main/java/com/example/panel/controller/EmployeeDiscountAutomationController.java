@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -83,8 +84,17 @@ public class EmployeeDiscountAutomationController {
         Boolean dryRun = payload != null && payload.containsKey("dry_run")
             ? Boolean.valueOf(String.valueOf(payload.get("dry_run")))
             : null;
+        List<String> selectedTaskIds = payload != null && payload.containsKey("selected_task_ids")
+            ? normalizeTaskIds(payload.get("selected_task_ids"))
+            : null;
+        if (!Boolean.TRUE.equals(dryRun) && (selectedTaskIds == null || selectedTaskIds.isEmpty())) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Боевой запуск требует Preview и явного выбора хотя бы одной задачи."
+            );
+        }
         String actor = requireUsername(authentication);
-        return employeeDiscountAutomationService.run(dryRun, actor);
+        return employeeDiscountAutomationService.run(dryRun, actor, selectedTaskIds);
     }
 
     @GetMapping("/runs")
@@ -98,6 +108,24 @@ public class EmployeeDiscountAutomationController {
     @GetMapping("/runs/{runId}")
     public Map<String, Object> runDetails(@PathVariable Long runId, Authentication authentication) {
         return employeeDiscountAutomationService.getRun(runId, requireUsername(authentication));
+    }
+
+    private List<String> normalizeTaskIds(Object raw) {
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        if (raw instanceof List<?> list) {
+            for (Object item : list) {
+                if (item != null && StringUtils.hasText(String.valueOf(item))) {
+                    result.add(String.valueOf(item).trim());
+                }
+            }
+        } else if (raw != null) {
+            for (String item : String.valueOf(raw).split("[,;\\s]+")) {
+                if (StringUtils.hasText(item)) {
+                    result.add(item.trim());
+                }
+            }
+        }
+        return List.copyOf(result);
     }
 
     private String requireUsername(Authentication authentication) {

@@ -40,25 +40,44 @@ public class Bitrix24RestService {
     }
 
     public List<Map<String, Object>> listWorkgroups(String username, String query, int limit) {
-        JsonNode root = call(username, "sonet_group.get", query == null || query.isBlank()
-            ? Map.of()
-            : Map.of("FILTER[NAME]", query.trim()));
-        List<JsonNode> groups = collectRows(root);
+        int effectiveLimit = Math.max(1, Math.min(limit, 200));
+        String normalizedQuery = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
         List<Map<String, Object>> items = new ArrayList<>();
-        for (JsonNode group : groups) {
-            String id = pickText(group, "ID", "id");
-            String name = pickText(group, "NAME", "name", "TITLE", "title");
-            if (!StringUtils.hasText(id) || !StringUtils.hasText(name)) {
-                continue;
+        int start = 0;
+        int pageCount = 0;
+
+        while (items.size() < effectiveLimit) {
+            if (++pageCount > 1000) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Bitrix24 group pagination exceeded the safety limit.");
             }
-            String normalizedQuery = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
-            if (StringUtils.hasText(normalizedQuery) && !name.toLowerCase(Locale.ROOT).contains(normalizedQuery)) {
-                continue;
+            Map<String, String> params = new LinkedHashMap<>();
+            if (StringUtils.hasText(normalizedQuery)) {
+                params.put("FILTER[%NAME]", query.trim());
             }
-            items.add(Map.of("id", id, "name", name));
-            if (items.size() >= Math.max(limit, 1)) {
+            params.put("start", String.valueOf(start));
+
+            JsonNode root = call(username, "sonet_group.get", params);
+            List<JsonNode> groups = collectRows(root);
+            for (JsonNode group : groups) {
+                String id = pickText(group, "ID", "id");
+                String name = pickText(group, "NAME", "name", "TITLE", "title");
+                if (!StringUtils.hasText(id) || !StringUtils.hasText(name)) {
+                    continue;
+                }
+                if (StringUtils.hasText(normalizedQuery) && !name.toLowerCase(Locale.ROOT).contains(normalizedQuery)) {
+                    continue;
+                }
+                items.add(Map.of("id", id, "name", name));
+                if (items.size() >= effectiveLimit) {
+                    break;
+                }
+            }
+
+            Integer next = readNextOffset(root);
+            if (next == null || next <= start) {
                 break;
             }
+            start = next;
         }
         return items;
     }
@@ -67,18 +86,36 @@ public class Bitrix24RestService {
         if (groupId == null || groupId <= 0) {
             return List.of();
         }
-        JsonNode root = call(username, "tasks.task.list", Map.of("filter[GROUP_ID]", String.valueOf(groupId)));
-        List<JsonNode> tasks = collectRows(root);
         List<Map<String, Object>> items = new ArrayList<>();
-        for (JsonNode task : tasks) {
-            String id = pickText(task, "id", "ID");
-            if (!StringUtils.hasText(id)) {
-                continue;
+        int start = 0;
+        int pageCount = 0;
+
+        while (true) {
+            if (++pageCount > 1000) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Bitrix24 task pagination exceeded the safety limit.");
             }
-            Map<String, Object> details = getTaskDetails(username, id);
-            if (!details.isEmpty()) {
-                items.add(details);
+            Map<String, String> params = new LinkedHashMap<>();
+            params.put("filter[GROUP_ID]", String.valueOf(groupId));
+            params.put("start", String.valueOf(start));
+
+            JsonNode root = call(username, "tasks.task.list", params);
+            List<JsonNode> tasks = collectRows(root);
+            for (JsonNode task : tasks) {
+                String id = pickText(task, "id", "ID");
+                if (!StringUtils.hasText(id)) {
+                    continue;
+                }
+                Map<String, Object> details = getTaskDetails(username, id);
+                if (!details.isEmpty()) {
+                    items.add(details);
+                }
             }
+
+            Integer next = readNextOffset(root);
+            if (next == null || next <= start) {
+                break;
+            }
+            start = next;
         }
         return items;
     }
@@ -138,10 +175,16 @@ public class Bitrix24RestService {
         if (!StringUtils.hasText(taskId) || !StringUtils.hasText(itemId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "taskId and itemId are required");
         }
-        call(username, "task.checklistitem.complete", Map.of(
-            "TASKID", taskId,
-            "ITEMID", itemId
-        ));
+        Map<String, String> positionalParams = new LinkedHashMap<>();
+        positionalParams.put("0", taskId);
+        positionalParams.put("1", itemId);
+        JsonNode root = call(username, "task.checklistitem.complete", positionalParams);
+        if (!root.path("result").asBoolean(false)) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Bitrix24 did not confirm checklist completion for task " + taskId + ", item " + itemId + "."
+            );
+        }
     }
 
     public Map<String, Object> loadConnectionStatus(String username) {
@@ -253,6 +296,25 @@ public class Bitrix24RestService {
             });
         }
         return rows;
+    }
+
+    private Integer readNextOffset(JsonNode root) {
+        if (root == null || root.isMissingNode() || root.isNull()) {
+            return null;
+        }
+        JsonNode next = root.path("next");
+        if (next.isIntegralNumber()) {
+            return next.intValue();
+        }
+        String raw = next.asText("");
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private String extractBitrixError(JsonNode root, String fallback) {

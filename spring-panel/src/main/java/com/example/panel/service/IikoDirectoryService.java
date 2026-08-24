@@ -142,6 +142,7 @@ public class IikoDirectoryService {
             return new MutationResult(false, "Гость по телефону " + phone + " не найден в iiko.");
         }
 
+        boolean categorySnapshotAvailable = customer.has("categories") && customer.path("categories").isArray();
         Set<String> currentCategoryIds = collectCategoryIds(customer);
         int removedCategories = 0;
         int removedWalletPrograms = 0;
@@ -151,18 +152,26 @@ public class IikoDirectoryService {
             if (!StringUtils.hasText(categoryId)) {
                 continue;
             }
-            if (!currentCategoryIds.isEmpty() && !currentCategoryIds.contains(categoryId)) {
+            if (categorySnapshotAvailable && !currentCategoryIds.contains(categoryId)) {
                 actions.add("категория " + categoryId + " уже отсутствует");
                 continue;
             }
-            callPost(buildApiUrl(profile.baseUrl(),
-                "/api/0/customers/" + encodePath(customerId) + "/remove_category",
-                Map.of(
-                    "access_token", accessToken,
-                    "organization", profile.organizationId(),
-                    "categoryId", categoryId
-                )));
-            removedCategories++;
+            try {
+                callPost(buildApiUrl(profile.baseUrl(),
+                    "/api/0/customers/" + encodePath(customerId) + "/remove_category",
+                    Map.of(
+                        "access_token", accessToken,
+                        "organization", profile.organizationId(),
+                        "categoryId", categoryId
+                    )));
+                removedCategories++;
+            } catch (ResponseStatusException ex) {
+                if (isIgnorableRemovalError(ex.getReason())) {
+                    actions.add("категория " + categoryId + " уже отсутствует");
+                    continue;
+                }
+                throw ex;
+            }
         }
 
         for (String walletProgramId : profile.selectedWalletIds()) {
@@ -297,8 +306,10 @@ public class IikoDirectoryService {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             JsonNode root = readJson(response.body());
             if (response.statusCode() >= 400) {
-                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "iiko returned HTTP " + response.statusCode() + " for " + maskUrl(url));
+                String reason = hasApiError(root)
+                    ? extractError(root)
+                    : "iiko returned HTTP " + response.statusCode() + " for " + maskUrl(url);
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, reason);
             }
             if (hasApiError(root)) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, extractError(root));
@@ -322,8 +333,10 @@ public class IikoDirectoryService {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             JsonNode root = readJson(response.body());
             if (response.statusCode() >= 400) {
-                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "iiko returned HTTP " + response.statusCode() + " for " + maskUrl(url));
+                String reason = hasApiError(root)
+                    ? extractError(root)
+                    : "iiko returned HTTP " + response.statusCode() + " for " + maskUrl(url);
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, reason);
             }
             if (hasApiError(root)) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, extractError(root));

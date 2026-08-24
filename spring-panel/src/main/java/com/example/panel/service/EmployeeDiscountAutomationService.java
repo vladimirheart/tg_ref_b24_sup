@@ -7,16 +7,17 @@ import com.example.panel.repository.AutomationRunRepository;
 import com.example.panel.service.EmployeeDiscountAutomationSettingsService.EmployeeDiscountAutomationSettings;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -92,28 +93,69 @@ public class EmployeeDiscountAutomationService {
         );
     }
 
-    @Transactional
     public Map<String, Object> run(Boolean dryRunRequested, String actor) {
+        return run(dryRunRequested, actor, null);
+    }
+
+    public Map<String, Object> run(Boolean dryRunRequested, String actor, List<String> selectedTaskIds) {
+        String effectiveActor = requireActor(actor);
         EmployeeDiscountAutomationSettings settings = settingsService.load();
+        Set<String> requestedTaskIds = selectedTaskIds != null ? normalizeTaskIds(selectedTaskIds) : null;
         boolean dryRun = dryRunRequested != null ? dryRunRequested : settings.dryRunByDefault();
-        List<CandidateTask> candidates = collectCandidates(actor, settings);
         OffsetDateTime now = OffsetDateTime.now();
 
         AutomationRun run = new AutomationRun();
         run.setAutomationKey(AUTOMATION_KEY);
         run.setMode(dryRun ? "dry_run" : "execute");
         run.setStatus("running");
-        run.setActor(actor);
+        run.setActor(effectiveActor);
         run.setStartedAt(now);
         run.setCreatedAt(now);
         automationRunRepository.save(run);
 
+        if (settings.bitrixGroupId() == null || settings.bitrixGroupId() <= 0) {
+            return failRun(run, "Конфигурация автоматизации", "Сначала задайте bitrix_group_id в настройках автоматизации.");
+        }
+
+        List<CandidateTask> candidates;
+        try {
+            candidates = collectCandidates(effectiveActor, settings);
+        } catch (Exception ex) {
+            return failRun(run, "Bitrix24 discovery", integrationErrorMessage(ex, "Не удалось загрузить задачи Bitrix24."));
+        }
+
+        if (requestedTaskIds != null) {
+            Set<String> discoveredTaskIds = new LinkedHashSet<>();
+            for (CandidateTask candidate : candidates) {
+                if (StringUtils.hasText(candidate.taskId())) {
+                    discoveredTaskIds.add(candidate.taskId());
+                }
+            }
+            List<String> missingTaskIds = requestedTaskIds.stream()
+                .filter(taskId -> !discoveredTaskIds.contains(taskId))
+                .toList();
+            if (!missingTaskIds.isEmpty()) {
+                return failRun(
+                    run,
+                    "Выбор задач",
+                    "Выбранные задачи больше не найдены в текущем Bitrix preview: " + String.join(", ", missingTaskIds) + ". Обновите Preview перед запуском."
+                );
+            }
+        }
+
         int successCount = 0;
         int errorCount = 0;
         int skippedCount = 0;
+        int ignoredCount = 0;
         List<Map<String, Object>> itemPayloads = new ArrayList<>();
 
         for (CandidateTask candidate : candidates) {
+            if ("ignored".equals(candidate.status())) {
+                ignoredCount++;
+                saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "ignored", candidate.message(), candidate.checklistItemId());
+                itemPayloads.add(buildItemPayload(candidate, "ignored", candidate.message()));
+                continue;
+            }
             if ("error".equals(candidate.status())) {
                 errorCount++;
                 saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "error", candidate.message(), candidate.checklistItemId());
@@ -127,6 +169,14 @@ public class EmployeeDiscountAutomationService {
                 continue;
             }
 
+            if (requestedTaskIds != null && !requestedTaskIds.contains(candidate.taskId())) {
+                skippedCount++;
+                String message = "Задача снята оператором в Preview и не будет отправлена в iiko.";
+                saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "skipped", message, candidate.checklistItemId());
+                itemPayloads.add(buildItemPayload(candidate, "skipped", message));
+                continue;
+            }
+
             if (dryRun) {
                 successCount++;
                 saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "dry_run", "Dry-run: задача готова к обработке.", candidate.checklistItemId());
@@ -134,30 +184,40 @@ public class EmployeeDiscountAutomationService {
                 continue;
             }
 
+            AutomationRunItem pendingItem = saveRunItem(
+                run,
+                candidate.taskId(),
+                candidate.title(),
+                candidate.phone(),
+                "running",
+                "Запущена обработка iiko; checklist Bitrix24 будет отмечен только после подтвержденного успеха.",
+                candidate.checklistItemId()
+            );
             try {
-                IikoDirectoryService.MutationResult iikoResult = iikoDirectoryService.disableCorporateDiscount(actor, candidate.phone());
+                IikoDirectoryService.MutationResult iikoResult = iikoDirectoryService.disableCorporateDiscount(effectiveActor, candidate.phone());
                 if (!iikoResult.success()) {
                     errorCount++;
-                    saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "error", iikoResult.message(), candidate.checklistItemId());
+                    updateRunItem(pendingItem, "error", iikoResult.message());
                     itemPayloads.add(buildItemPayload(candidate, "error", iikoResult.message()));
                     continue;
                 }
 
-                bitrix24RestService.completeChecklistItem(actor, candidate.taskId(), candidate.checklistItemId());
+                bitrix24RestService.completeChecklistItem(effectiveActor, candidate.taskId(), candidate.checklistItemId());
                 successCount++;
-                saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "success", "Чеклист Bitrix24 отмечен после успешной обработки iiko.", candidate.checklistItemId());
-                itemPayloads.add(buildItemPayload(candidate, "success", "Чеклист Bitrix24 отмечен после успешной обработки iiko."));
+                String message = "Чеклист Bitrix24 отмечен после успешной обработки iiko.";
+                updateRunItem(pendingItem, "success", message);
+                itemPayloads.add(buildItemPayload(candidate, "success", message));
             } catch (Exception ex) {
                 errorCount++;
-                String message = StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "Неизвестная ошибка интеграции.";
-                saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "error", message, candidate.checklistItemId());
+                String message = integrationErrorMessage(ex, "Неизвестная ошибка интеграции.");
+                updateRunItem(pendingItem, "error", message);
                 itemPayloads.add(buildItemPayload(candidate, "error", message));
             }
         }
 
         run.setFinishedAt(OffsetDateTime.now());
         run.setStatus(errorCount > 0 ? (successCount > 0 ? "partial" : "error") : "success");
-        run.setSummary("success=" + successCount + ", error=" + errorCount + ", skipped=" + skippedCount);
+        run.setSummary(buildRunSummary(successCount, errorCount, skippedCount, ignoredCount));
         automationRunRepository.save(run);
 
         return Map.of(
@@ -227,12 +287,23 @@ public class EmployeeDiscountAutomationService {
                 candidates.add(new CandidateTask(taskId, title, "", checklist.itemId(), "skipped", "Checklist-пункт уже отмечен."));
                 continue;
             }
-            String phone = extractPhone(description, phonePattern);
-            if (!StringUtils.hasText(phone)) {
-                candidates.add(new CandidateTask(taskId, title, "", checklist.itemId(), "error", "Не удалось извлечь телефон сотрудника из тела задачи."));
+            PhoneExtraction phone = extractPhone(description, phonePattern);
+            if (!phone.valid()) {
+                candidates.add(new CandidateTask(taskId, title, "", checklist.itemId(), "error", phone.message()));
                 continue;
             }
-            candidates.add(new CandidateTask(taskId, title, phone, checklist.itemId(), "selected", "Задача готова к обработке."));
+            if (settings.ignoredPhoneNumbers().contains(phone.phone())) {
+                candidates.add(new CandidateTask(
+                    taskId,
+                    title,
+                    phone.phone(),
+                    checklist.itemId(),
+                    "ignored",
+                    "Номер " + phone.phone() + " находится в ignore-list. iiko и checklist Bitrix24 не изменяются."
+                ));
+                continue;
+            }
+            candidates.add(new CandidateTask(taskId, title, phone.phone(), checklist.itemId(), "selected", "Задача готова к обработке."));
         }
         return candidates;
     }
@@ -247,13 +318,13 @@ public class EmployeeDiscountAutomationService {
         );
     }
 
-    private void saveRunItem(AutomationRun run,
-                             String taskId,
-                             String title,
-                             String phone,
-                             String status,
-                             String message,
-                             String checklistItemId) {
+    private AutomationRunItem saveRunItem(AutomationRun run,
+                                          String taskId,
+                                          String title,
+                                          String phone,
+                                          String status,
+                                          String message,
+                                          String checklistItemId) {
         AutomationRunItem item = new AutomationRunItem();
         item.setRun(run);
         item.setExternalTaskId(taskId);
@@ -263,7 +334,41 @@ public class EmployeeDiscountAutomationService {
         item.setMessage(message);
         item.setChecklistItemId(checklistItemId);
         item.setCreatedAt(OffsetDateTime.now());
+        return automationRunItemRepository.save(item);
+    }
+
+    private void updateRunItem(AutomationRunItem item, String status, String message) {
+        item.setStatus(status);
+        item.setMessage(message);
         automationRunItemRepository.save(item);
+    }
+
+    private Map<String, Object> failRun(AutomationRun run, String title, String message) {
+        saveRunItem(run, "", title, "", "error", message, "");
+        run.setFinishedAt(OffsetDateTime.now());
+        run.setStatus("error");
+        run.setSummary("success=0, error=1, skipped=0");
+        automationRunRepository.save(run);
+        return Map.of(
+            "success", false,
+            "error", message,
+            "run", toRunMap(run),
+            "items", List.of(Map.of(
+                "task_id", "",
+                "title", title,
+                "phone", "",
+                "status", "error",
+                "message", message
+            ))
+        );
+    }
+
+    private String integrationErrorMessage(Exception ex, String fallback) {
+        if (ex instanceof ResponseStatusException responseStatusException
+            && StringUtils.hasText(responseStatusException.getReason())) {
+            return responseStatusException.getReason();
+        }
+        return StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : fallback;
     }
 
     private Map<String, Object> toRunMap(AutomationRun run) {
@@ -299,38 +404,72 @@ public class EmployeeDiscountAutomationService {
         }
     }
 
-    private String extractPhone(String rawDescription, Pattern pattern) {
+    private static final Pattern GENERIC_RUSSIAN_PHONE_PATTERN = Pattern.compile(
+        "(?<!\\d)(?:\\+?7|8)[\\s()\\-]*\\d{3}[\\s()\\-]*\\d{3}[\\s\\-]*\\d{2}[\\s\\-]*\\d{2}(?!\\d)"
+    );
+
+    private PhoneExtraction extractPhone(String rawDescription, Pattern configuredPattern) {
         if (!StringUtils.hasText(rawDescription)) {
-            return "";
+            return PhoneExtraction.error("Не удалось извлечь телефон сотрудника: тело задачи пустое.");
         }
         String description = rawDescription
             .replaceAll("<[^>]+>", " ")
             .replace("&nbsp;", " ")
             .replaceAll("\\s+", " ")
             .trim();
-        Matcher matcher = pattern.matcher(description);
-        if (!matcher.find()) {
-            return "";
+
+        Matcher configuredMatcher = configuredPattern.matcher(description);
+        if (configuredMatcher.find()) {
+            String value = configuredMatcher.groupCount() >= 1
+                ? configuredMatcher.group(1)
+                : configuredMatcher.group();
+            String normalized = EmployeeDiscountAutomationSettingsService.normalizeRussianPhone(value);
+            if (StringUtils.hasText(normalized)) {
+                return PhoneExtraction.ok(normalized);
+            }
         }
-        String value = matcher.groupCount() >= 1 ? matcher.group(1) : matcher.group();
-        return normalizePhone(value);
+
+        LinkedHashSet<String> fallbackPhones = new LinkedHashSet<>();
+        Matcher fallbackMatcher = GENERIC_RUSSIAN_PHONE_PATTERN.matcher(description);
+        while (fallbackMatcher.find()) {
+            String normalized = EmployeeDiscountAutomationSettingsService.normalizeRussianPhone(fallbackMatcher.group());
+            if (StringUtils.hasText(normalized)) {
+                fallbackPhones.add(normalized);
+            }
+        }
+        if (fallbackPhones.size() == 1) {
+            return PhoneExtraction.ok(fallbackPhones.iterator().next());
+        }
+        if (fallbackPhones.size() > 1) {
+            return PhoneExtraction.error(
+                "В задаче найдено несколько разных телефонных номеров: "
+                    + String.join(", ", fallbackPhones)
+                    + ". Уточните phone_regex или данные задачи."
+            );
+        }
+        return PhoneExtraction.error("Не удалось извлечь корректный российский телефон сотрудника из тела задачи.");
     }
 
-    private String normalizePhone(String rawPhone) {
-        if (!StringUtils.hasText(rawPhone)) {
-            return "";
+    private Set<String> normalizeTaskIds(List<String> selectedTaskIds) {
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        if (selectedTaskIds == null) {
+            return result;
         }
-        String digits = rawPhone.trim().replaceAll("[^\\d+]", "");
-        if (digits.startsWith("8") && digits.length() == 11) {
-            return "+7" + digits.substring(1);
+        for (String taskId : selectedTaskIds) {
+            String normalized = safe(taskId);
+            if (StringUtils.hasText(normalized)) {
+                result.add(normalized);
+            }
         }
-        if (!digits.startsWith("+") && digits.length() == 11 && digits.startsWith("7")) {
-            return "+" + digits;
+        return result;
+    }
+
+    private String buildRunSummary(int successCount, int errorCount, int skippedCount, int ignoredCount) {
+        String summary = "success=" + successCount + ", error=" + errorCount + ", skipped=" + skippedCount;
+        if (ignoredCount > 0) {
+            summary += ", ignored=" + ignoredCount;
         }
-        if (!digits.startsWith("+") && digits.length() == 10) {
-            return "+7" + digits;
-        }
-        return digits;
+        return summary;
     }
 
     private boolean matchesTitleMarkers(String title, List<String> markers) {
@@ -379,7 +518,6 @@ public class EmployeeDiscountAutomationService {
         }
         String normalized = StringUtils.hasText(status) ? status.trim().toLowerCase(Locale.ROOT) : "";
         return "5".equals(normalized)
-            || "6".equals(normalized)
             || "7".equals(normalized)
             || "completed".equals(normalized)
             || "closed".equals(normalized)
@@ -395,6 +533,20 @@ public class EmployeeDiscountAutomationService {
 
     private String safe(Object value) {
         return value != null ? String.valueOf(value).trim() : "";
+    }
+
+    private record PhoneExtraction(String phone, String message) {
+        private static PhoneExtraction ok(String phone) {
+            return new PhoneExtraction(phone, "");
+        }
+
+        private static PhoneExtraction error(String message) {
+            return new PhoneExtraction("", message);
+        }
+
+        private boolean valid() {
+            return StringUtils.hasText(phone);
+        }
     }
 
     private record CandidateTask(String taskId,
