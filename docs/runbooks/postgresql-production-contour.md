@@ -229,3 +229,21 @@ Get-Content ..\logs\errors.log -Encoding UTF8 -Tail 100 -Wait
 `sqlite`, `jdbc` и `local_fs` остаются допустимыми только для явно выбранных compatibility/dev/import сценариев. Snapshot `compatibility` не является production-ready состоянием.
 
 После выполнения этого gate дальнейшие richer reporting, external alerting и worker-forensics следует вести отдельными задачами: они улучшают maturity, но не открывают заново базовый production-contour scope `01-183`.
+## Monitoring history retention / legacy compaction (v39)
+
+`monitoring_check_history` хранится не более 30 дней на текущем canonical monitoring runtime:
+
+- production PostgreSQL: таблица остаётся в primary PostgreSQL; cleanup выполняется под shared Redis lease;
+- SQLite compatibility: runtime history живёт в `monitoring.db`; bootstrap переносит legacy history из primary SQLite и очищает старую копию;
+- cleanup выполняется при startup и затем периодически (`PANEL_MONITORING_HISTORY_RETENTION_INTERVAL_MS`, default 6h); срок 30 дней не расширяется настройкой.
+
+Для PostgreSQL-first инсталляции старые SQLite-файлы после завершённого compatibility import можно физически уплотнить одноразовым запуском:
+
+```text
+IGUANA_LEGACY_SQLITE_AUTO_IMPORT=true
+IGUANA_LEGACY_MONITORING_HISTORY_COMPACT=true
+```
+
+Compactor проверяет `panel_runtime.db`, `monitoring.db`, `bot_runtime.db` и legacy `bot_database.db`. Строки в актуальном 30-дневном окне сначала должны присутствовать в PostgreSQL (missing rows докопируются); старые строки считаются истёкшими по retention. Только после успешной verification source `monitoring_check_history` очищается и выполняется `VACUUM`.
+
+Если встречается current-window row с неразбираемым `created_at`/обязательными полями, destructive cleanup для этого файла отменяется. После успешного одноразового compaction переменную `IGUANA_LEGACY_MONITORING_HISTORY_COMPACT` следует убрать.

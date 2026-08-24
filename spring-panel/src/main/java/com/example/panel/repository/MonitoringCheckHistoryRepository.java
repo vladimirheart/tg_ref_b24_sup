@@ -105,6 +105,25 @@ public class MonitoringCheckHistoryRepository {
         );
     }
 
+    public int deleteOlderThan(OffsetDateTime cutoff) {
+        OffsetDateTime effectiveCutoff = cutoff != null ? cutoff : OffsetDateTime.now().minusDays(30);
+        return runWithBusyRetry(() -> jdbcTemplate.update(connection -> {
+            String productName = connection.getMetaData().getDatabaseProductName();
+            boolean sqlite = productName != null && productName.toLowerCase(Locale.ROOT).contains("sqlite");
+            PreparedStatement ps = connection.prepareStatement(
+                sqlite
+                    ? "DELETE FROM monitoring_check_history WHERE julianday(created_at) < julianday(?)"
+                    : "DELETE FROM monitoring_check_history WHERE created_at < ?"
+            );
+            if (productName != null && productName.toLowerCase(Locale.ROOT).contains("postgresql")) {
+                ps.setObject(1, effectiveCutoff);
+            } else {
+                ps.setString(1, effectiveCutoff.toString());
+            }
+            return ps;
+        }));
+    }
+
     private static OffsetDateTime readOffsetDateTime(java.sql.ResultSet rs, String columnName) {
         try {
             Object value = rs.getObject(columnName);

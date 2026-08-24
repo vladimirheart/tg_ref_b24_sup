@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.sql.ResultSet;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -252,6 +253,10 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             CREATE INDEX IF NOT EXISTS idx_monitoring_check_history_monitor
             ON monitoring_check_history(monitor_kind, monitor_id, created_at DESC, id DESC)
             """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_monitoring_check_history_created_at
+            ON monitoring_check_history(julianday(created_at))
+            """);
     }
 
     private void migrateFromPrimaryDatabase() {
@@ -261,6 +266,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
         }
         migrateSslRecords();
         migrateRmsRecords();
+        migrateCheckHistoryRecords();
     }
 
     private void migrateSslRecords() {
@@ -363,6 +369,108 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
         }
     }
 
+    private void migrateCheckHistoryRecords() {
+        if (!tableReadable(primaryJdbcTemplate, "monitoring_check_history")) {
+            return;
+        }
+        try {
+            OffsetDateTime cutoff = OffsetDateTime.now(ZoneOffset.UTC).minusDays(30);
+            List<LegacyMonitoringHistoryRow> items = primaryJdbcTemplate.query(
+                """
+                SELECT monitor_kind, monitor_id, check_kind, status, summary,
+                       details_excerpt, http_status, duration_ms, created_at
+                  FROM monitoring_check_history
+                 ORDER BY id ASC
+                """,
+                (rs, rowNum) -> new LegacyMonitoringHistoryRow(
+                    rs.getString("monitor_kind"),
+                    readLongColumn(rs, "monitor_id"),
+                    rs.getString("check_kind"),
+                    rs.getString("status"),
+                    rs.getString("summary"),
+                    rs.getString("details_excerpt"),
+                    readIntegerColumn(rs, "http_status"),
+                    readLongColumn(rs, "duration_ms"),
+                    readStringColumn(rs, "created_at")
+                )
+            );
+            if (items.isEmpty()) {
+                return;
+            }
+
+            int migrated = 0;
+            int expired = 0;
+            for (LegacyMonitoringHistoryRow item : items) {
+                OffsetDateTime createdAt = parseOffsetDateTime(item.createdAt());
+                if (createdAt != null && createdAt.isBefore(cutoff)) {
+                    expired++;
+                    continue;
+                }
+                if (item.monitorKind() == null || item.monitorId() == null || item.checkKind() == null
+                        || item.createdAt() == null || item.createdAt().isBlank()) {
+                    throw new IllegalStateException(
+                        "Legacy monitoring history contains a row with missing required fields; source cleanup refused"
+                    );
+                }
+                migrated += monitoringJdbcTemplate.update(
+                    """
+                    INSERT INTO monitoring_check_history (
+                        monitor_kind, monitor_id, check_kind, status, summary,
+                        details_excerpt, http_status, duration_ms, created_at
+                    )
+                    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    WHERE NOT EXISTS (
+                        SELECT 1
+                          FROM monitoring_check_history
+                         WHERE monitor_kind = ?
+                           AND monitor_id = ?
+                           AND check_kind = ?
+                           AND status IS ?
+                           AND summary IS ?
+                           AND details_excerpt IS ?
+                           AND http_status IS ?
+                           AND duration_ms IS ?
+                           AND created_at = ?
+                    )
+                    """,
+                    item.monitorKind(), item.monitorId(), item.checkKind(), item.status(), item.summary(),
+                    item.detailsExcerpt(), item.httpStatus(), item.durationMs(), item.createdAt(),
+                    item.monitorKind(), item.monitorId(), item.checkKind(), item.status(), item.summary(),
+                    item.detailsExcerpt(), item.httpStatus(), item.durationMs(), item.createdAt()
+                );
+            }
+
+            int removed = primaryJdbcTemplate.update("DELETE FROM monitoring_check_history");
+            log.info(
+                "Migrated legacy monitoring history into monitoring.db: copied={}, expiredDiscarded={}, legacyRowsRemoved={}, cutoff={}",
+                migrated,
+                expired,
+                removed,
+                cutoff
+            );
+            if (removed > 0) {
+                vacuumPrimaryDatabase();
+            }
+        } catch (Exception ex) {
+            log.warn(
+                "Failed to migrate legacy monitoring_check_history into monitoring.db; legacy source rows were preserved when migration did not complete",
+                ex
+            );
+        }
+    }
+
+    private void vacuumPrimaryDatabase() {
+        try {
+            primaryJdbcTemplate.execute("VACUUM");
+            log.info("VACUUM completed for legacy primary SQLite after monitoring history cleanup");
+        } catch (Exception ex) {
+            log.warn(
+                "Legacy monitoring history rows were removed, but SQLite VACUUM failed; run VACUUM later to reclaim file size",
+                ex
+            );
+        }
+    }
+
     private boolean tableReadable(JdbcTemplate jdbcTemplate, String tableName) {
         try {
             Integer count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + tableName, Integer.class);
@@ -458,11 +566,40 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
         }
     }
 
+    private Long readLongColumn(ResultSet rs, String columnName) {
+        try {
+            Object value = rs.getObject(columnName);
+            return value instanceof Number number ? number.longValue() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Integer readIntegerColumn(ResultSet rs, String columnName) {
+        try {
+            Object value = rs.getObject(columnName);
+            return value instanceof Number number ? number.intValue() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     private String readStringColumn(ResultSet rs, String columnName) {
         try {
             return rs.getString(columnName);
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    private record LegacyMonitoringHistoryRow(String monitorKind,
+                                              Long monitorId,
+                                              String checkKind,
+                                              String status,
+                                              String summary,
+                                              String detailsExcerpt,
+                                              Integer httpStatus,
+                                              Long durationMs,
+                                              String createdAt) {
     }
 }

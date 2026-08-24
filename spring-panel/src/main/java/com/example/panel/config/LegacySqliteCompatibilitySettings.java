@@ -8,6 +8,7 @@ import org.springframework.util.StringUtils;
 public class LegacySqliteCompatibilitySettings {
 
     public static final String AUTO_IMPORT_ENV = "IGUANA_LEGACY_SQLITE_AUTO_IMPORT";
+    public static final String MONITORING_HISTORY_COMPACT_ENV = "IGUANA_LEGACY_MONITORING_HISTORY_COMPACT";
 
     private final Environment environment;
 
@@ -17,6 +18,10 @@ public class LegacySqliteCompatibilitySettings {
 
     public boolean isAutoImportEnabled() {
         return readBoolean(AUTO_IMPORT_ENV, false);
+    }
+
+    public boolean isMonitoringHistoryCompactionEnabled() {
+        return readBoolean(MONITORING_HISTORY_COMPACT_ENV, false);
     }
 
     private boolean readBoolean(String name, boolean defaultValue) {

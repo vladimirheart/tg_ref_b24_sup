@@ -131,6 +131,10 @@ app:
     storage-inventory-timeout: ${APP_ADMIN_STORAGE_INVENTORY_TIMEOUT:90s}
 
 panel:
+  monitoring:
+    history-retention:
+      interval-ms: ${PANEL_MONITORING_HISTORY_RETENTION_INTERVAL_MS:21600000}
+      initial-delay-ms: ${PANEL_MONITORING_HISTORY_RETENTION_INITIAL_DELAY_MS:600000}
   incidents:
     escalation:
       enabled: ${PANEL_INCIDENT_ESCALATION_ENABLED:true}
