@@ -51,6 +51,10 @@ public class DialogAiAssistantSuggestionService {
         if (intentPolicy != null && intentPolicy.requiresOperator() && autoReplyRequested) {
             return fallback;
         }
+        String memorySolution = exactMemorySolution(candidate);
+        if (memorySolution != null) {
+            return memorySolution;
+        }
         String intentKey = firstNonBlank(candidate.intentKey(), intentPolicy != null ? intentPolicy.intentKey() : null);
         AiControlledLlmService.TextResult composed = aiControlledLlmService.composeReply(
                 ticketId,
@@ -66,8 +70,11 @@ public class DialogAiAssistantSuggestionService {
     public String buildOperatorReplySuggestion(String ticketId,
                                                String clientMessage,
                                                DialogAiAssistantSuggestionCandidate candidate) {
+        String memorySolution = exactMemorySolution(candidate);
+        if (memorySolution != null) {
+            return memorySolution;
+        }
         String sourceLabel = switch (candidate.source()) {
-            case "memory" -> "память подтвержденных решений";
             case "knowledge" -> "база знаний";
             case "tasks" -> "связанные задачи";
             case "history" -> "история похожих диалогов";
@@ -107,6 +114,15 @@ public class DialogAiAssistantSuggestionService {
                 + ". trust=" + trust
                 + ", intent=" + firstNonBlank(candidate.intentKey(), "unknown")
                 + ", evidence=" + Math.max(1, candidate.evidenceCount()) + ".";
+    }
+
+    private String exactMemorySolution(DialogAiAssistantSuggestionCandidate candidate) {
+        if (candidate == null
+                || !"memory".equalsIgnoreCase(candidate.source())
+                || !StringUtils.hasText(candidate.snippet())) {
+            return null;
+        }
+        return candidate.snippet().trim();
     }
 
     private String cleanTextForRetrieval(String value) {

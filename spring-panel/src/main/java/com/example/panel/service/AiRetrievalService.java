@@ -230,7 +230,7 @@ public class AiRetrievalService {
                                            int timesConfirmed,
                                            int timesCorrected) {
         String normalizedQueryKey = trim(queryKey);
-        String snippet = firstNonBlank(knowledgeBody, solutionText);
+        String snippet = trim(solutionText);
         if (!StringUtils.hasText(snippet)) {
             return null;
         }

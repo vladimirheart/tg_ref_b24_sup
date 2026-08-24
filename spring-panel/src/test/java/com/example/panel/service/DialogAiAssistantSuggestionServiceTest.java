@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class DialogAiAssistantSuggestionServiceTest {
@@ -38,5 +39,53 @@ class DialogAiAssistantSuggestionServiceTest {
         );
 
         assertThat(explain).isEqualTo("LLM explain");
+    }
+
+    @Test
+    void memoryOperatorSuggestionUsesExactStoredSolution() {
+        AiIntentService intentService = mock(AiIntentService.class);
+        AiControlledLlmService llmService = mock(AiControlledLlmService.class);
+        DialogAiAssistantSuggestionService service = new DialogAiAssistantSuggestionService(intentService, llmService);
+        DialogAiAssistantSuggestionCandidate candidate = memoryCandidate("  тестовый ответ оператора  ");
+
+        String reply = service.buildOperatorReplySuggestion("T-1", "тестовое описание проблемы", candidate);
+
+        assertThat(reply).isEqualTo("тестовый ответ оператора");
+        verifyNoInteractions(intentService, llmService);
+    }
+
+    @Test
+    void memoryAutoReplyUsesExactStoredSolutionWithoutComposer() {
+        AiIntentService intentService = mock(AiIntentService.class);
+        AiControlledLlmService llmService = mock(AiControlledLlmService.class);
+        DialogAiAssistantSuggestionService service = new DialogAiAssistantSuggestionService(intentService, llmService);
+        DialogAiAssistantSuggestionCandidate candidate = memoryCandidate("тестовый ответ оператора");
+
+        String reply = service.buildAutoReply("T-2", "тестовое описание проблемы", candidate, null, true);
+
+        assertThat(reply).isEqualTo("тестовый ответ оператора");
+        verifyNoInteractions(llmService);
+    }
+
+    private DialogAiAssistantSuggestionCandidate memoryCandidate(String snippet) {
+        return new DialogAiAssistantSuggestionCandidate(
+                "memory",
+                "Test memory",
+                snippet,
+                0.95d,
+                "memory-key",
+                "approved",
+                "high",
+                "operator",
+                "normal",
+                "memory:memory-key",
+                "generic.support",
+                null,
+                "memory:memory-key",
+                2,
+                "trace",
+                "2026-08-24T14:40:00+03:00",
+                false
+        );
     }
 }

@@ -55,7 +55,7 @@ public class DialogReplyTargetService {
                                      Long telegramMessageId,
                                      Long replyToTelegramId,
                                      String sender) {
-        String timestamp = OffsetDateTime.now().toString();
+        OffsetDateTime timestamp = OffsetDateTime.now();
         jdbcTemplate.update("""
                 INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -70,7 +70,7 @@ public class DialogReplyTargetService {
                 telegramMessageId,
                 replyToTelegramId
         );
-        return timestamp;
+        return timestamp.toString();
     }
 
     public Long nextLocalTelegramMessageId(String ticketId) {
@@ -95,7 +95,7 @@ public class DialogReplyTargetService {
                                           String messageType,
                                           Long telegramMessageId,
                                           Long replyToTelegramId) {
-        String timestamp = OffsetDateTime.now().toString();
+        OffsetDateTime timestamp = OffsetDateTime.now();
         Long chatHistoryId = jdbcTemplate.execute((Connection connection) -> {
             try (PreparedStatement insert = connection.prepareStatement("""
                     INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
@@ -104,7 +104,7 @@ public class DialogReplyTargetService {
                 insert.setLong(1, target.userId());
                 insert.setString(2, "operator");
                 insert.setString(3, caption != null ? caption : "");
-                insert.setString(4, timestamp);
+                insert.setObject(4, timestamp);
                 insert.setString(5, ticketId);
                 insert.setString(6, messageType);
                 insert.setString(7, storedName);
@@ -129,7 +129,7 @@ public class DialogReplyTargetService {
                     messageType
             );
         }
-        return timestamp;
+        return timestamp.toString();
     }
 
     public void touchTicketActivity(String ticketId, String operatorIdentity) {
@@ -137,7 +137,7 @@ public class DialogReplyTargetService {
             return;
         }
         String identity = normalizeOperatorIdentity(operatorIdentity);
-        String timestamp = OffsetDateTime.now().toString();
+        OffsetDateTime timestamp = OffsetDateTime.now();
         int updated;
         if (StringUtils.hasText(identity)) {
             updated = jdbcTemplate.update("""

@@ -105,6 +105,35 @@ class AiRetrievalServiceTest {
         assertFalse(result.consistency().autoReplyAllowed());
         assertEquals("insufficient_confirmations", result.consistency().reason());
     }
+    @Test
+    void memoryCandidateKeepsOperatorSolutionTextWhenDerivedKnowledgeDiffers() {
+        seedTicketScope("T-MEMORY-TEXT", 31L, "telegram", "блинбери", "центр");
+        String expectedSolution = "тестовый ответ оператора";
+        String key = insertApprovedMemory(
+                "тестовое описание проблемы",
+                expectedSolution,
+                2,
+                "telegram",
+                "блинбери",
+                "центр"
+        );
+        knowledgeService.syncFromMemory(key);
+        jdbcTemplate.update(
+                "UPDATE ai_agent_knowledge_unit SET body_text = ? WHERE source_ref = ?",
+                "derived knowledge must not replace operator solution",
+                "memory:" + key
+        );
+
+        AiRetrievalService.RetrievalResult result =
+                retrievalService.retrieve("T-MEMORY-TEXT", "тестовое описание проблемы", 3);
+
+        AiRetrievalService.Candidate memoryCandidate = result.candidates().stream()
+                .filter(candidate -> key.equals(candidate.memoryKey()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(expectedSolution, memoryCandidate.snippet());
+    }
+
     private void createSchema() {
         jdbcTemplate.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY, platform VARCHAR(32), channel_name VARCHAR(120))");
         jdbcTemplate.execute("CREATE TABLE tickets (user_id BIGINT, ticket_id VARCHAR(120), channel_id BIGINT, PRIMARY KEY (user_id, ticket_id))");
