@@ -2,7 +2,7 @@
 
 Документ фиксирует фактический gap между текущим состоянием репозитория после `01-181`/`01-182` и целевым production contour, где система живёт на canonical `PostgreSQL` с backend-owned transport boundary.
 
-Актуально на `2026-08-19`.
+Актуально на `2026-08-24`.
 
 ## 1. Что уже закрыто
 
@@ -126,14 +126,16 @@ Canonical incident domain на backend-owned storage уже появился, op
 
 ## 4. Практический вывод
 
-После `01-181` и `01-182` проект находится в состоянии:
+После `01-181`..`01-183` проект находится в состоянии:
 
 - `PostgreSQL-first readiness`: да;
-- `backend-owned main runtime path`: в основном да;
-- `canonical incident backend domain`: да, operator-facing слой тоже реализован;
-- `full PostgreSQL-only production contour`: ещё нет.
+- `backend-owned main runtime path`: да для canonical production contour;
+- `canonical incident backend domain`: да, operator-facing и delivery/diagnostics слой реализованы;
+- `integration worker direct business DB access`: отсутствует в production `worker + rabbitmq` contract;
+- `full canonical production contour`: да на уровне code/runtime-contract при выполнении production invariants `PostgreSQL + Redis + RabbitMQ + S3-compatible storage + isolated worker`;
+- `explicit SQLite/JDBC/local_fs compatibility perimeter`: остаётся только как dev/import/bootstrap compatibility и не считается production-ready.
 
-Следующий корректный scope — уже не chase за очередной SQLite-точкой, не базовый incident UI, не первичный transport operability layer и не transport trend history slice, а дальнейшее развитие reporting/alert routing/debug maturity поверх уже собранного contour.
+Следующий scope после ручного acceptance `01-183` — отдельные enhancements reporting/alerting/forensics/observability, а не продолжение базовой миграции production contour.
 
 ## Update 2026-08-24 — worker DB isolation v35
 
@@ -150,3 +152,17 @@ v35 закрывает этот ownership gap:
 - regression tests фиксируют env isolation, worker datasource isolation и scheduler no-DB behavior.
 
 После runtime smoke этого slice нужен ещё один финальный audit `01-183`. Документ пока сознательно не объявляет full closeout до проверки фактического запуска bot child в `worker + rabbitmq` режиме.
+
+## Final closeout audit 2026-08-24 — v37
+
+Повторный repo audit после v35/v36 не выявил оставшихся code-level blockers для canonical production contour.
+
+Финальная граница трактуется так:
+
+- наличие SQLite/JDBC/local filesystem compatibility кода само по себе не является production dependency;
+- production contour считается валидным только когда operator readiness возвращает `ready`;
+- PostgreSQL mode не должен считаться production-ready при `jdbc` transport, недоступном Redis, не-S3 object storage, RabbitMQ/DLQ degradation или unresolved incident delivery;
+- java-bot production child обязан быть `worker + rabbitmq` и не иметь canonical datasource credentials;
+- deeper external alerting, richer reporting и дополнительные worker-forensics являются последующими enhancement-задачами.
+
+Поэтому `01-183` может перейти в статус `🟣` — AI implementation/audit complete, ожидается ручной production smoke пользователя перед переводом в `🟢`.

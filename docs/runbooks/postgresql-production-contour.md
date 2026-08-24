@@ -1,6 +1,6 @@
 # PostgreSQL Production Contour Runbook
 
-Актуально на `2026-08-19`.
+Актуально на `2026-08-24`.
 
 Документ фиксирует фактический production contour Iguana после крупных пакетов `01-181`..`01-183` и служит коротким operator/engineering runbook для живого `PostgreSQL-first` запуска.
 
@@ -208,3 +208,24 @@ Get-Content ..\logs\spring-panel.log -Encoding UTF8 -Tail 100 -Wait
 Get-Content ..\logs\bots.log -Encoding UTF8 -Tail 100 -Wait
 Get-Content ..\logs\errors.log -Encoding UTF8 -Tail 100 -Wait
 ```
+
+## Final `01-183` acceptance gate
+
+`01-183` считается реализованной на уровне code/runtime-contract только для canonical production contour. Сам факт успешного Spring Boot startup недостаточен для production acceptance.
+
+Перед ручным переводом задачи из `🟣` в `🟢` подтвердить одновременно:
+
+- `Settings -> Production readiness` возвращает `ready`, а не `degraded`/`compatibility`;
+- active datasource product — PostgreSQL;
+- Redis readiness ping успешен;
+- transport mode — `rabbitmq`, required queues существуют, необъяснённого DLQ backlog нет;
+- object-storage provider — S3-compatible и bucket probe успешен;
+- incident durable delivery не имеет unresolved failed/stale-processing состояния;
+- production bot runtime contract содержит `APP_DB_MODE=worker` и `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
+- child environment не содержит canonical `SPRING_DATASOURCE_*`/`DATABASE_URL`;
+- реальный bot child проходит startup/workflow smoke;
+- application и process logs читаются в UTF-8 без mojibake.
+
+`sqlite`, `jdbc` и `local_fs` остаются допустимыми только для явно выбранных compatibility/dev/import сценариев. Snapshot `compatibility` не является production-ready состоянием.
+
+После выполнения этого gate дальнейшие richer reporting, external alerting и worker-forensics следует вести отдельными задачами: они улучшают maturity, но не открывают заново базовый production-contour scope `01-183`.

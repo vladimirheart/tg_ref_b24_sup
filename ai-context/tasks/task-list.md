@@ -201,4 +201,4 @@
 🟡 [01-180] Добавить выбор импортируемых NetBox sites в настройках синхронизации с отображением Status
 🟣 [01-181] Перевести Iguana с legacy SQLite runtime на PostgreSQL-first architecture
 🟣 [01-182] Выпилить legacy business fallback из java-bot после завершения PostgreSQL-first boundary
-🟡 [01-183] Довести Iguana до full production contour: PostgreSQL-only runtime, backend-owned transport и incident module
+🟣 [01-183] Довести Iguana до full production contour: PostgreSQL-only runtime, backend-owned transport и incident module
