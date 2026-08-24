@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +24,178 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 class NetBoxObjectPassportSyncServiceTest {
 
+    @Test
+    void syncNowKeepsSiteWhenImageAttachmentListingFails() {
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        NetBoxSyncSettingsService settingsService = mock(NetBoxSyncSettingsService.class);
+        NetBoxApiService netBoxApiService = mock(NetBoxApiService.class);
+        ObjectPassportService objectPassportService = mock(ObjectPassportService.class);
+        ObjectPassportPhotoStorageService photoStorageService = mock(ObjectPassportPhotoStorageService.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        SettingsCatalogService settingsCatalogService = mock(SettingsCatalogService.class);
+
+        NetBoxObjectPassportSyncService service = new NetBoxObjectPassportSyncService(
+                sharedConfigService,
+                settingsService,
+                netBoxApiService,
+                objectPassportService,
+                photoStorageService,
+                jdbcTemplate,
+                new ObjectMapper(),
+                settingsCatalogService
+        );
+
+        NetBoxSyncSettings settings = new NetBoxSyncSettings(
+                "https://netbox.example.com",
+                "secret",
+                false,
+                60,
+                false,
+                List.of()
+        );
+        Map<String, Object> sharedSettings = new LinkedHashMap<>();
+        sharedSettings.put("netbox_sync", settings.toMap());
+        Map<String, Object> site = new LinkedHashMap<>();
+        site.put("id", "160");
+        site.put("name", "Main site");
+        site.put("status", Map.of("label", "Активен"));
+
+        when(sharedConfigService.loadSettings()).thenReturn(sharedSettings);
+        when(settingsService.load(anyMap())).thenReturn(settings);
+        when(netBoxApiService.fetchSites(settings)).thenReturn(List.of(site));
+        when(netBoxApiService.fetchDevices(settings, "160")).thenReturn(List.of());
+        when(netBoxApiService.fetchCircuits(settings, "160")).thenReturn(List.of());
+        when(netBoxApiService.fetchSiteImages(settings, "160"))
+                .thenThrow(new IllegalStateException("NetBox HTTP 500 for image-attachments object_id=160"));
+        when(objectPassportService.findPassportByNetBoxSiteId("160")).thenReturn(null);
+        when(objectPassportService.upsertPassportByNetBoxSiteId(eq("160"), anyMap())).thenReturn(Map.of());
+        when(settingsCatalogService.getDefaultItConnectionCategories()).thenReturn(Map.of());
+
+        NetBoxObjectPassportSyncService.SyncStatusSnapshot result = service.syncNow("manual");
+
+        assertEquals("success", result.state());
+        assertEquals(1, result.result().totalSites());
+        assertEquals(1, result.result().createdPassports());
+        assertTrue(result.warnings().stream().anyMatch(warning ->
+                warning.contains("Main site (#160) imported without photos")
+                        && warning.contains("HTTP 500")));
+        verify(objectPassportService).upsertPassportByNetBoxSiteId(eq("160"), anyMap());
+    }
+
+    @Test
+    void syncNowSkipsOnlyBrokenSiteAndContinuesWithRemainingSites() {
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        NetBoxSyncSettingsService settingsService = mock(NetBoxSyncSettingsService.class);
+        NetBoxApiService netBoxApiService = mock(NetBoxApiService.class);
+        ObjectPassportService objectPassportService = mock(ObjectPassportService.class);
+        ObjectPassportPhotoStorageService photoStorageService = mock(ObjectPassportPhotoStorageService.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        SettingsCatalogService settingsCatalogService = mock(SettingsCatalogService.class);
+
+        NetBoxObjectPassportSyncService service = new NetBoxObjectPassportSyncService(
+                sharedConfigService,
+                settingsService,
+                netBoxApiService,
+                objectPassportService,
+                photoStorageService,
+                jdbcTemplate,
+                new ObjectMapper(),
+                settingsCatalogService
+        );
+
+        NetBoxSyncSettings settings = new NetBoxSyncSettings(
+                "https://netbox.example.com",
+                "secret",
+                false,
+                60,
+                false,
+                List.of()
+        );
+        Map<String, Object> sharedSettings = new LinkedHashMap<>();
+        sharedSettings.put("netbox_sync", settings.toMap());
+        Map<String, Object> brokenSite = new LinkedHashMap<>();
+        brokenSite.put("id", "160");
+        brokenSite.put("name", "Broken site");
+        brokenSite.put("status", Map.of("label", "Активен"));
+        Map<String, Object> healthySite = new LinkedHashMap<>();
+        healthySite.put("id", "161");
+        healthySite.put("name", "Healthy site");
+        healthySite.put("status", Map.of("label", "Активен"));
+
+        when(sharedConfigService.loadSettings()).thenReturn(sharedSettings);
+        when(settingsService.load(anyMap())).thenReturn(settings);
+        when(netBoxApiService.fetchSites(settings)).thenReturn(List.of(brokenSite, healthySite));
+        when(netBoxApiService.fetchDevices(settings, "160"))
+                .thenThrow(new IllegalStateException("NetBox HTTP 500 for site 160 devices"));
+        when(netBoxApiService.fetchDevices(settings, "161")).thenReturn(List.of());
+        when(netBoxApiService.fetchCircuits(settings, "161")).thenReturn(List.of());
+        when(netBoxApiService.fetchSiteImages(settings, "161")).thenReturn(List.of());
+        when(objectPassportService.upsertPassportByNetBoxSiteId(eq("161"), anyMap())).thenReturn(Map.of());
+        when(settingsCatalogService.getDefaultItConnectionCategories()).thenReturn(Map.of());
+
+        NetBoxObjectPassportSyncService.SyncStatusSnapshot result = service.syncNow("manual");
+
+        assertEquals("success", result.state());
+        assertEquals(1, result.result().totalSites());
+        assertEquals(1, result.result().createdPassports());
+        assertTrue(result.warnings().stream().anyMatch(warning ->
+                warning.contains("Broken site (#160) skipped")
+                        && warning.contains("HTTP 500")));
+        verify(objectPassportService, never()).upsertPassportByNetBoxSiteId(eq("160"), anyMap());
+        verify(objectPassportService).upsertPassportByNetBoxSiteId(eq("161"), anyMap());
+    }
+
+    @Test
+    void syncNowImportsOnlySelectedSitesWhenSelectionIsNotEmpty() {
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        NetBoxSyncSettingsService settingsService = mock(NetBoxSyncSettingsService.class);
+        NetBoxApiService netBoxApiService = mock(NetBoxApiService.class);
+        ObjectPassportService objectPassportService = mock(ObjectPassportService.class);
+        ObjectPassportPhotoStorageService photoStorageService = mock(ObjectPassportPhotoStorageService.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        SettingsCatalogService settingsCatalogService = mock(SettingsCatalogService.class);
+
+        NetBoxObjectPassportSyncService service = new NetBoxObjectPassportSyncService(
+                sharedConfigService,
+                settingsService,
+                netBoxApiService,
+                objectPassportService,
+                photoStorageService,
+                jdbcTemplate,
+                new ObjectMapper(),
+                settingsCatalogService
+        );
+
+        NetBoxSyncSettings settings = new NetBoxSyncSettings(
+                "https://netbox.example.com",
+                "secret",
+                false,
+                60,
+                false,
+                List.of("161")
+        );
+        Map<String, Object> sharedSettings = new LinkedHashMap<>();
+        sharedSettings.put("netbox_sync", settings.toMap());
+        Map<String, Object> site160 = Map.of("id", "160", "name", "Skip me", "status", Map.of("label", "Активен"));
+        Map<String, Object> site161 = Map.of("id", "161", "name", "Import me", "status", Map.of("label", "Активен"));
+
+        when(sharedConfigService.loadSettings()).thenReturn(sharedSettings);
+        when(settingsService.load(anyMap())).thenReturn(settings);
+        when(netBoxApiService.fetchSites(settings)).thenReturn(List.of(site160, site161));
+        when(netBoxApiService.fetchDevices(settings, "161")).thenReturn(List.of());
+        when(netBoxApiService.fetchCircuits(settings, "161")).thenReturn(List.of());
+        when(netBoxApiService.fetchSiteImages(settings, "161")).thenReturn(List.of());
+        when(objectPassportService.upsertPassportByNetBoxSiteId(eq("161"), anyMap())).thenReturn(Map.of());
+        when(settingsCatalogService.getDefaultItConnectionCategories()).thenReturn(Map.of());
+
+        NetBoxObjectPassportSyncService.SyncStatusSnapshot result = service.syncNow("manual");
+
+        assertEquals("success", result.state());
+        assertEquals(1, result.result().totalSites());
+        verify(netBoxApiService, never()).fetchDevices(settings, "160");
+        verify(objectPassportService, never()).upsertPassportByNetBoxSiteId(eq("160"), anyMap());
+        verify(objectPassportService).upsertPassportByNetBoxSiteId(eq("161"), anyMap());
+    }
     @Test
     void syncNowKeepsSiteWhenPhotoRefreshFails() {
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);

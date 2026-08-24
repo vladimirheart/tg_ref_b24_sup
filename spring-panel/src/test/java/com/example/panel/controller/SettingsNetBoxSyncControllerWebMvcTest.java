@@ -74,6 +74,7 @@ class SettingsNetBoxSyncControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.sites[0].id").value("160"))
                 .andExpect(jsonPath("$.sites[0].name").value("Main site"))
+                .andExpect(jsonPath("$.sites[0].status").value("active"))
                 .andExpect(jsonPath("$.selectedSiteIds[0]").value("160"));
     }
 
