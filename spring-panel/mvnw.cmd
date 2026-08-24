@@ -1,5 +1,14 @@
 @ECHO OFF
 SETLOCAL
+CHCP 65001 >NUL 2>&1
+
+REM Direct mvnw.cmd calls must use the same UTF-8 contract as run-windows.bat.
+SET "UTF8_MAVEN_OPTS=-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8"
+IF DEFINED MAVEN_OPTS (
+  SET "MAVEN_OPTS=%UTF8_MAVEN_OPTS% %MAVEN_OPTS%"
+) ELSE (
+  SET "MAVEN_OPTS=%UTF8_MAVEN_OPTS%"
+)
 
 SET MAVEN_VERSION=3.9.6
 SET BASE_DIR=%~dp0

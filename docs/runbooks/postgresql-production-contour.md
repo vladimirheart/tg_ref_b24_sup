@@ -191,3 +191,20 @@ GET /api/bots/{channelId}/runtime-contract
 ```
 
 Для production-ready channel required keys должны содержать `APP_DB_MODE` и `APP_INTEGRATION_TRANSPORT_MODE`, но не `SPRING_DATASOURCE_URL`. Если child стартует с direct PostgreSQL datasource, production boundary считается нарушенной даже при доступной БД.
+
+## Windows log/console UTF-8 invariant (v36)
+
+Все application log files panel и java-bot записываются Logback encoder-ами в UTF-8. На Windows тот же invariant распространяется на direct Maven execution:
+
+- `spring-panel/mvnw.cmd` и `java-bot/mvnw.cmd` переключают console code page на UTF-8 (`65001`);
+- Maven JVM и Surefire test JVM получают UTF-8 `file/stdout/stderr` runtime options;
+- `run-windows.bat` по-прежнему остаётся штатным launcher и также использует code page `65001`;
+- появление последовательностей вида `╨С╨╛╤В` в runtime/test output считается encoding regression, а не допустимым cosmetic warning.
+
+Для чтения файловых логов из Windows PowerShell 5.1 кодировку лучше указывать явно:
+
+```powershell
+Get-Content ..\logs\spring-panel.log -Encoding UTF8 -Tail 100 -Wait
+Get-Content ..\logs\bots.log -Encoding UTF8 -Tail 100 -Wait
+Get-Content ..\logs\errors.log -Encoding UTF8 -Tail 100 -Wait
+```
