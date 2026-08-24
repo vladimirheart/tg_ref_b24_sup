@@ -33,6 +33,14 @@ public class DataSourceConfig {
     @Bean
     @Primary
     public DataSource dataSource(ConfigurableEnvironment environment) {
+        DatabaseMode requestedMode = DatabaseMode.from(environment.getProperty("support-bot.database.mode"));
+        if (requestedMode == DatabaseMode.WORKER) {
+            Path workerRuntimePath = createWorkerRuntimePath();
+            SQLiteDataSource workerDataSource = buildSqliteDataSource(workerRuntimePath);
+            applyWorkerRuntimeProperties(environment, workerRuntimePath);
+            return workerDataSource;
+        }
+
         Optional<ExternalDatabaseSettings> externalDatabaseSettings = ExternalDatabaseSettingsResolver.resolve(environment);
         if (externalDatabaseSettings.isPresent()) {
             ExternalDatabaseSettings settings = externalDatabaseSettings.get();
@@ -68,6 +76,22 @@ public class DataSourceConfig {
     static void applySqliteRuntimeProperties(ConfigurableEnvironment environment) {
         registerRuntimePropertyOverride(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
         registerRuntimePropertyOverride(environment, "spring.jpa.hibernate.ddl-auto", "none");
+    }
+
+    static void applyWorkerRuntimeProperties(ConfigurableEnvironment environment, Path workerRuntimePath) {
+        applySqliteRuntimeProperties(environment);
+        registerRuntimePropertyOverride(environment, "spring.sql.init.mode", "never");
+        registerRuntimePropertyOverride(environment, "support-bot.database.worker-path", workerRuntimePath.toString());
+    }
+
+    static Path createWorkerRuntimePath() {
+        try {
+            Path path = Files.createTempFile("iguana-worker-runtime-", ".db").toAbsolutePath().normalize();
+            path.toFile().deleteOnExit();
+            return path;
+        } catch (IOException ex) {
+            throw new IllegalStateException("Unable to create isolated worker runtime database.", ex);
+        }
     }
 
     private static SQLiteDataSource buildSqliteDataSource(Path dbPath) {

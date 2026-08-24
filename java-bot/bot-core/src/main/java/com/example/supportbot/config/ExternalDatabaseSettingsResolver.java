@@ -29,6 +29,11 @@ final class ExternalDatabaseSettingsResolver {
                                                       String springDatasourceDriver,
                                                       String databaseUrl) {
         DatabaseMode requestedMode = DatabaseMode.from(modeValue);
+        if (requestedMode == DatabaseMode.SQLITE || requestedMode == DatabaseMode.WORKER) {
+            // Local compatibility/worker modes must ignore inherited canonical datasource credentials entirely.
+            return Optional.empty();
+        }
+
         Optional<ExternalDatabaseSettings> explicitSettings = fromSpringDatasource(
             springDatasourceUrl,
             springDatasourceUsername,
@@ -39,9 +44,9 @@ final class ExternalDatabaseSettingsResolver {
         Optional<ExternalDatabaseSettings> resolved = explicitSettings.isPresent() ? explicitSettings : databaseUrlSettings;
 
         return switch (requestedMode) {
-            case SQLITE -> Optional.empty();
             case AUTO -> resolved;
             case POSTGRESQL -> Optional.of(requirePostgresql(resolved));
+            case SQLITE, WORKER -> Optional.empty();
         };
     }
 

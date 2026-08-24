@@ -134,3 +134,19 @@ Canonical incident domain на backend-owned storage уже появился, op
 - `full PostgreSQL-only production contour`: ещё нет.
 
 Следующий корректный scope — уже не chase за очередной SQLite-точкой, не базовый incident UI, не первичный transport operability layer и не transport trend history slice, а дальнейшее развитие reporting/alert routing/debug maturity поверх уже собранного contour.
+
+## Update 2026-08-24 — worker DB isolation v35
+
+Финальный criterion-by-criterion audit после production-readiness v34 выявил конкретный remaining blocker: `spring-panel` всё ещё передавал дочерним `java-bot` процессам canonical `SPRING_DATASOURCE_*`, а `EngagementTasks.dispatchOperatorNotifications()` выполнял scheduled `NotificationRepository.count()` даже в `rabbitmq` режиме.
+
+v35 закрывает этот ownership gap:
+
+- production `rabbitmq` child contract теперь явно использует `APP_DB_MODE=worker`;
+- panel явно передаёт child `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`, а не полагается на случайное наследование OS env;
+- перед `ProcessBuilder.start()` удаляются inherited canonical PostgreSQL credentials и legacy business SQLite paths;
+- `worker` mode игнорирует любые inherited external datasource settings ещё на resolver boundary;
+- worker поднимает только пустой временный per-process SQLite DataSource в системной temp-директории; business schema и legacy triggers туда намеренно не инициализируются, чтобы accidental DB path fail-closed;
+- legacy operator-notification scheduler больше не касается repository в `rabbitmq` режиме;
+- regression tests фиксируют env isolation, worker datasource isolation и scheduler no-DB behavior.
+
+После runtime smoke этого slice нужен ещё один финальный audit `01-183`. Документ пока сознательно не объявляет full closeout до проверки фактического запуска bot child в `worker + rabbitmq` режиме.

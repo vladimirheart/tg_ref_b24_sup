@@ -105,6 +105,38 @@ class BotProcessServiceTest {
     }
 
     @Test
+    void applyBotProcessEnvironmentStripsInheritedBusinessDatabaseCredentialsForWorkerMode() {
+        ProcessBuilder builder = new ProcessBuilder(javaCommand(), "-version");
+        builder.environment().put("SPRING_DATASOURCE_URL", "jdbc:postgresql://db.example.local:5432/iguana");
+        builder.environment().put("SPRING_DATASOURCE_USERNAME", "iguana");
+        builder.environment().put("SPRING_DATASOURCE_PASSWORD", "secret");
+        builder.environment().put("DATABASE_URL", "postgres://iguana:secret@db.example.local:5432/iguana");
+        builder.environment().put("APP_DB_BOT_RUNTIME", tempDir.resolve("legacy-bot.db").toString());
+        builder.environment().put("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("legacy-panel.db").toString());
+
+        BotProcessService.applyBotProcessEnvironment(
+            builder,
+            Map.of(
+                "APP_DB_MODE", "worker",
+                "APP_INTEGRATION_TRANSPORT_MODE", "rabbitmq",
+                "APP_PANEL_INTERNAL_API_BASE_URL", "http://127.0.0.1:8080"
+            )
+        );
+
+        assertThat(builder.environment())
+            .containsEntry("APP_DB_MODE", "worker")
+            .containsEntry("APP_INTEGRATION_TRANSPORT_MODE", "rabbitmq")
+            .doesNotContainKeys(
+                "SPRING_DATASOURCE_URL",
+                "SPRING_DATASOURCE_USERNAME",
+                "SPRING_DATASOURCE_PASSWORD",
+                "DATABASE_URL",
+                "APP_DB_BOT_RUNTIME",
+                "SUPPORT_BOT_DATABASE_PATH"
+            );
+    }
+
+    @Test
     void statusReturnsStoppedWhenNoProcessIsRegistered() {
         BotProcessService service = createRuntimeService("auto");
 

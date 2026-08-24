@@ -172,3 +172,22 @@ Production contour теперь предполагает следующий live
 - Incident alert delivery: текущие failed/queued/processing, stale processing и terminal success rate за 24 часа.
 
 Если snapshot `degraded`, сначала устранить конкретный component reason в UI и только затем повторить проверку. Само обновление snapshot безопасно и не меняет runtime state.
+
+## Bot worker DB isolation invariant (v35)
+
+Для production bot child одновременно должны выполняться условия:
+
+- panel runtime: PostgreSQL canonical;
+- `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
+- `APP_DB_MODE=worker`;
+- в child environment отсутствуют `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `DATABASE_URL`, `APP_DB_BOT_RUNTIME`, `SUPPORT_BOT_DATABASE_PATH`;
+- business ticket/channel/feedback/blacklist paths идут только через RabbitMQ или internal panel API;
+- временный worker SQLite файл из `%TEMP%` / `java.io.tmpdir` стартует без business schema; self-owned technical tables для worker coordination/dedup допустимы, но случайный repository/JDBC доступ к business tables должен завершаться ошибкой, а не работать как hidden local fallback.
+
+Проверка runtime contract без старта:
+
+```text
+GET /api/bots/{channelId}/runtime-contract
+```
+
+Для production-ready channel required keys должны содержать `APP_DB_MODE` и `APP_INTEGRATION_TRANSPORT_MODE`, но не `SPRING_DATASOURCE_URL`. Если child стартует с direct PostgreSQL datasource, production boundary считается нарушенной даже при доступной БД.

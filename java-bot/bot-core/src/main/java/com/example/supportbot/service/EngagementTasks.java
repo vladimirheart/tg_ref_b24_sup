@@ -84,6 +84,10 @@ public class EngagementTasks {
 
     @Scheduled(cron = "30 */2 * * * *")
     public void dispatchOperatorNotifications() {
+        if (integrationTransportMode.isRabbitMqMode()) {
+            log.debug("Skipping legacy bot-side operator notification probe because rabbitmq transport delegates business storage to spring-panel");
+            return;
+        }
         if (notificationRepository.count() > 0) {
             log.debug("Legacy operator-notification bridge to support chats is disabled");
         }

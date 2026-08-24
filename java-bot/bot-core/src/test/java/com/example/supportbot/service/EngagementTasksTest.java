@@ -32,4 +32,22 @@ class EngagementTasksTest {
 
         verify(pendingRepository, never()).findTop50BySentAtIsNullAndExpiresAtAfterOrderByCreatedAtAsc(any());
     }
+
+    @Test
+    void dispatchOperatorNotificationsSkipsRepositoryProbeInRabbitMode() {
+        NotificationRepository notificationRepository = mock(NotificationRepository.class);
+        EngagementTasks tasks = new EngagementTasks(
+            mock(PendingFeedbackRequestRepository.class),
+            notificationRepository,
+            mock(ChannelRepository.class),
+            mock(BotSettingsService.class),
+            mock(MessagingService.class),
+            mock(TicketService.class),
+            new BotIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq"))
+        );
+
+        tasks.dispatchOperatorNotifications();
+
+        verify(notificationRepository, never()).count();
+    }
 }

@@ -16,16 +16,28 @@
 
 ## Runtime Inputs
 
-Обязательные cross-platform env keys в PostgreSQL-first runtime:
+Обязательные cross-platform env keys для production worker, который запускается panel в `rabbitmq` contour:
 
-- `APP_DB_MODE`
-- `SPRING_DATASOURCE_URL`
+- `APP_DB_MODE=worker`
+- `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`
+- `APP_PANEL_INTERNAL_API_BASE_URL`
+- `APP_PANEL_INTERNAL_API_TOKEN`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_USERNAME`
 - `GROUP_CHAT_ID`
 - `APP_BOT_LOG_PATH`
 - `SPRING_PROFILES_ACTIVE`
 - `JAVA_TOOL_OPTIONS`
+
+В этом режиме `spring-panel` намеренно не передаёт и перед стартом удаляет из inherited process environment:
+
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+- `DATABASE_URL`
+- legacy SQLite business paths (`APP_DB_BOT*`, `SUPPORT_BOT_DATABASE_PATH`).
+
+`APP_DB_MODE=worker` стартует с пустым временным per-process SQLite DataSource из системной temp-директории. Full business schema туда намеренно не инициализируется: допускаются только self-owned technical tables, которые worker-сервисы создают для своей технической координации/dedup (например, `integration_outbound_event_deliveries`). Случайный repository/JDBC путь к `tickets/messages/channels/...` должен fail-closed, а не тихо читать или писать локальную business-копию. Business reads/writes в `rabbitmq` режиме обязаны идти через queue/internal panel API.
 
 SQLite compatibility env keys остаются обязательными только при явном `APP_DB_MODE=sqlite`:
 
@@ -100,8 +112,9 @@ Platform-specific:
 После шагов `01-181` diagnostic payload должен также явно показывать DB boundary:
 
 - в `APP_DB_MODE=sqlite` warnings/blockers обязаны сигнализировать, что это только local/dev bootstrap perimeter;
-- production-ready статус для bot runtime допустим только при external PostgreSQL contract (`APP_DB_MODE=postgresql` + `SPRING_DATASOURCE_URL`) и при готовом jar launcher path.
-- normal runtime default для `spring-panel` и `java-bot` теперь `postgresql`, поэтому SQLite contract больше не должен восприниматься как implicit path.
+- production-ready статус для bot runtime допустим только при canonical PostgreSQL backend + `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` + isolated `APP_DB_MODE=worker`; прямой `SPRING_DATASOURCE_URL` в child process теперь считается нарушением production boundary.
+- `APP_DB_MODE=postgresql` остаётся поддержанным java-bot compatibility/JDBC режимом для controlled migration/dev scenarios, но больше не является production worker contract.
+- normal runtime default панели остаётся PostgreSQL; SQLite contract не должен восприниматься как implicit production path.
 - per-channel `bot-<channelId>.db` больше не считается допустимым live runtime-path: legacy shard-файлы должны только импортироваться в canonical PostgreSQL contour.
 - в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` bot-side business reads/writes должны идти через internal panel API или queue boundary; silent fallback в local business storage больше не считается допустимым live поведением.
 
@@ -116,6 +129,9 @@ Platform-specific:
 
 Production-ready contract считается выполненным, когда:
 
+- canonical panel runtime работает на PostgreSQL;
+- child transport явно равен `rabbitmq`;
+- child database mode равен `worker` и inherited canonical DB credentials удалены до запуска;
 - launcher резолвится в `jar`;
 - executable jar найден;
 - jar взят из `explicit-config`, а не через `target` scan;

@@ -35,6 +35,22 @@ class BotDatabaseRuntimeModeTest {
     }
 
     @Test
+    void resolvesWorkerModeWithoutTreatingInheritedPostgresAsExternal() {
+        MockEnvironment environment = new MockEnvironment();
+        environment.getPropertySources().addFirst(new MapPropertySource("test", Map.of(
+                "support-bot.database.mode", "worker",
+                "spring.datasource.url", "jdbc:postgresql://localhost:5432/supportbot"
+        )));
+
+        BotDatabaseRuntimeMode runtimeMode = new BotDatabaseRuntimeMode(environment);
+
+        assertThat(runtimeMode.isSqliteMode()).isFalse();
+        assertThat(runtimeMode.isWorkerMode()).isTrue();
+        assertThat(runtimeMode.isExternalMode()).isFalse();
+        assertThat(runtimeMode.modeLabel()).isEqualTo("worker");
+    }
+
+    @Test
     void keepsSqliteWhenModeExplicitlyForcesIt() {
         MockEnvironment environment = new MockEnvironment();
         environment.getPropertySources().addFirst(new MapPropertySource("test", Map.of(

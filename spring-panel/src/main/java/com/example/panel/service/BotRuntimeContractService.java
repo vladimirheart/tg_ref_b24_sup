@@ -147,7 +147,11 @@ public class BotRuntimeContractService {
 
     public Map<String, String> buildEnvironment(Channel channel, BotCredential credential, Path logFile) {
         Map<String, String> env = new LinkedHashMap<>();
-        applyDatabaseEnvironment(env);
+        if (isRabbitMqTransportMode()) {
+            applyWorkerDatabaseEnvironment(env);
+        } else {
+            applyDatabaseEnvironment(env);
+        }
         env.put("TELEGRAM_BOT_TOKEN", credential.token());
         env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
         env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
@@ -213,6 +217,7 @@ public class BotRuntimeContractService {
         }
         env.putIfAbsent("SPRING_PROFILES_ACTIVE", "default");
         env.put("APP_BOT_LOG_PATH", logFile.toString());
+        env.put("APP_INTEGRATION_TRANSPORT_MODE", isRabbitMqTransportMode() ? "rabbitmq" : "jdbc");
         env.put("APP_PANEL_INTERNAL_API_BASE_URL", resolveInternalBotApiBaseUrl());
         env.put("APP_PANEL_INTERNAL_API_TOKEN", environment.getProperty(
             "app.bots.internal-api.token",
@@ -288,10 +293,13 @@ public class BotRuntimeContractService {
             "TELEGRAM_BOT_USERNAME",
             "GROUP_CHAT_ID",
             "APP_BOT_LOG_PATH",
+            "APP_INTEGRATION_TRANSPORT_MODE",
             "SPRING_PROFILES_ACTIVE",
             "JAVA_TOOL_OPTIONS"
         ));
-        if (databaseRuntimeMode.isSqliteMode()) {
+        if (isRabbitMqTransportMode()) {
+            keys.add("APP_DB_MODE");
+        } else if (databaseRuntimeMode.isSqliteMode()) {
             keys.addAll(List.of("APP_DB_BOT_RUNTIME", "SUPPORT_BOT_DATABASE_PATH"));
         } else {
             keys.addAll(List.of("APP_DB_MODE", "SPRING_DATASOURCE_URL"));
@@ -316,7 +324,9 @@ public class BotRuntimeContractService {
 
     private List<String> optionalEnvironmentKeys(Channel channel) {
         List<String> keys = new ArrayList<>();
-        if (databaseRuntimeMode.isSqliteMode()) {
+        if (isRabbitMqTransportMode()) {
+            // Production workers deliberately receive no business-database credentials.
+        } else if (databaseRuntimeMode.isSqliteMode()) {
             keys.add("APP_DB_BOT");
         } else {
             keys.addAll(List.of("SPRING_DATASOURCE_USERNAME", "SPRING_DATASOURCE_PASSWORD", "DATABASE_URL"));
@@ -366,6 +376,10 @@ public class BotRuntimeContractService {
     private long resolveChannelId(Channel channel) {
         Long channelId = channel != null ? channel.getId() : null;
         return channelId != null && channelId > 0 ? channelId : 0L;
+    }
+
+    private void applyWorkerDatabaseEnvironment(Map<String, String> env) {
+        env.put("APP_DB_MODE", "worker");
     }
 
     private void applyDatabaseEnvironment(Map<String, String> env) {
@@ -422,7 +436,12 @@ public class BotRuntimeContractService {
         List<String> blockers = new ArrayList<>();
         if (databaseRuntimeMode.isSqliteMode()) {
             blockers.add(
-                "SQLite runtime contract считается только local/dev bootstrap perimeter; production-ready bot runtime требует external PostgreSQL datasource contract."
+                "Canonical panel runtime всё ещё находится в SQLite compatibility mode; production backend должен работать на PostgreSQL."
+            );
+        }
+        if (!isRabbitMqTransportMode()) {
+            blockers.add(
+                "Production bot worker требует app.integration.transport.mode=rabbitmq и backend-owned queue/API boundary вместо прямого business datasource."
             );
         }
         if (!"jar".equals(preferredLauncher)) {

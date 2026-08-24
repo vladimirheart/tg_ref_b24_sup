@@ -43,6 +43,20 @@ class ExternalDatabaseSettingsResolverTest {
     }
 
     @Test
+    void workerModeIgnoresInheritedExternalDatabaseSettingsBeforeParsingThem() {
+        Optional<ExternalDatabaseSettings> settings = ExternalDatabaseSettingsResolver.resolve(
+            "worker",
+            "jdbc:mysql://must-not-be-used.example.local:3306/iguana",
+            "root",
+            "secret",
+            null,
+            "postgres://also:ignored@db.example.local:5432/iguana"
+        );
+
+        assertFalse(settings.isPresent());
+    }
+
+    @Test
     void postgresqlModeRejectsNonPostgresJdbcUrl() {
         IllegalStateException error = assertThrows(
             IllegalStateException.class,

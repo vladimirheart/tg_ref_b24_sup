@@ -1,6 +1,8 @@
 package com.example.supportbot.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,6 +50,35 @@ class DataSourceConfigTest {
         Path resolved = DataSourceConfig.resolveSqlitePath("", botCoreDir);
 
         assertEquals(panelRuntime.toAbsolutePath().normalize(), resolved);
+    }
+
+    @Test
+    void workerModeUsesTemporarySqliteScaffoldAndIgnoresCanonicalPostgresCredentials() throws Exception {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("support-bot.database.mode", "worker")
+                .withProperty("spring.datasource.url", "jdbc:postgresql://db.example.local:5432/iguana")
+                .withProperty("spring.datasource.username", "iguana")
+                .withProperty("spring.datasource.password", "secret");
+
+        javax.sql.DataSource dataSource = new DataSourceConfig().dataSource(environment);
+        String workerPath = environment.getProperty("support-bot.database.worker-path");
+
+        assertNotNull(workerPath);
+        assertTrue(Path.of(workerPath).isAbsolute());
+        assertTrue(Path.of(workerPath).getFileName().toString().startsWith("iguana-worker-runtime-"));
+        assertEquals("org.hibernate.community.dialect.SQLiteDialect", environment.getProperty("spring.jpa.database-platform"));
+
+        try (java.sql.Connection connection = dataSource.getConnection();
+             java.sql.Statement statement = connection.createStatement();
+             java.sql.ResultSet result = statement.executeQuery(
+                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'channels'"
+             )) {
+            assertTrue(connection.getMetaData().getURL().startsWith("jdbc:sqlite:"));
+            assertTrue(result.next());
+            assertEquals(0L, result.getLong(1));
+        }
+
+        Files.deleteIfExists(Path.of(workerPath));
     }
 
     @Test

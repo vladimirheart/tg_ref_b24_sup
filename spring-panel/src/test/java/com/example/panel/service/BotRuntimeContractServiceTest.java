@@ -61,7 +61,9 @@ class BotRuntimeContractServiceTest {
         assertThat(contract.executableJarPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
         assertThat(contract.warnings()).anyMatch(item -> item.contains("SQLite runtime contract"));
         assertThat(contract.production().readyForProduction()).isFalse();
-        assertThat(contract.production().blockingReasons()).anyMatch(item -> item.contains("external PostgreSQL datasource contract"));
+        assertThat(contract.production().blockingReasons())
+            .anyMatch(item -> item.contains("SQLite compatibility mode"))
+            .anyMatch(item -> item.contains("app.integration.transport.mode=rabbitmq"));
         assertThat(contract.production().recommendedArtifactPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
         assertThat(contract.lifecycle().runningStatus()).isEqualTo("running");
     }
@@ -81,7 +83,8 @@ class BotRuntimeContractServiceTest {
                 "app.datasource.mode", "postgresql",
                 "spring.datasource.url", "jdbc:postgresql://db.example.local:5432/iguana",
                 "spring.datasource.username", "iguana",
-                "spring.datasource.password", "secret"
+                "spring.datasource.password", "secret",
+                "app.integration.transport.mode", "rabbitmq"
             )
         );
         Channel channel = new Channel();
@@ -92,11 +95,53 @@ class BotRuntimeContractServiceTest {
 
         assertThat(contract.resolvedLauncherKind()).isEqualTo("jar");
         assertThat(contract.artifactSource()).isEqualTo("explicit-config");
-        assertThat(contract.requiredEnvironmentKeys()).contains("APP_DB_MODE", "SPRING_DATASOURCE_URL");
-        assertThat(contract.requiredEnvironmentKeys()).doesNotContain("APP_DB_PANEL_RUNTIME");
+        assertThat(contract.requiredEnvironmentKeys()).contains("APP_DB_MODE", "APP_INTEGRATION_TRANSPORT_MODE");
+        assertThat(contract.requiredEnvironmentKeys()).doesNotContain("SPRING_DATASOURCE_URL", "APP_DB_PANEL_RUNTIME");
+        assertThat(contract.optionalEnvironmentKeys()).doesNotContain(
+            "SPRING_DATASOURCE_USERNAME",
+            "SPRING_DATASOURCE_PASSWORD",
+            "DATABASE_URL"
+        );
         assertThat(contract.warnings()).noneMatch(item -> item.contains("SQLite runtime contract"));
         assertThat(contract.production().readyForProduction()).isTrue();
         assertThat(contract.production().blockingReasons()).isEmpty();
+    }
+
+    @Test
+    void buildEnvironmentUsesIsolatedWorkerModeForRabbitMqAndOmitsCanonicalDatabaseCredentials() {
+        BotRuntimeContractService service = createService(
+            "auto",
+            Map.of(),
+            Map.of(),
+            Map.of(
+                "app.datasource.mode", "postgresql",
+                "spring.datasource.url", "jdbc:postgresql://db.example.local:5432/iguana",
+                "spring.datasource.username", "iguana",
+                "spring.datasource.password", "secret",
+                "app.integration.transport.mode", "rabbitmq"
+            )
+        );
+        Channel channel = new Channel();
+        channel.setId(117L);
+        channel.setPlatform("telegram");
+
+        Map<String, String> env = service.buildEnvironment(
+            channel,
+            new com.example.panel.model.channel.BotCredential(6L, "tg", "telegram", "token", true),
+            tempDir.resolve("worker.log")
+        );
+
+        assertThat(env)
+            .containsEntry("APP_DB_MODE", "worker")
+            .containsEntry("APP_INTEGRATION_TRANSPORT_MODE", "rabbitmq")
+            .doesNotContainKeys(
+                "SPRING_DATASOURCE_URL",
+                "SPRING_DATASOURCE_USERNAME",
+                "SPRING_DATASOURCE_PASSWORD",
+                "DATABASE_URL",
+                "APP_DB_BOT_RUNTIME",
+                "SUPPORT_BOT_DATABASE_PATH"
+            );
     }
 
     @Test

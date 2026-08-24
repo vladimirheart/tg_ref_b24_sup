@@ -39,6 +39,18 @@ public class BotProcessService {
     private static final Pattern STARTUP_FAILURE_PATTERN =
         Pattern.compile("(?m)^\\*{10,}\\s*$\\R^APPLICATION FAILED TO START\\s*$", Pattern.MULTILINE);
     private static final long MIN_STARTUP_STABILITY_WINDOW_MS = 750L;
+    private static final List<String> WORKER_DATABASE_ENVIRONMENT_KEYS = List.of(
+        "SPRING_DATASOURCE_URL",
+        "SPRING_DATASOURCE_USERNAME",
+        "SPRING_DATASOURCE_PASSWORD",
+        "SPRING_DATASOURCE_DRIVER_CLASS_NAME",
+        "DATABASE_URL",
+        "APP_DB_BOT",
+        "APP_DB_BOT_RUNTIME",
+        "APP_DB_PANEL_RUNTIME",
+        "APP_DB_TICKETS",
+        "SUPPORT_BOT_DATABASE_PATH"
+    );
 
     private final SharedConfigService sharedConfigService;
     private final BotProcessProperties botProcessProperties;
@@ -53,6 +65,16 @@ public class BotProcessService {
         this.sharedConfigService = sharedConfigService;
         this.botProcessProperties = botProcessProperties;
         this.botRuntimeContractService = botRuntimeContractService;
+    }
+
+    static void applyBotProcessEnvironment(ProcessBuilder builder,
+                                           Map<String, String> contractEnvironment) {
+        Map<String, String> targetEnvironment = builder.environment();
+        boolean isolatedWorker = "worker".equalsIgnoreCase(contractEnvironment.get("APP_DB_MODE"));
+        if (isolatedWorker) {
+            WORKER_DATABASE_ENVIRONMENT_KEYS.forEach(targetEnvironment::remove);
+        }
+        targetEnvironment.putAll(contractEnvironment);
     }
 
     public BotProcessStatus start(Channel channel) {
@@ -82,7 +104,10 @@ public class BotProcessService {
             long processOutputStartOffset = 0L;
             builder.redirectErrorStream(true);
             builder.redirectOutput(ProcessBuilder.Redirect.to(processOutputLogFile.toFile()));
-            builder.environment().putAll(botRuntimeContractService.buildEnvironment(channel, credential, logFile));
+            applyBotProcessEnvironment(
+                builder,
+                botRuntimeContractService.buildEnvironment(channel, credential, logFile)
+            );
             Process process = builder.start();
             OffsetDateTime now = OffsetDateTime.now();
             BotProcessStatus startupStatus =
