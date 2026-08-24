@@ -88,13 +88,16 @@ public class EmployeeDiscountAutomationController {
     }
 
     @GetMapping("/runs")
-    public Map<String, Object> runs() {
-        return Map.of("success", true, "items", employeeDiscountAutomationService.listRuns());
+    public Map<String, Object> runs(Authentication authentication) {
+        return Map.of(
+            "success", true,
+            "items", employeeDiscountAutomationService.listRuns(requireUsername(authentication))
+        );
     }
 
     @GetMapping("/runs/{runId}")
-    public Map<String, Object> runDetails(@PathVariable Long runId) {
-        return employeeDiscountAutomationService.getRun(runId);
+    public Map<String, Object> runDetails(@PathVariable Long runId, Authentication authentication) {
+        return employeeDiscountAutomationService.getRun(runId, requireUsername(authentication));
     }
 
     private String requireUsername(Authentication authentication) {

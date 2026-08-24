@@ -114,6 +114,12 @@ public class EmployeeDiscountAutomationService {
         List<Map<String, Object>> itemPayloads = new ArrayList<>();
 
         for (CandidateTask candidate : candidates) {
+            if ("error".equals(candidate.status())) {
+                errorCount++;
+                saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "error", candidate.message(), candidate.checklistItemId());
+                itemPayloads.add(buildItemPayload(candidate, "error", candidate.message()));
+                continue;
+            }
             if (!"selected".equals(candidate.status())) {
                 skippedCount++;
                 saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "skipped", candidate.message(), candidate.checklistItemId());
@@ -161,14 +167,19 @@ public class EmployeeDiscountAutomationService {
         );
     }
 
-    public List<Map<String, Object>> listRuns() {
-        return automationRunRepository.findTop20ByAutomationKeyOrderByStartedAtDesc(AUTOMATION_KEY).stream()
+    public List<Map<String, Object>> listRuns(String actor) {
+        String effectiveActor = requireActor(actor);
+        return automationRunRepository
+            .findTop20ByAutomationKeyAndActorIgnoreCaseOrderByStartedAtDesc(AUTOMATION_KEY, effectiveActor)
+            .stream()
             .map(this::toRunMap)
             .toList();
     }
 
-    public Map<String, Object> getRun(Long runId) {
-        AutomationRun run = automationRunRepository.findById(runId)
+    public Map<String, Object> getRun(Long runId, String actor) {
+        String effectiveActor = requireActor(actor);
+        AutomationRun run = automationRunRepository
+            .findByIdAndAutomationKeyAndActorIgnoreCase(runId, AUTOMATION_KEY, effectiveActor)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found"));
         List<Map<String, Object>> items = automationRunItemRepository.findByRunIdOrderByCreatedAtAsc(runId).stream()
             .map(item -> Map.<String, Object>of(
@@ -373,6 +384,13 @@ public class EmployeeDiscountAutomationService {
             || "completed".equals(normalized)
             || "closed".equals(normalized)
             || "done".equals(normalized);
+    }
+
+    private String requireActor(String actor) {
+        if (!StringUtils.hasText(actor)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Не удалось определить пользователя панели.");
+        }
+        return actor.trim();
     }
 
     private String safe(Object value) {
