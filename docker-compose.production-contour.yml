@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${IGUANA_POSTGRES_USER:-iguana}
       POSTGRES_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
     ports:
-      - "${APP_POSTGRES_PORT:-5432}:5432"
+      - "${APP_POSTGRES_BIND_HOST:-127.0.0.1}:${APP_POSTGRES_PORT:-5432}:5432"
     volumes:
       - iguana-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -25,8 +25,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${IGUANA_RABBITMQ_USER:-iguana}
       RABBITMQ_DEFAULT_PASS: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
     ports:
-      - "${APP_RABBITMQ_AMQP_PORT:-5672}:5672"
-      - "${APP_RABBITMQ_HTTP_PORT:-15672}:15672"
+      - "${APP_RABBITMQ_AMQP_BIND_HOST:-127.0.0.1}:${APP_RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${APP_RABBITMQ_HTTP_BIND_HOST:-127.0.0.1}:${APP_RABBITMQ_HTTP_PORT:-15672}:15672"
     volumes:
       - iguana-rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
@@ -46,7 +46,7 @@ services:
       - --requirepass
       - ${IGUANA_REDIS_PASSWORD:-iguana-redis}
     ports:
-      - "${APP_REDIS_PORT:-6379}:6379"
+      - "${APP_REDIS_BIND_HOST:-127.0.0.1}:${APP_REDIS_PORT:-6379}:6379"
     volumes:
       - iguana-redis-data:/data
     healthcheck:
@@ -64,8 +64,8 @@ services:
       MINIO_ROOT_USER: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
       MINIO_ROOT_PASSWORD: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
     ports:
-      - "${APP_STORAGE_OBJECT_PORT:-9000}:9000"
-      - "${APP_STORAGE_OBJECT_CONSOLE_PORT:-9001}:9001"
+      - "${APP_STORAGE_OBJECT_BIND_HOST:-127.0.0.1}:${APP_STORAGE_OBJECT_PORT:-9000}:9000"
+      - "${APP_STORAGE_OBJECT_CONSOLE_BIND_HOST:-127.0.0.1}:${APP_STORAGE_OBJECT_CONSOLE_PORT:-9001}:9001"
     volumes:
       - iguana-minio-data:/data
 
@@ -109,6 +109,7 @@ services:
       APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL: "true"
       APP_BOT_AUTO_START_ENABLED: "false"
       APP_BOT_LAUNCH_MODE: jar
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IGUANA_POSTGRES_DB:-iguana}
       SPRING_DATASOURCE_USERNAME: ${IGUANA_POSTGRES_USER:-iguana}
       SPRING_DATASOURCE_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
@@ -140,7 +141,7 @@ services:
       APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME: ${APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME:-}
       APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD: ${APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD:-}
     ports:
-      - "${APP_HTTP_PORT:-8080}:8080"
+      - "${APP_PANEL_BIND_HOST:-127.0.0.1}:${APP_HTTP_PORT:-8080}:8080"
     volumes:
       - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
       - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
@@ -256,7 +257,7 @@ services:
       VK_WEBHOOK_SECRET: ${VK_WEBHOOK_SECRET:-}
       SERVER_PORT: 8080
     ports:
-      - "${VK_BOT_HTTP_PORT:-18082}:8080"
+      - "${VK_BOT_BIND_HOST:-127.0.0.1}:${VK_BOT_HTTP_PORT:-18082}:8080"
     volumes:
       - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
       - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
@@ -313,7 +314,7 @@ services:
       SERVER_ADDRESS: 0.0.0.0
       SERVER_PORT: 8080
     ports:
-      - "${MAX_BOT_HTTP_PORT:-18083}:8080"
+      - "${MAX_BOT_BIND_HOST:-127.0.0.1}:${MAX_BOT_HTTP_PORT:-18083}:8080"
     volumes:
       - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
       - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments

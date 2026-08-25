@@ -19,7 +19,7 @@ Iguana - многоканальная support CRM и операторская п
 
 Для roadmap мониторинга support-систем, внешних SaaS/API и корпоративных зависимостей используйте [docs/support-systems-monitoring-roadmap.md](docs/support-systems-monitoring-roadmap.md).
 
-Для containerized contour с `spring-panel + PostgreSQL + RabbitMQ + Redis + MinIO + external bot containers` используйте [docs/docker-production-contour.md](docs/docker-production-contour.md) и [docker-compose.production-contour.yml](docker-compose.production-contour.yml).
+Для containerized contour с `spring-panel + PostgreSQL + RabbitMQ + Redis + MinIO + external bot containers` используйте [docs/docker-production-contour.md](docs/docker-production-contour.md), [docker-compose.production-contour.yml](docker-compose.production-contour.yml) и для публичного ingress [docs/runbooks/docker-production-edge-deploy.md](docs/runbooks/docker-production-edge-deploy.md) вместе с [docker-compose.production-edge.yml](docker-compose.production-edge.yml).
 
 В нём собраны:
 
@@ -102,10 +102,17 @@ cd spring-panel
 docker compose -f docker-compose.production-contour.yml up -d --build
 ```
 
+Для contour с публичным ingress через `nginx` поверх того же стека:
+
+```powershell
+docker compose -f docker-compose.production-contour.yml -f docker-compose.production-edge.yml up -d --build
+```
+
 Или штатные helper-скрипты:
 
 ```powershell
 .\scripts\docker-production-up.ps1 -Build
+.\scripts\docker-production-up.ps1 -Build -Edge
 .\scripts\docker-production-up.ps1 -Build -Telegram
 .\scripts\docker-production-up.ps1 -ValidateOnly
 ```
@@ -216,6 +223,8 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 - [docs/runbooks/postgresql-cutover-rehearsal.md](docs/runbooks/postgresql-cutover-rehearsal.md)
 - [docs/runbooks/production-e2e-smoke.md](docs/runbooks/production-e2e-smoke.md)
 - [docs/observability-baseline.md](docs/observability-baseline.md)
+- [docs/docker-production-contour.md](docs/docker-production-contour.md)
+- [docs/runbooks/docker-production-edge-deploy.md](docs/runbooks/docker-production-edge-deploy.md)
 - [docs/support-systems-monitoring-roadmap.md](docs/support-systems-monitoring-roadmap.md)
 - [docs/integration-contract-hardening.md](docs/integration-contract-hardening.md)
 - [docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md](docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md)

@@ -1,4 +1,5 @@
 param(
+    [switch]$Edge,
     [switch]$RemoveVolumes,
     [switch]$ValidateOnly
 )
@@ -22,14 +23,22 @@ function Get-DockerCommandPath {
 
 $repoRoot = Get-RepoRoot
 $composeFile = Join-Path $repoRoot "docker-compose.production-contour.yml"
+$edgeComposeFile = Join-Path $repoRoot "docker-compose.production-edge.yml"
 
 if (-not (Test-Path -LiteralPath $composeFile)) {
     throw "Compose file not found: $composeFile"
+}
+if ($Edge -and -not (Test-Path -LiteralPath $edgeComposeFile)) {
+    throw "Edge compose file not found: $edgeComposeFile"
 }
 
 if ($ValidateOnly) {
     Write-Host "[INFO] Validation succeeded."
     Write-Host "[INFO] Compose file: $composeFile"
+    if ($Edge) {
+        Write-Host "[INFO] Edge compose file: $edgeComposeFile"
+    }
+    Write-Host "[INFO] Edge enabled: $Edge"
     Write-Host "[INFO] Remove volumes: $RemoveVolumes"
     exit 0
 }
@@ -39,12 +48,17 @@ if (-not $dockerCommand) {
     throw "Docker is not installed or not available in PATH."
 }
 
-$arguments = @("compose", "-f", $composeFile, "down")
+$arguments = @("compose", "-f", $composeFile)
+if ($Edge) {
+    $arguments += @("-f", $edgeComposeFile)
+}
+$arguments += "down"
 if ($RemoveVolumes) {
     $arguments += "-v"
 }
 
 Write-Host "[INFO] Stopping Iguana docker production contour"
+Write-Host "[INFO] Edge enabled: $Edge"
 
 & $dockerCommand @arguments
 if ($LASTEXITCODE -ne 0) {

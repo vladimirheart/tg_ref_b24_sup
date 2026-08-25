@@ -52,15 +52,31 @@
 | `IGUANA_POSTGRES_DB` | имя БД в dockerized contour | compose/infrastructure |
 | `IGUANA_POSTGRES_USER` | пользователь PostgreSQL в dockerized contour | compose/infrastructure |
 | `IGUANA_POSTGRES_PASSWORD` | пароль PostgreSQL в dockerized contour | compose/infrastructure |
+| `APP_POSTGRES_BIND_HOST` | bind host publish-порта PostgreSQL в dockerized contour; production-like default должен оставаться loopback-only | compose/infrastructure |
 | `IGUANA_RABBITMQ_USER` | пользователь RabbitMQ в dockerized contour | compose/infrastructure |
 | `IGUANA_RABBITMQ_PASSWORD` | пароль RabbitMQ в dockerized contour | compose/infrastructure |
+| `APP_RABBITMQ_AMQP_BIND_HOST` | bind host AMQP publish-порта RabbitMQ | compose/infrastructure |
+| `APP_RABBITMQ_HTTP_BIND_HOST` | bind host management UI publish-порта RabbitMQ | compose/infrastructure |
 | `APP_REDIS_PORT` | publish-порт Redis в dockerized contour | compose/infrastructure |
+| `APP_REDIS_BIND_HOST` | bind host publish-порта Redis | compose/infrastructure |
 | `IGUANA_REDIS_PASSWORD` | пароль Redis в dockerized contour | Панель, бот, compose/infrastructure |
 | `APP_STORAGE_OBJECT_BUCKET` | bucket object storage | Панель, бот, compose/infrastructure |
 | `APP_STORAGE_OBJECT_REGION` | region object storage | Панель, бот, compose/infrastructure |
 | `APP_STORAGE_OBJECT_ENDPOINT` | endpoint S3/MinIO | Панель и бот |
+| `APP_STORAGE_OBJECT_BIND_HOST` | bind host publish-порта S3 API | compose/infrastructure |
+| `APP_STORAGE_OBJECT_CONSOLE_BIND_HOST` | bind host publish-порта MinIO console | compose/infrastructure |
 | `APP_STORAGE_OBJECT_ACCESS_KEY` | access key S3/MinIO | Панель, бот, compose/infrastructure |
 | `APP_STORAGE_OBJECT_SECRET_KEY` | secret key S3/MinIO | Панель, бот, compose/infrastructure |
+| `APP_PANEL_BIND_HOST` | bind host publish-порта `spring-panel`; production-like default должен оставаться loopback-only при использовании edge layer | compose/infrastructure |
+| `VK_BOT_BIND_HOST` | bind host publish-порта VK webhook runtime | compose/infrastructure |
+| `MAX_BOT_BIND_HOST` | bind host publish-порта MAX webhook runtime | compose/infrastructure |
+| `IGUANA_PUBLIC_HOST` | публичный hostname для `nginx` edge contour | compose/infrastructure |
+| `IGUANA_EDGE_HTTP_BIND_HOST` | bind host publish-порта `80` для `nginx` edge contour | compose/infrastructure |
+| `IGUANA_EDGE_HTTP_PORT` | publish-порт HTTP ingress для `nginx` edge contour | compose/infrastructure |
+| `IGUANA_EDGE_HTTPS_BIND_HOST` | bind host publish-порта `443` для `nginx` edge contour | compose/infrastructure |
+| `IGUANA_EDGE_HTTPS_PORT` | publish-порт HTTPS ingress для `nginx` edge contour | compose/infrastructure |
+| `IGUANA_EDGE_TLS_ENABLED` | включает TLS-ready конфигурацию `nginx`; требует `fullchain.pem` и `privkey.pem` в каталоге сертификатов | compose/infrastructure |
+| `IGUANA_EDGE_CERTS_DIR` | host-side каталог с `fullchain.pem` и `privkey.pem` для TLS edge contour | compose/infrastructure |
 | `IGUANA_SHARED_CONFIG_DIR` | bind-mount override для `config/shared` в docker-compose contour | compose/infrastructure |
 | `IGUANA_ATTACHMENTS_DIR` | bind-mount override для `attachments` в docker-compose contour | compose/infrastructure |
 | `IGUANA_LOGS_DIR` | bind-mount override для `logs` в docker-compose contour | compose/infrastructure |
@@ -145,4 +161,5 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 - `APP_COORDINATION_MODE=redis`;
 - `APP_STORAGE_OBJECT_MODE=s3`;
 - `APP_BOT_AUTO_START_ENABLED=false`;
-- `SHARED_CONFIG_DIR` и `APP_STORAGE_ATTACHMENTS` лучше задавать абсолютными container paths, а не рассчитывать на относительный working directory.
+- `SHARED_CONFIG_DIR` и `APP_STORAGE_ATTACHMENTS` лучше задавать абсолютными container paths, а не рассчитывать на относительный working directory;
+- publish bind hosts для внутренних infra/service портов должны по умолчанию оставаться loopback-only, а внешний ingress лучше собирать отдельным `nginx` edge layer через [docker-compose.production-edge.yml](../docker-compose.production-edge.yml).

@@ -23,6 +23,7 @@
 - [BOT_RUNTIME_CONTRACT.md](../BOT_RUNTIME_CONTRACT.md)
 - [environment_variables.md](../environment_variables.md)
 - [observability-baseline.md](../observability-baseline.md)
+- [docker-production-edge-deploy.md](./docker-production-edge-deploy.md)
 
 ## 2. Для какого контура этот runbook
 

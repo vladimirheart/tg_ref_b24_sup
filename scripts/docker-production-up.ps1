@@ -2,6 +2,7 @@ param(
     [switch]$Telegram,
     [switch]$Vk,
     [switch]$Max,
+    [switch]$Edge,
     [switch]$Build,
     [switch]$NoDetach,
     [switch]$ValidateOnly,
@@ -87,6 +88,44 @@ function Get-SettingValue {
     return ""
 }
 
+function Test-TruthySetting {
+    param(
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    switch ($Value.Trim().ToLowerInvariant()) {
+        "1" { return $true }
+        "true" { return $true }
+        "yes" { return $true }
+        "on" { return $true }
+        default { return $false }
+    }
+}
+
+function Resolve-RepoPathFromSetting {
+    param(
+        [string]$RepoRoot,
+        [hashtable]$DotEnv,
+        [string]$Name,
+        [string]$DefaultValue
+    )
+
+    $value = Get-SettingValue -DotEnv $DotEnv -Name $Name
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        $value = $DefaultValue
+    }
+
+    if ([System.IO.Path]::IsPathRooted($value)) {
+        return [System.IO.Path]::GetFullPath($value)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $value))
+}
+
 function Assert-RequiredFile {
     param(
         [string]$Path,
@@ -133,6 +172,7 @@ function Invoke-PreflightChecks {
     param(
         [string]$RepoRoot,
         [string[]]$Profiles,
+        [bool]$Edge,
         [bool]$AllowInsecureDefaults
     )
 
@@ -178,13 +218,32 @@ function Invoke-PreflightChecks {
         Assert-RequiredSetting -DotEnv $dotEnv -Name "MAX_CHANNEL_ID" -Message "MAX profile requires MAX_CHANNEL_ID" | Out-Null
         Assert-RequiredSetting -DotEnv $dotEnv -Name "MAX_SUPPORT_CHAT_ID" -Message "MAX profile requires MAX_SUPPORT_CHAT_ID" | Out-Null
     }
+
+    if ($Edge) {
+        if ($AllowInsecureDefaults) {
+            Assert-RequiredSetting -DotEnv $dotEnv -Name "IGUANA_PUBLIC_HOST" -Message "Edge contour requires IGUANA_PUBLIC_HOST" | Out-Null
+        } else {
+            Assert-NonDefaultSecret -DotEnv $dotEnv -Name "IGUANA_PUBLIC_HOST" -DisallowedValues @("localhost", "127.0.0.1", "example.com") -Message "Edge contour requires explicit public host" | Out-Null
+        }
+
+        $tlsEnabled = Test-TruthySetting -Value (Get-SettingValue -DotEnv $dotEnv -Name "IGUANA_EDGE_TLS_ENABLED")
+        if ($tlsEnabled) {
+            $certDirectory = Resolve-RepoPathFromSetting -RepoRoot $RepoRoot -DotEnv $dotEnv -Name "IGUANA_EDGE_CERTS_DIR" -DefaultValue "./deploy/nginx/certs"
+            Assert-RequiredFile -Path (Join-Path $certDirectory "fullchain.pem") -Label "Edge TLS certificate"
+            Assert-RequiredFile -Path (Join-Path $certDirectory "privkey.pem") -Label "Edge TLS private key"
+        }
+    }
 }
 
 $repoRoot = Get-RepoRoot
 $composeFile = Join-Path $repoRoot "docker-compose.production-contour.yml"
+$edgeComposeFile = Join-Path $repoRoot "docker-compose.production-edge.yml"
 
 if (-not (Test-Path -LiteralPath $composeFile)) {
     throw "Compose file not found: $composeFile"
+}
+if ($Edge -and -not (Test-Path -LiteralPath $edgeComposeFile)) {
+    throw "Edge compose file not found: $edgeComposeFile"
 }
 
 $profiles = @()
@@ -204,23 +263,28 @@ $requiredDirectories = @(
     (Join-Path $repoRoot "attachments\forms"),
     (Join-Path $repoRoot "attachments\avatars"),
     (Join-Path $repoRoot "logs"),
-    (Join-Path $repoRoot "bot_databases")
+    (Join-Path $repoRoot "bot_databases"),
+    (Join-Path $repoRoot "deploy\nginx\certs")
 )
 
 foreach ($directory in $requiredDirectories) {
     New-Item -ItemType Directory -Force -Path $directory | Out-Null
 }
 
-Invoke-PreflightChecks -RepoRoot $repoRoot -Profiles $profiles -AllowInsecureDefaults:$AllowInsecureDefaults
+Invoke-PreflightChecks -RepoRoot $repoRoot -Profiles $profiles -Edge:$Edge -AllowInsecureDefaults:$AllowInsecureDefaults
 
 if ($ValidateOnly) {
     Write-Host "[INFO] Validation succeeded."
     Write-Host "[INFO] Compose file: $composeFile"
+    if ($Edge) {
+        Write-Host "[INFO] Edge compose file: $edgeComposeFile"
+    }
     if ($profiles.Count -gt 0) {
         Write-Host "[INFO] Profiles: $($profiles -join ', ')"
     } else {
         Write-Host "[INFO] Profiles: none (infra + panel only)"
     }
+    Write-Host "[INFO] Edge enabled: $Edge"
     Write-Host "[INFO] Insecure defaults allowed: $AllowInsecureDefaults"
     exit 0
 }
@@ -228,6 +292,9 @@ if ($ValidateOnly) {
 $dockerCommand = Ensure-DockerAvailable
 
 $arguments = @("compose", "-f", $composeFile)
+if ($Edge) {
+    $arguments += @("-f", $edgeComposeFile)
+}
 foreach ($profile in $profiles) {
     $arguments += @("--profile", $profile)
 }
@@ -241,6 +308,7 @@ if (-not $NoDetach) {
 
 Write-Host "[INFO] Starting Iguana docker production contour"
 Write-Host "[INFO] Profiles: $($(if ($profiles.Count -gt 0) { $profiles -join ', ' } else { 'none (infra + panel only)' }))"
+Write-Host "[INFO] Edge enabled: $Edge"
 
 & $dockerCommand @arguments
 if ($LASTEXITCODE -ne 0) {

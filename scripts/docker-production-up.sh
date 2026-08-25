@@ -4,6 +4,7 @@ set -euo pipefail
 TELEGRAM=0
 VK=0
 MAX=0
+EDGE=0
 BUILD=0
 DETACH=1
 VALIDATE_ONLY=0
@@ -21,6 +22,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --max)
       MAX=1
+      shift
+      ;;
+    --edge)
+      EDGE=1
       shift
       ;;
     --build)
@@ -49,10 +54,15 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-contour.yml"
+EDGE_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-edge.yml"
 ENV_FILE="${REPO_ROOT}/.env"
 
 if [[ ! -f "${COMPOSE_FILE}" ]]; then
   echo "[ERROR] Compose file not found: ${COMPOSE_FILE}" >&2
+  exit 1
+fi
+if [[ "${EDGE}" == "1" && ! -f "${EDGE_COMPOSE_FILE}" ]]; then
+  echo "[ERROR] Edge compose file not found: ${EDGE_COMPOSE_FILE}" >&2
   exit 1
 fi
 
@@ -77,6 +87,30 @@ get_setting_value() {
     fi
   fi
   printf ''
+}
+
+is_truthy() {
+  local value="${1:-}"
+  case "$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|on)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+resolve_repo_path() {
+  local path_value="${1:-}"
+  if [[ -z "${path_value}" ]]; then
+    path_value="./deploy/nginx/certs"
+  fi
+  if [[ "${path_value}" = /* ]]; then
+    printf '%s' "${path_value}"
+  else
+    printf '%s' "${REPO_ROOT}/${path_value}"
+  fi
 }
 
 assert_required_file() {
@@ -163,6 +197,24 @@ invoke_preflight_checks() {
         ;;
     esac
   done
+
+  if [[ "${EDGE}" == "1" ]]; then
+    if [[ "${ALLOW_INSECURE_DEFAULTS}" == "1" ]]; then
+      assert_required_setting "IGUANA_PUBLIC_HOST" "Edge contour requires IGUANA_PUBLIC_HOST"
+    else
+      assert_non_default_secret "IGUANA_PUBLIC_HOST" "Edge contour requires explicit public host" "localhost" "127.0.0.1" "example.com"
+    fi
+
+    local tls_enabled
+    tls_enabled="$(get_setting_value "IGUANA_EDGE_TLS_ENABLED")"
+    if is_truthy "${tls_enabled}"; then
+      local cert_dir_setting cert_dir
+      cert_dir_setting="$(get_setting_value "IGUANA_EDGE_CERTS_DIR")"
+      cert_dir="$(resolve_repo_path "${cert_dir_setting}")"
+      assert_required_file "${cert_dir}/fullchain.pem" "Edge TLS certificate"
+      assert_required_file "${cert_dir}/privkey.pem" "Edge TLS private key"
+    fi
+  fi
 }
 if [[ "${VK}" == "1" ]]; then
   PROFILES+=("vk")
@@ -177,18 +229,23 @@ mkdir -p \
   "${REPO_ROOT}/attachments/forms" \
   "${REPO_ROOT}/attachments/avatars" \
   "${REPO_ROOT}/logs" \
-  "${REPO_ROOT}/bot_databases"
+  "${REPO_ROOT}/bot_databases" \
+  "${REPO_ROOT}/deploy/nginx/certs"
 
 invoke_preflight_checks
 
 if [[ "${VALIDATE_ONLY}" == "1" ]]; then
   echo "[INFO] Validation succeeded."
   echo "[INFO] Compose file: ${COMPOSE_FILE}"
+  if [[ "${EDGE}" == "1" ]]; then
+    echo "[INFO] Edge compose file: ${EDGE_COMPOSE_FILE}"
+  fi
   if [[ "${#PROFILES[@]}" -gt 0 ]]; then
     echo "[INFO] Profiles: ${PROFILES[*]}"
   else
     echo "[INFO] Profiles: none (infra + panel only)"
   fi
+  echo "[INFO] Edge enabled: ${EDGE}"
   echo "[INFO] Insecure defaults allowed: ${ALLOW_INSECURE_DEFAULTS}"
   exit 0
 fi
@@ -204,6 +261,9 @@ docker compose version >/dev/null 2>&1 || {
 }
 
 ARGS=(compose -f "${COMPOSE_FILE}")
+if [[ "${EDGE}" == "1" ]]; then
+  ARGS+=(-f "${EDGE_COMPOSE_FILE}")
+fi
 for profile in "${PROFILES[@]}"; do
   ARGS+=(--profile "${profile}")
 done
@@ -221,6 +281,7 @@ if [[ "${#PROFILES[@]}" -gt 0 ]]; then
 else
   echo "[INFO] Profiles: none (infra + panel only)"
 fi
+echo "[INFO] Edge enabled: ${EDGE}"
 
 docker "${ARGS[@]}"
 
