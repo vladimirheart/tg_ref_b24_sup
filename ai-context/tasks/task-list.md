@@ -211,7 +211,7 @@
 🟠 [01-189] Добавить полную историю редакций сообщений и service-event timeline в диалоге
 🟣 [01-190] Починить inline media preview/player и добавить выбор Enter или Ctrl+Enter для ответа оператора
 🟣 [01-191] Обновить текущую документацию Iguana, включая UI-правила и актуальную архитектуру проекта
-🟠 [01-192] Зафиксировать production readiness checklist и runbook запуска Iguana
+🟣 [01-192] Зафиксировать production readiness checklist и runbook запуска Iguana
 🟣 [01-193] Ужесточить security bootstrap и secret contract spring-panel для production contour
 🟠 [01-194] Внедрить базовый observability stack и SLI/SLO для production contour
 🟠 [01-195] Усилить надежность ingress/egress интеграций и внутреннего API

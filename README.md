@@ -11,6 +11,8 @@ Iguana - многоканальная support CRM и операторская п
 
 Если нужен один главный документ по текущему состоянию проекта на `25 августа 2026 года`, начинайте с [docs/CURRENT_PROJECT_DOCUMENTATION.md](docs/CURRENT_PROJECT_DOCUMENTATION.md).
 
+Если нужен именно production launch runbook с checklist, cutover, smoke и rollback, используйте [docs/runbooks/production-launch-checklist.md](docs/runbooks/production-launch-checklist.md).
+
 В нём собраны:
 
 - актуальная архитектура `spring-panel` и `java-bot`;
@@ -188,6 +190,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 ### Старт и эксплуатация
 
 - [docs/IGUANA_PROJECT_GUIDE.md](docs/IGUANA_PROJECT_GUIDE.md)
+- [docs/runbooks/production-launch-checklist.md](docs/runbooks/production-launch-checklist.md)
 - [docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md](docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md)
 - [docs/IGUANA_TRANSFER_WINDOWS.md](docs/IGUANA_TRANSFER_WINDOWS.md)
 - [docs/windows_setup.md](docs/windows_setup.md)

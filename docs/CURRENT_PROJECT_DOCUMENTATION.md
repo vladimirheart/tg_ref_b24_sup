@@ -32,6 +32,7 @@
 3. Для запуска и окружения открыть [IGUANA_PROJECT_GUIDE.md](./IGUANA_PROJECT_GUIDE.md), [configuration.md](./configuration.md), [environment_variables.md](./environment_variables.md).
 4. Для данных и storage открыть [database-paths.md](./database-paths.md), [database_distribution.md](./database_distribution.md), [IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md](./IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md).
 5. Для production target-state открыть [target-production-architecture-plan.md](./target-production-architecture-plan.md), [POSTGRESQL_FIRST_READINESS_CLOSEOUT.md](./POSTGRESQL_FIRST_READINESS_CLOSEOUT.md) и [runbooks/postgresql-production-contour.md](./runbooks/postgresql-production-contour.md).
+6. Для реального go-live checklist и пошагового запуска открыть [runbooks/production-launch-checklist.md](./runbooks/production-launch-checklist.md).
 
 ## 3. Текущее архитектурное состояние
 
