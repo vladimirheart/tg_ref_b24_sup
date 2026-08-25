@@ -9976,6 +9976,69 @@ body[data-ui-page=users] .admin-empty-cell {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/* Incident detail density + readable cause header v34b */
+[data-ui-page=incidents] .incident-detail-columns > .d-grid {
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
+[data-ui-page=incidents] .incident-detail-header-reason {
+  flex: 1 1 24rem;
+  min-width: min(18rem, 100%);
+  max-width: 52rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+[data-ui-page=incidents] .incident-metadata-card {
+  align-self: start;
+}
+
+[data-ui-page=incidents] .incident-metadata-list {
+  display: grid;
+  gap: 0;
+  padding: 0.3rem 0.85rem;
+}
+
+[data-ui-page=incidents] .incident-metadata-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.75fr) minmax(0, 1.25fr);
+  gap: 0.45rem 0.75rem;
+  align-items: start;
+  padding: 0.48rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+
+[data-ui-page=incidents] .incident-metadata-row:last-child {
+  border-bottom: 0;
+}
+
+[data-ui-page=incidents] .incident-metadata-label {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+[data-ui-page=incidents] .incident-metadata-value {
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 575.98px) {
+  [data-ui-page=incidents] .incident-detail-header-reason {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  [data-ui-page=incidents] .incident-metadata-row {
+    grid-template-columns: 1fr;
+    gap: 0.12rem;
+  }
+}
 /* Calm Operations interaction policy v9 */
 /*
  * Structural surfaces stay spatially stable on hover.

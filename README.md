@@ -7,6 +7,17 @@ Iguana - многоканальная support CRM и операторская п
 
 Этот репозиторий ориентирован в первую очередь на Windows-эксплуатацию, но содержит и Linux-скрипты запуска. Основной UI и orchestration живут в `spring-panel`, а транспортные боты и shared runtime - в `java-bot`.
 
+## Актуальная документация
+
+Если нужен один главный документ по текущему состоянию проекта на `25 августа 2026 года`, начинайте с [docs/CURRENT_PROJECT_DOCUMENTATION.md](docs/CURRENT_PROJECT_DOCUMENTATION.md).
+
+В нём собраны:
+
+- актуальная архитектура `spring-panel` и `java-bot`;
+- текущие правила UI и client-side runtime;
+- ownership данных, storage и infrastructure contour;
+- карта модулей, потоков данных и практические правила развития проекта.
+
 ## Что есть в системе
 
 - операторская панель с очередью обращений, историей сообщений, назначением ответственных и SLA;
@@ -197,6 +208,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 
 ### Архитектура и развитие
 
+- [docs/CURRENT_PROJECT_DOCUMENTATION.md](docs/CURRENT_PROJECT_DOCUMENTATION.md)
 - [docs/OOP_ARCHITECTURE_OVERVIEW.md](docs/OOP_ARCHITECTURE_OVERVIEW.md)
 - [docs/ARCHITECTURE_AUDIT_2026-04-08.md](docs/ARCHITECTURE_AUDIT_2026-04-08.md)
 - [docs/ARCH_UI_REFACTORING_ROADMAP_2026-04-15.md](docs/ARCH_UI_REFACTORING_ROADMAP_2026-04-15.md)

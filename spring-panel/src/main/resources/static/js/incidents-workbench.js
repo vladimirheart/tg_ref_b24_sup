@@ -5,6 +5,7 @@
   }
 
   const detailNode = document.getElementById('incidentWorkbenchDetail');
+  const detailReasonNode = document.getElementById('incidentWorkbenchDetailReason');
   const errorNode = document.getElementById('incidentWorkbenchError');
   const successNode = document.getElementById('incidentWorkbenchSuccess');
   const listMetaNode = document.getElementById('incidentWorkbenchListMeta');
@@ -59,6 +60,57 @@
     return INCIDENT_STATUS_OPTIONS.find((item) => item.value === normalized)?.label || normalized || '—';
   }
 
+  function incidentCauseText(incident) {
+    if (!incident || typeof incident !== 'object') return '';
+
+    const signalType = String(incident.signal_type || '').trim().toLowerCase();
+    const signalKey = String(incident.signal_key || '').trim().toLowerCase();
+    const summary = String(incident.summary || '').trim();
+    const description = String(incident.description || '').trim();
+
+    if (signalType === 'integration_transport') {
+      if (signalKey === 'panel-rabbitmq-bridge') {
+        return '\u0412 \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u043e\u043d\u043d\u043e\u043c \u0442\u0440\u0430\u043d\u0441\u043f\u043e\u0440\u0442\u0435 \u043d\u0430\u043a\u043e\u043f\u0438\u043b\u0438\u0441\u044c \u043e\u0448\u0438\u0431\u043a\u0438, \u0437\u0430\u0432\u0438\u0441\u0448\u0438\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u044f \u0438\u043b\u0438 \u043d\u0435\u043e\u0431\u0440\u0430\u0431\u043e\u0442\u0430\u043d\u043d\u0430\u044f \u043e\u0447\u0435\u0440\u0435\u0434\u044c.';
+      }
+      if (signalKey === 'panel-runtime-checkpoints') {
+        return '\u041e\u0434\u0438\u043d \u0438\u043b\u0438 \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0444\u043e\u043d\u043e\u0432\u044b\u0445 \u043f\u0440\u043e\u0446\u0435\u0441\u0441\u043e\u0432 \u043f\u0435\u0440\u0435\u0441\u0442\u0430\u043b\u0438 \u0432\u043e\u0432\u0440\u0435\u043c\u044f \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u0442\u044c \u043a\u043e\u043d\u0442\u0440\u043e\u043b\u044c\u043d\u0443\u044e \u0442\u043e\u0447\u043a\u0443.';
+      }
+      if (signalKey === 'panel-transport-sustained-pressure') {
+        return '\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u044b \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u043e\u043d\u043d\u043e\u0433\u043e \u0442\u0440\u0430\u043d\u0441\u043f\u043e\u0440\u0442\u0430 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u044e\u0442\u0441\u044f \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0446\u0438\u043a\u043b\u043e\u0432 \u043c\u043e\u043d\u0438\u0442\u043e\u0440\u0438\u043d\u0433\u0430 \u043f\u043e\u0434\u0440\u044f\u0434.';
+      }
+      if (summary === 'Worker checkpoint stale beyond TTL.') {
+        return '\u0424\u043e\u043d\u043e\u0432\u044b\u0439 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u0434\u0430\u0432\u043d\u043e \u043d\u0435 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u043b \u043a\u043e\u043d\u0442\u0440\u043e\u043b\u044c\u043d\u0443\u044e \u0442\u043e\u0447\u043a\u0443 \u0438 \u0441\u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044f \u0437\u0430\u0432\u0438\u0441\u0448\u0438\u043c.';
+      }
+      if (summary === 'Worker checkpoint shows persistent cursor lag or sustained pressure.') {
+        return '\u0424\u043e\u043d\u043e\u0432\u044b\u0439 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a \u0443\u0441\u0442\u043e\u0439\u0447\u0438\u0432\u043e \u043e\u0442\u0441\u0442\u0430\u0451\u0442 \u043e\u0442 \u0432\u0445\u043e\u0434\u044f\u0449\u0435\u0433\u043e \u043f\u043e\u0442\u043e\u043a\u0430 \u0438\u043b\u0438 \u0434\u043b\u0438\u0442\u0435\u043b\u044c\u043d\u043e \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043f\u043e\u0434 \u043d\u0430\u0433\u0440\u0443\u0437\u043a\u043e\u0439.';
+      }
+    }
+
+    if (summary) return summary;
+
+    if (description) {
+      const firstLine = description.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+      if (firstLine) return firstLine;
+    }
+
+    return String(incident.title || '').trim();
+  }
+
+  function renderIncidentHeaderReason(incident) {
+    if (!detailReasonNode) return;
+
+    const cause = incidentCauseText(incident);
+    if (!cause) {
+      detailReasonNode.textContent = '';
+      detailReasonNode.classList.add('d-none');
+      detailReasonNode.removeAttribute('title');
+      return;
+    }
+
+    detailReasonNode.textContent = `\u041f\u0440\u0438\u0447\u0438\u043d\u0430: ${cause}`;
+    detailReasonNode.setAttribute('title', cause);
+    detailReasonNode.classList.remove('d-none');
+  }
   function renderIncidentStatusOptions(currentStatus) {
     return INCIDENT_STATUS_OPTIONS.map((item) => `
       <option value="${escapeHtml(item.value)}" ${item.value === currentStatus ? 'selected' : ''}>${escapeHtml(item.label)}</option>
@@ -969,6 +1021,7 @@ function restoreIncidentDetailFocus(
 	// Старый detail больше нельзя использовать для действий,
 	// пока загружается новый incident.
 	state.selectedIncident = null;
+    renderIncidentHeaderReason(null);
 
     renderIncidentList();
 
@@ -1043,8 +1096,18 @@ function restoreIncidentDetailFocus(
     return `<div class="incident-surface-item"><div class="small text-muted mb-1">${escapeHtml(label)}</div><div>${escapeHtml(value || '—')}</div></div>`;
   }
 
+  function renderMetadataRow(label, value) {
+    return `
+      <div class="incident-metadata-row">
+        <div class="incident-metadata-label">${escapeHtml(label)}</div>
+        <div class="incident-metadata-value">${escapeHtml(value || '\u2014')}</div>
+      </div>
+    `;
+  }
   function renderIncidentDetail() {
     const incident = state.selectedIncident;
+
+    renderIncidentHeaderReason(incident);
 
     if (!incident) {
         state.incidentDetailDirty = false;
@@ -1161,13 +1224,13 @@ function restoreIncidentDetailFocus(
           </section>
         </div>
         <div class="d-grid gap-3">
-          <section class="card">
+          <section class="card incident-metadata-card">
             <div class="card-header"><strong>Metadata</strong></div>
-            <div class="card-body incident-meta-list">
-              ${renderKeyValue('Signal type', incident.signal_type || '—')}
-              ${renderKeyValue('Signal key', incident.signal_key || '—')}
-              ${renderKeyValue('Создал', incident.created_by || '—')}
-              ${renderKeyValue('Обновлён', formatDate(incident.updated_at))}
+            <div class="card-body incident-metadata-list">
+              ${renderMetadataRow('Signal type', incident.signal_type || '\u2014')}
+              ${renderMetadataRow('Signal key', incident.signal_key || '\u2014')}
+              ${renderMetadataRow('\u0421\u043e\u0437\u0434\u0430\u043b', incident.created_by || '\u2014')}
+              ${renderMetadataRow('\u041e\u0431\u043d\u043e\u0432\u043b\u0451\u043d', formatDate(incident.updated_at))}
             </div>
           </section>
           <section class="card">
