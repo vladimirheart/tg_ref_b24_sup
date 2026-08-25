@@ -15,6 +15,8 @@ Iguana - многоканальная support CRM и операторская п
 
 Для детального интеграционного контракта по webhook ingress, internal bot API, request signing, idempotency, retries, DLQ и replay используйте [docs/integration-contract-hardening.md](docs/integration-contract-hardening.md).
 
+Для отдельного rehearsal миграции, сверки данных и пошагового production smoke используйте [docs/runbooks/postgresql-cutover-rehearsal.md](docs/runbooks/postgresql-cutover-rehearsal.md) и [docs/runbooks/production-e2e-smoke.md](docs/runbooks/production-e2e-smoke.md).
+
 В нём собраны:
 
 - актуальная архитектура `spring-panel` и `java-bot`;
@@ -193,6 +195,8 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 
 - [docs/IGUANA_PROJECT_GUIDE.md](docs/IGUANA_PROJECT_GUIDE.md)
 - [docs/runbooks/production-launch-checklist.md](docs/runbooks/production-launch-checklist.md)
+- [docs/runbooks/postgresql-cutover-rehearsal.md](docs/runbooks/postgresql-cutover-rehearsal.md)
+- [docs/runbooks/production-e2e-smoke.md](docs/runbooks/production-e2e-smoke.md)
 - [docs/observability-baseline.md](docs/observability-baseline.md)
 - [docs/integration-contract-hardening.md](docs/integration-contract-hardening.md)
 - [docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md](docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md)

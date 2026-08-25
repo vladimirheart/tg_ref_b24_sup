@@ -18,6 +18,8 @@
 
 - [POSTGRESQL_FULL_PRODUCTION_GAP_AUDIT.md](../POSTGRESQL_FULL_PRODUCTION_GAP_AUDIT.md)
 - [postgresql-production-contour.md](./postgresql-production-contour.md)
+- [postgresql-cutover-rehearsal.md](./postgresql-cutover-rehearsal.md)
+- [production-e2e-smoke.md](./production-e2e-smoke.md)
 - [BOT_RUNTIME_CONTRACT.md](../BOT_RUNTIME_CONTRACT.md)
 - [environment_variables.md](../environment_variables.md)
 - [observability-baseline.md](../observability-baseline.md)
@@ -248,6 +250,8 @@ SUPPORT_BOT_DATABASE_PATH
 
 ### 8.3. Rehearsal
 
+Подробный сценарий выполнять по [postgresql-cutover-rehearsal.md](./postgresql-cutover-rehearsal.md).
+
 - Прогнать staging или pre-prod сценарий запуска.
 - Прогнать smoke:
   - inbound message
@@ -296,6 +300,8 @@ SUPPORT_BOT_DATABASE_PATH
 ## 10. Smoke после запуска
 
 Минимальный production smoke:
+
+Подробный пошаговый пакет выполнять по [production-e2e-smoke.md](./production-e2e-smoke.md).
 
 ### 10.1. Входящий путь
 
