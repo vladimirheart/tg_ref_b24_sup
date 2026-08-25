@@ -78,6 +78,13 @@ class IncidentServiceTest {
             }
             return incident;
         });
+        when(incidentRepository.saveAndFlush(any(Incident.class))).thenAnswer(invocation -> {
+            Incident incident = invocation.getArgument(0);
+            if (incident.getId() == null) {
+                incident.setId(77L);
+            }
+            return incident;
+        });
         when(incidentRelationRepository.save(any(IncidentRelation.class))).thenAnswer(invocation -> {
             IncidentRelation relation = invocation.getArgument(0);
             relation.setId(relationIds.getAndIncrement());
@@ -158,5 +165,86 @@ class IncidentServiceTest {
         assertThat((List<?>) incident.get("events")).hasSize(1);
         verify(notificationRoutingService).notify(eq("incidents"), eq("incident_created"), any(), any(), any(), eq("Commander"));
         verify(incidentRouteDeliveryOutboxService).enqueueIncidentRoutes(any(Incident.class), eq("incident_created"), eq("Incident создан"), any(), eq("Commander"));
+    }
+
+    @Test
+    void signalIncidentDetailsKeepStructuredPayloadForWorkbench() {
+        IncidentRepository incidentRepository = mock(IncidentRepository.class);
+        IncidentEventRepository incidentEventRepository = mock(IncidentEventRepository.class);
+        IncidentRelationRepository incidentRelationRepository = mock(IncidentRelationRepository.class);
+        IncidentWatcherRepository incidentWatcherRepository = mock(IncidentWatcherRepository.class);
+        IncidentRouteRepository incidentRouteRepository = mock(IncidentRouteRepository.class);
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        TaskRepository taskRepository = mock(TaskRepository.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        NotificationRoutingService notificationRoutingService = mock(NotificationRoutingService.class);
+        IncidentRouteDeliveryOutboxService incidentRouteDeliveryOutboxService = mock(IncidentRouteDeliveryOutboxService.class);
+
+        IncidentService service = new IncidentService(
+            incidentRepository,
+            incidentEventRepository,
+            incidentRelationRepository,
+            incidentWatcherRepository,
+            incidentRouteRepository,
+            ticketRepository,
+            taskRepository,
+            jdbcTemplate,
+            new ObjectMapper(),
+            notificationRoutingService,
+            incidentRouteDeliveryOutboxService
+        );
+
+        AtomicLong eventIds = new AtomicLong(1L);
+        List<IncidentEvent> savedEvents = new ArrayList<>();
+        Incident[] holder = new Incident[1];
+
+        when(incidentRepository.findBySignalTypeAndSignalKeyOrderByUpdatedAtDescIdDesc("credential_rotation", "settings.netbox.api_token"))
+            .thenReturn(List.of());
+        when(incidentRepository.saveAndFlush(any(Incident.class))).thenAnswer(invocation -> {
+            Incident incident = invocation.getArgument(0);
+            if (incident.getId() == null) {
+                incident.setId(91L);
+            }
+            holder[0] = incident;
+            return incident;
+        });
+        when(incidentRepository.findById(91L)).thenAnswer(invocation -> Optional.of(holder[0]));
+        when(incidentEventRepository.save(any(IncidentEvent.class))).thenAnswer(invocation -> {
+            IncidentEvent event = invocation.getArgument(0);
+            event.setId(eventIds.getAndIncrement());
+            savedEvents.add(event);
+            return event;
+        });
+        when(incidentRelationRepository.findByIncidentIdOrderByPrimaryRelationDescCreatedAtAscIdAsc(91L)).thenReturn(List.of());
+        when(incidentWatcherRepository.findByIncidentIdOrderByWatcherIdentityAsc(91L)).thenReturn(List.of());
+        when(incidentRouteRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(91L)).thenReturn(List.of());
+        when(incidentEventRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(91L)).thenAnswer(invocation -> new ArrayList<>(savedEvents));
+
+        service.openOrRefreshSignalIncident(
+            "credential_rotation",
+            "settings.netbox.api_token",
+            "Критичный риск по секрету: NetBox sync API token",
+            "Источник найден, но секрет пустой.",
+            "Диагноз: Источник найден, но секрет пустой.",
+            "critical",
+            "credential_rotation_registry",
+            Map.of(
+                "signal_family", "credential_rotation",
+                "incident_reason", "Источник найден, но секрет пустой.",
+                "incident_severity_reason", "Incident создаётся только для critical-состояний."
+            ),
+            "system"
+        );
+
+        Map<String, Object> response = service.getIncident(91L);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> incident = (Map<String, Object>) response.get("incident");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> events = (List<Map<String, Object>>) incident.get("events");
+
+        assertThat(events).hasSize(1);
+        assertThat(String.valueOf(events.get(0).get("payload_json")))
+            .contains("\"signal_family\":\"credential_rotation\"")
+            .contains("\"incident_reason\":\"Источник найден, но секрет пустой.\"");
     }
 }

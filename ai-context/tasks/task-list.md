@@ -229,3 +229,4 @@
 🟣 [01-207] Расширить provider delivery ledger на edit/delete reply-path и runtime-инициированные outbound senders вне operator quick-actions
 🟣 [01-208] Собрать dockerized production contour Iguana и развести lifecycle panel и bot runtime
 🟣 [01-209] Починить bootstrap secret contract локального PostgreSQL-контура для Windows launcher
+🟡 [01-210] Сделать incidents workbench понятным для credential rotation сигналов и объяснить severity policy

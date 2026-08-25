@@ -1000,19 +1000,28 @@ public class CredentialRotationRegistryService {
     }
 
     private String buildIncidentTitle(CredentialRotationRegistryEntry item) {
-        return "Credential rotation critical: " + defaultIfBlank(item.getDisplayName(), defaultIfBlank(item.getEntryKey(), "credential"));
+        return "Критичный риск по секрету: "
+            + defaultIfBlank(item.getDisplayName(), defaultIfBlank(item.getEntryKey(), "секрет"));
     }
 
     private String buildIncidentSummary(CredentialRotationRegistryEntry item) {
-        return defaultIfBlank(item.getStatusReason(), defaultIfBlank(item.getLastStatus(), "Credential rotation alert"));
+        String reason = defaultIfBlank(item.getStatusReason(), "").trim();
+        if (StringUtils.hasText(reason)) {
+            return reason;
+        }
+        return buildIncidentStatusLabel(item);
     }
 
     private String buildIncidentDescription(CredentialRotationRegistryEntry item) {
         return """
-            Credential rotation registry detected a critical secret hygiene condition.
-            Review owner/rotation metadata, verify the integration source and resolve the secret lifecycle risk.
-            Use the credential rotation analytics page for registry history and related monitoring context.
-            """.trim();
+            Диагноз: %s
+            Почему severity = critical: %s
+            Следующее действие: %s
+            """.formatted(
+            buildIncidentSummary(item),
+            buildIncidentSeverityExplanation(item),
+            buildIncidentNextAction(item)
+        ).trim();
     }
 
     private String buildIncidentResolvedText(CredentialRotationRegistryEntry item) {
@@ -1042,7 +1051,60 @@ public class CredentialRotationRegistryService {
         payload.put("note", defaultIfBlank(item.getNote(), ""));
         payload.put("last_checked_at", stringifyTimestamp(item.getLastCheckedAt()));
         payload.put("last_seen_at", stringifyTimestamp(item.getLastSeenAt()));
+        payload.put("signal_family", "credential_rotation");
+        payload.put("incident_reason", buildIncidentSummary(item));
+        payload.put("incident_status_label", buildIncidentStatusLabel(item));
+        payload.put("incident_severity_policy", buildIncidentSeverityPolicy());
+        payload.put("incident_severity_reason", buildIncidentSeverityExplanation(item));
+        payload.put("incident_next_action", buildIncidentNextAction(item));
+        payload.put("incident_warning_handling", "warning состояния остаются на странице аналитики credential rotation и не создают incident.");
+        payload.put("incident_escalates_to_workbench", Boolean.TRUE);
         return payload;
+    }
+
+    private String buildIncidentStatusLabel(CredentialRotationRegistryEntry item) {
+        String status = normalizeKey(item.getLastStatus(), "");
+        return switch (status) {
+            case STATUS_SOURCE_REMOVED -> "Источник секрета больше не найден в рабочей конфигурации.";
+            case STATUS_MISSING_SECRET -> "Источник найден, но секрет пустой, не сохранён или недоступен для runtime.";
+            case STATUS_EXPIRED -> "Срок действия секрета уже истёк.";
+            case STATUS_EXPIRES_SOON -> "Секрет находится в критическом окне до истечения срока действия.";
+            case STATUS_ROTATION_OVERDUE -> "Плановая ротация секрета уже просрочена.";
+            case STATUS_ROTATION_DUE_SOON -> "Плановая ротация секрета вошла в критическое окно.";
+            default -> defaultIfBlank(item.getStatusReason(), "Обнаружено критичное состояние credential rotation.");
+        };
+    }
+
+    private String buildIncidentSeverityPolicy() {
+        return "Incident для credential rotation создаётся только когда статус реестра уже critical. "
+            + "Warning-состояния остаются на аналитической странице credential rotation и не эскалируются в incidents workbench.";
+    }
+
+    private String buildIncidentSeverityExplanation(CredentialRotationRegistryEntry item) {
+        String status = normalizeKey(item.getLastStatus(), "");
+        String trigger = switch (status) {
+            case STATUS_SOURCE_REMOVED -> "источник секрета исчез из рабочей конфигурации";
+            case STATUS_MISSING_SECRET -> "источник найден, но значение секрета пустое или не сохранено";
+            case STATUS_EXPIRED -> "срок действия секрета уже истёк";
+            case STATUS_EXPIRES_SOON -> "до истечения секрета осталось 7 дней или меньше";
+            case STATUS_ROTATION_OVERDUE -> "плановая ротация уже просрочена";
+            case STATUS_ROTATION_DUE_SOON -> "до плановой ротации осталось 7 дней или меньше";
+            default -> "реестр пометил запись как critical";
+        };
+        return buildIncidentSeverityPolicy() + " Текущий incident открыт, потому что " + trigger + ".";
+    }
+
+    private String buildIncidentNextAction(CredentialRotationRegistryEntry item) {
+        String status = normalizeKey(item.getLastStatus(), "");
+        return switch (status) {
+            case STATUS_SOURCE_REMOVED -> "Проверьте, не была ли удалена или переименована интеграция, переменная окружения или запись в settings/shared config, и восстановите источник.";
+            case STATUS_MISSING_SECRET -> "Откройте источник конфигурации, заново сохраните секрет и убедитесь, что runtime действительно видит непустое значение.";
+            case STATUS_EXPIRED -> "Немедленно перевыпустите секрет, сохраните новое значение в источнике и подтвердите рабочий контур интеграции.";
+            case STATUS_EXPIRES_SOON -> "Запланируйте перевыпуск прямо сейчас: секрет уже в критическом окне до истечения.";
+            case STATUS_ROTATION_OVERDUE -> "Проведите плановую ротацию немедленно и обновите rotated_at / interval metadata.";
+            case STATUS_ROTATION_DUE_SOON -> "Подтвердите владельца и выполните плановую ротацию до дедлайна, пока окно не стало просроченным.";
+            default -> "Откройте credential rotation analytics, проверьте owner/expiry/rotation metadata и восстановите корректное состояние секрета.";
+        };
     }
 
     private String stringifyTimestamp(OffsetDateTime value) {

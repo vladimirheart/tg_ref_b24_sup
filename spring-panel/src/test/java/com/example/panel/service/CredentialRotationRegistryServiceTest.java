@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -256,6 +257,103 @@ class CredentialRotationRegistryServiceTest {
             anyMap(),
             eq("system")
         );
+    }
+
+    @Test
+    void buildSnapshotOpensReadableMissingSecretIncidentPayload() {
+        CredentialRotationRegistryRepository repository = mock(CredentialRotationRegistryRepository.class);
+        MonitoringCheckHistoryRepository historyRepository = mock(MonitoringCheckHistoryRepository.class);
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        ChannelRepository channelRepository = mock(ChannelRepository.class);
+        IikoApiMonitorRepository iikoApiMonitorRepository = mock(IikoApiMonitorRepository.class);
+        LocationsIikoServerSourceSettingsService locationsService = mock(LocationsIikoServerSourceSettingsService.class);
+        NetBoxSyncSettingsService netBoxService = mock(NetBoxSyncSettingsService.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        PanelSecurityProperties securityProperties = new PanelSecurityProperties();
+        Environment environment = mock(Environment.class);
+        IncidentService incidentService = mock(IncidentService.class);
+        CredentialRotationExternalMetadataImportService externalMetadataImportService =
+            mock(CredentialRotationExternalMetadataImportService.class);
+
+        Map<String, Object> settings = new LinkedHashMap<>();
+        settings.put("netbox_sync", Map.of(
+            "base_url", "https://netbox.example.test",
+            "api_token", ""
+        ));
+        when(sharedConfigService.loadSettings()).thenReturn(settings);
+        when(externalMetadataImportService.loadImportedMetadata(settings)).thenReturn(Map.of());
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        when(channelRepository.findAll()).thenReturn(List.of());
+        when(iikoApiMonitorRepository.findAllByOrderByMonitorNameAscIdAsc()).thenReturn(List.of());
+        when(locationsService.loadForRuntime(settings)).thenReturn(List.of());
+        when(netBoxService.load(settings)).thenReturn(new NetBoxSyncSettingsService.NetBoxSyncSettings(
+            "https://netbox.example.test",
+            "",
+            true,
+            60,
+            false,
+            List.of("site-1")
+        ));
+        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.v1"))).thenReturn(List.of());
+        when(environment.getProperty("app.bots.internal-api.token", "iguana-internal-bot-token")).thenReturn("");
+        when(environment.getProperty("app.bots.internal-api.signature-secret", "")).thenReturn("");
+        securityProperties.setRememberMeKey("");
+
+        when(repository.findAllByOrderByDisplayNameAscIdAsc()).thenReturn(List.of());
+        AtomicLong sequence = new AtomicLong(1L);
+        doAnswer(invocation -> {
+            CredentialRotationRegistryEntry item = invocation.getArgument(0);
+            if (item.getId() == null) {
+                item.setId(sequence.getAndIncrement());
+            }
+            return item;
+        }).when(repository).save(any(CredentialRotationRegistryEntry.class));
+
+        CredentialRotationRegistryService service = new CredentialRotationRegistryService(
+            repository,
+            historyRepository,
+            sharedConfigService,
+            channelRepository,
+            iikoApiMonitorRepository,
+            locationsService,
+            netBoxService,
+            jdbcTemplate,
+            securityProperties,
+            new ObjectMapper(),
+            externalMetadataImportService,
+            incidentService,
+            environment,
+            Clock.fixed(Instant.parse("2026-08-25T12:00:00Z"), ZoneOffset.UTC)
+        );
+
+        service.buildSnapshot();
+
+        ArgumentCaptor<String> summaryCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> descriptionCaptor = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass((Class<Map<String, Object>>) (Class<?>) Map.class);
+
+        verify(incidentService).openOrRefreshSignalIncident(
+            eq(CredentialRotationRegistryService.INCIDENT_SIGNAL_TYPE),
+            eq("settings.netbox.api_token"),
+            any(),
+            summaryCaptor.capture(),
+            descriptionCaptor.capture(),
+            eq(CredentialRotationRegistryService.LEVEL_CRITICAL),
+            eq("credential_rotation_registry"),
+            payloadCaptor.capture(),
+            eq("system")
+        );
+
+        assertThat(summaryCaptor.getValue()).contains("секрет").doesNotContain("hygiene condition");
+        assertThat(descriptionCaptor.getValue()).contains("Почему severity = critical").contains("Следующее действие");
+        assertThat(payloadCaptor.getValue())
+            .containsEntry("signal_family", "credential_rotation")
+            .containsEntry("incident_escalates_to_workbench", true);
+        assertThat(String.valueOf(payloadCaptor.getValue().get("incident_severity_policy")))
+            .contains("Warning-состояния");
+        assertThat(String.valueOf(payloadCaptor.getValue().get("incident_next_action")))
+            .contains("заново сохраните секрет");
     }
 
     @Test
