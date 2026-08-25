@@ -70,6 +70,26 @@ rem containing exclamation marks are not corrupted.
 rem ---------------------------------------------------------------------------
 
 if exist "%WORKSPACE_ROOT%\.env" (
+    if exist "%WORKSPACE_ROOT%\scripts\ensure-local-bootstrap-secrets.ps1" (
+        powershell.exe ^
+            -NoLogo ^
+            -NoProfile ^
+            -ExecutionPolicy Bypass ^
+            -File "%WORKSPACE_ROOT%\scripts\ensure-local-bootstrap-secrets.ps1" ^
+            -EnvFile "%WORKSPACE_ROOT%\.env"
+
+        if errorlevel 1 (
+            echo [ERROR] Failed to ensure local bootstrap secrets in repository .env file.
+            set "EXIT_CODE=1"
+            goto :Exit
+        )
+    ) else (
+        echo [ERROR] Missing local bootstrap secret helper:
+        echo [ERROR] %WORKSPACE_ROOT%\scripts\ensure-local-bootstrap-secrets.ps1
+        set "EXIT_CODE=1"
+        goto :Exit
+    )
+
     call :LoadEnvFile "%WORKSPACE_ROOT%\.env"
 
     if errorlevel 1 (

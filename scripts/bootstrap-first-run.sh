@@ -63,12 +63,39 @@ docker_compose_available() {
   docker info >/dev/null 2>&1 || return 1
 }
 
+generate_secret() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex 32
+    return
+  fi
+  if [[ -r /dev/urandom ]]; then
+    od -An -N32 -tx1 /dev/urandom | tr -d ' \n'
+    return
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - <<'PY'
+import secrets
+print(secrets.token_hex(32))
+PY
+    return
+  fi
+  echo "[ERROR] Unable to generate a secure bootstrap secret." >&2
+  exit 1
+}
+
 build_env_file() {
   local mode="$1"
   local port="$2"
   local transport_mode="$3"
   local rabbit_amqp_port="$4"
   local rabbit_http_port="$5"
+  local internal_bot_api_token=""
+  local remember_me_key=""
+
+  if [[ "${mode}" == "postgresql" ]]; then
+    internal_bot_api_token="$(generate_secret)"
+    remember_me_key="$(generate_secret)"
+  fi
 
   cat <<EOF
 # Iguana first-run bootstrap
@@ -89,6 +116,8 @@ SPRING_DATASOURCE_PASSWORD=iguana
 APP_COORDINATION_MODE=direct
 APP_COORDINATION_REQUIRED_FOR_POSTGRESQL=false
 APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL=false
+APP_INTERNAL_BOT_API_TOKEN=${internal_bot_api_token}
+APP_SECURITY_REMEMBER_ME_KEY=${remember_me_key}
 
 EOF
   else

@@ -155,6 +155,8 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 
 - default bootstrap-path должен завершаться в `PostgreSQL + RabbitMQ`;
 - SQLite допускается только как явный compatibility override (`IGUANA_BOOTSTRAP_DB_MODE=sqlite`) или как аварийный fallback при явно включённом `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=true`.
+- bootstrap-скрипты `scripts/bootstrap-first-run.ps1` и `scripts/bootstrap-first-run.sh` для локального PostgreSQL-контура теперь сразу генерируют `APP_INTERNAL_BOT_API_TOKEN` и `APP_SECURITY_REMEMBER_ME_KEY`;
+- `spring-panel/run-windows.bat` дополнительно умеет долечить старый локальный bootstrap-`.env`, если он был создан до этого изменения, но явные пользовательские env overrides по-прежнему имеют приоритет.
 
 Для containerized contour из [docs/docker-production-contour.md](docker-production-contour.md) действует ещё один практический инвариант:
 

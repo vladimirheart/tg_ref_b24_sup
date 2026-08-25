@@ -228,3 +228,4 @@
 🟣 [01-206] Подключить alerting и SLO burn-rate по sustained provider delivery failures / rate-limit pressure из provider delivery ledger
 🟣 [01-207] Расширить provider delivery ledger на edit/delete reply-path и runtime-инициированные outbound senders вне operator quick-actions
 🟣 [01-208] Собрать dockerized production contour Iguana и развести lifecycle panel и bot runtime
+🟣 [01-209] Починить bootstrap secret contract локального PostgreSQL-контура для Windows launcher
