@@ -50,6 +50,8 @@ class CredentialRotationRegistryServiceTest {
         PanelSecurityProperties securityProperties = new PanelSecurityProperties();
         Environment environment = mock(Environment.class);
         IncidentService incidentService = mock(IncidentService.class);
+        CredentialRotationExternalMetadataImportService externalMetadataImportService =
+            mock(CredentialRotationExternalMetadataImportService.class);
 
         Map<String, Object> settings = new LinkedHashMap<>();
         settings.put("knowledge_base_config", Map.of("enabled", true, "token", "notion-token", "source_url", "https://notion.so/db"));
@@ -58,6 +60,7 @@ class CredentialRotationRegistryServiceTest {
             "workspace_client_external_profile_auth_token", "workspace-token"
         ));
         when(sharedConfigService.loadSettings()).thenReturn(settings);
+        when(externalMetadataImportService.loadImportedMetadata(settings)).thenReturn(Map.of());
         when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
             new BotCredential(10L, "Telegram Main", "telegram", "telegram-token", true)
         ));
@@ -141,6 +144,7 @@ class CredentialRotationRegistryServiceTest {
             jdbcTemplate,
             securityProperties,
             new ObjectMapper(),
+            externalMetadataImportService,
             incidentService,
             environment,
             Clock.fixed(Instant.parse("2026-08-25T12:00:00Z"), ZoneOffset.UTC)
@@ -185,8 +189,11 @@ class CredentialRotationRegistryServiceTest {
         PanelSecurityProperties securityProperties = new PanelSecurityProperties();
         Environment environment = mock(Environment.class);
         IncidentService incidentService = mock(IncidentService.class);
+        CredentialRotationExternalMetadataImportService externalMetadataImportService =
+            mock(CredentialRotationExternalMetadataImportService.class);
 
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        when(externalMetadataImportService.loadImportedMetadata(Map.of())).thenReturn(Map.of());
         when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
         when(channelRepository.findAll()).thenReturn(List.of());
         when(iikoApiMonitorRepository.findAllByOrderByMonitorNameAscIdAsc()).thenReturn(List.of());
@@ -222,6 +229,7 @@ class CredentialRotationRegistryServiceTest {
             jdbcTemplate,
             securityProperties,
             new ObjectMapper(),
+            externalMetadataImportService,
             incidentService,
             environment,
             Clock.fixed(Instant.parse("2026-08-25T12:00:00Z"), ZoneOffset.UTC)
@@ -263,6 +271,8 @@ class CredentialRotationRegistryServiceTest {
         PanelSecurityProperties securityProperties = new PanelSecurityProperties();
         Environment environment = mock(Environment.class);
         IncidentService incidentService = mock(IncidentService.class);
+        CredentialRotationExternalMetadataImportService externalMetadataImportService =
+            mock(CredentialRotationExternalMetadataImportService.class);
 
         CredentialRotationRegistryEntry entry = new CredentialRotationRegistryEntry();
         entry.setId(15L);
@@ -290,6 +300,7 @@ class CredentialRotationRegistryServiceTest {
             jdbcTemplate,
             securityProperties,
             new ObjectMapper(),
+            externalMetadataImportService,
             incidentService,
             environment,
             Clock.fixed(Instant.parse("2026-08-25T12:00:00Z"), ZoneOffset.UTC)
@@ -329,5 +340,147 @@ class CredentialRotationRegistryServiceTest {
             anyMap(),
             eq("system")
         );
+    }
+
+    @Test
+    void buildSnapshotDiscoversNetworkRouteSecretsAndAppliesImportedMetadata() {
+        CredentialRotationRegistryRepository repository = mock(CredentialRotationRegistryRepository.class);
+        MonitoringCheckHistoryRepository historyRepository = mock(MonitoringCheckHistoryRepository.class);
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        ChannelRepository channelRepository = mock(ChannelRepository.class);
+        IikoApiMonitorRepository iikoApiMonitorRepository = mock(IikoApiMonitorRepository.class);
+        LocationsIikoServerSourceSettingsService locationsService = mock(LocationsIikoServerSourceSettingsService.class);
+        NetBoxSyncSettingsService netBoxService = mock(NetBoxSyncSettingsService.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        PanelSecurityProperties securityProperties = new PanelSecurityProperties();
+        Environment environment = mock(Environment.class);
+        IncidentService incidentService = mock(IncidentService.class);
+        CredentialRotationExternalMetadataImportService externalMetadataImportService =
+            mock(CredentialRotationExternalMetadataImportService.class);
+
+        Map<String, Object> settings = new LinkedHashMap<>();
+        settings.put("integration_network", Map.of(
+            "project", Map.of(
+                "mode", "proxy",
+                "proxy", Map.of(
+                    "scheme", "http",
+                    "host", "corp-proxy.local",
+                    "port", 3128,
+                    "username", "svc_panel",
+                    "password", "proxy-password"
+                )
+            )
+        ));
+        settings.put("integration_network_profiles", List.of(
+            Map.of(
+                "id", "corp-vless",
+                "name", "Corp VLESS",
+                "mode", "proxy",
+                "proxy", Map.of(
+                    "scheme", "vless",
+                    "host", "vless.internal",
+                    "port", 7443,
+                    "token", "vless-token"
+                )
+            )
+        ));
+        when(sharedConfigService.loadSettings()).thenReturn(settings);
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        when(externalMetadataImportService.loadImportedMetadata(settings)).thenReturn(Map.of(
+            "network.project.proxy.password",
+            new CredentialRotationExternalMetadataImportService.ImportedMetadata(
+                "network.project.proxy.password",
+                "vault-main",
+                "network/project/proxy/password",
+                OffsetDateTime.parse("2026-12-31T00:00:00Z"),
+                OffsetDateTime.parse("2026-08-01T00:00:00Z"),
+                180,
+                "ops.network",
+                "Imported from vault metadata",
+                false
+            )
+        ));
+
+        Channel channel = new Channel();
+        channel.setId(8L);
+        channel.setChannelName("Retail Bot");
+        channel.setDeliverySettings("""
+            {
+              "network_route": {
+                "mode": "proxy",
+                "proxy": {
+                  "scheme": "socks5",
+                  "host": "bot-proxy.internal",
+                  "port": 1080,
+                  "username": "svc_bot",
+                  "password": "bot-proxy-password"
+                }
+              }
+            }
+            """);
+        when(channelRepository.findAll()).thenReturn(List.of(channel));
+
+        when(netBoxService.load(settings)).thenReturn(new NetBoxSyncSettingsService.NetBoxSyncSettings(
+            "",
+            "",
+            false,
+            60,
+            false,
+            List.of()
+        ));
+        when(locationsService.loadForRuntime(settings)).thenReturn(List.of());
+        when(iikoApiMonitorRepository.findAllByOrderByMonitorNameAscIdAsc()).thenReturn(List.of());
+        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.v1"))).thenReturn(List.of());
+        when(environment.getProperty("app.bots.internal-api.token", "iguana-internal-bot-token")).thenReturn("");
+        when(environment.getProperty("app.bots.internal-api.signature-secret", "")).thenReturn("");
+        securityProperties.setRememberMeKey("");
+
+        when(repository.findAllByOrderByDisplayNameAscIdAsc()).thenReturn(List.of());
+        AtomicLong sequence = new AtomicLong(1L);
+        doAnswer(invocation -> {
+            CredentialRotationRegistryEntry item = invocation.getArgument(0);
+            if (item.getId() == null) {
+                item.setId(sequence.getAndIncrement());
+            }
+            return item;
+        }).when(repository).save(any(CredentialRotationRegistryEntry.class));
+
+        CredentialRotationRegistryService service = new CredentialRotationRegistryService(
+            repository,
+            historyRepository,
+            sharedConfigService,
+            channelRepository,
+            iikoApiMonitorRepository,
+            locationsService,
+            netBoxService,
+            jdbcTemplate,
+            securityProperties,
+            new ObjectMapper(),
+            externalMetadataImportService,
+            incidentService,
+            environment,
+            Clock.fixed(Instant.parse("2026-08-25T12:00:00Z"), ZoneOffset.UTC)
+        );
+
+        CredentialRotationRegistryService.RegistrySnapshot snapshot = service.buildSnapshot();
+
+        assertThat(snapshot.items())
+            .extracting(CredentialRotationRegistryEntry::getEntryKey)
+            .contains(
+                "network.project.proxy.password",
+                "network.profile.corp-vless.proxy.token",
+                "channel.8.network_route.proxy.password"
+            );
+
+        CredentialRotationRegistryEntry importedEntry = snapshot.items().stream()
+            .filter(item -> "network.project.proxy.password".equals(item.getEntryKey()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(importedEntry.getExpiresAt()).isEqualTo(OffsetDateTime.parse("2026-12-31T00:00:00Z"));
+        assertThat(importedEntry.getRotatedAt()).isEqualTo(OffsetDateTime.parse("2026-08-01T00:00:00Z"));
+        assertThat(importedEntry.getRotationIntervalDays()).isEqualTo(180);
+        assertThat(importedEntry.getOwnerName()).isEqualTo("ops.network");
+        assertThat(importedEntry.getLastStatus()).isEqualTo(CredentialRotationRegistryService.STATUS_HEALTHY);
+        assertThat(importedEntry.getStatusLevel()).isEqualTo(CredentialRotationRegistryService.LEVEL_OK);
     }
 }

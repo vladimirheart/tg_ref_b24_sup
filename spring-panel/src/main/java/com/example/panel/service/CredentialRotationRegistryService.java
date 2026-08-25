@@ -69,6 +69,7 @@ public class CredentialRotationRegistryService {
     private final JdbcTemplate jdbcTemplate;
     private final PanelSecurityProperties panelSecurityProperties;
     private final ObjectMapper objectMapper;
+    private final CredentialRotationExternalMetadataImportService externalMetadataImportService;
     private final Environment environment;
     private final IncidentService incidentService;
     private final Clock clock;
@@ -83,6 +84,7 @@ public class CredentialRotationRegistryService {
                                              JdbcTemplate jdbcTemplate,
                                              PanelSecurityProperties panelSecurityProperties,
                                              ObjectMapper objectMapper,
+                                             CredentialRotationExternalMetadataImportService externalMetadataImportService,
                                              IncidentService incidentService,
                                              Environment environment) {
         this(
@@ -96,6 +98,7 @@ public class CredentialRotationRegistryService {
             jdbcTemplate,
             panelSecurityProperties,
             objectMapper,
+            externalMetadataImportService,
             incidentService,
             environment,
             Clock.systemUTC()
@@ -112,6 +115,7 @@ public class CredentialRotationRegistryService {
                                       JdbcTemplate jdbcTemplate,
                                       PanelSecurityProperties panelSecurityProperties,
                                       ObjectMapper objectMapper,
+                                      CredentialRotationExternalMetadataImportService externalMetadataImportService,
                                       IncidentService incidentService,
                                       Environment environment,
                                       Clock clock) {
@@ -125,6 +129,7 @@ public class CredentialRotationRegistryService {
         this.jdbcTemplate = jdbcTemplate;
         this.panelSecurityProperties = panelSecurityProperties;
         this.objectMapper = objectMapper;
+        this.externalMetadataImportService = externalMetadataImportService;
         this.incidentService = incidentService;
         this.environment = environment;
         this.clock = clock != null ? clock : Clock.systemUTC();
@@ -180,6 +185,8 @@ public class CredentialRotationRegistryService {
         }
 
         Map<String, DiscoveredCredential> discoveredByKey = discoverCredentials();
+        Map<String, CredentialRotationExternalMetadataImportService.ImportedMetadata> importedMetadataByEntryKey =
+            externalMetadataImportService.loadImportedMetadata(sharedConfigService.loadSettings());
         List<CredentialRotationRegistryEntry> refreshed = new ArrayList<>();
 
         for (DiscoveredCredential discovered : discoveredByKey.values()) {
@@ -195,6 +202,7 @@ public class CredentialRotationRegistryService {
                 item.setRotationIntervalDays(null);
             }
             applyDiscovery(item, discovered, now);
+            applyImportedMetadata(item, importedMetadataByEntryKey.get(discovered.entryKey()));
             applyStatus(item, now);
             repository.save(item);
             if (recordHistory) {
@@ -251,6 +259,8 @@ public class CredentialRotationRegistryService {
         addLegacyChannelTokens(discovered, channels);
         addChannelWebhookSecrets(discovered, channels);
         addSettingsSecrets(discovered, settings);
+        addSettingsNetworkRouteSecrets(discovered, settings);
+        addChannelNetworkRouteSecrets(discovered, channels);
         addLocationsIikoServerSources(discovered, settings);
         addIikoApiMonitorSecrets(discovered);
         addAutomationCredentials(discovered);
@@ -749,6 +759,37 @@ public class CredentialRotationRegistryService {
         );
     }
 
+    private void applyImportedMetadata(CredentialRotationRegistryEntry item,
+                                       CredentialRotationExternalMetadataImportService.ImportedMetadata importedMetadata) {
+        if (item == null || importedMetadata == null) {
+            return;
+        }
+        boolean override = importedMetadata.overrideManualMetadata();
+        if (importedMetadata.expiresAt() != null && (override || item.getExpiresAt() == null)) {
+            item.setExpiresAt(importedMetadata.expiresAt());
+        }
+        if (importedMetadata.rotatedAt() != null && (override || item.getRotatedAt() == null)) {
+            item.setRotatedAt(importedMetadata.rotatedAt());
+        }
+        Integer intervalDays = normalizeImportedRotationIntervalDays(importedMetadata.rotationIntervalDays());
+        if (intervalDays != null && (override || item.getRotationIntervalDays() == null)) {
+            item.setRotationIntervalDays(intervalDays);
+        }
+        if (StringUtils.hasText(importedMetadata.ownerName()) && (override || !StringUtils.hasText(item.getOwnerName()))) {
+            item.setOwnerName(importedMetadata.ownerName().trim());
+        }
+        if (StringUtils.hasText(importedMetadata.note()) && (override || !StringUtils.hasText(item.getNote()))) {
+            item.setNote(importedMetadata.note().trim());
+        }
+    }
+
+    private Integer normalizeImportedRotationIntervalDays(Integer value) {
+        if (value == null || value < 1 || value > 3650) {
+            return null;
+        }
+        return value;
+    }
+
     private void syncAlertIncidents(List<CredentialRotationRegistryEntry> items,
                                     Map<String, AlertState> previousAlertStates) {
         if (items == null || items.isEmpty()) {
@@ -757,6 +798,113 @@ public class CredentialRotationRegistryService {
         Map<String, Boolean> activeIncidentByKey = loadActiveIncidentStates();
         for (CredentialRotationRegistryEntry item : items) {
             syncAlertIncident(item, previousAlertStates, activeIncidentByKey);
+        }
+    }
+
+    private void addSettingsNetworkRouteSecrets(Map<String, DiscoveredCredential> target, Map<String, Object> settings) {
+        Map<String, Object> integrationNetwork = mapValue(settings.get("integration_network"));
+        addRouteProxySecrets(
+            target,
+            mapValue(integrationNetwork.get("project")),
+            "network.project",
+            "Project network route",
+            "settings_json",
+            "settings.json#integration_network.project"
+        );
+        addRouteProxySecrets(
+            target,
+            mapValue(integrationNetwork.get("bots")),
+            "network.bots",
+            "Bots network route",
+            "settings_json",
+            "settings.json#integration_network.bots"
+        );
+
+        Object rawProfiles = settings.get("integration_network_profiles");
+        if (!(rawProfiles instanceof List<?> profiles)) {
+            return;
+        }
+        for (Object rawProfile : profiles) {
+            Map<String, Object> profile = mapValue(rawProfile);
+            String profileId = normalizeOptional(profile.get("id"));
+            if (!StringUtils.hasText(profileId)) {
+                continue;
+            }
+            String profileName = readString(profile, "name");
+            addRouteProxySecrets(
+                target,
+                profile,
+                "network.profile." + slug(profileId),
+                "Network profile · " + defaultIfBlank(profileName, profileId),
+                "settings_json",
+                "settings.json#integration_network_profiles[" + profileId + "]"
+            );
+        }
+    }
+
+    private void addChannelNetworkRouteSecrets(Map<String, DiscoveredCredential> target, List<Channel> channels) {
+        if (channels == null) {
+            return;
+        }
+        for (Channel channel : channels) {
+            if (channel == null || channel.getId() == null) {
+                continue;
+            }
+            Map<String, Object> deliverySettings = parseJsonMap(channel.getDeliverySettings());
+            Map<String, Object> route = mapValue(deliverySettings.get("network_route"));
+            addRouteProxySecrets(
+                target,
+                route,
+                "channel." + channel.getId() + ".network_route",
+                "Channel network route · " + defaultIfBlank(channel.getChannelName(), "channel #" + channel.getId()),
+                "channel_delivery_settings",
+                "channels#" + channel.getId() + ".deliverySettings.network_route"
+            );
+        }
+    }
+
+    private void addRouteProxySecrets(Map<String, DiscoveredCredential> target,
+                                      Map<String, Object> route,
+                                      String entryPrefix,
+                                      String displayPrefix,
+                                      String sourceType,
+                                      String sourceRefBase) {
+        if (route == null || route.isEmpty() || !StringUtils.hasText(entryPrefix)) {
+            return;
+        }
+        Map<String, Object> proxy = mapValue(route.get("proxy"));
+        if (proxy.isEmpty()) {
+            return;
+        }
+        String scheme = readString(proxy, "scheme");
+        String username = readString(proxy, "username");
+        String password = readString(proxy, "password");
+        String token = readString(proxy, "token");
+
+        boolean passwordExpected = StringUtils.hasText(username) || proxy.containsKey("password");
+        if (passwordExpected) {
+            register(target, new DiscoveredCredential(
+                entryPrefix + ".proxy.password",
+                "network_route",
+                "proxy_password",
+                displayPrefix + " proxy password",
+                sourceType,
+                sourceRefBase + ".proxy.password",
+                StringUtils.hasText(password)
+            ));
+        }
+
+        boolean tokenExpected = "vless".equalsIgnoreCase(scheme) || proxy.containsKey("token");
+        if (tokenExpected) {
+            register(target, new DiscoveredCredential(
+                entryPrefix + ".proxy.token",
+                "network_route",
+                "proxy_token",
+                displayPrefix + " proxy token",
+                sourceType,
+                sourceRefBase + ".proxy.token",
+                StringUtils.hasText(token)
+            ));
         }
     }
 
@@ -817,7 +965,7 @@ public class CredentialRotationRegistryService {
     }
 
     private boolean isIncidentActive(Map<String, Object> incident) {
-        String status = normalizeKey(incident.get("status"), "");
+        String status = normalizeKey(normalizeOptional(incident.get("status")), "");
         return !"resolved".equals(status) && !"closed".equals(status);
     }
 
