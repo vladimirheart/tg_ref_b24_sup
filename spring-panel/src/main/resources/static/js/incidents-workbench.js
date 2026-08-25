@@ -59,41 +59,306 @@
     const normalized = String(value || '').trim();
     return INCIDENT_STATUS_OPTIONS.find((item) => item.value === normalized)?.label || normalized || '—';
   }
+  function parseIncidentPayload(rawValue) {
+    if (!rawValue) {
+      return null;
+    }
+
+    if (typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+      return rawValue;
+    }
+
+    try {
+      const value = JSON.parse(String(rawValue));
+      return value && typeof value === 'object' && !Array.isArray(value)
+        ? value
+        : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function latestIncidentPayload(incident, predicate = null) {
+    const events = Array.isArray(incident?.events)
+      ? incident.events
+      : [];
+
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const payload = parseIncidentPayload(events[index]?.payload_json);
+      if (!payload) {
+        continue;
+      }
+      if (!predicate || predicate(payload, events[index])) {
+        return payload;
+      }
+    }
+
+    return null;
+  }
+
+  function numericIncidentValue(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  function parseTransportSummary(summary) {
+    const result = {};
+
+    String(summary || '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        const separator = part.indexOf('=');
+        if (separator <= 0) {
+          return;
+        }
+
+        const key = part.slice(0, separator).trim();
+        const rawValue = part.slice(separator + 1).trim();
+
+        if (!key) {
+          return;
+        }
+
+        const number = Number(rawValue);
+        result[key] = Number.isFinite(number) ? number : rawValue;
+      });
+
+    return result;
+  }
+
+  function russianCount(value, one, few, many) {
+    const number = Math.abs(Math.trunc(numericIncidentValue(value)));
+    const mod100 = number % 100;
+    const mod10 = number % 10;
+
+    if (mod100 >= 11 && mod100 <= 14) {
+      return `${number} ${many}`;
+    }
+    if (mod10 === 1) {
+      return `${number} ${one}`;
+    }
+    if (mod10 >= 2 && mod10 <= 4) {
+      return `${number} ${few}`;
+    }
+    return `${number} ${many}`;
+  }
+
+  function transportProblemParts(counters) {
+    const parts = [];
+
+    const inboundFailed = numericIncidentValue(counters?.inbound_failed);
+    const inboundStale = numericIncidentValue(counters?.inbound_stale);
+    const outboundFailed = numericIncidentValue(counters?.outbound_failed);
+    const outboundBacklog = numericIncidentValue(counters?.outbound_backlog);
+    const outboundStale = numericIncidentValue(counters?.outbound_stale);
+    const staleCheckpoints = numericIncidentValue(counters?.stale_checkpoints);
+    const laggingCheckpoints = numericIncidentValue(counters?.lagging_checkpoints);
+
+    if (inboundFailed > 0) {
+      parts.push(
+        `${russianCount(inboundFailed, '\u0432\u0445\u043e\u0434\u044f\u0449\u0435\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u0435', '\u0432\u0445\u043e\u0434\u044f\u0449\u0438\u0445 \u0441\u043e\u0431\u044b\u0442\u0438\u044f', '\u0432\u0445\u043e\u0434\u044f\u0449\u0438\u0445 \u0441\u043e\u0431\u044b\u0442\u0438\u0439')} \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043b\u0438\u0441\u044c \u043e\u0448\u0438\u0431\u043a\u043e\u0439`
+      );
+    }
+
+    if (inboundStale > 0) {
+      parts.push(
+        `${russianCount(inboundStale, '\u0432\u0445\u043e\u0434\u044f\u0449\u0435\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u0435', '\u0432\u0445\u043e\u0434\u044f\u0449\u0438\u0445 \u0441\u043e\u0431\u044b\u0442\u0438\u044f', '\u0432\u0445\u043e\u0434\u044f\u0449\u0438\u0445 \u0441\u043e\u0431\u044b\u0442\u0438\u0439')} \u0437\u0430\u0432\u0438\u0441\u043b\u0438 \u0432 processing \u0431\u043e\u043b\u0435\u0435 15 \u043c\u0438\u043d`
+      );
+    }
+
+    if (outboundFailed > 0) {
+      parts.push(
+        `${russianCount(outboundFailed, '\u0438\u0441\u0445\u043e\u0434\u044f\u0449\u0435\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u0435', '\u0438\u0441\u0445\u043e\u0434\u044f\u0449\u0438\u0445 \u0441\u043e\u0431\u044b\u0442\u0438\u044f', '\u0438\u0441\u0445\u043e\u0434\u044f\u0449\u0438\u0445 \u0441\u043e\u0431\u044b\u0442\u0438\u0439')} \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043b\u0438\u0441\u044c \u043e\u0448\u0438\u0431\u043a\u043e\u0439`
+      );
+    }
+
+    if (outboundStale > 0) {
+      parts.push(
+        `${russianCount(outboundStale, '\u0438\u0441\u0445\u043e\u0434\u044f\u0449\u0435\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u0435', '\u0438\u0441\u0445\u043e\u0434\u044f\u0449\u0438\u0445 \u0441\u043e\u0431\u044b\u0442\u0438\u044f', '\u0438\u0441\u0445\u043e\u0434\u044f\u0449\u0438\u0445 \u0441\u043e\u0431\u044b\u0442\u0438\u0439')} \u0437\u0430\u0432\u0438\u0441\u043b\u0438 \u0432 processing \u0431\u043e\u043b\u0435\u0435 5 \u043c\u0438\u043d`
+      );
+    }
+
+    if (outboundBacklog >= 100) {
+      parts.push(
+        `\u043e\u0447\u0435\u0440\u0435\u0434\u044c \u043d\u0430 \u043e\u0442\u043f\u0440\u0430\u0432\u043a\u0443 \u2014 ${russianCount(outboundBacklog, '\u0441\u043e\u0431\u044b\u0442\u0438\u0435', '\u0441\u043e\u0431\u044b\u0442\u0438\u044f', '\u0441\u043e\u0431\u044b\u0442\u0438\u0439')}`
+      );
+    }
+
+    if (staleCheckpoints > 0) {
+      parts.push(
+        `${russianCount(staleCheckpoints, 'checkpoint', 'checkpoint', 'checkpoint')} \u0444\u043e\u043d\u043e\u0432\u044b\u0445 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a\u043e\u0432 \u043f\u0440\u043e\u0441\u0440\u043e\u0447\u0435\u043d\u044b`
+      );
+    }
+
+    if (laggingCheckpoints > 0) {
+      parts.push(
+        `${russianCount(laggingCheckpoints, 'worker', 'worker', 'worker')} \u043e\u0442\u0441\u0442\u0430\u044e\u0442 \u043e\u0442 source cursor`
+      );
+    }
+
+    return parts;
+  }
+
+  function joinIncidentProblems(parts) {
+    const clean = Array.isArray(parts)
+      ? parts.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+
+    if (!clean.length) {
+      return '';
+    }
+
+    return `${clean.join('; ')}.`;
+  }
+
+  function transportIncidentCause(incident) {
+    const signalKey = String(incident?.signal_key || '').trim().toLowerCase();
+    const summaryCounters = parseTransportSummary(incident?.summary);
+
+    if (signalKey === 'panel-rabbitmq-bridge') {
+      const problems = transportProblemParts(summaryCounters);
+      if (problems.length) {
+        return joinIncidentProblems(problems);
+      }
+    }
+
+    if (signalKey === 'panel-transport-sustained-pressure') {
+      const payload = latestIncidentPayload(
+        incident,
+        (item) => (
+          Object.prototype.hasOwnProperty.call(item, 'latest_summary') ||
+          Object.prototype.hasOwnProperty.call(item, 'unhealthy_streak') ||
+          Object.prototype.hasOwnProperty.call(item, 'critical_streak')
+        )
+      ) || {};
+
+      const counters = parseTransportSummary(payload.latest_summary);
+      const problems = transportProblemParts(counters);
+      const unhealthyStreak = numericIncidentValue(payload.unhealthy_streak);
+      const criticalStreak = numericIncidentValue(payload.critical_streak);
+
+      let prefix = '';
+      if (unhealthyStreak >= 3) {
+        prefix = `${russianCount(unhealthyStreak, '\u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430', '\u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438', '\u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a')} \u043f\u043e\u0434\u0440\u044f\u0434 \u0441\u0438\u0441\u0442\u0435\u043c\u0430 \u0444\u0438\u043a\u0441\u0438\u0440\u0443\u0435\u0442 \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u0443`;
+      } else if (criticalStreak >= 2) {
+        prefix = `${russianCount(criticalStreak, '\u043a\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043a\u0430\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430', '\u043a\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438', '\u043a\u0440\u0438\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0445 \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a')} \u043f\u043e\u0434\u0440\u044f\u0434`;
+      }
+
+      if (problems.length && prefix) {
+        return `${prefix}: ${joinIncidentProblems(problems)}`;
+      }
+      if (problems.length) {
+        return joinIncidentProblems(problems);
+      }
+      if (prefix) {
+        return `${prefix}.`;
+      }
+    }
+
+    if (signalKey === 'panel-runtime-checkpoints') {
+      const payload = latestIncidentPayload(incident) || {};
+      const staleCount = numericIncidentValue(payload.stale_checkpoint_count);
+      const laggingCount = numericIncidentValue(payload.lagging_checkpoint_count);
+      const parts = [];
+
+      if (staleCount > 0) {
+        parts.push(
+          `${russianCount(staleCount, 'checkpoint', 'checkpoint', 'checkpoint')} \u0444\u043e\u043d\u043e\u0432\u044b\u0445 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a\u043e\u0432 \u043d\u0435 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u044e\u0442\u0441\u044f \u0432\u043e\u0432\u0440\u0435\u043c\u044f`
+        );
+      }
+      if (laggingCount > 0) {
+        parts.push(
+          `${russianCount(laggingCount, 'worker', 'worker', 'worker')} \u043e\u0442\u0441\u0442\u0430\u044e\u0442 \u043e\u0442 \u0432\u0445\u043e\u0434\u044f\u0449\u0435\u0433\u043e \u043f\u043e\u0442\u043e\u043a\u0430`
+        );
+      }
+      if (parts.length) {
+        return joinIncidentProblems(parts);
+      }
+    }
+
+    if (signalKey.startsWith('panel-runtime-checkpoints/')) {
+      const payload = latestIncidentPayload(
+        incident,
+        (item) => (
+          Object.prototype.hasOwnProperty.call(item, 'worker_key') ||
+          Object.prototype.hasOwnProperty.call(item, 'worker_label')
+        )
+      ) || {};
+
+      const workerLabel = String(
+        payload.worker_label ||
+        payload.worker_key ||
+        signalKey.slice('panel-runtime-checkpoints/'.length)
+      ).trim();
+
+      const ageMinutes = numericIncidentValue(payload.age_minutes);
+      const staleThreshold = numericIncidentValue(payload.stale_threshold_minutes);
+      const cursorLag = numericIncidentValue(payload.cursor_lag);
+      const lagThreshold = numericIncidentValue(payload.lag_alert_threshold);
+      const unhealthyStreak = numericIncidentValue(payload.unhealthy_streak);
+      const parts = [];
+
+      if (ageMinutes > 0 && staleThreshold > 0 && ageMinutes > staleThreshold) {
+        parts.push(
+          `checkpoint \u043d\u0435 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u043b\u0441\u044f ${russianCount(ageMinutes, '\u043c\u0438\u043d\u0443\u0442\u0443', '\u043c\u0438\u043d\u0443\u0442\u044b', '\u043c\u0438\u043d\u0443\u0442')} \u043f\u0440\u0438 \u043f\u043e\u0440\u043e\u0433\u0435 ${staleThreshold} \u043c\u0438\u043d`
+        );
+      }
+
+      if (cursorLag > 0) {
+        parts.push(
+          `\u043e\u0442\u0441\u0442\u0430\u0432\u0430\u043d\u0438\u0435 \u043e\u0442 source cursor \u2014 ${cursorLag}${lagThreshold > 0 ? `, \u043f\u043e\u0440\u043e\u0433 ${lagThreshold}` : ''}`
+        );
+      }
+
+      if (unhealthyStreak >= 3) {
+        parts.push(
+          `\u043f\u0440\u043e\u0431\u043b\u0435\u043c\u0430 \u0434\u0435\u0440\u0436\u0438\u0442\u0441\u044f ${russianCount(unhealthyStreak, '\u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443', '\u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438', '\u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a')} \u043f\u043e\u0434\u0440\u044f\u0434`
+        );
+      }
+
+      if (parts.length) {
+        return `${workerLabel}: ${joinIncidentProblems(parts)}`;
+      }
+    }
+
+    return '';
+  }
 
   function incidentCauseText(incident) {
-    if (!incident || typeof incident !== 'object') return '';
+    if (!incident || typeof incident !== 'object') {
+      return '';
+    }
 
     const signalType = String(incident.signal_type || '').trim().toLowerCase();
-    const signalKey = String(incident.signal_key || '').trim().toLowerCase();
     const summary = String(incident.summary || '').trim();
     const description = String(incident.description || '').trim();
+    const title = String(incident.title || '').trim();
 
     if (signalType === 'integration_transport') {
-      if (signalKey === 'panel-rabbitmq-bridge') {
-        return '\u0412 \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u043e\u043d\u043d\u043e\u043c \u0442\u0440\u0430\u043d\u0441\u043f\u043e\u0440\u0442\u0435 \u043d\u0430\u043a\u043e\u043f\u0438\u043b\u0438\u0441\u044c \u043e\u0448\u0438\u0431\u043a\u0438, \u0437\u0430\u0432\u0438\u0441\u0448\u0438\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u044f \u0438\u043b\u0438 \u043d\u0435\u043e\u0431\u0440\u0430\u0431\u043e\u0442\u0430\u043d\u043d\u0430\u044f \u043e\u0447\u0435\u0440\u0435\u0434\u044c.';
-      }
-      if (signalKey === 'panel-runtime-checkpoints') {
-        return '\u041e\u0434\u0438\u043d \u0438\u043b\u0438 \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0444\u043e\u043d\u043e\u0432\u044b\u0445 \u043f\u0440\u043e\u0446\u0435\u0441\u0441\u043e\u0432 \u043f\u0435\u0440\u0435\u0441\u0442\u0430\u043b\u0438 \u0432\u043e\u0432\u0440\u0435\u043c\u044f \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u0442\u044c \u043a\u043e\u043d\u0442\u0440\u043e\u043b\u044c\u043d\u0443\u044e \u0442\u043e\u0447\u043a\u0443.';
-      }
-      if (signalKey === 'panel-transport-sustained-pressure') {
-        return '\u041f\u0440\u043e\u0431\u043b\u0435\u043c\u044b \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u043e\u043d\u043d\u043e\u0433\u043e \u0442\u0440\u0430\u043d\u0441\u043f\u043e\u0440\u0442\u0430 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u044e\u0442\u0441\u044f \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0446\u0438\u043a\u043b\u043e\u0432 \u043c\u043e\u043d\u0438\u0442\u043e\u0440\u0438\u043d\u0433\u0430 \u043f\u043e\u0434\u0440\u044f\u0434.';
-      }
-      if (summary === 'Worker checkpoint stale beyond TTL.') {
-        return '\u0424\u043e\u043d\u043e\u0432\u044b\u0439 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u0434\u0430\u0432\u043d\u043e \u043d\u0435 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u043b \u043a\u043e\u043d\u0442\u0440\u043e\u043b\u044c\u043d\u0443\u044e \u0442\u043e\u0447\u043a\u0443 \u0438 \u0441\u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044f \u0437\u0430\u0432\u0438\u0441\u0448\u0438\u043c.';
-      }
-      if (summary === 'Worker checkpoint shows persistent cursor lag or sustained pressure.') {
-        return '\u0424\u043e\u043d\u043e\u0432\u044b\u0439 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u0447\u0438\u043a \u0443\u0441\u0442\u043e\u0439\u0447\u0438\u0432\u043e \u043e\u0442\u0441\u0442\u0430\u0451\u0442 \u043e\u0442 \u0432\u0445\u043e\u0434\u044f\u0449\u0435\u0433\u043e \u043f\u043e\u0442\u043e\u043a\u0430 \u0438\u043b\u0438 \u0434\u043b\u0438\u0442\u0435\u043b\u044c\u043d\u043e \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043f\u043e\u0434 \u043d\u0430\u0433\u0440\u0443\u0437\u043a\u043e\u0439.';
+      const factualCause = transportIncidentCause(incident);
+      if (factualCause) {
+        return factualCause;
       }
     }
 
-    if (summary) return summary;
+    if (summary) {
+      return summary;
+    }
 
     if (description) {
-      const firstLine = description.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
-      if (firstLine) return firstLine;
+      const firstLine = description
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .find(Boolean);
+
+      if (firstLine) {
+        return firstLine;
+      }
     }
 
-    return String(incident.title || '').trim();
+    return title;
   }
 
   function renderIncidentHeaderReason(incident) {
