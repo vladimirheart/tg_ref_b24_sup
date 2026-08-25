@@ -83,6 +83,20 @@
 docker compose -f docker-compose.production-contour.yml up -d --build
 ```
 
+Или через штатные скрипты репозитория:
+
+```powershell
+.\scripts\docker-production-up.ps1 -Build
+.\scripts\docker-production-up.ps1 -Build -Telegram
+.\scripts\docker-production-up.ps1 -Build -Telegram -Vk
+```
+
+```bash
+./scripts/docker-production-up.sh --build
+./scripts/docker-production-up.sh --build --telegram
+./scripts/docker-production-up.sh --build --telegram --vk
+```
+
 С конкретными каналами:
 
 ```bash
@@ -98,6 +112,18 @@ docker compose -f docker-compose.production-contour.yml \
   --profile telegram \
   --profile vk \
   up -d --build
+```
+
+Остановка:
+
+```powershell
+.\scripts\docker-production-down.ps1
+.\scripts\docker-production-down.ps1 -RemoveVolumes
+```
+
+```bash
+./scripts/docker-production-down.sh
+./scripts/docker-production-down.sh --remove-volumes
 ```
 
 ## 7. Какие директории монтируются

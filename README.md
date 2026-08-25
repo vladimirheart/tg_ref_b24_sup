@@ -102,6 +102,13 @@ cd spring-panel
 docker compose -f docker-compose.production-contour.yml up -d --build
 ```
 
+Или штатные helper-скрипты:
+
+```powershell
+.\scripts\docker-production-up.ps1 -Build
+.\scripts\docker-production-up.ps1 -Build -Telegram
+```
+
 Для ручного повторного bootstrap используйте `scripts/bootstrap-first-run.ps1` или `scripts/bootstrap-first-run.sh`.
 
 Если порт `8080` занят, `run-windows.bat` пытается подобрать свободный HTTP-порт автоматически.
