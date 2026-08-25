@@ -3,6 +3,7 @@
   const refreshBtn = document.getElementById('refreshCredentialRotationBtn');
   const generatedAtEl = document.getElementById('credentialRotationGeneratedAt');
   const captionEl = document.getElementById('credentialRotationCaption');
+  const alertingCaptionEl = document.getElementById('credentialRotationAlertingCaption');
   const historyCaptionEl = document.getElementById('credentialRotationHistoryCaption');
   const historyTableBody = document.getElementById('credentialRotationHistoryTableBody');
   const editCaptionEl = document.getElementById('credentialRotationEditCaption');
@@ -27,7 +28,9 @@
     critical: document.getElementById('credentialRotationCritical'),
     trackingMissing: document.getElementById('credentialRotationTrackingMissing'),
     missingSecret: document.getElementById('credentialRotationMissingSecret'),
-    sourceRemoved: document.getElementById('credentialRotationSourceRemoved')
+    sourceRemoved: document.getElementById('credentialRotationSourceRemoved'),
+    activeAlerts: document.getElementById('credentialRotationActiveAlerts'),
+    alertedEntries: document.getElementById('credentialRotationAlertedEntries')
   };
 
   let currentItems = [];
@@ -83,6 +86,43 @@
     }
   }
 
+  function incidentSeverityBadgeClass(severity) {
+    switch ((severity || '').toLowerCase()) {
+      case 'critical':
+        return 'text-bg-danger';
+      case 'high':
+        return 'text-bg-warning';
+      case 'medium':
+        return 'text-bg-primary';
+      case 'low':
+        return 'text-bg-secondary';
+      default:
+        return 'text-bg-dark';
+    }
+  }
+
+  function incidentStatusLabel(status) {
+    switch ((status || '').toLowerCase()) {
+      case 'open':
+        return 'Open';
+      case 'acknowledged':
+        return 'Ack';
+      case 'investigating':
+        return 'Investigating';
+      case 'resolved':
+        return 'Resolved';
+      case 'closed':
+        return 'Closed';
+      default:
+        return status || 'Unknown';
+    }
+  }
+
+  function isActiveIncident(incident) {
+    const status = String(incident?.status || '').trim().toLowerCase();
+    return status !== 'resolved' && status !== 'closed';
+  }
+
   function toLocalDateTimeInput(value) {
     if (!value) {
       return '';
@@ -107,8 +147,9 @@
     return date.toISOString();
   }
 
-  function renderOverview(overview, generatedAt) {
+  function renderOverview(overview, generatedAt, incidentAlerting) {
     const safe = overview || {};
+    const safeAlerting = incidentAlerting || {};
     metrics.total.textContent = safe.total ?? 0;
     metrics.ok.textContent = safe.ok ?? 0;
     metrics.warning.textContent = safe.warning ?? 0;
@@ -116,14 +157,40 @@
     metrics.trackingMissing.textContent = safe.tracking_missing ?? 0;
     metrics.missingSecret.textContent = safe.missing_secret ?? 0;
     metrics.sourceRemoved.textContent = safe.source_removed ?? 0;
+    metrics.activeAlerts.textContent = safeAlerting.active_incident_count ?? 0;
+    metrics.alertedEntries.textContent = safeAlerting.active_entry_count ?? 0;
     generatedAtEl.textContent = `Generated at ${formatDateTime(generatedAt)}`;
     captionEl.textContent = `Metadata gaps: ${safe.tracking_missing ?? 0}. Missing secret: ${safe.missing_secret ?? 0}. Source removed: ${safe.source_removed ?? 0}.`;
+    alertingCaptionEl.textContent = `Active alerts: ${safeAlerting.active_incident_count ?? 0}. Alerted entries: ${safeAlerting.active_entry_count ?? 0}. Escalation policy: ${safeAlerting.escalation_policy || 'critical'}.`;
+  }
+
+  function renderRelatedIncidents(incidents) {
+    const related = Array.isArray(incidents) ? incidents : [];
+    if (!related.length) {
+      return '<span class="text-muted small">No linked incidents</span>';
+    }
+    return related.slice(0, 3).map((incident) => {
+      const active = isActiveIncident(incident);
+      const statusLabel = incidentStatusLabel(incident.status);
+      const routes = Number(incident.route_count || 0);
+      const failedRoutes = Number(incident.failed_route_count || 0);
+      return `
+        <div class="mb-2">
+          <div class="d-flex flex-wrap align-items-center gap-1">
+            <span class="badge ${incidentSeverityBadgeClass(incident.severity)}">${escapeHtml(incident.incident_key || 'INC')}</span>
+            <span class="badge ${active ? 'text-bg-danger' : 'text-bg-secondary'}">${escapeHtml(statusLabel)}</span>
+          </div>
+          <div class="small mt-1">${escapeHtml(incident.title || incident.summary || 'Incident')}</div>
+          <div class="small text-muted">${routes} route(s), failed ${failedRoutes}</div>
+        </div>
+      `;
+    }).join('');
   }
 
   function renderRows(items) {
     currentItems = Array.isArray(items) ? items : [];
     if (!currentItems.length) {
-      tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Tracked credentials not found.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Tracked credentials not found.</td></tr>';
       return;
     }
     tableBody.innerHTML = currentItems.map((item) => `
@@ -151,6 +218,7 @@
         </td>
         <td>${escapeHtml(item.owner_name || '—')}</td>
         <td>${escapeHtml(item.note || '—')}</td>
+        <td>${renderRelatedIncidents(item.related_incidents)}</td>
         <td class="text-end">
           <div class="btn-group btn-group-sm">
             <button type="button" class="btn btn-outline-secondary" data-action="history">History</button>
@@ -163,7 +231,7 @@
 
   async function loadOverview() {
     const payload = await api('/api/monitoring/credential-rotation/entries');
-    renderOverview(payload.overview, payload.generated_at);
+    renderOverview(payload.overview, payload.generated_at, payload.incident_alerting);
     renderRows(payload.items);
   }
 
@@ -171,7 +239,7 @@
     refreshBtn.disabled = true;
     try {
       const payload = await api('/api/monitoring/credential-rotation/refresh', { method: 'POST' });
-      renderOverview(payload.overview, payload.generated_at);
+      renderOverview(payload.overview, payload.generated_at, payload.incident_alerting);
       renderRows(payload.items);
     } finally {
       refreshBtn.disabled = false;
@@ -269,6 +337,6 @@
   });
 
   loadOverview().catch((error) => {
-    tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-4">${escapeHtml(error.message || 'Не удалось загрузить credential rotation registry')}</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(error.message || 'Не удалось загрузить credential rotation registry')}</td></tr>`;
   });
 })();

@@ -25,12 +25,14 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 class CredentialRotationRegistryServiceTest {
@@ -47,6 +49,7 @@ class CredentialRotationRegistryServiceTest {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         PanelSecurityProperties securityProperties = new PanelSecurityProperties();
         Environment environment = mock(Environment.class);
+        IncidentService incidentService = mock(IncidentService.class);
 
         Map<String, Object> settings = new LinkedHashMap<>();
         settings.put("knowledge_base_config", Map.of("enabled", true, "token", "notion-token", "source_url", "https://notion.so/db"));
@@ -138,6 +141,7 @@ class CredentialRotationRegistryServiceTest {
             jdbcTemplate,
             securityProperties,
             new ObjectMapper(),
+            incidentService,
             environment,
             Clock.fixed(Instant.parse("2026-08-25T12:00:00Z"), ZoneOffset.UTC)
         );
@@ -165,6 +169,7 @@ class CredentialRotationRegistryServiceTest {
         assertThat(netBoxEntry.getLastStatus()).isEqualTo(CredentialRotationRegistryService.STATUS_TRACKING_MISSING);
         assertThat(netBoxEntry.getStatusLevel()).isEqualTo(CredentialRotationRegistryService.LEVEL_WARNING);
         assertThat(netBoxEntry.getSecretPresent()).isTrue();
+        verify(incidentService, never()).openOrRefreshSignalIncident(any(), any(), any(), any(), any(), any(), any(), anyMap(), any());
     }
 
     @Test
@@ -179,6 +184,7 @@ class CredentialRotationRegistryServiceTest {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         PanelSecurityProperties securityProperties = new PanelSecurityProperties();
         Environment environment = mock(Environment.class);
+        IncidentService incidentService = mock(IncidentService.class);
 
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
         when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
@@ -216,6 +222,7 @@ class CredentialRotationRegistryServiceTest {
             jdbcTemplate,
             securityProperties,
             new ObjectMapper(),
+            incidentService,
             environment,
             Clock.fixed(Instant.parse("2026-08-25T12:00:00Z"), ZoneOffset.UTC)
         );
@@ -230,6 +237,17 @@ class CredentialRotationRegistryServiceTest {
         assertThat(staleEntry.getStatusLevel()).isEqualTo(CredentialRotationRegistryService.LEVEL_CRITICAL);
         assertThat(staleEntry.getSourcePresent()).isFalse();
         assertThat(staleEntry.getSecretPresent()).isFalse();
+        verify(incidentService).openOrRefreshSignalIncident(
+            eq(CredentialRotationRegistryService.INCIDENT_SIGNAL_TYPE),
+            eq("obsolete.secret"),
+            any(),
+            any(),
+            any(),
+            eq(CredentialRotationRegistryService.LEVEL_CRITICAL),
+            eq("credential_rotation_registry"),
+            anyMap(),
+            eq("system")
+        );
     }
 
     @Test
@@ -244,6 +262,7 @@ class CredentialRotationRegistryServiceTest {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         PanelSecurityProperties securityProperties = new PanelSecurityProperties();
         Environment environment = mock(Environment.class);
+        IncidentService incidentService = mock(IncidentService.class);
 
         CredentialRotationRegistryEntry entry = new CredentialRotationRegistryEntry();
         entry.setId(15L);
@@ -271,6 +290,7 @@ class CredentialRotationRegistryServiceTest {
             jdbcTemplate,
             securityProperties,
             new ObjectMapper(),
+            incidentService,
             environment,
             Clock.fixed(Instant.parse("2026-08-25T12:00:00Z"), ZoneOffset.UTC)
         );
@@ -301,6 +321,13 @@ class CredentialRotationRegistryServiceTest {
             eq(null),
             anyLong(),
             any(OffsetDateTime.class)
+        );
+        verify(incidentService).resolveSignalIncident(
+            eq(CredentialRotationRegistryService.INCIDENT_SIGNAL_TYPE),
+            eq("settings.netbox.api_token"),
+            any(),
+            anyMap(),
+            eq("system")
         );
     }
 }

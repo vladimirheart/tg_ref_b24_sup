@@ -858,6 +858,8 @@ public class IncidentService {
         payload.put("severity", incident.getSeverity());
         payload.put("source", incident.getSource() == null ? "" : incident.getSource());
         payload.put("owner", incident.getOwner() == null ? "" : incident.getOwner());
+        payload.put("signal_type", incident.getSignalType() == null ? "" : incident.getSignalType());
+        payload.put("signal_key", incident.getSignalKey() == null ? "" : incident.getSignalKey());
         payload.put("updated_at", incident.getUpdatedAt() != null ? incident.getUpdatedAt().toString() : null);
         payload.put("created_at", incident.getCreatedAt() != null ? incident.getCreatedAt().toString() : null);
         payload.put("acknowledged_at", incident.getAcknowledgedAt() != null ? incident.getAcknowledgedAt().toString() : null);

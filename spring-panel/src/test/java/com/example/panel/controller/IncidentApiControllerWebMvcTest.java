@@ -11,6 +11,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.panel.service.IncidentOpsEscalationService;
+import com.example.panel.service.IncidentOpsMetricsService;
+import com.example.panel.service.IncidentRouteDeliveryDiagnosticsService;
 import com.example.panel.service.IncidentService;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +33,15 @@ class IncidentApiControllerWebMvcTest {
 
     @MockBean
     private IncidentService incidentService;
+
+    @MockBean
+    private IncidentOpsMetricsService incidentOpsMetricsService;
+
+    @MockBean
+    private IncidentOpsEscalationService incidentOpsEscalationService;
+
+    @MockBean
+    private IncidentRouteDeliveryDiagnosticsService incidentRouteDeliveryDiagnosticsService;
 
     @Test
     void listReturnsIncidentSummaries() throws Exception {

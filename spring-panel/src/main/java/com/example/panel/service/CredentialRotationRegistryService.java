@@ -48,6 +48,7 @@ public class CredentialRotationRegistryService {
     public static final String LEVEL_OK = "ok";
     public static final String LEVEL_WARNING = "warning";
     public static final String LEVEL_CRITICAL = "critical";
+    public static final String INCIDENT_SIGNAL_TYPE = "credential_rotation";
 
     private static final int MAX_SUMMARY_LENGTH = 320;
     private static final int MAX_DETAILS_LENGTH = 1_500;
@@ -55,6 +56,8 @@ public class CredentialRotationRegistryService {
     private static final String DEFAULT_INTERNAL_BOT_API_TOKEN = "iguana-internal-bot-token";
     private static final String DEFAULT_REMEMBER_ME_KEY = "iguana-panel-remember-me";
     private static final String AUTOMATION_PARAM_TYPE = "employee_discount_automation_credentials.v1";
+    private static final String INCIDENT_SOURCE = "credential_rotation_registry";
+    private static final String INCIDENT_ACTOR = "system";
 
     private final CredentialRotationRegistryRepository repository;
     private final MonitoringCheckHistoryRepository historyRepository;
@@ -67,6 +70,7 @@ public class CredentialRotationRegistryService {
     private final PanelSecurityProperties panelSecurityProperties;
     private final ObjectMapper objectMapper;
     private final Environment environment;
+    private final IncidentService incidentService;
     private final Clock clock;
 
     public CredentialRotationRegistryService(CredentialRotationRegistryRepository repository,
@@ -79,6 +83,7 @@ public class CredentialRotationRegistryService {
                                              JdbcTemplate jdbcTemplate,
                                              PanelSecurityProperties panelSecurityProperties,
                                              ObjectMapper objectMapper,
+                                             IncidentService incidentService,
                                              Environment environment) {
         this(
             repository,
@@ -91,6 +96,7 @@ public class CredentialRotationRegistryService {
             jdbcTemplate,
             panelSecurityProperties,
             objectMapper,
+            incidentService,
             environment,
             Clock.systemUTC()
         );
@@ -106,6 +112,7 @@ public class CredentialRotationRegistryService {
                                       JdbcTemplate jdbcTemplate,
                                       PanelSecurityProperties panelSecurityProperties,
                                       ObjectMapper objectMapper,
+                                      IncidentService incidentService,
                                       Environment environment,
                                       Clock clock) {
         this.repository = repository;
@@ -118,6 +125,7 @@ public class CredentialRotationRegistryService {
         this.jdbcTemplate = jdbcTemplate;
         this.panelSecurityProperties = panelSecurityProperties;
         this.objectMapper = objectMapper;
+        this.incidentService = incidentService;
         this.environment = environment;
         this.clock = clock != null ? clock : Clock.systemUTC();
     }
@@ -133,6 +141,7 @@ public class CredentialRotationRegistryService {
     public CredentialRotationRegistryEntry updateMetadata(long entryId, MetadataPatch patch) {
         CredentialRotationRegistryEntry existing = repository.findById(entryId)
             .orElseThrow(() -> new IllegalArgumentException("Registry entry not found"));
+        AlertState previousAlertState = captureAlertState(existing);
         OffsetDateTime now = OffsetDateTime.now(clock);
         long startedAtNs = System.nanoTime();
 
@@ -147,6 +156,7 @@ public class CredentialRotationRegistryService {
         applyStatus(existing, now);
         repository.save(existing);
         recordHistory(existing, elapsedMillis(startedAtNs), now);
+        syncAlertIncidents(List.of(existing), previousStatesFor(existing, previousAlertState));
         return existing;
     }
 
@@ -161,9 +171,11 @@ public class CredentialRotationRegistryService {
         OffsetDateTime now = OffsetDateTime.now(clock);
         List<CredentialRotationRegistryEntry> existing = repository.findAllByOrderByDisplayNameAscIdAsc();
         Map<String, CredentialRotationRegistryEntry> existingByKey = new LinkedHashMap<>();
+        Map<String, AlertState> previousAlertStates = new LinkedHashMap<>();
         for (CredentialRotationRegistryEntry item : existing) {
             if (StringUtils.hasText(item.getEntryKey())) {
                 existingByKey.put(item.getEntryKey(), item);
+                previousAlertStates.put(item.getEntryKey(), captureAlertState(item));
             }
         }
 
@@ -207,6 +219,7 @@ public class CredentialRotationRegistryService {
         }
 
         List<CredentialRotationRegistryEntry> sorted = sortEntries(refreshed);
+        syncAlertIncidents(sorted, previousAlertStates);
         return new RegistrySnapshot(now, buildOverview(sorted), sorted);
     }
 
@@ -736,6 +749,165 @@ public class CredentialRotationRegistryService {
         );
     }
 
+    private void syncAlertIncidents(List<CredentialRotationRegistryEntry> items,
+                                    Map<String, AlertState> previousAlertStates) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        Map<String, Boolean> activeIncidentByKey = loadActiveIncidentStates();
+        for (CredentialRotationRegistryEntry item : items) {
+            syncAlertIncident(item, previousAlertStates, activeIncidentByKey);
+        }
+    }
+
+    private void syncAlertIncident(CredentialRotationRegistryEntry item,
+                                   Map<String, AlertState> previousAlertStates,
+                                   Map<String, Boolean> activeIncidentByKey) {
+        String entryKey = normalizeOptional(item.getEntryKey());
+        if (!StringUtils.hasText(entryKey)) {
+            return;
+        }
+        AlertState current = captureAlertState(item);
+        AlertState previous = previousAlertStates.get(entryKey);
+        boolean hasActiveIncident = Boolean.TRUE.equals(activeIncidentByKey.get(entryKey));
+        if (current.critical()) {
+            boolean changed = previous == null
+                || !previous.critical()
+                || !Objects.equals(previous.fingerprint(), current.fingerprint());
+            if (changed || !hasActiveIncident) {
+                incidentService.openOrRefreshSignalIncident(
+                    INCIDENT_SIGNAL_TYPE,
+                    entryKey,
+                    buildIncidentTitle(item),
+                    buildIncidentSummary(item),
+                    buildIncidentDescription(item),
+                    LEVEL_CRITICAL,
+                    INCIDENT_SOURCE,
+                    buildIncidentPayload(item),
+                    INCIDENT_ACTOR
+                );
+            }
+            return;
+        }
+        if ((previous != null && previous.critical()) || hasActiveIncident) {
+            incidentService.resolveSignalIncident(
+                INCIDENT_SIGNAL_TYPE,
+                entryKey,
+                buildIncidentResolvedText(item),
+                buildIncidentPayload(item),
+                INCIDENT_ACTOR
+            );
+        }
+    }
+
+    private Map<String, Boolean> loadActiveIncidentStates() {
+        Map<String, Boolean> activeByKey = new LinkedHashMap<>();
+        for (Map<String, Object> incident : incidentService.listIncidentSummariesForSignalType(INCIDENT_SIGNAL_TYPE)) {
+            String signalKey = normalizeOptional(incident.get("signal_key"));
+            if (!StringUtils.hasText(signalKey)) {
+                continue;
+            }
+            if (isIncidentActive(incident)) {
+                activeByKey.put(signalKey, true);
+            } else {
+                activeByKey.putIfAbsent(signalKey, false);
+            }
+        }
+        return activeByKey;
+    }
+
+    private boolean isIncidentActive(Map<String, Object> incident) {
+        String status = normalizeKey(incident.get("status"), "");
+        return !"resolved".equals(status) && !"closed".equals(status);
+    }
+
+    private AlertState captureAlertState(CredentialRotationRegistryEntry item) {
+        if (item == null) {
+            return new AlertState(false, "");
+        }
+        boolean critical = LEVEL_CRITICAL.equals(normalizeKey(item.getStatusLevel(), LEVEL_CRITICAL));
+        return new AlertState(critical, buildAlertFingerprint(item));
+    }
+
+    private String buildAlertFingerprint(CredentialRotationRegistryEntry item) {
+        List<String> parts = new ArrayList<>();
+        parts.add(defaultIfBlank(item.getDisplayName(), ""));
+        parts.add(defaultIfBlank(item.getIntegrationKind(), ""));
+        parts.add(defaultIfBlank(item.getCredentialKind(), ""));
+        parts.add(defaultIfBlank(item.getSourceRef(), ""));
+        parts.add(defaultIfBlank(item.getLastStatus(), ""));
+        parts.add(defaultIfBlank(item.getStatusLevel(), ""));
+        parts.add(defaultIfBlank(item.getStatusReason(), ""));
+        parts.add(String.valueOf(Boolean.TRUE.equals(item.getSourcePresent())));
+        parts.add(String.valueOf(Boolean.TRUE.equals(item.getSecretPresent())));
+        parts.add(stringifyTimestamp(item.getExpiresAt()));
+        parts.add(stringifyTimestamp(item.getRotatedAt()));
+        parts.add(stringifyTimestamp(item.getNextRotationDueAt()));
+        parts.add(item.getRotationIntervalDays() == null ? "" : String.valueOf(item.getRotationIntervalDays()));
+        parts.add(defaultIfBlank(item.getOwnerName(), ""));
+        parts.add(defaultIfBlank(item.getNote(), ""));
+        return String.join("|", parts);
+    }
+
+    private String buildIncidentTitle(CredentialRotationRegistryEntry item) {
+        return "Credential rotation critical: " + defaultIfBlank(item.getDisplayName(), defaultIfBlank(item.getEntryKey(), "credential"));
+    }
+
+    private String buildIncidentSummary(CredentialRotationRegistryEntry item) {
+        return defaultIfBlank(item.getStatusReason(), defaultIfBlank(item.getLastStatus(), "Credential rotation alert"));
+    }
+
+    private String buildIncidentDescription(CredentialRotationRegistryEntry item) {
+        return """
+            Credential rotation registry detected a critical secret hygiene condition.
+            Review owner/rotation metadata, verify the integration source and resolve the secret lifecycle risk.
+            Use the credential rotation analytics page for registry history and related monitoring context.
+            """.trim();
+    }
+
+    private String buildIncidentResolvedText(CredentialRotationRegistryEntry item) {
+        return "Credential rotation entry returned to non-critical state: "
+            + defaultIfBlank(item.getDisplayName(), defaultIfBlank(item.getEntryKey(), "credential"));
+    }
+
+    private Map<String, Object> buildIncidentPayload(CredentialRotationRegistryEntry item) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("entry_id", item.getId());
+        payload.put("entry_key", defaultIfBlank(item.getEntryKey(), ""));
+        payload.put("display_name", defaultIfBlank(item.getDisplayName(), ""));
+        payload.put("integration_kind", defaultIfBlank(item.getIntegrationKind(), ""));
+        payload.put("credential_kind", defaultIfBlank(item.getCredentialKind(), ""));
+        payload.put("source_type", defaultIfBlank(item.getSourceType(), ""));
+        payload.put("source_ref", defaultIfBlank(item.getSourceRef(), ""));
+        payload.put("source_present", Boolean.TRUE.equals(item.getSourcePresent()));
+        payload.put("secret_present", Boolean.TRUE.equals(item.getSecretPresent()));
+        payload.put("status_level", defaultIfBlank(item.getStatusLevel(), ""));
+        payload.put("last_status", defaultIfBlank(item.getLastStatus(), ""));
+        payload.put("status_reason", defaultIfBlank(item.getStatusReason(), ""));
+        payload.put("expires_at", stringifyTimestamp(item.getExpiresAt()));
+        payload.put("rotated_at", stringifyTimestamp(item.getRotatedAt()));
+        payload.put("next_rotation_due_at", stringifyTimestamp(item.getNextRotationDueAt()));
+        payload.put("rotation_interval_days", item.getRotationIntervalDays());
+        payload.put("owner_name", defaultIfBlank(item.getOwnerName(), ""));
+        payload.put("note", defaultIfBlank(item.getNote(), ""));
+        payload.put("last_checked_at", stringifyTimestamp(item.getLastCheckedAt()));
+        payload.put("last_seen_at", stringifyTimestamp(item.getLastSeenAt()));
+        return payload;
+    }
+
+    private String stringifyTimestamp(OffsetDateTime value) {
+        return value == null ? "" : value.toString();
+    }
+
+    private Map<String, AlertState> previousStatesFor(CredentialRotationRegistryEntry item, AlertState state) {
+        Map<String, AlertState> states = new LinkedHashMap<>();
+        String entryKey = normalizeOptional(item.getEntryKey());
+        if (StringUtils.hasText(entryKey)) {
+            states.put(entryKey, state);
+        }
+        return states;
+    }
+
     private String buildSummary(CredentialRotationRegistryEntry item) {
         return item.getDisplayName() + ": " + defaultIfBlank(item.getStatusReason(), defaultIfBlank(item.getLastStatus(), "status updated"));
     }
@@ -950,6 +1122,9 @@ public class CredentialRotationRegistryService {
                                    String statusLevel,
                                    String reason,
                                    OffsetDateTime dueAt) {
+    }
+
+    private record AlertState(boolean critical, String fingerprint) {
     }
 
     public record RegistrySnapshot(OffsetDateTime generatedAt,

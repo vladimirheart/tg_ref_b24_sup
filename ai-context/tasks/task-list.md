@@ -223,7 +223,7 @@
 🟣 [01-201] Ввести unified provider health для Telegram/VK/MAX ingress и outbound delivery
 🟣 [01-202] Добавить registry истечения токенов и rotation watch по внешним интеграциям
 🟣 [01-203] Ввести provider delivery ledger и error classification для Telegram/VK/MAX outbound
-🔴 [01-204] Подключить alerting и escalation policy для critical состояний credential rotation registry
+🟣 [01-204] Подключить alerting и escalation policy для critical состояний credential rotation registry
 🔴 [01-205] Расширить credential rotation registry на network proxy / route secrets и auto-import expiry metadata из внешних secret backends
 🔴 [01-206] Подключить alerting и SLO burn-rate по sustained provider delivery failures / rate-limit pressure из provider delivery ledger
 🔴 [01-207] Расширить provider delivery ledger на edit/delete reply-path и runtime-инициированные outbound senders вне operator quick-actions
