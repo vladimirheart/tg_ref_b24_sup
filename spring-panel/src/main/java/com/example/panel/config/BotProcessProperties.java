@@ -18,6 +18,7 @@ public class BotProcessProperties {
     private Map<String, String> executableJars = new LinkedHashMap<>();
     private String preferredProductionLauncher = "jar";
     private String recommendedArtifactDirectory = "dist";
+    private boolean autoStartEnabled = true;
     private Duration startupReadinessTimeout = Duration.ofSeconds(45);
     private Duration startupPollInterval = Duration.ofMillis(250);
 
@@ -91,6 +92,14 @@ public class BotProcessProperties {
 
     public void setRecommendedArtifactDirectory(String recommendedArtifactDirectory) {
         this.recommendedArtifactDirectory = recommendedArtifactDirectory;
+    }
+
+    public boolean isAutoStartEnabled() {
+        return autoStartEnabled;
+    }
+
+    public void setAutoStartEnabled(boolean autoStartEnabled) {
+        this.autoStartEnabled = autoStartEnabled;
     }
 
     public Path resolveDatabaseDir() {

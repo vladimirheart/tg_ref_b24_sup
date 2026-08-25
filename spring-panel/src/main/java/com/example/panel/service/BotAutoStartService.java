@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.config.BotProcessProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
 import com.example.panel.repository.ChannelRepository;
@@ -23,17 +24,24 @@ public class BotAutoStartService {
     private final ChannelRepository channelRepository;
     private final BotProcessService botProcessService;
     private final SharedConfigService sharedConfigService;
+    private final BotProcessProperties botProcessProperties;
 
     public BotAutoStartService(ChannelRepository channelRepository,
                                BotProcessService botProcessService,
-                               SharedConfigService sharedConfigService) {
+                               SharedConfigService sharedConfigService,
+                               BotProcessProperties botProcessProperties) {
         this.channelRepository = channelRepository;
         this.botProcessService = botProcessService;
         this.sharedConfigService = sharedConfigService;
+        this.botProcessProperties = botProcessProperties;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void autoStartActiveBots() {
+        if (!botProcessProperties.isAutoStartEnabled()) {
+            log.info("Bot auto-start is disabled by app.bots.auto-start-enabled=false");
+            return;
+        }
         try {
             botProcessService.stopAllForStartup();
             List<Channel> channels = channelRepository.findAll();

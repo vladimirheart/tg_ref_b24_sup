@@ -47,6 +47,24 @@
 | `APP_COORDINATION_BOT_INGRESS_FOLLOWER_BACKOFF` | задержка follower bot instance перед повторной попыткой захватить ingress lease | Java-бот |
 | `APP_COORDINATION_BOT_JOB_LEASE_TTL` | TTL distributed lease для bot-side scheduled jobs (`unblock digest`, `session expiry`) | Java-бот |
 | `APP_COORDINATION_BOT_SESSION_TTL` | TTL shared bot session snapshot в Redis/local session store | Java-бот |
+| `APP_BOT_AUTO_START_ENABLED` | включает panel-side auto-start child bot processes; для containerized contour должен быть `false` | Панель |
+| `SHARED_CONFIG_DIR` | абсолютный путь к `config/shared` для containerized/runtime deployment | Панель и бот |
+| `IGUANA_POSTGRES_DB` | имя БД в dockerized contour | compose/infrastructure |
+| `IGUANA_POSTGRES_USER` | пользователь PostgreSQL в dockerized contour | compose/infrastructure |
+| `IGUANA_POSTGRES_PASSWORD` | пароль PostgreSQL в dockerized contour | compose/infrastructure |
+| `IGUANA_RABBITMQ_USER` | пользователь RabbitMQ в dockerized contour | compose/infrastructure |
+| `IGUANA_RABBITMQ_PASSWORD` | пароль RabbitMQ в dockerized contour | compose/infrastructure |
+| `APP_REDIS_PORT` | publish-порт Redis в dockerized contour | compose/infrastructure |
+| `IGUANA_REDIS_PASSWORD` | пароль Redis в dockerized contour | Панель, бот, compose/infrastructure |
+| `APP_STORAGE_OBJECT_BUCKET` | bucket object storage | Панель, бот, compose/infrastructure |
+| `APP_STORAGE_OBJECT_REGION` | region object storage | Панель, бот, compose/infrastructure |
+| `APP_STORAGE_OBJECT_ENDPOINT` | endpoint S3/MinIO | Панель и бот |
+| `APP_STORAGE_OBJECT_ACCESS_KEY` | access key S3/MinIO | Панель, бот, compose/infrastructure |
+| `APP_STORAGE_OBJECT_SECRET_KEY` | secret key S3/MinIO | Панель, бот, compose/infrastructure |
+| `IGUANA_SHARED_CONFIG_DIR` | bind-mount override для `config/shared` в docker-compose contour | compose/infrastructure |
+| `IGUANA_ATTACHMENTS_DIR` | bind-mount override для `attachments` в docker-compose contour | compose/infrastructure |
+| `IGUANA_LOGS_DIR` | bind-mount override для `logs` в docker-compose contour | compose/infrastructure |
+| `IGUANA_BOT_DATABASES_DIR` | bind-mount override для `bot_databases` в docker-compose contour | compose/infrastructure |
 
 ## Базы данных
 
@@ -121,3 +139,10 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 
 - default bootstrap-path должен завершаться в `PostgreSQL + RabbitMQ`;
 - SQLite допускается только как явный compatibility override (`IGUANA_BOOTSTRAP_DB_MODE=sqlite`) или как аварийный fallback при явно включённом `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=true`.
+
+Для containerized contour из [docs/docker-production-contour.md](docker-production-contour.md) действует ещё один практический инвариант:
+
+- `APP_COORDINATION_MODE=redis`;
+- `APP_STORAGE_OBJECT_MODE=s3`;
+- `APP_BOT_AUTO_START_ENABLED=false`;
+- `SHARED_CONFIG_DIR` и `APP_STORAGE_ATTACHMENTS` лучше задавать абсолютными container paths, а не рассчитывать на относительный working directory.

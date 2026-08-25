@@ -1,0 +1,326 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: iguana-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${IGUANA_POSTGRES_DB:-iguana}
+      POSTGRES_USER: ${IGUANA_POSTGRES_USER:-iguana}
+      POSTGRES_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
+    ports:
+      - "${APP_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - iguana-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${IGUANA_POSTGRES_USER:-iguana} -d ${IGUANA_POSTGRES_DB:-iguana}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: iguana-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${IGUANA_RABBITMQ_USER:-iguana}
+      RABBITMQ_DEFAULT_PASS: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
+    ports:
+      - "${APP_RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${APP_RABBITMQ_HTTP_PORT:-15672}:15672"
+    volumes:
+      - iguana-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: iguana-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${IGUANA_REDIS_PASSWORD:-iguana-redis}
+    ports:
+      - "${APP_REDIS_PORT:-6379}:6379"
+    volumes:
+      - iguana-redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${IGUANA_REDIS_PASSWORD:-iguana-redis} ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2026-07-23T15-54-02Z
+    container_name: iguana-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
+      MINIO_ROOT_PASSWORD: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
+    ports:
+      - "${APP_STORAGE_OBJECT_PORT:-9000}:9000"
+      - "${APP_STORAGE_OBJECT_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - iguana-minio-data:/data
+
+  minio-init:
+    image: minio/mc:RELEASE.2026-07-21T05-28-08Z
+    container_name: iguana-minio-init
+    restart: "no"
+    depends_on:
+      - minio
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        until mc alias set local http://minio:9000 ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio} ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret};
+        do sleep 2; done;
+        mc mb --ignore-existing local/${APP_STORAGE_OBJECT_BUCKET:-iguana};
+        mc anonymous set none local/${APP_STORAGE_OBJECT_BUCKET:-iguana} || true
+
+  spring-panel:
+    build:
+      context: .
+      dockerfile: docker/panel.Dockerfile
+    container_name: iguana-spring-panel
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      APP_DB_MODE: postgresql
+      APP_HTTP_PORT: 8080
+      APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
+      APP_COORDINATION_MODE: redis
+      APP_STORAGE_OBJECT_MODE: s3
+      APP_COORDINATION_REQUIRED_FOR_POSTGRESQL: "true"
+      APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL: "true"
+      APP_BOT_AUTO_START_ENABLED: "false"
+      APP_BOT_LAUNCH_MODE: jar
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IGUANA_POSTGRES_DB:-iguana}
+      SPRING_DATASOURCE_USERNAME: ${IGUANA_POSTGRES_USER:-iguana}
+      SPRING_DATASOURCE_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${IGUANA_RABBITMQ_USER:-iguana}
+      SPRING_RABBITMQ_PASSWORD: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
+      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
+      APP_STORAGE_OBJECT_REGION: ${APP_STORAGE_OBJECT_REGION:-us-east-1}
+      APP_STORAGE_OBJECT_ENDPOINT: http://minio:9000
+      APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
+      APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
+      APP_STORAGE_OBJECT_PATH_STYLE_ACCESS: "true"
+      APP_STORAGE_ATTACHMENTS: /opt/iguana/attachments
+      APP_STORAGE_KNOWLEDGE_BASE: /opt/iguana/attachments/knowledge_base
+      APP_STORAGE_AVATARS: /opt/iguana/attachments/avatars
+      APP_STORAGE_WEBFORMS: /opt/iguana/attachments/forms
+      APP_BOT_DATABASE_DIR: /opt/iguana/bot_databases
+      APP_PANEL_LOG_DIR: /opt/iguana/logs
+      SHARED_CONFIG_DIR: /opt/iguana/config/shared
+      APP_ADMIN_REPOSITORY_ROOT: /opt/iguana
+      APP_INTERNAL_BOT_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
+      APP_INTERNAL_BOT_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
+      APP_INTERNAL_BOT_API_REQUIRE_REQUEST_SIGNATURE: ${APP_INTERNAL_BOT_API_REQUIRE_REQUEST_SIGNATURE:-true}
+      APP_SECURITY_REMEMBER_ME_KEY: ${APP_SECURITY_REMEMBER_ME_KEY:-change-me}
+      APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME: ${APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME:-}
+      APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD: ${APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD:-}
+    ports:
+      - "${APP_HTTP_PORT:-8080}:8080"
+    volumes:
+      - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
+      - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
+      - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
+      - ${IGUANA_BOT_DATABASES_DIR:-./bot_databases}:/opt/iguana/bot_databases
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  bot-telegram:
+    profiles: ["telegram"]
+    build:
+      context: .
+      dockerfile: docker/bot.Dockerfile
+      args:
+        BOT_MODULE: bot-telegram
+    container_name: iguana-bot-telegram
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      spring-panel:
+        condition: service_healthy
+    environment:
+      APP_DB_MODE: worker
+      APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
+      APP_COORDINATION_MODE: redis
+      APP_STORAGE_OBJECT_MODE: s3
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${IGUANA_RABBITMQ_USER:-iguana}
+      SPRING_RABBITMQ_PASSWORD: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
+      APP_PANEL_INTERNAL_API_BASE_URL: http://spring-panel:8080
+      APP_PANEL_INTERNAL_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
+      APP_PANEL_INTERNAL_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
+      APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED: "true"
+      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
+      APP_STORAGE_OBJECT_REGION: ${APP_STORAGE_OBJECT_REGION:-us-east-1}
+      APP_STORAGE_OBJECT_ENDPOINT: http://minio:9000
+      APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
+      APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
+      APP_STORAGE_OBJECT_PATH_STYLE_ACCESS: "true"
+      APP_STORAGE_ATTACHMENTS: /opt/iguana/attachments
+      APP_STORAGE_WEBFORMS: /opt/iguana/attachments/forms
+      APP_BOT_LOG_DIR: /opt/iguana/logs
+      APP_BOT_LOG_PATH: /opt/iguana/logs/bot-telegram.log
+      SHARED_CONFIG_DIR: /opt/iguana/config/shared
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      GROUP_CHAT_ID: ${GROUP_CHAT_ID:-0}
+    volumes:
+      - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
+      - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
+      - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
+
+  bot-vk:
+    profiles: ["vk"]
+    build:
+      context: .
+      dockerfile: docker/bot.Dockerfile
+      args:
+        BOT_MODULE: bot-vk
+    container_name: iguana-bot-vk
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      spring-panel:
+        condition: service_healthy
+    environment:
+      APP_DB_MODE: worker
+      APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
+      APP_COORDINATION_MODE: redis
+      APP_STORAGE_OBJECT_MODE: s3
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${IGUANA_RABBITMQ_USER:-iguana}
+      SPRING_RABBITMQ_PASSWORD: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
+      APP_PANEL_INTERNAL_API_BASE_URL: http://spring-panel:8080
+      APP_PANEL_INTERNAL_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
+      APP_PANEL_INTERNAL_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
+      APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED: "true"
+      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
+      APP_STORAGE_OBJECT_REGION: ${APP_STORAGE_OBJECT_REGION:-us-east-1}
+      APP_STORAGE_OBJECT_ENDPOINT: http://minio:9000
+      APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
+      APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
+      APP_STORAGE_OBJECT_PATH_STYLE_ACCESS: "true"
+      APP_STORAGE_ATTACHMENTS: /opt/iguana/attachments
+      APP_STORAGE_WEBFORMS: /opt/iguana/attachments/forms
+      APP_BOT_LOG_DIR: /opt/iguana/logs
+      APP_BOT_LOG_PATH: /opt/iguana/logs/bot-vk.log
+      SHARED_CONFIG_DIR: /opt/iguana/config/shared
+      VK_BOT_ENABLED: "true"
+      VK_BOT_TOKEN: ${VK_BOT_TOKEN:-}
+      VK_GROUP_ID: ${VK_GROUP_ID:-0}
+      VK_OPERATOR_CHAT_ID: ${VK_OPERATOR_CHAT_ID:-0}
+      VK_WEBHOOK_ENABLED: ${VK_WEBHOOK_ENABLED:-false}
+      VK_CONFIRMATION_TOKEN: ${VK_CONFIRMATION_TOKEN:-}
+      VK_WEBHOOK_SECRET: ${VK_WEBHOOK_SECRET:-}
+      SERVER_PORT: 8080
+    ports:
+      - "${VK_BOT_HTTP_PORT:-18082}:8080"
+    volumes:
+      - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
+      - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
+      - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
+
+  bot-max:
+    profiles: ["max"]
+    build:
+      context: .
+      dockerfile: docker/bot.Dockerfile
+      args:
+        BOT_MODULE: bot-max
+    container_name: iguana-bot-max
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      spring-panel:
+        condition: service_healthy
+    environment:
+      APP_DB_MODE: worker
+      APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
+      APP_COORDINATION_MODE: redis
+      APP_STORAGE_OBJECT_MODE: s3
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${IGUANA_RABBITMQ_USER:-iguana}
+      SPRING_RABBITMQ_PASSWORD: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
+      APP_PANEL_INTERNAL_API_BASE_URL: http://spring-panel:8080
+      APP_PANEL_INTERNAL_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
+      APP_PANEL_INTERNAL_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
+      APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED: "true"
+      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
+      APP_STORAGE_OBJECT_REGION: ${APP_STORAGE_OBJECT_REGION:-us-east-1}
+      APP_STORAGE_OBJECT_ENDPOINT: http://minio:9000
+      APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
+      APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
+      APP_STORAGE_OBJECT_PATH_STYLE_ACCESS: "true"
+      APP_STORAGE_ATTACHMENTS: /opt/iguana/attachments
+      APP_STORAGE_WEBFORMS: /opt/iguana/attachments/forms
+      APP_BOT_LOG_DIR: /opt/iguana/logs
+      APP_BOT_LOG_PATH: /opt/iguana/logs/bot-max.log
+      SHARED_CONFIG_DIR: /opt/iguana/config/shared
+      MAX_BOT_ENABLED: "true"
+      MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:-}
+      MAX_CHANNEL_ID: ${MAX_CHANNEL_ID:-0}
+      MAX_SUPPORT_CHAT_ID: ${MAX_SUPPORT_CHAT_ID:-0}
+      MAX_WEBHOOK_SECRET: ${MAX_WEBHOOK_SECRET:-}
+      SERVER_ADDRESS: 0.0.0.0
+      SERVER_PORT: 8080
+    ports:
+      - "${MAX_BOT_HTTP_PORT:-18083}:8080"
+    volumes:
+      - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
+      - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
+      - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
+
+volumes:
+  iguana-postgres-data:
+  iguana-rabbitmq-data:
+  iguana-redis-data:
+  iguana-minio-data:

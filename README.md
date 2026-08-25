@@ -19,6 +19,8 @@ Iguana - многоканальная support CRM и операторская п
 
 Для roadmap мониторинга support-систем, внешних SaaS/API и корпоративных зависимостей используйте [docs/support-systems-monitoring-roadmap.md](docs/support-systems-monitoring-roadmap.md).
 
+Для containerized contour с `spring-panel + PostgreSQL + RabbitMQ + Redis + MinIO + external bot containers` используйте [docs/docker-production-contour.md](docs/docker-production-contour.md) и [docker-compose.production-contour.yml](docker-compose.production-contour.yml).
+
 В нём собраны:
 
 - актуальная архитектура `spring-panel` и `java-bot`;
@@ -93,6 +95,12 @@ cd spring-panel
 - если Docker недоступен, bootstrap теперь завершается ошибкой вместо молчаливого перехода в SQLite;
 - дефолтные runtime-конфиги `spring-panel` и `java-bot` теперь тоже ориентированы на `APP_DB_MODE=postgresql`;
 - `APP_DB_MODE=sqlite` оставлен только как явный compatibility override для локального legacy/dev-сценария.
+
+Если нужен именно dockerized contour, а не local process bootstrap, используйте:
+
+```powershell
+docker compose -f docker-compose.production-contour.yml up -d --build
+```
 
 Для ручного повторного bootstrap используйте `scripts/bootstrap-first-run.ps1` или `scripts/bootstrap-first-run.sh`.
 

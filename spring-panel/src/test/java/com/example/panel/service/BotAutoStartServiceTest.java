@@ -3,14 +3,17 @@ package com.example.panel.service;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.panel.config.BotProcessProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
 import com.example.panel.repository.ChannelRepository;
 import java.time.OffsetDateTime;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,8 +32,16 @@ class BotAutoStartServiceTest {
     @Mock
     private SharedConfigService sharedConfigService;
 
+    @Mock
+    private BotProcessProperties botProcessProperties;
+
     @InjectMocks
     private BotAutoStartService botAutoStartService;
+
+    @BeforeEach
+    void setUp() {
+        when(botProcessProperties.isAutoStartEnabled()).thenReturn(true);
+    }
 
     @Test
     void autoStartActiveBotsSkipsChannelWithoutId() {
@@ -199,7 +210,7 @@ class BotAutoStartServiceTest {
 
         botAutoStartService.autoStartActiveBots();
 
-        verify(botProcessService).start(failed);
+        verify(botProcessService, times(2)).start(failed);
         verify(botProcessService).start(succeeds);
     }
 
@@ -254,7 +265,7 @@ class BotAutoStartServiceTest {
 
         botAutoStartService.autoStartActiveBots();
 
-        verify(botProcessService).start(first);
+        verify(botProcessService, times(2)).start(first);
         verify(botProcessService).start(second);
     }
 
@@ -321,5 +332,15 @@ class BotAutoStartServiceTest {
 
         verify(botProcessService).start(failed);
         verify(botProcessService).start(succeeds);
+    }
+
+    @Test
+    void autoStartActiveBotsSkipsWholeCycleWhenDisabled() {
+        when(botProcessProperties.isAutoStartEnabled()).thenReturn(false);
+
+        botAutoStartService.autoStartActiveBots();
+
+        verify(botProcessService, never()).stopAllForStartup();
+        verify(channelRepository, never()).findAll();
     }
 }
