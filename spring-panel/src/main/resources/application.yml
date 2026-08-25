@@ -141,6 +141,10 @@ panel:
     history-retention:
       interval-ms: ${PANEL_MONITORING_HISTORY_RETENTION_INTERVAL_MS:21600000}
       initial-delay-ms: ${PANEL_MONITORING_HISTORY_RETENTION_INITIAL_DELAY_MS:600000}
+  observability:
+    production-readiness:
+      refresh-interval-ms: ${PANEL_OBSERVABILITY_PRODUCTION_READINESS_REFRESH_INTERVAL_MS:30000}
+      initial-delay-ms: ${PANEL_OBSERVABILITY_PRODUCTION_READINESS_INITIAL_DELAY_MS:5000}
   incidents:
     escalation:
       enabled: ${PANEL_INCIDENT_ESCALATION_ENABLED:true}
@@ -154,6 +158,8 @@ server:
   port: ${APP_HTTP_PORT:8080}
   tomcat:
     max-swallow-size: ${APP_TOMCAT_MAX_SWALLOW_SIZE:60MB}
+    mbeanregistry:
+      enabled: true
   servlet:
     encoding:
       charset: UTF-8
@@ -175,3 +181,45 @@ logging:
     com.example.panel.controller.ManagementController: WARN
     com.example.panel.service.ChannelTransportService: WARN
     com.example.panel.service.IikoDepartmentLocationsSyncService: WARN
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+      show-components: when_authorized
+      group:
+        liveness:
+          include: ping
+        readiness:
+          include: db,redis,rabbit,iguanaProduction
+    prometheus:
+      enabled: true
+    metrics:
+      enabled: true
+  health:
+    defaults:
+      enabled: true
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+    ping:
+      enabled: true
+    rabbit:
+      enabled: true
+    redis:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name:panel}
+      service: spring-panel
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true

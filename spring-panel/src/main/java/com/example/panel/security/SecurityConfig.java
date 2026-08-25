@@ -41,6 +41,7 @@ public class SecurityConfig {
                                 "/favicon.ico", "/*.svg", "/*.png",
                                 "/login",
                                 "/api/password-reset-requests/public",
+                                "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus",
                                 "/internal/api/bot/**",
                                 "/webhooks/max/**",
                                 "/error", "/error/**"
