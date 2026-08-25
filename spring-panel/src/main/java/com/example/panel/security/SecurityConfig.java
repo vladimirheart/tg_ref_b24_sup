@@ -3,6 +3,7 @@ package com.example.panel.security;
 import jakarta.servlet.DispatcherType;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,6 +22,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableMethodSecurity
+@EnableConfigurationProperties(PanelSecurityProperties.class)
 public class SecurityConfig {
 
     @Bean
@@ -28,7 +30,8 @@ public class SecurityConfig {
                                                    SecurityHeadersFilter securityHeadersFilter,
                                                    ObjectProvider<UserLastActivityFilter> userLastActivityFilter,
                                                    DaoAuthenticationProvider daoAuthenticationProvider,
-                                                   UserDetailsService userDetailsService) throws Exception {
+                                                   UserDetailsService userDetailsService,
+                                                   PanelSecurityProperties securityProperties) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
@@ -52,7 +55,7 @@ public class SecurityConfig {
                 .rememberMe(rememberMe -> rememberMe
                         .rememberMeParameter("remember-me")
                         .tokenValiditySeconds(14 * 24 * 60 * 60)
-                        .key("iguana-panel-remember-me")
+                        .key(securityProperties.getRememberMeKey())
                         .userDetailsService(userDetailsService)
                 )
                 .logout(logout -> logout

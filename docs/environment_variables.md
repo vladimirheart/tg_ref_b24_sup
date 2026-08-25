@@ -29,6 +29,7 @@
 | `APP_INTEGRATION_TRANSPORT_MODE` | transport boundary для integration runtime: `jdbc` только compatibility/dev path, `rabbitmq` для live contour | Java-бот |
 | `APP_PANEL_INTERNAL_API_BASE_URL` | base URL internal panel API для bot-side live reads/writes в `rabbitmq` contour | Java-бот |
 | `APP_PANEL_INTERNAL_API_TOKEN` | токен internal panel API для bot-side live reads/writes в `rabbitmq` contour | Java-бот |
+| `APP_INTERNAL_BOT_API_TOKEN` | токен internal panel bot API на стороне `spring-panel`; во внешнем production-like контуре должен быть явно переопределён и не может оставаться дефолтным | Панель |
 | `APP_COORDINATION_MODE` | coordination backend: `direct` для local/dev, `redis` для shared leases/counters/cooldowns в production contour | Панель и бот |
 | `APP_COORDINATION_LEASE_NAMESPACE` | namespace ключей coordination lease/counter/cooldown в Redis | Панель и бот |
 | `APP_COORDINATION_BOT_INGRESS_LEASE_TTL` | TTL ingress lease для bot long-poll owner semantics | Java-бот |
@@ -64,6 +65,10 @@
 | `APP_ADMIN_PYTHON_EXECUTABLE` | python executable для admin storage inventory | `python` |
 | `APP_ADMIN_REPOSITORY_ROOT` | явный repo root для admin storage inventory | auto-detect |
 | `APP_ADMIN_STORAGE_INVENTORY_TIMEOUT` | timeout запуска inventory из админки | `90s` |
+| `APP_SECURITY_REMEMBER_ME_KEY` | секретный ключ remember-me cookie; во внешнем production-like контуре должен быть явно переопределён | `iguana-panel-remember-me` |
+| `APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME` | bootstrap username для первого administrator-пользователя, если в users/authorities ещё нет `ROLE_ADMIN` | unset |
+| `APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD` | bootstrap password для первого administrator-пользователя, если в users/authorities ещё нет `ROLE_ADMIN` | unset |
+| `APP_SECURITY_BOOTSTRAP_ADMIN_ALLOW_DEFAULT_CREDENTIALS_IN_SQLITE` | разрешить dev-friendly fallback `admin/admin` только для SQLite compatibility mode | `true` |
 
 ## Пример запуска
 
@@ -99,6 +104,8 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 - локальные `APP_DB_*` SQLite-пути автоматически подставляются только в явном `APP_DB_MODE=sqlite`;
 - normal runtime path с `APP_DB_MODE=postgresql` больше не получает скрытый SQLite compatibility bootstrap через `EnvDefaultsInitializer`.
 - `APP_DB_SETTINGS` больше не входит в active runtime/env contract: отдельный `settings.db` registry layer удалён как legacy topology.
+- во внешнем production-like контуре `spring-panel` теперь fail-fast останавливается, если `APP_INTERNAL_BOT_API_TOKEN` или `APP_SECURITY_REMEMBER_ME_KEY` оставлены на встроенных дефолтах.
+- если во внешнем контуре в `users/user_authorities` ещё нет пользователя с `ROLE_ADMIN`, для первого старта нужно заранее передать `APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME` и `APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD`.
 
 Для first-run bootstrap после стартового production-slice `01-183` действует ещё одно правило:
 

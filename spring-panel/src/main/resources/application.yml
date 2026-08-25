@@ -129,6 +129,12 @@ app:
     python-executable: ${APP_ADMIN_PYTHON_EXECUTABLE:python}
     repository-root: ${APP_ADMIN_REPOSITORY_ROOT:}
     storage-inventory-timeout: ${APP_ADMIN_STORAGE_INVENTORY_TIMEOUT:90s}
+  security:
+    remember-me-key: ${APP_SECURITY_REMEMBER_ME_KEY:iguana-panel-remember-me}
+    bootstrap-admin:
+      username: ${APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME:}
+      password: ${APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD:}
+      allow-default-credentials-in-sqlite: ${APP_SECURITY_BOOTSTRAP_ADMIN_ALLOW_DEFAULT_CREDENTIALS_IN_SQLITE:true}
 
 panel:
   monitoring:
