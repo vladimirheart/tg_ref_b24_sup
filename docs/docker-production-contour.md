@@ -83,18 +83,30 @@
 docker compose -f docker-compose.production-contour.yml up -d --build
 ```
 
+Перед первым запуском обычно нужно подготовить `.env` на основе шаблона:
+
+```bash
+cp .env.example .env
+```
+
+```powershell
+Copy-Item .env.example .env
+```
+
 Или через штатные скрипты репозитория:
 
 ```powershell
 .\scripts\docker-production-up.ps1 -Build
 .\scripts\docker-production-up.ps1 -Build -Telegram
 .\scripts\docker-production-up.ps1 -Build -Telegram -Vk
+.\scripts\docker-production-up.ps1 -ValidateOnly
 ```
 
 ```bash
 ./scripts/docker-production-up.sh --build
 ./scripts/docker-production-up.sh --build --telegram
 ./scripts/docker-production-up.sh --build --telegram --vk
+./scripts/docker-production-up.sh --validate-only
 ```
 
 С конкретными каналами:
@@ -171,6 +183,25 @@ Compose использует bind mounts, чтобы не ломать теку�
 - `MAX_BOT_TOKEN`
 - `MAX_CHANNEL_ID`
 - `MAX_SUPPORT_CHAT_ID`
+
+Helper-скрипты перед запуском делают preflight-проверку:
+
+- наличие `config/shared/settings.json`, `locations.json`, `org_structure.json`;
+- наличие обязательных infra secrets;
+- отсутствие встроенных insecure defaults для production-like contour;
+- наличие channel credentials для включённых профилей.
+
+Если `.env` ещё не подготовлен и нужные переменные не заданы в process environment, helper-скрипт завершится fail-fast с подсказкой, какой именно ключ отсутствует.
+
+Если нужен именно локальный совместимый contour с временно небезопасными дефолтами, это надо делать явно:
+
+```powershell
+.\scripts\docker-production-up.ps1 -Build -AllowInsecureDefaults
+```
+
+```bash
+./scripts/docker-production-up.sh --build --allow-insecure-defaults
+```
 
 ## 9. Как читать этот contour
 

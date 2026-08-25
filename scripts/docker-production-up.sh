@@ -7,6 +7,7 @@ MAX=0
 BUILD=0
 DETACH=1
 VALIDATE_ONLY=0
+ALLOW_INSECURE_DEFAULTS=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
       VALIDATE_ONLY=1
       shift
       ;;
+    --allow-insecure-defaults)
+      ALLOW_INSECURE_DEFAULTS=1
+      shift
+      ;;
     *)
       echo "[ERROR] Unknown argument: $1" >&2
       exit 1
@@ -44,6 +49,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-contour.yml"
+ENV_FILE="${REPO_ROOT}/.env"
 
 if [[ ! -f "${COMPOSE_FILE}" ]]; then
   echo "[ERROR] Compose file not found: ${COMPOSE_FILE}" >&2
@@ -54,6 +60,110 @@ PROFILES=()
 if [[ "${TELEGRAM}" == "1" ]]; then
   PROFILES+=("telegram")
 fi
+
+get_setting_value() {
+  local name="$1"
+  local value="${!name-}"
+  if [[ -n "${value}" ]]; then
+    printf '%s' "${value}"
+    return 0
+  fi
+  if [[ -f "${ENV_FILE}" ]]; then
+    local line
+    line="$(grep -E "^${name}=" "${ENV_FILE}" | tail -n 1 || true)"
+    if [[ -n "${line}" ]]; then
+      printf '%s' "${line#*=}"
+      return 0
+    fi
+  fi
+  printf ''
+}
+
+assert_required_file() {
+  local path="$1"
+  local label="$2"
+  if [[ ! -f "${path}" ]]; then
+    echo "[ERROR] ${label} is missing: ${path}" >&2
+    exit 1
+  fi
+}
+
+assert_required_setting() {
+  local name="$1"
+  local message="$2"
+  local value
+  value="$(get_setting_value "${name}")"
+  if [[ -z "${value}" ]]; then
+    echo "[ERROR] ${message} (${name}). Configure it via process environment or repository .env." >&2
+    exit 1
+  fi
+}
+
+assert_non_default_secret() {
+  local name="$1"
+  local message="$2"
+  shift 2
+  local value
+  value="$(get_setting_value "${name}")"
+  if [[ -z "${value}" ]]; then
+    echo "[ERROR] ${message} (${name})" >&2
+    exit 1
+  fi
+  local candidate
+  for candidate in "$@"; do
+    if [[ "${value}" == "${candidate}" ]]; then
+      echo "[ERROR] ${message} (${name} uses disallowed default '${candidate}'). Update repository .env or process environment." >&2
+      exit 1
+    fi
+  done
+}
+
+invoke_preflight_checks() {
+  assert_required_file "${REPO_ROOT}/config/shared/settings.json" "Shared config settings"
+  assert_required_file "${REPO_ROOT}/config/shared/locations.json" "Shared config locations"
+  assert_required_file "${REPO_ROOT}/config/shared/org_structure.json" "Shared config org structure"
+
+  if [[ "${ALLOW_INSECURE_DEFAULTS}" == "1" ]]; then
+    assert_required_setting "APP_INTERNAL_BOT_API_TOKEN" "Internal bot API token must be configured"
+    assert_required_setting "APP_SECURITY_REMEMBER_ME_KEY" "Remember-me key must be configured"
+    assert_required_setting "IGUANA_POSTGRES_PASSWORD" "PostgreSQL password must be configured"
+    assert_required_setting "IGUANA_RABBITMQ_PASSWORD" "RabbitMQ password must be configured"
+    assert_required_setting "IGUANA_REDIS_PASSWORD" "Redis password must be configured"
+    assert_required_setting "APP_STORAGE_OBJECT_ACCESS_KEY" "Object storage access key must be configured"
+    assert_required_setting "APP_STORAGE_OBJECT_SECRET_KEY" "Object storage secret key must be configured"
+    assert_required_setting "APP_STORAGE_OBJECT_BUCKET" "Object storage bucket must be configured"
+  else
+    assert_non_default_secret "APP_INTERNAL_BOT_API_TOKEN" "Internal bot API token must be overridden" "change-me" "iguana-internal-bot-token"
+    assert_non_default_secret "APP_SECURITY_REMEMBER_ME_KEY" "Remember-me key must be overridden" "change-me" "iguana-panel-remember-me"
+    assert_non_default_secret "IGUANA_POSTGRES_PASSWORD" "PostgreSQL password must be overridden" "iguana"
+    assert_non_default_secret "IGUANA_RABBITMQ_PASSWORD" "RabbitMQ password must be overridden" "iguana"
+    assert_non_default_secret "IGUANA_REDIS_PASSWORD" "Redis password must be overridden" "iguana-redis"
+    assert_non_default_secret "APP_STORAGE_OBJECT_ACCESS_KEY" "Object storage access key must be overridden" "iguana-minio"
+    assert_non_default_secret "APP_STORAGE_OBJECT_SECRET_KEY" "Object storage secret key must be overridden" "iguana-minio-secret"
+    assert_non_default_secret "APP_STORAGE_OBJECT_BUCKET" "Object storage bucket must be overridden for production-like launch" "iguana"
+  fi
+
+  local profile
+  for profile in "${PROFILES[@]}"; do
+    case "${profile}" in
+      telegram)
+        assert_required_setting "TELEGRAM_BOT_TOKEN" "Telegram profile requires TELEGRAM_BOT_TOKEN"
+        assert_required_setting "TELEGRAM_BOT_USERNAME" "Telegram profile requires TELEGRAM_BOT_USERNAME"
+        assert_required_setting "GROUP_CHAT_ID" "Telegram profile requires GROUP_CHAT_ID"
+        ;;
+      vk)
+        assert_required_setting "VK_BOT_TOKEN" "VK profile requires VK_BOT_TOKEN"
+        assert_required_setting "VK_GROUP_ID" "VK profile requires VK_GROUP_ID"
+        assert_required_setting "VK_OPERATOR_CHAT_ID" "VK profile requires VK_OPERATOR_CHAT_ID"
+        ;;
+      max)
+        assert_required_setting "MAX_BOT_TOKEN" "MAX profile requires MAX_BOT_TOKEN"
+        assert_required_setting "MAX_CHANNEL_ID" "MAX profile requires MAX_CHANNEL_ID"
+        assert_required_setting "MAX_SUPPORT_CHAT_ID" "MAX profile requires MAX_SUPPORT_CHAT_ID"
+        ;;
+    esac
+  done
+}
 if [[ "${VK}" == "1" ]]; then
   PROFILES+=("vk")
 fi
@@ -69,6 +179,8 @@ mkdir -p \
   "${REPO_ROOT}/logs" \
   "${REPO_ROOT}/bot_databases"
 
+invoke_preflight_checks
+
 if [[ "${VALIDATE_ONLY}" == "1" ]]; then
   echo "[INFO] Validation succeeded."
   echo "[INFO] Compose file: ${COMPOSE_FILE}"
@@ -77,6 +189,7 @@ if [[ "${VALIDATE_ONLY}" == "1" ]]; then
   else
     echo "[INFO] Profiles: none (infra + panel only)"
   fi
+  echo "[INFO] Insecure defaults allowed: ${ALLOW_INSECURE_DEFAULTS}"
   exit 0
 fi
 

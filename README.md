@@ -107,6 +107,7 @@ docker compose -f docker-compose.production-contour.yml up -d --build
 ```powershell
 .\scripts\docker-production-up.ps1 -Build
 .\scripts\docker-production-up.ps1 -Build -Telegram
+.\scripts\docker-production-up.ps1 -ValidateOnly
 ```
 
 Для ручного повторного bootstrap используйте `scripts/bootstrap-first-run.ps1` или `scripts/bootstrap-first-run.sh`.
