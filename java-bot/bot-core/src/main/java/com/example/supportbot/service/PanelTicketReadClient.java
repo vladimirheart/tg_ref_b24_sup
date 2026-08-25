@@ -26,16 +26,18 @@ import org.springframework.util.StringUtils;
 public class PanelTicketReadClient {
 
     private static final Logger log = LoggerFactory.getLogger(PanelTicketReadClient.class);
-    private static final String AUTH_HEADER = "X-Iguana-Bot-Api-Token";
 
     private final IntegrationPanelApiProperties properties;
     private final ObjectMapper objectMapper;
+    private final PanelApiRequestHeadersFactory requestHeadersFactory;
     private final HttpClient httpClient;
 
     public PanelTicketReadClient(IntegrationPanelApiProperties properties,
-                                 ObjectMapper objectMapper) {
+                                 ObjectMapper objectMapper,
+                                 PanelApiRequestHeadersFactory requestHeadersFactory) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.requestHeadersFactory = requestHeadersFactory;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -165,11 +167,12 @@ public class PanelTicketReadClient {
     }
 
     private <T> Optional<T> send(String path, TypeReference<T> typeReference) {
-        HttpRequest request = HttpRequest.newBuilder(resolve(path))
-            .timeout(Duration.ofSeconds(5))
-            .header(AUTH_HEADER, properties.getToken())
-            .GET()
-            .build();
+        URI uri = resolve(path);
+        HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+            .timeout(properties.getRequestTimeout())
+            .GET();
+        requestHeadersFactory.apply(builder::header, "GET", uri, null, null);
+        HttpRequest request = builder.build();
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() == 404) {

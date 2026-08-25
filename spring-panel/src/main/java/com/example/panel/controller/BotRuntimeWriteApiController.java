@@ -1,12 +1,13 @@
 package com.example.panel.controller;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.security.InternalBotApiRequestGuardService;
 import com.example.panel.service.BotRuntimeBlacklistService;
 import com.example.panel.service.BotRuntimeChannelService;
 import com.example.panel.service.BotRuntimeTicketWriteService;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.DeleteMapping;
+import java.util.function.Supplier;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -14,8 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/internal/api/bot")
@@ -26,156 +27,173 @@ public class BotRuntimeWriteApiController {
     private final BotRuntimeTicketWriteService ticketWriteService;
     private final BotRuntimeChannelService channelService;
     private final BotRuntimeBlacklistService blacklistService;
-    private final String expectedToken;
+    private final InternalBotApiRequestGuardService requestGuardService;
 
     public BotRuntimeWriteApiController(BotRuntimeTicketWriteService ticketWriteService,
                                         BotRuntimeChannelService channelService,
                                         BotRuntimeBlacklistService blacklistService,
-                                        @Value("${app.bots.internal-api.token:iguana-internal-bot-token}") String expectedToken) {
+                                        InternalBotApiRequestGuardService requestGuardService) {
         this.ticketWriteService = ticketWriteService;
         this.channelService = channelService;
         this.blacklistService = blacklistService;
-        this.expectedToken = expectedToken;
+        this.requestGuardService = requestGuardService;
     }
 
     @PutMapping("/tickets/{ticketId}/activity")
-    public BotRuntimeTicketWriteService.MutationResult registerActivity(
+    public ResponseEntity<String> registerActivity(
+        HttpServletRequest request,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
         @PathVariable String ticketId,
-        @RequestBody(required = false) TicketActivityRequest request
+        @RequestBody(required = false) TicketActivityRequest body
     ) {
-        requireAuthorized(token);
-        return ticketWriteService.registerActivity(ticketId, request != null ? request.userIdentity() : null);
+        return executeWrite(request, token, () ->
+            ticketWriteService.registerActivity(ticketId, body != null ? body.userIdentity() : null));
     }
 
     @DeleteMapping("/tickets/{ticketId}/activity")
-    public BotRuntimeTicketWriteService.MutationResult clearActivity(
+    public ResponseEntity<String> clearActivity(
+        HttpServletRequest request,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
         @PathVariable String ticketId
     ) {
-        requireAuthorized(token);
-        return ticketWriteService.clearActivity(ticketId);
+        return executeWrite(request, token, () -> ticketWriteService.clearActivity(ticketId));
     }
 
     @PostMapping("/tickets/{ticketId}/reopen")
-    public BotRuntimeTicketWriteService.MutationResult reopenTicket(
+    public ResponseEntity<String> reopenTicket(
+        HttpServletRequest request,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
         @PathVariable String ticketId,
-        @RequestBody(required = false) TicketActivityRequest request
+        @RequestBody(required = false) TicketActivityRequest body
     ) {
-        requireAuthorized(token);
-        return ticketWriteService.reopenTicket(ticketId, request != null ? request.userIdentity() : null);
+        return executeWrite(request, token, () ->
+            ticketWriteService.reopenTicket(ticketId, body != null ? body.userIdentity() : null));
     }
 
     @PostMapping("/tickets/{ticketId}/operator-relay")
-    public BotRuntimeTicketWriteService.MutationResult recordOperatorRelay(
+    public ResponseEntity<String> recordOperatorRelay(
+        HttpServletRequest request,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
         @PathVariable String ticketId,
-        @RequestBody OperatorRelayRequest request
+        @RequestBody OperatorRelayRequest body
     ) {
-        requireAuthorized(token);
-        return ticketWriteService.recordOperatorRelay(
+        return executeWrite(request, token, () -> ticketWriteService.recordOperatorRelay(
             ticketId,
-            request != null ? request.message() : null,
-            request != null ? request.telegramMessageId() : null,
-            request != null ? request.replyToTelegramId() : null,
-            request != null ? request.operatorIdentity() : null
-        );
+            body != null ? body.message() : null,
+            body != null ? body.telegramMessageId() : null,
+            body != null ? body.replyToTelegramId() : null,
+            body != null ? body.operatorIdentity() : null
+        ));
     }
 
     @PutMapping("/channels/{channelId}/messages/{telegramMessageId}/client-edit")
-    public BotRuntimeTicketWriteService.MutationResult markClientMessageEdited(
+    public ResponseEntity<String> markClientMessageEdited(
+        HttpServletRequest request,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
         @PathVariable Long channelId,
         @PathVariable Long telegramMessageId,
-        @RequestBody ClientMessageEditRequest request
+        @RequestBody ClientMessageEditRequest body
     ) {
-        requireAuthorized(token);
-        return ticketWriteService.markClientMessageEdited(
+        return executeWrite(request, token, () -> ticketWriteService.markClientMessageEdited(
             channelId,
             telegramMessageId,
-            request != null ? request.message() : null
-        );
+            body != null ? body.message() : null
+        ));
     }
 
     @PutMapping("/tickets/{ticketId}/operator-messages/{telegramMessageId}")
-    public BotRuntimeTicketWriteService.MutationResult markOperatorMessageEdited(
+    public ResponseEntity<String> markOperatorMessageEdited(
+        HttpServletRequest request,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
         @PathVariable String ticketId,
         @PathVariable Long telegramMessageId,
-        @RequestBody OperatorMessageEditRequest request
+        @RequestBody OperatorMessageEditRequest body
     ) {
-        requireAuthorized(token);
-        return ticketWriteService.markOperatorMessageEdited(
+        return executeWrite(request, token, () -> ticketWriteService.markOperatorMessageEdited(
             ticketId,
             telegramMessageId,
-            request != null ? request.message() : null,
-            request != null ? request.operatorIdentity() : null
-        );
+            body != null ? body.message() : null,
+            body != null ? body.operatorIdentity() : null
+        ));
     }
 
     @PostMapping("/channels/resolve")
-    public ChannelResponse resolveChannel(
+    public ResponseEntity<String> resolveChannel(
+        HttpServletRequest request,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
-        @RequestBody(required = false) ChannelResolveRequest request
+        @RequestBody(required = false) ChannelResolveRequest body
     ) {
-        requireAuthorized(token);
-        Channel resolved = channelService.resolveConfiguredChannel(
-            request != null ? request.channelId() : null,
-            request != null ? request.token() : null,
-            request != null ? request.channelName() : null,
-            request != null ? request.platform() : null
-        );
-        return ChannelResponse.from(resolved);
+        return executeWrite(request, token, () -> {
+            Channel resolved = channelService.resolveConfiguredChannel(
+                body != null ? body.channelId() : null,
+                body != null ? body.token() : null,
+                body != null ? body.channelName() : null,
+                body != null ? body.platform() : null
+            );
+            return ChannelResponse.from(resolved);
+        });
     }
 
     @PutMapping("/channels/{channelId}/support-chat")
-    public ChannelResponse updateSupportChatId(
+    public ResponseEntity<String> updateSupportChatId(
+        HttpServletRequest request,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
         @PathVariable Long channelId,
-        @RequestBody(required = false) SupportChatUpdateRequest request
+        @RequestBody(required = false) SupportChatUpdateRequest body
     ) {
-        requireAuthorized(token);
-        Channel updated = channelService.updateSupportChatId(
-            channelId,
-            request != null ? request.supportChatId() : null
-        );
-        return ChannelResponse.from(updated);
+        return executeWrite(request, token, () -> {
+            Channel updated = channelService.updateSupportChatId(
+                channelId,
+                body != null ? body.supportChatId() : null
+            );
+            return ChannelResponse.from(updated);
+        });
     }
 
     @PostMapping("/feedback/pending/{requestId}/submit")
-    public BotRuntimeTicketWriteService.MutationResult storeFeedback(
+    public ResponseEntity<String> storeFeedback(
+        HttpServletRequest request,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
         @PathVariable Long requestId,
-        @RequestBody FeedbackSubmitRequest request
+        @RequestBody FeedbackSubmitRequest body
     ) {
-        requireAuthorized(token);
-        return ticketWriteService.storeFeedback(
+        return executeWrite(request, token, () -> ticketWriteService.storeFeedback(
             requestId,
-            request != null ? request.rating() : null
-        );
+            body != null ? body.rating() : null
+        ));
     }
 
     @PostMapping("/blacklist/unblock-requests")
-    public BotRuntimeBlacklistService.UnblockRequestDecisionLookup requestUnblock(
+    public ResponseEntity<String> requestUnblock(
+        HttpServletRequest request,
         @RequestHeader(name = AUTH_HEADER, required = false) String token,
-        @RequestBody(required = false) UnblockRequestCreateRequest request
+        @RequestBody(required = false) UnblockRequestCreateRequest body
     ) {
-        requireAuthorized(token);
-        Duration cooldown = request != null && request.cooldownSeconds() != null
-            ? Duration.ofSeconds(Math.max(0L, request.cooldownSeconds()))
-            : Duration.ZERO;
-        return blacklistService.requestUnblock(
-            request != null ? request.userId() : null,
-            request != null ? request.reason() : null,
-            request != null ? request.channelId() : null,
-            cooldown
-        );
+        return executeWrite(request, token, () -> {
+            Duration cooldown = body != null && body.cooldownSeconds() != null
+                ? Duration.ofSeconds(Math.max(0L, body.cooldownSeconds()))
+                : Duration.ZERO;
+            return blacklistService.requestUnblock(
+                body != null ? body.userId() : null,
+                body != null ? body.reason() : null,
+                body != null ? body.channelId() : null,
+                cooldown
+            );
+        });
     }
 
-    private void requireAuthorized(String token) {
-        if (token == null || token.isBlank() || !token.equals(expectedToken)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized internal bot API request");
+    private ResponseEntity<String> executeWrite(HttpServletRequest request,
+                                                String token,
+                                                Supplier<Object> action) {
+        InternalBotApiRequestGuardService.WriteExecution execution = requestGuardService.prepareWrite(request, token);
+        if (execution.replayResponse() != null) {
+            return execution.replayResponse();
+        }
+        try {
+            return requestGuardService.successResponse(execution, action.get());
+        } catch (RuntimeException ex) {
+            execution.release();
+            throw ex;
         }
     }
 

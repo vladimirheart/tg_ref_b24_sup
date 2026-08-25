@@ -23,18 +23,20 @@ import org.springframework.stereotype.Service;
 public class PanelRuntimeConfigClient {
 
     private static final Logger log = LoggerFactory.getLogger(PanelRuntimeConfigClient.class);
-    private static final String AUTH_HEADER = "X-Iguana-Bot-Api-Token";
     private static final Duration CACHE_TTL = Duration.ofMinutes(1);
 
     private final IntegrationPanelApiProperties properties;
     private final ObjectMapper objectMapper;
+    private final PanelApiRequestHeadersFactory requestHeadersFactory;
     private final HttpClient httpClient;
     private final ConcurrentHashMap<Long, CachedRuntimeConfig> cache = new ConcurrentHashMap<>();
 
     public PanelRuntimeConfigClient(IntegrationPanelApiProperties properties,
-                                    ObjectMapper objectMapper) {
+                                    ObjectMapper objectMapper,
+                                    PanelApiRequestHeadersFactory requestHeadersFactory) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.requestHeadersFactory = requestHeadersFactory;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -60,11 +62,12 @@ public class PanelRuntimeConfigClient {
 
     private Optional<RuntimeConfigSnapshot> fetch(Long channelId) {
         String path = "/internal/api/bot/channels/" + channelId + "/runtime-config";
-        HttpRequest request = HttpRequest.newBuilder(resolve(path))
-            .timeout(Duration.ofSeconds(5))
-            .header(AUTH_HEADER, properties.getToken())
-            .GET()
-            .build();
+        URI uri = resolve(path);
+        HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+            .timeout(properties.getRequestTimeout())
+            .GET();
+        requestHeadersFactory.apply(builder::header, "GET", uri, null, null);
+        HttpRequest request = builder.build();
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() < 200 || response.statusCode() >= 300) {

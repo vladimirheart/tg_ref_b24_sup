@@ -6,6 +6,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.config.RuntimeCoordinationProperties;
+import com.example.panel.security.InternalBotApiProperties;
+import com.example.panel.security.InternalBotApiRequestGuardService;
 import com.example.panel.service.BotRuntimeBlacklistService;
 import com.example.panel.service.BotRuntimeChannelService;
 import com.example.panel.service.BotRuntimeConfigService;
@@ -19,11 +22,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(BotRuntimeReadApiController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import({InternalBotApiRequestGuardService.class, InternalBotApiProperties.class, RuntimeCoordinationProperties.class})
 @TestPropertySource(properties = "app.bots.internal-api.token=test-internal-token")
 class BotRuntimeReadApiControllerWebMvcTest {
 

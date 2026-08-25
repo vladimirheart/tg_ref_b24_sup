@@ -29,7 +29,17 @@
 | `APP_INTEGRATION_TRANSPORT_MODE` | transport boundary для integration runtime: `jdbc` только compatibility/dev path, `rabbitmq` для live contour | Java-бот |
 | `APP_PANEL_INTERNAL_API_BASE_URL` | base URL internal panel API для bot-side live reads/writes в `rabbitmq` contour | Java-бот |
 | `APP_PANEL_INTERNAL_API_TOKEN` | токен internal panel API для bot-side live reads/writes в `rabbitmq` contour | Java-бот |
+| `APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED` | включает signed headers (`timestamp` + `HMAC`) для bot -> panel internal API | Java-бот |
+| `APP_PANEL_INTERNAL_API_SIGNATURE_SECRET` | выделенный shared secret для подписи internal bot API; если пусто, bot и panel fallback-ятся к токену | Панель и Java-бот |
+| `APP_PANEL_INTERNAL_API_REQUEST_TIMEOUT` | timeout одного bot -> panel internal API запроса | Java-бот |
+| `APP_PANEL_INTERNAL_API_RETRY_ATTEMPTS` | количество retry попыток bot-side write-запросов к internal panel API | Java-бот |
+| `APP_PANEL_INTERNAL_API_RETRY_BACKOFF` | базовый backoff между retry попытками bot-side write-запросов | Java-бот |
 | `APP_INTERNAL_BOT_API_TOKEN` | токен internal panel bot API на стороне `spring-panel`; во внешнем production-like контуре должен быть явно переопределён и не может оставаться дефолтным | Панель |
+| `APP_INTERNAL_BOT_API_SIGNATURE_SECRET` | shared secret для проверки `X-Iguana-Request-Signature` на стороне `spring-panel` | Панель |
+| `APP_INTERNAL_BOT_API_REQUIRE_REQUEST_SIGNATURE` | требовать signed internal bot API requests на стороне `spring-panel` | Панель |
+| `APP_INTERNAL_BOT_API_REQUEST_TIMESTAMP_SKEW` | допустимый clock skew для signed internal bot API requests | Панель |
+| `APP_INTERNAL_BOT_API_IDEMPOTENCY_INFLIGHT_TTL` | TTL claim-состояния для in-flight idempotency key на internal bot API | Панель |
+| `APP_INTERNAL_BOT_API_IDEMPOTENCY_TTL` | TTL cached-response слоя для replay-safe idempotency write-запросов | Панель |
 | `APP_COORDINATION_MODE` | coordination backend: `direct` для local/dev, `redis` для shared leases/counters/cooldowns в production contour | Панель и бот |
 | `APP_COORDINATION_LEASE_NAMESPACE` | namespace ключей coordination lease/counter/cooldown в Redis | Панель и бот |
 | `APP_COORDINATION_BOT_INGRESS_LEASE_TTL` | TTL ingress lease для bot long-poll owner semantics | Java-бот |

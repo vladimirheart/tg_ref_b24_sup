@@ -20,16 +20,18 @@ import org.springframework.util.StringUtils;
 public class PanelTicketWriteClient {
 
     private static final Logger log = LoggerFactory.getLogger(PanelTicketWriteClient.class);
-    private static final String AUTH_HEADER = "X-Iguana-Bot-Api-Token";
 
     private final IntegrationPanelApiProperties properties;
     private final ObjectMapper objectMapper;
+    private final PanelApiRequestHeadersFactory requestHeadersFactory;
     private final HttpClient httpClient;
 
     public PanelTicketWriteClient(IntegrationPanelApiProperties properties,
-                                  ObjectMapper objectMapper) {
+                                  ObjectMapper objectMapper,
+                                  PanelApiRequestHeadersFactory requestHeadersFactory) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.requestHeadersFactory = requestHeadersFactory;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -130,29 +132,45 @@ public class PanelTicketWriteClient {
     }
 
     private Optional<MutationResponse> sendMutation(String path, String method, Object body) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder(resolve(path))
-            .timeout(Duration.ofSeconds(5))
-            .header(AUTH_HEADER, properties.getToken());
         try {
-            if (body == null) {
-                builder.method(method, HttpRequest.BodyPublishers.noBody());
-            } else {
-                builder.header("Content-Type", "application/json");
-                builder.method(method, HttpRequest.BodyPublishers.ofString(
-                    objectMapper.writeValueAsString(body),
-                    StandardCharsets.UTF_8
-                ));
+            String requestBody = body == null ? null : objectMapper.writeValueAsString(body);
+            String idempotencyKey = requestHeadersFactory.newIdempotencyKey("panel-write", path);
+            int attempts = Math.max(1, properties.getRetryAttempts());
+            for (int attempt = 1; attempt <= attempts; attempt++) {
+                HttpRequest.Builder builder = HttpRequest.newBuilder(resolve(path))
+                    .timeout(properties.getRequestTimeout());
+                requestHeadersFactory.apply(builder::header, method, resolve(path), requestBody, idempotencyKey);
+                if (requestBody == null) {
+                    builder.method(method, HttpRequest.BodyPublishers.noBody());
+                } else {
+                    builder.header("Content-Type", "application/json");
+                    builder.method(method, HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8));
+                }
+                try {
+                    HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                    if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                        return Optional.of(objectMapper.readValue(response.body(), new TypeReference<MutationResponse>() {}));
+                    }
+                    if (response.statusCode() >= 500 && attempt < attempts) {
+                        sleepBeforeRetry(attempt);
+                        continue;
+                    }
+                    log.warn("Internal panel write API request {} {} failed with status {}", method, path, response.statusCode());
+                    return Optional.empty();
+                } catch (IOException ex) {
+                    if (attempt >= attempts) {
+                        log.warn("Failed to call internal panel write API {} {}", method, path, ex);
+                        return Optional.empty();
+                    }
+                    sleepBeforeRetry(attempt);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Failed to call internal panel write API {} {}", method, path, ex);
+                    return Optional.empty();
+                }
             }
-            HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("Internal panel write API request {} {} failed with status {}", method, path, response.statusCode());
-                return Optional.empty();
-            }
-            return Optional.of(objectMapper.readValue(response.body(), new TypeReference<MutationResponse>() {}));
-        } catch (IOException | InterruptedException ex) {
-            if (ex instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
+            return Optional.empty();
+        } catch (IOException ex) {
             log.warn("Failed to call internal panel write API {} {}", method, path, ex);
             return Optional.empty();
         }
@@ -163,6 +181,18 @@ public class PanelTicketWriteClient {
         String normalizedBase = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         String normalizedPath = path.startsWith("/") ? path : "/" + path;
         return URI.create(normalizedBase + normalizedPath);
+    }
+
+    private void sleepBeforeRetry(int attempt) {
+        long backoffMillis = Math.max(0L, properties.getRetryBackoff().toMillis()) * Math.max(1L, attempt);
+        if (backoffMillis <= 0L) {
+            return;
+        }
+        try {
+            Thread.sleep(backoffMillis);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private String encodePath(String value) {

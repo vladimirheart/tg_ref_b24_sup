@@ -62,6 +62,11 @@ app:
     panel-api:
       base-url: ${APP_PANEL_INTERNAL_API_BASE_URL:http://127.0.0.1:8080}
       token: ${APP_PANEL_INTERNAL_API_TOKEN:iguana-internal-bot-token}
+      request-signing-enabled: ${APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED:true}
+      signature-secret: ${APP_PANEL_INTERNAL_API_SIGNATURE_SECRET:}
+      request-timeout: ${APP_PANEL_INTERNAL_API_REQUEST_TIMEOUT:5s}
+      retry-attempts: ${APP_PANEL_INTERNAL_API_RETRY_ATTEMPTS:2}
+      retry-backoff: ${APP_PANEL_INTERNAL_API_RETRY_BACKOFF:250ms}
     rabbitmq:
       inbound-exchange: ${APP_INTEGRATION_RABBITMQ_INBOUND_EXCHANGE:iguana.integration.inbound}
       inbound-queue: ${APP_INTEGRATION_RABBITMQ_INBOUND_QUEUE:iguana.integration.inbound.panel}

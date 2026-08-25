@@ -224,6 +224,11 @@ public class BotRuntimeContractService {
             "app.bots.internal-api.token",
             "iguana-internal-bot-token"
         ));
+        env.put("APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED", "true");
+        putIfHasText(env, "APP_PANEL_INTERNAL_API_SIGNATURE_SECRET", environment.getProperty("app.bots.internal-api.signature-secret"));
+        env.put("APP_PANEL_INTERNAL_API_REQUEST_TIMEOUT", environment.getProperty("app.integration.panel-api.request-timeout", "5s"));
+        env.put("APP_PANEL_INTERNAL_API_RETRY_ATTEMPTS", environment.getProperty("app.integration.panel-api.retry-attempts", "2"));
+        env.put("APP_PANEL_INTERNAL_API_RETRY_BACKOFF", environment.getProperty("app.integration.panel-api.retry-backoff", "250ms"));
         if (isRabbitMqTransportMode()) {
             env.put("APP_INTEGRATION_RABBITMQ_OUTBOUND_EXCHANGE", environment.getProperty(
                 "app.integration.rabbitmq.outbound-exchange",
@@ -365,6 +370,12 @@ public class BotRuntimeContractService {
                 "APP_INTEGRATION_RABBITMQ_OUTBOUND_ROUTING_KEY"
             ));
         }
+        keys.addAll(List.of(
+            "APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED",
+            "APP_PANEL_INTERNAL_API_REQUEST_TIMEOUT",
+            "APP_PANEL_INTERNAL_API_RETRY_ATTEMPTS",
+            "APP_PANEL_INTERNAL_API_RETRY_BACKOFF"
+        ));
 
         keys.addAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)).keySet());
         return keys;

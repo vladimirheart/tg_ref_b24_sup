@@ -23,16 +23,18 @@ import org.springframework.stereotype.Service;
 public class PanelBlacklistClient {
 
     private static final Logger log = LoggerFactory.getLogger(PanelBlacklistClient.class);
-    private static final String AUTH_HEADER = "X-Iguana-Bot-Api-Token";
 
     private final IntegrationPanelApiProperties properties;
     private final ObjectMapper objectMapper;
+    private final PanelApiRequestHeadersFactory requestHeadersFactory;
     private final HttpClient httpClient;
 
     public PanelBlacklistClient(IntegrationPanelApiProperties properties,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper,
+                                PanelApiRequestHeadersFactory requestHeadersFactory) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.requestHeadersFactory = requestHeadersFactory;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -94,16 +96,18 @@ public class PanelBlacklistClient {
                                  String method,
                                  Object body,
                                  TypeReference<T> typeReference) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder(resolve(path))
-            .timeout(Duration.ofSeconds(5))
-            .header(AUTH_HEADER, properties.getToken());
         try {
-            if (body != null) {
+            URI uri = resolve(path);
+            String requestBody = body != null ? objectMapper.writeValueAsString(body) : null;
+            String idempotencyKey = !"GET".equalsIgnoreCase(method)
+                ? requestHeadersFactory.newIdempotencyKey("panel-blacklist", path)
+                : null;
+            HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+                .timeout(properties.getRequestTimeout());
+            requestHeadersFactory.apply(builder::header, method, uri, requestBody, idempotencyKey);
+            if (requestBody != null) {
                 builder.header("Content-Type", "application/json");
-                builder.method(method, HttpRequest.BodyPublishers.ofString(
-                    objectMapper.writeValueAsString(body),
-                    StandardCharsets.UTF_8
-                ));
+                builder.method(method, HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8));
             } else {
                 builder.method(method, HttpRequest.BodyPublishers.noBody());
             }

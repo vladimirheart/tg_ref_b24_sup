@@ -84,6 +84,11 @@ app:
     startup-poll-interval: ${APP_BOT_STARTUP_POLL_INTERVAL:250ms}
     internal-api:
       token: ${APP_INTERNAL_BOT_API_TOKEN:iguana-internal-bot-token}
+      signature-secret: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:}
+      require-request-signature: ${APP_INTERNAL_BOT_API_REQUIRE_REQUEST_SIGNATURE:false}
+      request-timestamp-skew: ${APP_INTERNAL_BOT_API_REQUEST_TIMESTAMP_SKEW:5m}
+      idempotency-inflight-ttl: ${APP_INTERNAL_BOT_API_IDEMPOTENCY_INFLIGHT_TTL:2m}
+      idempotency-ttl: ${APP_INTERNAL_BOT_API_IDEMPOTENCY_TTL:12h}
   storage:
     attachments: ${APP_STORAGE_ATTACHMENTS:../attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}

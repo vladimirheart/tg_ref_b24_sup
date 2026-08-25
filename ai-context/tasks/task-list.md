@@ -214,6 +214,6 @@
 🟣 [01-192] Зафиксировать production readiness checklist и runbook запуска Iguana
 🟣 [01-193] Ужесточить security bootstrap и secret contract spring-panel для production contour
 🟣 [01-194] Внедрить базовый observability stack и SLI/SLO для production contour
-🟠 [01-195] Усилить надежность ingress/egress интеграций и внутреннего API
+🟣 [01-195] Усилить надежность ingress/egress интеграций и внутреннего API
 🟠 [01-196] Подготовить rehearsal миграции и E2E smoke для production cutover
 🟠 [01-197] Расширить мониторинг классических support-систем и внешних зависимостей

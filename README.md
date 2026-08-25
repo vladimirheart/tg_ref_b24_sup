@@ -13,6 +13,8 @@ Iguana - многоканальная support CRM и операторская п
 
 Если нужен именно production launch runbook с checklist, cutover, smoke и rollback, используйте [docs/runbooks/production-launch-checklist.md](docs/runbooks/production-launch-checklist.md).
 
+Для детального интеграционного контракта по webhook ingress, internal bot API, request signing, idempotency, retries, DLQ и replay используйте [docs/integration-contract-hardening.md](docs/integration-contract-hardening.md).
+
 В нём собраны:
 
 - актуальная архитектура `spring-panel` и `java-bot`;
@@ -192,6 +194,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 - [docs/IGUANA_PROJECT_GUIDE.md](docs/IGUANA_PROJECT_GUIDE.md)
 - [docs/runbooks/production-launch-checklist.md](docs/runbooks/production-launch-checklist.md)
 - [docs/observability-baseline.md](docs/observability-baseline.md)
+- [docs/integration-contract-hardening.md](docs/integration-contract-hardening.md)
 - [docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md](docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md)
 - [docs/IGUANA_TRANSFER_WINDOWS.md](docs/IGUANA_TRANSFER_WINDOWS.md)
 - [docs/windows_setup.md](docs/windows_setup.md)
