@@ -306,6 +306,40 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             """);
 
         monitoringJdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS smtp_notification_monitors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                monitor_name TEXT NOT NULL,
+                relay_host TEXT NOT NULL,
+                relay_port INTEGER NOT NULL,
+                protocol_mode TEXT NOT NULL,
+                connect_timeout_ms INTEGER NOT NULL DEFAULT 5000,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                last_status TEXT,
+                last_summary TEXT,
+                last_error_message TEXT,
+                last_banner TEXT,
+                last_tls_protocol TEXT,
+                last_tls_cipher_suite TEXT,
+                last_connected_at TEXT,
+                last_checked_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_smtp_notification_monitors_name
+            ON smtp_notification_monitors(monitor_name)
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_smtp_notification_monitors_target
+            ON smtp_notification_monitors(relay_host, relay_port, protocol_mode)
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_smtp_notification_monitors_enabled
+            ON smtp_notification_monitors(enabled)
+            """);
+
+        monitoringJdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS monitoring_check_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 monitor_kind TEXT NOT NULL,

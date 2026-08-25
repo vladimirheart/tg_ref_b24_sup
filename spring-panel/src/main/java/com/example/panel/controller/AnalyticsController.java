@@ -155,6 +155,13 @@ public class AnalyticsController {
         return "analytics/public-ingress";
     }
 
+    @GetMapping("/smtp-notifications")
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public String smtpNotificationMonitoring(Model model, Authentication authentication) {
+        navigationService.enrich(model, authentication);
+        return "analytics/smtp-notifications";
+    }
+
     @PostMapping(value = "/export", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<StreamingResponseBody> export(@RequestBody(required = false) Map<String, Object> request) {

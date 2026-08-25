@@ -95,6 +95,11 @@ class MonitoringDatabaseBootstrapServiceTest {
         assertTrue(publicIngressIndexes.stream().anyMatch(index ->
             "idx_public_ingress_monitors_endpoint".equals(String.valueOf(index.get("name")))
         ));
+        assertEquals(0L, monitoring.queryForObject("SELECT COUNT(*) FROM smtp_notification_monitors", Long.class));
+        List<Map<String, Object>> smtpIndexes = monitoring.queryForList("PRAGMA index_list(smtp_notification_monitors)");
+        assertTrue(smtpIndexes.stream().anyMatch(index ->
+            "idx_smtp_notification_monitors_target".equals(String.valueOf(index.get("name")))
+        ));
     }
 
     private JdbcTemplate sqliteJdbc(Path path) {

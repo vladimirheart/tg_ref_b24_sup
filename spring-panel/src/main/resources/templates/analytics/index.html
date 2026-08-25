@@ -35,6 +35,7 @@
             <a class="btn btn-outline-secondary" th:href="@{/analytics/iiko-api-monitoring}">Мониторинг iiko API</a>
             <a class="btn btn-outline-secondary" th:href="@{/analytics/backup-readiness}">Backup readiness</a>
             <a class="btn btn-outline-secondary" th:href="@{/analytics/public-ingress}">Public ingress</a>
+            <a class="btn btn-outline-secondary" th:href="@{/analytics/smtp-notifications}">SMTP / notifications</a>
             <form method="post" th:action="@{/analytics/export}">
                 <input type="hidden" name="_csrf" th:value="${_csrf.token}">
                 <button class="btn btn-outline-secondary"

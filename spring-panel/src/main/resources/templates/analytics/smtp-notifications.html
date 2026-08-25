@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <title>SMTP Notification Monitoring - iguana</title>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+          crossorigin="anonymous">
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned analytics-monitoring-page" data-ui-page="analytics">
+<div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
+
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
+    <div class="page-header-card analytics-page-header mb-4 ops-page-header">
+        <div>
+            <span class="page-kicker">Delivery Dependency Monitoring</span>
+            <h1 class="page-title">SMTP and notification path</h1>
+            <p class="page-subtitle mb-0">
+                SMTP relay probes and live incident notification delivery health in one operator-facing contour.
+            </p>
+        </div>
+
+        <div class="analytics-page-actions ops-page-actions">
+            <a class="btn btn-outline-secondary" th:href="@{/analytics}">Назад в аналитику</a>
+            <button class="btn btn-primary" id="openSmtpMonitorCreateModalBtn" type="button">Добавить relay</button>
+            <button class="btn btn-outline-secondary" id="refreshAllSmtpMonitorsBtn" type="button">Обновить все</button>
+        </div>
+    </div>
+
+    <div class="card analytics-section-card mb-4 ops-section-card">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Availability</div>
+                        <div class="h4 mb-0" id="smtpAvailabilityPercent">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Total relays</div>
+                        <div class="h4 mb-0" id="smtpTotal">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Up</div>
+                        <div class="h4 mb-0 text-success" id="smtpUp">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Down</div>
+                        <div class="h4 mb-0 text-danger" id="smtpDown">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Disabled</div>
+                        <div class="h4 mb-0 text-secondary" id="smtpDisabled">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Unknown</div>
+                        <div class="h4 mb-0" id="smtpUnknown">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="small text-muted mt-3" id="smtpOverviewCaption">
+                Track SMTP relay readiness separately from actual incident route delivery behavior.
+            </div>
+        </div>
+    </div>
+
+    <div class="card analytics-section-card mb-4 ops-section-card">
+        <div class="card-header analytics-section-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+            <div>
+                <h2 class="h5 mb-1">SMTP relays</h2>
+                <p class="text-muted mb-0">Banner / STARTTLS / TLS probes with history and manual refresh.</p>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive analytics-table-shell ops-table-shell">
+                <table class="table align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>Monitor</th>
+                        <th>Relay target</th>
+                        <th>Status</th>
+                        <th>Banner / TLS</th>
+                        <th>Summary</th>
+                        <th>Last check</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="smtpMonitorsTableBody">
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">Загрузка...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card analytics-section-card ops-section-card">
+        <div class="card-header analytics-section-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+            <div>
+                <h2 class="h5 mb-1">Incident notification delivery health</h2>
+                <p class="text-muted mb-0">Live view over incident route outbox: backlog, failures and route-type breakdown.</p>
+            </div>
+            <button class="btn btn-sm btn-outline-primary" id="refreshRouteHealthBtn" type="button">Обновить delivery health</button>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-lg-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">24h delivered</div>
+                        <div class="h4 mb-0" id="routeDelivered24h">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">24h failed</div>
+                        <div class="h4 mb-0 text-danger" id="routeFailed24h">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">24h pending</div>
+                        <div class="h4 mb-0 text-warning" id="routePending24h">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Failed backlog</div>
+                        <div class="h4 mb-0 text-danger" id="routeFailedBacklog">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Transient failures</div>
+                        <div class="h4 mb-0" id="routeTransientFailures">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Success rate 24h</div>
+                        <div class="h4 mb-0" id="routeSuccessRate24h">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="border rounded-3 p-3 mb-4 bg-body-tertiary">
+                <div class="d-flex flex-column flex-lg-row justify-content-between gap-2 align-items-lg-center">
+                    <div>
+                        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                            <span class="badge text-bg-secondary" id="routeOverallStatusBadge">Status: loading</span>
+                            <span class="small text-muted" id="routeGeneratedAt">Generated at -</span>
+                        </div>
+                        <div class="small" id="routeHealthSummary">Delivery summary is loading.</div>
+                    </div>
+                    <div class="small text-muted" id="routeDeliveryTimes">
+                        Last delivered: -<br>
+                        Last failed: -
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-12 col-xl-5">
+                    <h3 class="h6 mb-2">By route type</h3>
+                    <div class="table-responsive analytics-table-shell ops-table-shell">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Route type</th>
+                                <th>Delivered</th>
+                                <th>Failed</th>
+                                <th>Pending</th>
+                                <th>Success rate</th>
+                            </tr>
+                            </thead>
+                            <tbody id="routeTypeTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">Загрузка...</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-7">
+                    <h3 class="h6 mb-2">Recent failed deliveries</h3>
+                    <div class="table-responsive analytics-table-shell ops-table-shell">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Incident</th>
+                                <th>Route</th>
+                                <th>Attempts</th>
+                                <th>Failure</th>
+                                <th>Updated</th>
+                            </tr>
+                            </thead>
+                            <tbody id="routeFailuresTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">Загрузка...</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade ops-task-modal" id="smtpMonitorCreateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="smtpMonitorCreateForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить SMTP relay monitor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="smtpMonitorNameInput">Monitor name</label>
+                        <input class="form-control" id="smtpMonitorNameInput" required>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="smtpRelayHostInput">Relay host</label>
+                        <input class="form-control font-monospace" id="smtpRelayHostInput" placeholder="smtp.example.com" required>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="smtpRelayPortInput">Relay port</label>
+                        <input class="form-control" type="number" min="1" max="65535" id="smtpRelayPortInput" value="587" required>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="smtpProtocolModeInput">Protocol mode</label>
+                        <select class="form-select" id="smtpProtocolModeInput">
+                            <option value="starttls" selected>STARTTLS</option>
+                            <option value="tls">TLS</option>
+                            <option value="plain">Plain</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="smtpTimeoutInput">Timeout ms</label>
+                        <input class="form-control" type="number" min="1000" max="30000" id="smtpTimeoutInput" value="5000" required>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="smtpEnabledInput" checked>
+                            <label class="form-check-label" for="smtpEnabledInput">Активен</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" type="submit">Создать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade ops-task-modal" id="smtpMonitorEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="smtpMonitorEditForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать SMTP relay monitor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editSmtpMonitorId">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="editSmtpMonitorNameInput">Monitor name</label>
+                        <input class="form-control" id="editSmtpMonitorNameInput" required>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="editSmtpRelayHostInput">Relay host</label>
+                        <input class="form-control font-monospace" id="editSmtpRelayHostInput" required>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="editSmtpRelayPortInput">Relay port</label>
+                        <input class="form-control" type="number" min="1" max="65535" id="editSmtpRelayPortInput" required>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="editSmtpProtocolModeInput">Protocol mode</label>
+                        <select class="form-select" id="editSmtpProtocolModeInput">
+                            <option value="starttls">STARTTLS</option>
+                            <option value="tls">TLS</option>
+                            <option value="plain">Plain</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="editSmtpTimeoutInput">Timeout ms</label>
+                        <input class="form-control" type="number" min="1000" max="30000" id="editSmtpTimeoutInput" required>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="editSmtpEnabledInput">
+                            <label class="form-check-label" for="editSmtpEnabledInput">Активен</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" type="submit">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade ops-task-modal" id="smtpMonitorHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">SMTP probe history</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="small text-muted mb-3" id="smtpHistoryCaption">Recent SMTP probe timeline.</div>
+                <div class="table-responsive">
+                    <table class="table align-middle table-sm mb-0">
+                        <thead>
+                        <tr>
+                            <th>When</th>
+                            <th>Check kind</th>
+                            <th>Status</th>
+                            <th>Summary</th>
+                            <th>Details</th>
+                            <th>Duration</th>
+                        </tr>
+                        </thead>
+                        <tbody id="smtpHistoryTableBody">
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-3">Загрузка...</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/modal-helpers.js}"></script>
+<script th:src="@{/js/smtp-notification-monitoring.js}"></script>
+</body>
+</html>
