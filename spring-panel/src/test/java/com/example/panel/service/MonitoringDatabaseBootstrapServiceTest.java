@@ -85,6 +85,11 @@ class MonitoringDatabaseBootstrapServiceTest {
         assertTrue(indexes.stream().anyMatch(index ->
             "idx_monitoring_check_history_created_at".equals(String.valueOf(index.get("name")))
         ));
+        assertEquals(0L, monitoring.queryForObject("SELECT COUNT(*) FROM backup_readiness_monitors", Long.class));
+        List<Map<String, Object>> backupIndexes = monitoring.queryForList("PRAGMA index_list(backup_readiness_monitors)");
+        assertTrue(backupIndexes.stream().anyMatch(index ->
+            "idx_backup_readiness_monitors_name".equals(String.valueOf(index.get("name")))
+        ));
     }
 
     private JdbcTemplate sqliteJdbc(Path path) {

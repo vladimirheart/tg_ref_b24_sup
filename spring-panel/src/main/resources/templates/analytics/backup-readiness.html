@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <title>Backup Readiness — iguana</title>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+          crossorigin="anonymous">
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned analytics-monitoring-page" data-ui-page="analytics">
+<div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
+
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
+    <div class="page-header-card analytics-page-header mb-4 ops-page-header">
+        <div>
+            <span class="page-kicker">Production Readiness Monitoring</span>
+            <h1 class="page-title">Backup readiness</h1>
+            <p class="page-subtitle mb-0">
+                Контроль свежести backup artifact, подтверждённых restore-проверок и evidence trail
+                для production contour.
+            </p>
+        </div>
+
+        <div class="analytics-page-actions ops-page-actions">
+            <a class="btn btn-outline-secondary" th:href="@{/analytics}">Назад в аналитику</a>
+            <button class="btn btn-primary" id="openBackupMonitorCreateModalBtn" type="button">Добавить monitor</button>
+            <button class="btn btn-outline-secondary" id="refreshAllBackupMonitorsBtn" type="button">Обновить всё</button>
+        </div>
+    </div>
+
+    <div class="card analytics-section-card mb-4 ops-section-card">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Availability</div>
+                        <div class="h4 mb-0" id="backupAvailabilityPercent">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Всего monitor-ов</div>
+                        <div class="h4 mb-0" id="backupMonitorTotal">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Healthy / warning</div>
+                        <div class="h4 mb-0 text-success" id="backupMonitorUp">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Critical / error</div>
+                        <div class="h4 mb-0 text-danger" id="backupMonitorDown">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Disabled</div>
+                        <div class="h4 mb-0 text-secondary" id="backupMonitorDisabled">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Unknown</div>
+                        <div class="h4 mb-0" id="backupMonitorUnknown">—</div>
+                    </div>
+                </div>
+            </div>
+            <div class="small text-muted mt-3" id="backupOverviewCaption">
+                Для production рекомендуется отдельно подтверждать restore evidence после каждой rehearsal или restore drill.
+            </div>
+        </div>
+    </div>
+
+    <div class="card analytics-section-card ops-section-card">
+        <div class="card-body">
+            <div class="table-responsive analytics-table-shell ops-table-shell">
+                <table class="table align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>Monitor</th>
+                        <th>Source</th>
+                        <th>Status</th>
+                        <th>Availability</th>
+                        <th>Last backup</th>
+                        <th>Restore evidence</th>
+                        <th>Summary</th>
+                        <th>Last check</th>
+                        <th class="text-end">Действия</th>
+                    </tr>
+                    </thead>
+                    <tbody id="backupReadinessTableBody">
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">Загрузка...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade ops-task-modal" id="backupMonitorCreateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="backupMonitorCreateForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить backup monitor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="backupMonitorNameInput">Имя monitor-а</label>
+                        <input class="form-control" id="backupMonitorNameInput" required>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="backupKindInput">Backup kind</label>
+                        <input class="form-control" id="backupKindInput" placeholder="postgresql, media, config, generic">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="backupPathPatternInput">Путь, каталог или glob</label>
+                        <input class="form-control font-monospace" id="backupPathPatternInput" placeholder="D:\backups\postgres\*.dump" required>
+                        <div class="form-text">
+                            Поддерживаются: конкретный файл, каталог с последним artifact или glob-паттерн в рамках одного каталога.
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="backupFreshnessThresholdInput">Freshness threshold, ч</label>
+                        <input class="form-control" type="number" min="1" max="8760" id="backupFreshnessThresholdInput" value="24" required>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="backupRestoreThresholdInput">Restore threshold, д</label>
+                        <input class="form-control" type="number" min="1" max="3650" id="backupRestoreThresholdInput" value="14" required>
+                    </div>
+                    <div class="col-12 col-lg-4 d-flex align-items-end">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="backupEnabledInput" checked>
+                            <label class="form-check-label" for="backupEnabledInput">Активен</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" type="submit">Создать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade ops-task-modal" id="backupMonitorEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="backupMonitorEditForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать backup monitor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editBackupMonitorId">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="editBackupMonitorNameInput">Имя monitor-а</label>
+                        <input class="form-control" id="editBackupMonitorNameInput" required>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="editBackupKindInput">Backup kind</label>
+                        <input class="form-control" id="editBackupKindInput">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="editBackupPathPatternInput">Путь, каталог или glob</label>
+                        <input class="form-control font-monospace" id="editBackupPathPatternInput" required>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="editBackupFreshnessThresholdInput">Freshness threshold, ч</label>
+                        <input class="form-control" type="number" min="1" max="8760" id="editBackupFreshnessThresholdInput" required>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="editBackupRestoreThresholdInput">Restore threshold, д</label>
+                        <input class="form-control" type="number" min="1" max="3650" id="editBackupRestoreThresholdInput" required>
+                    </div>
+                    <div class="col-12 col-lg-4 d-flex align-items-end">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="editBackupEnabledInput">
+                            <label class="form-check-label" for="editBackupEnabledInput">Активен</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" type="submit">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade ops-task-modal" id="backupRestoreEvidenceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="backupRestoreEvidenceForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтвердить restore evidence</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="restoreEvidenceMonitorId">
+                <div class="mb-3">
+                    <label class="form-label" for="restoreEvidenceVerifiedAtInput">Когда restore был подтверждён</label>
+                    <input class="form-control" type="datetime-local" id="restoreEvidenceVerifiedAtInput">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label" for="restoreEvidenceNoteInput">Комментарий / evidence</label>
+                    <textarea class="form-control" id="restoreEvidenceNoteInput" rows="4"
+                              placeholder="Например: recovery drill на standby, backup восстановился, smoke пройден."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" type="submit">Подтвердить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade ops-task-modal" id="backupHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Timeline backup readiness</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="small text-muted mb-3" id="backupHistoryCaption">История последних проверок monitor-а.</div>
+                <div class="table-responsive">
+                    <table class="table align-middle table-sm mb-0">
+                        <thead>
+                        <tr>
+                            <th>When</th>
+                            <th>Check kind</th>
+                            <th>Status</th>
+                            <th>Summary</th>
+                            <th>Details</th>
+                            <th>Duration</th>
+                        </tr>
+                        </thead>
+                        <tbody id="backupHistoryTableBody">
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-3">Загрузка...</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/modal-helpers.js}"></script>
+<script th:src="@{/js/backup-readiness-monitoring.js}"></script>
+</body>
+</html>

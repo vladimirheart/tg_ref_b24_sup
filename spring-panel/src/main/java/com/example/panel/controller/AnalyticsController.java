@@ -141,6 +141,13 @@ public class AnalyticsController {
         return "analytics/iiko-api-monitoring";
     }
 
+    @GetMapping("/backup-readiness")
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public String backupReadinessMonitoring(Model model, Authentication authentication) {
+        navigationService.enrich(model, authentication);
+        return "analytics/backup-readiness";
+    }
+
     @PostMapping(value = "/export", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<StreamingResponseBody> export(@RequestBody(required = false) Map<String, Object> request) {
