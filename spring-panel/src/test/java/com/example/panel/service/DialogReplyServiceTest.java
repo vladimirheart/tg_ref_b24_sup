@@ -22,7 +22,13 @@ class DialogReplyServiceTest {
         DialogReplyTargetService targetService = mock(DialogReplyTargetService.class);
         DialogReplyTransportService transportService = mock(DialogReplyTransportService.class);
         DialogResponsibilityService responsibilityService = mock(DialogResponsibilityService.class);
-        DialogReplyService dialogReplyService = new DialogReplyService(targetService, transportService, responsibilityService);
+        ProviderDeliveryLedgerService providerDeliveryLedgerService = mock(ProviderDeliveryLedgerService.class);
+        DialogReplyService dialogReplyService = new DialogReplyService(
+            targetService,
+            transportService,
+            responsibilityService,
+            providerDeliveryLedgerService
+        );
         Channel channel = new Channel();
         channel.setId(10L);
         channel.setPlatform("telegram");
@@ -32,9 +38,9 @@ class DialogReplyServiceTest {
         when(transportService.loadChannel(10L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-900")).thenReturn(false);
         when(transportService.sendText(channel, 123L, "Принято", 45L))
-                .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 77L));
+            .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 77L));
         when(targetService.logOutgoingMessage(any(), eq("T-900"), eq("Принято"), eq("operator_message"), eq(77L), eq(45L), eq("operator")))
-                .thenReturn("2026-04-30T12:00:00Z");
+            .thenReturn("2026-04-30T12:00:00Z");
         when(responsibilityService.assignResponsibleIfMissing("T-900", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply("T-900", "Принято", 45L, "operator");
@@ -45,6 +51,15 @@ class DialogReplyServiceTest {
         assertThat(result.responsible()).isEqualTo("operator");
         verify(targetService).touchTicketActivity("T-900", "operator");
         verify(responsibilityService).assignResponsibleIfMissing("T-900", "operator");
+        verify(providerDeliveryLedgerService).recordAttempt(
+            eq(channel),
+            eq("T-900"),
+            eq(123L),
+            eq("operator"),
+            eq("text"),
+            eq(45L),
+            any(DialogReplyTransportService.DialogReplyTransportResult.class)
+        );
     }
 
     @Test
@@ -52,7 +67,13 @@ class DialogReplyServiceTest {
         DialogReplyTargetService targetService = mock(DialogReplyTargetService.class);
         DialogReplyTransportService transportService = mock(DialogReplyTransportService.class);
         DialogResponsibilityService responsibilityService = mock(DialogResponsibilityService.class);
-        DialogReplyService dialogReplyService = new DialogReplyService(targetService, transportService, responsibilityService);
+        ProviderDeliveryLedgerService providerDeliveryLedgerService = mock(ProviderDeliveryLedgerService.class);
+        DialogReplyService dialogReplyService = new DialogReplyService(
+            targetService,
+            transportService,
+            responsibilityService,
+            providerDeliveryLedgerService
+        );
         Channel channel = new Channel();
         channel.setId(15L);
         channel.setPlatform("telegram");
@@ -63,24 +84,24 @@ class DialogReplyServiceTest {
         when(transportService.loadChannel(15L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-901")).thenReturn(false);
         when(transportService.sendMedia(channel, 200L, file, "caption", "image.png", null))
-                .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 88L));
+            .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 88L));
         when(targetService.logOutgoingMediaMessage(
-                any(),
-                eq("T-901"),
-                eq("caption"),
-                eq("stored.bin"),
-                eq("image.png"),
-                eq("image/png"),
-                eq(3L),
-                eq("image"),
-                eq(88L),
-                isNull()
+            any(),
+            eq("T-901"),
+            eq("caption"),
+            eq("stored.bin"),
+            eq("image.png"),
+            eq("image/png"),
+            eq(3L),
+            eq("image"),
+            eq(88L),
+            isNull()
         ))
-                .thenReturn("2026-04-30T12:05:00Z");
+            .thenReturn("2026-04-30T12:05:00Z");
         when(responsibilityService.assignResponsibleIfMissing("T-901", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogMediaReplyResult result =
-                dialogReplyService.sendMediaReply("T-901", file, "caption", null, "operator", "stored.bin", "image.png", "image/png", 3L);
+            dialogReplyService.sendMediaReply("T-901", file, "caption", null, "operator", "stored.bin", "image.png", "image/png", 3L);
 
         assertThat(result.success()).isTrue();
         assertThat(result.telegramMessageId()).isEqualTo(88L);
@@ -88,6 +109,15 @@ class DialogReplyServiceTest {
         assertThat(result.responsible()).isEqualTo("operator");
         verify(targetService).touchTicketActivity("T-901", "operator");
         verify(responsibilityService).assignResponsibleIfMissing("T-901", "operator");
+        verify(providerDeliveryLedgerService).recordAttempt(
+            eq(channel),
+            eq("T-901"),
+            eq(200L),
+            eq("operator"),
+            eq("image"),
+            isNull(),
+            any(DialogReplyTransportService.DialogReplyTransportResult.class)
+        );
     }
 
     @Test
@@ -95,7 +125,13 @@ class DialogReplyServiceTest {
         DialogReplyTargetService targetService = mock(DialogReplyTargetService.class);
         DialogReplyTransportService transportService = mock(DialogReplyTransportService.class);
         DialogResponsibilityService responsibilityService = mock(DialogResponsibilityService.class);
-        DialogReplyService dialogReplyService = new DialogReplyService(targetService, transportService, responsibilityService);
+        ProviderDeliveryLedgerService providerDeliveryLedgerService = mock(ProviderDeliveryLedgerService.class);
+        DialogReplyService dialogReplyService = new DialogReplyService(
+            targetService,
+            transportService,
+            responsibilityService,
+            providerDeliveryLedgerService
+        );
         Channel channel = new Channel();
         channel.setId(20L);
 
@@ -104,7 +140,7 @@ class DialogReplyServiceTest {
         when(targetService.hasWebFormSession("T-902")).thenReturn(true);
         when(targetService.nextLocalTelegramMessageId("T-902")).thenReturn(9901L);
         when(targetService.logOutgoingMessage(any(), eq("T-902"), eq("Текст"), eq("operator_message"), eq(9901L), eq(null), eq("operator")))
-                .thenReturn("2026-04-30T12:10:00Z");
+            .thenReturn("2026-04-30T12:10:00Z");
         when(responsibilityService.assignResponsibleIfMissing("T-902", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply("T-902", "Текст", null, "operator");
@@ -113,6 +149,7 @@ class DialogReplyServiceTest {
         assertThat(result.telegramMessageId()).isEqualTo(9901L);
         assertThat(result.responsible()).isEqualTo("operator");
         verify(transportService, never()).sendText(any(), any(), any(), any());
+        verify(providerDeliveryLedgerService, never()).recordAttempt(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -120,7 +157,13 @@ class DialogReplyServiceTest {
         DialogReplyTargetService targetService = mock(DialogReplyTargetService.class);
         DialogReplyTransportService transportService = mock(DialogReplyTransportService.class);
         DialogResponsibilityService responsibilityService = mock(DialogResponsibilityService.class);
-        DialogReplyService dialogReplyService = new DialogReplyService(targetService, transportService, responsibilityService);
+        ProviderDeliveryLedgerService providerDeliveryLedgerService = mock(ProviderDeliveryLedgerService.class);
+        DialogReplyService dialogReplyService = new DialogReplyService(
+            targetService,
+            transportService,
+            responsibilityService,
+            providerDeliveryLedgerService
+        );
         Channel channel = new Channel();
         channel.setId(21L);
 
@@ -131,7 +174,7 @@ class DialogReplyServiceTest {
         when(responsibilityService.assignResponsibleIfMissing("T-903", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result =
-                dialogReplyService.editOperatorMessage("T-903", 9902L, "Обновлённый текст", "operator");
+            dialogReplyService.editOperatorMessage("T-903", 9902L, "Обновлённый текст", "operator");
 
         assertThat(result.success()).isTrue();
         assertThat(result.telegramMessageId()).isEqualTo(9902L);
@@ -144,7 +187,13 @@ class DialogReplyServiceTest {
         DialogReplyTargetService targetService = mock(DialogReplyTargetService.class);
         DialogReplyTransportService transportService = mock(DialogReplyTransportService.class);
         DialogResponsibilityService responsibilityService = mock(DialogResponsibilityService.class);
-        DialogReplyService dialogReplyService = new DialogReplyService(targetService, transportService, responsibilityService);
+        ProviderDeliveryLedgerService providerDeliveryLedgerService = mock(ProviderDeliveryLedgerService.class);
+        DialogReplyService dialogReplyService = new DialogReplyService(
+            targetService,
+            transportService,
+            responsibilityService,
+            providerDeliveryLedgerService
+        );
         Channel channel = new Channel();
         channel.setId(22L);
 
@@ -155,7 +204,7 @@ class DialogReplyServiceTest {
         when(responsibilityService.assignResponsibleIfMissing("T-904", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result =
-                dialogReplyService.deleteOperatorMessage("T-904", 9903L, "operator");
+            dialogReplyService.deleteOperatorMessage("T-904", 9903L, "operator");
 
         assertThat(result.success()).isTrue();
         assertThat(result.telegramMessageId()).isEqualTo(9903L);

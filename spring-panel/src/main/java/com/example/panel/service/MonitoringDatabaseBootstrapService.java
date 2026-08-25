@@ -400,6 +400,47 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             CREATE INDEX IF NOT EXISTS idx_credential_rotation_registry_integration_kind
             ON credential_rotation_registry(integration_kind)
             """);
+
+        monitoringJdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS provider_delivery_ledger (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                channel_id INTEGER NOT NULL,
+                ticket_id TEXT,
+                platform TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                user_id INTEGER,
+                sender_kind TEXT NOT NULL,
+                message_kind TEXT NOT NULL,
+                delivery_status TEXT NOT NULL,
+                classification TEXT NOT NULL,
+                severity_level TEXT NOT NULL,
+                retry_state TEXT NOT NULL,
+                http_status INTEGER,
+                provider_error_code TEXT,
+                provider_message TEXT,
+                response_excerpt TEXT,
+                provider_message_id INTEGER,
+                reply_to_message_id INTEGER,
+                duration_ms INTEGER,
+                attempted_at TEXT NOT NULL
+            )
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_provider_delivery_ledger_channel_attempted_at
+            ON provider_delivery_ledger(channel_id, attempted_at DESC, id DESC)
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_provider_delivery_ledger_attempted_at
+            ON provider_delivery_ledger(attempted_at DESC, id DESC)
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_provider_delivery_ledger_classification
+            ON provider_delivery_ledger(classification)
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_provider_delivery_ledger_severity
+            ON provider_delivery_ledger(severity_level)
+            """);
     }
 
     private void migrateFromPrimaryDatabase() {

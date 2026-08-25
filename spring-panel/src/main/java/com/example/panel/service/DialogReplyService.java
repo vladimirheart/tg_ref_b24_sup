@@ -14,13 +14,16 @@ public class DialogReplyService {
     private final DialogReplyTargetService dialogReplyTargetService;
     private final DialogReplyTransportService dialogReplyTransportService;
     private final DialogResponsibilityService dialogResponsibilityService;
+    private final ProviderDeliveryLedgerService providerDeliveryLedgerService;
 
     public DialogReplyService(DialogReplyTargetService dialogReplyTargetService,
                               DialogReplyTransportService dialogReplyTransportService,
-                              DialogResponsibilityService dialogResponsibilityService) {
+                              DialogResponsibilityService dialogResponsibilityService,
+                              ProviderDeliveryLedgerService providerDeliveryLedgerService) {
         this.dialogReplyTargetService = dialogReplyTargetService;
         this.dialogReplyTransportService = dialogReplyTransportService;
         this.dialogResponsibilityService = dialogResponsibilityService;
+        this.providerDeliveryLedgerService = providerDeliveryLedgerService;
     }
 
     public DialogReplyResult sendReply(String ticketId, String message, Long replyToTelegramId, String operator) {
@@ -47,36 +50,64 @@ public class DialogReplyService {
         if (dialogReplyTargetService.hasWebFormSession(ticketId)) {
             Long localTelegramMessageId = dialogReplyTargetService.nextLocalTelegramMessageId(ticketId);
             String timestamp = dialogReplyTargetService.logOutgoingMessage(
-                    target,
-                    ticketId,
-                    message,
-                    "operator_message",
-                    localTelegramMessageId,
-                    replyToTelegramId,
-                    sender
+                target,
+                ticketId,
+                message,
+                "operator_message",
+                localTelegramMessageId,
+                replyToTelegramId,
+                sender
             );
             dialogReplyTargetService.touchTicketActivity(ticketId, operator);
             String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
             return DialogReplyResult.success(timestamp, localTelegramMessageId, responsible);
         }
         if (!StringUtils.hasText(channel.getToken())) {
+            providerDeliveryLedgerService.recordAttempt(
+                channel,
+                ticketId,
+                target.userId(),
+                sender,
+                "text",
+                replyToTelegramId,
+                DialogReplyTransportService.DialogReplyTransportResult.failure(
+                    "Не задан токен бота для канала.",
+                    "validation_error",
+                    "critical",
+                    "terminal",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+                )
+            );
             return DialogReplyResult.error("Не задан токен бота для канала.");
         }
 
         DialogReplyTransportService.DialogReplyTransportResult transportResult =
-                dialogReplyTransportService.sendText(channel, target.userId(), message, replyToTelegramId);
+            dialogReplyTransportService.sendText(channel, target.userId(), message, replyToTelegramId);
+        providerDeliveryLedgerService.recordAttempt(
+            channel,
+            ticketId,
+            target.userId(),
+            sender,
+            "text",
+            replyToTelegramId,
+            transportResult
+        );
         if (transportResult.error() != null) {
             return DialogReplyResult.error(transportResult.error());
         }
 
         String timestamp = dialogReplyTargetService.logOutgoingMessage(
-                target,
-                ticketId,
-                message,
-                "operator_message",
-                transportResult.telegramMessageId(),
-                replyToTelegramId,
-                sender
+            target,
+            ticketId,
+            message,
+            "operator_message",
+            transportResult.telegramMessageId(),
+            replyToTelegramId,
+            sender
         );
         dialogReplyTargetService.touchTicketActivity(ticketId, operator);
         String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
@@ -180,30 +211,60 @@ public class DialogReplyService {
             return DialogMediaReplyResult.error("Для внешней формы доступны только текстовые ответы в общем окне диалога.");
         }
         String platform = channel.getPlatform() != null ? channel.getPlatform().trim().toLowerCase() : "telegram";
+        String messageType = DialogReplyTransportService.resolveMessageType(file.getContentType(), originalName);
         if (!StringUtils.hasText(channel.getToken())) {
+            providerDeliveryLedgerService.recordAttempt(
+                channel,
+                ticketId,
+                target.userId(),
+                "operator",
+                messageType,
+                replyToTelegramId,
+                DialogReplyTransportService.DialogReplyTransportResult.failure(
+                    "max".equals(platform)
+                        ? "Не задан токен MAX-бота для канала."
+                        : "Не задан токен Telegram-бота для канала.",
+                    "validation_error",
+                    "critical",
+                    "terminal",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+                )
+            );
             return DialogMediaReplyResult.error(
-                    "max".equals(platform) ? "Не задан токен MAX-бота для канала." : "Не задан токен Telegram-бота для канала."
+                "max".equals(platform) ? "Не задан токен MAX-бота для канала." : "Не задан токен Telegram-бота для канала."
             );
         }
 
         DialogReplyTransportService.DialogReplyTransportResult transportResult =
-                dialogReplyTransportService.sendMedia(channel, target.userId(), file, caption, originalName, replyToTelegramId);
+            dialogReplyTransportService.sendMedia(channel, target.userId(), file, caption, originalName, replyToTelegramId);
+        providerDeliveryLedgerService.recordAttempt(
+            channel,
+            ticketId,
+            target.userId(),
+            "operator",
+            messageType,
+            replyToTelegramId,
+            transportResult
+        );
         if (transportResult.error() != null) {
             return DialogMediaReplyResult.error(transportResult.error());
         }
 
-        String messageType = DialogReplyTransportService.resolveMessageType(file.getContentType(), originalName);
         String timestamp = dialogReplyTargetService.logOutgoingMediaMessage(
-                target,
-                ticketId,
-                caption,
-                storedName,
-                originalName,
-                mimeType,
-                size,
-                messageType,
-                transportResult.telegramMessageId(),
-                replyToTelegramId
+            target,
+            ticketId,
+            caption,
+            storedName,
+            originalName,
+            mimeType,
+            size,
+            messageType,
+            transportResult.telegramMessageId(),
+            replyToTelegramId
         );
         dialogReplyTargetService.touchTicketActivity(ticketId, operator);
         String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);

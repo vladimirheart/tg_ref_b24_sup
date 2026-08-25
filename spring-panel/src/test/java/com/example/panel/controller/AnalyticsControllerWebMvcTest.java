@@ -164,6 +164,19 @@ class AnalyticsControllerWebMvcTest {
     }
 
     @Test
+    void analyticsProviderDeliveryPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+
+        mockMvc.perform(get("/analytics/provider-delivery").with(user("ops.lead").authorities(() -> "PAGE_ANALYTICS")).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(view().name("analytics/provider-delivery"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"analytics\"")));
+    }
+
+    @Test
     void analyticsCredentialRotationPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         doNothing().when(navigationService).enrich(any(), any());
 

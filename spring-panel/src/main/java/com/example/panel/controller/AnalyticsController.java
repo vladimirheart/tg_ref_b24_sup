@@ -169,6 +169,13 @@ public class AnalyticsController {
         return "analytics/provider-health";
     }
 
+    @GetMapping("/provider-delivery")
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public String providerDeliveryMonitoring(Model model, Authentication authentication) {
+        navigationService.enrich(model, authentication);
+        return "analytics/provider-delivery";
+    }
+
     @GetMapping("/credential-rotation")
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public String credentialRotationMonitoring(Model model, Authentication authentication) {

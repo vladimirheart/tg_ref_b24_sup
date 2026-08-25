@@ -37,6 +37,7 @@
             <a class="btn btn-outline-secondary" th:href="@{/analytics/public-ingress}">Public ingress</a>
             <a class="btn btn-outline-secondary" th:href="@{/analytics/smtp-notifications}">SMTP / notifications</a>
             <a class="btn btn-outline-secondary" th:href="@{/analytics/provider-health}">Provider health</a>
+            <a class="btn btn-outline-secondary" th:href="@{/analytics/provider-delivery}">Provider delivery</a>
             <a class="btn btn-outline-secondary" th:href="@{/analytics/credential-rotation}">Token rotation</a>
             <form method="post" th:action="@{/analytics/export}">
                 <input type="hidden" name="_csrf" th:value="${_csrf.token}">

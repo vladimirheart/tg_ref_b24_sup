@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <title>Provider Delivery Ledger - iguana</title>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+          crossorigin="anonymous">
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned analytics-monitoring-page" data-ui-page="analytics">
+<div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
+
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
+    <div class="page-header-card analytics-page-header mb-4 ops-page-header">
+        <div>
+            <span class="page-kicker">Outbound Delivery Monitoring</span>
+            <h1 class="page-title">Provider delivery ledger</h1>
+            <p class="page-subtitle mb-0">
+                Persisted outbound delivery attempts and normalized error classification for Telegram, VK and MAX.
+            </p>
+        </div>
+        <div class="analytics-page-actions ops-page-actions">
+            <a class="btn btn-outline-secondary" th:href="@{/analytics}">Назад в аналитику</a>
+            <button class="btn btn-outline-secondary" id="refreshProviderDeliveryBtn" type="button">Обновить</button>
+        </div>
+    </div>
+
+    <div class="card analytics-section-card mb-4 ops-section-card">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6 col-xl">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Attempts 24h</div>
+                        <div class="h4 mb-0" id="deliveryAttempts24h">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Success 24h</div>
+                        <div class="h4 mb-0 text-success" id="deliverySuccess24h">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Failures 24h</div>
+                        <div class="h4 mb-0 text-danger" id="deliveryFailure24h">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Rate limited</div>
+                        <div class="h4 mb-0 text-warning" id="deliveryRateLimited24h">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Terminal failures</div>
+                        <div class="h4 mb-0" id="deliveryTerminal24h">-</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Transient failures</div>
+                        <div class="h4 mb-0" id="deliveryTransient24h">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="small text-muted mt-3" id="providerDeliveryOverviewCaption">
+                Channels are derived from configured Telegram, VK and MAX providers; ledger stores only outbound delivery metadata.
+            </div>
+        </div>
+    </div>
+
+    <div class="card analytics-section-card mb-4 ops-section-card">
+        <div class="card-header analytics-section-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+            <div>
+                <h2 class="h5 mb-1">Channels</h2>
+                <p class="text-muted mb-0">Current delivery posture is calculated from the latest persisted outbound attempt and the last 24 hours of delivery volume.</p>
+            </div>
+            <div class="small text-muted" id="providerDeliveryGeneratedAt">Generated at -</div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive analytics-table-shell ops-table-shell">
+                <table class="table align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>Channel</th>
+                        <th>Status</th>
+                        <th>24h</th>
+                        <th>Last success</th>
+                        <th>Last failure</th>
+                        <th>Latest classification</th>
+                        <th>Summary</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="providerDeliveryChannelsBody">
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">Загрузка...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card analytics-section-card ops-section-card">
+        <div class="card-header analytics-section-header">
+            <div>
+                <h2 class="h5 mb-1">Recent outbound attempts</h2>
+                <p class="text-muted mb-0">Latest persisted send attempts across all monitored provider channels.</p>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive analytics-table-shell ops-table-shell">
+                <table class="table align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>When</th>
+                        <th>Channel</th>
+                        <th>Ticket</th>
+                        <th>Message</th>
+                        <th>Result</th>
+                        <th>HTTP</th>
+                        <th>Provider</th>
+                        <th>Duration</th>
+                    </tr>
+                    </thead>
+                    <tbody id="providerDeliveryAttemptsBody">
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">Загрузка...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade ops-task-modal" id="providerDeliveryHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Provider delivery history</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="small text-muted mb-3" id="providerDeliveryHistoryCaption">Recent outbound attempts.</div>
+                <div class="table-responsive">
+                    <table class="table align-middle table-sm mb-0">
+                        <thead>
+                        <tr>
+                            <th>When</th>
+                            <th>Ticket</th>
+                            <th>Result</th>
+                            <th>HTTP</th>
+                            <th>Retry</th>
+                            <th>Provider message</th>
+                            <th>Excerpt</th>
+                        </tr>
+                        </thead>
+                        <tbody id="providerDeliveryHistoryBody">
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-3">Загрузка...</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/provider-delivery-monitoring.js}"></script>
+</body>
+</html>
