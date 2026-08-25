@@ -162,6 +162,13 @@ public class AnalyticsController {
         return "analytics/smtp-notifications";
     }
 
+    @GetMapping("/provider-health")
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public String providerHealthMonitoring(Model model, Authentication authentication) {
+        navigationService.enrich(model, authentication);
+        return "analytics/provider-health";
+    }
+
     @PostMapping(value = "/export", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<StreamingResponseBody> export(@RequestBody(required = false) Map<String, Object> request) {

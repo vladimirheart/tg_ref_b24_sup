@@ -220,5 +220,6 @@
 🟣 [01-198] Внедрить мониторинг freshness backup и restore evidence для production contour
 🟣 [01-199] Добавить DNS/TLS/public ingress probes в monitoring contour Iguana
 🟣 [01-200] Добавить мониторинг SMTP и incident notification delivery path
-🔴 [01-201] Ввести unified provider health для Telegram/VK/MAX ingress и outbound delivery
+🟣 [01-201] Ввести unified provider health для Telegram/VK/MAX ingress и outbound delivery
 🔴 [01-202] Добавить registry истечения токенов и rotation watch по внешним интеграциям
+🔴 [01-203] Ввести provider delivery ledger и error classification для Telegram/VK/MAX outbound
