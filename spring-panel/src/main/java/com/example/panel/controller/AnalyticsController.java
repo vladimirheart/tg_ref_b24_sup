@@ -169,6 +169,13 @@ public class AnalyticsController {
         return "analytics/provider-health";
     }
 
+    @GetMapping("/credential-rotation")
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public String credentialRotationMonitoring(Model model, Authentication authentication) {
+        navigationService.enrich(model, authentication);
+        return "analytics/credential-rotation";
+    }
+
     @PostMapping(value = "/export", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<StreamingResponseBody> export(@RequestBody(required = false) Map<String, Object> request) {

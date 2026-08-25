@@ -164,6 +164,19 @@ class AnalyticsControllerWebMvcTest {
     }
 
     @Test
+    void analyticsCredentialRotationPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+
+        mockMvc.perform(get("/analytics/credential-rotation").with(user("ops.lead").authorities(() -> "PAGE_ANALYTICS")).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(view().name("analytics/credential-rotation"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"analytics\"")));
+    }
+
+    @Test
     void confirmWorkspaceRolloutReviewPersistsUtcReviewCheckpoint() throws Exception {
         when(sharedConfigService.loadSettings()).thenReturn(new LinkedHashMap<>(Map.of(
                 "dialog_config", new LinkedHashMap<>(Map.of(

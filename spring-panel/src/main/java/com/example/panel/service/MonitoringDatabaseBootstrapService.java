@@ -361,6 +361,45 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             CREATE INDEX IF NOT EXISTS idx_monitoring_check_history_created_at
             ON monitoring_check_history(julianday(created_at))
             """);
+
+        monitoringJdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS credential_rotation_registry (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_key TEXT NOT NULL,
+                integration_kind TEXT NOT NULL,
+                credential_kind TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                source_ref TEXT NOT NULL,
+                owner_name TEXT,
+                note TEXT,
+                source_present INTEGER NOT NULL DEFAULT 1,
+                secret_present INTEGER NOT NULL DEFAULT 0,
+                last_status TEXT,
+                status_level TEXT,
+                status_reason TEXT,
+                expires_at TEXT,
+                rotated_at TEXT,
+                rotation_interval_days INTEGER,
+                next_rotation_due_at TEXT,
+                last_seen_at TEXT,
+                last_checked_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_credential_rotation_registry_entry_key
+            ON credential_rotation_registry(entry_key)
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_credential_rotation_registry_status_level
+            ON credential_rotation_registry(status_level)
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_credential_rotation_registry_integration_kind
+            ON credential_rotation_registry(integration_kind)
+            """);
     }
 
     private void migrateFromPrimaryDatabase() {
