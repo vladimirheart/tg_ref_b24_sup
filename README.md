@@ -17,6 +17,8 @@ Iguana - многоканальная support CRM и операторская п
 
 Для отдельного rehearsal миграции, сверки данных и пошагового production smoke используйте [docs/runbooks/postgresql-cutover-rehearsal.md](docs/runbooks/postgresql-cutover-rehearsal.md) и [docs/runbooks/production-e2e-smoke.md](docs/runbooks/production-e2e-smoke.md).
 
+Для roadmap мониторинга support-систем, внешних SaaS/API и корпоративных зависимостей используйте [docs/support-systems-monitoring-roadmap.md](docs/support-systems-monitoring-roadmap.md).
+
 В нём собраны:
 
 - актуальная архитектура `spring-panel` и `java-bot`;
@@ -198,6 +200,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 - [docs/runbooks/postgresql-cutover-rehearsal.md](docs/runbooks/postgresql-cutover-rehearsal.md)
 - [docs/runbooks/production-e2e-smoke.md](docs/runbooks/production-e2e-smoke.md)
 - [docs/observability-baseline.md](docs/observability-baseline.md)
+- [docs/support-systems-monitoring-roadmap.md](docs/support-systems-monitoring-roadmap.md)
 - [docs/integration-contract-hardening.md](docs/integration-contract-hardening.md)
 - [docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md](docs/IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md)
 - [docs/IGUANA_TRANSFER_WINDOWS.md](docs/IGUANA_TRANSFER_WINDOWS.md)

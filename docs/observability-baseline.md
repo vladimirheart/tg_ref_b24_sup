@@ -266,11 +266,12 @@ scrape_configs:
 - За production launch отвечать вместе с [production-launch-checklist.md](./runbooks/production-launch-checklist.md).
 - За production contour и runtime boundaries отвечать вместе с [postgresql-production-contour.md](./runbooks/postgresql-production-contour.md).
 - За bot runtime contract отвечать вместе с [BOT_RUNTIME_CONTRACT.md](./BOT_RUNTIME_CONTRACT.md).
+- За roadmap расширения monitoring coverage внешних support-систем отвечать вместе с [support-systems-monitoring-roadmap.md](./support-systems-monitoring-roadmap.md).
 
 ## 14. Следующие шаги после baseline
 
 - вынести scrape/alert rules в versioned infra-конфигурацию;
 - добавить дашборды как артефакты репозитория;
 - расширить SLI до operator/business уровня;
-- добавить monitoring coverage внешних support-систем;
+- добавить monitoring coverage внешних support-систем по [support-systems-monitoring-roadmap.md](./support-systems-monitoring-roadmap.md);
 - внедрить log aggregation и correlation с incident workbench.
