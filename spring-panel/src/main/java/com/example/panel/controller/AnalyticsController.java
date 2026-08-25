@@ -148,6 +148,13 @@ public class AnalyticsController {
         return "analytics/backup-readiness";
     }
 
+    @GetMapping("/public-ingress")
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public String publicIngressMonitoring(Model model, Authentication authentication) {
+        navigationService.enrich(model, authentication);
+        return "analytics/public-ingress";
+    }
+
     @PostMapping(value = "/export", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<StreamingResponseBody> export(@RequestBody(required = false) Map<String, Object> request) {

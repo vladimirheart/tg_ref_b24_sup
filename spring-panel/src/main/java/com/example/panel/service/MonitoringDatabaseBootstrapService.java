@@ -267,6 +267,45 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             """);
 
         monitoringJdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS public_ingress_monitors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                monitor_name TEXT NOT NULL,
+                endpoint_url TEXT NOT NULL,
+                scheme TEXT NOT NULL,
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL,
+                expected_http_status INTEGER,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                last_status TEXT,
+                last_summary TEXT,
+                last_error_message TEXT,
+                last_dns_resolved_at TEXT,
+                last_dns_addresses TEXT,
+                last_http_status INTEGER,
+                last_http_duration_ms INTEGER,
+                last_http_checked_at TEXT,
+                last_tls_checked_at TEXT,
+                last_tls_expires_at TEXT,
+                last_tls_days_left INTEGER,
+                last_checked_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_public_ingress_monitors_name
+            ON public_ingress_monitors(monitor_name)
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_public_ingress_monitors_endpoint
+            ON public_ingress_monitors(endpoint_url)
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_public_ingress_monitors_enabled
+            ON public_ingress_monitors(enabled)
+            """);
+
+        monitoringJdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS monitoring_check_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 monitor_kind TEXT NOT NULL,

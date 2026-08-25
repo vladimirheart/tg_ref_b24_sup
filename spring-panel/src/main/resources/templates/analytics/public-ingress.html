@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <title>Public Ingress Monitoring — iguana</title>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+          crossorigin="anonymous">
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned analytics-monitoring-page" data-ui-page="analytics">
+<div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
+
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
+    <div class="page-header-card analytics-page-header mb-4 ops-page-header">
+        <div>
+            <span class="page-kicker">External Reachability Monitoring</span>
+            <h1 class="page-title">Public ingress</h1>
+            <p class="page-subtitle mb-0">
+                DNS resolution, HTTP reachability и TLS expiry для публичных ingress endpoint-ов и callback URL.
+            </p>
+        </div>
+
+        <div class="analytics-page-actions ops-page-actions">
+            <a class="btn btn-outline-secondary" th:href="@{/analytics}">Назад в аналитику</a>
+            <button class="btn btn-primary" id="openPublicIngressCreateModalBtn" type="button">Добавить endpoint</button>
+            <button class="btn btn-outline-secondary" id="refreshAllPublicIngressBtn" type="button">Обновить всё</button>
+        </div>
+    </div>
+
+    <div class="card analytics-section-card mb-4 ops-section-card">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Availability</div>
+                        <div class="h4 mb-0" id="publicIngressAvailabilityPercent">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Всего monitor-ов</div>
+                        <div class="h4 mb-0" id="publicIngressTotal">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Healthy / warning</div>
+                        <div class="h4 mb-0 text-success" id="publicIngressUp">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Critical / error</div>
+                        <div class="h4 mb-0 text-danger" id="publicIngressDown">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Disabled</div>
+                        <div class="h4 mb-0 text-secondary" id="publicIngressDisabled">—</div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-2">
+                    <div class="analytics-metric-card h-100">
+                        <div class="text-muted small">Unknown</div>
+                        <div class="h4 mb-0" id="publicIngressUnknown">—</div>
+                    </div>
+                </div>
+            </div>
+            <div class="small text-muted mt-3" id="publicIngressOverviewCaption">
+                Используйте отдельные monitor-ы для webhook callback URL, основных доменов панели и публичных API endpoint-ов.
+            </div>
+        </div>
+    </div>
+
+    <div class="card analytics-section-card ops-section-card">
+        <div class="card-body">
+            <div class="table-responsive analytics-table-shell ops-table-shell">
+                <table class="table align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>Monitor</th>
+                        <th>Endpoint</th>
+                        <th>DNS</th>
+                        <th>HTTP</th>
+                        <th>TLS</th>
+                        <th>Status</th>
+                        <th>Summary</th>
+                        <th>Last check</th>
+                        <th class="text-end">Действия</th>
+                    </tr>
+                    </thead>
+                    <tbody id="publicIngressTableBody">
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">Загрузка...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade ops-task-modal" id="publicIngressCreateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="publicIngressCreateForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить public ingress monitor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="publicIngressMonitorNameInput">Имя monitor-а</label>
+                        <input class="form-control" id="publicIngressMonitorNameInput" required>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="publicIngressExpectedStatusInput">Expected HTTP status</label>
+                        <input class="form-control" type="number" min="100" max="599" id="publicIngressExpectedStatusInput" placeholder="по умолчанию 2xx-3xx">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="publicIngressEndpointInput">Endpoint URL</label>
+                        <input class="form-control font-monospace" id="publicIngressEndpointInput" placeholder="https://support.example.com/webhook/telegram" required>
+                        <div class="form-text">Поддерживаются только `http://` и `https://`. Для webhook endpoint-ов можно задать exact expected status.</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="publicIngressEnabledInput" checked>
+                            <label class="form-check-label" for="publicIngressEnabledInput">Активен</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" type="submit">Создать</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade ops-task-modal" id="publicIngressEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="publicIngressEditForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать public ingress monitor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editPublicIngressMonitorId">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="editPublicIngressMonitorNameInput">Имя monitor-а</label>
+                        <input class="form-control" id="editPublicIngressMonitorNameInput" required>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="editPublicIngressExpectedStatusInput">Expected HTTP status</label>
+                        <input class="form-control" type="number" min="100" max="599" id="editPublicIngressExpectedStatusInput">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="editPublicIngressEndpointInput">Endpoint URL</label>
+                        <input class="form-control font-monospace" id="editPublicIngressEndpointInput" required>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="editPublicIngressEnabledInput">
+                            <label class="form-check-label" for="editPublicIngressEnabledInput">Активен</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" type="submit">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade ops-task-modal" id="publicIngressHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Timeline public ingress checks</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="small text-muted mb-3" id="publicIngressHistoryCaption">История последних probe-ов endpoint-а.</div>
+                <div class="table-responsive">
+                    <table class="table align-middle table-sm mb-0">
+                        <thead>
+                        <tr>
+                            <th>When</th>
+                            <th>Check kind</th>
+                            <th>Status</th>
+                            <th>Summary</th>
+                            <th>Details</th>
+                            <th>Duration</th>
+                        </tr>
+                        </thead>
+                        <tbody id="publicIngressHistoryTableBody">
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-3">Загрузка...</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/modal-helpers.js}"></script>
+<script th:src="@{/js/public-ingress-monitoring.js}"></script>
+</body>
+</html>
