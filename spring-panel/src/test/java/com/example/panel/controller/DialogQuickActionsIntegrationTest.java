@@ -774,10 +774,10 @@ class DialogQuickActionsIntegrationTest {
         doReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 1602L))
                 .when(dialogReplyTransportService)
                 .sendText(any(Channel.class), eq(920106L), eq("Первичный операторский ответ"), isNull());
-        doReturn(null)
+        doReturn(DialogReplyTransportService.DialogReplyTransportResult.success(1602L, 0L))
                 .when(dialogReplyTransportService)
                 .editTelegramMessage(any(Channel.class), eq(920106L), eq(1602L), eq("Уточнённый операторский ответ"));
-        doReturn(null)
+        doReturn(DialogReplyTransportService.DialogReplyTransportResult.success(1602L, 0L))
                 .when(dialogReplyTransportService)
                 .deleteTelegramMessage(any(Channel.class), eq(920106L), eq(1602L));
 
@@ -945,7 +945,7 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.history.length()").value(2))
                 .andExpect(jsonPath("$.history[1].message").value("Смотрите вложение"))
                 .andExpect(jsonPath("$.history[1].messageType").value("image"))
-                .andExpect(jsonPath("$.history[1].attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
+                .andExpect(jsonPath("$.history[1].attachment", startsWith("/api/attachments/tickets/by-storage-key?key=T-QA-MEDIA/")));
 
         mockMvc.perform(get("/api/dialogs/T-QA-MEDIA/history")
                         .param("channelId", "107")
@@ -955,7 +955,7 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.messages.length()").value(2))
                 .andExpect(jsonPath("$.messages[1].message").value("Смотрите вложение"))
                 .andExpect(jsonPath("$.messages[1].messageType").value("image"))
-                .andExpect(jsonPath("$.messages[1].attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
+                .andExpect(jsonPath("$.messages[1].attachment", startsWith("/api/attachments/tickets/by-storage-key?key=T-QA-MEDIA/")));
 
         mockMvc.perform(get("/api/dialogs/T-QA-MEDIA/workspace")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -977,7 +977,7 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.summary.ticketId").value("T-QA-MEDIA"))
                 .andExpect(jsonPath("$.history[1].messageType").value("image"))
-                .andExpect(jsonPath("$.history[1].attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
+                .andExpect(jsonPath("$.history[1].attachment", startsWith("/api/attachments/tickets/by-storage-key?key=T-QA-MEDIA/")));
 
         mockMvc.perform(get("/api/dialogs/T-QA-MEDIA/history")
                         .param("channelId", "107")
@@ -986,7 +986,7 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.messages.length()").value(2))
                 .andExpect(jsonPath("$.messages[1].messageType").value("image"))
-                .andExpect(jsonPath("$.messages[1].attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
+                .andExpect(jsonPath("$.messages[1].attachment", startsWith("/api/attachments/tickets/by-storage-key?key=T-QA-MEDIA/")));
 
         mockMvc.perform(get("/api/dialogs/T-QA-MEDIA/workspace")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -1025,10 +1025,10 @@ class DialogQuickActionsIntegrationTest {
         doReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 1902L))
                 .when(dialogReplyTransportService)
                 .sendText(any(Channel.class), eq(920109L), eq("Первичный ответ для peer"), isNull());
-        doReturn(null)
+        doReturn(DialogReplyTransportService.DialogReplyTransportResult.success(1902L, 0L))
                 .when(dialogReplyTransportService)
                 .editTelegramMessage(any(Channel.class), eq(920109L), eq(1902L), eq("Уточнённый ответ для peer"));
-        doReturn(null)
+        doReturn(DialogReplyTransportService.DialogReplyTransportResult.success(1902L, 0L))
                 .when(dialogReplyTransportService)
                 .deleteTelegramMessage(any(Channel.class), eq(920109L), eq(1902L));
 

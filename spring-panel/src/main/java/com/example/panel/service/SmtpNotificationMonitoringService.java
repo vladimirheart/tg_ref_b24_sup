@@ -3,6 +3,7 @@ package com.example.panel.service;
 import com.example.panel.entity.SmtpNotificationMonitor;
 import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.repository.SmtpNotificationMonitorRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -49,6 +50,7 @@ public class SmtpNotificationMonitoringService {
     private final MonitoringCheckHistoryRepository historyRepository;
     private final RelayProbeClient relayProbeClient;
 
+    @Autowired
     public SmtpNotificationMonitoringService(SmtpNotificationMonitorRepository repository,
                                              MonitoringCheckHistoryRepository historyRepository) {
         this(repository, historyRepository, new DefaultRelayProbeClient());

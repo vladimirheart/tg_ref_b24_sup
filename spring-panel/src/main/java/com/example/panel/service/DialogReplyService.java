@@ -136,11 +136,40 @@ public class DialogReplyService {
             return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId, responsible);
         }
         if (!StringUtils.hasText(channel.getToken())) {
+            providerDeliveryLedgerService.recordAttempt(
+                channel,
+                ticketId,
+                target.userId(),
+                "operator",
+                "text_edit",
+                null,
+                DialogReplyTransportService.DialogReplyTransportResult.failure(
+                    "Не задан токен Telegram-бота для канала.",
+                    "validation_error",
+                    "critical",
+                    "terminal",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+                )
+            );
             return DialogReplyResult.error("Канал Telegram не найден.");
         }
-        String transportError = dialogReplyTransportService.editTelegramMessage(channel, target.userId(), telegramMessageId, message);
-        if (transportError != null) {
-            return DialogReplyResult.error(transportError);
+        DialogReplyTransportService.DialogReplyTransportResult transportResult =
+            dialogReplyTransportService.editTelegramMessage(channel, target.userId(), telegramMessageId, message);
+        providerDeliveryLedgerService.recordAttempt(
+            channel,
+            ticketId,
+            target.userId(),
+            "operator",
+            "text_edit",
+            null,
+            transportResult
+        );
+        if (transportResult.error() != null) {
+            return DialogReplyResult.error(transportResult.error());
         }
         int updated = dialogReplyTargetService.markOperatorMessageEdited(ticketId, telegramMessageId, message);
         if (updated == 0) {
@@ -172,11 +201,40 @@ public class DialogReplyService {
             return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId, responsible);
         }
         if (!StringUtils.hasText(channel.getToken())) {
+            providerDeliveryLedgerService.recordAttempt(
+                channel,
+                ticketId,
+                target.userId(),
+                "operator",
+                "message_delete",
+                null,
+                DialogReplyTransportService.DialogReplyTransportResult.failure(
+                    "Не задан токен Telegram-бота для канала.",
+                    "validation_error",
+                    "critical",
+                    "terminal",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+                )
+            );
             return DialogReplyResult.error("Канал Telegram не найден.");
         }
-        String transportError = dialogReplyTransportService.deleteTelegramMessage(channel, target.userId(), telegramMessageId);
-        if (transportError != null) {
-            return DialogReplyResult.error(transportError);
+        DialogReplyTransportService.DialogReplyTransportResult transportResult =
+            dialogReplyTransportService.deleteTelegramMessage(channel, target.userId(), telegramMessageId);
+        providerDeliveryLedgerService.recordAttempt(
+            channel,
+            ticketId,
+            target.userId(),
+            "operator",
+            "message_delete",
+            null,
+            transportResult
+        );
+        if (transportResult.error() != null) {
+            return DialogReplyResult.error(transportResult.error());
         }
         int updated = dialogReplyTargetService.markOperatorMessageDeleted(ticketId, telegramMessageId);
         if (updated == 0) {

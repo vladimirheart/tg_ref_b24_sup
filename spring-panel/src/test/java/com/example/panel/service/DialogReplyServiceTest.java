@@ -180,6 +180,7 @@ class DialogReplyServiceTest {
         assertThat(result.telegramMessageId()).isEqualTo(9902L);
         assertThat(result.responsible()).isEqualTo("operator");
         verify(transportService, never()).editTelegramMessage(any(), any(), any(), any());
+        verify(providerDeliveryLedgerService, never()).recordAttempt(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -210,5 +211,86 @@ class DialogReplyServiceTest {
         assertThat(result.telegramMessageId()).isEqualTo(9903L);
         assertThat(result.responsible()).isEqualTo("operator");
         verify(transportService, never()).deleteTelegramMessage(any(), any(), any());
+        verify(providerDeliveryLedgerService, never()).recordAttempt(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void editOperatorMessageRecordsLedgerAttemptForTransportMutation() {
+        DialogReplyTargetService targetService = mock(DialogReplyTargetService.class);
+        DialogReplyTransportService transportService = mock(DialogReplyTransportService.class);
+        DialogResponsibilityService responsibilityService = mock(DialogResponsibilityService.class);
+        ProviderDeliveryLedgerService providerDeliveryLedgerService = mock(ProviderDeliveryLedgerService.class);
+        DialogReplyService dialogReplyService = new DialogReplyService(
+            targetService,
+            transportService,
+            responsibilityService,
+            providerDeliveryLedgerService
+        );
+        Channel channel = new Channel();
+        channel.setId(23L);
+        channel.setPlatform("telegram");
+        channel.setToken("token");
+
+        when(targetService.loadReplyTarget("T-905")).thenReturn(Optional.of(new DialogReplyTarget(500L, 23L)));
+        when(transportService.loadChannel(23L)).thenReturn(Optional.of(channel));
+        when(targetService.hasWebFormSession("T-905")).thenReturn(false);
+        when(transportService.editTelegramMessage(channel, 500L, 8805L, "Обновили"))
+            .thenReturn(DialogReplyTransportService.DialogReplyTransportResult.success(8805L, 33L));
+        when(targetService.markOperatorMessageEdited("T-905", 8805L, "Обновили")).thenReturn(1);
+        when(responsibilityService.assignResponsibleIfMissing("T-905", "operator")).thenReturn("operator");
+
+        DialogReplyService.DialogReplyResult result =
+            dialogReplyService.editOperatorMessage("T-905", 8805L, "Обновили", "operator");
+
+        assertThat(result.success()).isTrue();
+        verify(providerDeliveryLedgerService).recordAttempt(
+            eq(channel),
+            eq("T-905"),
+            eq(500L),
+            eq("operator"),
+            eq("text_edit"),
+            isNull(),
+            any(DialogReplyTransportService.DialogReplyTransportResult.class)
+        );
+    }
+
+    @Test
+    void deleteOperatorMessageRecordsLedgerAttemptForTransportMutation() {
+        DialogReplyTargetService targetService = mock(DialogReplyTargetService.class);
+        DialogReplyTransportService transportService = mock(DialogReplyTransportService.class);
+        DialogResponsibilityService responsibilityService = mock(DialogResponsibilityService.class);
+        ProviderDeliveryLedgerService providerDeliveryLedgerService = mock(ProviderDeliveryLedgerService.class);
+        DialogReplyService dialogReplyService = new DialogReplyService(
+            targetService,
+            transportService,
+            responsibilityService,
+            providerDeliveryLedgerService
+        );
+        Channel channel = new Channel();
+        channel.setId(24L);
+        channel.setPlatform("telegram");
+        channel.setToken("token");
+
+        when(targetService.loadReplyTarget("T-906")).thenReturn(Optional.of(new DialogReplyTarget(501L, 24L)));
+        when(transportService.loadChannel(24L)).thenReturn(Optional.of(channel));
+        when(targetService.hasWebFormSession("T-906")).thenReturn(false);
+        when(transportService.deleteTelegramMessage(channel, 501L, 8806L))
+            .thenReturn(DialogReplyTransportService.DialogReplyTransportResult.success(8806L, 22L));
+        when(targetService.markOperatorMessageDeleted("T-906", 8806L)).thenReturn(1);
+        when(responsibilityService.assignResponsibleIfMissing("T-906", "operator")).thenReturn("operator");
+
+        DialogReplyService.DialogReplyResult result =
+            dialogReplyService.deleteOperatorMessage("T-906", 8806L, "operator");
+
+        assertThat(result.success()).isTrue();
+        verify(providerDeliveryLedgerService).recordAttempt(
+            eq(channel),
+            eq("T-906"),
+            eq(501L),
+            eq("operator"),
+            eq("message_delete"),
+            isNull(),
+            any(DialogReplyTransportService.DialogReplyTransportResult.class)
+        );
     }
 }

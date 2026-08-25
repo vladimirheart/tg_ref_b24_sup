@@ -11,6 +11,7 @@ import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.security.PanelSecurityProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -74,6 +75,7 @@ public class CredentialRotationRegistryService {
     private final IncidentService incidentService;
     private final Clock clock;
 
+    @Autowired
     public CredentialRotationRegistryService(CredentialRotationRegistryRepository repository,
                                              MonitoringCheckHistoryRepository historyRepository,
                                              SharedConfigService sharedConfigService,

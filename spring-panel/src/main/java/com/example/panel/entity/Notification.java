@@ -1,5 +1,7 @@
 package com.example.panel.entity;
 
+import com.example.panel.converter.LenientOffsetDateTimeConverter;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -26,6 +28,7 @@ public class Notification {
 
     private Boolean isRead;
 
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime createdAt;
 
     public Long getId() {

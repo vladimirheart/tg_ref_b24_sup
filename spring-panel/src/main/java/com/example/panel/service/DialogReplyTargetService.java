@@ -7,6 +7,7 @@ import org.springframework.util.StringUtils;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.time.OffsetDateTime;
 import java.util.Optional;
@@ -112,9 +113,7 @@ public class DialogReplyTargetService {
                 insert.setObject(9, telegramMessageId);
                 insert.setObject(10, replyToTelegramId);
                 insert.executeUpdate();
-                try (ResultSet rs = insert.getGeneratedKeys()) {
-                    return rs.next() ? rs.getLong(1) : null;
-                }
+                return extractGeneratedKey(insert, connection);
             }
         });
         if (chatHistoryId != null && chatHistoryId > 0) {
@@ -211,5 +210,22 @@ public class DialogReplyTargetService {
         }
         String normalized = operatorIdentity.trim().toLowerCase();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private Long extractGeneratedKey(PreparedStatement statement, Connection connection) throws java.sql.SQLException {
+        try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
+            if (generatedKeys != null && generatedKeys.next()) {
+                return generatedKeys.getLong(1);
+            }
+        } catch (SQLFeatureNotSupportedException ex) {
+            // Fall through to SQLite-compatible last_insert_rowid() fallback.
+        }
+        try (PreparedStatement fallback = connection.prepareStatement("SELECT last_insert_rowid()");
+             ResultSet rs = fallback.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        }
+        return null;
     }
 }

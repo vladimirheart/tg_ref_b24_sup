@@ -25,6 +25,7 @@ public class BotRuntimeTicketWriteService {
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogParticipantService dialogParticipantService;
     private final UiEventOutboxAppendService uiEventOutboxAppendService;
+    private final ProviderDeliveryLedgerService providerDeliveryLedgerService;
     private final PendingFeedbackRequestRepository pendingFeedbackRequestRepository;
     private final FeedbackRepository feedbackRepository;
 
@@ -33,6 +34,7 @@ public class BotRuntimeTicketWriteService {
                                         DialogResponsibilityService dialogResponsibilityService,
                                         DialogParticipantService dialogParticipantService,
                                         UiEventOutboxAppendService uiEventOutboxAppendService,
+                                        ProviderDeliveryLedgerService providerDeliveryLedgerService,
                                         PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
                                         FeedbackRepository feedbackRepository) {
         this.jdbcTemplate = jdbcTemplate;
@@ -40,6 +42,7 @@ public class BotRuntimeTicketWriteService {
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogParticipantService = dialogParticipantService;
         this.uiEventOutboxAppendService = uiEventOutboxAppendService;
+        this.providerDeliveryLedgerService = providerDeliveryLedgerService;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.feedbackRepository = feedbackRepository;
     }
@@ -120,6 +123,15 @@ public class BotRuntimeTicketWriteService {
                 replyToTelegramId,
                 "operator"
         );
+        providerDeliveryLedgerService.recordObservedSuccess(
+            targetOpt.get().channelId(),
+            normalizedTicketId,
+            targetOpt.get().userId(),
+            "operator_runtime",
+            "text",
+            telegramMessageId,
+            replyToTelegramId
+        );
         dialogReplyTargetService.touchTicketActivity(normalizedTicketId, operatorIdentity);
         syncOperatorWorkflowOwnership(normalizedTicketId, operatorIdentity);
         return new MutationResult(true, true);
@@ -171,6 +183,16 @@ public class BotRuntimeTicketWriteService {
         );
         if (updated > 0) {
             assignResponsibleIfPresent(normalizedTicketId, operatorIdentity);
+            Optional<DialogReplyTarget> targetOpt = dialogReplyTargetService.loadReplyTarget(normalizedTicketId);
+            targetOpt.ifPresent(target -> providerDeliveryLedgerService.recordObservedSuccess(
+                target.channelId(),
+                normalizedTicketId,
+                target.userId(),
+                "operator_runtime",
+                "text_edit",
+                telegramMessageId,
+                null
+            ));
             TicketSnapshot ticket = loadTicket(normalizedTicketId);
             uiEventOutboxAppendService.publishOperatorMessageEdited(
                 normalizedTicketId,

@@ -5,6 +5,7 @@ import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -67,6 +68,7 @@ public class ProviderHealthMonitoringService {
     private final ProviderProbeClient providerProbeClient;
     private final Clock clock;
 
+    @Autowired
     public ProviderHealthMonitoringService(ChannelRepository channelRepository,
                                            BotProcessService botProcessService,
                                            MonitoringCheckHistoryRepository historyRepository,

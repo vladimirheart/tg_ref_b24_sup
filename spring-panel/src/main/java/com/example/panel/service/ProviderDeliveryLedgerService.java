@@ -5,6 +5,7 @@ import com.example.panel.entity.ProviderDeliveryLedgerEntry;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.repository.ProviderDeliveryLedgerRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -42,6 +43,7 @@ public class ProviderDeliveryLedgerService {
     private final ChannelRepository channelRepository;
     private final Clock clock;
 
+    @Autowired
     public ProviderDeliveryLedgerService(ProviderDeliveryLedgerRepository repository,
                                          MonitoringCheckHistoryRepository historyRepository,
                                          ChannelRepository channelRepository) {
@@ -91,6 +93,27 @@ public class ProviderDeliveryLedgerService {
         entry.setAttemptedAt(attemptedAt);
         repository.save(entry);
         recordHistory(channel, entry, attemptedAt);
+    }
+
+    public void recordObservedSuccess(Long channelId,
+                                      String ticketId,
+                                      Long userId,
+                                      String senderKind,
+                                      String messageKind,
+                                      Long providerMessageId,
+                                      Long replyToMessageId) {
+        if (channelId == null) {
+            return;
+        }
+        channelRepository.findById(channelId).ifPresent(channel -> recordAttempt(
+            channel,
+            ticketId,
+            userId,
+            senderKind,
+            messageKind,
+            replyToMessageId,
+            DialogReplyTransportService.DialogReplyTransportResult.success(providerMessageId, 0L)
+        ));
     }
 
     public OverviewSnapshot buildOverview() {

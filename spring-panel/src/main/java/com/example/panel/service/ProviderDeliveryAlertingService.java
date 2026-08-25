@@ -5,6 +5,7 @@ import com.example.panel.entity.ProviderDeliveryLedgerEntry;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.repository.ProviderDeliveryLedgerRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -72,6 +73,7 @@ public class ProviderDeliveryAlertingService {
     private final IncidentService incidentService;
     private final Clock clock;
 
+    @Autowired
     public ProviderDeliveryAlertingService(ProviderDeliveryLedgerRepository repository,
                                            MonitoringCheckHistoryRepository historyRepository,
                                            ChannelRepository channelRepository,

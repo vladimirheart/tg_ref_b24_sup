@@ -83,7 +83,25 @@ public class DialogReplyTransportService {
         };
     }
 
-    public String editTelegramMessage(Channel channel, Long userId, Long telegramMessageId, String message) {
+    public DialogReplyTransportResult editTelegramMessage(Channel channel,
+                                                          Long userId,
+                                                          Long telegramMessageId,
+                                                          String message) {
+        String platform = normalizePlatform(channel != null ? channel.getPlatform() : null);
+        if (!"telegram".equals(platform)) {
+            return DialogReplyTransportResult.failure(
+                "Редактирование provider-side сообщений сейчас поддерживается только для Telegram.",
+                "validation_error",
+                "warning",
+                "terminal",
+                null,
+                null,
+                platform,
+                null,
+                null
+            );
+        }
+        long startedAtNs = System.nanoTime();
         try {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("chat_id", userId);
@@ -97,19 +115,63 @@ public class DialogReplyTransportService {
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                 .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                return "Ошибка редактирования сообщения в Telegram.";
-            }
-            return null;
+            DialogReplyTransportResult result = resolveTelegramTransportResult(
+                response,
+                "Ошибка редактирования сообщения в Telegram.",
+                elapsedMillis(startedAtNs)
+            );
+            return result.success()
+                ? DialogReplyTransportResult.success(telegramMessageId, result.durationMs())
+                : result;
+        } catch (HttpTimeoutException ex) {
+            return failureForException(
+                "Не удалось отредактировать сообщение в Telegram: превышено время ожидания.",
+                "timeout",
+                "critical",
+                "transient",
+                ex,
+                elapsedMillis(startedAtNs)
+            );
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return "Не удалось отредактировать сообщение в Telegram.";
+            return failureForException(
+                "Не удалось отредактировать сообщение в Telegram.",
+                "unknown_error",
+                "critical",
+                "transient",
+                ex,
+                elapsedMillis(startedAtNs)
+            );
         } catch (IOException ex) {
-            return "Не удалось отредактировать сообщение в Telegram.";
+            return failureForException(
+                "Не удалось отредактировать сообщение в Telegram.",
+                "network_error",
+                "critical",
+                "transient",
+                ex,
+                elapsedMillis(startedAtNs)
+            );
         }
     }
 
-    public String deleteTelegramMessage(Channel channel, Long userId, Long telegramMessageId) {
+    public DialogReplyTransportResult deleteTelegramMessage(Channel channel,
+                                                            Long userId,
+                                                            Long telegramMessageId) {
+        String platform = normalizePlatform(channel != null ? channel.getPlatform() : null);
+        if (!"telegram".equals(platform)) {
+            return DialogReplyTransportResult.failure(
+                "Удаление provider-side сообщений сейчас поддерживается только для Telegram.",
+                "validation_error",
+                "warning",
+                "terminal",
+                null,
+                null,
+                platform,
+                null,
+                null
+            );
+        }
+        long startedAtNs = System.nanoTime();
         try {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("chat_id", userId);
@@ -122,15 +184,42 @@ public class DialogReplyTransportService {
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                 .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                return "Ошибка удаления сообщения в Telegram.";
-            }
-            return null;
+            DialogReplyTransportResult result = resolveTelegramTransportResult(
+                response,
+                "Ошибка удаления сообщения в Telegram.",
+                elapsedMillis(startedAtNs)
+            );
+            return result.success()
+                ? DialogReplyTransportResult.success(telegramMessageId, result.durationMs())
+                : result;
+        } catch (HttpTimeoutException ex) {
+            return failureForException(
+                "Не удалось удалить сообщение в Telegram: превышено время ожидания.",
+                "timeout",
+                "critical",
+                "transient",
+                ex,
+                elapsedMillis(startedAtNs)
+            );
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            return "Не удалось удалить сообщение в Telegram.";
+            return failureForException(
+                "Не удалось удалить сообщение в Telegram.",
+                "unknown_error",
+                "critical",
+                "transient",
+                ex,
+                elapsedMillis(startedAtNs)
+            );
         } catch (IOException ex) {
-            return "Не удалось удалить сообщение в Telegram.";
+            return failureForException(
+                "Не удалось удалить сообщение в Telegram.",
+                "network_error",
+                "critical",
+                "transient",
+                ex,
+                elapsedMillis(startedAtNs)
+            );
         }
     }
 

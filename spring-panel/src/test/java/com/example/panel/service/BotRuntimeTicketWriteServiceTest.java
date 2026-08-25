@@ -11,7 +11,10 @@ import com.example.panel.entity.Channel;
 import com.example.panel.entity.Feedback;
 import com.example.panel.entity.PendingFeedbackRequest;
 import com.example.panel.repository.FeedbackRepository;
+import com.example.panel.repository.ChannelRepository;
+import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.repository.PendingFeedbackRequestRepository;
+import com.example.panel.repository.ProviderDeliveryLedgerRepository;
 import com.example.panel.storage.AttachmentObjectStorageService;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,6 +31,8 @@ class BotRuntimeTicketWriteServiceTest {
     private BotRuntimeTicketWriteService service;
     private DialogResponsibilityService dialogResponsibilityService;
     private DialogParticipantService dialogParticipantService;
+    private ChannelRepository channelRepository;
+    private ProviderDeliveryLedgerService providerDeliveryLedgerService;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -44,12 +49,19 @@ class BotRuntimeTicketWriteServiceTest {
             jdbcTemplate,
             databaseRuntimeMode
         );
+        channelRepository = mock(ChannelRepository.class);
+        providerDeliveryLedgerService = new ProviderDeliveryLedgerService(
+            new ProviderDeliveryLedgerRepository(jdbcTemplate),
+            new MonitoringCheckHistoryRepository(jdbcTemplate),
+            channelRepository
+        );
         service = new BotRuntimeTicketWriteService(
             jdbcTemplate,
             dialogReplyTargetService,
             dialogResponsibilityService,
             dialogParticipantService,
             new UiEventOutboxAppendService(jdbcTemplate),
+            providerDeliveryLedgerService,
             mock(PendingFeedbackRequestRepository.class),
             mock(FeedbackRepository.class)
         );
@@ -110,6 +122,7 @@ class BotRuntimeTicketWriteServiceTest {
                 """,
                 7001L, 77L, "T-700", 12L, "2026-08-16T20:00:00Z"
         );
+        stubChannel(12L, "telegram", "token12");
 
         BotRuntimeTicketWriteService.MutationResult result = service.recordOperatorRelay(
             "T-700",
@@ -142,6 +155,16 @@ class BotRuntimeTicketWriteServiceTest {
                 String.class,
                 "T-700"
         )).isEqualTo("operator");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT sender_kind FROM provider_delivery_ledger WHERE ticket_id = ? ORDER BY id DESC LIMIT 1",
+                String.class,
+                "T-700"
+        )).isEqualTo("operator_runtime");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT message_kind FROM provider_delivery_ledger WHERE ticket_id = ? ORDER BY id DESC LIMIT 1",
+                String.class,
+                "T-700"
+        )).isEqualTo("text");
     }
 
     @Test
@@ -234,6 +257,13 @@ class BotRuntimeTicketWriteServiceTest {
                 """,
                 88L, "operator", "Initial operator text", "2026-08-16T19:00:00Z", "T-881", "operator_message", 18L, 8101L
         );
+        jdbcTemplate.update("""
+                INSERT INTO messages(id, user_id, ticket_id, channel_id, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                8101L, 88L, "T-881", 18L, "2026-08-16T19:00:00Z"
+        );
+        stubChannel(18L, "telegram", "token18");
 
         BotRuntimeTicketWriteService.MutationResult result = service.markOperatorMessageEdited(
             "T-881",
@@ -266,6 +296,16 @@ class BotRuntimeTicketWriteServiceTest {
                 String.class,
                 "T-881"
         )).isEqualTo("operator");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT sender_kind FROM provider_delivery_ledger WHERE ticket_id = ? ORDER BY id DESC LIMIT 1",
+                String.class,
+                "T-881"
+        )).isEqualTo("operator_runtime");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT message_kind FROM provider_delivery_ledger WHERE ticket_id = ? ORDER BY id DESC LIMIT 1",
+                String.class,
+                "T-881"
+        )).isEqualTo("text_edit");
     }
 
     @Test
@@ -283,6 +323,7 @@ class BotRuntimeTicketWriteServiceTest {
             dialogResponsibilityService,
             dialogParticipantService,
             new UiEventOutboxAppendService(jdbcTemplate),
+            providerDeliveryLedgerService,
             pendingFeedbackRequestRepository,
             feedbackRepository
         );
@@ -320,6 +361,16 @@ class BotRuntimeTicketWriteServiceTest {
     }
 
     private void createSchema() {
+        jdbcTemplate.execute("""
+                CREATE TABLE channels (
+                    id INTEGER PRIMARY KEY,
+                    token TEXT,
+                    channel_name TEXT,
+                    platform TEXT,
+                    is_active INTEGER,
+                    created_at TEXT
+                )
+                """);
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
                     ticket_id TEXT PRIMARY KEY,
@@ -409,5 +460,51 @@ class BotRuntimeTicketWriteServiceTest {
                     is_blocked INTEGER
                 )
                 """);
+        jdbcTemplate.execute("""
+                CREATE TABLE provider_delivery_ledger (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    channel_id INTEGER NOT NULL,
+                    ticket_id TEXT,
+                    platform TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    user_id INTEGER,
+                    sender_kind TEXT NOT NULL,
+                    message_kind TEXT NOT NULL,
+                    delivery_status TEXT NOT NULL,
+                    classification TEXT NOT NULL,
+                    severity_level TEXT NOT NULL,
+                    retry_state TEXT NOT NULL,
+                    http_status INTEGER,
+                    provider_error_code TEXT,
+                    provider_message TEXT,
+                    response_excerpt TEXT,
+                    provider_message_id INTEGER,
+                    reply_to_message_id INTEGER,
+                    duration_ms INTEGER,
+                    attempted_at TEXT NOT NULL
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE monitoring_check_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    monitor_kind TEXT NOT NULL,
+                    monitor_id INTEGER NOT NULL,
+                    check_kind TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    summary TEXT,
+                    details_excerpt TEXT,
+                    http_status INTEGER,
+                    duration_ms INTEGER,
+                    created_at TEXT NOT NULL
+                )
+                """);
+    }
+
+    private void stubChannel(Long channelId, String platform, String token) {
+        Channel channel = new Channel();
+        channel.setId(channelId);
+        channel.setPlatform(platform);
+        channel.setToken(token);
+        when(channelRepository.findById(channelId)).thenReturn(Optional.of(channel));
     }
 }

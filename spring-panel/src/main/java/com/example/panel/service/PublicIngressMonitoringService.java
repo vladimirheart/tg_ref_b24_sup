@@ -5,6 +5,7 @@ import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.repository.PublicIngressMonitorRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -66,6 +67,7 @@ public class PublicIngressMonitoringService {
     private final HttpProbeClient httpProbeClient;
     private final TlsProbeClient tlsProbeClient;
 
+    @Autowired
     public PublicIngressMonitoringService(PublicIngressMonitorRepository repository,
                                           MonitoringCheckHistoryRepository historyRepository) {
         this(
