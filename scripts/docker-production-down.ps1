@@ -18,6 +18,14 @@ $edgeComposeFile = Join-Path $repoRoot "docker-compose.production-edge.yml"
 $observabilityComposeFile = Join-Path $repoRoot "docker-compose.production-observability.yml"
 $backupComposeFile = Join-Path $repoRoot "docker-compose.production-backup.yml"
 $dotEnvPath = Join-Path $repoRoot ".env"
+if ($Backup) {
+    $backupConfigLibrary = Join-Path $PSScriptRoot "lib\backup-config.ps1"
+    if (-not (Test-Path -LiteralPath $backupConfigLibrary)) {
+        throw "Backup config library is missing: $backupConfigLibrary"
+    }
+    . $backupConfigLibrary
+    Import-IguanaBackupSettings -RepoRoot $repoRoot | Out-Null
+}
 
 if (-not (Test-Path -LiteralPath $composeFile)) {
     throw "Compose file not found: $composeFile"

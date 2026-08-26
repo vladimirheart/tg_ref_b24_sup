@@ -60,6 +60,7 @@ public class BackupReadinessMonitoringService {
     private static final Path MANAGED_BACKUP_ROOT = Path.of("/opt/iguana/backups/offhost");
     private static final String MANAGED_POSTGRES_MONITOR = "iguana-postgresql-production-backup";
     private static final String MANAGED_MINIO_MONITOR = "iguana-minio-production-backup";
+    private static final String MANAGED_FILES_MONITOR = "iguana-files-production-backup";
 
     private final BackupReadinessMonitorRepository repository;
     private final MonitoringCheckHistoryRepository historyRepository;
@@ -83,14 +84,21 @@ public class BackupReadinessMonitoringService {
         created += ensureManagedMonitor(
             MANAGED_POSTGRES_MONITOR,
             "postgresql",
-            MANAGED_BACKUP_ROOT.resolve("postgres").resolve("iguana-postgres-*.dump").toString(),
+            MANAGED_BACKUP_ROOT.resolve("packages").resolve("postgres").resolve("iguana-postgres-*.tar.gz").toString(),
             DEFAULT_FRESHNESS_THRESHOLD_HOURS,
             DEFAULT_RESTORE_THRESHOLD_DAYS
         );
         created += ensureManagedMonitor(
             MANAGED_MINIO_MONITOR,
             "minio",
-            MANAGED_BACKUP_ROOT.resolve("minio").resolve("manifests").resolve("*.manifest.json").toString(),
+            MANAGED_BACKUP_ROOT.resolve("packages").resolve("minio").resolve("iguana-minio-*.tar.gz").toString(),
+            DEFAULT_FRESHNESS_THRESHOLD_HOURS,
+            DEFAULT_RESTORE_THRESHOLD_DAYS
+        );
+        created += ensureManagedMonitor(
+            MANAGED_FILES_MONITOR,
+            "files",
+            MANAGED_BACKUP_ROOT.resolve("packages").resolve("files").resolve("iguana-files-*.tar.gz").toString(),
             DEFAULT_FRESHNESS_THRESHOLD_HOURS,
             DEFAULT_RESTORE_THRESHOLD_DAYS
         );
@@ -102,7 +110,23 @@ public class BackupReadinessMonitoringService {
                                      String pathPattern,
                                      int freshnessThresholdHours,
                                      int restoreThresholdDays) {
-        if (repository.findByMonitorName(monitorName).isPresent()) {
+        Optional<BackupReadinessMonitor> existing = repository.findByMonitorName(monitorName);
+        if (existing.isPresent()) {
+            BackupReadinessMonitor item = existing.get();
+            boolean changed = !Objects.equals(item.getBackupKind(), backupKind)
+                || !Objects.equals(item.getPathPattern(), pathPattern)
+                || !Boolean.TRUE.equals(item.getEnabled())
+                || !Objects.equals(item.getFreshnessThresholdHours(), freshnessThresholdHours)
+                || !Objects.equals(item.getRestoreThresholdDays(), restoreThresholdDays);
+            if (changed) {
+                item.setBackupKind(backupKind);
+                item.setPathPattern(pathPattern);
+                item.setEnabled(true);
+                item.setFreshnessThresholdHours(freshnessThresholdHours);
+                item.setRestoreThresholdDays(restoreThresholdDays);
+                item.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+                repository.save(item);
+            }
             return 0;
         }
         createMonitor(new MonitorDraft(

@@ -28,6 +28,12 @@ EDGE_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-edge.yml"
 OBSERVABILITY_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-observability.yml"
 BACKUP_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-backup.yml"
 ENV_FILE="${REPO_ROOT}/.env"
+if [[ "${BACKUP}" == "1" ]]; then
+  BACKUP_CONFIG_LIB="${SCRIPT_DIR}/lib/backup-config.sh"
+  [[ -f "${BACKUP_CONFIG_LIB}" ]] || { echo "[ERROR] Backup config library is missing: ${BACKUP_CONFIG_LIB}" >&2; exit 1; }
+  source "${BACKUP_CONFIG_LIB}"
+  iguana_import_backup_settings "${REPO_ROOT}"
+fi
 
 [[ -f "${COMPOSE_FILE}" ]] || { echo "[ERROR] Compose file not found: ${COMPOSE_FILE}" >&2; exit 1; }
 if [[ "${EDGE}" == "1" && ! -f "${EDGE_COMPOSE_FILE}" ]]; then

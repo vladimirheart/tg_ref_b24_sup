@@ -1,7 +1,6 @@
 services:
-  # The worker receives read-only visibility into the externally mounted backup
-  # destination so 01-198 can inspect real artifacts/evidence. panel-web never
-  # receives this mount.
+  # 01-198 receives read-only visibility into portable recovery packages/evidence.
+  # panel-web intentionally receives no backup mount.
   ops-worker:
     volumes:
       - type: bind
@@ -23,6 +22,7 @@ services:
       PGUSER: ${IGUANA_POSTGRES_USER:-iguana}
       PGPASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
       IGUANA_BACKUP_RETENTION_DAYS: ${IGUANA_BACKUP_RETENTION_DAYS:-30}
+      IGUANA_BACKUP_MODE: ${IGUANA_BACKUP_MODE:-critical}
     volumes:
       - ./docker/backup/postgres-backup.sh:/scripts/postgres-backup.sh:ro
       - type: bind
@@ -50,6 +50,7 @@ services:
       APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
       APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
       IGUANA_MINIO_BACKUP_RETENTION_DAYS: ${IGUANA_MINIO_BACKUP_RETENTION_DAYS:-14}
+      IGUANA_BACKUP_MODE: ${IGUANA_BACKUP_MODE:-critical}
     volumes:
       - ./docker/backup/minio-backup.sh:/scripts/minio-backup.sh:ro
       - type: bind
@@ -61,6 +62,33 @@ services:
       - >-
         tr -d '\r' < /scripts/minio-backup.sh > /tmp/minio-backup.sh &&
         exec /bin/sh /tmp/minio-backup.sh
+
+  files-backup:
+    image: busybox:1.36.1
+    profiles: ["backup"]
+    restart: "no"
+    environment:
+      IGUANA_BACKUP_RETENTION_DAYS: ${IGUANA_BACKUP_RETENTION_DAYS:-30}
+      IGUANA_BACKUP_MODE: ${IGUANA_BACKUP_MODE:-critical}
+      IGUANA_BACKUP_COMPONENTS: ${IGUANA_BACKUP_COMPONENTS:-shared-config}
+    volumes:
+      - ./docker/backup/files-backup.sh:/scripts/files-backup.sh:ro
+      - type: bind
+        source: ${IGUANA_BACKUP_DESTINATION_DIR:?Set IGUANA_BACKUP_DESTINATION_DIR to an off-host/NAS mounted filesystem path}
+        target: /backup/offhost
+      - type: bind
+        source: ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}
+        target: /source/shared-config
+        read_only: true
+      - ./spring-panel/src/main/resources/templates:/source/templates:ro
+      - ./spring-panel/src/main/resources/static/js:/source/static-js:ro
+      - ./spring-panel/src/main/resources/static/css:/source/static-css:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        tr -d '\r' < /scripts/files-backup.sh > /tmp/files-backup.sh &&
+        exec /bin/sh /tmp/files-backup.sh
 
   postgres-restore-target:
     image: postgres:16-alpine
@@ -124,8 +152,6 @@ services:
     depends_on:
       minio-restore-target:
         condition: service_started
-    environment:
-      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
     volumes:
       - ./docker/backup/minio-restore-rehearsal.sh:/scripts/minio-restore-rehearsal.sh:ro
       - type: bind
@@ -137,3 +163,23 @@ services:
       - >-
         tr -d '\r' < /scripts/minio-restore-rehearsal.sh > /tmp/minio-restore-rehearsal.sh &&
         exec /bin/sh /tmp/minio-restore-rehearsal.sh
+
+  files-restore-rehearsal:
+    image: busybox:1.36.1
+    profiles: ["backup"]
+    restart: "no"
+    environment:
+      IGUANA_BACKUP_RESTORE_COMPONENTS: ${IGUANA_BACKUP_RESTORE_COMPONENTS:-shared-config}
+    tmpfs:
+      - /restore-work
+    volumes:
+      - ./docker/backup/files-restore-rehearsal.sh:/scripts/files-restore-rehearsal.sh:ro
+      - type: bind
+        source: ${IGUANA_BACKUP_DESTINATION_DIR:?Set IGUANA_BACKUP_DESTINATION_DIR to an off-host/NAS mounted filesystem path}
+        target: /backup/offhost
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        tr -d '\r' < /scripts/files-restore-rehearsal.sh > /tmp/files-restore-rehearsal.sh &&
+        exec /bin/sh /tmp/files-restore-rehearsal.sh

@@ -182,3 +182,59 @@ For mc RELEASE.2025-07-21T05-28-08Z, the production source spelling is not assum
 The local backup smoke must not pass long shell programs through Windows PowerShell native `sh -c` argument serialization. It writes LF-only UTF-8/no-BOM seed, verification and cleanup shell files into the temporary backup bind mount, validates them with `sh -n`, and executes them by path inside the MinIO backup tools container.
 
 Before the full PostgreSQL + MinIO rehearsal, smoke verifies `smoke.txt` from a fresh MinIO tools container after another `minio-init` dependency run and executes the exact production `minio-backup` service once. That preflight requires `source_object_count=1`, `local_file_count=1`, the expected bucket name and a materialized `smoke.txt` snapshot before full smoke begins.
+
+## Admin-managed backup policy
+
+`Настройки -> Backup & recovery` is the canonical operator UI for non-secret backup policy:
+
+- off-host destination path and explicit failure-domain acknowledgement;
+- PostgreSQL and MinIO retention;
+- canonical recovery package format: `tar.gz`;
+- manual mode: `critical`, `full`, `custom`;
+- custom component set;
+- independent critical/full schedules (daily or weekly, host-local time);
+- component set used by isolated restore rehearsal.
+
+The policy is stored as UTF-8 `config/shared/backup.properties` (or the directory selected by `IGUANA_SHARED_CONFIG_DIR`). Process environment has higher priority; legacy `.env` remains a fallback.
+
+Credentials for SMB/NFS/S3 are not stored in this file. The host must mount/authenticate the external storage before Docker Compose uses it.
+
+Component contract planned for the archive runtime slice:
+
+- `critical`: PostgreSQL + MinIO/object storage + non-secret shared configuration;
+- `full`: critical + templates/pages + static JavaScript + static CSS;
+- `custom`: explicit component set from the policy.
+
+Production restore is intentionally not exposed as a one-click web action. The same component metadata will drive isolated restore rehearsal first; destructive production restore requires a separate explicit confirmation boundary.
+
+## Portable recovery packages and component-aware execution
+
+Canonical artifacts:
+
+- `packages/postgres/iguana-postgres-<UTC>.tar.gz`
+- `packages/minio/iguana-minio-<UTC>.tar.gz`
+- `packages/files/iguana-files-<mode>-<UTC>.tar.gz`
+
+Each archive has a sibling `.sha256`; file packages also have `.components` metadata for selecting a compatible package during restore rehearsal. The archive itself contains a manifest and payload-level checksums.
+
+Backup modes:
+
+- `critical`: PostgreSQL, MinIO/object storage, shared config;
+- `full`: critical + templates/pages + static JavaScript + static CSS;
+- `custom`: component set from admin policy.
+
+An empty primary MinIO bucket is valid. It produces a zero-object tar.gz package and must restore as zero objects. The Docker smoke separately proves both a seeded one-object package and a zero-object package.
+
+### Scheduled execution
+
+The admin UI stores critical/full schedule values. A lightweight host runner evaluates them every five minutes:
+
+Windows:
+`powershell -ExecutionPolicy Bypass -File .\scripts\install-backup-policy-runner.ps1`
+
+Linux/Unix with cron:
+`bash ./scripts/install-backup-policy-runner.sh`
+
+Changing time/day in the admin UI does not require recreating the scheduler entry. The runner reads `backup.properties` every execution.
+
+Critical scheduled plan runs backup-only. Full scheduled plan runs backup and the selected isolated restore rehearsal. No destructive production restore is performed by the scheduler.

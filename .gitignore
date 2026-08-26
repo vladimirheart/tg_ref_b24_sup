@@ -16,6 +16,9 @@ attachments/
 /spring-panel/.m2/
 /spring-panel/target/
 /config/shared/monitoring-credentials.key
+/config/shared/backup.properties
+/config/shared/backup-scheduler.state
+/config/shared/.backup-scheduler.lock/
 /.tmp/
 *.patch
 *.bak

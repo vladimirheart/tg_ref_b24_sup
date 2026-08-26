@@ -239,6 +239,10 @@ function Invoke-PreflightChecks {
 
     if ($BackupEnabled) {
         $backupDestination = Assert-RequiredSetting -DotEnv $DotEnv -Name "IGUANA_BACKUP_DESTINATION_DIR" -Message "Backup contour requires an off-host mounted destination"
+        $backupFailureDomain = Get-SettingValue -DotEnv $DotEnv -Name "IGUANA_BACKUP_EXTERNAL_FAILURE_DOMAIN"
+        if (-not (Test-TruthySetting -Value $backupFailureDomain)) {
+            throw "Backup contour requires external failure-domain acknowledgement in Settings -> Backup & recovery."
+        }
         if (-not [System.IO.Path]::IsPathRooted($backupDestination)) {
             throw "IGUANA_BACKUP_DESTINATION_DIR must be an absolute off-host path."
         }
@@ -294,6 +298,14 @@ $observabilityComposeFile = Join-Path $repoRoot "docker-compose.production-obser
 $backupComposeFile = Join-Path $repoRoot "docker-compose.production-backup.yml"
 $dotEnvPath = Join-Path $repoRoot ".env"
 $dotEnv = Read-DotEnvFile -Path $dotEnvPath
+if ($Backup) {
+    $backupConfigLibrary = Join-Path $PSScriptRoot "lib\backup-config.ps1"
+    if (-not (Test-Path -LiteralPath $backupConfigLibrary)) {
+        throw "Backup config library is missing: $backupConfigLibrary"
+    }
+    . $backupConfigLibrary
+    Import-IguanaBackupSettings -RepoRoot $repoRoot | Out-Null
+}
 
 if (-not (Test-Path -LiteralPath $composeFile)) {
     throw "Compose file not found: $composeFile"

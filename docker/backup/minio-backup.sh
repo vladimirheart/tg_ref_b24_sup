@@ -3,23 +3,24 @@ set -eu
 umask 077
 
 bucket="${APP_STORAGE_OBJECT_BUCKET:?APP_STORAGE_OBJECT_BUCKET is required}"
-root="/backup/offhost/minio"
-snapshots="${root}/snapshots"
-manifests="${root}/manifests"
+destination="/backup/offhost/packages/minio"
 retention_days="${IGUANA_MINIO_BACKUP_RETENTION_DAYS:-14}"
+mode="${IGUANA_BACKUP_MODE:-critical}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-tmp_snapshot="${snapshots}/.${stamp}.tmp"
-final_snapshot="${snapshots}/${stamp}"
-tmp_manifest="${manifests}/.${stamp}.manifest.json.tmp"
-final_manifest="${manifests}/${stamp}.manifest.json"
+base="iguana-minio-${stamp}"
+stage="/tmp/${base}.$$"
+tmp_archive="${destination}/.${base}.tar.gz.tmp"
+final_archive="${destination}/${base}.tar.gz"
+tmp_archive_sha="${destination}/.${base}.tar.gz.sha256.tmp"
+final_archive_sha="${final_archive}.sha256"
 
-mkdir -p "${snapshots}" "${manifests}"
-rm -rf "${tmp_snapshot}"
-mkdir -p "${tmp_snapshot}/objects"
+mkdir -p "${destination}"
+rm -rf "${stage}"
+mkdir -p "${stage}/objects"
 
 cleanup() {
-  rm -rf "${tmp_snapshot}"
-  rm -f "${tmp_manifest}"
+  rm -rf "${stage}"
+  rm -f "${tmp_archive}" "${tmp_archive_sha}"
 }
 trap cleanup EXIT INT TERM
 
@@ -33,37 +34,47 @@ until mc alias set primary http://minio:9000 "${APP_STORAGE_OBJECT_ACCESS_KEY}" 
   sleep 2
 done
 
-# A timestamped snapshot is intentionally used instead of --remove mirroring:
-# deleting a primary object must not delete the only backup copy immediately.
-echo "[BACKUP] MinIO bucket ${bucket} -> ${final_snapshot}"
-mc ls --recursive --json "primary/${bucket}" > "${tmp_snapshot}/inventory.jsonl"
-source_objects="$(wc -l < "${tmp_snapshot}/inventory.jsonl" | tr -d '[:space:]')"
+echo "[BACKUP] MinIO bucket ${bucket} -> portable recovery package ${final_archive}"
+mc ls --recursive --json "primary/${bucket}" > "${stage}/inventory.jsonl"
+source_objects="$(wc -l < "${stage}/inventory.jsonl" | tr -d '[:space:]')"
 echo "[BACKUP] MinIO source objects: ${source_objects}"
-if [ "${source_objects}" -lt 1 ]; then
-  echo "[ERROR] MinIO source bucket is empty before snapshot copy: ${bucket}" >&2
-  exit 1
+
+# An empty object bucket is a valid production state. Publish a recoverable
+# zero-object package instead of treating it as a backup failure.
+if [ "${source_objects}" -gt 0 ]; then
+  mc cp --recursive "primary/${bucket}/" "${stage}/objects/"
 fi
 
-# mc mirror is intended for a MinIO/S3 target. For an S3/MinIO source and
-# local-filesystem target use mc cp --recursive so every object is materialized.
-mc cp --recursive "primary/${bucket}/" "${tmp_snapshot}/objects/"
-
-local_files="$(find "${tmp_snapshot}/objects" -type f | wc -l | tr -d '[:space:]')"
+local_files="$(find "${stage}/objects" -type f | wc -l | tr -d '[:space:]')"
 if [ "${source_objects}" != "${local_files}" ]; then
-  echo "[ERROR] MinIO snapshot object count mismatch: source=${source_objects}, local=${local_files}" >&2
+  echo "[ERROR] MinIO package object count mismatch: source=${source_objects}, local=${local_files}" >&2
   exit 1
 fi
-inventory_sha="$(sha256sum "${tmp_snapshot}/inventory.jsonl" | awk '{print $1}')"
-printf 'iguana-minio-restore-sentinel-%s\n' "${stamp}" > "${tmp_snapshot}/restore-sentinel.txt"
-sentinel_sha="$(sha256sum "${tmp_snapshot}/restore-sentinel.txt" | awk '{print $1}')"
 
-mv "${tmp_snapshot}" "${final_snapshot}"
-printf '{"kind":"minio","bucket":"%s","created_at":"%s","snapshot":"%s","source_object_count":%s,"local_file_count":%s,"inventory_sha256":"%s","sentinel_sha256":"%s"}\n' \
-  "${bucket}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${stamp}" "${source_objects}" "${local_files}" "${inventory_sha}" "${sentinel_sha}" > "${tmp_manifest}"
-mv "${tmp_manifest}" "${final_manifest}"
+printf 'iguana-minio-restore-sentinel-%s\n' "${stamp}" > "${stage}/restore-sentinel.txt"
+(
+  cd "${stage}"
+  : > checksums.sha256
+  find objects -type f | sort | while IFS= read -r file; do
+    sha256sum "${file}"
+  done >> checksums.sha256
+  sha256sum inventory.jsonl restore-sentinel.txt >> checksums.sha256
+)
+printf '{"kind":"minio","bucket":"%s","created_at":"%s","archive_format":"tar.gz","backup_mode":"%s","source_object_count":%s,"local_file_count":%s}\n' \
+  "${bucket}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${mode}" "${source_objects}" "${local_files}" > "${stage}/manifest.json"
+
+tar -czf "${tmp_archive}" -C "${stage}" .
+tar -tzf "${tmp_archive}" >/dev/null
+archive_sha="$(sha256sum "${tmp_archive}" | awk '{print $1}')"
+printf '%s  %s\n' "${archive_sha}" "$(basename "${final_archive}")" > "${tmp_archive_sha}"
+
+mv "${tmp_archive}" "${final_archive}"
+mv "${tmp_archive_sha}" "${final_archive_sha}"
 trap - EXIT INT TERM
+rm -rf "${stage}"
 
-find "${snapshots}" -mindepth 1 -maxdepth 1 -type d -mtime "+${retention_days}" -exec rm -rf {} + 2>/dev/null || true
-find "${manifests}" -maxdepth 1 -type f -name '*.manifest.json' -mtime "+${retention_days}" -delete 2>/dev/null || true
+find "${destination}" -maxdepth 1 -type f -mtime "+${retention_days}" \
+  \( -name 'iguana-minio-*.tar.gz' -o -name 'iguana-minio-*.tar.gz.sha256' \) \
+  -delete 2>/dev/null || true
 
-echo "[GREEN] MinIO snapshot published: ${final_snapshot}; files=${local_files}"
+echo "[GREEN] MinIO recovery package published: ${final_archive}; objects=${local_files}"

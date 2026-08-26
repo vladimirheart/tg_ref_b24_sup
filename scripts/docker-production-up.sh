@@ -48,6 +48,12 @@ EDGE_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-edge.yml"
 OBSERVABILITY_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-observability.yml"
 BACKUP_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-backup.yml"
 ENV_FILE="${REPO_ROOT}/.env"
+if [[ "${BACKUP}" == "1" ]]; then
+  BACKUP_CONFIG_LIB="${SCRIPT_DIR}/lib/backup-config.sh"
+  [[ -f "${BACKUP_CONFIG_LIB}" ]] || { echo "[ERROR] Backup config library is missing: ${BACKUP_CONFIG_LIB}" >&2; exit 1; }
+  source "${BACKUP_CONFIG_LIB}"
+  iguana_import_backup_settings "${REPO_ROOT}"
+fi
 
 get_setting_value() {
   local name="$1"
@@ -182,8 +188,11 @@ invoke_preflight_checks() {
 
   if [[ "${BACKUP}" == "1" ]]; then
     local backup_destination
+    local backup_failure_domain
     backup_destination="$(get_setting_value "IGUANA_BACKUP_DESTINATION_DIR")"
+    backup_failure_domain="$(get_setting_value "IGUANA_BACKUP_EXTERNAL_FAILURE_DOMAIN")"
     [[ -n "${backup_destination}" ]] || { echo "[ERROR] Backup contour requires IGUANA_BACKUP_DESTINATION_DIR." >&2; exit 1; }
+    is_truthy "${backup_failure_domain}" || { echo "[ERROR] Backup contour requires external failure-domain acknowledgement in Settings -> Backup & recovery." >&2; exit 1; }
     [[ "${backup_destination}" = /* ]] || { echo "[ERROR] IGUANA_BACKUP_DESTINATION_DIR must be an absolute off-host path." >&2; exit 1; }
     [[ "${backup_destination}/" != "${REPO_ROOT}/"* ]] || { echo "[ERROR] Backup destination must be outside the repository failure domain." >&2; exit 1; }
     [[ -d "${backup_destination}" ]] || { echo "[ERROR] Backup destination is not mounted: ${backup_destination}" >&2; exit 1; }
