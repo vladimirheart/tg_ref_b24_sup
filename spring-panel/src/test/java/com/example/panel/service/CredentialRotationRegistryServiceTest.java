@@ -346,14 +346,112 @@ class CredentialRotationRegistryServiceTest {
         );
 
         assertThat(summaryCaptor.getValue()).contains("секрет").doesNotContain("hygiene condition");
-        assertThat(descriptionCaptor.getValue()).contains("Почему severity = critical").contains("Следующее действие");
+        assertThat(descriptionCaptor.getValue()).contains("Почему критично").contains("Что сделать");
         assertThat(payloadCaptor.getValue())
             .containsEntry("signal_family", "credential_rotation")
+            .containsEntry("incident_context_version", 1)
             .containsEntry("incident_escalates_to_workbench", true);
         assertThat(String.valueOf(payloadCaptor.getValue().get("incident_severity_policy")))
-            .contains("Warning-состояния");
+            .contains("Предупреждения");
         assertThat(String.valueOf(payloadCaptor.getValue().get("incident_next_action")))
             .contains("заново сохраните секрет");
+    }
+
+    @Test
+    void buildSnapshotRefreshesActiveIncidentWithLegacyContextVersion() {
+        CredentialRotationRegistryRepository repository = mock(CredentialRotationRegistryRepository.class);
+        MonitoringCheckHistoryRepository historyRepository = mock(MonitoringCheckHistoryRepository.class);
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        ChannelRepository channelRepository = mock(ChannelRepository.class);
+        IikoApiMonitorRepository iikoApiMonitorRepository = mock(IikoApiMonitorRepository.class);
+        LocationsIikoServerSourceSettingsService locationsService = mock(LocationsIikoServerSourceSettingsService.class);
+        NetBoxSyncSettingsService netBoxService = mock(NetBoxSyncSettingsService.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        PanelSecurityProperties securityProperties = new PanelSecurityProperties();
+        Environment environment = mock(Environment.class);
+        IncidentService incidentService = mock(IncidentService.class);
+        CredentialRotationExternalMetadataImportService externalMetadataImportService =
+            mock(CredentialRotationExternalMetadataImportService.class);
+
+        Map<String, Object> settings = new LinkedHashMap<>();
+        settings.put("netbox_sync", Map.of(
+            "base_url", "https://netbox.example.test",
+            "api_token", ""
+        ));
+        when(sharedConfigService.loadSettings()).thenReturn(settings);
+        when(externalMetadataImportService.loadImportedMetadata(settings)).thenReturn(Map.of());
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        when(channelRepository.findAll()).thenReturn(List.of());
+        when(iikoApiMonitorRepository.findAllByOrderByMonitorNameAscIdAsc()).thenReturn(List.of());
+        when(locationsService.loadForRuntime(settings)).thenReturn(List.of());
+        when(netBoxService.load(settings)).thenReturn(new NetBoxSyncSettingsService.NetBoxSyncSettings(
+            "https://netbox.example.test",
+            "",
+            true,
+            60,
+            false,
+            List.of("site-1")
+        ));
+        when(jdbcTemplate.queryForList(any(String.class), eq("employee_discount_automation_credentials.v1"))).thenReturn(List.of());
+        when(environment.getProperty("app.bots.internal-api.token", "iguana-internal-bot-token")).thenReturn("internal-token");
+        when(environment.getProperty("app.bots.internal-api.signature-secret", "")).thenReturn("");
+        securityProperties.setRememberMeKey("remember-me-secret");
+
+        CredentialRotationRegistryEntry existing = new CredentialRotationRegistryEntry();
+        existing.setId(17L);
+        existing.setEntryKey("settings.netbox.api_token");
+        existing.setIntegrationKind("netbox");
+        existing.setCredentialKind("api_token");
+        existing.setDisplayName("NetBox sync API token");
+        existing.setSourceType("settings_json");
+        existing.setSourceRef("settings.json#netbox_sync.api_token");
+        existing.setSourcePresent(true);
+        existing.setSecretPresent(false);
+        existing.setLastStatus(CredentialRotationRegistryService.STATUS_MISSING_SECRET);
+        existing.setStatusLevel(CredentialRotationRegistryService.LEVEL_CRITICAL);
+        existing.setStatusReason("Источник найден, но значение секрета сейчас пустое или не сохранено.");
+        existing.setCreatedAt(OffsetDateTime.parse("2026-08-20T00:00:00Z"));
+        existing.setUpdatedAt(OffsetDateTime.parse("2026-08-20T00:00:00Z"));
+
+        when(repository.findAllByOrderByDisplayNameAscIdAsc()).thenReturn(List.of(existing));
+        doAnswer(invocation -> invocation.getArgument(0)).when(repository).save(any(CredentialRotationRegistryEntry.class));
+        when(incidentService.listIncidentSummariesForSignalType(CredentialRotationRegistryService.INCIDENT_SIGNAL_TYPE))
+            .thenReturn(List.of(Map.of(
+                "signal_key", "settings.netbox.api_token",
+                "status", "open",
+                "signal_context", Map.of()
+            )));
+
+        CredentialRotationRegistryService service = new CredentialRotationRegistryService(
+            repository,
+            historyRepository,
+            sharedConfigService,
+            channelRepository,
+            iikoApiMonitorRepository,
+            locationsService,
+            netBoxService,
+            jdbcTemplate,
+            securityProperties,
+            new ObjectMapper(),
+            externalMetadataImportService,
+            incidentService,
+            environment,
+            Clock.fixed(Instant.parse("2026-08-25T12:00:00Z"), ZoneOffset.UTC)
+        );
+
+        service.buildSnapshot();
+
+        verify(incidentService).openOrRefreshSignalIncident(
+            eq(CredentialRotationRegistryService.INCIDENT_SIGNAL_TYPE),
+            eq("settings.netbox.api_token"),
+            any(),
+            any(),
+            any(),
+            eq(CredentialRotationRegistryService.LEVEL_CRITICAL),
+            eq("credential_rotation_registry"),
+            anyMap(),
+            eq("system")
+        );
     }
 
     @Test

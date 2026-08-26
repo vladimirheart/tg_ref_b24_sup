@@ -59,6 +59,7 @@ public class CredentialRotationRegistryService {
     private static final String AUTOMATION_PARAM_TYPE = "employee_discount_automation_credentials.v1";
     private static final String INCIDENT_SOURCE = "credential_rotation_registry";
     private static final String INCIDENT_ACTOR = "system";
+    private static final int INCIDENT_CONTEXT_VERSION = 1;
 
     private final CredentialRotationRegistryRepository repository;
     private final MonitoringCheckHistoryRepository historyRepository;
@@ -797,7 +798,7 @@ public class CredentialRotationRegistryService {
         if (items == null || items.isEmpty()) {
             return;
         }
-        Map<String, Boolean> activeIncidentByKey = loadActiveIncidentStates();
+        Map<String, IncidentWorkbenchState> activeIncidentByKey = loadActiveIncidentStates();
         for (CredentialRotationRegistryEntry item : items) {
             syncAlertIncident(item, previousAlertStates, activeIncidentByKey);
         }
@@ -912,19 +913,25 @@ public class CredentialRotationRegistryService {
 
     private void syncAlertIncident(CredentialRotationRegistryEntry item,
                                    Map<String, AlertState> previousAlertStates,
-                                   Map<String, Boolean> activeIncidentByKey) {
+                                   Map<String, IncidentWorkbenchState> activeIncidentByKey) {
         String entryKey = normalizeOptional(item.getEntryKey());
         if (!StringUtils.hasText(entryKey)) {
             return;
         }
+
         AlertState current = captureAlertState(item);
         AlertState previous = previousAlertStates.get(entryKey);
-        boolean hasActiveIncident = Boolean.TRUE.equals(activeIncidentByKey.get(entryKey));
+        IncidentWorkbenchState activeIncidentState = activeIncidentByKey.get(entryKey);
+        boolean hasActiveIncident = activeIncidentState != null && activeIncidentState.active();
+        boolean incidentContextCurrent = activeIncidentState != null
+            && activeIncidentState.contextVersion() >= INCIDENT_CONTEXT_VERSION;
+
         if (current.critical()) {
             boolean changed = previous == null
                 || !previous.critical()
                 || !Objects.equals(previous.fingerprint(), current.fingerprint());
-            if (changed || !hasActiveIncident) {
+
+            if (changed || !hasActiveIncident || !incidentContextCurrent) {
                 incidentService.openOrRefreshSignalIncident(
                     INCIDENT_SIGNAL_TYPE,
                     entryKey,
@@ -939,6 +946,7 @@ public class CredentialRotationRegistryService {
             }
             return;
         }
+
         if ((previous != null && previous.critical()) || hasActiveIncident) {
             incidentService.resolveSignalIncident(
                 INCIDENT_SIGNAL_TYPE,
@@ -950,20 +958,46 @@ public class CredentialRotationRegistryService {
         }
     }
 
-    private Map<String, Boolean> loadActiveIncidentStates() {
-        Map<String, Boolean> activeByKey = new LinkedHashMap<>();
+    private Map<String, IncidentWorkbenchState> loadActiveIncidentStates() {
+        Map<String, IncidentWorkbenchState> activeByKey = new LinkedHashMap<>();
         for (Map<String, Object> incident : incidentService.listIncidentSummariesForSignalType(INCIDENT_SIGNAL_TYPE)) {
             String signalKey = normalizeOptional(incident.get("signal_key"));
             if (!StringUtils.hasText(signalKey)) {
                 continue;
             }
-            if (isIncidentActive(incident)) {
-                activeByKey.put(signalKey, true);
-            } else {
-                activeByKey.putIfAbsent(signalKey, false);
+            IncidentWorkbenchState candidate = new IncidentWorkbenchState(
+                isIncidentActive(incident),
+                readIncidentContextVersion(incident)
+            );
+            IncidentWorkbenchState existing = activeByKey.get(signalKey);
+            if (existing == null || (!existing.active() && candidate.active())) {
+                activeByKey.put(signalKey, candidate);
             }
         }
         return activeByKey;
+    }
+
+    private int readIncidentContextVersion(Map<String, Object> incident) {
+        if (incident == null) {
+            return 0;
+        }
+        Object rawContext = incident.get("signal_context");
+        if (!(rawContext instanceof Map<?, ?> context)) {
+            return 0;
+        }
+        Object rawVersion = context.get("context_version");
+        if (rawVersion instanceof Number number) {
+            return Math.max(0, number.intValue());
+        }
+        String normalized = normalizeOptional(rawVersion);
+        if (!StringUtils.hasText(normalized)) {
+            return 0;
+        }
+        try {
+            return Math.max(0, Integer.parseInt(normalized));
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 
     private boolean isIncidentActive(Map<String, Object> incident) {
@@ -1015,8 +1049,8 @@ public class CredentialRotationRegistryService {
     private String buildIncidentDescription(CredentialRotationRegistryEntry item) {
         return """
             Диагноз: %s
-            Почему severity = critical: %s
-            Следующее действие: %s
+            Почему критично: %s
+            Что сделать: %s
             """.formatted(
             buildIncidentSummary(item),
             buildIncidentSeverityExplanation(item),
@@ -1025,8 +1059,8 @@ public class CredentialRotationRegistryService {
     }
 
     private String buildIncidentResolvedText(CredentialRotationRegistryEntry item) {
-        return "Credential rotation entry returned to non-critical state: "
-            + defaultIfBlank(item.getDisplayName(), defaultIfBlank(item.getEntryKey(), "credential"));
+        return "Секрет вернулся в некритичное состояние: "
+            + defaultIfBlank(item.getDisplayName(), defaultIfBlank(item.getEntryKey(), "секрет"));
     }
 
     private Map<String, Object> buildIncidentPayload(CredentialRotationRegistryEntry item) {
@@ -1052,12 +1086,13 @@ public class CredentialRotationRegistryService {
         payload.put("last_checked_at", stringifyTimestamp(item.getLastCheckedAt()));
         payload.put("last_seen_at", stringifyTimestamp(item.getLastSeenAt()));
         payload.put("signal_family", "credential_rotation");
+        payload.put("incident_context_version", INCIDENT_CONTEXT_VERSION);
         payload.put("incident_reason", buildIncidentSummary(item));
         payload.put("incident_status_label", buildIncidentStatusLabel(item));
         payload.put("incident_severity_policy", buildIncidentSeverityPolicy());
         payload.put("incident_severity_reason", buildIncidentSeverityExplanation(item));
         payload.put("incident_next_action", buildIncidentNextAction(item));
-        payload.put("incident_warning_handling", "warning состояния остаются на странице аналитики credential rotation и не создают incident.");
+        payload.put("incident_warning_handling", "Предупреждения остаются на странице аналитики ротации секретов и не создают инцидент в рабочей панели.");
         payload.put("incident_escalates_to_workbench", Boolean.TRUE);
         return payload;
     }
@@ -1071,13 +1106,13 @@ public class CredentialRotationRegistryService {
             case STATUS_EXPIRES_SOON -> "Секрет находится в критическом окне до истечения срока действия.";
             case STATUS_ROTATION_OVERDUE -> "Плановая ротация секрета уже просрочена.";
             case STATUS_ROTATION_DUE_SOON -> "Плановая ротация секрета вошла в критическое окно.";
-            default -> defaultIfBlank(item.getStatusReason(), "Обнаружено критичное состояние credential rotation.");
+            default -> defaultIfBlank(item.getStatusReason(), "Обнаружено критичное состояние контроля ротации секрета.");
         };
     }
 
     private String buildIncidentSeverityPolicy() {
-        return "Incident для credential rotation создаётся только когда статус реестра уже critical. "
-            + "Warning-состояния остаются на аналитической странице credential rotation и не эскалируются в incidents workbench.";
+        return "Инцидент по ротации секрета создаётся только при критичном состоянии. "
+            + "Предупреждения остаются на странице аналитики ротации секретов и не создают инцидент в рабочей панели.";
     }
 
     private String buildIncidentSeverityExplanation(CredentialRotationRegistryEntry item) {
@@ -1091,19 +1126,19 @@ public class CredentialRotationRegistryService {
             case STATUS_ROTATION_DUE_SOON -> "до плановой ротации осталось 7 дней или меньше";
             default -> "реестр пометил запись как critical";
         };
-        return buildIncidentSeverityPolicy() + " Текущий incident открыт, потому что " + trigger + ".";
+        return buildIncidentSeverityPolicy() + " Текущий инцидент открыт, потому что " + trigger + ".";
     }
 
     private String buildIncidentNextAction(CredentialRotationRegistryEntry item) {
         String status = normalizeKey(item.getLastStatus(), "");
         return switch (status) {
-            case STATUS_SOURCE_REMOVED -> "Проверьте, не была ли удалена или переименована интеграция, переменная окружения или запись в settings/shared config, и восстановите источник.";
-            case STATUS_MISSING_SECRET -> "Откройте источник конфигурации, заново сохраните секрет и убедитесь, что runtime действительно видит непустое значение.";
-            case STATUS_EXPIRED -> "Немедленно перевыпустите секрет, сохраните новое значение в источнике и подтвердите рабочий контур интеграции.";
+            case STATUS_SOURCE_REMOVED -> "Проверьте, не была ли удалена или переименована интеграция либо настройка, из которой читается секрет, и восстановите источник.";
+            case STATUS_MISSING_SECRET -> "Откройте настройку, где хранится секрет, заново сохраните секрет и убедитесь, что приложение видит непустое значение.";
+            case STATUS_EXPIRED -> "Немедленно перевыпустите секрет, сохраните новое значение в источнике и проверьте работу интеграции.";
             case STATUS_EXPIRES_SOON -> "Запланируйте перевыпуск прямо сейчас: секрет уже в критическом окне до истечения.";
-            case STATUS_ROTATION_OVERDUE -> "Проведите плановую ротацию немедленно и обновите rotated_at / interval metadata.";
-            case STATUS_ROTATION_DUE_SOON -> "Подтвердите владельца и выполните плановую ротацию до дедлайна, пока окно не стало просроченным.";
-            default -> "Откройте credential rotation analytics, проверьте owner/expiry/rotation metadata и восстановите корректное состояние секрета.";
+            case STATUS_ROTATION_OVERDUE -> "Проведите ротацию немедленно и зафиксируйте новую дату ротации.";
+            case STATUS_ROTATION_DUE_SOON -> "Подтвердите владельца и выполните плановую ротацию до срока, пока она не стала просроченной.";
+            default -> "Откройте аналитику ротации секретов, проверьте владельца, срок действия и параметры ротации, затем восстановите корректное состояние секрета.";
         };
     }
 
@@ -1337,6 +1372,9 @@ public class CredentialRotationRegistryService {
     }
 
     private record AlertState(boolean critical, String fingerprint) {
+    }
+
+    private record IncidentWorkbenchState(boolean active, int contextVersion) {
     }
 
     public record RegistrySnapshot(OffsetDateTime generatedAt,

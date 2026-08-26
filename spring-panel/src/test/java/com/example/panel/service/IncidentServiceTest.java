@@ -230,8 +230,13 @@ class IncidentServiceTest {
             "credential_rotation_registry",
             Map.of(
                 "signal_family", "credential_rotation",
+                "incident_context_version", 1,
                 "incident_reason", "Источник найден, но секрет пустой.",
-                "incident_severity_reason", "Incident создаётся только для critical-состояний."
+                "incident_severity_policy", "Инцидент создаётся только при критичном состоянии.",
+                "incident_severity_reason", "Источник найден, но секрет отсутствует.",
+                "incident_next_action", "Заново сохраните секрет.",
+                "incident_warning_handling", "Предупреждения остаются в аналитике.",
+                "incident_escalates_to_workbench", true
             ),
             "system"
         );
@@ -242,7 +247,22 @@ class IncidentServiceTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> events = (List<Map<String, Object>>) incident.get("events");
 
+        @SuppressWarnings("unchecked")
+        Map<String, Object> signalContext = (Map<String, Object>) incident.get("signal_context");
+
+
         assertThat(events).hasSize(1);
+        assertThat(signalContext)
+            .containsEntry("signal_type", "credential_rotation")
+            .containsEntry("family", "credential_rotation")
+            .containsEntry("context_version", 1)
+            .containsEntry("reason", "Источник найден, но секрет пустой.")
+            .containsEntry("severity_policy", "Инцидент создаётся только при критичном состоянии.")
+            .containsEntry("severity_reason", "Источник найден, но секрет отсутствует.")
+            .containsEntry("next_action", "Заново сохраните секрет.")
+            .containsEntry("warning_handling", "Предупреждения остаются в аналитике.")
+            .containsEntry("escalates_to_workbench", true);
+
         assertThat(String.valueOf(events.get(0).get("payload_json")))
             .contains("\"signal_family\":\"credential_rotation\"")
             .contains("\"incident_reason\":\"Источник найден, но секрет пустой.\"");

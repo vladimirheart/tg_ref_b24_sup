@@ -874,6 +874,7 @@ public class IncidentService {
             })
             .count());
         payload.put("event_count", events.size());
+        payload.put("signal_context", buildSignalContext(incident, events));
         payload.put("relations", relations.stream().map(this::toRelationPayload).toList());
         payload.put("routes", routes.stream().map(route -> toRoutePayload(route, routeDeliverySnapshots.get(route.getId()))).toList());
         return payload;
@@ -892,10 +893,105 @@ public class IncidentService {
         payload.put("routes", incidentRouteRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId()).stream()
             .map(route -> toRoutePayload(route, routeDeliverySnapshots.get(route.getId())))
             .toList());
-        payload.put("events", incidentEventRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId()).stream()
+        List<IncidentEvent> events = incidentEventRepository.findByIncidentIdOrderByCreatedAtAscIdAsc(incident.getId());
+        payload.put("events", events.stream()
             .map(this::toEventPayload)
             .toList());
+        payload.put("signal_context", buildSignalContext(incident, events));
         return payload;
+    }
+
+    private Map<String, Object> buildSignalContext(Incident incident, List<IncidentEvent> events) {
+        String signalType = normalizeNullableText(incident != null ? incident.getSignalType() : null);
+        if (!StringUtils.hasText(signalType)) {
+            return Map.of();
+        }
+
+        LinkedHashMap<String, Object> context = new LinkedHashMap<>();
+        context.put("signal_type", signalType);
+        context.put("signal_key", incident.getSignalKey() == null ? "" : incident.getSignalKey());
+        context.put("severity", incident.getSeverity() == null ? "" : incident.getSeverity());
+
+        Map<String, Object> latestPayload = latestSignalEventPayload(signalType, events);
+        if (latestPayload.isEmpty()) {
+            return context;
+        }
+
+        copySignalContextValue(context, latestPayload, "signal_family", "family");
+        copySignalContextValue(context, latestPayload, "incident_context_version", "context_version");
+        copySignalContextValue(context, latestPayload, "incident_reason", "reason");
+        copySignalContextValue(context, latestPayload, "incident_status_label", "status_label");
+        copySignalContextValue(context, latestPayload, "incident_severity_policy", "severity_policy");
+        copySignalContextValue(context, latestPayload, "incident_severity_reason", "severity_reason");
+        copySignalContextValue(context, latestPayload, "incident_next_action", "next_action");
+        copySignalContextValue(context, latestPayload, "incident_warning_handling", "warning_handling");
+        copySignalContextValue(context, latestPayload, "incident_escalates_to_workbench", "escalates_to_workbench");
+        copySignalContextValue(context, latestPayload, "status_level", "status_level");
+        copySignalContextValue(context, latestPayload, "last_status", "last_status");
+        copySignalContextValue(context, latestPayload, "entry_key", "entry_key");
+        copySignalContextValue(context, latestPayload, "display_name", "display_name");
+        copySignalContextValue(context, latestPayload, "integration_kind", "integration_kind");
+        copySignalContextValue(context, latestPayload, "credential_kind", "credential_kind");
+        copySignalContextValue(context, latestPayload, "source_type", "source_type");
+        copySignalContextValue(context, latestPayload, "source_ref", "source_ref");
+        copySignalContextValue(context, latestPayload, "source_present", "source_present");
+        copySignalContextValue(context, latestPayload, "secret_present", "secret_present");
+        copySignalContextValue(context, latestPayload, "expires_at", "expires_at");
+        copySignalContextValue(context, latestPayload, "rotated_at", "rotated_at");
+        copySignalContextValue(context, latestPayload, "next_rotation_due_at", "next_rotation_due_at");
+        copySignalContextValue(context, latestPayload, "rotation_interval_days", "rotation_interval_days");
+        copySignalContextValue(context, latestPayload, "owner_name", "owner_name");
+        copySignalContextValue(context, latestPayload, "note", "note");
+        copySignalContextValue(context, latestPayload, "last_checked_at", "last_checked_at");
+        copySignalContextValue(context, latestPayload, "last_seen_at", "last_seen_at");
+        return context;
+    }
+
+    private Map<String, Object> latestSignalEventPayload(String signalType, List<IncidentEvent> events) {
+        if (events == null || events.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, Object> compatibilityFallback = null;
+        for (int index = events.size() - 1; index >= 0; index--) {
+            Map<String, Object> payload = parseIncidentEventPayload(events.get(index));
+            if (payload.isEmpty()) {
+                continue;
+            }
+
+            String signalFamily = normalizeNullableText(payload.get("signal_family"));
+            if (StringUtils.hasText(signalFamily) && signalFamily.equalsIgnoreCase(signalType)) {
+                return payload;
+            }
+
+            if (compatibilityFallback == null
+                && (payload.containsKey("incident_reason") || payload.containsKey("incident_severity_reason"))) {
+                compatibilityFallback = payload;
+            }
+        }
+
+        return compatibilityFallback == null ? Map.of() : compatibilityFallback;
+    }
+
+    private Map<String, Object> parseIncidentEventPayload(IncidentEvent event) {
+        if (event == null || !StringUtils.hasText(event.getPayloadJson())) {
+            return Map.of();
+        }
+        try {
+            Object parsed = objectMapper.readValue(event.getPayloadJson(), Object.class);
+            return normalizeMetadata(parsed);
+        } catch (JsonProcessingException ex) {
+            return Map.of();
+        }
+    }
+
+    private void copySignalContextValue(Map<String, Object> target,
+                                        Map<String, Object> source,
+                                        String sourceKey,
+                                        String targetKey) {
+        if (source.containsKey(sourceKey)) {
+            target.put(targetKey, source.get(sourceKey));
+        }
     }
 
     private Map<String, Object> toRelationPayload(IncidentRelation relation) {

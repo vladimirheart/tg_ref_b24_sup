@@ -96,6 +96,45 @@
     return null;
   }
 
+  function normalizedIncidentSignalContext(incident) {
+    const context = incident?.signal_context;
+    return context && typeof context === 'object' && !Array.isArray(context)
+      ? context
+      : {};
+  }
+
+  function credentialRotationSignalContext(incident) {
+    const signalType = String(incident?.signal_type || '').trim().toLowerCase();
+    if (signalType !== 'credential_rotation') {
+      return {};
+    }
+
+    const context = normalizedIncidentSignalContext(incident);
+    if (Object.keys(context).length) {
+      return context;
+    }
+
+    const legacyPayload = latestIncidentPayload(
+      incident,
+      (item) => (
+        String(item?.signal_family || '').trim().toLowerCase() === 'credential_rotation' ||
+        Object.prototype.hasOwnProperty.call(item, 'incident_reason') ||
+        Object.prototype.hasOwnProperty.call(item, 'incident_severity_reason')
+      )
+    ) || {};
+
+    return {
+      family: 'credential_rotation',
+      reason: legacyPayload.incident_reason || incident?.summary || '',
+      status_label: legacyPayload.incident_status_label || '',
+      severity_policy: legacyPayload.incident_severity_policy || '',
+      severity_reason: legacyPayload.incident_severity_reason || '',
+      next_action: legacyPayload.incident_next_action || '',
+      warning_handling: legacyPayload.incident_warning_handling || '',
+      escalates_to_workbench: legacyPayload.incident_escalates_to_workbench
+    };
+  }
+
   function numericIncidentValue(value) {
     const number = Number(value);
     return Number.isFinite(number) ? number : 0;
@@ -336,6 +375,13 @@
     const description = String(incident.description || '').trim();
     const title = String(incident.title || '').trim();
 
+    if (signalType === 'credential_rotation') {
+      const credentialContext = credentialRotationSignalContext(incident);
+      const credentialCause = String(credentialContext.reason || credentialContext.status_label || '').trim();
+      if (credentialCause) {
+        return credentialCause;
+      }
+    }
     if (signalType === 'integration_transport') {
       const factualCause = transportIncidentCause(incident);
       if (factualCause) {
@@ -1369,6 +1415,55 @@ function restoreIncidentDetailFocus(
       </div>
     `;
   }
+  function renderCredentialRotationSignalContext(incident) {
+    if (String(incident?.signal_type || '').trim().toLowerCase() !== 'credential_rotation') {
+      return '';
+    }
+
+    const context = credentialRotationSignalContext(incident);
+    const reason = String(context.reason || context.status_label || incident?.summary || '').trim();
+    const severityReason = String(context.severity_reason || '').trim();
+    const severityPolicy = String(context.severity_policy || '').trim();
+    const nextAction = String(context.next_action || '').trim();
+    const warningHandling = String(context.warning_handling || '').trim();
+
+    const policyText = [severityPolicy, warningHandling]
+      .filter(Boolean)
+      .filter((value, index, values) => values.indexOf(value) === index)
+      .join(' ');
+
+    return `
+      <section class="card incident-signal-context-card mb-3" data-incident-signal-context="credential_rotation">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <strong>Почему появился инцидент</strong>
+          <span class="badge text-bg-danger">Ротация секрета</span>
+        </div>
+        <div class="card-body">
+          <div class="incident-signal-context-grid">
+            <div class="incident-signal-context-item">
+              <div class="incident-signal-context-label">Причина</div>
+              <div class="incident-signal-context-value">${escapeHtml(reason || 'Причина не определена')}</div>
+            </div>
+            <div class="incident-signal-context-item">
+              <div class="incident-signal-context-label">Почему критично</div>
+              <div class="incident-signal-context-value">${escapeHtml(severityReason || 'Критичность определена реестром ротации секретов.')}</div>
+            </div>
+            <div class="incident-signal-context-item">
+              <div class="incident-signal-context-label">Что сделать</div>
+              <div class="incident-signal-context-value">${escapeHtml(nextAction || 'Откройте аналитику ротации секретов и проверьте источник, срок действия и владельца секрета.')}</div>
+            </div>
+          </div>
+          ${policyText ? `
+            <div class="incident-signal-context-policy">
+              <strong>Политика критичности:</strong>
+              ${escapeHtml(policyText)}
+            </div>
+          ` : ''}
+        </div>
+      </section>
+    `;
+  }
+
   function renderIncidentDetail() {
     const incident = state.selectedIncident;
 
@@ -1401,6 +1496,7 @@ function restoreIncidentDetailFocus(
         <div class="incident-kpi-card"><div class="incident-kpi-label">Приоритет</div><div class="incident-kpi-value">${escapeHtml(incident.severity || '—')}</div></div>
         <div class="incident-kpi-card"><div class="incident-kpi-label">Ошибки доставки</div><div class="incident-kpi-value">${escapeHtml(incident.failed_route_count || 0)}</div></div>
       </div>
+      ${renderCredentialRotationSignalContext(incident)}
       <div class="incident-detail-columns">
         <div class="d-grid gap-3">
           <section class="card">
