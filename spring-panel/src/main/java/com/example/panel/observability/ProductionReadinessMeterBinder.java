@@ -1,5 +1,9 @@
 package com.example.panel.observability;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.MeterBinder;
@@ -7,6 +11,11 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
+@RuntimeWorkload(
+    id = "production-readiness-meter-binder",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+)
 public class ProductionReadinessMeterBinder implements MeterBinder {
 
     private final ProductionReadinessObservationCache cache;

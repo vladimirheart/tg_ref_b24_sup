@@ -26,6 +26,7 @@ public class PanelSecurityRuntimeGuard {
         this.internalBotApiToken = internalBotApiToken;
     }
 
+    // 01-211 lifecycle: process-local security validation; safe on every backend role.
     @PostConstruct
     public void validate() {
         if (!databaseRuntimeMode.isExternalDatabaseEnabled()) {

@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.storage.AttachmentService;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
 import com.example.panel.storage.AttachmentObjectStorageService;
@@ -14,6 +18,11 @@ import jakarta.annotation.PostConstruct;
 import java.util.List;
 
 @Service
+@RuntimeWorkload(
+    id = "chat-attachment-metadata-availability-reconcile",
+    roles = {RuntimeRole.MIGRATOR},
+    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+)
 public class ChatAttachmentMetadataAvailabilityService {
 
     private static final Logger log = LoggerFactory.getLogger(ChatAttachmentMetadataAvailabilityService.class);

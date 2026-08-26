@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeRoleProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.util.Optional;
 import java.util.function.LongSupplier;
 import org.springframework.dao.DuplicateKeyException;
@@ -12,9 +16,24 @@ public class RuntimeWorkerCheckpointService {
 
     private final JdbcTemplate jdbcTemplate;
 
+    /**
+     * Direct-construction compatibility path used by focused unit tests and legacy local code.
+     * It preserves the historical defensive schema bootstrap.
+     */
     public RuntimeWorkerCheckpointService(JdbcTemplate jdbcTemplate) {
+        this(jdbcTemplate, null);
+    }
+
+    @Autowired
+    public RuntimeWorkerCheckpointService(JdbcTemplate jdbcTemplate,
+                                          RuntimeRoleProperties runtimeProperties) {
         this.jdbcTemplate = jdbcTemplate;
-        ensureSchema();
+        RuntimeRole role = runtimeProperties == null
+            ? RuntimeRole.ALL
+            : runtimeProperties.resolvedRole();
+        if (role == RuntimeRole.ALL) {
+            ensureSchema();
+        }
     }
 
     public long readLongCursorOrInitialize(String workerKey, LongSupplier bootstrapSupplier) {

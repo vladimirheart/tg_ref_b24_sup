@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeRoleProperties;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.panel.entity.RmsLicenseMonitor;
@@ -133,6 +136,9 @@ public class RmsLicenseMonitoringService {
     @Autowired
     private DialogNotificationService dialogNotificationService;
 
+    @Autowired(required = false)
+    private RuntimeRoleProperties runtimeRoleProperties;
+
     public RmsLicenseMonitoringService(RmsLicenseMonitorRepository repository,
                                        MonitoringCheckHistoryRepository historyRepository,
                                        NotificationService notificationService,
@@ -156,6 +162,16 @@ public class RmsLicenseMonitoringService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void restoreQueuedRefreshTasks() {
+        RuntimeRole role = runtimeRoleProperties == null
+            ? RuntimeRole.ALL
+            : runtimeRoleProperties.resolvedRole();
+        if (role != RuntimeRole.ALL && role != RuntimeRole.WORKER) {
+            log.info(
+                "Skipping persisted RMS queue restore for runtime role '{}'; ops-worker owns queued execution.",
+                role.externalName()
+            );
+            return;
+        }
         schedulePersistedLicenseRefreshIfNeeded();
         schedulePersistedNetworkRefreshIfNeeded();
     }

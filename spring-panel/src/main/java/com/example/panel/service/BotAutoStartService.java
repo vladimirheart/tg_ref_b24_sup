@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.config.BotProcessProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
@@ -15,6 +18,11 @@ import java.time.Duration;
 import java.util.Objects;
 
 @Service
+@RuntimeWorkload(
+    id = "local-bot-process-auto-start",
+    roles = {},
+    replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+)
 public class BotAutoStartService {
 
     private static final Logger log = LoggerFactory.getLogger(BotAutoStartService.class);

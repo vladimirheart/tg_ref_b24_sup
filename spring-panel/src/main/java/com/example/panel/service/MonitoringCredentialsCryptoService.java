@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeRoleProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,15 +35,29 @@ public class MonitoringCredentialsCryptoService {
     private final SharedConfigService sharedConfigService;
     private final String configuredMasterKey;
     private final String keyFileName;
+    private final RuntimeRole runtimeRole;
     private final SecureRandom secureRandom = new SecureRandom();
     private volatile SecretKey secretKey;
 
     public MonitoringCredentialsCryptoService(SharedConfigService sharedConfigService,
-                                              @Value("${monitoring.credentials.master-key:}") String configuredMasterKey,
-                                              @Value("${monitoring.credentials.key-file:monitoring-credentials.key}") String keyFileName) {
+                                              String configuredMasterKey,
+                                              String keyFileName) {
+        this(sharedConfigService, configuredMasterKey, keyFileName, null);
+    }
+
+    @Autowired
+    public MonitoringCredentialsCryptoService(
+        SharedConfigService sharedConfigService,
+        @Value("${monitoring.credentials.master-key:}") String configuredMasterKey,
+        @Value("${monitoring.credentials.key-file:monitoring-credentials.key}") String keyFileName,
+        RuntimeRoleProperties runtimeProperties
+    ) {
         this.sharedConfigService = sharedConfigService;
         this.configuredMasterKey = configuredMasterKey;
         this.keyFileName = keyFileName;
+        this.runtimeRole = runtimeProperties == null
+            ? RuntimeRole.ALL
+            : runtimeProperties.resolvedRole();
     }
 
     @PostConstruct
@@ -109,6 +127,14 @@ public class MonitoringCredentialsCryptoService {
                 return new SecretKeySpec(derived, "AES");
             }
 
+            if (runtimeRole != RuntimeRole.ALL) {
+                throw new IllegalStateException(
+                    "Explicit Iguana runtime role '" + runtimeRole.externalName()
+                        + "' requires shared monitoring.credentials.master-key "
+                        + "(MONITORING_CREDENTIALS_MASTER_KEY). Local key-file generation is compatibility-only."
+                );
+            }
+
             Path keyPath = sharedConfigService.resolvePath(keyFileName);
             if (Files.isRegularFile(keyPath)) {
                 String encoded = Files.readString(keyPath, StandardCharsets.UTF_8).trim();
@@ -124,6 +150,9 @@ public class MonitoringCredentialsCryptoService {
             Files.writeString(keyPath, encoded, StandardCharsets.UTF_8);
             log.info("Generated monitoring credentials key at {}", keyPath);
             return generatedKey;
+        } catch (IllegalStateException ex) {
+            // Preserve actionable startup diagnostics such as a missing shared master key.
+            throw ex;
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to initialize monitoring credentials crypto", ex);
         }

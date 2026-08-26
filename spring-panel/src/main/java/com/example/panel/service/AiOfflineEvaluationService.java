@@ -22,11 +22,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-@RuntimeWorkload(
-    id = "ai-offline-evaluation-service",
-    roles = {RuntimeRole.WORKER},
-    replicaPolicy = RuntimeReplicaPolicy.LEASED
-)@Service
+@Service
 public class AiOfflineEvaluationService {
 
     private static final String DATASET_RESOURCE = "ai/offline-eval-templates.json";
@@ -52,7 +48,6 @@ public class AiOfflineEvaluationService {
         this.runtimeCoordinationService = runtimeCoordinationService;
     }
 
-    @Scheduled(cron = "${panel.ai.offline-eval.cron:0 15 3 * * *}")
     public void runScheduledEvaluation() {
         if (!isOfflineEvalEnabled()) {
             return;

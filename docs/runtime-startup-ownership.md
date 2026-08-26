@@ -88,3 +88,18 @@ These hooks are **inventory only** in Phase B. They are not automatically moved 
 - `service/OperatorNotificationWatcher.java`
 - `service/SidebarStatusWatcher.java`
 - `service/UiEventOutboxWatcher.java`
+
+## Phase C lifecycle audit result
+
+- `ProductionReadinessObservationCache`: worker process-local read-only metrics cache; not a singleton.
+- `PanelSecurityRuntimeGuard`: process-local secret validation on every backend role.
+- `ChatAttachmentMetadataAvailabilityService`: shared-data reconcile owned by migrator.
+- `MonitoringCredentialsCryptoService`: explicit roles require one shared master key; local key-file generation is `all` compatibility only.
+- `OperatorNotificationWatcher`: worker leased; shared cursors are reloaded after lease acquisition.
+- `SidebarStatusWatcher`: web process-local state.
+- `UiEventOutboxWatcher`: worker leased; shared cursor is reloaded after lease acquisition.
+- `BotAutoStartService`: compatibility-only local process supervisor; absent from explicit container roles.
+- PostgreSQL user-facing READY verifier: web/worker only.
+- RMS persisted queue restore: all/worker only.
+
+The remaining blocker is not lifecycle discovery but manual async execution. See `docs/runtime-async-command-boundary.md`.

@@ -28,11 +28,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-@RuntimeWorkload(
-    id = "incident-route-delivery-outbox-service",
-    roles = {RuntimeRole.WORKER},
-    replicaPolicy = RuntimeReplicaPolicy.LEASED
-)@Service
+@Service
 public class IncidentRouteDeliveryOutboxService {
 
     private static final Logger log = LoggerFactory.getLogger(IncidentRouteDeliveryOutboxService.class);
@@ -139,7 +135,6 @@ public class IncidentRouteDeliveryOutboxService {
         return queued;
     }
 
-    @Scheduled(fixedDelayString = "${panel.incidents.route-delivery.dispatch-interval-ms:3000}")
     public void dispatchScheduled() {
         runtimeCoordinationService.runWithLease(
             "incident-route-delivery-dispatch",

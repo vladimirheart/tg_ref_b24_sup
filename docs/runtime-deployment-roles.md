@@ -69,3 +69,17 @@ Role selection is explicit configuration. It must not depend on hostname or proc
 ## Scale invariant
 
 The role split is a deployment boundary, not a business ownership split. `panel-web` and `ops-worker` remain the same canonical backend and may use backend-owned PostgreSQL repositories. Channel/transport workers (`bot-*` and future external adapters) still integrate through queue/API boundaries and must not become owners of the business schema.
+
+## Phase C boundary correction
+
+Class-level workload conditions must be attached only to beans whose entire lifecycle belongs to one deployment role.
+
+A service that exposes synchronous business methods and also contains a scheduled trigger is a mixed bean. Its business service must remain shared; the scheduled trigger belongs in a separate worker-only wrapper.
+
+Phase C applies this split to AI offline evaluation, blacklist expiry, incident escalation, incident route delivery and outbound feedback publishing.
+
+`ProductionReadinessObservationCache` is now `PROCESS_LOCAL`, not `SINGLETON`, because its refresh is read-only and only updates local metric state.
+
+### Remaining blocker before compose split
+
+Manual RMS/iiko/NetBox actions still execute through process-local executors. Production compose must not be split until operator requests enqueue durable backend commands and `ops-worker` owns execution. See `docs/runtime-async-command-boundary.md`.

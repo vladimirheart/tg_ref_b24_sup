@@ -17,8 +17,9 @@ import org.springframework.stereotype.Component;
 @RuntimeWorkload(
     id = "production-readiness-observation-cache",
     roles = {RuntimeRole.WORKER},
-    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
-)@Component
+    replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+)
+@Component
 public class ProductionReadinessObservationCache {
 
     private static final List<String> COMPONENT_KEYS = List.of(

@@ -47,6 +47,7 @@ public class UiEventOutboxWatcher {
     @Scheduled(fixedDelayString = "${panel.ui-event-outbox.watch-interval-ms:1000}")
     void watch() {
         runtimeCoordinationService.runWithLease("ui-event-outbox-watch", Duration.ofSeconds(30), () -> {
+            checkpointService.readLongCursor(CHECKPOINT_KEY).ifPresent(lastProcessedId::set);
             long afterId = lastProcessedId.get();
             jdbcTemplate.query("""
                 SELECT id, event_type, ticket_id, channel_id, message_text, message_type, attachment, rating

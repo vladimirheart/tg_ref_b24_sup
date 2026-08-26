@@ -1,5 +1,9 @@
 package com.example.panel.config;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -20,6 +24,11 @@ import java.util.Locale;
  * before emitting Iguana's user-facing READY marker.</p>
  */
 @Component
+@RuntimeWorkload(
+    id = "postgres-runtime-readiness-verifier",
+    roles = {RuntimeRole.WEB, RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+)
 public class PostgresRuntimeReadinessVerifier implements ApplicationListener<ApplicationReadyEvent> {
 
     private static final Logger log = LoggerFactory.getLogger(PostgresRuntimeReadinessVerifier.class);

@@ -20,11 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-@RuntimeWorkload(
-    id = "bot-runtime-blacklist-service",
-    roles = {RuntimeRole.WORKER},
-    replicaPolicy = RuntimeReplicaPolicy.LEASED
-)@Service
+@Service
 public class BotRuntimeBlacklistService {
 
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
@@ -114,7 +110,6 @@ public class BotRuntimeBlacklistService {
         return new PendingUnblockSummaryLookup(count, recent);
     }
 
-    @Scheduled(cron = "0 0 * * * *")
     @Transactional
     public void expireOldPendingRequests() {
         if (!integrationTransportMode.isRabbitMqMode()) {

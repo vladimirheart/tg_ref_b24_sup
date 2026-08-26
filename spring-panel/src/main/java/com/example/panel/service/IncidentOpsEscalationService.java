@@ -29,11 +29,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-@RuntimeWorkload(
-    id = "incident-ops-escalation-service",
-    roles = {RuntimeRole.WORKER},
-    replicaPolicy = RuntimeReplicaPolicy.LEASED
-)@Service
+@Service
 public class IncidentOpsEscalationService {
 
     private static final Logger log = LoggerFactory.getLogger(IncidentOpsEscalationService.class);
@@ -82,7 +78,6 @@ public class IncidentOpsEscalationService {
         this.failedRouteCooldown = durationMinutes(failedRouteCooldownMinutes, 30L);
     }
 
-    @Scheduled(fixedDelayString = "${panel.incidents.escalation.interval-ms:300000}")
     public void evaluateScheduled() {
         if (!enabled) {
             return;

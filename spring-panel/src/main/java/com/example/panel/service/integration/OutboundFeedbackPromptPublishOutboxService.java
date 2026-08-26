@@ -23,11 +23,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-@RuntimeWorkload(
-    id = "outbound-feedback-prompt-publish-outbox-service",
-    roles = {RuntimeRole.WORKER},
-    replicaPolicy = RuntimeReplicaPolicy.LEASED
-)@Service
+@Service
 public class OutboundFeedbackPromptPublishOutboxService {
 
     private static final Logger log = LoggerFactory.getLogger(OutboundFeedbackPromptPublishOutboxService.class);
@@ -96,7 +92,6 @@ public class OutboundFeedbackPromptPublishOutboxService {
         );
     }
 
-    @Scheduled(fixedDelayString = "${panel.integration.outbox.dispatch-interval-ms:1500}")
     public void dispatchScheduled() {
         runtimeCoordinationService.runWithLease(
             "integration-transport-outbox-dispatch",

@@ -112,6 +112,7 @@ public class OperatorNotificationWatcher {
     @Scheduled(fixedDelayString = "${panel.notifications.watch-interval-ms:12000}")
     void watch() {
         Runnable task = () -> {
+            refreshSharedCursors();
             watchChatHistoryMessages();
             watchFeedbacks();
             watchFirstResponseOverdue();
@@ -123,6 +124,12 @@ public class OperatorNotificationWatcher {
         runtimeCoordinationService.runWithLease("operator-notification-watch", WATCH_LEASE_TTL, task);
     }
 
+    private void refreshSharedCursors() {
+        checkpointService.readLongCursor(CHAT_HISTORY_CHECKPOINT_KEY)
+            .ifPresent(lastChatHistoryId::set);
+        checkpointService.readLongCursor(FEEDBACK_CHECKPOINT_KEY)
+            .ifPresent(lastFeedbackId::set);
+    }
     private void watchChatHistoryMessages() {
         long afterId = lastChatHistoryId.get();
         jdbcTemplate.query(
