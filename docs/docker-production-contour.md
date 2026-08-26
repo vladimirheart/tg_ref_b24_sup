@@ -118,6 +118,18 @@ MONITORING_CREDENTIALS_MASTER_KEY
 
 Production helper scripts reject `change-me`.
 
+Р”Р»СЏ РїРµСЂРµС…РѕРґР° СЃРѕ СЃС‚Р°СЂРѕРіРѕ local/dev contour, РіРґРµ РёСЃРїРѕР»СЊР·РѕРІР°Р»СЃСЏ
+`config/shared/monitoring-credentials.key`, РїРѕРґРґРµСЂР¶РёРІР°РµС‚СЃСЏ compatibility bridge:
+
+```text
+MONITORING_CREDENTIALS_MASTER_KEY=base64:<СЃРѕРґРµСЂР¶РёРјРѕРµ monitoring-credentials.key>
+```
+
+РџСЂРµС„РёРєСЃ `base64:` РѕР·РЅР°С‡Р°РµС‚, С‡С‚Рѕ Р·РЅР°С‡РµРЅРёРµ РґРµРєРѕРґРёСЂСѓРµС‚СЃСЏ РєР°Рє РіРѕС‚РѕРІС‹Р№ AES key material
+(16/24/32 bytes), Р° РЅРµ С…СЌС€РёСЂСѓРµС‚СЃСЏ РєР°Рє passphrase. Р­С‚Рѕ РїРѕР·РІРѕР»СЏРµС‚ split roles С‡РёС‚Р°С‚СЊ
+СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ `enc:v1:` credentials Р±РµР· РїСЂРёРЅСѓРґРёС‚РµР»СЊРЅРѕР№ СЂРѕС‚Р°С†РёРё. РќРѕРІС‹Р№ СЃРµРєСЂРµС‚ Рё
+legacy key-file РЅРµР»СЊР·СЏ РєРѕРјРјРёС‚РёС‚СЊ РІ Git.
+
 Для fresh PostgreSQL deployment, если `ROLE_ADMIN` ещё нет, также задайте одновременно:
 
 ```text

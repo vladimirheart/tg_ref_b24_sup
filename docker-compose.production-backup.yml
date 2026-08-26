@@ -1,0 +1,139 @@
+services:
+  # The worker receives read-only visibility into the externally mounted backup
+  # destination so 01-198 can inspect real artifacts/evidence. panel-web never
+  # receives this mount.
+  ops-worker:
+    volumes:
+      - type: bind
+        source: ${IGUANA_BACKUP_DESTINATION_DIR:?Set IGUANA_BACKUP_DESTINATION_DIR to an off-host/NAS mounted filesystem path}
+        target: /opt/iguana/backups/offhost
+        read_only: true
+
+  postgres-backup:
+    image: postgres:16-alpine
+    profiles: ["backup"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${IGUANA_POSTGRES_DB:-iguana}
+      PGUSER: ${IGUANA_POSTGRES_USER:-iguana}
+      PGPASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
+      IGUANA_BACKUP_RETENTION_DAYS: ${IGUANA_BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - ./docker/backup/postgres-backup.sh:/scripts/postgres-backup.sh:ro
+      - type: bind
+        source: ${IGUANA_BACKUP_DESTINATION_DIR:?Set IGUANA_BACKUP_DESTINATION_DIR to an off-host/NAS mounted filesystem path}
+        target: /backup/offhost
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        tr -d '\r' < /scripts/postgres-backup.sh > /tmp/postgres-backup.sh &&
+        exec /bin/sh /tmp/postgres-backup.sh
+
+  minio-backup:
+    image: ${IGUANA_MINIO_BACKUP_TOOLS_IMAGE:-iguana-minio-backup-tools:local}
+    build:
+      context: .
+      dockerfile: docker/backup/minio-tools.Dockerfile
+    profiles: ["backup"]
+    restart: "no"
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
+      APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
+      APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
+      IGUANA_MINIO_BACKUP_RETENTION_DAYS: ${IGUANA_MINIO_BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./docker/backup/minio-backup.sh:/scripts/minio-backup.sh:ro
+      - type: bind
+        source: ${IGUANA_BACKUP_DESTINATION_DIR:?Set IGUANA_BACKUP_DESTINATION_DIR to an off-host/NAS mounted filesystem path}
+        target: /backup/offhost
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        tr -d '\r' < /scripts/minio-backup.sh > /tmp/minio-backup.sh &&
+        exec /bin/sh /tmp/minio-backup.sh
+
+  postgres-restore-target:
+    image: postgres:16-alpine
+    profiles: ["backup"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: iguana_restore_drill
+      POSTGRES_USER: iguana_restore
+      POSTGRES_PASSWORD: iguana-restore-drill-only
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iguana_restore -d iguana_restore_drill"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  postgres-restore-rehearsal:
+    image: postgres:16-alpine
+    profiles: ["backup"]
+    restart: "no"
+    depends_on:
+      postgres-restore-target:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres-restore-target
+      PGPORT: 5432
+      PGDATABASE: iguana_restore_drill
+      PGUSER: iguana_restore
+      PGPASSWORD: iguana-restore-drill-only
+    volumes:
+      - ./docker/backup/postgres-restore-rehearsal.sh:/scripts/postgres-restore-rehearsal.sh:ro
+      - type: bind
+        source: ${IGUANA_BACKUP_DESTINATION_DIR:?Set IGUANA_BACKUP_DESTINATION_DIR to an off-host/NAS mounted filesystem path}
+        target: /backup/offhost
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        tr -d '\r' < /scripts/postgres-restore-rehearsal.sh > /tmp/postgres-restore-rehearsal.sh &&
+        exec /bin/sh /tmp/postgres-restore-rehearsal.sh
+
+  minio-restore-target:
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+    profiles: ["backup"]
+    restart: "no"
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: restore-drill
+      MINIO_ROOT_PASSWORD: restore-drill-secret-only
+    tmpfs:
+      - /data
+
+  minio-restore-rehearsal:
+    image: ${IGUANA_MINIO_BACKUP_TOOLS_IMAGE:-iguana-minio-backup-tools:local}
+    build:
+      context: .
+      dockerfile: docker/backup/minio-tools.Dockerfile
+    profiles: ["backup"]
+    restart: "no"
+    depends_on:
+      minio-restore-target:
+        condition: service_started
+    environment:
+      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
+    volumes:
+      - ./docker/backup/minio-restore-rehearsal.sh:/scripts/minio-restore-rehearsal.sh:ro
+      - type: bind
+        source: ${IGUANA_BACKUP_DESTINATION_DIR:?Set IGUANA_BACKUP_DESTINATION_DIR to an off-host/NAS mounted filesystem path}
+        target: /backup/offhost
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        tr -d '\r' < /scripts/minio-restore-rehearsal.sh > /tmp/minio-restore-rehearsal.sh &&
+        exec /bin/sh /tmp/minio-restore-rehearsal.sh

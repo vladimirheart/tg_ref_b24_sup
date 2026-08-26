@@ -143,6 +143,78 @@ class BackupReadinessMonitoringServiceTest {
         );
     }
 
+    @Test
+    void refreshByIdImportsAutomatedRestoreSuccessEvidence() throws Exception {
+        Path dump = Files.writeString(tempDir.resolve("fresh.dump"), "payload");
+        Files.setLastModifiedTime(dump, FileTime.from(Instant.now().minusSeconds(30 * 60)));
+        OffsetDateTime verifiedAt = OffsetDateTime.now(ZoneOffset.UTC).minusHours(2).withNano(0);
+        Files.writeString(
+            tempDir.resolve(".iguana-restore-evidence.properties"),
+            "status=ok\nattempt_at=" + verifiedAt.minusMinutes(3) + "\nverified_at=" + verifiedAt + "\nnote=Automated restore passed\n"
+        );
+
+        BackupReadinessMonitorRepository repository = mock(BackupReadinessMonitorRepository.class);
+        MonitoringCheckHistoryRepository historyRepository = mock(MonitoringCheckHistoryRepository.class);
+        BackupReadinessMonitor monitor = monitor(11L, tempDir.toString(), 6, 14);
+        when(repository.findById(11L)).thenReturn(Optional.of(monitor));
+        when(repository.save(any(BackupReadinessMonitor.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BackupReadinessMonitoringService service = new BackupReadinessMonitoringService(repository, historyRepository);
+        BackupReadinessMonitor result = service.refreshById(11L);
+
+        assertThat(result.getLastRestoreVerifiedAt()).isEqualTo(verifiedAt);
+        assertThat(result.getLastRestoreNote()).isEqualTo("Automated restore passed");
+        assertThat(result.getLastStatus()).isEqualTo(BackupReadinessMonitoringService.STATUS_OK);
+        verify(historyRepository).record(
+            eq("backup_readiness"),
+            eq(11L),
+            eq("restore_evidence"),
+            eq("ok"),
+            contains("автоматически"),
+            any(),
+            isNull(),
+            isNull(),
+            eq(verifiedAt)
+        );
+    }
+
+    @Test
+    void refreshByIdTreatsNewerAutomatedRestoreFailureAsError() throws Exception {
+        Path dump = Files.writeString(tempDir.resolve("fresh.dump"), "payload");
+        Files.setLastModifiedTime(dump, FileTime.from(Instant.now().minusSeconds(30 * 60)));
+        OffsetDateTime lastSuccess = OffsetDateTime.now(ZoneOffset.UTC).minusDays(2).withNano(0);
+        OffsetDateTime failedAt = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1).withNano(0);
+        Files.writeString(
+            tempDir.resolve(".iguana-restore-failure.properties"),
+            "status=error\nattempt_at=" + failedAt + "\nnote=Automated restore failed\n"
+        );
+
+        BackupReadinessMonitorRepository repository = mock(BackupReadinessMonitorRepository.class);
+        MonitoringCheckHistoryRepository historyRepository = mock(MonitoringCheckHistoryRepository.class);
+        BackupReadinessMonitor monitor = monitor(12L, tempDir.toString(), 6, 14);
+        monitor.setLastRestoreVerifiedAt(lastSuccess);
+        when(repository.findById(12L)).thenReturn(Optional.of(monitor));
+        when(repository.save(any(BackupReadinessMonitor.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BackupReadinessMonitoringService service = new BackupReadinessMonitoringService(repository, historyRepository);
+        BackupReadinessMonitor result = service.refreshById(12L);
+
+        assertThat(result.getLastStatus()).isEqualTo(BackupReadinessMonitoringService.STATUS_ERROR);
+        assertThat(result.getLastErrorMessage()).contains("restore rehearsal failed");
+        assertThat(result.getLastSummary()).contains("restore rehearsal failed");
+        verify(historyRepository).record(
+            eq("backup_readiness"),
+            eq(12L),
+            eq("restore_evidence"),
+            eq("error"),
+            contains("Automated restore rehearsal failed"),
+            any(),
+            isNull(),
+            isNull(),
+            eq(failedAt)
+        );
+    }
+
     private BackupReadinessMonitor monitor(long id, String pathPattern, int freshnessHours, int restoreDays) {
         BackupReadinessMonitor monitor = new BackupReadinessMonitor();
         monitor.setId(id);

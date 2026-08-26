@@ -6,6 +6,7 @@ VK=0
 MAX=0
 EDGE=0
 OBSERVABILITY=0
+BACKUP=0
 BUILD=0
 DETACH=1
 VALIDATE_ONLY=0
@@ -20,6 +21,7 @@ while [[ $# -gt 0 ]]; do
     --max) MAX=1; shift ;;
     --edge) EDGE=1; shift ;;
     --observability) OBSERVABILITY=1; shift ;;
+    --backup) BACKUP=1; shift ;;
     --build) BUILD=1; shift ;;
     --no-detach) DETACH=0; shift ;;
     --validate-only) VALIDATE_ONLY=1; shift ;;
@@ -44,6 +46,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-contour.yml"
 EDGE_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-edge.yml"
 OBSERVABILITY_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-observability.yml"
+BACKUP_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-backup.yml"
 ENV_FILE="${REPO_ROOT}/.env"
 
 get_setting_value() {
@@ -177,6 +180,15 @@ invoke_preflight_checks() {
     fi
   fi
 
+  if [[ "${BACKUP}" == "1" ]]; then
+    local backup_destination
+    backup_destination="$(get_setting_value "IGUANA_BACKUP_DESTINATION_DIR")"
+    [[ -n "${backup_destination}" ]] || { echo "[ERROR] Backup contour requires IGUANA_BACKUP_DESTINATION_DIR." >&2; exit 1; }
+    [[ "${backup_destination}" = /* ]] || { echo "[ERROR] IGUANA_BACKUP_DESTINATION_DIR must be an absolute off-host path." >&2; exit 1; }
+    [[ "${backup_destination}/" != "${REPO_ROOT}/"* ]] || { echo "[ERROR] Backup destination must be outside the repository failure domain." >&2; exit 1; }
+    [[ -d "${backup_destination}" ]] || { echo "[ERROR] Backup destination is not mounted: ${backup_destination}" >&2; exit 1; }
+  fi
+
   if [[ "${TELEGRAM}" == "1" ]]; then
     assert_required_setting "TELEGRAM_BOT_TOKEN" "Telegram profile requires TELEGRAM_BOT_TOKEN"
     assert_required_setting "TELEGRAM_BOT_USERNAME" "Telegram profile requires TELEGRAM_BOT_USERNAME"
@@ -220,6 +232,10 @@ if [[ "${OBSERVABILITY}" == "1" && ! -f "${OBSERVABILITY_COMPOSE_FILE}" ]]; then
   echo "[ERROR] Observability compose file not found: ${OBSERVABILITY_COMPOSE_FILE}" >&2
   exit 1
 fi
+if [[ "${BACKUP}" == "1" && ! -f "${BACKUP_COMPOSE_FILE}" ]]; then
+  echo "[ERROR] Backup compose file not found: ${BACKUP_COMPOSE_FILE}" >&2
+  exit 1
+fi
 
 PROFILES=()
 [[ "${TELEGRAM}" == "1" ]] && PROFILES+=("telegram")
@@ -259,6 +275,9 @@ fi
 if [[ "${OBSERVABILITY}" == "1" ]]; then
   BASE_ARGS+=(-f "${OBSERVABILITY_COMPOSE_FILE}")
 fi
+if [[ "${BACKUP}" == "1" ]]; then
+  BASE_ARGS+=(-f "${BACKUP_COMPOSE_FILE}")
+fi
 for profile in "${PROFILES[@]}"; do
   BASE_ARGS+=(--profile "${profile}")
 done
@@ -270,6 +289,7 @@ if [[ "${VALIDATE_ONLY}" == "1" ]]; then
   echo "[INFO] ops-worker replicas: ${WORKER_REPLICAS}"
   echo "[INFO] Edge enabled: ${EDGE}"
   echo "[INFO] Observability enabled: ${OBSERVABILITY}"
+  echo "[INFO] Backup enabled: ${BACKUP}"
   exit 0
 fi
 

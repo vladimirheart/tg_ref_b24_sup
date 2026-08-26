@@ -119,12 +119,36 @@ public class MonitoringCredentialsCryptoService {
         }
     }
 
+    private SecretKey resolveConfiguredSecretKey(String configuredValue) throws Exception {
+        String normalized = configuredValue == null ? "" : configuredValue.trim();
+        if (normalized.regionMatches(true, 0, "base64:", 0, "base64:".length())) {
+            String encoded = normalized.substring("base64:".length()).trim();
+            if (encoded.isEmpty()) {
+                throw new IllegalStateException("MONITORING_CREDENTIALS_MASTER_KEY base64 payload is empty");
+            }
+            byte[] decoded;
+            try {
+                decoded = Base64.getDecoder().decode(encoded);
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalStateException("MONITORING_CREDENTIALS_MASTER_KEY base64 payload is invalid", ex);
+            }
+            if (decoded.length != 16 && decoded.length != 24 && decoded.length != 32) {
+                throw new IllegalStateException(
+                    "MONITORING_CREDENTIALS_MASTER_KEY base64 payload must decode to 16, 24 or 32 bytes"
+                );
+            }
+            return new SecretKeySpec(decoded, "AES");
+        }
+
+        byte[] derived = MessageDigest.getInstance("SHA-256")
+            .digest(normalized.getBytes(StandardCharsets.UTF_8));
+        return new SecretKeySpec(derived, "AES");
+    }
+
     private SecretKey loadOrCreateSecretKey() {
         try {
             if (StringUtils.hasText(configuredMasterKey)) {
-                byte[] derived = MessageDigest.getInstance("SHA-256")
-                    .digest(configuredMasterKey.trim().getBytes(StandardCharsets.UTF_8));
-                return new SecretKeySpec(derived, "AES");
+                return resolveConfiguredSecretKey(configuredMasterKey);
             }
 
             if (runtimeRole != RuntimeRole.ALL) {

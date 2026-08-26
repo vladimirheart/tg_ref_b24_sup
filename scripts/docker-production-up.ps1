@@ -4,6 +4,7 @@ param(
     [switch]$Max,
     [switch]$Edge,
     [switch]$Observability,
+    [switch]$Backup,
     [switch]$Build,
     [switch]$NoDetach,
     [switch]$ValidateOnly,
@@ -198,6 +199,7 @@ function Invoke-PreflightChecks {
         [string[]]$Profiles,
         [bool]$EdgeEnabled,
         [bool]$ObservabilityEnabled,
+        [bool]$BackupEnabled,
         [bool]$AllowInsecure
     )
 
@@ -232,6 +234,24 @@ function Invoke-PreflightChecks {
             Assert-RequiredSetting -DotEnv $DotEnv -Name "IGUANA_GRAFANA_ADMIN_PASSWORD" -Message "Grafana admin password must be configured" | Out-Null
         } else {
             Assert-NonDefaultSecret -DotEnv $DotEnv -Name "IGUANA_GRAFANA_ADMIN_PASSWORD" -DisallowedValues @("change-me", "admin", "grafana") -Message "Grafana admin password must be overridden" | Out-Null
+        }
+    }
+
+    if ($BackupEnabled) {
+        $backupDestination = Assert-RequiredSetting -DotEnv $DotEnv -Name "IGUANA_BACKUP_DESTINATION_DIR" -Message "Backup contour requires an off-host mounted destination"
+        if (-not [System.IO.Path]::IsPathRooted($backupDestination)) {
+            throw "IGUANA_BACKUP_DESTINATION_DIR must be an absolute off-host path."
+        }
+        $resolvedBackupDestination = [System.IO.Path]::GetFullPath($backupDestination)
+        $repoPrefix = [System.IO.Path]::GetFullPath($RepoRoot)
+        if (-not $repoPrefix.EndsWith([System.IO.Path]::DirectorySeparatorChar.ToString())) {
+            $repoPrefix += [System.IO.Path]::DirectorySeparatorChar
+        }
+        if ($resolvedBackupDestination.StartsWith($repoPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "IGUANA_BACKUP_DESTINATION_DIR must be outside the repository failure domain."
+        }
+        if (-not (Test-Path -LiteralPath $resolvedBackupDestination)) {
+            throw "Backup destination does not exist or is not mounted: $resolvedBackupDestination"
         }
     }
 
@@ -271,6 +291,7 @@ $repoRoot = Get-RepoRoot
 $composeFile = Join-Path $repoRoot "docker-compose.production-contour.yml"
 $edgeComposeFile = Join-Path $repoRoot "docker-compose.production-edge.yml"
 $observabilityComposeFile = Join-Path $repoRoot "docker-compose.production-observability.yml"
+$backupComposeFile = Join-Path $repoRoot "docker-compose.production-backup.yml"
 $dotEnvPath = Join-Path $repoRoot ".env"
 $dotEnv = Read-DotEnvFile -Path $dotEnvPath
 
@@ -282,6 +303,9 @@ if ($Edge -and -not (Test-Path -LiteralPath $edgeComposeFile)) {
 }
 if ($Observability -and -not (Test-Path -LiteralPath $observabilityComposeFile)) {
     throw "Observability compose file not found: $observabilityComposeFile"
+}
+if ($Backup -and -not (Test-Path -LiteralPath $backupComposeFile)) {
+    throw "Backup compose file not found: $backupComposeFile"
 }
 
 $profiles = @()
@@ -312,7 +336,7 @@ foreach ($directory in $requiredDirectories) {
     New-Item -ItemType Directory -Force -Path $directory | Out-Null
 }
 
-Invoke-PreflightChecks -RepoRoot $repoRoot -DotEnv $dotEnv -Profiles $profiles -EdgeEnabled:$Edge -ObservabilityEnabled:$Observability -AllowInsecure:$AllowInsecureDefaults
+Invoke-PreflightChecks -RepoRoot $repoRoot -DotEnv $dotEnv -Profiles $profiles -EdgeEnabled:$Edge -ObservabilityEnabled:$Observability -BackupEnabled:$Backup -AllowInsecure:$AllowInsecureDefaults
 
 $dockerCommand = Ensure-DockerAvailable
 $baseArguments = @("compose", "--project-directory", $repoRoot)
@@ -325,6 +349,9 @@ if ($Edge) {
 }
 if ($Observability) {
     $baseArguments += @("-f", $observabilityComposeFile)
+}
+if ($Backup) {
+    $baseArguments += @("-f", $backupComposeFile)
 }
 foreach ($profile in $profiles) {
     $baseArguments += @("--profile", $profile)
@@ -342,6 +369,7 @@ if ($ValidateOnly) {
     Write-Host "[INFO] ops-worker replicas: $resolvedWorkerReplicas"
     Write-Host "[INFO] Edge enabled: $Edge"
     Write-Host "[INFO] Observability enabled: $Observability"
+    Write-Host "[INFO] Backup enabled: $Backup"
     Write-Host "[INFO] Insecure defaults allowed: $AllowInsecureDefaults"
     exit 0
 }

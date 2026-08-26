@@ -10,6 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -19,12 +21,15 @@ import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.stream.Stream;
 
 @Service
@@ -50,6 +55,11 @@ public class BackupReadinessMonitoringService {
     private static final int MAX_SUMMARY_LENGTH = 300;
     private static final int MAX_DETAILS_LENGTH = 1_200;
     private static final int MAX_NOTE_LENGTH = 1_000;
+    private static final String AUTOMATED_RESTORE_SUCCESS_FILE = ".iguana-restore-evidence.properties";
+    private static final String AUTOMATED_RESTORE_FAILURE_FILE = ".iguana-restore-failure.properties";
+    private static final Path MANAGED_BACKUP_ROOT = Path.of("/opt/iguana/backups/offhost");
+    private static final String MANAGED_POSTGRES_MONITOR = "iguana-postgresql-production-backup";
+    private static final String MANAGED_MINIO_MONITOR = "iguana-minio-production-backup";
 
     private final BackupReadinessMonitorRepository repository;
     private final MonitoringCheckHistoryRepository historyRepository;
@@ -63,6 +73,47 @@ public class BackupReadinessMonitoringService {
     @Transactional(transactionManager = "monitoringTransactionManager", readOnly = true)
     public List<BackupReadinessMonitor> findAll() {
         return repository.findAllByOrderByMonitorNameAscIdAsc();
+    }
+
+    public int ensureManagedProductionMonitors() {
+        if (!Files.isDirectory(MANAGED_BACKUP_ROOT)) {
+            return 0;
+        }
+        int created = 0;
+        created += ensureManagedMonitor(
+            MANAGED_POSTGRES_MONITOR,
+            "postgresql",
+            MANAGED_BACKUP_ROOT.resolve("postgres").resolve("iguana-postgres-*.dump").toString(),
+            DEFAULT_FRESHNESS_THRESHOLD_HOURS,
+            DEFAULT_RESTORE_THRESHOLD_DAYS
+        );
+        created += ensureManagedMonitor(
+            MANAGED_MINIO_MONITOR,
+            "minio",
+            MANAGED_BACKUP_ROOT.resolve("minio").resolve("manifests").resolve("*.manifest.json").toString(),
+            DEFAULT_FRESHNESS_THRESHOLD_HOURS,
+            DEFAULT_RESTORE_THRESHOLD_DAYS
+        );
+        return created;
+    }
+
+    private int ensureManagedMonitor(String monitorName,
+                                     String backupKind,
+                                     String pathPattern,
+                                     int freshnessThresholdHours,
+                                     int restoreThresholdDays) {
+        if (repository.findByMonitorName(monitorName).isPresent()) {
+            return 0;
+        }
+        createMonitor(new MonitorDraft(
+            monitorName,
+            backupKind,
+            pathPattern,
+            true,
+            freshnessThresholdHours,
+            restoreThresholdDays
+        ));
+        return 1;
     }
 
     public BackupReadinessMonitor createMonitor(MonitorDraft draft) {
@@ -238,15 +289,56 @@ public class BackupReadinessMonitoringService {
             item.setLastBackupSizeBytes(artifact.sizeBytes());
             item.setLastBackupPath(artifact.absolutePath());
 
+            AutomatedRestoreEvidence automatedRestoreEvidence = loadAutomatedRestoreEvidence(item.getPathPattern());
+            boolean importedAutomatedSuccess = importAutomatedRestoreSuccess(item, automatedRestoreEvidence);
+            if (importedAutomatedSuccess) {
+                recordHistory(
+                    item.getId(),
+                    CHECK_KIND_RESTORE,
+                    STATUS_OK,
+                    "Restore evidence импортирован автоматически",
+                    buildRestoreEvidenceDetails(item),
+                    null,
+                    item.getLastRestoreVerifiedAt()
+                );
+            }
+
             String backupSeverity = evaluateBackupSeverity(item, now);
             String restoreSeverity = evaluateRestoreSeverity(item, now);
+            boolean restoreFailureActive = automatedRestoreEvidence.hasFailureAfter(item.getLastRestoreVerifiedAt());
+            if (restoreFailureActive) {
+                restoreSeverity = STATUS_ERROR;
+            }
             String overallSeverity = combineSeverity(backupSeverity, restoreSeverity);
-            String summary = trim(buildSummary(item, backupSeverity, restoreSeverity, now), MAX_SUMMARY_LENGTH);
+            String summary = trim(buildSummary(
+                item,
+                backupSeverity,
+                restoreSeverity,
+                restoreFailureActive,
+                automatedRestoreEvidence.failureNote(),
+                now
+            ), MAX_SUMMARY_LENGTH);
+
+            String restoreFailureMessage = restoreFailureActive
+                ? trim("restore rehearsal failed: " + Objects.toString(automatedRestoreEvidence.failureNote(), "unknown failure"), MAX_SUMMARY_LENGTH)
+                : null;
+            boolean restoreFailureChanged = restoreFailureActive && !Objects.equals(item.getLastErrorMessage(), restoreFailureMessage);
 
             item.setLastStatus(overallSeverity);
             item.setLastSummary(summary);
-            item.setLastErrorMessage(null);
+            item.setLastErrorMessage(restoreFailureMessage);
             repository.save(item);
+            if (restoreFailureChanged) {
+                recordHistory(
+                    item.getId(),
+                    CHECK_KIND_RESTORE,
+                    STATUS_ERROR,
+                    "Automated restore rehearsal failed",
+                    buildAutomatedRestoreFailureDetails(automatedRestoreEvidence),
+                    null,
+                    automatedRestoreEvidence.failureAttemptAt() != null ? automatedRestoreEvidence.failureAttemptAt() : now
+                );
+            }
             recordHistory(item.getId(), CHECK_KIND_PROBE, overallSeverity, summary, buildProbeDetails(item), elapsedMillis(startedAtNs), now);
             return item;
         } catch (Exception ex) {
@@ -335,6 +427,92 @@ public class BackupReadinessMonitoringService {
         return candidate;
     }
 
+    private AutomatedRestoreEvidence loadAutomatedRestoreEvidence(String rawPattern) throws IOException {
+        Path evidenceDirectory = resolveEvidenceDirectory(rawPattern);
+        if (evidenceDirectory == null || !Files.isDirectory(evidenceDirectory)) {
+            return AutomatedRestoreEvidence.empty();
+        }
+        EvidenceDocument success = readAutomatedEvidence(
+            evidenceDirectory.resolve(AUTOMATED_RESTORE_SUCCESS_FILE),
+            STATUS_OK
+        );
+        EvidenceDocument failure = readAutomatedEvidence(
+            evidenceDirectory.resolve(AUTOMATED_RESTORE_FAILURE_FILE),
+            STATUS_ERROR
+        );
+        return new AutomatedRestoreEvidence(
+            success != null ? success.verifiedAt() : null,
+            success != null ? success.note() : null,
+            failure != null ? failure.attemptAt() : null,
+            failure != null ? failure.note() : null
+        );
+    }
+
+    private Path resolveEvidenceDirectory(String rawPattern) {
+        Path candidate = toPath(rawPattern);
+        if (containsGlob(rawPattern)) {
+            return candidate.getParent();
+        }
+        if (Files.isDirectory(candidate)) {
+            return candidate;
+        }
+        return candidate.getParent();
+    }
+
+    private EvidenceDocument readAutomatedEvidence(Path file, String expectedStatus) throws IOException {
+        if (file == null || !Files.isRegularFile(file)) {
+            return null;
+        }
+        Properties properties = new Properties();
+        try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            properties.load(reader);
+        }
+        String status = normalize(properties.getProperty("status"));
+        if (!expectedStatus.equals(status)) {
+            throw new IllegalStateException("Некорректный status automated restore evidence: " + file.getFileName());
+        }
+        OffsetDateTime attemptAt = parseEvidenceTimestamp(properties.getProperty("attempt_at"), "attempt_at", file);
+        OffsetDateTime verifiedAt = STATUS_OK.equals(expectedStatus)
+            ? parseEvidenceTimestamp(properties.getProperty("verified_at"), "verified_at", file)
+            : null;
+        String note = normalize(properties.getProperty("note"));
+        return new EvidenceDocument(attemptAt, verifiedAt, note);
+    }
+
+    private OffsetDateTime parseEvidenceTimestamp(String rawValue, String fieldName, Path file) {
+        String normalized = normalize(rawValue);
+        if (normalized == null) {
+            throw new IllegalStateException("В automated restore evidence отсутствует " + fieldName + ": " + file.getFileName());
+        }
+        try {
+            return OffsetDateTime.parse(normalized).withOffsetSameInstant(ZoneOffset.UTC);
+        } catch (DateTimeParseException ex) {
+            throw new IllegalStateException("Некорректный " + fieldName + " в automated restore evidence: " + file.getFileName());
+        }
+    }
+
+    private boolean importAutomatedRestoreSuccess(BackupReadinessMonitor item, AutomatedRestoreEvidence evidence) {
+        OffsetDateTime verifiedAt = evidence.successVerifiedAt();
+        if (verifiedAt == null) {
+            return false;
+        }
+        OffsetDateTime current = item.getLastRestoreVerifiedAt();
+        if (current != null && !verifiedAt.isAfter(current)) {
+            return false;
+        }
+        item.setLastRestoreVerifiedAt(verifiedAt);
+        item.setLastRestoreNote(evidence.successNote());
+        return true;
+    }
+
+    private boolean isAutomationEvidenceFile(Path path) {
+        if (path == null || path.getFileName() == null) {
+            return false;
+        }
+        String name = path.getFileName().toString();
+        return AUTOMATED_RESTORE_SUCCESS_FILE.equals(name) || AUTOMATED_RESTORE_FAILURE_FILE.equals(name);
+    }
+
     private ArtifactSnapshot resolveArtifact(String rawPattern) throws IOException {
         Path candidate = toPath(rawPattern);
         if (containsGlob(rawPattern)) {
@@ -377,6 +555,7 @@ public class BackupReadinessMonitoringService {
         try (Stream<Path> stream = Files.list(directory)) {
             return stream
                 .filter(Files::isRegularFile)
+                .filter(path -> !isAutomationEvidenceFile(path))
                 .filter(predicate)
                 .map(this::toSnapshotUnchecked)
                 .filter(Optional::isPresent)
@@ -473,6 +652,8 @@ public class BackupReadinessMonitoringService {
     private String buildSummary(BackupReadinessMonitor item,
                                 String backupSeverity,
                                 String restoreSeverity,
+                                boolean restoreFailureActive,
+                                String restoreFailureNote,
                                 OffsetDateTime now) {
         List<String> fragments = new ArrayList<>();
         OffsetDateTime lastBackupAt = item.getLastBackupAt();
@@ -485,7 +666,9 @@ public class BackupReadinessMonitoringService {
         }
 
         OffsetDateTime lastRestoreVerifiedAt = item.getLastRestoreVerifiedAt();
-        if (lastRestoreVerifiedAt == null) {
+        if (restoreFailureActive) {
+            fragments.add("restore rehearsal failed: " + Objects.toString(restoreFailureNote, "unknown failure"));
+        } else if (lastRestoreVerifiedAt == null) {
             fragments.add("restore evidence отсутствует");
         } else if (STATUS_CRITICAL.equals(restoreSeverity)) {
             fragments.add("restore evidence stale: " + formatDays(ageDays(lastRestoreVerifiedAt, now)) + " при пороге " + item.getRestoreThresholdDays() + "д");
@@ -535,6 +718,16 @@ public class BackupReadinessMonitoringService {
         return trim(String.join("; ", fragments), MAX_DETAILS_LENGTH);
     }
 
+    private String buildAutomatedRestoreFailureDetails(AutomatedRestoreEvidence evidence) {
+        List<String> fragments = new ArrayList<>();
+        if (evidence.failureAttemptAt() != null) {
+            fragments.add("restore_attempt_at=" + evidence.failureAttemptAt());
+        }
+        if (StringUtils.hasText(evidence.failureNote())) {
+            fragments.add("restore_failure=" + evidence.failureNote().trim());
+        }
+        return trim(String.join("; ", fragments), MAX_DETAILS_LENGTH);
+    }
     private void recordHistory(Long monitorId,
                                String checkKind,
                                String status,
@@ -608,6 +801,22 @@ public class BackupReadinessMonitoringService {
                                        int unknown,
                                        int disabled,
                                        double availabilityPercent) {
+    }
+
+    private record EvidenceDocument(OffsetDateTime attemptAt, OffsetDateTime verifiedAt, String note) {
+    }
+
+    private record AutomatedRestoreEvidence(OffsetDateTime successVerifiedAt,
+                                            String successNote,
+                                            OffsetDateTime failureAttemptAt,
+                                            String failureNote) {
+        private static AutomatedRestoreEvidence empty() {
+            return new AutomatedRestoreEvidence(null, null, null, null);
+        }
+
+        private boolean hasFailureAfter(OffsetDateTime latestSuccess) {
+            return failureAttemptAt != null && (latestSuccess == null || failureAttemptAt.isAfter(latestSuccess));
+        }
     }
 
     private record ArtifactSnapshot(String absolutePath, OffsetDateTime lastModifiedAt, long sizeBytes) {

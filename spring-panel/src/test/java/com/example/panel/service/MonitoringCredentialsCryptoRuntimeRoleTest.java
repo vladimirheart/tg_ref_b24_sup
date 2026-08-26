@@ -27,6 +27,40 @@ class MonitoringCredentialsCryptoRuntimeRoleTest {
     }
 
     @Test
+    void splitRoleCanReuseLegacyKeyFileMaterialViaBase64Prefix() throws Exception {
+        String encodedKey = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+        java.nio.file.Path legacyKeyFile = java.nio.file.Files.createTempFile("monitoring-credentials", ".key");
+        try {
+            java.nio.file.Files.writeString(legacyKeyFile, encodedKey);
+            SharedConfigService legacySharedConfig = mock(SharedConfigService.class);
+            org.mockito.Mockito.when(legacySharedConfig.resolvePath("monitoring-credentials.key"))
+                .thenReturn(legacyKeyFile);
+
+            MonitoringCredentialsCryptoService legacyService = new MonitoringCredentialsCryptoService(
+                legacySharedConfig,
+                "",
+                "monitoring-credentials.key"
+            );
+            legacyService.init();
+            String encrypted = legacyService.encryptIfNeeded("legacy-secret");
+
+            RuntimeRoleProperties runtime = new RuntimeRoleProperties();
+            runtime.setRole("worker");
+            MonitoringCredentialsCryptoService splitService = new MonitoringCredentialsCryptoService(
+                mock(SharedConfigService.class),
+                "base64:" + encodedKey,
+                "unused.key",
+                runtime
+            );
+            splitService.init();
+
+            assertThat(splitService.decryptIfNeeded(encrypted)).isEqualTo("legacy-secret");
+        } finally {
+            java.nio.file.Files.deleteIfExists(legacyKeyFile);
+        }
+    }
+
+    @Test
     void splitRoleUsesConfiguredMasterKeyWithoutLocalKeyFile() {
         RuntimeRoleProperties runtime = new RuntimeRoleProperties();
         runtime.setRole("worker");

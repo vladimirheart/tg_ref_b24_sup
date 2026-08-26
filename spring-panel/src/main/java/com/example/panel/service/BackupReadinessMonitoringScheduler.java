@@ -35,8 +35,9 @@ public class BackupReadinessMonitoringScheduler {
     public void refreshBackupReadiness() {
         runtimeCoordinationService.runWithLease("backup-readiness-monitoring", Duration.ofMinutes(20), () -> {
             try {
+                int managedCreated = monitoringService.ensureManagedProductionMonitors();
                 BackupReadinessMonitoringService.RefreshSummary summary = monitoringService.refreshAll();
-                log.debug("Backup readiness refresh complete: checked={}", summary.checked());
+                log.debug("Backup readiness refresh complete: checked={}, managed_created={}", summary.checked(), managedCreated);
             } catch (Exception ex) {
                 log.warn("Backup readiness refresh failed", ex);
             }

@@ -33,3 +33,5 @@ attachments/
 /apply-*.ps1
 /fix-*.ps1
 /repair-*.ps1
+/finalize-*.ps1
+/resume-*.ps1
