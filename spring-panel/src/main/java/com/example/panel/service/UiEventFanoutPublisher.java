@@ -7,9 +7,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -17,13 +14,10 @@ import org.springframework.util.StringUtils;
 @Service
 public class UiEventFanoutPublisher {
 
-    private static final Logger log = LoggerFactory.getLogger(UiEventFanoutPublisher.class);
-
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final UiEventFanoutProperties fanoutProperties;
     private final RuntimeRoleProperties runtimeProperties;
-    private final AtomicBoolean autoFallbackWarningLogged = new AtomicBoolean(false);
 
     public UiEventFanoutPublisher(StringRedisTemplate redisTemplate,
                                  ObjectMapper objectMapper,
@@ -45,7 +39,7 @@ public class UiEventFanoutPublisher {
         }
 
         UiEventFanoutMode mode = fanoutProperties.resolvedMode();
-        if (mode == UiEventFanoutMode.LOCAL) {
+        if (mode != UiEventFanoutMode.REDIS) {
             return false;
         }
 
@@ -60,23 +54,12 @@ public class UiEventFanoutPublisher {
         try {
             String serialized = objectMapper.writeValueAsString(envelope);
             redisTemplate.convertAndSend(fanoutProperties.resolvedChannel(), serialized);
-            autoFallbackWarningLogged.set(false);
             return true;
         } catch (JsonProcessingException | RuntimeException ex) {
-            if (mode == UiEventFanoutMode.REDIS) {
-                throw new IllegalStateException(
-                    "Redis UI event fanout failed for event '" + eventName + "'.",
-                    ex
-                );
-            }
-
-            if (autoFallbackWarningLogged.compareAndSet(false, true)) {
-                log.warn(
-                    "Redis UI event fanout is unavailable in AUTO mode; falling back to process-local SSE delivery: {}",
-                    ex.getMessage()
-                );
-            }
-            return false;
+            throw new IllegalStateException(
+                "Redis UI event fanout failed for event '" + eventName + "'.",
+                ex
+            );
         }
     }
 }

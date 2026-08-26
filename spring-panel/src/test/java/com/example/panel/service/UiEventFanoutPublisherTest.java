@@ -84,10 +84,8 @@ class UiEventFanoutPublisherTest {
     }
 
     @Test
-    void autoModeFallsBackLocallyWhenRedisIsUnavailable() {
+    void autoModeUsesProcessLocalFallbackWithoutRedisPublication() {
         StringRedisTemplate redis = mock(StringRedisTemplate.class);
-        when(redis.convertAndSend(anyString(), anyString()))
-            .thenThrow(new IllegalStateException("redis unavailable"));
 
         UiEventFanoutProperties properties = new UiEventFanoutProperties();
         properties.setMode("auto");
@@ -101,5 +99,6 @@ class UiEventFanoutPublisherTest {
 
         assertThat(publisher.publish(null, "dialogs_changed", Map.of()))
             .isFalse();
+        verify(redis, never()).convertAndSend(anyString(), anyString());
     }
 }
