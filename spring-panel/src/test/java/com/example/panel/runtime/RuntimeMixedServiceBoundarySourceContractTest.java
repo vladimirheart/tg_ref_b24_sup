@@ -23,7 +23,9 @@ class RuntimeMixedServiceBoundarySourceContractTest {
         "service/IncidentRouteDeliveryOutboxService.java",
         "service/IncidentRouteDeliveryOutboxScheduler.java",
         "service/integration/OutboundFeedbackPromptPublishOutboxService.java",
-        "service/integration/OutboundFeedbackPromptPublishOutboxScheduler.java"
+        "service/integration/OutboundFeedbackPromptPublishOutboxScheduler.java",
+        "service/SlaEscalationWebhookNotifier.java",
+        "service/SlaEscalationWebhookScheduler.java"
     );
 
     @Test

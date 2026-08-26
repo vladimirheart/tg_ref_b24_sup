@@ -1,7 +1,81 @@
+x-panel-build: &panel-build
+  image: ${IGUANA_PANEL_IMAGE:-iguana-panel:local}
+  build:
+    context: .
+    dockerfile: docker/panel.Dockerfile
+
+x-panel-environment: &panel-environment
+  APP_DB_MODE: postgresql
+  APP_HTTP_PORT: 8080
+  APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
+  APP_COORDINATION_MODE: redis
+  APP_STORAGE_OBJECT_MODE: s3
+  APP_COORDINATION_REQUIRED_FOR_POSTGRESQL: "true"
+  APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL: "true"
+  APP_UI_EVENT_FANOUT_MODE: redis
+  APP_UI_EVENT_FANOUT_CHANNEL: ${APP_UI_EVENT_FANOUT_CHANNEL:-iguana:ui-events:v1}
+  APP_BOT_AUTO_START_ENABLED: "false"
+  APP_BOT_LAUNCH_MODE: jar
+  SERVER_FORWARD_HEADERS_STRATEGY: framework
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IGUANA_POSTGRES_DB:-iguana}
+  SPRING_DATASOURCE_USERNAME: ${IGUANA_POSTGRES_USER:-iguana}
+  SPRING_DATASOURCE_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
+  SPRING_RABBITMQ_HOST: rabbitmq
+  SPRING_RABBITMQ_PORT: 5672
+  SPRING_RABBITMQ_USERNAME: ${IGUANA_RABBITMQ_USER:-iguana}
+  SPRING_RABBITMQ_PASSWORD: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_DATA_REDIS_PORT: 6379
+  SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
+  APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
+  APP_STORAGE_OBJECT_REGION: ${APP_STORAGE_OBJECT_REGION:-us-east-1}
+  APP_STORAGE_OBJECT_ENDPOINT: http://minio:9000
+  APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
+  APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
+  APP_STORAGE_OBJECT_PATH_STYLE_ACCESS: "true"
+  APP_STORAGE_ATTACHMENTS: /opt/iguana/attachments
+  APP_STORAGE_KNOWLEDGE_BASE: /opt/iguana/attachments/knowledge_base
+  APP_STORAGE_AVATARS: /opt/iguana/attachments/avatars
+  APP_STORAGE_WEBFORMS: /opt/iguana/attachments/forms
+  APP_BOT_DATABASE_DIR: /opt/iguana/bot_databases
+  APP_PANEL_LOG_DIR: /opt/iguana/logs
+  SHARED_CONFIG_DIR: /opt/iguana/config/shared
+  APP_ADMIN_REPOSITORY_ROOT: /opt/iguana
+  APP_INTERNAL_BOT_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
+  APP_INTERNAL_BOT_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
+  APP_INTERNAL_BOT_API_REQUIRE_REQUEST_SIGNATURE: ${APP_INTERNAL_BOT_API_REQUIRE_REQUEST_SIGNATURE:-true}
+  APP_SECURITY_REMEMBER_ME_KEY: ${APP_SECURITY_REMEMBER_ME_KEY:-change-me}
+  APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME: ${APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME:-}
+  APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD: ${APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD:-}
+  MONITORING_CREDENTIALS_MASTER_KEY: ${MONITORING_CREDENTIALS_MASTER_KEY:-}
+  IGUANA_LEGACY_SQLITE_AUTO_IMPORT: ${IGUANA_LEGACY_SQLITE_AUTO_IMPORT:-false}
+
+x-panel-volumes: &panel-volumes
+  - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
+  - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
+  - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
+  - ${IGUANA_BOT_DATABASES_DIR:-./bot_databases}:/opt/iguana/bot_databases
+
+x-panel-infra-depends: &panel-infra-depends
+  postgres:
+    condition: service_healthy
+  rabbitmq:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  minio-init:
+    condition: service_completed_successfully
+
+x-panel-healthcheck: &panel-healthcheck
+  test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness >/dev/null || exit 1"]
+  interval: 15s
+  timeout: 5s
+  retries: 20
+  start_period: 30s
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: iguana-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${IGUANA_POSTGRES_DB:-iguana}
@@ -19,7 +93,6 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    container_name: iguana-rabbitmq
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${IGUANA_RABBITMQ_USER:-iguana}
@@ -37,7 +110,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: iguana-redis
     restart: unless-stopped
     command:
       - redis-server
@@ -56,8 +128,7 @@ services:
       retries: 20
 
   minio:
-    image: minio/minio:RELEASE.2026-07-23T15-54-02Z
-    container_name: iguana-minio
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -70,8 +141,7 @@ services:
       - iguana-minio-data:/data
 
   minio-init:
-    image: minio/mc:RELEASE.2026-07-21T05-28-08Z
-    container_name: iguana-minio-init
+    image: minio/mc:RELEASE.2025-07-21T05-28-08Z
     restart: "no"
     depends_on:
       - minio
@@ -84,75 +154,69 @@ services:
         mc mb --ignore-existing local/${APP_STORAGE_OBJECT_BUCKET:-iguana};
         mc anonymous set none local/${APP_STORAGE_OBJECT_BUCKET:-iguana} || true
 
-  spring-panel:
-    build:
-      context: .
-      dockerfile: docker/panel.Dockerfile
-    container_name: iguana-spring-panel
+  db-migrate:
+    <<: *panel-build
+    restart: "no"
+    depends_on:
+      <<: *panel-infra-depends
+    environment:
+      <<: *panel-environment
+      APP_RUNTIME_ROLE: db-migrate
+      APP_RUNTIME_EXIT_AFTER_MIGRATION: "true"
+      APP_INSTANCE_ID: db-migrate
+    volumes: *panel-volumes
+
+  ops-worker:
+    <<: *panel-build
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio-init:
+      <<: *panel-infra-depends
+      db-migrate:
         condition: service_completed_successfully
     environment:
-      APP_DB_MODE: postgresql
-      APP_HTTP_PORT: 8080
-      APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
-      APP_COORDINATION_MODE: redis
-      APP_STORAGE_OBJECT_MODE: s3
-      APP_COORDINATION_REQUIRED_FOR_POSTGRESQL: "true"
-      APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL: "true"
-      APP_BOT_AUTO_START_ENABLED: "false"
-      APP_BOT_LAUNCH_MODE: jar
-      SERVER_FORWARD_HEADERS_STRATEGY: framework
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IGUANA_POSTGRES_DB:-iguana}
-      SPRING_DATASOURCE_USERNAME: ${IGUANA_POSTGRES_USER:-iguana}
-      SPRING_DATASOURCE_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
-      SPRING_RABBITMQ_HOST: rabbitmq
-      SPRING_RABBITMQ_PORT: 5672
-      SPRING_RABBITMQ_USERNAME: ${IGUANA_RABBITMQ_USER:-iguana}
-      SPRING_RABBITMQ_PASSWORD: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
-      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
-      APP_STORAGE_OBJECT_REGION: ${APP_STORAGE_OBJECT_REGION:-us-east-1}
-      APP_STORAGE_OBJECT_ENDPOINT: http://minio:9000
-      APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
-      APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
-      APP_STORAGE_OBJECT_PATH_STYLE_ACCESS: "true"
-      APP_STORAGE_ATTACHMENTS: /opt/iguana/attachments
-      APP_STORAGE_KNOWLEDGE_BASE: /opt/iguana/attachments/knowledge_base
-      APP_STORAGE_AVATARS: /opt/iguana/attachments/avatars
-      APP_STORAGE_WEBFORMS: /opt/iguana/attachments/forms
-      APP_BOT_DATABASE_DIR: /opt/iguana/bot_databases
-      APP_PANEL_LOG_DIR: /opt/iguana/logs
-      SHARED_CONFIG_DIR: /opt/iguana/config/shared
-      APP_ADMIN_REPOSITORY_ROOT: /opt/iguana
-      APP_INTERNAL_BOT_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
-      APP_INTERNAL_BOT_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
-      APP_INTERNAL_BOT_API_REQUIRE_REQUEST_SIGNATURE: ${APP_INTERNAL_BOT_API_REQUIRE_REQUEST_SIGNATURE:-true}
-      APP_SECURITY_REMEMBER_ME_KEY: ${APP_SECURITY_REMEMBER_ME_KEY:-change-me}
-      APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME: ${APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME:-}
-      APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD: ${APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD:-}
+      <<: *panel-environment
+      APP_RUNTIME_ROLE: ops-worker
+      APP_RUNTIME_EXIT_AFTER_MIGRATION: "false"
+    expose:
+      - "8080"
+    volumes: *panel-volumes
+    healthcheck: *panel-healthcheck
+
+  panel-web:
+    <<: *panel-build
+    restart: unless-stopped
+    depends_on:
+      <<: *panel-infra-depends
+      db-migrate:
+        condition: service_completed_successfully
+      ops-worker:
+        condition: service_healthy
+    environment:
+      <<: *panel-environment
+      APP_RUNTIME_ROLE: panel-web
+      APP_RUNTIME_EXIT_AFTER_MIGRATION: "false"
+    expose:
+      - "8080"
+    volumes: *panel-volumes
+    healthcheck: *panel-healthcheck
+
+  # Stable loopback ingress preserves the historical 127.0.0.1:8080 access
+  # without publishing a port from every scalable panel-web replica.
+  panel-direct:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      panel-web:
+        condition: service_healthy
     ports:
-      - "${APP_PANEL_BIND_HOST:-127.0.0.1}:${APP_HTTP_PORT:-8080}:8080"
+      - "${APP_PANEL_BIND_HOST:-127.0.0.1}:${APP_HTTP_PORT:-8080}:80"
     volumes:
-      - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
-      - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
-      - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
-      - ${IGUANA_BOT_DATABASES_DIR:-./bot_databases}:/opt/iguana/bot_databases
+      - ./docker/nginx/panel-direct.conf:/etc/nginx/conf.d/default.conf:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/nginx-health || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 20
-      start_period: 30s
+      retries: 10
 
   bot-telegram:
     profiles: ["telegram"]
@@ -161,14 +225,13 @@ services:
       dockerfile: docker/bot.Dockerfile
       args:
         BOT_MODULE: bot-telegram
-    container_name: iguana-bot-telegram
     restart: unless-stopped
     depends_on:
       rabbitmq:
         condition: service_healthy
       redis:
         condition: service_healthy
-      spring-panel:
+      panel-web:
         condition: service_healthy
     environment:
       APP_DB_MODE: worker
@@ -182,7 +245,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
-      APP_PANEL_INTERNAL_API_BASE_URL: http://spring-panel:8080
+      APP_PANEL_INTERNAL_API_BASE_URL: http://panel-web:8080
       APP_PANEL_INTERNAL_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
       APP_PANEL_INTERNAL_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
       APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED: "true"
@@ -212,14 +275,13 @@ services:
       dockerfile: docker/bot.Dockerfile
       args:
         BOT_MODULE: bot-vk
-    container_name: iguana-bot-vk
     restart: unless-stopped
     depends_on:
       rabbitmq:
         condition: service_healthy
       redis:
         condition: service_healthy
-      spring-panel:
+      panel-web:
         condition: service_healthy
     environment:
       APP_DB_MODE: worker
@@ -233,7 +295,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
-      APP_PANEL_INTERNAL_API_BASE_URL: http://spring-panel:8080
+      APP_PANEL_INTERNAL_API_BASE_URL: http://panel-web:8080
       APP_PANEL_INTERNAL_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
       APP_PANEL_INTERNAL_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
       APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED: "true"
@@ -270,14 +332,13 @@ services:
       dockerfile: docker/bot.Dockerfile
       args:
         BOT_MODULE: bot-max
-    container_name: iguana-bot-max
     restart: unless-stopped
     depends_on:
       rabbitmq:
         condition: service_healthy
       redis:
         condition: service_healthy
-      spring-panel:
+      panel-web:
         condition: service_healthy
     environment:
       APP_DB_MODE: worker
@@ -291,7 +352,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
-      APP_PANEL_INTERNAL_API_BASE_URL: http://spring-panel:8080
+      APP_PANEL_INTERNAL_API_BASE_URL: http://panel-web:8080
       APP_PANEL_INTERNAL_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
       APP_PANEL_INTERNAL_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
       APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED: "true"

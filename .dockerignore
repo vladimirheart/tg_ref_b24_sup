@@ -7,6 +7,7 @@ attachments
 bot_databases
 logs
 run
+.tmp
 temp-recovery
 spring-panel/recovery-20260805-171047
 spring-panel/*.db
@@ -17,3 +18,11 @@ spring-panel/*.db-*
 *.log
 *.pid
 .env
+spring-panel/.mvn
+spring-panel/.m2
+spring-panel/mvnw
+spring-panel/mvnw.cmd
+spring-panel/db-backup-*
+spring-panel/recovery-*
+spring-panel/.tmp*
+java-bot/.m2

@@ -1,10 +1,9 @@
 services:
   nginx:
     image: nginx:1.27-alpine
-    container_name: iguana-edge-nginx
     restart: unless-stopped
     depends_on:
-      spring-panel:
+      panel-web:
         condition: service_healthy
     environment:
       IGUANA_PUBLIC_HOST: ${IGUANA_PUBLIC_HOST:-localhost}
@@ -16,12 +15,13 @@ services:
       - |
         set -eu
         template_dir=/etc/nginx/iguana-templates
+        mkdir -p /etc/nginx/templates
         case "$(printf '%s' "${IGUANA_EDGE_TLS_ENABLED:-false}" | tr '[:upper:]' '[:lower:]')" in
           1|true|yes|on)
-            cp "$template_dir/tls.conf.template" /etc/nginx/templates/default.conf.template
+            cp "$$template_dir/tls.conf.template" /etc/nginx/templates/default.conf.template
             ;;
           *)
-            cp "$template_dir/http-only.conf.template" /etc/nginx/templates/default.conf.template
+            cp "$$template_dir/http-only.conf.template" /etc/nginx/templates/default.conf.template
             ;;
         esac
         exec /docker-entrypoint.sh nginx -g 'daemon off;'

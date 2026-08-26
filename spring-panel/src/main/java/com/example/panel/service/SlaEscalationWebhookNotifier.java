@@ -1,14 +1,10 @@
 package com.example.panel.service;
 
-import com.example.panel.runtime.RuntimeWorkload;
-import com.example.panel.runtime.RuntimeRole;
-import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.model.dialog.DialogListItem;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -20,11 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-@RuntimeWorkload(
-    id = "sla-escalation-webhook-notifier",
-    roles = {RuntimeRole.WORKER},
-    replicaPolicy = RuntimeReplicaPolicy.LEASED
-)@Service
+@Service
+
 public class SlaEscalationWebhookNotifier {
 
     private static final Logger log = LoggerFactory.getLogger(SlaEscalationWebhookNotifier.class);
@@ -91,7 +84,6 @@ public class SlaEscalationWebhookNotifier {
         this.runtimeCoordinationService = null;
     }
 
-    @Scheduled(fixedDelayString = "${panel.sla-escalation.webhook-check-interval-ms:120000}")
     public void notifyCriticalUnassignedDialogs() {
         if (runtimeCoordinationService != null) {
             runtimeCoordinationService.runWithLease("sla-escalation-webhook", Duration.ofMinutes(3), this::notifyCriticalUnassignedDialogsInternal);

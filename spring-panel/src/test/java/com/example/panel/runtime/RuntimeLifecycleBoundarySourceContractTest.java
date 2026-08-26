@@ -41,10 +41,25 @@ class RuntimeLifecycleBoundarySourceContractTest {
             "ApplicationReadyEvent", "RuntimeRole.ALL", "explicit roles use backend_ops_command");
         assertSource("config/PostgresRuntimeReadinessVerifier.java",
             "ApplicationReadyEvent", "RuntimeRole.WEB", "RuntimeRole.WORKER");
-        assertSource("runtime/RuntimeMigrationExitListener.java",
-            "ApplicationReadyEvent", "RuntimeRole.MIGRATOR");
+
     }
 
+@Test
+void migrationExitRunsOnlyAfterSpringApplicationReadyLifecycleReturns() throws IOException {
+    Path application = SOURCE_ROOT.resolve("PanelApplication.java");
+    String applicationSource = Files.readString(application, StandardCharsets.UTF_8);
+
+    assertThat(applicationSource)
+        .contains("ConfigurableApplicationContext context = app.run(args);")
+        .contains("runtimeRoleProperties.resolvedRole() == RuntimeRole.MIGRATOR")
+        .contains("runtimeRoleProperties.isExitAfterMigration()")
+        .contains("closing application context after ready publication")
+        .contains("context.close();");
+
+    assertThat(SOURCE_ROOT.resolve("runtime/RuntimeMigrationExitListener.java"))
+        .as("Migrator shutdown must not close the context from inside ApplicationReadyEvent publication")
+        .doesNotExist();
+}
     @Test
     void manualExecutorInventoryIsExplicitAndCannotGrowSilently() throws IOException {
         Set<String> actual = new LinkedHashSet<>();

@@ -7,18 +7,9 @@ VALIDATE_ONLY=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --edge)
-      EDGE=1
-      shift
-      ;;
-    --remove-volumes)
-      REMOVE_VOLUMES=1
-      shift
-      ;;
-    --validate-only)
-      VALIDATE_ONLY=1
-      shift
-      ;;
+    --edge) EDGE=1; shift ;;
+    --remove-volumes) REMOVE_VOLUMES=1; shift ;;
+    --validate-only) VALIDATE_ONLY=1; shift ;;
     *)
       echo "[ERROR] Unknown argument: $1" >&2
       exit 1
@@ -30,44 +21,37 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-contour.yml"
 EDGE_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-edge.yml"
+ENV_FILE="${REPO_ROOT}/.env"
 
-if [[ ! -f "${COMPOSE_FILE}" ]]; then
-  echo "[ERROR] Compose file not found: ${COMPOSE_FILE}" >&2
-  exit 1
-fi
+[[ -f "${COMPOSE_FILE}" ]] || { echo "[ERROR] Compose file not found: ${COMPOSE_FILE}" >&2; exit 1; }
 if [[ "${EDGE}" == "1" && ! -f "${EDGE_COMPOSE_FILE}" ]]; then
   echo "[ERROR] Edge compose file not found: ${EDGE_COMPOSE_FILE}" >&2
   exit 1
 fi
 
-if [[ "${VALIDATE_ONLY}" == "1" ]]; then
-  echo "[INFO] Validation succeeded."
-  echo "[INFO] Compose file: ${COMPOSE_FILE}"
-  if [[ "${EDGE}" == "1" ]]; then
-    echo "[INFO] Edge compose file: ${EDGE_COMPOSE_FILE}"
-  fi
-  echo "[INFO] Edge enabled: ${EDGE}"
-  echo "[INFO] Remove volumes: ${REMOVE_VOLUMES}"
-  exit 0
-fi
-
 command -v docker >/dev/null 2>&1 || {
+  if [[ "${VALIDATE_ONLY}" == "1" ]]; then
+    echo "[INFO] File validation succeeded; Docker is not available, compose config was not executed."
+    exit 0
+  fi
   echo "[ERROR] Docker is not installed or not available in PATH." >&2
   exit 1
 }
 
-ARGS=(compose -f "${COMPOSE_FILE}")
-if [[ "${EDGE}" == "1" ]]; then
-  ARGS+=(-f "${EDGE_COMPOSE_FILE}")
-fi
-ARGS+=(down)
-if [[ "${REMOVE_VOLUMES}" == "1" ]]; then
-  ARGS+=(-v)
+BASE_ARGS=(compose --project-directory "${REPO_ROOT}")
+[[ -f "${ENV_FILE}" ]] && BASE_ARGS+=(--env-file "${ENV_FILE}")
+BASE_ARGS+=(-f "${COMPOSE_FILE}")
+[[ "${EDGE}" == "1" ]] && BASE_ARGS+=(-f "${EDGE_COMPOSE_FILE}")
+
+if [[ "${VALIDATE_ONLY}" == "1" ]]; then
+  docker "${BASE_ARGS[@]}" config -q
+  echo "[INFO] Validation succeeded."
+  exit 0
 fi
 
-echo "[INFO] Stopping Iguana docker production contour"
-echo "[INFO] Edge enabled: ${EDGE}"
+ARGS=("${BASE_ARGS[@]}" down --remove-orphans)
+[[ "${REMOVE_VOLUMES}" == "1" ]] && ARGS+=(-v)
 
+echo "[INFO] Stopping Iguana docker production contour (panel-web / ops-worker / db-migrate)"
 docker "${ARGS[@]}"
-
 echo "[INFO] Iguana docker production contour stopped."

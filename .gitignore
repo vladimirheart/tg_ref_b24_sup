@@ -16,6 +16,7 @@ attachments/
 /spring-panel/.m2/
 /spring-panel/target/
 /config/shared/monitoring-credentials.key
+/.tmp/
 *.patch
 *.bak
 *.tmp

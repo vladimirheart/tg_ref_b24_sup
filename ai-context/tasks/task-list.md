@@ -230,4 +230,4 @@
 🟣 [01-208] Собрать dockerized production contour Iguana и развести lifecycle panel и bot runtime
 🟣 [01-209] Починить bootstrap secret contract локального PostgreSQL-контура для Windows launcher
 🟣 [01-210] Сделать incidents workbench понятным для credential rotation сигналов и объяснить severity policy
-🟡 [01-211] Разделить spring-panel на scale-ready deployment roles panel-web и ops-worker с заделом на горизонтальное масштабирование
+🟣 [01-211] Разделить spring-panel на scale-ready deployment roles panel-web и ops-worker с заделом на горизонтальное масштабирование

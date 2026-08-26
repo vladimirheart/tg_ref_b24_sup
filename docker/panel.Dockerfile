@@ -2,12 +2,10 @@ FROM maven:3.9.9-eclipse-temurin-17 AS builder
 
 WORKDIR /workspace
 
-COPY spring-panel/ ./spring-panel/
+COPY spring-panel/pom.xml ./pom.xml
+COPY spring-panel/src/ ./src/
 
-WORKDIR /workspace/spring-panel
-
-RUN chmod +x mvnw \
-    && ./mvnw -DskipTests package \
+RUN mvn -DskipTests package \
     && mkdir -p /workspace/out \
     && cp target/panel-*.jar /workspace/out/app.jar
 
@@ -21,7 +19,10 @@ RUN apt-get update \
 
 COPY --from=builder /workspace/out/app.jar /opt/iguana/panel/app.jar
 COPY java-bot/ /opt/iguana/java-bot/
+COPY docker/panel-entrypoint.sh /usr/local/bin/iguana-panel-entrypoint
+
+RUN chmod +x /usr/local/bin/iguana-panel-entrypoint
 
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /opt/iguana/panel/app.jar"]
+ENTRYPOINT ["/usr/local/bin/iguana-panel-entrypoint"]

@@ -83,3 +83,23 @@ Phase C applies this split to AI offline evaluation, blacklist expiry, incident 
 ### Remaining blocker before compose split
 
 Manual RMS/iiko/NetBox actions still execute through process-local executors. Production compose must not be split until operator requests enqueue durable backend commands and `ops-worker` owns execution. See `docs/runtime-async-command-boundary.md`.
+
+## Phase E production topology
+
+Phase A-C inventory blockers are now closed by later slices:
+
+- distributed UI fanout: Redis;
+- migration owner: one-shot `db-migrate`;
+- mixed service/scheduler beans: separated where required;
+- process-local manual async work: replaced for explicit roles by `backend_ops_command`;
+- production readiness cache: `PROCESS_LOCAL`, not `SINGLETON`.
+
+Production Compose now uses:
+
+```text
+db-migrate -> ops-worker x M -> panel-web x N
+```
+
+`panel-web` and `ops-worker` have no host port publishing. `panel-direct` keeps loopback `127.0.0.1:8080`; optional public nginx routes only to `panel-web`.
+
+The remaining task gate is the real Docker role/scale smoke. Multi-host orchestration remains out of scope.

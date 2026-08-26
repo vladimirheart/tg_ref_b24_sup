@@ -6,7 +6,9 @@ param(
     [switch]$Build,
     [switch]$NoDetach,
     [switch]$ValidateOnly,
-    [switch]$AllowInsecureDefaults
+    [switch]$AllowInsecureDefaults,
+    [int]$WebReplicas = 0,
+    [int]$WorkerReplicas = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,9 +43,7 @@ function Ensure-DockerAvailable {
 }
 
 function Read-DotEnvFile {
-    param(
-        [string]$Path
-    )
+    param([string]$Path)
 
     $result = @{}
     if (-not (Test-Path -LiteralPath $Path)) {
@@ -88,10 +88,32 @@ function Get-SettingValue {
     return ""
 }
 
-function Test-TruthySetting {
+function Resolve-ReplicaCount {
     param(
-        [string]$Value
+        [int]$ExplicitValue,
+        [hashtable]$DotEnv,
+        [string]$SettingName,
+        [int]$DefaultValue
     )
+
+    if ($ExplicitValue -gt 0) {
+        return $ExplicitValue
+    }
+
+    $rawValue = Get-SettingValue -DotEnv $DotEnv -Name $SettingName
+    if ([string]::IsNullOrWhiteSpace($rawValue)) {
+        return $DefaultValue
+    }
+
+    $parsed = 0
+    if (-not [int]::TryParse($rawValue, [ref]$parsed) -or $parsed -lt 1) {
+        throw "$SettingName must be a positive integer."
+    }
+    return $parsed
+}
+
+function Test-TruthySetting {
+    param([string]$Value)
 
     if ([string]::IsNullOrWhiteSpace($Value)) {
         return $false
@@ -171,64 +193,64 @@ function Assert-NonDefaultSecret {
 function Invoke-PreflightChecks {
     param(
         [string]$RepoRoot,
+        [hashtable]$DotEnv,
         [string[]]$Profiles,
-        [bool]$Edge,
-        [bool]$AllowInsecureDefaults
+        [bool]$EdgeEnabled,
+        [bool]$AllowInsecure
     )
-
-    $dotEnvPath = Join-Path $RepoRoot ".env"
-    $dotEnv = Read-DotEnvFile -Path $dotEnvPath
 
     Assert-RequiredFile -Path (Join-Path $RepoRoot "config\shared\settings.json") -Label "Shared config settings"
     Assert-RequiredFile -Path (Join-Path $RepoRoot "config\shared\locations.json") -Label "Shared config locations"
     Assert-RequiredFile -Path (Join-Path $RepoRoot "config\shared\org_structure.json") -Label "Shared config org structure"
 
-    if ($AllowInsecureDefaults) {
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "APP_INTERNAL_BOT_API_TOKEN" -Message "Internal bot API token must be configured" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "APP_SECURITY_REMEMBER_ME_KEY" -Message "Remember-me key must be configured" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "IGUANA_POSTGRES_PASSWORD" -Message "PostgreSQL password must be configured" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "IGUANA_RABBITMQ_PASSWORD" -Message "RabbitMQ password must be configured" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "IGUANA_REDIS_PASSWORD" -Message "Redis password must be configured" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "APP_STORAGE_OBJECT_ACCESS_KEY" -Message "Object storage access key must be configured" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "APP_STORAGE_OBJECT_SECRET_KEY" -Message "Object storage secret key must be configured" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "APP_STORAGE_OBJECT_BUCKET" -Message "Object storage bucket must be configured" | Out-Null
+    if ($AllowInsecure) {
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "APP_INTERNAL_BOT_API_TOKEN" -Message "Internal bot API token must be configured" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "APP_SECURITY_REMEMBER_ME_KEY" -Message "Remember-me key must be configured" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "MONITORING_CREDENTIALS_MASTER_KEY" -Message "Shared monitoring credentials master key is required by split backend roles" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "IGUANA_POSTGRES_PASSWORD" -Message "PostgreSQL password must be configured" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "IGUANA_RABBITMQ_PASSWORD" -Message "RabbitMQ password must be configured" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "IGUANA_REDIS_PASSWORD" -Message "Redis password must be configured" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "APP_STORAGE_OBJECT_ACCESS_KEY" -Message "Object storage access key must be configured" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "APP_STORAGE_OBJECT_SECRET_KEY" -Message "Object storage secret key must be configured" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "APP_STORAGE_OBJECT_BUCKET" -Message "Object storage bucket must be configured" | Out-Null
     } else {
-        Assert-NonDefaultSecret -DotEnv $dotEnv -Name "APP_INTERNAL_BOT_API_TOKEN" -DisallowedValues @("change-me", "iguana-internal-bot-token") -Message "Internal bot API token must be overridden" | Out-Null
-        Assert-NonDefaultSecret -DotEnv $dotEnv -Name "APP_SECURITY_REMEMBER_ME_KEY" -DisallowedValues @("change-me", "iguana-panel-remember-me") -Message "Remember-me key must be overridden" | Out-Null
-        Assert-NonDefaultSecret -DotEnv $dotEnv -Name "IGUANA_POSTGRES_PASSWORD" -DisallowedValues @("iguana") -Message "PostgreSQL password must be overridden" | Out-Null
-        Assert-NonDefaultSecret -DotEnv $dotEnv -Name "IGUANA_RABBITMQ_PASSWORD" -DisallowedValues @("iguana") -Message "RabbitMQ password must be overridden" | Out-Null
-        Assert-NonDefaultSecret -DotEnv $dotEnv -Name "IGUANA_REDIS_PASSWORD" -DisallowedValues @("iguana-redis") -Message "Redis password must be overridden" | Out-Null
-        Assert-NonDefaultSecret -DotEnv $dotEnv -Name "APP_STORAGE_OBJECT_ACCESS_KEY" -DisallowedValues @("iguana-minio") -Message "Object storage access key must be overridden" | Out-Null
-        Assert-NonDefaultSecret -DotEnv $dotEnv -Name "APP_STORAGE_OBJECT_SECRET_KEY" -DisallowedValues @("iguana-minio-secret") -Message "Object storage secret key must be overridden" | Out-Null
-        Assert-NonDefaultSecret -DotEnv $dotEnv -Name "APP_STORAGE_OBJECT_BUCKET" -DisallowedValues @("iguana") -Message "Object storage bucket must be overridden for production-like launch" | Out-Null
+        Assert-NonDefaultSecret -DotEnv $DotEnv -Name "APP_INTERNAL_BOT_API_TOKEN" -DisallowedValues @("change-me", "iguana-internal-bot-token") -Message "Internal bot API token must be overridden" | Out-Null
+        Assert-NonDefaultSecret -DotEnv $DotEnv -Name "APP_SECURITY_REMEMBER_ME_KEY" -DisallowedValues @("change-me", "iguana-panel-remember-me") -Message "Remember-me key must be overridden" | Out-Null
+        Assert-NonDefaultSecret -DotEnv $DotEnv -Name "MONITORING_CREDENTIALS_MASTER_KEY" -DisallowedValues @("change-me", "iguana-monitoring-key") -Message "Shared monitoring credentials master key must be overridden" | Out-Null
+        Assert-NonDefaultSecret -DotEnv $DotEnv -Name "IGUANA_POSTGRES_PASSWORD" -DisallowedValues @("iguana") -Message "PostgreSQL password must be overridden" | Out-Null
+        Assert-NonDefaultSecret -DotEnv $DotEnv -Name "IGUANA_RABBITMQ_PASSWORD" -DisallowedValues @("iguana") -Message "RabbitMQ password must be overridden" | Out-Null
+        Assert-NonDefaultSecret -DotEnv $DotEnv -Name "IGUANA_REDIS_PASSWORD" -DisallowedValues @("iguana-redis") -Message "Redis password must be overridden" | Out-Null
+        Assert-NonDefaultSecret -DotEnv $DotEnv -Name "APP_STORAGE_OBJECT_ACCESS_KEY" -DisallowedValues @("iguana-minio") -Message "Object storage access key must be overridden" | Out-Null
+        Assert-NonDefaultSecret -DotEnv $DotEnv -Name "APP_STORAGE_OBJECT_SECRET_KEY" -DisallowedValues @("iguana-minio-secret") -Message "Object storage secret key must be overridden" | Out-Null
+        Assert-NonDefaultSecret -DotEnv $DotEnv -Name "APP_STORAGE_OBJECT_BUCKET" -DisallowedValues @("iguana") -Message "Object storage bucket must be overridden for production-like launch" | Out-Null
     }
 
     if ($Profiles -contains "telegram") {
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "TELEGRAM_BOT_TOKEN" -Message "Telegram profile requires TELEGRAM_BOT_TOKEN" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "TELEGRAM_BOT_USERNAME" -Message "Telegram profile requires TELEGRAM_BOT_USERNAME" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "GROUP_CHAT_ID" -Message "Telegram profile requires GROUP_CHAT_ID" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "TELEGRAM_BOT_TOKEN" -Message "Telegram profile requires TELEGRAM_BOT_TOKEN" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "TELEGRAM_BOT_USERNAME" -Message "Telegram profile requires TELEGRAM_BOT_USERNAME" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "GROUP_CHAT_ID" -Message "Telegram profile requires GROUP_CHAT_ID" | Out-Null
     }
     if ($Profiles -contains "vk") {
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "VK_BOT_TOKEN" -Message "VK profile requires VK_BOT_TOKEN" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "VK_GROUP_ID" -Message "VK profile requires VK_GROUP_ID" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "VK_OPERATOR_CHAT_ID" -Message "VK profile requires VK_OPERATOR_CHAT_ID" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "VK_BOT_TOKEN" -Message "VK profile requires VK_BOT_TOKEN" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "VK_GROUP_ID" -Message "VK profile requires VK_GROUP_ID" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "VK_OPERATOR_CHAT_ID" -Message "VK profile requires VK_OPERATOR_CHAT_ID" | Out-Null
     }
     if ($Profiles -contains "max") {
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "MAX_BOT_TOKEN" -Message "MAX profile requires MAX_BOT_TOKEN" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "MAX_CHANNEL_ID" -Message "MAX profile requires MAX_CHANNEL_ID" | Out-Null
-        Assert-RequiredSetting -DotEnv $dotEnv -Name "MAX_SUPPORT_CHAT_ID" -Message "MAX profile requires MAX_SUPPORT_CHAT_ID" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "MAX_BOT_TOKEN" -Message "MAX profile requires MAX_BOT_TOKEN" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "MAX_CHANNEL_ID" -Message "MAX profile requires MAX_CHANNEL_ID" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "MAX_SUPPORT_CHAT_ID" -Message "MAX profile requires MAX_SUPPORT_CHAT_ID" | Out-Null
     }
 
-    if ($Edge) {
-        if ($AllowInsecureDefaults) {
-            Assert-RequiredSetting -DotEnv $dotEnv -Name "IGUANA_PUBLIC_HOST" -Message "Edge contour requires IGUANA_PUBLIC_HOST" | Out-Null
+    if ($EdgeEnabled) {
+        if ($AllowInsecure) {
+            Assert-RequiredSetting -DotEnv $DotEnv -Name "IGUANA_PUBLIC_HOST" -Message "Edge contour requires IGUANA_PUBLIC_HOST" | Out-Null
         } else {
-            Assert-NonDefaultSecret -DotEnv $dotEnv -Name "IGUANA_PUBLIC_HOST" -DisallowedValues @("localhost", "127.0.0.1", "example.com") -Message "Edge contour requires explicit public host" | Out-Null
+            Assert-NonDefaultSecret -DotEnv $DotEnv -Name "IGUANA_PUBLIC_HOST" -DisallowedValues @("localhost", "127.0.0.1", "example.com") -Message "Edge contour requires explicit public host" | Out-Null
         }
 
-        $tlsEnabled = Test-TruthySetting -Value (Get-SettingValue -DotEnv $dotEnv -Name "IGUANA_EDGE_TLS_ENABLED")
+        $tlsEnabled = Test-TruthySetting -Value (Get-SettingValue -DotEnv $DotEnv -Name "IGUANA_EDGE_TLS_ENABLED")
         if ($tlsEnabled) {
-            $certDirectory = Resolve-RepoPathFromSetting -RepoRoot $RepoRoot -DotEnv $dotEnv -Name "IGUANA_EDGE_CERTS_DIR" -DefaultValue "./deploy/nginx/certs"
+            $certDirectory = Resolve-RepoPathFromSetting -RepoRoot $RepoRoot -DotEnv $DotEnv -Name "IGUANA_EDGE_CERTS_DIR" -DefaultValue "./deploy/nginx/certs"
             Assert-RequiredFile -Path (Join-Path $certDirectory "fullchain.pem") -Label "Edge TLS certificate"
             Assert-RequiredFile -Path (Join-Path $certDirectory "privkey.pem") -Label "Edge TLS private key"
         }
@@ -238,6 +260,8 @@ function Invoke-PreflightChecks {
 $repoRoot = Get-RepoRoot
 $composeFile = Join-Path $repoRoot "docker-compose.production-contour.yml"
 $edgeComposeFile = Join-Path $repoRoot "docker-compose.production-edge.yml"
+$dotEnvPath = Join-Path $repoRoot ".env"
+$dotEnv = Read-DotEnvFile -Path $dotEnvPath
 
 if (-not (Test-Path -LiteralPath $composeFile)) {
     throw "Compose file not found: $composeFile"
@@ -257,6 +281,9 @@ if ($Max) {
     $profiles += "max"
 }
 
+$resolvedWebReplicas = Resolve-ReplicaCount -ExplicitValue $WebReplicas -DotEnv $dotEnv -SettingName "IGUANA_PANEL_WEB_REPLICAS" -DefaultValue 1
+$resolvedWorkerReplicas = Resolve-ReplicaCount -ExplicitValue $WorkerReplicas -DotEnv $dotEnv -SettingName "IGUANA_OPS_WORKER_REPLICAS" -DefaultValue 1
+
 $requiredDirectories = @(
     (Join-Path $repoRoot "attachments"),
     (Join-Path $repoRoot "attachments\knowledge_base"),
@@ -271,34 +298,42 @@ foreach ($directory in $requiredDirectories) {
     New-Item -ItemType Directory -Force -Path $directory | Out-Null
 }
 
-Invoke-PreflightChecks -RepoRoot $repoRoot -Profiles $profiles -Edge:$Edge -AllowInsecureDefaults:$AllowInsecureDefaults
+Invoke-PreflightChecks -RepoRoot $repoRoot -DotEnv $dotEnv -Profiles $profiles -EdgeEnabled:$Edge -AllowInsecure:$AllowInsecureDefaults
+
+$dockerCommand = Ensure-DockerAvailable
+$baseArguments = @("compose", "--project-directory", $repoRoot)
+if (Test-Path -LiteralPath $dotEnvPath) {
+    $baseArguments += @("--env-file", $dotEnvPath)
+}
+$baseArguments += @("-f", $composeFile)
+if ($Edge) {
+    $baseArguments += @("-f", $edgeComposeFile)
+}
+foreach ($profile in $profiles) {
+    $baseArguments += @("--profile", $profile)
+}
 
 if ($ValidateOnly) {
+    $configArguments = $baseArguments + @("config", "-q")
+    & $dockerCommand @configArguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "docker compose config validation failed with exit code $LASTEXITCODE."
+    }
+
     Write-Host "[INFO] Validation succeeded."
-    Write-Host "[INFO] Compose file: $composeFile"
-    if ($Edge) {
-        Write-Host "[INFO] Edge compose file: $edgeComposeFile"
-    }
-    if ($profiles.Count -gt 0) {
-        Write-Host "[INFO] Profiles: $($profiles -join ', ')"
-    } else {
-        Write-Host "[INFO] Profiles: none (infra + panel only)"
-    }
+    Write-Host "[INFO] panel-web replicas: $resolvedWebReplicas"
+    Write-Host "[INFO] ops-worker replicas: $resolvedWorkerReplicas"
     Write-Host "[INFO] Edge enabled: $Edge"
     Write-Host "[INFO] Insecure defaults allowed: $AllowInsecureDefaults"
     exit 0
 }
 
-$dockerCommand = Ensure-DockerAvailable
-
-$arguments = @("compose", "-f", $composeFile)
-if ($Edge) {
-    $arguments += @("-f", $edgeComposeFile)
-}
-foreach ($profile in $profiles) {
-    $arguments += @("--profile", $profile)
-}
-$arguments += "up"
+$arguments = $baseArguments + @(
+    "up",
+    "--remove-orphans",
+    "--scale", "panel-web=$resolvedWebReplicas",
+    "--scale", "ops-worker=$resolvedWorkerReplicas"
+)
 if ($Build) {
     $arguments += "--build"
 }
@@ -307,7 +342,9 @@ if (-not $NoDetach) {
 }
 
 Write-Host "[INFO] Starting Iguana docker production contour"
-Write-Host "[INFO] Profiles: $($(if ($profiles.Count -gt 0) { $profiles -join ', ' } else { 'none (infra + panel only)' }))"
+Write-Host "[INFO] panel-web replicas: $resolvedWebReplicas"
+Write-Host "[INFO] ops-worker replicas: $resolvedWorkerReplicas"
+Write-Host "[INFO] Profiles: $($(if ($profiles.Count -gt 0) { $profiles -join ', ' } else { 'none' }))"
 Write-Host "[INFO] Edge enabled: $Edge"
 
 & $dockerCommand @arguments
@@ -316,3 +353,4 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "[INFO] Iguana docker production contour started."
+Write-Host "[INFO] Local loopback ingress: http://$((Get-SettingValue -DotEnv $dotEnv -Name 'APP_PANEL_BIND_HOST') -replace '^$','127.0.0.1'):$((Get-SettingValue -DotEnv $dotEnv -Name 'APP_HTTP_PORT') -replace '^$','8080')"
