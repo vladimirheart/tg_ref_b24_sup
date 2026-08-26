@@ -1,5 +1,10 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeRoleProperties;
+import java.time.OffsetDateTime;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import com.example.panel.service.LocationsIikoSyncSettingsService.LocationIikoSyncSettings;
 import jakarta.annotation.PreDestroy;
 import java.time.Instant;
@@ -39,6 +44,15 @@ public class IikoDepartmentLocationsSyncService {
     private volatile SyncStatusSnapshot status = SyncStatusSnapshot.idle();
     private volatile Instant lastFinishedAt;
 
+    @Autowired(required = false)
+    private BackendOpsCommandService backendOpsCommandService;
+
+    @Autowired(required = false)
+    private BackendOpsCommandExecutionContext backendOpsExecutionContext;
+
+    @Autowired(required = false)
+    private RuntimeRoleProperties runtimeRoleProperties;
+
     public IikoDepartmentLocationsSyncService(IikoDepartmentLocationCatalogService locationCatalogService,
                                               SharedConfigService sharedConfigService,
                                               SettingsParameterService settingsParameterService,
@@ -50,6 +64,14 @@ public class IikoDepartmentLocationsSyncService {
     }
 
     public SyncTriggerResponse triggerManualSync() {
+        if (useDurableBackendOps()) {
+            BackendOpsCommandService.EnqueueResult queued =
+                enqueueDurableSync("manual", true);
+            return new SyncTriggerResponse(
+                queued.created(),
+                getStatus()
+            );
+        }
         return triggerAsync("manual", true);
     }
 
@@ -58,6 +80,29 @@ public class IikoDepartmentLocationsSyncService {
         if (!settings.enabled()) {
             return;
         }
+
+        if (useDurableBackendOps()) {
+            if (backendOpsCommandService.findActiveByType(
+                BackendOpsCommandTypes.IIKO_LOCATIONS_SYNC
+            ).isPresent()) {
+                return;
+            }
+            BackendOpsCommandService.CommandSnapshot lastSucceeded =
+                backendOpsCommandService.findLatestSucceededByType(
+                    BackendOpsCommandTypes.IIKO_LOCATIONS_SYNC
+                ).orElse(null);
+            Instant now = Instant.now();
+            if (lastSucceeded != null
+                && lastSucceeded.completedAt() != null
+                && lastSucceeded.completedAt().toInstant()
+                    .plusSeconds(settings.intervalMinutes() * 60L)
+                    .isAfter(now)) {
+                return;
+            }
+            enqueueDurableSync("schedule", true);
+            return;
+        }
+
         if (running.get()) {
             return;
         }
@@ -70,6 +115,9 @@ public class IikoDepartmentLocationsSyncService {
 
     public SyncStatusSnapshot getStatus() {
         LocationIikoSyncSettings settings = locationsIikoSyncSettingsService.load(sharedConfigService.loadSettings());
+        if (useDurableBackendOps()) {
+            return durableStatus(settings);
+        }
         String nextRunAtUtc = null;
         if (settings.enabled() && lastFinishedAt != null) {
             nextRunAtUtc = formatUtc(lastFinishedAt.plusSeconds(settings.intervalMinutes() * 60L));
@@ -81,6 +129,7 @@ public class IikoDepartmentLocationsSyncService {
     }
 
     SyncStatusSnapshot syncNow(String trigger, boolean forceRefresh) {
+        running.set(true);
         Instant startedAt = Instant.now();
         updateStatus(new SyncStatusSnapshot(
                 "running",
@@ -163,6 +212,155 @@ public class IikoDepartmentLocationsSyncService {
         }
     }
 
+    public SyncStatusSnapshot executeBackendOpsSync(Map<String, Object> payload) {
+        String trigger = textValue(payload == null ? null : payload.get("trigger"), "worker");
+        boolean forceRefresh = booleanValue(payload == null ? null : payload.get("force_refresh"), true);
+        SyncStatusSnapshot result = syncNow(trigger, forceRefresh);
+        if ("error".equalsIgnoreCase(result.state())) {
+            throw new IllegalStateException(
+                result.warnings() != null && !result.warnings().isEmpty()
+                    ? result.warnings().get(0)
+                    : result.message()
+            );
+        }
+        return result;
+    }
+
+    private BackendOpsCommandService.EnqueueResult enqueueDurableSync(String trigger,
+                                                                       boolean forceRefresh) {
+        return backendOpsCommandService.enqueueExclusive(
+            BackendOpsCommandTypes.IIKO_LOCATIONS_SYNC,
+            "global",
+            Map.of(
+                "trigger", trigger,
+                "force_refresh", forceRefresh
+            ),
+            "panel"
+        );
+    }
+
+    private SyncStatusSnapshot durableStatus(LocationIikoSyncSettings settings) {
+        BackendOpsCommandService.CommandSnapshot latest =
+            backendOpsCommandService.findLatestByType(
+                BackendOpsCommandTypes.IIKO_LOCATIONS_SYNC
+            ).orElse(null);
+        BackendOpsCommandService.CommandSnapshot lastSucceeded =
+            backendOpsCommandService.findLatestSucceededByType(
+                BackendOpsCommandTypes.IIKO_LOCATIONS_SYNC
+            ).orElse(null);
+        SyncStatusSnapshot previousSuccess =
+            backendOpsCommandService.readResult(
+                lastSucceeded,
+                SyncStatusSnapshot.class
+            );
+
+        if (latest == null) {
+            return SyncStatusSnapshot.idle().withSchedule(
+                settings.enabled(),
+                settings.intervalMinutes(),
+                null
+            );
+        }
+
+        if (latest.succeeded()) {
+            SyncStatusSnapshot stored =
+                backendOpsCommandService.readResult(
+                    latest,
+                    SyncStatusSnapshot.class
+                );
+            if (stored != null) {
+                return stored.withSchedule(
+                    settings.enabled(),
+                    settings.intervalMinutes(),
+                    nextLocationsRunAt(settings, latest.completedAt())
+                );
+            }
+        }
+
+        String trigger = textValue(latest.payload().get("trigger"), "worker");
+        String message = latest.progressMessage();
+        if (message == null || message.isBlank()) {
+            message = latest.failed()
+                ? "Синхронизация завершилась ошибкой"
+                : "Синхронизация ожидает выполнения";
+        }
+        List<String> warnings = latest.failed()
+            ? List.of(textValue(latest.lastError(), "Ошибка выполнения команды"))
+            : List.of();
+        return new SyncStatusSnapshot(
+            latest.failed() ? "error" : latest.status(),
+            latest.progressPercent(),
+            message,
+            trigger,
+            formatOffsetDateTime(latest.requestedAt()),
+            formatOffsetDateTime(latest.completedAt()),
+            false,
+            warnings,
+            previousSuccess == null ? null : previousSuccess.result(),
+            previousSuccess == null ? null : previousSuccess.lastSuccessAtUtc(),
+            latest.running(),
+            settings.intervalMinutes(),
+            nextLocationsRunAt(
+                settings,
+                lastSucceeded == null ? null : lastSucceeded.completedAt()
+            )
+        ).withSchedule(
+            settings.enabled(),
+            settings.intervalMinutes(),
+            nextLocationsRunAt(
+                settings,
+                lastSucceeded == null ? null : lastSucceeded.completedAt()
+            )
+        );
+    }
+
+    private String nextLocationsRunAt(LocationIikoSyncSettings settings,
+                                      OffsetDateTime completedAt) {
+        if (!settings.enabled() || completedAt == null) {
+            return null;
+        }
+        return formatUtc(
+            completedAt.toInstant()
+                .plusSeconds(settings.intervalMinutes() * 60L)
+        );
+    }
+
+    private String formatOffsetDateTime(OffsetDateTime value) {
+        return value == null ? null : value.toString();
+    }
+
+    private boolean useDurableBackendOps() {
+        if (backendOpsCommandService == null || runtimeRoleProperties == null) {
+            return false;
+        }
+        RuntimeRole role = runtimeRoleProperties.resolvedRole();
+        return role != RuntimeRole.ALL && role != RuntimeRole.MIGRATOR;
+    }
+
+    private String textValue(Object value, String fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        String normalized = String.valueOf(value).trim();
+        return normalized.isEmpty() ? fallback : normalized;
+    }
+
+    private boolean booleanValue(Object value, boolean fallback) {
+        if (value instanceof Boolean rawBoolean) {
+            return rawBoolean;
+        }
+        if (value == null) {
+            return fallback;
+        }
+        String normalized = String.valueOf(value).trim();
+        if (normalized.isEmpty()) {
+            return fallback;
+        }
+        return !"false".equalsIgnoreCase(normalized)
+            && !"0".equals(normalized)
+            && !"off".equalsIgnoreCase(normalized)
+            && !"no".equalsIgnoreCase(normalized);
+    }
     private SyncTriggerResponse triggerAsync(String trigger, boolean forceRefresh) {
         if (!running.compareAndSet(false, true)) {
             return new SyncTriggerResponse(false, getStatus());
@@ -188,6 +386,9 @@ public class IikoDepartmentLocationsSyncService {
     }
 
     private void updateProgress(int progressPercent, String message) {
+        if (backendOpsExecutionContext != null) {
+            backendOpsExecutionContext.reportProgress(progressPercent, message);
+        }
         SyncStatusSnapshot current = status;
         updateStatus(new SyncStatusSnapshot(
                 "running",

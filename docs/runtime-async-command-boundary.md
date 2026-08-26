@@ -74,3 +74,27 @@ with:
 - optional Redis UI event fanout when state changes.
 
 This is not a new microservice. It is a durable boundary inside the canonical backend that later allows a dedicated integration worker/service to be extracted without changing operator APIs.
+
+## Phase D implementation
+
+The target boundary is now implemented by `backend_ops_command`.
+
+- PostgreSQL: `V40__backend_ops_command.sql`.
+- SQLite: `V51__backend_ops_command.sql`.
+- one nullable unique `active_key` per command type prevents duplicate active execution across replicas;
+- worker claim uses compare-and-set `UPDATE ... WHERE status='queued'`;
+- stale running claims are returned to the queue;
+- progress and terminal result/error are durable;
+- `panel-web` only enqueues in explicit role mode;
+- `ops-worker` executes through `BackendOpsCommandDispatcher`;
+- legacy process-local executors remain only as `APP_RUNTIME_ROLE=all` compatibility behavior.
+
+Covered command types:
+
+- `rms.license.refresh`;
+- `rms.network.refresh`;
+- `iiko.api.refresh`;
+- `iiko.locations.sync`;
+- `netbox.passports.sync`.
+
+The next architecture step is no longer another service boundary. It is the production Compose deployment split and real Docker scale smoke.

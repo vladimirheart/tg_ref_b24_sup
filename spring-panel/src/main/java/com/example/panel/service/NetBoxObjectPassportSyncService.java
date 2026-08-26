@@ -1,5 +1,10 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeRoleProperties;
+import java.time.OffsetDateTime;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import com.example.panel.service.NetBoxApiService.DownloadedFile;
 import com.example.panel.service.NetBoxSyncSettingsService.NetBoxSyncSettings;
 import com.example.panel.storage.ObjectPassportPhotoStorageService;
@@ -75,6 +80,15 @@ public class NetBoxObjectPassportSyncService {
     private volatile SyncStatusSnapshot status = SyncStatusSnapshot.idle();
     private volatile Instant lastFinishedAt;
 
+    @Autowired(required = false)
+    private BackendOpsCommandService backendOpsCommandService;
+
+    @Autowired(required = false)
+    private BackendOpsCommandExecutionContext backendOpsExecutionContext;
+
+    @Autowired(required = false)
+    private RuntimeRoleProperties runtimeRoleProperties;
+
     public NetBoxObjectPassportSyncService(SharedConfigService sharedConfigService,
                                            NetBoxSyncSettingsService settingsService,
                                            NetBoxApiService netBoxApiService,
@@ -94,12 +108,46 @@ public class NetBoxObjectPassportSyncService {
     }
 
     public SyncTriggerResponse triggerManualSync() {
+        if (useDurableBackendOps()) {
+            BackendOpsCommandService.EnqueueResult queued =
+                enqueueDurableSync("manual");
+            return new SyncTriggerResponse(
+                queued.created(),
+                getStatus()
+            );
+        }
         return triggerAsync("manual");
     }
 
     public void runScheduledSyncIfDue() {
         NetBoxSyncSettings settings = settingsService.load(sharedConfigService.loadSettings());
-        if (!settings.enabled() || running.get()) {
+        if (!settings.enabled()) {
+            return;
+        }
+
+        if (useDurableBackendOps()) {
+            if (backendOpsCommandService.findActiveByType(
+                BackendOpsCommandTypes.NETBOX_PASSPORTS_SYNC
+            ).isPresent()) {
+                return;
+            }
+            BackendOpsCommandService.CommandSnapshot lastSucceeded =
+                backendOpsCommandService.findLatestSucceededByType(
+                    BackendOpsCommandTypes.NETBOX_PASSPORTS_SYNC
+                ).orElse(null);
+            Instant now = Instant.now();
+            if (lastSucceeded != null
+                && lastSucceeded.completedAt() != null
+                && lastSucceeded.completedAt().toInstant()
+                    .plusSeconds(settings.intervalMinutes() * 60L)
+                    .isAfter(now)) {
+                return;
+            }
+            enqueueDurableSync("schedule");
+            return;
+        }
+
+        if (running.get()) {
             return;
         }
         Instant now = Instant.now();
@@ -112,6 +160,9 @@ public class NetBoxObjectPassportSyncService {
     public SyncStatusSnapshot getStatus() {
         Map<String, Object> rawSettings = sharedConfigService.loadSettings();
         NetBoxSyncSettings settings = settingsService.load(rawSettings);
+        if (useDurableBackendOps()) {
+            return durableStatus(settings);
+        }
         String nextRunAtUtc = null;
         if (settings.enabled() && lastFinishedAt != null) {
             nextRunAtUtc = formatUtc(lastFinishedAt.plusSeconds(settings.intervalMinutes() * 60L));
@@ -150,6 +201,7 @@ public class NetBoxObjectPassportSyncService {
     }
 
     SyncStatusSnapshot syncNow(String trigger) {
+        running.set(true);
         Instant startedAt = Instant.now();
         updateStatus(new SyncStatusSnapshot(
                 "running",
@@ -827,6 +879,126 @@ public class NetBoxObjectPassportSyncService {
         }
     }
 
+    public SyncStatusSnapshot executeBackendOpsSync(Map<String, Object> payload) {
+        String trigger = textValue(payload == null ? null : payload.get("trigger"), "worker");
+        SyncStatusSnapshot result = syncNow(trigger);
+        if ("error".equalsIgnoreCase(result.state())) {
+            throw new IllegalStateException(
+                result.warnings() != null && !result.warnings().isEmpty()
+                    ? result.warnings().get(0)
+                    : result.message()
+            );
+        }
+        return result;
+    }
+
+    private BackendOpsCommandService.EnqueueResult enqueueDurableSync(String trigger) {
+        return backendOpsCommandService.enqueueExclusive(
+            BackendOpsCommandTypes.NETBOX_PASSPORTS_SYNC,
+            "global",
+            Map.of("trigger", trigger),
+            "panel"
+        );
+    }
+
+    private SyncStatusSnapshot durableStatus(NetBoxSyncSettings settings) {
+        BackendOpsCommandService.CommandSnapshot latest =
+            backendOpsCommandService.findLatestByType(
+                BackendOpsCommandTypes.NETBOX_PASSPORTS_SYNC
+            ).orElse(null);
+        BackendOpsCommandService.CommandSnapshot lastSucceeded =
+            backendOpsCommandService.findLatestSucceededByType(
+                BackendOpsCommandTypes.NETBOX_PASSPORTS_SYNC
+            ).orElse(null);
+        SyncStatusSnapshot previousSuccess =
+            backendOpsCommandService.readResult(
+                lastSucceeded,
+                SyncStatusSnapshot.class
+            );
+
+        if (latest == null) {
+            return SyncStatusSnapshot.idle().withSettings(
+                settings,
+                null
+            );
+        }
+
+        if (latest.succeeded()) {
+            SyncStatusSnapshot stored =
+                backendOpsCommandService.readResult(
+                    latest,
+                    SyncStatusSnapshot.class
+                );
+            if (stored != null) {
+                return stored.withSettings(
+                    settings,
+                    nextNetBoxRunAt(settings, latest.completedAt())
+                );
+            }
+        }
+
+        String trigger = textValue(latest.payload().get("trigger"), "worker");
+        String message = latest.progressMessage();
+        if (message == null || message.isBlank()) {
+            message = latest.failed()
+                ? "Синхронизация завершилась ошибкой"
+                : "Синхронизация ожидает выполнения";
+        }
+        List<String> warnings = latest.failed()
+            ? List.of(textValue(latest.lastError(), "Ошибка выполнения команды"))
+            : List.of();
+        String nextRun = nextNetBoxRunAt(
+            settings,
+            lastSucceeded == null ? null : lastSucceeded.completedAt()
+        );
+        return new SyncStatusSnapshot(
+            latest.failed() ? "error" : latest.status(),
+            latest.progressPercent(),
+            message,
+            trigger,
+            formatOffsetDateTime(latest.requestedAt()),
+            formatOffsetDateTime(latest.completedAt()),
+            warnings,
+            previousSuccess == null ? null : previousSuccess.result(),
+            previousSuccess == null ? null : previousSuccess.lastSuccessAtUtc(),
+            latest.running(),
+            settings.fullOverwritePending(),
+            settings.enabled(),
+            settings.intervalMinutes(),
+            nextRun
+        ).withSettings(settings, nextRun);
+    }
+
+    private String nextNetBoxRunAt(NetBoxSyncSettings settings,
+                                   OffsetDateTime completedAt) {
+        if (!settings.enabled() || completedAt == null) {
+            return null;
+        }
+        return formatUtc(
+            completedAt.toInstant()
+                .plusSeconds(settings.intervalMinutes() * 60L)
+        );
+    }
+
+    private String formatOffsetDateTime(OffsetDateTime value) {
+        return value == null ? null : value.toString();
+    }
+
+    private boolean useDurableBackendOps() {
+        if (backendOpsCommandService == null || runtimeRoleProperties == null) {
+            return false;
+        }
+        RuntimeRole role = runtimeRoleProperties.resolvedRole();
+        return role != RuntimeRole.ALL && role != RuntimeRole.MIGRATOR;
+    }
+
+    private String textValue(Object value, String fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        String normalized = String.valueOf(value).trim();
+        return normalized.isEmpty() ? fallback : normalized;
+    }
     private SyncTriggerResponse triggerAsync(String trigger) {
         if (!running.compareAndSet(false, true)) {
             return new SyncTriggerResponse(false, getStatus());
@@ -879,6 +1051,9 @@ public class NetBoxObjectPassportSyncService {
     }
 
     private void updateProgress(int progressPercent, String message) {
+        if (backendOpsExecutionContext != null) {
+            backendOpsExecutionContext.reportProgress(progressPercent, message);
+        }
         SyncStatusSnapshot current = status;
         updateStatus(new SyncStatusSnapshot(
                 "running",

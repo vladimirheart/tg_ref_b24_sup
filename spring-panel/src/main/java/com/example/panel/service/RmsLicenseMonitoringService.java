@@ -139,6 +139,12 @@ public class RmsLicenseMonitoringService {
     @Autowired(required = false)
     private RuntimeRoleProperties runtimeRoleProperties;
 
+    @Autowired(required = false)
+    private BackendOpsCommandService backendOpsCommandService;
+
+    @Autowired(required = false)
+    private BackendOpsCommandExecutionContext backendOpsExecutionContext;
+
     public RmsLicenseMonitoringService(RmsLicenseMonitorRepository repository,
                                        MonitoringCheckHistoryRepository historyRepository,
                                        NotificationService notificationService,
@@ -165,9 +171,9 @@ public class RmsLicenseMonitoringService {
         RuntimeRole role = runtimeRoleProperties == null
             ? RuntimeRole.ALL
             : runtimeRoleProperties.resolvedRole();
-        if (role != RuntimeRole.ALL && role != RuntimeRole.WORKER) {
+        if (role != RuntimeRole.ALL) {
             log.info(
-                "Skipping persisted RMS queue restore for runtime role '{}'; ops-worker owns queued execution.",
+                "Skipping persisted RMS queue restore for runtime role '{}'; explicit roles use backend_ops_command.",
                 role.externalName()
             );
             return;
@@ -315,6 +321,25 @@ public class RmsLicenseMonitoringService {
     }
 
     private RefreshRequestResult queueLicenseRefresh(Long monitorId, boolean withNotifications) {
+        if (useDurableBackendOps()) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            if (monitorId != null) {
+                payload.put("monitor_id", monitorId);
+            }
+            payload.put("with_notifications", withNotifications);
+            BackendOpsCommandService.EnqueueResult queued =
+                backendOpsCommandService.enqueueExclusive(
+                    BackendOpsCommandTypes.RMS_LICENSE_REFRESH,
+                    monitorId == null ? "all" : "monitor:" + monitorId,
+                    payload,
+                    "panel"
+                );
+            return new RefreshRequestResult(
+                queued.created() ? "queued" : "already_queued",
+                currentRefreshState()
+            );
+        }
+
         OffsetDateTime requestedAt = OffsetDateTime.now(ZoneOffset.UTC);
         if (!licenseRefreshPending.compareAndSet(false, true)) {
             return new RefreshRequestResult("already_queued", currentRefreshState());
@@ -342,6 +367,24 @@ public class RmsLicenseMonitoringService {
     }
 
     private RefreshRequestResult queueNetworkRefresh(Long monitorId) {
+        if (useDurableBackendOps()) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            if (monitorId != null) {
+                payload.put("monitor_id", monitorId);
+            }
+            BackendOpsCommandService.EnqueueResult queued =
+                backendOpsCommandService.enqueueExclusive(
+                    BackendOpsCommandTypes.RMS_NETWORK_REFRESH,
+                    monitorId == null ? "all" : "monitor:" + monitorId,
+                    payload,
+                    "panel"
+                );
+            return new RefreshRequestResult(
+                queued.created() ? "queued" : "already_queued",
+                currentRefreshState()
+            );
+        }
+
         OffsetDateTime requestedAt = OffsetDateTime.now(ZoneOffset.UTC);
         if (!networkRefreshPending.compareAndSet(false, true)) {
             return new RefreshRequestResult("already_queued", currentRefreshState());
@@ -454,6 +497,12 @@ public class RmsLicenseMonitoringService {
     }
 
     public RefreshState currentRefreshState() {
+        if (useDurableBackendOps()) {
+            return new RefreshState(
+                durableQueueState(BackendOpsCommandTypes.RMS_LICENSE_REFRESH),
+                durableQueueState(BackendOpsCommandTypes.RMS_NETWORK_REFRESH)
+            );
+        }
         return new RefreshState(
             new QueueState(
                 licenseRefreshRunning.get(),
@@ -720,6 +769,126 @@ public class RmsLicenseMonitoringService {
         return trimText(summary.toString(), 600, "");
     }
 
+    public Map<String, Object> executeBackendOpsLicenseRefresh(Map<String, Object> payload) {
+        Long monitorId = longValue(payload == null ? null : payload.get("monitor_id"));
+        boolean withNotifications = booleanValue(
+            payload == null ? null : payload.get("with_notifications"),
+            false
+        );
+        reportBackendOpsProgress(5, "Запускаем обновление RMS-лицензий");
+        if (monitorId == null) {
+            refreshAllLicensesInternal(withNotifications);
+        } else {
+            RmsLicenseMonitor monitor = requireMonitor(monitorId);
+            licenseQueueTracker.start(List.of(monitor.getId()));
+            licenseQueueTracker.markRunning(monitor.getId());
+            refreshLicenseState(monitor, withNotifications);
+            licenseQueueTracker.markCompleted(monitor.getId());
+        }
+        reportBackendOpsProgress(99, "Обновление RMS-лицензий завершено");
+        return Map.of(
+            "state", "success",
+            "scope", monitorId == null ? "all" : "monitor:" + monitorId
+        );
+    }
+
+    public Map<String, Object> executeBackendOpsNetworkRefresh(Map<String, Object> payload) {
+        Long monitorId = longValue(payload == null ? null : payload.get("monitor_id"));
+        reportBackendOpsProgress(5, "Запускаем сетевую диагностику RMS");
+        if (monitorId == null) {
+            refreshAllNetworkStatesInternal();
+        } else {
+            RmsLicenseMonitor monitor = requireMonitor(monitorId);
+            networkQueueTracker.start(List.of(monitor.getId()));
+            networkQueueTracker.markRunning(monitor.getId());
+            refreshNetworkState(monitor);
+            networkQueueTracker.markCompleted(monitor.getId());
+        }
+        reportBackendOpsProgress(99, "Сетевая диагностика RMS завершена");
+        return Map.of(
+            "state", "success",
+            "scope", monitorId == null ? "all" : "monitor:" + monitorId
+        );
+    }
+
+    private QueueState durableQueueState(String commandType) {
+        BackendOpsCommandService.CommandSnapshot active =
+            backendOpsCommandService.findActiveByType(commandType).orElse(null);
+        BackendOpsCommandService.CommandSnapshot latest =
+            backendOpsCommandService.findLatestByType(commandType).orElse(null);
+        BackendOpsCommandService.CommandSnapshot lastSucceeded =
+            backendOpsCommandService.findLatestSucceededByType(commandType).orElse(null);
+
+        BackendOpsCommandService.CommandSnapshot source =
+            active != null ? active : latest;
+        Long monitorId = longValue(
+            source == null ? null : source.payload().get("monitor_id")
+        );
+        int totalCount = 0;
+        if (source != null) {
+            totalCount = monitorId != null
+                ? 1
+                : repository.findAllByOrderByRmsAddressAscIdAsc().size();
+        }
+        int completedCount = source != null && source.succeeded()
+            ? totalCount
+            : 0;
+
+        return new QueueState(
+            active != null && active.running(),
+            active != null && active.queued(),
+            latest == null ? null : latest.requestedAt(),
+            lastSucceeded == null ? null : lastSucceeded.completedAt(),
+            active == null ? null : monitorId,
+            totalCount,
+            completedCount
+        );
+    }
+
+    private boolean useDurableBackendOps() {
+        if (backendOpsCommandService == null || runtimeRoleProperties == null) {
+            return false;
+        }
+        RuntimeRole role = runtimeRoleProperties.resolvedRole();
+        return role != RuntimeRole.ALL && role != RuntimeRole.MIGRATOR;
+    }
+
+    private void reportBackendOpsProgress(int progressPercent, String message) {
+        if (backendOpsExecutionContext != null) {
+            backendOpsExecutionContext.reportProgress(progressPercent, message);
+        }
+    }
+
+    private Long longValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(value).trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private boolean booleanValue(Object value, boolean fallback) {
+        if (value instanceof Boolean rawBoolean) {
+            return rawBoolean;
+        }
+        if (value == null) {
+            return fallback;
+        }
+        String normalized = String.valueOf(value).trim();
+        if (normalized.isEmpty()) {
+            return fallback;
+        }
+        return !"false".equalsIgnoreCase(normalized)
+            && !"0".equals(normalized)
+            && !"off".equalsIgnoreCase(normalized)
+            && !"no".equalsIgnoreCase(normalized);
+    }
     private void runQueuedLicenseRefresh() {
         LicenseRefreshTask task = pendingLicenseTask.getAndSet(null);
         licenseRefreshPending.set(false);

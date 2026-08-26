@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeRoleProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import com.example.panel.entity.IikoApiMonitor;
 import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.repository.IikoApiMonitorRepository;
@@ -64,6 +68,12 @@ public class IikoApiMonitoringService {
     private final AtomicReference<Long> pendingMonitorId = new AtomicReference<>();
     private final AtomicReference<OffsetDateTime> lastRefreshRequestedAt = new AtomicReference<>();
     private final AtomicReference<OffsetDateTime> lastRefreshCompletedAt = new AtomicReference<>();
+
+    @Autowired(required = false)
+    private BackendOpsCommandService backendOpsCommandService;
+
+    @Autowired(required = false)
+    private RuntimeRoleProperties runtimeRoleProperties;
 
     public IikoApiMonitoringService(IikoApiMonitorRepository repository,
                                     MonitoringCheckHistoryRepository historyRepository,
@@ -187,6 +197,26 @@ public class IikoApiMonitoringService {
     }
 
     public RefreshState currentRefreshState() {
+        if (useDurableBackendOps()) {
+            BackendOpsCommandService.CommandSnapshot latest =
+                backendOpsCommandService.findLatestByType(
+                    BackendOpsCommandTypes.IIKO_API_REFRESH
+                ).orElse(null);
+            BackendOpsCommandService.CommandSnapshot active =
+                backendOpsCommandService.findActiveByType(
+                    BackendOpsCommandTypes.IIKO_API_REFRESH
+                ).orElse(null);
+            BackendOpsCommandService.CommandSnapshot lastSucceeded =
+                backendOpsCommandService.findLatestSucceededByType(
+                    BackendOpsCommandTypes.IIKO_API_REFRESH
+                ).orElse(null);
+            return new RefreshState(
+                active != null && active.running(),
+                active != null && active.queued(),
+                latest == null ? null : latest.requestedAt(),
+                lastSucceeded == null ? null : lastSucceeded.completedAt()
+            );
+        }
         return new RefreshState(
             refreshRunning.get(),
             refreshPending.get(),
@@ -280,6 +310,24 @@ public class IikoApiMonitoringService {
     }
 
     private RefreshRequestResult queueRefresh(Long monitorId) {
+        if (useDurableBackendOps()) {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            if (monitorId != null) {
+                payload.put("monitor_id", monitorId);
+            }
+            BackendOpsCommandService.EnqueueResult queued =
+                backendOpsCommandService.enqueueExclusive(
+                    BackendOpsCommandTypes.IIKO_API_REFRESH,
+                    monitorId == null ? "all" : "monitor:" + monitorId,
+                    payload,
+                    "panel"
+                );
+            return new RefreshRequestResult(
+                queued.created() ? "queued" : "already_queued",
+                currentRefreshState()
+            );
+        }
+
         lastRefreshRequestedAt.set(OffsetDateTime.now(ZoneOffset.UTC));
         if (!refreshPending.compareAndSet(false, true)) {
             return new RefreshRequestResult("already_queued", currentRefreshState());
@@ -287,6 +335,41 @@ public class IikoApiMonitoringService {
         pendingMonitorId.set(monitorId);
         refreshExecutor.submit(this::runQueuedRefresh);
         return new RefreshRequestResult("queued", currentRefreshState());
+    }
+
+    public Map<String, Object> executeBackendOpsRefresh(Map<String, Object> payload) {
+        Long monitorId = longValue(payload == null ? null : payload.get("monitor_id"));
+        if (monitorId == null) {
+            refreshAllInternal();
+        } else {
+            refreshMonitor(requireMonitor(monitorId));
+        }
+        return Map.of(
+            "state", "success",
+            "scope", monitorId == null ? "all" : "monitor:" + monitorId
+        );
+    }
+
+    private boolean useDurableBackendOps() {
+        if (backendOpsCommandService == null || runtimeRoleProperties == null) {
+            return false;
+        }
+        RuntimeRole role = runtimeRoleProperties.resolvedRole();
+        return role != RuntimeRole.ALL && role != RuntimeRole.MIGRATOR;
+    }
+
+    private Long longValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(value).trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private void runQueuedRefresh() {

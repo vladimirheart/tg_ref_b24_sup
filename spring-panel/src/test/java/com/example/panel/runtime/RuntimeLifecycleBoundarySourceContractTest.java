@@ -38,7 +38,7 @@ class RuntimeLifecycleBoundarySourceContractTest {
         assertSource("service/BotAutoStartService.java",
             "ApplicationReadyEvent", "@RuntimeWorkload(", "roles = {}");
         assertSource("service/RmsLicenseMonitoringService.java",
-            "ApplicationReadyEvent", "RuntimeRole.WORKER", "Skipping persisted RMS queue restore");
+            "ApplicationReadyEvent", "RuntimeRole.ALL", "explicit roles use backend_ops_command");
         assertSource("config/PostgresRuntimeReadinessVerifier.java",
             "ApplicationReadyEvent", "RuntimeRole.WEB", "RuntimeRole.WORKER");
         assertSource("runtime/RuntimeMigrationExitListener.java",
