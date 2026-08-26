@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.config.LegacySqliteCompatibilitySettings;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import org.slf4j.Logger;
@@ -19,7 +23,11 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 200)
-public class PostgresImportedDataReconciliationService implements ApplicationRunner {
+@RuntimeWorkload(
+    id = "postgres-imported-data-reconciliation",
+    roles = {RuntimeRole.MIGRATOR},
+    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+)public class PostgresImportedDataReconciliationService implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(PostgresImportedDataReconciliationService.class);
 

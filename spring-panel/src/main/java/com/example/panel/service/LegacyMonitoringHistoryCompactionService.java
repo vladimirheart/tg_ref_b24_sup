@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.LegacySqliteCompatibilitySettings;
 import com.example.panel.config.MonitoringSqliteDataSourceProperties;
@@ -34,7 +38,11 @@ import org.springframework.util.StringUtils;
 
 @Service
 @Order(Ordered.HIGHEST_PRECEDENCE + 120)
-public class LegacyMonitoringHistoryCompactionService implements ApplicationRunner {
+@RuntimeWorkload(
+    id = "legacy-monitoring-history-compaction",
+    roles = {RuntimeRole.MIGRATOR},
+    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+)public class LegacyMonitoringHistoryCompactionService implements ApplicationRunner {
 
     static final int RETENTION_DAYS = 30;
     private static final Logger log = LoggerFactory.getLogger(LegacyMonitoringHistoryCompactionService.class);

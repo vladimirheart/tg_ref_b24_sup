@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.config.MonitoringSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteDataSourceProperties;
@@ -25,7 +29,11 @@ import java.util.List;
 
 @Service
 @Order(120)
-public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
+@RuntimeWorkload(
+    id = "sqlite-monitoring-database-bootstrap",
+    roles = {},
+    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+)public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
     // SQLite-only monitoring bootstrap/migration layer kept for local/dev compatibility.
 
     private static final Logger log = LoggerFactory.getLogger(MonitoringDatabaseBootstrapService.class);

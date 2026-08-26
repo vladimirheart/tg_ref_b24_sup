@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.entity.RmsLicenseMonitor;
 import com.example.panel.repository.RmsLicenseMonitorRepository;
 import org.slf4j.Logger;
@@ -27,7 +31,11 @@ import java.util.Set;
 
 @Service
 @Order(140)
-public class RmsMonitoringSeedImportService implements ApplicationRunner {
+@RuntimeWorkload(
+    id = "rms-monitoring-seed-import",
+    roles = {RuntimeRole.MIGRATOR},
+    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+)public class RmsMonitoringSeedImportService implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(RmsMonitoringSeedImportService.class);
 

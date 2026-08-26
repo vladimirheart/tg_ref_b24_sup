@@ -6,7 +6,8 @@ import org.springframework.util.StringUtils;
 public enum RuntimeRole {
     ALL,
     WEB,
-    WORKER;
+    WORKER,
+    MIGRATOR;
 
     public static RuntimeRole from(String rawValue) {
         if (!StringUtils.hasText(rawValue)) {
@@ -17,8 +18,10 @@ public enum RuntimeRole {
             case "all" -> ALL;
             case "web", "panel-web" -> WEB;
             case "worker", "ops-worker" -> WORKER;
+            case "migrate", "migrator", "db-migrate" -> MIGRATOR;
             default -> throw new IllegalArgumentException(
-                "Unsupported Iguana runtime role '" + rawValue + "'. Expected all, web/panel-web or worker/ops-worker."
+                "Unsupported Iguana runtime role '" + rawValue
+                    + "'. Expected all, web/panel-web, worker/ops-worker or migrate/db-migrate."
             );
         };
     }

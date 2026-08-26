@@ -1,5 +1,9 @@
 package com.example.panel;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.config.EnvDefaultsInitializer;
 import com.example.panel.security.SecurityBootstrap;
 import com.example.panel.service.AdditionalServicesHealthService;
@@ -25,6 +29,11 @@ public class PanelApplication {
     }
 
     @Bean
+    @RuntimeWorkload(
+        id = "security-bootstrap",
+        roles = {RuntimeRole.MIGRATOR},
+        replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+    )
     public ApplicationRunner bootstrapSecurity(ObjectProvider<SecurityBootstrap> securityBootstrap) {
         return args -> {
             SecurityBootstrap bootstrap = securityBootstrap.getIfAvailable();
@@ -35,6 +44,11 @@ public class PanelApplication {
     }
 
     @Bean
+    @RuntimeWorkload(
+        id = "additional-services-health-check",
+        roles = {},
+        replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+    )
     public ApplicationRunner checkAdditionalServices(ObjectProvider<AdditionalServicesHealthService> healthService) {
         return args -> {
             AdditionalServicesHealthService service = healthService.getIfAvailable();

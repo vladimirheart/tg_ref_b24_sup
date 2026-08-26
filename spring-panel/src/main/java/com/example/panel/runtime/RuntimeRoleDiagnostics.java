@@ -12,6 +12,11 @@ import org.springframework.boot.actuate.info.InfoContributor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RuntimeWorkload(
+    id = "runtime-role-diagnostics",
+    roles = {RuntimeRole.ALL},
+    replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+)
 public class RuntimeRoleDiagnostics implements ApplicationRunner, InfoContributor {
 
     private static final Logger log = LoggerFactory.getLogger(RuntimeRoleDiagnostics.class);

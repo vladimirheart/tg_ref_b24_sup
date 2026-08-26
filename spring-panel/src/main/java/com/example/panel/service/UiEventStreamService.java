@@ -1,9 +1,5 @@
 package com.example.panel.service;
 
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -12,13 +8,22 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Service
 public class UiEventStreamService {
 
     private static final long EMITTER_TIMEOUT_MS = 0L;
 
-    private final ConcurrentHashMap<String, CopyOnWriteArraySet<SseEmitter>> emittersByUser = new ConcurrentHashMap<>();
+    private final UiEventFanoutPublisher fanoutPublisher;
+    private final ConcurrentHashMap<String, CopyOnWriteArraySet<SseEmitter>> emittersByUser =
+        new ConcurrentHashMap<>();
+
+    public UiEventStreamService(UiEventFanoutPublisher fanoutPublisher) {
+        this.fanoutPublisher = fanoutPublisher;
+    }
 
     public SseEmitter connect(String userIdentity) {
         String identity = normalizeIdentity(userIdentity);
@@ -28,8 +33,8 @@ public class UiEventStreamService {
         emitter.onTimeout(() -> unregister(identity, emitter));
         emitter.onError(error -> unregister(identity, emitter));
         sendToEmitter(identity, emitter, "connected", Map.of(
-                "connected", true,
-                "emittedAt", nowUtc()
+            "connected", true,
+            "emittedAt", nowUtc()
         ));
         return emitter;
     }
@@ -69,17 +74,40 @@ public class UiEventStreamService {
 
     void sendHeartbeat() {
         Map<String, Object> payload = Map.of("emittedAt", nowUtc());
-        emittersByUser.forEach((identity, emitters) -> {
-            if (emitters == null || emitters.isEmpty()) {
-                return;
-            }
-            for (SseEmitter emitter : emitters) {
-                sendToEmitter(identity, emitter, "ping", payload);
-            }
-        });
+        deliverToAll("ping", payload);
+    }
+
+    void deliverFanoutEvent(UiEventFanoutEnvelope envelope) {
+        if (envelope == null || !StringUtils.hasText(envelope.eventName())) {
+            return;
+        }
+
+        if (StringUtils.hasText(envelope.targetUser())) {
+            deliverToUser(
+                normalizeIdentity(envelope.targetUser()),
+                envelope.eventName().trim(),
+                envelope.payload()
+            );
+            return;
+        }
+
+        deliverToAll(envelope.eventName().trim(), envelope.payload());
     }
 
     private void publishToAll(String eventName, Map<String, Object> payload) {
+        if (!fanoutPublisher.publish(null, eventName, payload)) {
+            deliverToAll(eventName, payload);
+        }
+    }
+
+    private void publishToUser(String userIdentity, String eventName, Map<String, Object> payload) {
+        String identity = normalizeIdentity(userIdentity);
+        if (!fanoutPublisher.publish(identity, eventName, payload)) {
+            deliverToUser(identity, eventName, payload);
+        }
+    }
+
+    private void deliverToAll(String eventName, Map<String, Object> payload) {
         emittersByUser.forEach((identity, emitters) -> {
             if (emitters == null || emitters.isEmpty()) {
                 return;
@@ -90,8 +118,7 @@ public class UiEventStreamService {
         });
     }
 
-    private void publishToUser(String userIdentity, String eventName, Map<String, Object> payload) {
-        String identity = normalizeIdentity(userIdentity);
+    private void deliverToUser(String identity, String eventName, Map<String, Object> payload) {
         Set<SseEmitter> emitters = emittersByUser.get(identity);
         if (emitters == null || emitters.isEmpty()) {
             return;
@@ -101,11 +128,14 @@ public class UiEventStreamService {
         }
     }
 
-    private void sendToEmitter(String identity, SseEmitter emitter, String eventName, Map<String, Object> payload) {
+    private void sendToEmitter(String identity,
+                               SseEmitter emitter,
+                               String eventName,
+                               Map<String, Object> payload) {
         try {
             emitter.send(SseEmitter.event()
-                    .name(eventName)
-                    .data(payload));
+                .name(eventName)
+                .data(payload));
         } catch (IOException | IllegalStateException ex) {
             unregister(identity, emitter);
             try {
@@ -144,7 +174,9 @@ public class UiEventStreamService {
     }
 
     private String normalizeIdentity(String userIdentity) {
-        return StringUtils.hasText(userIdentity) ? userIdentity.trim().toLowerCase() : "anonymous";
+        return StringUtils.hasText(userIdentity)
+            ? userIdentity.trim().toLowerCase()
+            : "anonymous";
     }
 
     private String nowUtc() {

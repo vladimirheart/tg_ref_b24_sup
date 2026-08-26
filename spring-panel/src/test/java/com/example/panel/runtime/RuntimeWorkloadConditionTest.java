@@ -17,7 +17,9 @@ class RuntimeWorkloadConditionTest {
         contextRunner.run(context -> {
             assertThat(context).hasBean("webWorkload");
             assertThat(context).hasBean("workerWorkload");
+            assertThat(context).hasBean("migratorWorkload");
             assertThat(context).hasBean("sharedWorkload");
+            assertThat(context).hasBean("compatibilityOnlyWorkload");
         });
     }
 
@@ -28,7 +30,9 @@ class RuntimeWorkloadConditionTest {
             .run(context -> {
                 assertThat(context).hasBean("webWorkload");
                 assertThat(context).doesNotHaveBean("workerWorkload");
+                assertThat(context).doesNotHaveBean("migratorWorkload");
                 assertThat(context).hasBean("sharedWorkload");
+                assertThat(context).doesNotHaveBean("compatibilityOnlyWorkload");
             });
     }
 
@@ -39,7 +43,23 @@ class RuntimeWorkloadConditionTest {
             .run(context -> {
                 assertThat(context).doesNotHaveBean("webWorkload");
                 assertThat(context).hasBean("workerWorkload");
+                assertThat(context).doesNotHaveBean("migratorWorkload");
                 assertThat(context).hasBean("sharedWorkload");
+                assertThat(context).doesNotHaveBean("compatibilityOnlyWorkload");
+            });
+    }
+
+    @Test
+    void dbMigrateAliasLoadsOnlyMigratorAndGlobalWorkloads() {
+        contextRunner
+            .withPropertyValues("app.runtime.role=db-migrate")
+            .run(context -> {
+                assertThat(context).doesNotHaveBean("webWorkload");
+                assertThat(context).doesNotHaveBean("workerWorkload");
+                assertThat(context).hasBean("migratorWorkload");
+                assertThat(context).doesNotHaveBean("sharedWorkload");
+                assertThat(context).doesNotHaveBean("compatibilityOnlyWorkload");
+                assertThat(context).hasBean("globalWorkload");
             });
     }
 
@@ -50,6 +70,8 @@ class RuntimeWorkloadConditionTest {
         assertThat(RuntimeRole.from("panel-web")).isEqualTo(RuntimeRole.WEB);
         assertThat(RuntimeRole.from("worker")).isEqualTo(RuntimeRole.WORKER);
         assertThat(RuntimeRole.from("ops-worker")).isEqualTo(RuntimeRole.WORKER);
+        assertThat(RuntimeRole.from("migrate")).isEqualTo(RuntimeRole.MIGRATOR);
+        assertThat(RuntimeRole.from("db-migrate")).isEqualTo(RuntimeRole.MIGRATOR);
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -77,12 +99,42 @@ class RuntimeWorkloadConditionTest {
 
         @Bean
         @RuntimeWorkload(
+            id = "test-migrator",
+            roles = {RuntimeRole.MIGRATOR},
+            replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+        )
+        Double migratorWorkload() {
+            return 1.0d;
+        }
+
+        @Bean
+        @RuntimeWorkload(
             id = "test-shared",
             roles = {RuntimeRole.WEB, RuntimeRole.WORKER},
             replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
         )
         Long sharedWorkload() {
             return 1L;
+        }
+
+        @Bean
+        @RuntimeWorkload(
+            id = "test-global",
+            roles = {RuntimeRole.ALL},
+            replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+        )
+        Float globalWorkload() {
+            return 1.0f;
+        }
+
+        @Bean
+        @RuntimeWorkload(
+            id = "test-compatibility-only",
+            roles = {},
+            replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+        )
+        Short compatibilityOnlyWorkload() {
+            return 1;
         }
     }
 }

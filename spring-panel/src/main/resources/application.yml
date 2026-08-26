@@ -61,6 +61,11 @@ app:
   runtime:
     role: ${APP_RUNTIME_ROLE:all}
     instance-id: ${APP_INSTANCE_ID:${HOSTNAME:local}}
+    exit-after-migration: ${APP_RUNTIME_EXIT_AFTER_MIGRATION:false}
+  ui-events:
+    fanout:
+      mode: ${APP_UI_EVENT_FANOUT_MODE:auto}
+      channel: ${APP_UI_EVENT_FANOUT_CHANNEL:iguana:ui-events:v1}
   datasource:
     mode: ${APP_DB_MODE:postgresql}
     sqlite:
@@ -229,6 +234,7 @@ management:
       application: ${spring.application.name:panel}
       service: spring-panel
       runtime_role: ${APP_RUNTIME_ROLE:all}
-      instance_id: ${APP_INSTANCE_ID:${HOSTNAME:local}}    distribution:
+      instance_id: ${APP_INSTANCE_ID:${HOSTNAME:local}}
+    distribution:
       percentiles-histogram:
         http.server.requests: true

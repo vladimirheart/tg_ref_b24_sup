@@ -1,5 +1,7 @@
 package com.example.panel.config;
 
+import com.example.panel.runtime.RuntimeRole;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -43,11 +45,21 @@ public class FlywayConfig {
     }
 
     @Bean
-    public FlywayMigrationStrategy normalizeLegacyHistoryBeforeMigrate() {
+    public FlywayMigrationStrategy normalizeLegacyHistoryBeforeMigrate(Environment environment) {
         return flyway -> {
-            // Legacy checksum/history cleanup is performed only when rows
-            // actually differ. Do not run flyway.repair() unconditionally on
-            // every normal startup: it adds noise and hides real repair events.
+            RuntimeRole runtimeRole = RuntimeRole.from(
+                environment.getProperty("app.runtime.role", "all")
+            );
+            if (runtimeRole == RuntimeRole.WEB || runtimeRole == RuntimeRole.WORKER) {
+                logger.info(
+                    "Skipping Flyway migration for runtime role '{}'; schema ownership belongs to all/db-migrate.",
+                    runtimeRole.externalName()
+                );
+                return;
+            }
+
+            // Legacy checksum/history cleanup is performed only by the migration owner.
+            // Do not run flyway.repair() unconditionally: it hides real repair events.
             normalizeSchemaHistory(flyway);
             flyway.migrate();
         };

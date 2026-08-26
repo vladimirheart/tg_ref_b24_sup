@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.config.LegacySqliteCompatibilitySettings;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import org.slf4j.Logger;
@@ -47,7 +51,11 @@ import java.util.regex.Pattern;
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 150)
-public class PostgresLegacyCriticalDataRecoveryService implements ApplicationRunner {
+@RuntimeWorkload(
+    id = "postgres-legacy-critical-data-recovery",
+    roles = {RuntimeRole.MIGRATOR},
+    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+)public class PostgresLegacyCriticalDataRecoveryService implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(PostgresLegacyCriticalDataRecoveryService.class);
     private static final Pattern SAFE_IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");

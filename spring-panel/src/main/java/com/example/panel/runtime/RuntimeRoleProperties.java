@@ -8,6 +8,7 @@ public class RuntimeRoleProperties {
 
     private String role = "all";
     private String instanceId = "local";
+    private boolean exitAfterMigration;
 
     public String getRole() {
         return role;
@@ -23,6 +24,14 @@ public class RuntimeRoleProperties {
 
     public void setInstanceId(String instanceId) {
         this.instanceId = instanceId;
+    }
+
+    public boolean isExitAfterMigration() {
+        return exitAfterMigration;
+    }
+
+    public void setExitAfterMigration(boolean exitAfterMigration) {
+        this.exitAfterMigration = exitAfterMigration;
     }
 
     public RuntimeRole resolvedRole() {

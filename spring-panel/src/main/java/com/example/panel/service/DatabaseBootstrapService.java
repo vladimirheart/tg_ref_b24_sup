@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.ClientsSqliteDataSourceProperties;
 import com.example.panel.config.KnowledgeSqliteDataSourceProperties;
@@ -15,7 +19,11 @@ import org.springframework.stereotype.Service;
 import javax.sql.DataSource;
 
 @Service
-public class DatabaseBootstrapService implements ApplicationRunner {
+@RuntimeWorkload(
+    id = "sqlite-secondary-database-bootstrap",
+    roles = {},
+    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+)public class DatabaseBootstrapService implements ApplicationRunner {
     // SQLite-only bootstrap for local secondary databases. Not part of the external PostgreSQL runtime path.
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseBootstrapService.class);

@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.config.BotProcessProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import org.slf4j.Logger;
@@ -38,7 +42,11 @@ import java.util.stream.Stream;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 110)
-public class LegacyBotShardConsolidationService implements ApplicationRunner {
+@RuntimeWorkload(
+    id = "legacy-bot-shard-consolidation",
+    roles = {RuntimeRole.MIGRATOR},
+    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+)public class LegacyBotShardConsolidationService implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(LegacyBotShardConsolidationService.class);
     private static final long IMPORT_LOCK_ID = 1018302L;

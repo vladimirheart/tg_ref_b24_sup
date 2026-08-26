@@ -1,5 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeWorkload;
+
 import com.example.panel.config.LegacySqliteCompatibilitySettings;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import org.slf4j.Logger;
@@ -61,7 +65,11 @@ import java.util.regex.Pattern;
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 100)
-public class LegacySqliteImportService implements ApplicationRunner {
+@RuntimeWorkload(
+    id = "legacy-sqlite-import",
+    roles = {RuntimeRole.MIGRATOR},
+    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+)public class LegacySqliteImportService implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(LegacySqliteImportService.class);
     private static final Pattern SAFE_IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
