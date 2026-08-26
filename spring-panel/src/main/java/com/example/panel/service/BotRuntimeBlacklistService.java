@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.config.PanelIntegrationTransportMode;
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import java.sql.ResultSet;
@@ -17,7 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-@Service
+@RuntimeWorkload(
+    id = "bot-runtime-blacklist-service",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Service
 public class BotRuntimeBlacklistService {
 
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();

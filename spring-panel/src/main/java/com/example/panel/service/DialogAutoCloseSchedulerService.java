@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.config.PanelIntegrationTransportMode;
 import com.example.panel.entity.Channel;
 import com.example.panel.entity.ChatHistory;
@@ -28,7 +31,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-@Component
+@RuntimeWorkload(
+    id = "dialog-auto-close-scheduler-service",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Component
 public class DialogAutoCloseSchedulerService {
 
     private static final Logger log = LoggerFactory.getLogger(DialogAutoCloseSchedulerService.class);

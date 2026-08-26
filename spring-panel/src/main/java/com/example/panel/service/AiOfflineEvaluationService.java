@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.InputStream;
@@ -19,7 +22,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-@Service
+@RuntimeWorkload(
+    id = "ai-offline-evaluation-service",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Service
 public class AiOfflineEvaluationService {
 
     private static final String DATASET_RESOURCE = "ai/offline-eval-templates.json";

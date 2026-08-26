@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.model.dialog.DialogListItem;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -17,7 +20,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Service
+@RuntimeWorkload(
+    id = "sla-escalation-webhook-notifier",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Service
 public class SlaEscalationWebhookNotifier {
 
     private static final Logger log = LoggerFactory.getLogger(SlaEscalationWebhookNotifier.class);

@@ -1,12 +1,19 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import java.time.Duration;
 
-@Component
+@RuntimeWorkload(
+    id = "ssl-certificate-monitoring-scheduler",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Component
 public class SslCertificateMonitoringScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(SslCertificateMonitoringScheduler.class);

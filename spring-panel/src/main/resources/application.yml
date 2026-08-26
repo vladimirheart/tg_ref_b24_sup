@@ -58,6 +58,9 @@ spring:
       max-request-size: ${APP_MULTIPART_MAX_REQUEST_SIZE:60MB}
 
 app:
+  runtime:
+    role: ${APP_RUNTIME_ROLE:all}
+    instance-id: ${APP_INSTANCE_ID:${HOSTNAME:local}}
   datasource:
     mode: ${APP_DB_MODE:postgresql}
     sqlite:
@@ -225,6 +228,7 @@ management:
     tags:
       application: ${spring.application.name:panel}
       service: spring-panel
-    distribution:
+      runtime_role: ${APP_RUNTIME_ROLE:all}
+      instance_id: ${APP_INSTANCE_ID:${HOSTNAME:local}}    distribution:
       percentiles-histogram:
         http.server.requests: true

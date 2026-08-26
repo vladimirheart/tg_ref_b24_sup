@@ -1,6 +1,5 @@
 package com.example.panel.service;
 
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -68,7 +67,6 @@ public class UiEventStreamService {
         publishToAll("sidebar_bots_changed", basePayload(reason, null, channelId));
     }
 
-    @Scheduled(fixedDelayString = "${panel.ui-events.heartbeat-ms:25000}")
     void sendHeartbeat() {
         Map<String, Object> payload = Map.of("emittedAt", nowUtc());
         emittersByUser.forEach((identity, emitters) -> {

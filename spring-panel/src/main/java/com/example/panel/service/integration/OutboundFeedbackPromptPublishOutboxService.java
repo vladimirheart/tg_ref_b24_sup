@@ -1,5 +1,8 @@
 package com.example.panel.service.integration;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.config.IntegrationRabbitProperties;
 import com.example.panel.service.RuntimeCoordinationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -20,7 +23,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-@Service
+@RuntimeWorkload(
+    id = "outbound-feedback-prompt-publish-outbox-service",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Service
 public class OutboundFeedbackPromptPublishOutboxService {
 
     private static final Logger log = LoggerFactory.getLogger(OutboundFeedbackPromptPublishOutboxService.class);

@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.entity.Incident;
 import com.example.panel.entity.IncidentEvent;
 import com.example.panel.entity.IncidentRoute;
@@ -26,7 +29,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-@Service
+@RuntimeWorkload(
+    id = "incident-ops-escalation-service",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Service
 public class IncidentOpsEscalationService {
 
     private static final Logger log = LoggerFactory.getLogger(IncidentOpsEscalationService.class);

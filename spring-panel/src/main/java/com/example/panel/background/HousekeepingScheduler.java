@@ -1,5 +1,8 @@
 package com.example.panel.background;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.service.AnalyticsService;
 import com.example.panel.service.RuntimeCoordinationService;
 import com.example.panel.storage.AttachmentService;
@@ -10,7 +13,11 @@ import org.springframework.cache.CacheManager;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-@Component
+@RuntimeWorkload(
+    id = "housekeeping-scheduler",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Component
 public class HousekeepingScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(HousekeepingScheduler.class);

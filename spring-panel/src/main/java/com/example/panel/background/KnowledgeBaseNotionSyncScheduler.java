@@ -1,5 +1,8 @@
 package com.example.panel.background;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.service.KnowledgeBaseNotionService;
 import com.example.panel.service.RuntimeCoordinationService;
 import java.time.Duration;
@@ -9,7 +12,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-@Component
+@RuntimeWorkload(
+    id = "knowledge-base-notion-sync-scheduler",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Component
 public class KnowledgeBaseNotionSyncScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(KnowledgeBaseNotionSyncScheduler.class);

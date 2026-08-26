@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import java.time.Duration;
@@ -13,7 +16,11 @@ import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-@Service
+@RuntimeWorkload(
+    id = "monitoring-check-history-retention-service",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Service
 @Order(130)
 public class MonitoringCheckHistoryRetentionService implements ApplicationRunner {
 

@@ -1,12 +1,19 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import jakarta.annotation.PostConstruct;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-@Service
+@RuntimeWorkload(
+    id = "sidebar-status-watcher",
+    roles = {RuntimeRole.WEB},
+    replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+)@Service
 public class SidebarStatusWatcher {
 
     private final UnblockRequestService unblockRequestService;

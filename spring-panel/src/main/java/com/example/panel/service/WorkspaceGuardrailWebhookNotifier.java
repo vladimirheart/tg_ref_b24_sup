@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -8,7 +11,11 @@ import java.time.Instant;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 
-@Service
+@RuntimeWorkload(
+    id = "workspace-guardrail-webhook-notifier",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Service
 public class WorkspaceGuardrailWebhookNotifier {
 
     private final WorkspaceGuardrailWebhookCommandService workspaceGuardrailWebhookCommandService;

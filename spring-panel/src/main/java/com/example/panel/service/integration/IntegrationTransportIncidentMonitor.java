@@ -1,5 +1,8 @@
 package com.example.panel.service.integration;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.service.IncidentService;
 import com.example.panel.service.RuntimeCoordinationService;
 import java.time.Duration;
@@ -8,7 +11,11 @@ import java.util.Map;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-@Component
+@RuntimeWorkload(
+    id = "integration-transport-incident-monitor",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Component
 public class IntegrationTransportIncidentMonitor {
 
     private static final String SIGNAL_TYPE = "integration_transport";

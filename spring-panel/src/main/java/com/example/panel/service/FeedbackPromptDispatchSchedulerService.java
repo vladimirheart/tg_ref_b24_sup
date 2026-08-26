@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.config.PanelIntegrationTransportMode;
 import com.example.panel.entity.Channel;
 import com.example.panel.entity.PendingFeedbackRequest;
@@ -15,7 +18,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-@Component
+@RuntimeWorkload(
+    id = "feedback-prompt-dispatch-scheduler-service",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Component
 public class FeedbackPromptDispatchSchedulerService {
 
     private static final Logger log = LoggerFactory.getLogger(FeedbackPromptDispatchSchedulerService.class);

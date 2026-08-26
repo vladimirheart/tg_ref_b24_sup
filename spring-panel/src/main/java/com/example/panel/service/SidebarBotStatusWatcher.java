@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -9,7 +12,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Service
+@RuntimeWorkload(
+    id = "sidebar-bot-status-watcher",
+    roles = {RuntimeRole.WEB},
+    replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+)@Service
 public class SidebarBotStatusWatcher {
 
     private final ChannelRepository channelRepository;

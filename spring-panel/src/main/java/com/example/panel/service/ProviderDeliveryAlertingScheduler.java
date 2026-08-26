@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -7,7 +10,11 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
-@Component
+@RuntimeWorkload(
+    id = "provider-delivery-alerting-scheduler",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Component
 public class ProviderDeliveryAlertingScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(ProviderDeliveryAlertingScheduler.class);

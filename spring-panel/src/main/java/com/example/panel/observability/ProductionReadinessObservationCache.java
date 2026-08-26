@@ -1,5 +1,8 @@
 package com.example.panel.observability;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.service.ProductionReadinessService;
 import jakarta.annotation.PostConstruct;
 import java.util.List;
@@ -11,7 +14,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-@Component
+@RuntimeWorkload(
+    id = "production-readiness-observation-cache",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.SINGLETON
+)@Component
 public class ProductionReadinessObservationCache {
 
     private static final List<String> COMPONENT_KEYS = List.of(

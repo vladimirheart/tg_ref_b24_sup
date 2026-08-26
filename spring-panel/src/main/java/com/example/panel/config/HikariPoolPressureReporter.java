@@ -1,5 +1,8 @@
 package com.example.panel.config;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import org.slf4j.Logger;
@@ -14,7 +17,11 @@ import javax.sql.DataSource;
  * callers are waiting for a connection. This keeps normal logs quiet while
  * making future PostgreSQL connection starvation diagnosable from runtime logs.
  */
-@Component
+@RuntimeWorkload(
+    id = "hikari-pool-pressure-reporter",
+    roles = {RuntimeRole.WEB, RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
+)@Component
 public class HikariPoolPressureReporter {
 
     private static final Logger log = LoggerFactory.getLogger(HikariPoolPressureReporter.class);

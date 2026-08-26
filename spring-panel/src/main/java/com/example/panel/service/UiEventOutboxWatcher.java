@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import jakarta.annotation.PostConstruct;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -11,7 +14,11 @@ import java.time.ZoneOffset;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Service
+@RuntimeWorkload(
+    id = "ui-event-outbox-watcher",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Service
 public class UiEventOutboxWatcher {
 
     private static final String CHECKPOINT_KEY = "ui-event-outbox-watch";

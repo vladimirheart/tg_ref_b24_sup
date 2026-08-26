@@ -1,11 +1,18 @@
 package com.example.panel.service.integration;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.service.RuntimeCoordinationService;
 import java.time.Duration;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-@Component
+@RuntimeWorkload(
+    id = "integration-transport-health-snapshot-scheduler",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Component
 public class IntegrationTransportHealthSnapshotScheduler {
 
     private static final Duration SNAPSHOT_LEASE_TTL = Duration.ofMinutes(4);

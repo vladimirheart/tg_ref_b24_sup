@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
 import jakarta.annotation.PostConstruct;
@@ -23,7 +26,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Service
+@RuntimeWorkload(
+    id = "operator-notification-watcher",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Service
 public class OperatorNotificationWatcher {
 
     private static final Logger log = LoggerFactory.getLogger(OperatorNotificationWatcher.class);

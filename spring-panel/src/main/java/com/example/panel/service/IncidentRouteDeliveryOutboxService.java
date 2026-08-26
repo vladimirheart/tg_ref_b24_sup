@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import com.example.panel.runtime.RuntimeWorkload;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.entity.Incident;
 import com.example.panel.entity.IncidentRoute;
 import com.example.panel.repository.IncidentRouteRepository;
@@ -25,7 +28,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-@Service
+@RuntimeWorkload(
+    id = "incident-route-delivery-outbox-service",
+    roles = {RuntimeRole.WORKER},
+    replicaPolicy = RuntimeReplicaPolicy.LEASED
+)@Service
 public class IncidentRouteDeliveryOutboxService {
 
     private static final Logger log = LoggerFactory.getLogger(IncidentRouteDeliveryOutboxService.class);
