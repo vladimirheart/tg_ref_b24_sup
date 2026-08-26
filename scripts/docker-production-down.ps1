@@ -1,5 +1,6 @@
 param(
     [switch]$Edge,
+    [switch]$Observability,
     [switch]$RemoveVolumes,
     [switch]$ValidateOnly
 )
@@ -13,6 +14,7 @@ if (-not $PSScriptRoot) {
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $composeFile = Join-Path $repoRoot "docker-compose.production-contour.yml"
 $edgeComposeFile = Join-Path $repoRoot "docker-compose.production-edge.yml"
+$observabilityComposeFile = Join-Path $repoRoot "docker-compose.production-observability.yml"
 $dotEnvPath = Join-Path $repoRoot ".env"
 
 if (-not (Test-Path -LiteralPath $composeFile)) {
@@ -20,6 +22,9 @@ if (-not (Test-Path -LiteralPath $composeFile)) {
 }
 if ($Edge -and -not (Test-Path -LiteralPath $edgeComposeFile)) {
     throw "Edge compose file not found: $edgeComposeFile"
+}
+if ($Observability -and -not (Test-Path -LiteralPath $observabilityComposeFile)) {
+    throw "Observability compose file not found: $observabilityComposeFile"
 }
 
 $dockerCommand = Get-Command docker -ErrorAction SilentlyContinue
@@ -38,6 +43,9 @@ if (Test-Path -LiteralPath $dotEnvPath) {
 $baseArguments += @("-f", $composeFile)
 if ($Edge) {
     $baseArguments += @("-f", $edgeComposeFile)
+}
+if ($Observability) {
+    $baseArguments += @("-f", $observabilityComposeFile)
 }
 
 if ($ValidateOnly) {

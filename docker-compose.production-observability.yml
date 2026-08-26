@@ -1,0 +1,136 @@
+services:
+  # Enable RabbitMQ's built-in Prometheus endpoint on internal port 15692.
+  rabbitmq:
+    volumes:
+      - ./observability/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+
+  # Metrics are public only inside the Docker/network boundary by default.
+  # Keep APP_STORAGE_OBJECT_BIND_HOST on loopback when using this overlay.
+  minio:
+    environment:
+      MINIO_PROMETHEUS_AUTH_TYPE: public
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_URI: postgres:5432/${IGUANA_POSTGRES_DB:-iguana}?sslmode=disable
+      DATA_SOURCE_USER: ${IGUANA_POSTGRES_USER:-iguana}
+      DATA_SOURCE_PASS: ${IGUANA_POSTGRES_PASSWORD:-iguana}
+    expose:
+      - "9187"
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.89.0
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
+    expose:
+      - "9121"
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "${IGUANA_ALERTMANAGER_BIND_HOST:-127.0.0.1}:${IGUANA_ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - iguana-alertmanager-data:/alertmanager
+
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    restart: unless-stopped
+    depends_on:
+      panel-web:
+        condition: service_healthy
+      ops-worker:
+        condition: service_healthy
+      postgres-exporter:
+        condition: service_started
+      redis-exporter:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      alertmanager:
+        condition: service_started
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${IGUANA_PROMETHEUS_RETENTION:-30d}
+      - --web.enable-lifecycle
+    ports:
+      - "${IGUANA_PROMETHEUS_BIND_HOST:-127.0.0.1}:${IGUANA_PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/rules:/etc/prometheus/rules:ro
+      - iguana-prometheus-data:/prometheus
+
+  loki:
+    image: grafana/loki:3.7.6
+    restart: unless-stopped
+    command:
+      - -config.file=/etc/loki/loki.yml
+    ports:
+      - "${IGUANA_LOKI_BIND_HOST:-127.0.0.1}:${IGUANA_LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./observability/loki/loki.yml:/etc/loki/loki.yml:ro
+      - iguana-loki-data:/loki
+
+  alloy:
+    image: grafana/alloy:v1.18.0
+    restart: unless-stopped
+    depends_on:
+      loki:
+        condition: service_started
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "${IGUANA_ALLOY_BIND_HOST:-127.0.0.1}:${IGUANA_ALLOY_PORT:-12345}:12345"
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ${IGUANA_LOGS_DIR:-./logs}:/var/log/iguana:ro
+      - iguana-alloy-data:/var/lib/alloy/data
+
+  grafana:
+    image: grafana/grafana:13.2.0
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
+    environment:
+      GF_SECURITY_ADMIN_USER: ${IGUANA_GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${IGUANA_GRAFANA_ADMIN_PASSWORD:-change-me}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    ports:
+      - "${IGUANA_GRAFANA_BIND_HOST:-127.0.0.1}:${IGUANA_GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - iguana-grafana-data:/var/lib/grafana
+
+volumes:
+  iguana-prometheus-data:
+  iguana-alertmanager-data:
+  iguana-loki-data:
+  iguana-alloy-data:
+  iguana-grafana-data:

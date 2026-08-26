@@ -275,3 +275,23 @@ scrape_configs:
 - расширить SLI до operator/business уровня;
 - добавить monitoring coverage внешних support-систем по [support-systems-monitoring-roadmap.md](./support-systems-monitoring-roadmap.md);
 - внедрить log aggregation и correlation с incident workbench.
+
+## 15. Phase 2 — реальный Docker observability contour
+
+После scale-ready role split `01-211` baseline расширяется versioned production
+contour, описанным в `docs/runbooks/production-observability-contour.md`.
+
+Добавлены:
+
+- `docker-compose.production-observability.yml`;
+- Prometheus DNS discovery всех `panel-web` и `ops-worker` replicas;
+- Alertmanager и versioned alert rules;
+- Grafana с provisioned Prometheus/Loki datasources и Iguana dashboards;
+- Loki + Alloy для общих application log files;
+- PostgreSQL/Redis exporters, RabbitMQ Prometheus plugin, MinIO metrics;
+- `scripts/docker-production-observability-smoke.ps1`.
+
+Observability endpoints по умолчанию bindятся на `127.0.0.1` и не должны
+публиковаться через public edge без отдельной auth/network policy. Alloy в этом
+slice не получает `/var/run/docker.sock`; инфраструктурный stdout/stderr требует
+отдельного безопасного shipping boundary, если он понадобится.

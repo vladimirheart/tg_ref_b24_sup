@@ -1,0 +1,88 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    stack: iguana
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - prometheus:9090
+
+  # Docker embedded DNS returns every replica A record for the scaled service.
+  - job_name: iguana-panel-web
+    metrics_path: /actuator/prometheus
+    dns_sd_configs:
+      - names:
+          - panel-web
+        type: A
+        port: 8080
+        refresh_interval: 15s
+    relabel_configs:
+      - target_label: deployment_role
+        replacement: panel-web
+
+  - job_name: iguana-ops-worker
+    metrics_path: /actuator/prometheus
+    dns_sd_configs:
+      - names:
+          - ops-worker
+        type: A
+        port: 8080
+        refresh_interval: 15s
+    relabel_configs:
+      - target_label: deployment_role
+        replacement: ops-worker
+
+  - job_name: postgres
+    static_configs:
+      - targets:
+          - postgres-exporter:9187
+
+  - job_name: redis
+    static_configs:
+      - targets:
+          - redis-exporter:9121
+
+  - job_name: rabbitmq
+    static_configs:
+      - targets:
+          - rabbitmq:15692
+
+  - job_name: minio
+    metrics_path: /minio/v2/metrics/cluster
+    scrape_interval: 60s
+    static_configs:
+      - targets:
+          - minio:9000
+
+  - job_name: alertmanager
+    static_configs:
+      - targets:
+          - alertmanager:9093
+
+  - job_name: loki
+    static_configs:
+      - targets:
+          - loki:3100
+
+  - job_name: alloy
+    static_configs:
+      - targets:
+          - alloy:12345
+
+  - job_name: grafana
+    static_configs:
+      - targets:
+          - grafana:3000

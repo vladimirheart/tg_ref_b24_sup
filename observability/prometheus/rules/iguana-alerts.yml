@@ -1,0 +1,156 @@
+groups:
+  - name: iguana-runtime
+    interval: 30s
+    rules:
+      - alert: IguanaPanelWebReplicaDown
+        expr: up{job="iguana-panel-web"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: panel-web
+        annotations:
+          summary: panel-web replica is not scrapeable
+          description: "Prometheus cannot scrape {{ $labels.instance }} for more than 2 minutes."
+
+      - alert: IguanaOpsWorkerReplicaDown
+        expr: up{job="iguana-ops-worker"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: ops-worker
+        annotations:
+          summary: ops-worker replica is not scrapeable
+          description: "Prometheus cannot scrape {{ $labels.instance }} for more than 2 minutes."
+
+      - alert: IguanaProductionReadinessNotReady
+        expr: max(iguana_production_readiness{job="iguana-ops-worker"}) < 1
+        for: 5m
+        labels:
+          severity: critical
+          service: ops-worker
+        annotations:
+          summary: Iguana production readiness is not ready
+          description: "Worker-owned production readiness has remained degraded for at least 5 minutes."
+
+      - alert: IguanaReadinessRefreshFailed
+        expr: max(iguana_production_readiness_refresh_success{job="iguana-ops-worker"}) < 1
+        for: 5m
+        labels:
+          severity: high
+          service: ops-worker
+        annotations:
+          summary: production readiness refresh is failing
+          description: "The latest readiness observation refresh has been failing for at least 5 minutes."
+
+      - alert: IguanaDlqBacklog
+        expr: max(iguana_transport_queue_messages{job="iguana-ops-worker",queue_metric=~".*_dlq_messages"}) > 0
+        for: 10m
+        labels:
+          severity: high
+          service: transport
+        annotations:
+          summary: RabbitMQ DLQ backlog is not empty
+          description: "At least one Iguana transport DLQ has remained non-empty for 10 minutes."
+
+      - alert: IguanaIncidentDeliveryFailed
+        expr: max(iguana_incident_delivery_outbox{job="iguana-ops-worker",metric="failed_current"}) > 0
+        for: 10m
+        labels:
+          severity: high
+          service: incident-delivery
+        annotations:
+          summary: incident delivery failures are pending
+          description: "Failed incident delivery rows have remained present for 10 minutes."
+
+      - alert: IguanaIncidentDeliveryStale
+        expr: max(iguana_incident_delivery_outbox{job="iguana-ops-worker",metric="stale_processing"}) > 0
+        for: 5m
+        labels:
+          severity: high
+          service: incident-delivery
+        annotations:
+          summary: incident delivery processing is stale
+          description: "Stale incident delivery processing has remained present for 5 minutes."
+
+      - alert: IguanaPanelP95LatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="iguana-panel-web",uri!~"/actuator.*"}[5m]))) > 2
+        for: 15m
+        labels:
+          severity: medium
+          service: panel-web
+        annotations:
+          summary: panel p95 latency is above 2 seconds
+          description: "Operator-facing HTTP p95 has remained above the baseline SLO for 15 minutes."
+
+      - alert: IguanaPanel5xxRateHigh
+        expr: (sum(rate(http_server_requests_seconds_count{job="iguana-panel-web",status=~"5..",uri!~"/actuator.*"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job="iguana-panel-web",uri!~"/actuator.*"}[5m])), 0.001)) > 0.02
+        for: 5m
+        labels:
+          severity: high
+          service: panel-web
+        annotations:
+          summary: panel 5xx ratio is above 2 percent
+          description: "The panel 5xx ratio has remained above the initial 2% SLO threshold for 5 minutes."
+
+  - name: iguana-infrastructure
+    interval: 30s
+    rules:
+      - alert: IguanaPostgresMetricsUnavailable
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: postgresql
+        annotations:
+          summary: PostgreSQL metrics are unavailable
+          description: "postgres-exporter cannot be scraped for more than 2 minutes."
+
+      - alert: IguanaRedisMetricsUnavailable
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: Redis metrics are unavailable
+          description: "redis-exporter cannot be scraped for more than 2 minutes."
+
+      - alert: IguanaRabbitMqMetricsUnavailable
+        expr: up{job="rabbitmq"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: rabbitmq
+        annotations:
+          summary: RabbitMQ metrics are unavailable
+          description: "RabbitMQ prometheus endpoint cannot be scraped for more than 2 minutes."
+
+      - alert: IguanaMinioMetricsUnavailable
+        expr: up{job="minio"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: minio
+        annotations:
+          summary: MinIO metrics are unavailable
+          description: "MinIO cluster metrics cannot be scraped for more than 5 minutes."
+
+      - alert: IguanaLokiUnavailable
+        expr: up{job="loki"} == 0
+        for: 5m
+        labels:
+          severity: high
+          service: loki
+        annotations:
+          summary: Loki is unavailable
+          description: "Prometheus cannot scrape Loki for more than 5 minutes."
+
+      - alert: IguanaAlloyUnavailable
+        expr: up{job="alloy"} == 0
+        for: 5m
+        labels:
+          severity: high
+          service: alloy
+        annotations:
+          summary: Alloy is unavailable
+          description: "Prometheus cannot scrape Alloy for more than 5 minutes."

@@ -3,6 +3,7 @@ param(
     [switch]$Vk,
     [switch]$Max,
     [switch]$Edge,
+    [switch]$Observability,
     [switch]$Build,
     [switch]$NoDetach,
     [switch]$ValidateOnly,
@@ -196,6 +197,7 @@ function Invoke-PreflightChecks {
         [hashtable]$DotEnv,
         [string[]]$Profiles,
         [bool]$EdgeEnabled,
+        [bool]$ObservabilityEnabled,
         [bool]$AllowInsecure
     )
 
@@ -223,6 +225,14 @@ function Invoke-PreflightChecks {
         Assert-NonDefaultSecret -DotEnv $DotEnv -Name "APP_STORAGE_OBJECT_ACCESS_KEY" -DisallowedValues @("iguana-minio") -Message "Object storage access key must be overridden" | Out-Null
         Assert-NonDefaultSecret -DotEnv $DotEnv -Name "APP_STORAGE_OBJECT_SECRET_KEY" -DisallowedValues @("iguana-minio-secret") -Message "Object storage secret key must be overridden" | Out-Null
         Assert-NonDefaultSecret -DotEnv $DotEnv -Name "APP_STORAGE_OBJECT_BUCKET" -DisallowedValues @("iguana") -Message "Object storage bucket must be overridden for production-like launch" | Out-Null
+    }
+
+    if ($ObservabilityEnabled) {
+        if ($AllowInsecure) {
+            Assert-RequiredSetting -DotEnv $DotEnv -Name "IGUANA_GRAFANA_ADMIN_PASSWORD" -Message "Grafana admin password must be configured" | Out-Null
+        } else {
+            Assert-NonDefaultSecret -DotEnv $DotEnv -Name "IGUANA_GRAFANA_ADMIN_PASSWORD" -DisallowedValues @("change-me", "admin", "grafana") -Message "Grafana admin password must be overridden" | Out-Null
+        }
     }
 
     if ($Profiles -contains "telegram") {
@@ -260,6 +270,7 @@ function Invoke-PreflightChecks {
 $repoRoot = Get-RepoRoot
 $composeFile = Join-Path $repoRoot "docker-compose.production-contour.yml"
 $edgeComposeFile = Join-Path $repoRoot "docker-compose.production-edge.yml"
+$observabilityComposeFile = Join-Path $repoRoot "docker-compose.production-observability.yml"
 $dotEnvPath = Join-Path $repoRoot ".env"
 $dotEnv = Read-DotEnvFile -Path $dotEnvPath
 
@@ -268,6 +279,9 @@ if (-not (Test-Path -LiteralPath $composeFile)) {
 }
 if ($Edge -and -not (Test-Path -LiteralPath $edgeComposeFile)) {
     throw "Edge compose file not found: $edgeComposeFile"
+}
+if ($Observability -and -not (Test-Path -LiteralPath $observabilityComposeFile)) {
+    throw "Observability compose file not found: $observabilityComposeFile"
 }
 
 $profiles = @()
@@ -298,7 +312,7 @@ foreach ($directory in $requiredDirectories) {
     New-Item -ItemType Directory -Force -Path $directory | Out-Null
 }
 
-Invoke-PreflightChecks -RepoRoot $repoRoot -DotEnv $dotEnv -Profiles $profiles -EdgeEnabled:$Edge -AllowInsecure:$AllowInsecureDefaults
+Invoke-PreflightChecks -RepoRoot $repoRoot -DotEnv $dotEnv -Profiles $profiles -EdgeEnabled:$Edge -ObservabilityEnabled:$Observability -AllowInsecure:$AllowInsecureDefaults
 
 $dockerCommand = Ensure-DockerAvailable
 $baseArguments = @("compose", "--project-directory", $repoRoot)
@@ -308,6 +322,9 @@ if (Test-Path -LiteralPath $dotEnvPath) {
 $baseArguments += @("-f", $composeFile)
 if ($Edge) {
     $baseArguments += @("-f", $edgeComposeFile)
+}
+if ($Observability) {
+    $baseArguments += @("-f", $observabilityComposeFile)
 }
 foreach ($profile in $profiles) {
     $baseArguments += @("--profile", $profile)
@@ -324,6 +341,7 @@ if ($ValidateOnly) {
     Write-Host "[INFO] panel-web replicas: $resolvedWebReplicas"
     Write-Host "[INFO] ops-worker replicas: $resolvedWorkerReplicas"
     Write-Host "[INFO] Edge enabled: $Edge"
+    Write-Host "[INFO] Observability enabled: $Observability"
     Write-Host "[INFO] Insecure defaults allowed: $AllowInsecureDefaults"
     exit 0
 }
@@ -346,6 +364,7 @@ Write-Host "[INFO] panel-web replicas: $resolvedWebReplicas"
 Write-Host "[INFO] ops-worker replicas: $resolvedWorkerReplicas"
 Write-Host "[INFO] Profiles: $($(if ($profiles.Count -gt 0) { $profiles -join ', ' } else { 'none' }))"
 Write-Host "[INFO] Edge enabled: $Edge"
+Write-Host "[INFO] Observability enabled: $Observability"
 
 & $dockerCommand @arguments
 if ($LASTEXITCODE -ne 0) {
@@ -353,4 +372,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "[INFO] Iguana docker production contour started."
+if ($Observability) {
+    $grafanaPort = (Get-SettingValue -DotEnv $dotEnv -Name "IGUANA_GRAFANA_PORT")
+    if ([string]::IsNullOrWhiteSpace($grafanaPort)) { $grafanaPort = "3000" }
+    $prometheusPort = (Get-SettingValue -DotEnv $dotEnv -Name "IGUANA_PROMETHEUS_PORT")
+    if ([string]::IsNullOrWhiteSpace($prometheusPort)) { $prometheusPort = "9090" }
+    Write-Host "[INFO] Grafana: http://127.0.0.1:$grafanaPort"
+    Write-Host "[INFO] Prometheus: http://127.0.0.1:$prometheusPort"
+}
 Write-Host "[INFO] Local loopback ingress: http://$((Get-SettingValue -DotEnv $dotEnv -Name 'APP_PANEL_BIND_HOST') -replace '^$','127.0.0.1'):$((Get-SettingValue -DotEnv $dotEnv -Name 'APP_HTTP_PORT') -replace '^$','8080')"

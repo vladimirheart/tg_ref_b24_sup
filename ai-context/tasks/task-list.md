@@ -213,7 +213,7 @@
 🟣 [01-191] Обновить текущую документацию Iguana, включая UI-правила и актуальную архитектуру проекта
 🟣 [01-192] Зафиксировать production readiness checklist и runbook запуска Iguana
 🟣 [01-193] Ужесточить security bootstrap и secret contract spring-panel для production contour
-🟣 [01-194] Внедрить базовый observability stack и SLI/SLO для production contour
+🟡 [01-194] Внедрить базовый observability stack и SLI/SLO для production contour
 🟣 [01-195] Усилить надежность ingress/egress интеграций и внутреннего API
 🟣 [01-196] Подготовить rehearsal миграции и E2E smoke для production cutover
 🟣 [01-197] Расширить мониторинг классических support-систем и внешних зависимостей
@@ -230,4 +230,5 @@
 🟣 [01-208] Собрать dockerized production contour Iguana и развести lifecycle panel и bot runtime
 🟣 [01-209] Починить bootstrap secret contract локального PostgreSQL-контура для Windows launcher
 🟣 [01-210] Сделать incidents workbench понятным для credential rotation сигналов и объяснить severity policy
-🟣 [01-211] Разделить spring-panel на scale-ready deployment roles panel-web и ops-worker с заделом на горизонтальное масштабирование
+🟢 [01-211] Разделить spring-panel на scale-ready deployment roles panel-web и ops-worker с заделом на горизонтальное масштабирование
+🟠 [01-212] Реализовать реальные production backup jobs PostgreSQL и MinIO с off-host хранением и автоматизированным restore rehearsal

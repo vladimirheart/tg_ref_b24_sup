@@ -5,6 +5,7 @@ TELEGRAM=0
 VK=0
 MAX=0
 EDGE=0
+OBSERVABILITY=0
 BUILD=0
 DETACH=1
 VALIDATE_ONLY=0
@@ -18,6 +19,7 @@ while [[ $# -gt 0 ]]; do
     --vk) VK=1; shift ;;
     --max) MAX=1; shift ;;
     --edge) EDGE=1; shift ;;
+    --observability) OBSERVABILITY=1; shift ;;
     --build) BUILD=1; shift ;;
     --no-detach) DETACH=0; shift ;;
     --validate-only) VALIDATE_ONLY=1; shift ;;
@@ -41,6 +43,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-contour.yml"
 EDGE_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-edge.yml"
+OBSERVABILITY_COMPOSE_FILE="${REPO_ROOT}/docker-compose.production-observability.yml"
 ENV_FILE="${REPO_ROOT}/.env"
 
 get_setting_value() {
@@ -166,6 +169,14 @@ invoke_preflight_checks() {
     assert_non_default_secret "APP_STORAGE_OBJECT_BUCKET" "Object storage bucket must be overridden for production-like launch" "iguana"
   fi
 
+  if [[ "${OBSERVABILITY}" == "1" ]]; then
+    if [[ "${ALLOW_INSECURE_DEFAULTS}" == "1" ]]; then
+      assert_required_setting "IGUANA_GRAFANA_ADMIN_PASSWORD" "Grafana admin password must be configured"
+    else
+      assert_non_default_secret "IGUANA_GRAFANA_ADMIN_PASSWORD" "Grafana admin password must be overridden" "change-me" "admin" "grafana"
+    fi
+  fi
+
   if [[ "${TELEGRAM}" == "1" ]]; then
     assert_required_setting "TELEGRAM_BOT_TOKEN" "Telegram profile requires TELEGRAM_BOT_TOKEN"
     assert_required_setting "TELEGRAM_BOT_USERNAME" "Telegram profile requires TELEGRAM_BOT_USERNAME"
@@ -205,6 +216,10 @@ if [[ "${EDGE}" == "1" && ! -f "${EDGE_COMPOSE_FILE}" ]]; then
   echo "[ERROR] Edge compose file not found: ${EDGE_COMPOSE_FILE}" >&2
   exit 1
 fi
+if [[ "${OBSERVABILITY}" == "1" && ! -f "${OBSERVABILITY_COMPOSE_FILE}" ]]; then
+  echo "[ERROR] Observability compose file not found: ${OBSERVABILITY_COMPOSE_FILE}" >&2
+  exit 1
+fi
 
 PROFILES=()
 [[ "${TELEGRAM}" == "1" ]] && PROFILES+=("telegram")
@@ -241,6 +256,9 @@ BASE_ARGS+=(-f "${COMPOSE_FILE}")
 if [[ "${EDGE}" == "1" ]]; then
   BASE_ARGS+=(-f "${EDGE_COMPOSE_FILE}")
 fi
+if [[ "${OBSERVABILITY}" == "1" ]]; then
+  BASE_ARGS+=(-f "${OBSERVABILITY_COMPOSE_FILE}")
+fi
 for profile in "${PROFILES[@]}"; do
   BASE_ARGS+=(--profile "${profile}")
 done
@@ -251,6 +269,7 @@ if [[ "${VALIDATE_ONLY}" == "1" ]]; then
   echo "[INFO] panel-web replicas: ${WEB_REPLICAS}"
   echo "[INFO] ops-worker replicas: ${WORKER_REPLICAS}"
   echo "[INFO] Edge enabled: ${EDGE}"
+  echo "[INFO] Observability enabled: ${OBSERVABILITY}"
   exit 0
 fi
 
@@ -262,6 +281,7 @@ echo "[INFO] Starting Iguana docker production contour"
 echo "[INFO] panel-web replicas: ${WEB_REPLICAS}"
 echo "[INFO] ops-worker replicas: ${WORKER_REPLICAS}"
 echo "[INFO] Edge enabled: ${EDGE}"
+echo "[INFO] Observability enabled: ${OBSERVABILITY}"
 
 docker "${ARGS[@]}"
 
