@@ -90,7 +90,10 @@ class DockerProductionRoleTopologySourceContractTest {
             .contains("server panel-web:8080 resolve;")
             .doesNotContain("spring-panel:8080");
         assertThat(direct)
-            .contains("server panel-web:8080 resolve;");
+            .contains("server panel-web:8080 resolve;")
+            .contains("proxy_set_header Host $http_host;")
+            .contains("proxy_set_header X-Forwarded-Port $forwarded_port;")
+            .contains("proxy_redirect off;");
     }
 
     @Test
