@@ -43,9 +43,10 @@ public class ChatAttachmentMetadataAvailabilityService {
     void reconcileAvailabilityStatuses() {
         try {
             List<AttachmentMetadataRow> rows = jdbcTemplate.query("""
-                    SELECT chat_history_id, storage_provider, storage_key, legacy_attachment_ref, normalization_status
+                    SELECT id, chat_history_id, storage_provider, storage_key, legacy_attachment_ref, normalization_status
                       FROM chat_attachment_metadata
                     """, (rs, rowNum) -> new AttachmentMetadataRow(
+                    rs.getLong("id"),
                     rs.getLong("chat_history_id"),
                     trim(rs.getString("storage_provider")),
                     trim(rs.getString("storage_key")),
@@ -62,12 +63,12 @@ public class ChatAttachmentMetadataAvailabilityService {
                                normalization_status = ?,
                                availability_status = ?,
                                updated_at = CURRENT_TIMESTAMP
-                         WHERE chat_history_id = ?
+                         WHERE id = ?
                         """,
                         storageProvider,
                         normalizationStatus,
                         availabilityStatus,
-                        row.chatHistoryId()
+                        row.id()
                 );
             }
         } catch (DataAccessException ex) {
@@ -102,6 +103,7 @@ public class ChatAttachmentMetadataAvailabilityService {
         if (!StringUtils.hasText(row.storageKey())) {
             return "unresolved";
         }
+        attachmentObjectStorageService.backfillDialogAttachmentByStorageKey(row.storageKey());
         return attachmentService.hasTicketAttachmentByStorageKey(row.storageKey()) ? "available" : "missing";
     }
 
@@ -113,7 +115,8 @@ public class ChatAttachmentMetadataAvailabilityService {
         return normalized.isEmpty() ? null : normalized;
     }
 
-    private record AttachmentMetadataRow(Long chatHistoryId,
+    private record AttachmentMetadataRow(Long id,
+                                         Long chatHistoryId,
                                          String storageProvider,
                                          String storageKey,
                                          String legacyAttachmentRef,

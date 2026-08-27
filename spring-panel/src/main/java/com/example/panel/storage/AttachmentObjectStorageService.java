@@ -22,6 +22,7 @@ import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @Service
 public class AttachmentObjectStorageService {
@@ -96,11 +97,21 @@ public class AttachmentObjectStorageService {
                     .key(objectKey("attachments", normalized))
                     .build());
             return true;
-        } catch (NoSuchKeyException ex) {
-            return false;
         } catch (RuntimeException ex) {
+            return ensureLegacyLocalBinaryAvailable(attachmentsRoot, normalized, "attachments");
+        }
+    }
+
+    public boolean backfillDialogAttachmentByStorageKey(String storageKey) {
+        String normalized = normalizeStorageKey(storageKey);
+        if (!StringUtils.hasText(normalized)) {
             return false;
         }
+        Path localFallback = resolveExistingLocalBinary(attachmentsRoot, normalized);
+        if (localFallback == null) {
+            return false;
+        }
+        return backfillLegacyLocalBinary(localFallback, normalized, "attachments") != BackfillOutcome.FAILED;
     }
 
     public void deleteDialogAttachment(String ticketId, String storedName) throws IOException {
@@ -160,10 +171,8 @@ public class AttachmentObjectStorageService {
                     .key(objectKey("avatars", normalized))
                     .build());
             return true;
-        } catch (NoSuchKeyException ex) {
-            return false;
         } catch (RuntimeException ex) {
-            return false;
+            return ensureLegacyLocalBinaryAvailable(avatarsRoot, normalized, "avatars");
         }
     }
 
@@ -224,31 +233,36 @@ public class AttachmentObjectStorageService {
             throw new IllegalArgumentException("File not found");
         }
         if (!properties.isS3Mode()) {
-            Path resolved = localRoot.resolve(logicalKey).normalize();
-            if (!resolved.startsWith(localRoot) || !Files.isRegularFile(resolved)) {
-                throw new IllegalArgumentException("File not found");
-            }
+            return openLocalBinary(localRoot, logicalKey);
+        }
+        try {
+            ResponseInputStream<GetObjectResponse> response = s3Client().getObject(
+                    GetObjectRequest.builder()
+                            .bucket(properties.getBucket().trim())
+                            .key(objectKey(domain, logicalKey))
+                            .build()
+            );
             return new StoredBinary(
                     logicalKey,
-                    probeContentType(resolved, null),
-                    Files.size(resolved),
-                    Files.newInputStream(resolved)
+                    StringUtils.hasText(response.response().contentType())
+                            ? response.response().contentType()
+                            : "application/octet-stream",
+                    response.response().contentLength(),
+                    response
+            );
+        } catch (RuntimeException ex) {
+            Path localFallback = resolveExistingLocalBinary(localRoot, logicalKey);
+            if (localFallback == null) {
+                throw ex;
+            }
+            backfillLegacyLocalBinary(localFallback, logicalKey, domain);
+            return new StoredBinary(
+                    logicalKey,
+                    probeContentType(localFallback, null),
+                    Files.size(localFallback),
+                    Files.newInputStream(localFallback)
             );
         }
-        ResponseInputStream<GetObjectResponse> response = s3Client().getObject(
-                GetObjectRequest.builder()
-                        .bucket(properties.getBucket().trim())
-                        .key(objectKey(domain, logicalKey))
-                        .build()
-        );
-        return new StoredBinary(
-                logicalKey,
-                StringUtils.hasText(response.response().contentType())
-                        ? response.response().contentType()
-                        : "application/octet-stream",
-                response.response().contentLength(),
-                response
-        );
     }
 
     private void deleteBinary(Path localRoot, String logicalKey, String domain) throws IOException {
@@ -301,6 +315,99 @@ public class AttachmentObjectStorageService {
         return normalized.isBlank() ? null : normalized;
     }
 
+    private StoredBinary openLocalBinary(Path localRoot, String logicalKey) throws IOException {
+        Path resolved = resolveExistingLocalBinary(localRoot, logicalKey);
+        if (resolved == null) {
+            throw new IllegalArgumentException("File not found");
+        }
+        return new StoredBinary(
+                logicalKey,
+                probeContentType(resolved, null),
+                Files.size(resolved),
+                Files.newInputStream(resolved)
+        );
+    }
+
+    private boolean ensureLegacyLocalBinaryAvailable(Path localRoot, String logicalKey, String domain) {
+        Path resolved = resolveExistingLocalBinary(localRoot, logicalKey);
+        if (resolved == null) {
+            return false;
+        }
+        backfillLegacyLocalBinary(resolved, logicalKey, domain);
+        return true;
+    }
+
+    private Path resolveExistingLocalBinary(Path localRoot, String logicalKey) {
+        if (!StringUtils.hasText(logicalKey)) {
+            return null;
+        }
+        Path resolved = localRoot.resolve(logicalKey).normalize();
+        if (!resolved.startsWith(localRoot) || !Files.isRegularFile(resolved)) {
+            return null;
+        }
+        return resolved;
+    }
+
+    private BackfillOutcome backfillLegacyLocalBinary(Path localFile, String logicalKey, String domain) {
+        if (!properties.isS3Mode() || localFile == null || !Files.isRegularFile(localFile)) {
+            return BackfillOutcome.ALREADY_PRESENT;
+        }
+        try {
+            if (objectExists(domain, logicalKey)) {
+                return BackfillOutcome.ALREADY_PRESENT;
+            }
+        } catch (RuntimeException ex) {
+            return BackfillOutcome.FAILED;
+        }
+        try (InputStream inputStream = Files.newInputStream(localFile)) {
+            storeBinary(
+                    switch (domain) {
+                        case "knowledge_base" -> knowledgeBaseRoot;
+                        case "passport_photos" -> passportPhotosRoot;
+                        case "avatars" -> avatarsRoot;
+                        default -> attachmentsRoot;
+                    },
+                    logicalKey,
+                    domain,
+                    Files.probeContentType(localFile),
+                    inputStream
+            ).close();
+            return BackfillOutcome.UPLOADED;
+        } catch (IOException | RuntimeException ignored) {
+            // Runtime read compatibility must still succeed from the local file.
+            return BackfillOutcome.FAILED;
+        }
+    }
+
+    private boolean objectExists(String domain, String logicalKey) {
+        try {
+            s3Client().headObject(HeadObjectRequest.builder()
+                    .bucket(properties.getBucket().trim())
+                    .key(objectKey(domain, logicalKey))
+                    .build());
+            return true;
+        } catch (RuntimeException ex) {
+            if (isMissingObject(ex)) {
+                return false;
+            }
+            throw ex;
+        }
+    }
+
+    private boolean isMissingObject(RuntimeException ex) {
+        if (ex instanceof NoSuchKeyException) {
+            return true;
+        }
+        if (ex instanceof S3Exception s3Exception) {
+            if (s3Exception.statusCode() == 404) {
+                return true;
+            }
+            return s3Exception.awsErrorDetails() != null
+                    && "NoSuchKey".equalsIgnoreCase(s3Exception.awsErrorDetails().errorCode());
+        }
+        return false;
+    }
+
     private String probeContentType(Path target, String fallbackMimeType) throws IOException {
         String detected = Files.probeContentType(target);
         if (StringUtils.hasText(detected)) {
@@ -351,5 +458,11 @@ public class AttachmentObjectStorageService {
                 inputStream.close();
             }
         }
+    }
+
+    private enum BackfillOutcome {
+        UPLOADED,
+        ALREADY_PRESENT,
+        FAILED
     }
 }

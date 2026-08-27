@@ -236,3 +236,4 @@
 🟣 [01-214] Убрать обязательный Redis UI fanout из local PostgreSQL bootstrap-контура Windows launcher
 🟣 [01-215] Исправить Production readiness для local PostgreSQL bootstrap и отделить compatibility-контур от full production gate
 🔴 [01-216] ВНЕДРИТЬ БЕЗОПАСНЫЙ FIRST-RUN BOOTSTRAP PRODUCTION-СЕКРЕТОВ И МИГРАЦИЮ СУЩЕСТВУЮЩИХ PERSISTENT VOLUMES
+🟡 [01-217] Мигрировать legacy media и avatars в MinIO/S3, убрать runtime-зависимость от local attachments и подготовить безопасный финальный purge
