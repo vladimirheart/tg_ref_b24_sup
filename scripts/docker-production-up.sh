@@ -291,6 +291,19 @@ for profile in "${PROFILES[@]}"; do
   BASE_ARGS+=(--profile "${profile}")
 done
 
+if [[ "${OBSERVABILITY}" == "1" && "${VALIDATE_ONLY}" != "1" ]]; then
+  ALERTMANAGER_TOKEN_BOOTSTRAP="${SCRIPT_DIR}/ensure-alertmanager-ingestion-token.sh"
+  [[ -f "${ALERTMANAGER_TOKEN_BOOTSTRAP}" ]] || {
+    echo "[ERROR] Alertmanager ingestion token bootstrap is missing: ${ALERTMANAGER_TOKEN_BOOTSTRAP}" >&2
+    exit 1
+  }
+  ALERTMANAGER_SECRETS_DIR="$(get_setting_value "IGUANA_SECRETS_DIR")"
+  if [[ -z "${ALERTMANAGER_SECRETS_DIR}" ]]; then
+    ALERTMANAGER_SECRETS_DIR="${REPO_ROOT}/config/secrets"
+  fi
+  IGUANA_SECRETS_DIR="${ALERTMANAGER_SECRETS_DIR}" bash "${ALERTMANAGER_TOKEN_BOOTSTRAP}"
+fi
+
 if [[ "${VALIDATE_ONLY}" == "1" ]]; then
   docker "${BASE_ARGS[@]}" config -q
   echo "[INFO] Validation succeeded."

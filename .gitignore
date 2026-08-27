@@ -16,6 +16,8 @@ attachments/
 /spring-panel/.m2/
 /spring-panel/target/
 /config/shared/monitoring-credentials.key
+/config/secrets/
+**/alertmanager-ingestion.token
 /config/shared/backup.properties
 /config/shared/backup-scheduler.state
 /config/shared/.backup-scheduler.lock/

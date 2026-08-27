@@ -43,6 +43,10 @@ server {
         return 404;
     }
 
+    location ^~ /internal/observability/ {
+        return 404;
+    }
+
     location ^~ /webhooks/vk/ {
         resolver 127.0.0.11 valid=30s ipv6=off;
         set $vk_upstream http://bot-vk:8080;

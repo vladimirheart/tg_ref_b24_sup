@@ -475,6 +475,31 @@ public class IncidentService {
                                                            String source,
                                                            Object payload,
                                                            String actor) {
+        return openOrRefreshSignalIncident(
+            signalType,
+            signalKey,
+            title,
+            summary,
+            description,
+            severity,
+            source,
+            payload,
+            actor,
+            List.of()
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> openOrRefreshSignalIncident(String signalType,
+                                                           String signalKey,
+                                                           String title,
+                                                           String summary,
+                                                           String description,
+                                                           String severity,
+                                                           String source,
+                                                           Object payload,
+                                                           String actor,
+                                                           List<Map<String, Object>> initialRoutes) {
         String normalizedSignalType = requiredText(signalType, "Укажите signal type incident.");
         String normalizedSignalKey = requiredText(signalKey, "Укажите signal key incident.");
         OffsetDateTime now = OffsetDateTime.now();
@@ -498,10 +523,14 @@ public class IncidentService {
             incident.setCreatedBy(normalizeNullableIdentity(actor));
             incident.setCreatedAt(now);
             incident.setUpdatedAt(now);
-            incident =
-				saveNewIncidentWithGeneratedKey(
-					incident
-				);
+            incident = saveNewIncidentWithGeneratedKey(incident);
+
+            if (initialRoutes != null && !initialRoutes.isEmpty()) {
+                Map<String, Object> routePayload = new LinkedHashMap<>();
+                routePayload.put("routes", initialRoutes);
+                syncRoutes(incident, extractRoutes(routePayload), now);
+            }
+
             appendEvent(incident, "signal_opened", "Signal incident created", payload, actor, now);
         } else {
             incident.setTitle(requiredText(title, "Укажите заголовок incident."));

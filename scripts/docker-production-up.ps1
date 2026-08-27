@@ -369,6 +369,27 @@ foreach ($profile in $profiles) {
     $baseArguments += @("--profile", $profile)
 }
 
+if ($Observability -and -not $ValidateOnly) {
+    $alertmanagerTokenBootstrap = Join-Path $PSScriptRoot "ensure-alertmanager-ingestion-token.ps1"
+    if (-not (Test-Path -LiteralPath $alertmanagerTokenBootstrap -PathType Leaf)) {
+        throw "Alertmanager ingestion token bootstrap is missing: $alertmanagerTokenBootstrap"
+    }
+    $alertmanagerSecretsDir = Resolve-RepoPathFromSetting `
+        -RepoRoot $repoRoot `
+        -DotEnv $dotEnv `
+        -Name "IGUANA_SECRETS_DIR" `
+        -DefaultValue "config/secrets"
+    & powershell.exe `
+        -NoLogo `
+        -NoProfile `
+        -ExecutionPolicy Bypass `
+        -File $alertmanagerTokenBootstrap `
+        -SecretsDir $alertmanagerSecretsDir
+    if ($LASTEXITCODE -ne 0) {
+        throw "Alertmanager ingestion token bootstrap failed with exit code $LASTEXITCODE."
+    }
+}
+
 if ($ValidateOnly) {
     $configArguments = $baseArguments + @("config", "-q")
     & $dockerCommand @configArguments

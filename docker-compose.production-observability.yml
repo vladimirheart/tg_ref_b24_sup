@@ -1,4 +1,14 @@
 services:
+  panel-web:
+    environment:
+      APP_ALERTMANAGER_INGESTION_ENABLED: "true"
+      APP_ALERTMANAGER_INGESTION_TOKEN_FILE: /run/secrets/iguana-alertmanager-ingestion.token
+    volumes:
+      - type: bind
+        source: ${IGUANA_SECRETS_DIR:-./config/secrets}/alertmanager-ingestion.token
+        target: /run/secrets/iguana-alertmanager-ingestion.token
+        read_only: true
+
   # Enable RabbitMQ's built-in Prometheus endpoint on internal port 15692.
   rabbitmq:
     volumes:

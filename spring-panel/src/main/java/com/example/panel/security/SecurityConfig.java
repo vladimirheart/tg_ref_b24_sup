@@ -43,6 +43,7 @@ public class SecurityConfig {
                                 "/api/password-reset-requests/public",
                                 "/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus",
                                 "/internal/api/bot/**",
+                                "/internal/observability/alertmanager",
                                 "/webhooks/max/**",
                                 "/error", "/error/**"
                         ).permitAll()
@@ -68,7 +69,7 @@ public class SecurityConfig {
                 )
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .ignoringRequestMatchers("/webhooks/max/**", "/internal/api/bot/**")
+                        .ignoringRequestMatchers("/webhooks/max/**", "/internal/api/bot/**", "/internal/observability/alertmanager")
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)

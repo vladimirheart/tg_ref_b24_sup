@@ -1,10 +1,9 @@
 global:
   resolve_timeout: 5m
 
-# Phase 2 establishes the durable alert routing/aggregation component.
-# This local receiver deliberately has no external transport configured yet;
-# external delivery must reuse an approved Iguana notification path rather
-# than embedding a new secret/webhook ad hoc in infrastructure YAML.
+# Alertmanager is only a routing/aggregation component. Provider credentials
+# stay inside Iguana. high/critical events cross into Iguana through the
+# internal Docker-network ingestion endpoint using a Bearer credential file.
 route:
   receiver: iguana-local
   group_by:
@@ -15,13 +14,35 @@ route:
   group_interval: 5m
   repeat_interval: 2h
   routes:
-    - receiver: iguana-local
+    - receiver: iguana-internal
+      matchers:
+        - iguana_smoke="true"
+        - severity=~"critical|high"
+      group_wait: 1s
+      group_interval: 3s
+      repeat_interval: 5m
+
+    - receiver: iguana-internal
       matchers:
         - severity="critical"
       repeat_interval: 30m
 
+    - receiver: iguana-internal
+      matchers:
+        - severity="high"
+      repeat_interval: 2h
+
 receivers:
   - name: iguana-local
+
+  - name: iguana-internal
+    webhook_configs:
+      - url: http://panel-web:8080/internal/observability/alertmanager
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials_file: /run/secrets/iguana-alertmanager-ingestion.token
 
 inhibit_rules:
   - source_matchers:
