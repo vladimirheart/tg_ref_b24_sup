@@ -25,7 +25,7 @@ public class BackupManualOperationService {
     private static final String RUNNING_FILE = "backup-manual-request.running";
     private static final String STATUS_FILE = "backup-manual-status.properties";
     private static final String RUNNER_STATUS_FILE = "backup-policy-runner.status";
-    private static final Duration RUNNER_ACTIVE_WINDOW = Duration.ofMinutes(3);
+    private static final Duration RUNNER_ACTIVE_WINDOW = Duration.ofSeconds(20);
     private static final Set<String> ALLOWED_MODES = Set.of("critical", "full", "custom");
 
     private final SharedConfigService sharedConfigService;
@@ -123,6 +123,10 @@ public class BackupManualOperationService {
     }
 
     private boolean isRunnerActive(Map<String, String> heartbeat) {
+        if (!"online".equalsIgnoreCase(heartbeat.getOrDefault("status", ""))) {
+            return false;
+        }
+
         String raw = heartbeat.get("last_seen_at");
         if (!StringUtils.hasText(raw)) {
             return false;

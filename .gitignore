@@ -23,6 +23,8 @@ attachments/
 /config/shared/backup-manual-request.running
 /config/shared/backup-manual-status.properties
 /config/shared/backup-policy-runner.status
+/config/shared/backup-policy-runner.stop
+/run/backup-policy-runner.pid
 /.tmp/
 *.patch
 *.bak

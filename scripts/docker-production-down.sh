@@ -74,6 +74,11 @@ fi
 ARGS=("${BASE_ARGS[@]}" down --remove-orphans)
 [[ "${REMOVE_VOLUMES}" == "1" ]] && ARGS+=(-v)
 
+RUNNER_STOPPER="${SCRIPT_DIR}/stop-backup-policy-runner.sh"
+if [[ -f "${RUNNER_STOPPER}" ]]; then
+  bash "${RUNNER_STOPPER}" --wait-seconds 5 || true
+fi
+
 echo "[INFO] Stopping Iguana docker production contour (panel-web / ops-worker / db-migrate)"
 docker "${ARGS[@]}"
 echo "[INFO] Iguana docker production contour stopped."

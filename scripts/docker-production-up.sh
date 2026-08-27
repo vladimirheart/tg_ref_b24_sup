@@ -312,6 +312,29 @@ echo "[INFO] ops-worker replicas: ${WORKER_REPLICAS}"
 echo "[INFO] Edge enabled: ${EDGE}"
 echo "[INFO] Observability enabled: ${OBSERVABILITY}"
 
+RUNNER_STARTER="${SCRIPT_DIR}/start-backup-policy-runner.sh"
+RUNNER_STOPPER="${SCRIPT_DIR}/stop-backup-policy-runner.sh"
+RUNNER_STARTED_BEFORE_COMPOSE=0
+
+if [[ "${DETACH}" != "1" && -f "${RUNNER_STARTER}" ]]; then
+  bash "${RUNNER_STARTER}" --detach-from-parent || echo "[WARN] Backup policy background runner failed to start before foreground Docker launch." >&2
+  RUNNER_STARTED_BEFORE_COMPOSE=1
+fi
+
+set +e
 docker "${ARGS[@]}"
+compose_code=$?
+set -e
+
+if [[ "${compose_code}" -ne 0 ]]; then
+  if [[ "${RUNNER_STARTED_BEFORE_COMPOSE}" == "1" && -f "${RUNNER_STOPPER}" ]]; then
+    bash "${RUNNER_STOPPER}" --wait-seconds 3 >/dev/null 2>&1 || true
+  fi
+  exit "${compose_code}"
+fi
+
+if [[ "${DETACH}" == "1" && -f "${RUNNER_STARTER}" ]]; then
+  bash "${RUNNER_STARTER}" --detach-from-parent || echo "[WARN] Docker contour started, but backup policy background runner failed to start." >&2
+fi
 
 echo "[INFO] Iguana docker production contour started."

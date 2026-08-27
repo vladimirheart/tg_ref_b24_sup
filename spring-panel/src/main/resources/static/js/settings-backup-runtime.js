@@ -160,7 +160,7 @@
         runner.textContent = data.schedule_ready ? 'Host runner online' : 'Host runner online · schedule заблокирован до off-host';
       } else {
         runner.className = 'badge text-bg-secondary';
-        runner.textContent = 'Host runner offline / не установлен';
+        runner.textContent = 'Host runner offline';
       }
     }
 
@@ -186,7 +186,7 @@
       if (data.started_at) parts.push(`старт: ${formatTimestamp(data.started_at)}`);
       if (data.finished_at) parts.push(`финиш: ${formatTimestamp(data.finished_at)}`);
       if (data.message) parts.push(data.message);
-      if (operationStatus === 'queued' && !data.runner_active) parts.push('Запрос сохранён, но выполнится только после запуска host runner.');
+      if (operationStatus === 'queued' && !data.runner_active) parts.push('Запрос сохранён. Runner должен стартовать вместе с панелью; перезапустите панель через штатный launcher.'); // panel-lifecycle-queued-v1
       meta.textContent = parts.length ? parts.join(' · ') : 'Ручной backup ещё не запускался.';
     }
 
@@ -276,7 +276,7 @@
       setFeedback(
         data.manual?.runner_active
           ? 'Ручной backup поставлен в очередь host runner. Статус обновляется автоматически.'
-          : 'Backup поставлен в очередь, но host runner offline. Установите/запустите runner на Docker host.',
+          : 'Backup поставлен в очередь, но host runner offline. Перезапустите панель через штатный launcher.', // panel-lifecycle-feedback-v1
         data.manual?.runner_active ? 'success' : 'warning'
       );
     } catch (error) {

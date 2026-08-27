@@ -227,17 +227,18 @@ An empty primary MinIO bucket is valid. It produces a zero-object tar.gz package
 
 ### Scheduled execution
 
-The admin UI stores critical/full schedule values. A lightweight host runner evaluates them every five minutes:
+The admin UI stores critical/full schedule values. No periodic Task Scheduler or cron job is used.
 
-Windows:
-`powershell -ExecutionPolicy Bypass -File .\scripts\install-backup-policy-runner.ps1`
+A single host runner daemon starts together with the panel:
 
-Linux/Unix with cron:
-`bash ./scripts/install-backup-policy-runner.sh`
+- Windows local bootstrap: `spring-panel/run-windows.bat` starts it hidden before `spring-boot:run` and stops it on launcher exit;
+- Docker production: `docker-production-up.ps1/.sh` starts it, `docker-production-down.ps1/.sh` stops it.
 
-Changing time/day in the admin UI does not require recreating the scheduler entry. The runner reads `backup.properties` every execution.
+The daemon stays idle in the background, reloads `backup.properties`, checks the manual queue and evaluates Critical/Full schedule slots without spawning a new PowerShell/Bash process every minute.
 
-Critical scheduled plan runs backup-only. Full scheduled plan runs backup and the selected isolated restore rehearsal. No destructive production restore is performed by the scheduler.
+Critical scheduled plan runs backup-only. Full scheduled plan runs backup and isolated restore rehearsal. A failed scheduled plan is not retried in a tight loop: the schedule slot is marked before execution and can be retried manually from the admin UI if needed.
+
+Legacy migration helpers `install-backup-policy-runner.ps1/.sh` now only remove old Scheduled Task/cron registrations; they do not install a periodic scheduler.
 
 ## Manual backup from the admin UI
 
@@ -253,11 +254,11 @@ Execution boundary:
 
 `panel-web` still has no Docker socket and cannot execute host commands directly.
 
-Install the host runner:
+The host runner is started automatically by the supported panel launchers; there is nothing to install for normal operation. The admin UI heartbeat shows whether the hidden lifecycle runner is online.
+
+If an old periodic runner was installed previously, run the compatibility migration helper once to remove it:
 - Windows: `powershell -ExecutionPolicy Bypass -File .\scripts\install-backup-policy-runner.ps1`
 - Linux/Unix: `bash ./scripts/install-backup-policy-runner.sh`
-
-The runner evaluates schedules and manual queue every minute. A policy change does not require reinstalling it.
 
 For a local development path with `external_failure_domain=false`, manual execution requires the explicit UI switch `Разрешить локальный тестовый запуск (не DR)`. Scheduled plans remain blocked until a real external failure domain is acknowledged.
 

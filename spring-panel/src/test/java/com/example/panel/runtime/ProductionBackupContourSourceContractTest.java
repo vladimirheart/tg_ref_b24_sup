@@ -122,16 +122,24 @@ class ProductionBackupContourSourceContractTest {
             .contains("Get-Env \"IGUANA_BACKUP_${Prefix}_TIME\"")
             .contains("Is-Due \"CRITICAL\"")
             .contains("Is-Due \"FULL\"")
-            .contains("\"-Action\", \"backup\"")
-            .contains("\"-Mode\", \"critical\"")
-            .contains("\"-Action\", \"full\"")
-            .contains("\"-Mode\", \"full\"");
+            .contains("Invoke-ScheduledPlan")
+            .contains("-Prefix \"CRITICAL\"")
+            .contains("-Mode \"critical\"")
+            .contains("-Action \"backup\"")
+            .contains("-Prefix \"FULL\"")
+            .contains("-Mode \"full\"")
+            .contains("-Action \"full\"")
+            .contains("\"-Action\", $Action")
+            .contains("\"-Mode\", $Mode");
 
         assertThat(runnerSh)
-            .contains("--action backup --mode critical")
-            .contains("--action full --mode full");
+            .contains("refresh_policy")
+            .contains("due CRITICAL")
+            .contains("due FULL")
+            .contains("run_scheduled_plan CRITICAL backup critical")
+            .contains("run_scheduled_plan FULL full full")
+            .contains("local args=(--action \"${action}\" --mode \"${mode}\")");
     }
-
     @Test
     void backupPolicyIsAdminManagedAndPreparedForPortableArchiveRuntime() throws IOException {
         String settingsPage = read("spring-panel/src/main/resources/templates/settings/index.html");
@@ -247,25 +255,83 @@ class ProductionBackupContourSourceContractTest {
             .contains("Process-ManualRequest")
             .contains("-AllowLocalDestination")
             .contains("Resolve-ManualRestoreComponents")
-            .contains("Scheduled backup plans skipped: external failure domain is not acknowledged")
+            .contains("Get-Env \"IGUANA_BACKUP_EXTERNAL_FAILURE_DOMAIN\" \"false\"")
+            .doesNotContain("Scheduled backup plans skipped: external failure domain is not acknowledged")
             .contains("backup-policy-runner.status");
 
         assertThat(runnerSh)
             .contains("process_manual_request")
             .contains("--allow-local-destination")
             .contains("manual_restore_components")
-            .contains("Scheduled backup plans skipped: external failure domain is not acknowledged");
+            .contains("IGUANA_BACKUP_EXTERNAL_FAILURE_DOMAIN")
+            .doesNotContain("Scheduled backup plans skipped: external failure domain is not acknowledged")
+            .contains("backup-policy-runner.status");
 
         assertThat(installerPs)
-            .contains("[int]$EveryMinutes = 1")
-            .contains("manual backup queue every minute");
+            .contains("Scheduled Task runner is deprecated")
+            .contains("Unregister-ScheduledTask")
+            .doesNotContain("Register-ScheduledTask")
+            .doesNotContain("New-ScheduledTaskTrigger");
+
         assertThat(installerSh)
-            .contains("* * * * *")
-            .contains("manual queue are evaluated every minute");
+            .contains("cron runner is deprecated")
+            .contains("grep -vF")
+            .doesNotContain("* * * * *");
 
         assertThat(productionCompose)
             .doesNotContain("/var/run/docker.sock")
             .doesNotContain("docker.sock:");
+    }
+    @Test
+    void backupRunnerFollowsPanelLifecycleWithoutPeriodicOsScheduler() throws IOException {
+        String runnerPs = read("scripts/run-backup-policy.ps1");
+        String startPs = read("scripts/start-backup-policy-runner.ps1");
+        String stopPs = read("scripts/stop-backup-policy-runner.ps1");
+        String runnerSh = read("scripts/run-backup-policy.sh");
+        String startSh = read("scripts/start-backup-policy-runner.sh");
+        String stopSh = read("scripts/stop-backup-policy-runner.sh");
+        String windowsLauncher = read("spring-panel/run-windows.bat");
+        String productionUpPs = read("scripts/docker-production-up.ps1");
+        String productionDownPs = read("scripts/docker-production-down.ps1");
+        String productionUpSh = read("scripts/docker-production-up.sh");
+        String productionDownSh = read("scripts/docker-production-down.sh");
+
+        assertThat(runnerPs)
+            .contains("[switch]$Daemon")
+            .contains("Refresh-BackupPolicyEnvironment")
+            .contains("Start-Sleep -Seconds $IdleSeconds")
+            .contains("Panel launcher parent process exited")
+            .contains("This schedule slot will not be retried automatically");
+
+        assertThat(startPs)
+            .contains("Start-Process")
+            .contains("-WindowStyle Hidden")
+            .contains("-Daemon")
+            .contains("backup-policy-runner.pid");
+
+        assertThat(stopPs)
+            .contains("backup-policy-runner.stop")
+            .contains("backup-policy-runner.pid");
+
+        assertThat(runnerSh)
+            .contains("--daemon")
+            .contains("sleep \"${IDLE_SECONDS}\"")
+            .contains("Panel launcher parent process exited");
+        assertThat(startSh)
+            .contains("nohup bash")
+            .contains("backup-policy-runner.pid");
+        assertThat(stopSh)
+            .contains("backup-policy-runner.stop");
+
+        assertThat(windowsLauncher)
+            .contains("start-backup-policy-runner.ps1")
+            .contains("stop-backup-policy-runner.ps1")
+            .doesNotContain("install-backup-policy-runner.ps1");
+
+        assertThat(productionUpPs).contains("start-backup-policy-runner.ps1");
+        assertThat(productionDownPs).contains("stop-backup-policy-runner.ps1");
+        assertThat(productionUpSh).contains("start-backup-policy-runner.sh");
+        assertThat(productionDownSh).contains("stop-backup-policy-runner.sh");
     }
 
     private String read(String relativePath) throws IOException {

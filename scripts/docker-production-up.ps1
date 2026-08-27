@@ -406,9 +406,32 @@ Write-Host "[INFO] Profiles: $($(if ($profiles.Count -gt 0) { $profiles -join ',
 Write-Host "[INFO] Edge enabled: $Edge"
 Write-Host "[INFO] Observability enabled: $Observability"
 
+$runnerStarter = Join-Path $PSScriptRoot "start-backup-policy-runner.ps1"
+$runnerStopper = Join-Path $PSScriptRoot "stop-backup-policy-runner.ps1"
+$runnerStartedBeforeCompose = $false
+
+if ($NoDetach -and (Test-Path -LiteralPath $runnerStarter -PathType Leaf)) {
+    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $runnerStarter -DetachFromParent
+    if ($LASTEXITCODE -eq 0) {
+        $runnerStartedBeforeCompose = $true
+    } else {
+        Write-Warning "Backup policy background runner failed to start before foreground Docker launch."
+    }
+}
+
 & $dockerCommand @arguments
 if ($LASTEXITCODE -ne 0) {
+    if ($runnerStartedBeforeCompose -and (Test-Path -LiteralPath $runnerStopper -PathType Leaf)) {
+        & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $runnerStopper -WaitSeconds 3 *> $null
+    }
     throw "docker compose up failed with exit code $LASTEXITCODE."
+}
+
+if (-not $NoDetach -and (Test-Path -LiteralPath $runnerStarter -PathType Leaf)) {
+    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $runnerStarter -DetachFromParent
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Docker contour started, but backup policy background runner failed to start."
+    }
 }
 
 Write-Host "[INFO] Iguana docker production contour started."

@@ -79,6 +79,14 @@ if ($RemoveVolumes) {
     $arguments += "-v"
 }
 
+$runnerStopper = Join-Path $PSScriptRoot "stop-backup-policy-runner.ps1"
+if (Test-Path -LiteralPath $runnerStopper -PathType Leaf) {
+    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $runnerStopper -WaitSeconds 5
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Backup policy runner stop helper returned exit code $LASTEXITCODE."
+    }
+}
+
 Write-Host "[INFO] Stopping Iguana docker production contour (panel-web / ops-worker / db-migrate)"
 & $dockerCommand.Source @arguments
 if ($LASTEXITCODE -ne 0) {

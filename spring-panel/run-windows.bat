@@ -387,6 +387,21 @@ if "!SKIP_MAVEN_CLEAN!"=="1" (
     )
 )
 
+set "BACKUP_RUNNER_STARTED=0"
+if exist "%WORKSPACE_ROOT%\scripts\start-backup-policy-runner.ps1" (
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass ^
+        -File "%WORKSPACE_ROOT%\scripts\start-backup-policy-runner.ps1"
+
+    if errorlevel 1 (
+        echo [WARN] Backup policy background runner failed to start.
+        echo [WARN] Manual backup from the admin UI will remain queued until the runner is available.
+    ) else (
+        set "BACKUP_RUNNER_STARTED=1"
+    )
+) else (
+    echo [WARN] Backup policy runner launcher is missing. Manual backup will be unavailable.
+)
+
 call :RunMaven spring-boot:run %*
 set "EXIT_CODE=!ERRORLEVEL!"
 
@@ -465,6 +480,14 @@ goto :eof
 
 
 :Exit
+
+if "!BACKUP_RUNNER_STARTED!"=="1" (
+    if exist "%WORKSPACE_ROOT%\scripts\stop-backup-policy-runner.ps1" (
+        powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass ^
+            -File "%WORKSPACE_ROOT%\scripts\stop-backup-policy-runner.ps1" ^
+            -WaitSeconds 3
+    )
+)
 
 if defined APP_HTTP_PORT (
     if exist "%SCRIPT_DIR%\scripts\cleanup-panel-port.ps1" (

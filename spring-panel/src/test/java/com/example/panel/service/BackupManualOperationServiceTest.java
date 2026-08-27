@@ -92,7 +92,8 @@ class BackupManualOperationServiceTest {
 
         Files.writeString(
                 tempDir.resolve("backup-policy-runner.status"),
-                "last_seen_at=" + OffsetDateTime.now(ZoneOffset.UTC) + "\n"
+                "status=online\n"
+                        + "last_seen_at=" + OffsetDateTime.now(ZoneOffset.UTC) + "\n"
                         + "platform=windows\n"
                         + "schedule_ready=true\n"
         );
@@ -102,5 +103,23 @@ class BackupManualOperationServiceTest {
                 .containsEntry("runner_active", true)
                 .containsEntry("schedule_ready", true)
                 .containsEntry("runner_platform", "windows");
+    }
+@Test
+    void offlineHeartbeatIsNotReportedAsActive() throws Exception {
+        SharedConfigService shared = sharedConfig();
+        BackupSettingsService settings = mock(BackupSettingsService.class);
+        when(settings.load()).thenReturn(Map.of("configured", true, "external_failure_domain", true));
+
+        Files.writeString(
+                tempDir.resolve("backup-policy-runner.status"),
+                "status=offline\n"
+                        + "last_seen_at=" + OffsetDateTime.now(ZoneOffset.UTC) + "\n"
+                        + "platform=windows\n"
+                        + "schedule_ready=true\n"
+        );
+
+        BackupManualOperationService service = new BackupManualOperationService(shared, settings);
+        assertThat(service.status())
+                .containsEntry("runner_active", false);
     }
 }

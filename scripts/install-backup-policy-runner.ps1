@@ -1,19 +1,24 @@
 param(
-    [string]$TaskName = "Iguana Backup Policy Runner",
-    [int]$EveryMinutes = 1
+    [string]$TaskName = "Iguana Backup Policy Runner"
 )
 
 $ErrorActionPreference = "Stop"
-if ($EveryMinutes -lt 1 -or $EveryMinutes -gt 60) { throw "EveryMinutes must be 1..60." }
-if (-not $PSScriptRoot) { throw "Unable to resolve script root." }
-$runner = Join-Path $PSScriptRoot "run-backup-policy.ps1"
-if (-not (Test-Path -LiteralPath $runner)) { throw "Runner not found: $runner" }
 
-$powershell = (Get-Command powershell.exe -ErrorAction Stop).Source
-$action = New-ScheduledTaskAction -Execute $powershell -Argument ('-NoProfile -ExecutionPolicy Bypass -File "' + $runner + '"')
-$trigger = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(1)) -RepetitionInterval (New-TimeSpan -Minutes $EveryMinutes) -RepetitionDuration (New-TimeSpan -Days 3650)
-Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Description "Reads Iguana admin backup policy and manual backup queue every minute." -RunLevel Highest -Force | Out-Null
+Write-Host "[INFO] Scheduled Task runner is deprecated."
+Write-Host "[INFO] Backup runner now starts hidden with the panel lifecycle."
 
-Write-Host "[GREEN] Windows Task Scheduler runner installed: $TaskName"
-Write-Host "[INFO] Manual requests and schedule policy are evaluated every $EveryMinutes minute(s)."
-Write-Host "[INFO] Changing Settings -> Backup & recovery does not require recreating the scheduled task."
+$cmd = Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue
+if (-not $cmd) {
+    Write-Host "[INFO] Task Scheduler cmdlets are unavailable; nothing to migrate."
+    exit 0
+}
+
+$task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+if ($null -eq $task) {
+    Write-Host "[INFO] Legacy Scheduled Task is not installed."
+    exit 0
+}
+
+Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
+Write-Host "[GREEN] Removed legacy Scheduled Task: $TaskName"
+Write-Host "[INFO] No periodic OS scheduler is required anymore."
