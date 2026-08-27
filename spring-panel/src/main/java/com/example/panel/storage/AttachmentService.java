@@ -65,8 +65,10 @@ public class AttachmentService {
                                                                    String path,
                                                                    String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        Path resolved = resolveByStoredPath(attachmentsRoot, path);
-        return buildInlineResponse(resolved, rangeHeader);
+        AttachmentObjectStorageService.StoredBinary binary = openByStoredPath(path);
+        String filename = AttachmentStorageKeyResolver.extractFileName(path);
+        String safeFilename = StringUtils.hasText(filename) ? filename : "file";
+        return buildResponse(binary, buildContentDisposition("inline", safeFilename), safeFilename, rangeHeader);
     }
 
     public ResponseEntity<Resource> downloadTicketAttachmentByStorageKey(Authentication authentication, String storageKey) throws IOException {
@@ -163,6 +165,16 @@ public class AttachmentService {
     }
 
     public AttachmentDescriptor describeTicketAttachmentByPath(String rawPath) throws IOException {
+        String storageKey = AttachmentStorageKeyResolver.extractAttachmentsSuffix(rawPath);
+        if (StringUtils.hasText(storageKey)) {
+            try (AttachmentObjectStorageService.StoredBinary binary =
+                         objectStorageService.openDialogAttachmentByStorageKey(storageKey)) {
+                return new AttachmentDescriptor(
+                        extractOriginalAttachmentName(AttachmentStorageKeyResolver.extractFileName(storageKey)),
+                        binary.size()
+                );
+            }
+        }
         Path resolved = resolveByStoredPath(attachmentsRoot, rawPath);
         return describeResolvedAttachment(resolved);
     }
@@ -333,6 +345,20 @@ public class AttachmentService {
             throw new IllegalArgumentException("File not found");
         }
         return resolved;
+    }
+
+    private AttachmentObjectStorageService.StoredBinary openByStoredPath(String rawPath) throws IOException {
+        String storageKey = AttachmentStorageKeyResolver.extractAttachmentsSuffix(rawPath);
+        if (StringUtils.hasText(storageKey)) {
+            return objectStorageService.openDialogAttachmentByStorageKey(storageKey);
+        }
+        Path resolved = resolveByStoredPath(attachmentsRoot, rawPath);
+        return new AttachmentObjectStorageService.StoredBinary(
+                AttachmentStorageKeyResolver.extractFileName(rawPath),
+                Files.probeContentType(resolved),
+                Files.size(resolved),
+                Files.newInputStream(resolved)
+        );
     }
 
     private Path resolveTicketAttachmentPath(String ticketId, String filename) {

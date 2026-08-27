@@ -172,6 +172,9 @@ public class PanelUserPhotoService {
         if (!StringUtils.hasText(filename)) {
             return false;
         }
+        if (!attachmentObjectStorageService.isLegacyLocalFallbackEnabled()) {
+            return false;
+        }
 
         for (Path root : legacyLocalAvatarRoots) {
             if (root == null) {

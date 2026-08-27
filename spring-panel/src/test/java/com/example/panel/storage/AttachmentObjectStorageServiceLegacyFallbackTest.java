@@ -1,8 +1,10 @@
 package com.example.panel.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -92,6 +94,38 @@ class AttachmentObjectStorageServiceLegacyFallbackTest {
         }
 
         verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    }
+
+    @Test
+    void openDialogAttachmentByStorageKeyDoesNotUseLegacyLocalFileWhenFallbackIsDisabled() throws Exception {
+        ObjectStorageProperties disabledProperties = new ObjectStorageProperties();
+        disabledProperties.setMode("s3");
+        disabledProperties.setBucket("iguana");
+        disabledProperties.setEndpoint("http://minio:9000");
+        disabledProperties.setAccessKey("iguana-minio");
+        disabledProperties.setSecretKey("iguana-minio-secret");
+        disabledProperties.setKeyPrefix("iguana");
+        disabledProperties.setLegacyLocalFallbackEnabled(false);
+
+        AttachmentObjectStorageService disabledService = new AttachmentObjectStorageService(
+                disabledProperties,
+                attachmentsRoot.toString(),
+                tempDir.resolve("knowledge-disabled").toString(),
+                tempDir.resolve("passport-disabled").toString(),
+                avatarsRoot.toString()
+        );
+        S3Client disabledS3Client = mock(S3Client.class);
+        when(disabledS3Client.getObject(any(software.amazon.awssdk.services.s3.model.GetObjectRequest.class)))
+                .thenThrow(NoSuchKeyException.builder().message("missing").build());
+        injectS3Client(disabledService, disabledS3Client);
+
+        Path attachment = attachmentsRoot.resolve("ticket-2").resolve("file.txt");
+        Files.createDirectories(attachment.getParent());
+        Files.writeString(attachment, "legacy-payload", StandardCharsets.UTF_8);
+
+        assertThatThrownBy(() -> disabledService.openDialogAttachmentByStorageKey("ticket-2/file.txt"))
+                .isInstanceOf(NoSuchKeyException.class);
+        verify(disabledS3Client, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
     }
 
     private static void injectS3Client(AttachmentObjectStorageService service, S3Client s3Client) throws Exception {

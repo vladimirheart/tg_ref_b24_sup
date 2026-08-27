@@ -24,11 +24,17 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         AttachmentService attachmentService = mock(AttachmentService.class);
         AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
+        ChatAttachmentMetadataService chatAttachmentMetadataService = mock(ChatAttachmentMetadataService.class);
         doReturn(List.of()).when(jdbcTemplate)
                 .query(anyString(), ArgumentMatchers.<RowMapper<Object>>any());
 
         ChatAttachmentMetadataAvailabilityService service =
-                new ChatAttachmentMetadataAvailabilityService(jdbcTemplate, attachmentService, attachmentObjectStorageService);
+                new ChatAttachmentMetadataAvailabilityService(
+                        jdbcTemplate,
+                        attachmentService,
+                        attachmentObjectStorageService,
+                        chatAttachmentMetadataService
+                );
 
         service.reconcileAvailabilityStatuses();
 
@@ -40,6 +46,7 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         AttachmentService attachmentService = mock(AttachmentService.class);
         AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
+        ChatAttachmentMetadataService chatAttachmentMetadataService = mock(ChatAttachmentMetadataService.class);
 
         when(attachmentObjectStorageService.providerLabel()).thenReturn("s3");
         when(attachmentObjectStorageService.backfillDialogAttachmentByStorageKey("ticket-1/file-1.jpg")).thenReturn(true);
@@ -48,8 +55,12 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
         when(attachmentService.hasTicketAttachmentByStorageKey("ticket-1/file-2.jpg")).thenReturn(false);
 
         org.mockito.Mockito.doAnswer(invocation -> {
+            String sql = invocation.getArgument(0, String.class);
             @SuppressWarnings("unchecked")
             RowMapper<Object> rowMapper = invocation.getArgument(1, RowMapper.class);
+            if (sql.contains("FROM chat_history ch")) {
+                return List.of();
+            }
 
             ResultSet first = mock(ResultSet.class);
             when(first.getLong("id")).thenReturn(11L);
@@ -74,7 +85,12 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
         }).when(jdbcTemplate).query(anyString(), ArgumentMatchers.<RowMapper<Object>>any());
 
         ChatAttachmentMetadataAvailabilityService service =
-                new ChatAttachmentMetadataAvailabilityService(jdbcTemplate, attachmentService, attachmentObjectStorageService);
+                new ChatAttachmentMetadataAvailabilityService(
+                        jdbcTemplate,
+                        attachmentService,
+                        attachmentObjectStorageService,
+                        chatAttachmentMetadataService
+                );
 
         service.reconcileAvailabilityStatuses();
 
@@ -82,5 +98,53 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
         verify(attachmentObjectStorageService).backfillDialogAttachmentByStorageKey("ticket-1/file-2.jpg");
         verify(jdbcTemplate).update(anyString(), eq("s3"), eq("normalized"), eq("available"), eq(11L));
         verify(jdbcTemplate).update(anyString(), eq("s3"), eq("normalized"), eq("missing"), eq(12L));
+    }
+
+    @Test
+    void reconcileBackfillsMissingMetadataRowsBeforeAvailabilityRefresh() throws Exception {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        AttachmentService attachmentService = mock(AttachmentService.class);
+        AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
+        ChatAttachmentMetadataService chatAttachmentMetadataService = mock(ChatAttachmentMetadataService.class);
+
+        org.mockito.Mockito.doAnswer(invocation -> {
+            String sql = invocation.getArgument(0, String.class);
+            @SuppressWarnings("unchecked")
+            RowMapper<Object> rowMapper = invocation.getArgument(1, RowMapper.class);
+
+            if (sql.contains("FROM chat_history ch")) {
+                ResultSet row = mock(ResultSet.class);
+                when(row.getLong("id")).thenReturn(501L);
+                when(row.getString("ticket_id")).thenReturn("ticket-501");
+                when(row.getObject("channel_id")).thenReturn(77L);
+                when(row.getLong("channel_id")).thenReturn(77L);
+                when(row.getString("attachment")).thenReturn("C:\\legacy\\attachments\\ticket-501\\photo.jpg");
+                when(row.getString("file_name")).thenReturn("photo.jpg");
+                when(row.getString("message_type")).thenReturn("photo");
+                return List.of(rowMapper.mapRow(row, 0));
+            }
+            return List.of();
+        }).when(jdbcTemplate).query(anyString(), ArgumentMatchers.<RowMapper<Object>>any());
+
+        ChatAttachmentMetadataAvailabilityService service =
+                new ChatAttachmentMetadataAvailabilityService(
+                        jdbcTemplate,
+                        attachmentService,
+                        attachmentObjectStorageService,
+                        chatAttachmentMetadataService
+                );
+
+        service.reconcileAvailabilityStatuses();
+
+        verify(chatAttachmentMetadataService).upsertForChatHistory(
+                501L,
+                "ticket-501",
+                77L,
+                "C:\\legacy\\attachments\\ticket-501\\photo.jpg",
+                "photo.jpg",
+                null,
+                null,
+                "photo"
+        );
     }
 }

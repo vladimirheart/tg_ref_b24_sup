@@ -137,7 +137,7 @@ function Invoke-MinioMirror {
     param(
         [string]$Docker,
         [string]$NetworkName,
-        [string]$SourcePath,
+        [string]$WorkspaceRoot,
         [string]$AccessKey,
         [string]$SecretKey,
         [string]$Bucket
@@ -147,22 +147,28 @@ function Invoke-MinioMirror {
 set -eu
 mc alias set local http://minio:9000 "__ACCESS_KEY__" "__SECRET_KEY__" >/dev/null
 mc mb --ignore-existing local/__BUCKET__ >/dev/null
-mc mirror --overwrite --exclude "avatars/*" --exclude "knowledge_base/*" --exclude "passport_photos/*" /source local/__BUCKET__/attachments >/dev/null
-if [ -d /source/avatars ]; then
-  mc mirror --overwrite /source/avatars local/__BUCKET__/avatars >/dev/null
+for source in /workspace/attachments /workspace/java-bot/attachments; do
+  if [ -d "$source" ]; then
+    mc mirror --overwrite --exclude "avatars/*" --exclude "knowledge_base/*" --exclude "passport_photos/*" "$source" local/__BUCKET__/attachments >/dev/null
+  fi
+done
+for source in /workspace/attachments/avatars /workspace/spring-panel/attachments/avatars /workspace/spring-panel/src/main/resources/static/user_photos; do
+  if [ -d "$source" ]; then
+    mc mirror --overwrite "$source" local/__BUCKET__/avatars >/dev/null
+  fi
+done
+if [ -d /workspace/attachments/knowledge_base ]; then
+  mc mirror --overwrite /workspace/attachments/knowledge_base local/__BUCKET__/knowledge_base >/dev/null
 fi
-if [ -d /source/knowledge_base ]; then
-  mc mirror --overwrite /source/knowledge_base local/__BUCKET__/knowledge_base >/dev/null
-fi
-if [ -d /source/passport_photos ]; then
-  mc mirror --overwrite /source/passport_photos local/__BUCKET__/passport_photos >/dev/null
+if [ -d /workspace/attachments/passport_photos ]; then
+  mc mirror --overwrite /workspace/attachments/passport_photos local/__BUCKET__/passport_photos >/dev/null
 fi
 '@
     $mcScript = $mcScriptTemplate.Replace("__ACCESS_KEY__", $AccessKey).Replace("__SECRET_KEY__", $SecretKey).Replace("__BUCKET__", $Bucket)
 
     & $Docker run --rm `
         --network $NetworkName `
-        --mount "type=bind,src=$SourcePath,dst=/source,readonly" `
+        --mount "type=bind,src=$WorkspaceRoot,dst=/workspace,readonly" `
         --entrypoint /bin/sh `
         minio/mc:RELEASE.2025-07-21T05-28-08Z `
         -lc $mcScript
@@ -182,12 +188,35 @@ function Convert-StorageKeyToLocalPath {
     return [System.IO.Path]::GetFullPath((Join-Path $RootPath $relative))
 }
 
+function Find-ExistingLegacyAttachmentPath {
+    param(
+        [string[]]$RootPaths,
+        [string]$StorageKey
+    )
+
+    foreach ($rootPath in $RootPaths) {
+        if ([string]::IsNullOrWhiteSpace($rootPath) -or -not (Test-Path -LiteralPath $rootPath -PathType Container)) {
+            continue
+        }
+        $normalizedRoot = [System.IO.Path]::GetFullPath($rootPath)
+        $candidatePath = Convert-StorageKeyToLocalPath -RootPath $normalizedRoot -StorageKey $StorageKey
+        if ($candidatePath.StartsWith($normalizedRoot, [System.StringComparison]::OrdinalIgnoreCase) `
+                -and (Test-Path -LiteralPath $candidatePath -PathType Leaf)) {
+            return $candidatePath
+        }
+    }
+
+    return $null
+}
+
 $repoRoot = Get-RepoRoot
 $docker = Ensure-DockerAvailable
 $dotEnvPath = Join-Path $repoRoot ".env"
 $baseCompose = Join-Path $repoRoot "docker-compose.production-contour.yml"
 $observabilityCompose = Join-Path $repoRoot "docker-compose.production-observability.yml"
 $attachmentsRoot = Join-Path $repoRoot "attachments"
+$javaBotAttachmentsRoot = Join-Path $repoRoot "java-bot/attachments"
+$dialogAttachmentRoots = @($attachmentsRoot, $javaBotAttachmentsRoot)
 $dotEnv = Read-DotEnv -Path $dotEnvPath
 $projectName = [System.IO.Path]::GetFileName($repoRoot)
 $networkName = "${projectName}_default"
@@ -224,7 +253,7 @@ Write-Host "[INFO] Mirroring legacy media into MinIO bucket '$objectBucket'..."
 Invoke-MinioMirror `
     -Docker $docker `
     -NetworkName $networkName `
-    -SourcePath $attachmentsRoot `
+    -WorkspaceRoot $repoRoot `
     -AccessKey $objectAccessKey `
     -SecretKey $objectSecretKey `
     -Bucket $objectBucket
@@ -252,9 +281,8 @@ if (-not [string]::IsNullOrWhiteSpace($metadataRows)) {
         if ([string]::IsNullOrWhiteSpace($id) -or [string]::IsNullOrWhiteSpace($storageKey)) {
             continue
         }
-        $candidatePath = Convert-StorageKeyToLocalPath -RootPath $attachmentsRoot -StorageKey $storageKey
-        if ($candidatePath.StartsWith($attachmentsRoot, [System.StringComparison]::OrdinalIgnoreCase) `
-                -and (Test-Path -LiteralPath $candidatePath -PathType Leaf)) {
+        $candidatePath = Find-ExistingLegacyAttachmentPath -RootPaths $dialogAttachmentRoots -StorageKey $storageKey
+        if (-not [string]::IsNullOrWhiteSpace($candidatePath)) {
             $availableIds.Add($id)
         }
     }
@@ -295,6 +323,7 @@ if ($RestartRuntime) {
 
 Write-Host "[RESULT] Legacy storage backfill completed."
 Write-Host "[RESULT] attachments_root=$attachmentsRoot"
+Write-Host "[RESULT] legacy_dialog_roots=$($dialogAttachmentRoots -join ';')"
 Write-Host "[RESULT] metadata_rows_marked_available=$($availableIds.Count)"
 if (-not [string]::IsNullOrWhiteSpace($statusSummary)) {
     foreach ($line in ($statusSummary -split "`n")) {

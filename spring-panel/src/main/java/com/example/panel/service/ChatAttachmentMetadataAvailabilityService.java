@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import jakarta.annotation.PostConstruct;
+import java.sql.ResultSet;
 import java.util.List;
 
 @Service
@@ -30,18 +31,22 @@ public class ChatAttachmentMetadataAvailabilityService {
     private final JdbcTemplate jdbcTemplate;
     private final AttachmentService attachmentService;
     private final AttachmentObjectStorageService attachmentObjectStorageService;
+    private final ChatAttachmentMetadataService chatAttachmentMetadataService;
 
     public ChatAttachmentMetadataAvailabilityService(JdbcTemplate jdbcTemplate,
                                                      AttachmentService attachmentService,
-                                                     AttachmentObjectStorageService attachmentObjectStorageService) {
+                                                     AttachmentObjectStorageService attachmentObjectStorageService,
+                                                     ChatAttachmentMetadataService chatAttachmentMetadataService) {
         this.jdbcTemplate = jdbcTemplate;
         this.attachmentService = attachmentService;
         this.attachmentObjectStorageService = attachmentObjectStorageService;
+        this.chatAttachmentMetadataService = chatAttachmentMetadataService;
     }
 
     @PostConstruct
     void reconcileAvailabilityStatuses() {
         try {
+            backfillMissingMetadataRows();
             List<AttachmentMetadataRow> rows = jdbcTemplate.query("""
                     SELECT id, chat_history_id, storage_provider, storage_key, legacy_attachment_ref, normalization_status
                       FROM chat_attachment_metadata
@@ -77,6 +82,79 @@ public class ChatAttachmentMetadataAvailabilityService {
                     DialogDataAccessSupport.summarizeDataAccessException(ex)
             );
         }
+    }
+
+    private void backfillMissingMetadataRows() {
+        List<MissingAttachmentRow> rows = loadMissingAttachmentRows();
+
+        for (MissingAttachmentRow row : rows) {
+            chatAttachmentMetadataService.upsertForChatHistory(
+                    row.chatHistoryId(),
+                    row.ticketId(),
+                    row.channelId(),
+                    row.rawAttachment(),
+                    row.originalName(),
+                    null,
+                    null,
+                    row.messageType()
+            );
+        }
+    }
+
+    private List<MissingAttachmentRow> loadMissingAttachmentRows() {
+        String sqlWithOptionalColumns = """
+                SELECT ch.id,
+                       ch.ticket_id,
+                       ch.channel_id,
+                       ch.attachment,
+                       ch.file_name,
+                       ch.message_type
+                  FROM chat_history ch
+                 WHERE ch.attachment IS NOT NULL
+                   AND trim(ch.attachment) <> ''
+                   AND NOT EXISTS (
+                       SELECT 1
+                         FROM chat_attachment_metadata cam
+                        WHERE cam.chat_history_id = ch.id
+                   )
+                """;
+        try {
+            return jdbcTemplate.query(sqlWithOptionalColumns, this::mapMissingAttachmentRow);
+        } catch (DataAccessException ex) {
+            log.debug(
+                    "chat_history optional attachment columns are unavailable, falling back to minimal metadata backfill query: {}",
+                    DialogDataAccessSupport.summarizeDataAccessException(ex)
+            );
+        }
+
+        String fallbackSql = """
+                SELECT ch.id,
+                       ch.ticket_id,
+                       ch.channel_id,
+                       ch.attachment,
+                       NULL AS file_name,
+                       NULL AS message_type
+                  FROM chat_history ch
+                 WHERE ch.attachment IS NOT NULL
+                   AND trim(ch.attachment) <> ''
+                   AND NOT EXISTS (
+                       SELECT 1
+                         FROM chat_attachment_metadata cam
+                        WHERE cam.chat_history_id = ch.id
+                   )
+                """;
+        return jdbcTemplate.query(fallbackSql, this::mapMissingAttachmentRow);
+    }
+
+    private MissingAttachmentRow mapMissingAttachmentRow(ResultSet rs, int rowNum) throws java.sql.SQLException {
+        return new MissingAttachmentRow(
+                rs.getLong("id"),
+                trim(rs.getString("ticket_id")),
+                rs.getObject("channel_id") == null ? null : rs.getLong("channel_id"),
+                trim(rs.getString("attachment")),
+                trim(rs.getString("file_name")),
+                trim(rs.getString("message_type"))
+        );
     }
 
     private String resolveStorageProvider(AttachmentMetadataRow row) {
@@ -121,5 +199,13 @@ public class ChatAttachmentMetadataAvailabilityService {
                                          String storageKey,
                                          String legacyAttachmentRef,
                                          String normalizationStatus) {
+    }
+
+    private record MissingAttachmentRow(Long chatHistoryId,
+                                        String ticketId,
+                                        Long channelId,
+                                        String rawAttachment,
+                                        String originalName,
+                                        String messageType) {
     }
 }

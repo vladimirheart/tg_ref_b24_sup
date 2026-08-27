@@ -16,6 +16,7 @@ public class ObjectStorageProperties {
     private String secretKey;
     private boolean pathStyleAccess = true;
     private String keyPrefix = "iguana";
+    private boolean legacyLocalFallbackEnabled = true;
 
     public String getMode() {
         return mode;
@@ -87,6 +88,14 @@ public class ObjectStorageProperties {
 
     public void setKeyPrefix(String keyPrefix) {
         this.keyPrefix = keyPrefix;
+    }
+
+    public boolean isLegacyLocalFallbackEnabled() {
+        return legacyLocalFallbackEnabled;
+    }
+
+    public void setLegacyLocalFallbackEnabled(boolean legacyLocalFallbackEnabled) {
+        this.legacyLocalFallbackEnabled = legacyLocalFallbackEnabled;
     }
 
     public boolean isS3Mode() {

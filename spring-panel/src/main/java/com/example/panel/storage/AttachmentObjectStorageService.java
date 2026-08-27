@@ -63,6 +63,10 @@ public class AttachmentObjectStorageService {
         s3Client().headBucket(HeadBucketRequest.builder().bucket(properties.getBucket().trim()).build());
     }
 
+    public boolean isLegacyLocalFallbackEnabled() {
+        return properties.isLegacyLocalFallbackEnabled();
+    }
+
     public String providerLabel() {
         return properties.isS3Mode() ? "s3" : "local_fs";
     }
@@ -98,6 +102,9 @@ public class AttachmentObjectStorageService {
                     .build());
             return true;
         } catch (RuntimeException ex) {
+            if (!isLegacyLocalFallbackEnabled()) {
+                return false;
+            }
             return ensureLegacyLocalBinaryAvailable(attachmentsRoot, normalized, "attachments");
         }
     }
@@ -172,6 +179,9 @@ public class AttachmentObjectStorageService {
                     .build());
             return true;
         } catch (RuntimeException ex) {
+            if (!isLegacyLocalFallbackEnabled()) {
+                return false;
+            }
             return ensureLegacyLocalBinaryAvailable(avatarsRoot, normalized, "avatars");
         }
     }
@@ -251,6 +261,9 @@ public class AttachmentObjectStorageService {
                     response
             );
         } catch (RuntimeException ex) {
+            if (!isLegacyLocalFallbackEnabled()) {
+                throw ex;
+            }
             Path localFallback = resolveExistingLocalBinary(localRoot, logicalKey);
             if (localFallback == null) {
                 throw ex;

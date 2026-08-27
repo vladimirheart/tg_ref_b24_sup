@@ -33,6 +33,7 @@ x-panel-environment: &panel-environment
   APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
   APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
   APP_STORAGE_OBJECT_PATH_STYLE_ACCESS: "true"
+  APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED: ${APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED:-true}
   APP_STORAGE_ATTACHMENTS: /opt/iguana/attachments
   APP_STORAGE_KNOWLEDGE_BASE: /opt/iguana/attachments/knowledge_base
   APP_STORAGE_AVATARS: /opt/iguana/attachments/avatars

@@ -89,4 +89,36 @@ class AttachmentServiceMediaResponseTest {
         assertThat(response.getHeaders().getContentType().toString()).isEqualTo("audio/ogg");
         assertThat(response.getHeaders().getFirst(HttpHeaders.ACCEPT_RANGES)).isEqualTo("bytes");
     }
+
+    @Test
+    void downloadByLegacyAbsolutePathUsesObjectStorageWhenAttachmentsSuffixCanBeExtracted() throws Exception {
+        PermissionService permissions = mock(PermissionService.class);
+        AttachmentObjectStorageService storage = mock(AttachmentObjectStorageService.class);
+        Authentication authentication = mock(Authentication.class);
+        when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
+        when(storage.openDialogAttachmentByStorageKey("ticket-77/photo.jpg"))
+                .thenReturn(new AttachmentObjectStorageService.StoredBinary(
+                        "ticket-77/photo.jpg",
+                        "application/octet-stream",
+                        3,
+                        new ByteArrayInputStream(new byte[] {9, 8, 7})
+                ));
+
+        AttachmentService service = new AttachmentService(
+                permissions,
+                storage,
+                tempDir.resolve("attachments-3").toString(),
+                tempDir.resolve("knowledge-3").toString()
+        );
+
+        ResponseEntity<Resource> response = service.downloadTicketAttachmentByPath(
+                authentication,
+                "C:\\legacy\\attachments\\ticket-77\\photo.jpg"
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getHeaders().getContentType().toString()).isEqualTo("image/jpeg");
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getInputStream().readAllBytes()).containsExactly(9, 8, 7);
+    }
 }
