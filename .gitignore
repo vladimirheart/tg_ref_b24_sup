@@ -19,6 +19,10 @@ attachments/
 /config/shared/backup.properties
 /config/shared/backup-scheduler.state
 /config/shared/.backup-scheduler.lock/
+/config/shared/backup-manual-request.properties
+/config/shared/backup-manual-request.running
+/config/shared/backup-manual-status.properties
+/config/shared/backup-policy-runner.status
 /.tmp/
 *.patch
 *.bak

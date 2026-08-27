@@ -238,3 +238,30 @@ Linux/Unix with cron:
 Changing time/day in the admin UI does not require recreating the scheduler entry. The runner reads `backup.properties` every execution.
 
 Critical scheduled plan runs backup-only. Full scheduled plan runs backup and the selected isolated restore rehearsal. No destructive production restore is performed by the scheduler.
+
+## Manual backup from the admin UI
+
+`Settings -> Backup & recovery -> Ручной backup` contains `Запустить backup сейчас`.
+
+Execution boundary:
+1. browser saves current backup policy;
+2. panel-web creates `backup-manual-request.properties` in shared config;
+3. host runner atomically claims it as `backup-manual-request.running`;
+4. runner invokes the existing production backup helper;
+5. `backup-manual-status.properties` records `running/success/error`;
+6. UI polls `/api/settings/backup/manual` and shows current state.
+
+`panel-web` still has no Docker socket and cannot execute host commands directly.
+
+Install the host runner:
+- Windows: `powershell -ExecutionPolicy Bypass -File .\scripts\install-backup-policy-runner.ps1`
+- Linux/Unix: `bash ./scripts/install-backup-policy-runner.sh`
+
+The runner evaluates schedules and manual queue every minute. A policy change does not require reinstalling it.
+
+For a local development path with `external_failure_domain=false`, manual execution requires the explicit UI switch `Разрешить локальный тестовый запуск (не DR)`. Scheduled plans remain blocked until a real external failure domain is acknowledged.
+
+When restore rehearsal is enabled, scope follows the backup mode:
+- Critical -> PostgreSQL, MinIO, shared config;
+- Full -> PostgreSQL, MinIO, shared config, templates, JS, CSS;
+- Custom -> saved Custom component set.

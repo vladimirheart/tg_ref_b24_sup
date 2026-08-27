@@ -28,11 +28,11 @@
   function statusLabel(status) {
     switch (String(status || '').toLowerCase()) {
       case 'ready': return 'Готов';
-      case 'healthy': return 'Healthy';
-      case 'degraded': return 'Degraded';
-      case 'compatibility': return 'Compatibility';
-      case 'unavailable': return 'Unavailable';
-      default: return String(status || 'Unknown');
+      case 'healthy': return 'Исправен';
+      case 'degraded': return 'Требует внимания';
+      case 'compatibility': return 'Локально допустимо';
+      case 'unavailable': return 'Недоступно';
+      default: return String(status || 'Неизвестно');
     }
   }
 
@@ -52,8 +52,41 @@
 
   function formatDetailValue(value) {
     if (value === null || value === undefined || value === '') return '—';
+    if (typeof value === 'boolean') return value ? 'Да' : 'Нет';
     if (typeof value === 'number' && String(value).includes('.')) return String(value);
     return String(value);
+  }
+
+  function detailLabel(key) {
+    switch (String(key || '')) {
+      case 'mode': return 'Режим координации';
+      case 'required_for_postgresql': return 'Обязателен для PostgreSQL';
+      case 'transport_mode': return 'Режим транспорта';
+      case 'provider': return 'Текущий провайдер';
+      case 'product': return 'СУБД';
+      case 'inbound_queue': return 'Входящая очередь';
+      case 'ticket_created_queue': return 'Очередь ticket-created';
+      case 'inbound_dlq': return 'DLQ входящей очереди';
+      case 'ticket_created_dlq': return 'DLQ ticket-created';
+      case 'inbound_messages': return 'Сообщений во входящей очереди';
+      case 'ticket_created_messages': return 'Сообщений в ticket-created';
+      case 'inbound_dlq_messages': return 'Сообщений во входящей DLQ';
+      case 'ticket_created_dlq_messages': return 'Сообщений в ticket-created DLQ';
+      case 'failed_current': return 'Текущих failed';
+      case 'queued_current': return 'Текущих queued';
+      case 'processing_current': return 'Текущих processing';
+      case 'stale_processing': return 'Зависших processing';
+      case 'delivered_24h': return 'Доставлено за 24 ч';
+      case 'failed_24h': return 'Ошибок за 24 ч';
+      case 'terminal_success_rate_24h': return 'Успешность за 24 ч, %';
+      default: return String(key || 'detail');
+    }
+  }
+
+  function contourLabel(value) {
+    return String(value || '').toLowerCase() === 'production'
+      ? 'production contour'
+      : 'local bootstrap contour';
   }
 
   function componentCard(component) {
@@ -71,13 +104,13 @@
           <span class="production-readiness-state ${statusClass(status)}">${escapeHtml(statusLabel(status))}</span>
         </div>
         <div class="production-readiness-card__meta">
-          <span>${component?.required ? 'Production gate' : 'Informational'}</span>
+          <span>${component?.required ? 'Обязательный production gate' : 'Локально допустимый компонент'}</span>
         </div>
         ${details.length ? `
           <dl class="production-readiness-details">
             ${details.map(([key, value]) => `
               <div class="production-readiness-details__row">
-                <dt>${escapeHtml(key)}</dt>
+                <dt>${escapeHtml(detailLabel(key))}</dt>
                 <dd>${escapeHtml(formatDetailValue(value))}</dd>
               </div>
             `).join('')}
@@ -95,14 +128,14 @@
       overall.textContent = statusLabel(overallStatus);
     }
     if (meta instanceof HTMLElement) {
-      meta.textContent = `DB ${payload?.datasource_mode || 'unknown'} · transport ${payload?.transport_mode || 'unknown'} · ${formatDate(payload?.generated_at)}`;
+      meta.textContent = `${contourLabel(payload?.contour)} · DB ${payload?.datasource_mode || 'unknown'} · transport ${payload?.transport_mode || 'unknown'} · ${formatDate(payload?.generated_at)}`;
     }
     if (body instanceof HTMLElement) {
       body.innerHTML = `
         <div class="production-readiness-intro">
           <div>
             <strong>Production contour snapshot</strong>
-            <div class="small text-muted mt-1">Проверки выполняются по запросу и ничего не изменяют: DB, Redis, RabbitMQ, MinIO/S3 и durable incident delivery.</div>
+            <div class="small text-muted mt-1">Проверки выполняются только на чтение. Для local bootstrap compatibility-компоненты показываются отдельно от обязательных production gate.</div>
           </div>
           <code>${escapeHtml(payload?.runbook || 'docs/runbooks/postgresql-production-contour.md')}</code>
         </div>
@@ -116,7 +149,7 @@
   function renderError(message) {
     if (overall instanceof HTMLElement) {
       overall.className = 'production-readiness-state is-unavailable';
-      overall.textContent = 'Unavailable';
+      overall.textContent = 'Недоступно';
     }
     if (meta instanceof HTMLElement) {
       meta.textContent = 'Проверка не выполнена';

@@ -122,8 +122,10 @@ class ProductionBackupContourSourceContractTest {
             .contains("Get-Env \"IGUANA_BACKUP_${Prefix}_TIME\"")
             .contains("Is-Due \"CRITICAL\"")
             .contains("Is-Due \"FULL\"")
-            .contains("-Action backup -Mode critical")
-            .contains("-Action full -Mode full");
+            .contains("\"-Action\", \"backup\"")
+            .contains("\"-Mode\", \"critical\"")
+            .contains("\"-Action\", \"full\"")
+            .contains("\"-Mode\", \"full\"");
 
         assertThat(runnerSh)
             .contains("--action backup --mode critical")
@@ -201,6 +203,69 @@ class ProductionBackupContourSourceContractTest {
             .contains("iguana-postgres-*.tar.gz")
             .contains("iguana-minio-*.tar.gz")
             .contains("iguana-files-*.tar.gz");
+    }
+
+    @Test
+    void manualBackupRunsThroughSharedQueueAndHostRunnerWithoutDockerSocketInPanel() throws IOException {
+        String settingsPage = read("spring-panel/src/main/resources/templates/settings/index.html");
+        String runtime = read("spring-panel/src/main/resources/static/js/settings-backup-runtime.js");
+        String controller = read("spring-panel/src/main/java/com/example/panel/controller/BackupSettingsController.java");
+        String service = read("spring-panel/src/main/java/com/example/panel/service/BackupManualOperationService.java");
+        String runnerPs = read("scripts/run-backup-policy.ps1");
+        String runnerSh = read("scripts/run-backup-policy.sh");
+        String installerPs = read("scripts/install-backup-policy-runner.ps1");
+        String installerSh = read("scripts/install-backup-policy-runner.sh");
+        String productionCompose = read("docker-compose.production-contour.yml");
+
+        assertThat(settingsPage)
+            .contains("data-backup-manual-run")
+            .contains("id=\"backupManualVerifyRestore\"")
+            .contains("id=\"backupManualAllowLocalTest\"")
+            .contains("data-backup-runner-status")
+            .contains("data-backup-manual-status");
+
+        assertThat(runtime)
+            .contains("`${ENDPOINT}/manual`")
+            .contains("queueManualBackup")
+            .contains("allow_local_test")
+            .contains("verify_restore")
+            .contains("startManualPolling");
+
+        assertThat(controller)
+            .contains("@GetMapping(\"/manual\")")
+            .contains("@PostMapping(\"/manual\")")
+            .contains("BackupManualOperationService");
+
+        assertThat(service)
+            .contains("backup-manual-request.properties")
+            .contains("backup-manual-request.running")
+            .contains("backup-manual-status.properties")
+            .contains("backup-policy-runner.status")
+            .contains("ATOMIC_MOVE");
+
+        assertThat(runnerPs)
+            .contains("Process-ManualRequest")
+            .contains("-AllowLocalDestination")
+            .contains("Resolve-ManualRestoreComponents")
+            .contains("Scheduled backup plans skipped: external failure domain is not acknowledged")
+            .contains("backup-policy-runner.status");
+
+        assertThat(runnerSh)
+            .contains("process_manual_request")
+            .contains("--allow-local-destination")
+            .contains("manual_restore_components")
+            .contains("Scheduled backup plans skipped: external failure domain is not acknowledged");
+
+        assertThat(installerPs)
+            .contains("[int]$EveryMinutes = 1")
+            .contains("manual backup queue every minute");
+        assertThat(installerSh)
+            .contains("* * * * *")
+            .contains("manual queue are evaluated every minute");
+
+        assertThat(productionCompose)
+            .doesNotContain("/var/run/docker.sock")
+            .doesNotContain("docker.sock:");
     }
 
     private String read(String relativePath) throws IOException {

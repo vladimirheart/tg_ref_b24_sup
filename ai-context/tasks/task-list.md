@@ -234,3 +234,4 @@
 🟡 [01-212] Реализовать реальные production backup jobs PostgreSQL и MinIO с off-host хранением и автоматизированным restore rehearsal
 🟠 [01-213] Подключить Alertmanager к утвержденному Iguana incident/notification delivery boundary и доказать end-to-end доставку firing/resolved alerts
 🟣 [01-214] Убрать обязательный Redis UI fanout из local PostgreSQL bootstrap-контура Windows launcher
+🟣 [01-215] Исправить Production readiness для local PostgreSQL bootstrap и отделить compatibility-контур от full production gate

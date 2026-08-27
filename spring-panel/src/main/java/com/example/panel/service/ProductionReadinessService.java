@@ -4,6 +4,7 @@ import com.example.panel.config.IntegrationRabbitProperties;
 import com.example.panel.config.PanelIntegrationTransportMode;
 import com.example.panel.config.RuntimeCoordinationProperties;
 import com.example.panel.storage.AttachmentObjectStorageService;
+import com.example.panel.storage.ObjectStorageProperties;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Timestamp;
@@ -37,6 +38,7 @@ public class ProductionReadinessService {
     private final IntegrationRabbitProperties rabbitProperties;
     private final RabbitAdmin rabbitAdmin;
     private final AttachmentObjectStorageService objectStorageService;
+    private final ObjectStorageProperties objectStorageProperties;
     private final String datasourceMode;
     private final String runbookPath;
 
@@ -49,6 +51,7 @@ public class ProductionReadinessService {
         IntegrationRabbitProperties rabbitProperties,
         RabbitAdmin rabbitAdmin,
         AttachmentObjectStorageService objectStorageService,
+        ObjectStorageProperties objectStorageProperties,
         @Value("${app.datasource.mode:postgresql}") String datasourceMode,
         @Value("${panel.production-readiness.runbook:docs/runbooks/postgresql-production-contour.md}") String runbookPath
     ) {
@@ -60,6 +63,7 @@ public class ProductionReadinessService {
         this.rabbitProperties = rabbitProperties;
         this.rabbitAdmin = rabbitAdmin;
         this.objectStorageService = objectStorageService;
+        this.objectStorageProperties = objectStorageProperties;
         this.datasourceMode = normalizeLower(datasourceMode, "postgresql");
         this.runbookPath = StringUtils.hasText(runbookPath)
             ? runbookPath.trim()
@@ -67,17 +71,19 @@ public class ProductionReadinessService {
     }
 
     public Map<String, Object> buildSnapshot() {
-        boolean canonical = "postgresql".equals(datasourceMode);
+        boolean postgresqlMode = "postgresql".equals(datasourceMode);
+        boolean fullProductionContour = isFullProductionContour(postgresqlMode);
         List<Map<String, Object>> components = new ArrayList<>();
-        components.add(databaseProbe(canonical));
-        components.add(redisProbe(canonical));
-        components.add(rabbitProbe(canonical));
-        components.add(objectStorageProbe(canonical));
-        components.add(incidentDeliveryProbe(canonical));
+        components.add(databaseProbe(postgresqlMode));
+        components.add(redisProbe(postgresqlMode));
+        components.add(rabbitProbe(postgresqlMode));
+        components.add(objectStorageProbe(postgresqlMode));
+        components.add(incidentDeliveryProbe(postgresqlMode));
 
         LinkedHashMap<String, Object> payload = new LinkedHashMap<>();
         payload.put("success", true);
-        payload.put("overall", overallStatus(canonical, components));
+        payload.put("overall", overallStatus(fullProductionContour, components));
+        payload.put("contour", fullProductionContour ? "production" : STATUS_COMPATIBILITY);
         payload.put("generated_at", OffsetDateTime.now(ZoneOffset.UTC).toString());
         payload.put("datasource_mode", datasourceMode);
         payload.put("transport_mode", integrationTransportMode != null ? integrationTransportMode.mode() : "unknown");
@@ -86,14 +92,14 @@ public class ProductionReadinessService {
         return payload;
     }
 
-    String overallStatus(boolean canonical, List<Map<String, Object>> components) {
+    String overallStatus(boolean fullProductionContour, List<Map<String, Object>> components) {
         for (Map<String, Object> component : components == null ? List.<Map<String, Object>>of() : components) {
             String status = String.valueOf(component.getOrDefault("status", STATUS_UNAVAILABLE));
             if (STATUS_DEGRADED.equals(status) || STATUS_UNAVAILABLE.equals(status)) {
                 return STATUS_DEGRADED;
             }
         }
-        return canonical ? "ready" : STATUS_COMPATIBILITY;
+        return fullProductionContour ? "ready" : STATUS_COMPATIBILITY;
     }
 
     private Map<String, Object> databaseProbe(boolean canonical) {
@@ -130,10 +136,17 @@ public class ProductionReadinessService {
         String mode = runtimeCoordinationProperties == null
             ? "unknown"
             : normalizeLower(runtimeCoordinationProperties.getMode(), "unknown");
+        boolean requiredForPostgresql = runtimeCoordinationProperties == null
+            || runtimeCoordinationProperties.isRequiredForPostgresql();
         details.put("mode", mode);
+        details.put("required_for_postgresql", requiredForPostgresql);
         if (!canonical) {
             return component("redis", "Redis coordination", STATUS_COMPATIBILITY, false,
                 "Redis is not a required gate in compatibility datasource mode.", details);
+        }
+        if (!requiredForPostgresql) {
+            return component("redis", "Redis coordination", STATUS_COMPATIBILITY, false,
+                "Local PostgreSQL bootstrap allows direct coordination because Redis is not required for this contour.", details);
         }
         try {
             runtimeCoordinationService.verifyAvailable();
@@ -163,6 +176,8 @@ public class ProductionReadinessService {
         String ticketDlq = rabbitProperties == null ? null : normalize(rabbitProperties.getTicketCreatedDlq());
         details.put("inbound_queue", inboundQueue == null ? "not configured" : inboundQueue);
         details.put("ticket_created_queue", ticketQueue == null ? "not configured" : ticketQueue);
+        details.put("inbound_dlq", inboundDlq == null ? "not configured" : inboundDlq);
+        details.put("ticket_created_dlq", ticketDlq == null ? "not configured" : ticketDlq);
         if (inboundQueue == null || ticketQueue == null) {
             return component("rabbitmq", "RabbitMQ transport", STATUS_DEGRADED, true,
                 "Required RabbitMQ queue names are not configured.", details);
@@ -195,7 +210,7 @@ public class ProductionReadinessService {
                 dlqMessages > 0L ? STATUS_DEGRADED : STATUS_HEALTHY,
                 true,
                 dlqMessages > 0L
-                    ? "RabbitMQ is reachable, but dead-letter queues are not empty."
+                    ? "RabbitMQ is reachable, but dead-letter queues contain messages that require review."
                     : "Required queues are declared and RabbitMQ is reachable.",
                 details);
         } catch (Exception ex) {
@@ -207,10 +222,17 @@ public class ProductionReadinessService {
     private Map<String, Object> objectStorageProbe(boolean canonical) {
         LinkedHashMap<String, Object> details = new LinkedHashMap<>();
         String provider = objectStorageService == null ? "unknown" : objectStorageService.providerLabel();
+        boolean requiredForPostgresql = objectStorageProperties == null
+            || objectStorageProperties.isRequiredForPostgresql();
         details.put("provider", provider);
+        details.put("required_for_postgresql", requiredForPostgresql);
         if (!canonical) {
             return component("object_storage", "MinIO / S3", STATUS_COMPATIBILITY, false,
                 "Object storage is not a required gate in compatibility datasource mode.", details);
+        }
+        if (!requiredForPostgresql) {
+            return component("object_storage", "MinIO / S3", STATUS_COMPATIBILITY, false,
+                "Local PostgreSQL bootstrap allows filesystem-backed attachments because S3 is not required for this contour.", details);
         }
         try {
             objectStorageService.verifyAvailable();
@@ -304,5 +326,17 @@ public class ProductionReadinessService {
     private static String normalizeLower(String value, String fallback) {
         String normalized = normalize(value);
         return normalized == null ? fallback : normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isFullProductionContour(boolean postgresqlMode) {
+        if (!postgresqlMode) {
+            return false;
+        }
+        boolean coordinationRequired = runtimeCoordinationProperties == null
+            || runtimeCoordinationProperties.isRequiredForPostgresql();
+        boolean objectStorageRequired = objectStorageProperties == null
+            || objectStorageProperties.isRequiredForPostgresql();
+        boolean rabbitMqTransport = integrationTransportMode != null && integrationTransportMode.isRabbitMqMode();
+        return coordinationRequired && objectStorageRequired && rabbitMqTransport;
     }
 }
