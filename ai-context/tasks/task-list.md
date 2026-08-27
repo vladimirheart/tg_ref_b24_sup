@@ -235,3 +235,4 @@
 🟡 [01-213] Подключить Alertmanager к утвержденному Iguana incident/notification delivery boundary и доказать end-to-end доставку firing/resolved alerts
 🟣 [01-214] Убрать обязательный Redis UI fanout из local PostgreSQL bootstrap-контура Windows launcher
 🟣 [01-215] Исправить Production readiness для local PostgreSQL bootstrap и отделить compatibility-контур от full production gate
+🔴 [01-216] ВНЕДРИТЬ БЕЗОПАСНЫЙ FIRST-RUN BOOTSTRAP PRODUCTION-СЕКРЕТОВ И МИГРАЦИЮ СУЩЕСТВУЮЩИХ PERSISTENT VOLUMES

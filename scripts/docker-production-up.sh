@@ -151,6 +151,56 @@ resolve_repo_path() {
   fi
 }
 
+resolve_insecure_monitoring_master_key_default() {
+  local legacy_key_path="${REPO_ROOT}/config/shared/monitoring-credentials.key"
+  if [[ ! -f "${legacy_key_path}" ]]; then
+    printf '%s' "change-me"
+    return 0
+  fi
+
+  local encoded
+  encoded="$(tr -d '\r\n[:space:]' < "${legacy_key_path}")"
+  if [[ -z "${encoded}" ]]; then
+    echo "[ERROR] Legacy monitoring credentials key is empty: ${legacy_key_path}" >&2
+    exit 1
+  fi
+
+  printf 'base64:%s' "${encoded}"
+}
+
+set_insecure_default_if_missing() {
+  local name="$1"
+  local default_value="$2"
+  local current
+  current="$(get_setting_value "${name}")"
+  if [[ -n "${current}" ]]; then
+    return 0
+  fi
+
+  export "${name}=${default_value}"
+  echo "[WARN] AllowInsecureDefaults: using documented local default for ${name} in this launcher process only." >&2
+}
+
+apply_insecure_defaults() {
+  set_insecure_default_if_missing "APP_INTERNAL_BOT_API_TOKEN" "change-me"
+  set_insecure_default_if_missing "APP_SECURITY_REMEMBER_ME_KEY" "change-me"
+  set_insecure_default_if_missing "MONITORING_CREDENTIALS_MASTER_KEY" "$(resolve_insecure_monitoring_master_key_default)"
+  set_insecure_default_if_missing "IGUANA_POSTGRES_PASSWORD" "iguana"
+  set_insecure_default_if_missing "IGUANA_RABBITMQ_PASSWORD" "iguana"
+  set_insecure_default_if_missing "IGUANA_REDIS_PASSWORD" "iguana-redis"
+  set_insecure_default_if_missing "APP_STORAGE_OBJECT_ACCESS_KEY" "iguana-minio"
+  set_insecure_default_if_missing "APP_STORAGE_OBJECT_SECRET_KEY" "iguana-minio-secret"
+  set_insecure_default_if_missing "APP_STORAGE_OBJECT_BUCKET" "iguana"
+
+  if [[ "${OBSERVABILITY}" == "1" ]]; then
+    set_insecure_default_if_missing "IGUANA_GRAFANA_ADMIN_PASSWORD" "change-me"
+  fi
+
+  if [[ "${EDGE}" == "1" ]]; then
+    set_insecure_default_if_missing "IGUANA_PUBLIC_HOST" "localhost"
+  fi
+}
+
 invoke_preflight_checks() {
   assert_required_file "${REPO_ROOT}/config/shared/settings.json" "Shared config settings"
   assert_required_file "${REPO_ROOT}/config/shared/locations.json" "Shared config locations"
@@ -261,6 +311,10 @@ mkdir -p \
   "${REPO_ROOT}/logs" \
   "${REPO_ROOT}/bot_databases" \
   "${REPO_ROOT}/deploy/nginx/certs"
+
+if [[ "${ALLOW_INSECURE_DEFAULTS}" == "1" ]]; then
+  apply_insecure_defaults
+fi
 
 invoke_preflight_checks
 

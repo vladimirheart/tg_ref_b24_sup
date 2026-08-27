@@ -192,6 +192,84 @@ function Assert-NonDefaultSecret {
     return $value
 }
 
+function Resolve-InsecureMonitoringMasterKeyDefault {
+    param([string]$RepoRoot)
+
+    $legacyKeyPath = Join-Path $RepoRoot "config\shared\monitoring-credentials.key"
+    if (-not (Test-Path -LiteralPath $legacyKeyPath -PathType Leaf)) {
+        return "change-me"
+    }
+
+    $encoded = [System.IO.File]::ReadAllText($legacyKeyPath).Trim()
+    if ([string]::IsNullOrWhiteSpace($encoded)) {
+        throw "Legacy monitoring credentials key is empty: $legacyKeyPath"
+    }
+
+    try {
+        $decoded = [Convert]::FromBase64String($encoded)
+    } catch {
+        throw "Legacy monitoring credentials key is not valid Base64: $legacyKeyPath"
+    }
+
+    if ($decoded.Length -notin @(16, 24, 32)) {
+        throw "Legacy monitoring credentials key must decode to 16, 24 or 32 bytes: $legacyKeyPath"
+    }
+
+    return "base64:$encoded"
+}
+
+function Set-InsecureDefaultIfMissing {
+    param(
+        [hashtable]$DotEnv,
+        [string]$Name,
+        [string]$DefaultValue
+    )
+
+    $current = Get-SettingValue -DotEnv $DotEnv -Name $Name
+    if (-not [string]::IsNullOrWhiteSpace($current)) {
+        return
+    }
+
+    [Environment]::SetEnvironmentVariable($Name, $DefaultValue, "Process")
+    Write-Warning "AllowInsecureDefaults: using documented local default for $Name in this launcher process only."
+}
+
+function Initialize-InsecureDefaults {
+    param(
+        [string]$RepoRoot,
+        [hashtable]$DotEnv,
+        [bool]$ObservabilityEnabled,
+        [bool]$EdgeEnabled
+    )
+
+    $defaults = [ordered]@{
+        APP_INTERNAL_BOT_API_TOKEN = "change-me"
+        APP_SECURITY_REMEMBER_ME_KEY = "change-me"
+        MONITORING_CREDENTIALS_MASTER_KEY = (Resolve-InsecureMonitoringMasterKeyDefault -RepoRoot $RepoRoot)
+        IGUANA_POSTGRES_PASSWORD = "iguana"
+        IGUANA_RABBITMQ_PASSWORD = "iguana"
+        IGUANA_REDIS_PASSWORD = "iguana-redis"
+        APP_STORAGE_OBJECT_ACCESS_KEY = "iguana-minio"
+        APP_STORAGE_OBJECT_SECRET_KEY = "iguana-minio-secret"
+        APP_STORAGE_OBJECT_BUCKET = "iguana"
+    }
+
+    if ($ObservabilityEnabled) {
+        $defaults["IGUANA_GRAFANA_ADMIN_PASSWORD"] = "change-me"
+    }
+
+    if ($EdgeEnabled) {
+        $defaults["IGUANA_PUBLIC_HOST"] = "localhost"
+    }
+
+    foreach ($entry in $defaults.GetEnumerator()) {
+        Set-InsecureDefaultIfMissing `
+            -DotEnv $DotEnv `
+            -Name ([string]$entry.Key) `
+            -DefaultValue ([string]$entry.Value)
+    }
+}
+
 function Invoke-PreflightChecks {
     param(
         [string]$RepoRoot,
@@ -346,6 +424,14 @@ $requiredDirectories = @(
 
 foreach ($directory in $requiredDirectories) {
     New-Item -ItemType Directory -Force -Path $directory | Out-Null
+}
+
+if ($AllowInsecureDefaults) {
+    Initialize-InsecureDefaults `
+        -RepoRoot $repoRoot `
+        -DotEnv $dotEnv `
+        -ObservabilityEnabled:$Observability `
+        -EdgeEnabled:$Edge
 }
 
 Invoke-PreflightChecks -RepoRoot $repoRoot -DotEnv $dotEnv -Profiles $profiles -EdgeEnabled:$Edge -ObservabilityEnabled:$Observability -BackupEnabled:$Backup -AllowInsecure:$AllowInsecureDefaults
