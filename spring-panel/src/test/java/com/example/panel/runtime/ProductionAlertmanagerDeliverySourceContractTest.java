@@ -39,6 +39,19 @@ class ProductionAlertmanagerDeliverySourceContractTest {
             .contains("/run/secrets/iguana-alertmanager-ingestion.token")
             .contains("read_only: true");
 
+        int alertmanagerServiceStart = compose.indexOf("\n  alertmanager:\n");
+        int prometheusServiceStart = compose.indexOf("\n  prometheus:\n", alertmanagerServiceStart);
+        assertThat(alertmanagerServiceStart).isGreaterThanOrEqualTo(0);
+        assertThat(prometheusServiceStart).isGreaterThan(alertmanagerServiceStart);
+        String alertmanagerService = compose.substring(alertmanagerServiceStart, prometheusServiceStart);
+        assertThat(alertmanagerService)
+            .contains("depends_on:")
+            .contains("panel-web:")
+            .contains("condition: service_healthy")
+            .contains("source: ${IGUANA_SECRETS_DIR:-./config/secrets}/alertmanager-ingestion.token")
+            .contains("target: /run/secrets/iguana-alertmanager-ingestion.token")
+            .contains("read_only: true");
+
         assertThat(prometheusRules)
             .contains("IguanaAlertmanagerDeliveryFailed")
             .contains("alertmanager_notifications_failed_total")
@@ -129,7 +142,10 @@ class ProductionAlertmanagerDeliverySourceContractTest {
             .contains("signal_type='alertmanager'")
             .contains("incident_signal_updated")
             .contains("incident_signal_resolved")
-            .contains("status='delivered'");
+            .contains("status='delivered'")
+            .contains("SELECT 1 FROM incident_route_delivery_outbox")
+            .contains("if ($value -eq \"1\")")
+            .doesNotContain("SELECT event_id FROM incident_route_delivery_outbox");
     }
 
     private String read(String relativePath) throws IOException {

@@ -166,9 +166,9 @@ try {
     Write-Host "[GREEN] Iguana signal incident created. id=$incidentId"
 
     [void](Wait-Until "delivered firing incident route outbox" {
-        $sql = "SELECT event_id FROM incident_route_delivery_outbox WHERE incident_id=$incidentId AND event_type='incident_signal_updated' AND status='delivered' ORDER BY created_at DESC, event_id DESC LIMIT 1;"
+        $sql = "SELECT 1 FROM incident_route_delivery_outbox WHERE incident_id=$incidentId AND event_type='incident_signal_updated' AND status='delivered' ORDER BY created_at DESC, event_id DESC LIMIT 1;"
         $value = Query-Postgres $sql
-        if ($value -match '^\d+$') { return $value }
+        if ($value -eq "1") { return $value }
         return $null
     })
     Write-Host "[GREEN] Firing delivery reached the durable incident outbox and was delivered."
@@ -186,9 +186,9 @@ try {
     Write-Host "[GREEN] Iguana signal incident resolved."
 
     [void](Wait-Until "delivered resolved incident route outbox" {
-        $sql = "SELECT event_id FROM incident_route_delivery_outbox WHERE incident_id=$incidentId AND event_type='incident_signal_resolved' AND status='delivered' ORDER BY created_at DESC, event_id DESC LIMIT 1;"
+        $sql = "SELECT 1 FROM incident_route_delivery_outbox WHERE incident_id=$incidentId AND event_type='incident_signal_resolved' AND status='delivered' ORDER BY created_at DESC, event_id DESC LIMIT 1;"
         $value = Query-Postgres $sql
-        if ($value -match '^\d+$') { return $value }
+        if ($value -eq "1") { return $value }
         return $null
     })
     Write-Host "[GREEN] Resolved delivery reached the durable incident outbox and was delivered."

@@ -16,6 +16,8 @@ Authentication policy:
 
 - Alertmanager uses `Authorization: Bearer ...`;
 - the credential is read from `/run/secrets/iguana-alertmanager-ingestion.token`;
+- the same host token is bind-mounted read-only into both `panel-web` and `alertmanager`;
+- `alertmanager` starts only after `panel-web` reports healthy in the production observability compose;
 - the default host source is ignored `config/secrets/alertmanager-ingestion.token`;
 - `IGUANA_SECRETS_DIR` may point to another host secret directory;
 - the token is never embedded in `alertmanager.yml` or `.env`;

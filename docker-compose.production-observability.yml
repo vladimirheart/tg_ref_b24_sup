@@ -48,6 +48,9 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.34.0
     restart: unless-stopped
+    depends_on:
+      panel-web:
+        condition: service_healthy
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/alertmanager
@@ -55,8 +58,11 @@ services:
       - "${IGUANA_ALERTMANAGER_BIND_HOST:-127.0.0.1}:${IGUANA_ALERTMANAGER_PORT:-9093}:9093"
     volumes:
       - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - type: bind
+        source: ${IGUANA_SECRETS_DIR:-./config/secrets}/alertmanager-ingestion.token
+        target: /run/secrets/iguana-alertmanager-ingestion.token
+        read_only: true
       - iguana-alertmanager-data:/alertmanager
-
   prometheus:
     image: prom/prometheus:v3.14.0
     restart: unless-stopped
