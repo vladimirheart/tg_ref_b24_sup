@@ -65,6 +65,28 @@ class DockerProductionStorageCutoverSourceContractTest {
     }
 
     @Test
+    void clientAvatarCutoverAuditUsesRuntimeNamesAndIsReadOnly() throws IOException {
+        String ps = read("scripts/docker-production-client-avatar-cutover-audit.ps1");
+
+        assertThat(ps)
+            .contains("[switch]$ValidateOnly")
+            .contains("SELECT DISTINCT user_id FROM client_avatar_history")
+            .contains("\"${userId}.jpg\"")
+            .contains("\"${userId}_full.jpg\"")
+            .contains("missing_s3_client_avatars=")
+            .contains("CLIENT AVATAR CUTOVER AUDIT PASSED")
+            .contains("Keep APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=true")
+            .contains("mc stat")
+            .doesNotContain("UPDATE ")
+            .doesNotContain("DELETE ")
+            .doesNotContain("mc cp")
+            .doesNotContain("mc mirror")
+            .doesNotContain("Remove-Item")
+            .doesNotContain("rm -rf")
+            .doesNotContain("$LASTEXITCODE:");
+    }
+
+    @Test
     void productionContourPropagatesObjectPrefixAndDocumentsCutoverSwitch() throws IOException {
         String compose = read("docker-compose.production-contour.yml");
         String env = read(".env.example");
