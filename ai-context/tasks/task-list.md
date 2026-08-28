@@ -237,4 +237,4 @@
 🟣 [01-215] Исправить Production readiness для local PostgreSQL bootstrap и отделить compatibility-контур от full production gate
 🔴 [01-216] ВНЕДРИТЬ БЕЗОПАСНЫЙ FIRST-RUN BOOTSTRAP PRODUCTION-СЕКРЕТОВ И МИГРАЦИЮ СУЩЕСТВУЮЩИХ PERSISTENT VOLUMES
 🟡 [01-217] Мигрировать legacy media и avatars в MinIO/S3, убрать runtime-зависимость от local attachments и подготовить безопасный финальный purge
-🔴 [01-218] Выполнить финальный cutover legacy media: пересобрать runtime с metadata backfill, отключить local fallback и подготовить purge legacy storage
+🟢 [01-218] Выполнить финальный cutover legacy media: пересобрать runtime с metadata backfill, отключить local fallback и подготовить purge legacy storage
