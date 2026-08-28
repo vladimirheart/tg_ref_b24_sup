@@ -9,11 +9,11 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 function Invoke-Native {
-    param([string]$Exe, [string[]]$Args, [string]$Message)
+    param([string]$Exe, [string[]]$Arguments, [string]$Message)
     $saved = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Continue"
-        $out = @(& $Exe @Args 2>&1)
+        $out = @(& $Exe @Arguments 2>&1)
         $code = $LASTEXITCODE
     } finally {
         $ErrorActionPreference = $saved
@@ -63,11 +63,11 @@ function From-HexUtf8 { param([string]$Hex)
 }
 
 function Container-Id { param([string]$Docker, [string]$Service)
-    $ids = Lines (Invoke-Native $Docker @(
+    $ids = @(Lines (Invoke-Native $Docker @(
         "ps", "-q",
         "--filter", "label=com.docker.compose.project=tg_ref_b24_sup",
         "--filter", "label=com.docker.compose.service=$Service"
-    ) "Unable to discover $Service")
+    ) "Unable to discover $Service"))
     if ($ids.Count -ne 1) { throw "Expected exactly one running ${Service} container, found $($ids.Count)." }
     return $ids[0]
 }
