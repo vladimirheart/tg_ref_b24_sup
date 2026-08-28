@@ -489,7 +489,7 @@ fi
     $copyAndVerifyCommand = @'
 set -eu
 mc alias set local http://minio:9000 "$IGUANA_BACKFILL_ACCESS_KEY" "$IGUANA_BACKFILL_SECRET_KEY" >/dev/null
-mc cp --overwrite /source/file "local/$IGUANA_BACKFILL_BUCKET/$IGUANA_BACKFILL_OBJECT_KEY" >/dev/null
+mc cp /source/file "local/$IGUANA_BACKFILL_BUCKET/$IGUANA_BACKFILL_OBJECT_KEY" >/dev/null
 mc stat "local/$IGUANA_BACKFILL_BUCKET/$IGUANA_BACKFILL_OBJECT_KEY" >/dev/null
 '@
     $verifyOnlyCommand = @'
