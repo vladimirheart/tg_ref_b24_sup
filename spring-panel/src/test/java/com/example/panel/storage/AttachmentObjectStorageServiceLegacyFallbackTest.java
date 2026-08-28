@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -71,7 +72,11 @@ class AttachmentObjectStorageServiceLegacyFallbackTest {
                 .thenThrow(NoSuchKeyException.builder().message("missing").build());
 
         assertThat(service.avatarExists("380742186.jpg")).isTrue();
-        verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+
+        ArgumentCaptor<PutObjectRequest> putRequest = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client).putObject(putRequest.capture(), any(RequestBody.class));
+        assertThat(putRequest.getValue().bucket()).isEqualTo("iguana");
+        assertThat(putRequest.getValue().key()).isEqualTo("iguana/avatars/380742186.jpg");
     }
 
     @Test
@@ -93,7 +98,10 @@ class AttachmentObjectStorageServiceLegacyFallbackTest {
                     .isEqualTo("legacy-payload");
         }
 
-        verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+        ArgumentCaptor<PutObjectRequest> putRequest = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client).putObject(putRequest.capture(), any(RequestBody.class));
+        assertThat(putRequest.getValue().bucket()).isEqualTo("iguana");
+        assertThat(putRequest.getValue().key()).isEqualTo("iguana/attachments/ticket-1/file.txt");
     }
 
     @Test
