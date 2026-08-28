@@ -84,22 +84,98 @@ function Assert-NativeSuccess {
     return $result
 }
 
-function Get-ComposeServiceContainerIds {
+function Get-ContainerInspectObject {
     param(
         [string]$Docker,
-        [string[]]$ComposePrefix,
-        [string]$Service
+        [string]$ContainerId
     )
 
     $result = Assert-NativeSuccess `
         -Executable $Docker `
-        -Arguments ($ComposePrefix + @("ps", "-q", $Service)) `
-        -ErrorMessage "Unable to inspect service '$Service'"
+        -Arguments @("inspect", $ContainerId) `
+        -ErrorMessage "Unable to inspect container $ContainerId"
+
+    $json = ($result.Output -join "`n").Trim()
+    if ([string]::IsNullOrWhiteSpace($json)) {
+        throw "Docker inspect returned no JSON for container $ContainerId."
+    }
+
+    try {
+        $parsed = @($json | ConvertFrom-Json)
+    } catch {
+        throw "Unable to parse docker inspect JSON for container $ContainerId: $($_.Exception.Message)"
+    }
+    if ($parsed.Count -ne 1) {
+        throw "Expected one docker inspect object for container $ContainerId, got $($parsed.Count)."
+    }
+    return $parsed[0]
+}
+
+function Get-DockerServiceContainerIds {
+    param(
+        [string]$Docker,
+        [string]$Service,
+        [string]$ProjectName = ""
+    )
+
+    $arguments = @(
+        "ps", "-q",
+        "--filter", "label=com.docker.compose.service=$Service"
+    )
+    if (-not [string]::IsNullOrWhiteSpace($ProjectName)) {
+        $arguments += @(
+            "--filter", "label=com.docker.compose.project=$ProjectName"
+        )
+    }
+
+    $result = Assert-NativeSuccess `
+        -Executable $Docker `
+        -Arguments $arguments `
+        -ErrorMessage "Unable to inspect running Docker containers for service '$Service'"
 
     return @(
         Get-NativeOutputLines -Output $result.Output |
             Where-Object { $_ -match '^[0-9A-Fa-f]{12,64}$' }
     )
+}
+
+function Get-ContainerComposeProjectName {
+    param(
+        [string]$Docker,
+        [string]$ContainerId
+    )
+
+    $inspect = Get-ContainerInspectObject -Docker $Docker -ContainerId $ContainerId
+    $labels = $inspect.Config.Labels
+    if ($null -eq $labels) {
+        throw "Container $ContainerId has no Docker labels."
+    }
+    $property = $labels.PSObject.Properties["com.docker.compose.project"]
+    if ($null -eq $property -or [string]::IsNullOrWhiteSpace([string]$property.Value)) {
+        throw "Container $ContainerId has no com.docker.compose.project label."
+    }
+    return ([string]$property.Value).Trim()
+}
+
+function Resolve-RuntimeComposeProjectName {
+    param([string]$Docker)
+
+    $projects = @()
+    foreach ($service in @("ops-worker", "panel-web")) {
+        $ids = @(Get-DockerServiceContainerIds -Docker $Docker -Service $service)
+        if ($ids.Count -lt 1) {
+            throw "Expected at least one running $service container before cutover."
+        }
+        foreach ($containerId in $ids) {
+            $projects += (Get-ContainerComposeProjectName -Docker $Docker -ContainerId $containerId)
+        }
+    }
+
+    $uniqueProjects = @($projects | Sort-Object -Unique)
+    if ($uniqueProjects.Count -ne 1) {
+        throw "Running panel runtime spans multiple Compose projects: $($uniqueProjects -join ', ')"
+    }
+    return [string]$uniqueProjects[0]
 }
 
 function Wait-ContainersHealthy {
@@ -116,15 +192,23 @@ function Wait-ContainersHealthy {
     for ($attempt = 0; $attempt -lt 90; $attempt++) {
         $allHealthy = $true
         foreach ($containerId in $ContainerIds) {
-            $statusResult = Invoke-NativeCapture `
-                -Executable $Docker `
-                -Arguments @("inspect", "--format", '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}', $containerId)
-            if ($statusResult.ExitCode -ne 0) {
-                $allHealthy = $false
-                break
-            }
-            $status = ((Get-NativeOutputLines -Output $statusResult.Output) -join "").Trim().ToLowerInvariant()
-            if ($status -ne "healthy" -and $status -ne "running") {
+            try {
+                $inspect = Get-ContainerInspectObject -Docker $Docker -ContainerId $containerId
+                $status = ([string]$inspect.State.Status).Trim().ToLowerInvariant()
+                $health = ""
+                if ($null -ne $inspect.State.Health) {
+                    $health = ([string]$inspect.State.Health.Status).Trim().ToLowerInvariant()
+                }
+                if (-not [string]::IsNullOrWhiteSpace($health)) {
+                    if ($health -ne "healthy") {
+                        $allHealthy = $false
+                        break
+                    }
+                } elseif ($status -ne "running") {
+                    $allHealthy = $false
+                    break
+                }
+            } catch {
                 $allHealthy = $false
                 break
             }
@@ -147,13 +231,11 @@ function Assert-FallbackDisabledInContainers {
     )
 
     foreach ($containerId in $ContainerIds) {
-        $envResult = Assert-NativeSuccess `
-            -Executable $Docker `
-            -Arguments @("inspect", "--format", '{{range .Config.Env}}{{println .}}{{end}}', $containerId) `
-            -ErrorMessage "Unable to inspect environment for $Service container $containerId"
+        $inspect = Get-ContainerInspectObject -Docker $Docker -ContainerId $containerId
+        $environment = @($inspect.Config.Env)
         $fallbackLine = @(
-            Get-NativeOutputLines -Output $envResult.Output |
-                Where-Object { $_.StartsWith("APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=") }
+            $environment |
+                Where-Object { ([string]$_).StartsWith("APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=") }
         )
         if ($fallbackLine.Count -ne 1 -or ([string]$fallbackLine[0]).Trim().ToLowerInvariant() -ne "app_storage_object_legacy_local_fallback_enabled=false") {
             throw "Fallback is not disabled inside $Service container $containerId."
@@ -277,14 +359,17 @@ Invoke-OperatorScript -PowerShellExe $powershellExe -ScriptPath $storageGate
 Write-Host "[INFO] Running pre-cutover client avatar audit..."
 Invoke-OperatorScript -PowerShellExe $powershellExe -ScriptPath $clientAvatarAudit
 
-$workerIdsBefore = Get-ComposeServiceContainerIds -Docker $docker -ComposePrefix $composePrefix -Service "ops-worker"
-$webIdsBefore = Get-ComposeServiceContainerIds -Docker $docker -ComposePrefix $composePrefix -Service "panel-web"
+$runtimeProjectName = Resolve-RuntimeComposeProjectName -Docker $docker
+$runtimeComposePrefix = $composePrefix + @("--project-name", $runtimeProjectName)
+$workerIdsBefore = @(Get-DockerServiceContainerIds -Docker $docker -ProjectName $runtimeProjectName -Service "ops-worker")
+$webIdsBefore = @(Get-DockerServiceContainerIds -Docker $docker -ProjectName $runtimeProjectName -Service "panel-web")
 $workerReplicas = $workerIdsBefore.Count
 $webReplicas = $webIdsBefore.Count
 if ($workerReplicas -lt 1 -or $webReplicas -lt 1) {
     throw "Expected at least one running ops-worker and panel-web container before cutover. worker=$workerReplicas web=$webReplicas"
 }
 
+Write-Host "[INFO] Runtime Compose project: $runtimeProjectName"
 Write-Host "[INFO] Preserving runtime scale: ops-worker=$workerReplicas panel-web=$webReplicas"
 $backupPath = Set-DotEnvFallbackDisabled -EnvPath $envPath
 Write-Host "[RESULT] env_backup=$backupPath"
@@ -298,14 +383,14 @@ try {
 
     Assert-NativeSuccess `
         -Executable $docker `
-        -Arguments ($composePrefix + @(
+        -Arguments ($runtimeComposePrefix + @(
             "up", "-d", "--no-deps", "--force-recreate",
             "--scale", "ops-worker=$workerReplicas",
             "ops-worker"
         )) `
         -ErrorMessage "Unable to recreate ops-worker with fallback disabled" | Out-Null
 
-    $workerIdsAfter = Get-ComposeServiceContainerIds -Docker $docker -ComposePrefix $composePrefix -Service "ops-worker"
+    $workerIdsAfter = @(Get-DockerServiceContainerIds -Docker $docker -ProjectName $runtimeProjectName -Service "ops-worker")
     if ($workerIdsAfter.Count -ne $workerReplicas) {
         throw "ops-worker replica count changed during cutover. before=$workerReplicas after=$($workerIdsAfter.Count)"
     }
@@ -314,14 +399,14 @@ try {
 
     Assert-NativeSuccess `
         -Executable $docker `
-        -Arguments ($composePrefix + @(
+        -Arguments ($runtimeComposePrefix + @(
             "up", "-d", "--no-deps", "--force-recreate",
             "--scale", "panel-web=$webReplicas",
             "panel-web"
         )) `
         -ErrorMessage "Unable to recreate panel-web with fallback disabled" | Out-Null
 
-    $webIdsAfter = Get-ComposeServiceContainerIds -Docker $docker -ComposePrefix $composePrefix -Service "panel-web"
+    $webIdsAfter = @(Get-DockerServiceContainerIds -Docker $docker -ProjectName $runtimeProjectName -Service "panel-web")
     if ($webIdsAfter.Count -ne $webReplicas) {
         throw "panel-web replica count changed during cutover. before=$webReplicas after=$($webIdsAfter.Count)"
     }
