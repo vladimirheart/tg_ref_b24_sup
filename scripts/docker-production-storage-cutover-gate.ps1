@@ -84,29 +84,6 @@ function Assert-DockerSuccess {
     return $result
 }
 
-function Get-RunningServiceContainerIds {
-    param(
-        [string]$Docker,
-        [string[]]$ComposePrefix,
-        [string]$Service
-    )
-
-    $result = Assert-DockerSuccess `
-        -Docker $Docker `
-        -Arguments ($ComposePrefix + @("ps", "--status", "running", "-q", $Service)) `
-        -ErrorMessage "Unable to inspect required service '$Service'"
-
-    $ids = @(
-        Get-NativeOutputLines -Output $result.Output |
-            Where-Object { $_ -match '^[0-9A-Fa-f]{12,64}$' }
-    )
-    if ($ids.Count -lt 1) {
-        $diagnostic = (Get-NativeOutputLines -Output $result.Output) -join " | "
-        throw "Required service is not running: $Service. compose_ps_output='$diagnostic'"
-    }
-    return $ids
-}
-
 function Read-DotEnv {
     param([string]$Path)
 
@@ -433,13 +410,6 @@ foreach ($name in $environmentNames) {
 
 try {
     [Environment]::SetEnvironmentVariable("COMPOSE_IGNORE_ORPHANS", "true", "Process")
-
-    foreach ($requiredService in @("postgres", "minio", "panel-web")) {
-        Get-RunningServiceContainerIds `
-            -Docker $docker `
-            -ComposePrefix $composePrefix `
-            -Service $requiredService | Out-Null
-    }
 
     $dbUser = Get-ContainerEnvRequired `
         -Docker $docker `
