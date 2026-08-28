@@ -2,20 +2,30 @@
 
 Date: 2026-08-28
 Related tasks: `01-217`, `01-218`
-Status: prepared, **not executed**
+Status: cutover complete; read-only purge inventory complete; quarantine **not executed**
 
 ## Purpose
 
-This runbook describes the manual, reversible final cleanup of legacy local media after the production object-storage cutover has already completed successfully.
+This runbook describes the reversible cleanup of legacy local media after the production object-storage cutover. It does not authorize broad deletion of `attachments/**`, database rows, or MinIO objects.
 
-The runbook is intentionally conservative. It does **not** authorize broad deletion of `attachments/**`, does not delete database rows, and does not delete any MinIO objects.
+The required sequence is:
 
-## Current cutover invariant
+1. verify the production/GitHub baseline;
+2. re-run the authoritative read-only storage gates;
+3. generate a fresh local inventory;
+4. generate an exact mapping/candidate manifest;
+5. review the manifest;
+6. dry-run quarantine;
+7. quarantine only after a separate explicit operator decision;
+8. observe the live contour and keep rollback available;
+9. physically delete quarantine contents only after a later explicit rollback-window closure.
 
-Before this runbook may be used for any mutating action, all of the following must remain true:
+## Current production cutover invariant
+
+Before any mutating action, all of the following must remain true:
 
 - production runs with `APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=false`;
-- `ops-worker` and `panel-web` are healthy with that exact runtime environment value;
+- `ops-worker`, `panel-web`, and `panel-direct` are running and healthy;
 - `scripts/docker-production-storage-cutover-gate.ps1` is GREEN;
 - `scripts/docker-production-client-avatar-cutover-audit.ps1` is GREEN;
 - `missing_metadata_rows=0`;
@@ -23,52 +33,104 @@ Before this runbook may be used for any mutating action, all of the following mu
 - `stale_known_unrecoverable_entries=0`;
 - `missing_s3_panel_avatars=0` and `invalid_panel_avatar_refs=0`;
 - `missing_s3_client_avatars=0`;
-- the reviewed known-unrecoverable attachment set still matches `ai-context/storage-known-unrecoverable-dialog-attachments.json` exactly;
-- post-cutover manual UI/media smoke has been completed successfully.
+- the known-unrecoverable set still matches `ai-context/storage-known-unrecoverable-dialog-attachments.json` exactly;
+- the post-cutover UI/media smoke remains successful;
+- the cutover `.env.storage-cutover-*.bak` rollback backup remains readable.
 
-A full panel shutdown is not required merely to preserve this invariant. The cutover is designed to run on the live production contour with only targeted `ops-worker` / `panel-web` recreation when the fallback flag changes.
+The authoritative service check on this Windows production host is raw Docker label discovery plus `docker inspect`. Do not treat `docker compose ps` as authoritative contour state.
 
 ## Explicit exclusions
 
-The following are outside the purge scope unless a future dedicated audit explicitly proves them safe:
+The following remain outside purge/quarantine scope until dedicated audits prove them safe:
 
-- canonical MinIO objects under the runtime prefix `iguana/...`;
-- legacy/unprefixed MinIO objects such as `attachments/...` and `avatars/...`;
-- PostgreSQL rows or attachment metadata;
-- the 20 reviewed known-unrecoverable records themselves;
-- `knowledge_base` files without a dedicated canonical-object audit;
-- `passport_photos` without a dedicated canonical-object audit;
-- `forms` / web-form files without a dedicated canonical-object audit;
-- arbitrary orphan files for which no authoritative metadata/object mapping exists;
-- any local path outside the explicitly reviewed legacy roots.
+- canonical MinIO objects under `iguana/...`;
+- legacy/unprefixed MinIO objects;
+- PostgreSQL rows and attachment metadata;
+- the 20 reviewed known-unrecoverable attachment records;
+- `knowledge_base/**`;
+- `passport_photos/**`;
+- `forms/**`;
+- panel/client avatar local files unless a dedicated candidate audit is added;
+- arbitrary orphan files without an exact authoritative metadata mapping;
+- ambiguous mappings;
+- any local path outside the reviewed legacy roots.
 
-Do not create placeholder/empty MinIO objects to make a purge candidate appear safe.
+Never create placeholder or empty MinIO objects to make a candidate appear safe.
 
-## Known legacy roots to inventory
+## Reviewed legacy roots
 
-The current migration history includes at least these local roots:
+Only these roots are currently valid inventory sources:
 
-- repository `attachments/**`;
+- `attachments/**`;
 - `java-bot/attachments/**`.
 
-These roots are **inventory sources**, not deletion targets as a whole.
+They are inventory sources, not whole-directory move/delete targets.
 
-## Phase 0 - record rollback evidence
+## Read-only evidence captured on 2026-08-28
 
-Before any quarantine or purge action, record:
+The first manual read-only inventory and exact mapping audit were completed on production commit `5d284ccef34a99740466a037a8d859427d8d673e`.
+
+Observed local inventory:
+
+- total local files: `130`;
+- total bytes: `35,882,309` (`34.22 MiB`);
+- `dialog-or-orphan-review`: `117` files;
+- separately-audited avatar scope: `13` files;
+- duplicate relative paths across legacy roots: `43`.
+
+Exact dialog mapping audit:
+
+- unique dialog relative paths: `74`;
+- current attachment metadata rows: `72`;
+- reviewed known-unrecoverable rows: `20`;
+- exact mapped storage keys: `52`;
+- exact mapped physical local files: `80`;
+- exact mapped candidate bytes: `12,703,648`;
+- duplicate mapped keys with identical SHA-256: `28`;
+- duplicate mapped keys with different SHA-256: `0`;
+- orphan unique paths: `22`;
+- orphan physical files: `37`;
+- ambiguous paths: `0`;
+- reviewed known-unrecoverable rows rediscovered locally: `0`.
+
+The generated candidate manifest had `quarantine_authorized=false` and was read-only evidence only.
+
+**Important:** that evidence is tied to commit `5d284c...`. Once this runbook/tooling commit lands and production pulls the new `main`, the old evidence is intentionally stale and must not be used for mutation. Regenerate inventory and mapping evidence on the new production HEAD.
+
+## Phase 0 - synchronize and record rollback evidence
+
+Before live work:
+
+```powershell
+git status --short
+git pull --ff-only origin main
+git rev-parse HEAD
+```
+
+Stop if the working tree is dirty or the fast-forward pull fails.
+
+Record:
 
 1. current Git commit;
-2. current `.env` value of `APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED`;
-3. the exact `.env.storage-cutover-*.bak` file created by the successful cutover;
-4. current `ops-worker` and `panel-web` replica counts;
-5. current GREEN output from both cutover audits;
+2. `.env` value of `APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED`;
+3. exact cutover backup path;
+4. current runtime service health/replica evidence using Docker labels + inspect;
+5. GREEN outputs from both storage gates;
 6. current manual UI/media smoke confirmation.
 
-The cutover backup must remain readable for the entire rollback window.
+## Phase 1 - validate scripts and re-run authoritative gates
 
-## Phase 1 - re-run read-only gates
+On the production Windows PowerShell 5.1 host, first run parser/static validation:
 
-Run before generating purge candidates:
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+    -File ".\scripts\docker-production-storage-legacy-inventory.ps1" `
+    -ValidateOnly
+```
+
+The exact mapping and quarantine scripts also expose `-ValidateOnly`, but they require an evidence/manifest path respectively.
+
+Then re-run both authoritative read-only gates:
 
 ```powershell
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
@@ -80,172 +142,207 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
 
 Stop immediately if either gate is not GREEN.
 
-## Phase 2 - build a read-only local inventory
+## Phase 2 - generate a fresh read-only local inventory
 
-Inventory the local roots without moving or deleting anything:
+Use the repository script instead of an ad-hoc directory walk:
 
 ```powershell
-$roots = @(
-    ".\attachments",
-    ".\java-bot\attachments"
-) | Where-Object { Test-Path -LiteralPath $_ }
-
-$inventory = foreach ($root in $roots) {
-    $resolvedRoot = (Resolve-Path -LiteralPath $root).Path
-    Get-ChildItem -LiteralPath $resolvedRoot -File -Recurse -Force | ForEach-Object {
-        [pscustomobject]@{
-            Root = $resolvedRoot
-            FullName = $_.FullName
-            RelativePath = $_.FullName.Substring($resolvedRoot.Length).TrimStart('\')
-            Length = $_.Length
-            LastWriteTimeUtc = $_.LastWriteTimeUtc
-        }
-    }
-}
-
-$inventory | Sort-Object Root, RelativePath | Format-Table -AutoSize
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+    -File ".\scripts\docker-production-storage-legacy-inventory.ps1"
 ```
 
-Save the resulting inventory as operator evidence before continuing.
-
-## Phase 3 - candidate eligibility rules
-
-A local file may enter a purge-candidate manifest only when all relevant checks are true.
-
-### Dialog attachment candidate
-
-- the file maps to one exact `chat_attachment_metadata` row/storage key;
-- that metadata row is not one of the reviewed known-unrecoverable records;
-- the exact canonical runtime object `iguana/attachments/<storage_key>` exists in MinIO;
-- the authoritative cutover gate still reports zero unexpected missing objects;
-- the candidate is not also required by another local-only feature.
-
-### Panel/operator avatar candidate
-
-- the current panel avatar reference is valid;
-- the canonical `iguana/avatars/...` object exists;
-- `missing_s3_panel_avatars=0` and `invalid_panel_avatar_refs=0` remain true.
-
-### Client avatar candidate
-
-- the canonical runtime avatar object exists for the corresponding client history;
-- `missing_s3_client_avatars=0` remains true.
-
-### Other domains
-
-Do **not** include `knowledge_base`, `passport_photos`, `forms`, or other domains until a dedicated read-only audit for that domain has been implemented and run GREEN.
-
-## Phase 4 - manifest-only quarantine
-
-The first mutating step is quarantine, not deletion.
-
-Requirements:
-
-- use an explicit, reviewed candidate manifest;
-- move only files listed in that manifest;
-- preserve relative paths inside the quarantine directory;
-- quarantine must be outside the mounted legacy roots;
-- never use broad `Remove-Item -Recurse`, `rm -rf`, directory-wide move, wildcard delete, or whole-root rename;
-- first execute the planned move with `-WhatIf` or an equivalent dry-run and review every path.
-
-Recommended quarantine naming convention:
+By default, evidence is written outside the repository under:
 
 ```text
-<repo-parent>\iguana-legacy-storage-quarantine\YYYYMMDD-HHmmss\...
+<repo-parent>\iguana-legacy-storage-inventory\YYYYMMDD-HHmmss\
 ```
 
-No physical deletion happens in this phase.
+The script:
 
-## Phase 5 - post-quarantine observation
+- reads only `attachments/**` and `java-bot/attachments/**`;
+- separates `avatars` for another audit;
+- excludes `knowledge_base`, `passport_photos`, and `forms`;
+- classifies remaining files as `dialog-or-orphan-review`;
+- records exact full/relative paths, lengths and timestamps;
+- refuses to place evidence inside the repository;
+- does not modify legacy files, PostgreSQL or MinIO.
+
+## Phase 3 - build the exact dialog candidate manifest
+
+Validate first:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+    -File ".\scripts\docker-production-storage-local-exact-mapping-audit.ps1" `
+    -EvidenceDirectory "<fresh-evidence-directory>" `
+    -ValidateOnly
+```
+
+Then run the read-only live audit:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+    -File ".\scripts\docker-production-storage-local-exact-mapping-audit.ps1" `
+    -EvidenceDirectory "<fresh-evidence-directory>"
+```
+
+Candidate eligibility is intentionally strict:
+
+- current Git HEAD must equal the inventory evidence commit;
+- both authoritative gates must pass again;
+- `panel-web` must have local fallback disabled;
+- a local relative path must map to exactly one `chat_attachment_metadata.storage_key`;
+- the row must not be one of the 20 known-unrecoverable rows;
+- its canonical runtime object must remain covered by the GREEN cutover gate;
+- duplicate copies of one relative path must have identical SHA-256;
+- any different-hash duplicate blocks the audit;
+- any ambiguous mapping blocks the audit;
+- any previously known-unrecoverable row that suddenly has a local source blocks the audit;
+- orphans are reported but never added to the candidate manifest.
+
+The output candidate manifest contains an integrity hash `candidate_set_sha256` and is created with:
+
+```text
+quarantine_authorized=false
+physical_delete_authorized=false
+```
+
+Changing candidate entries after the audit invalidates the integrity hash.
+
+## Phase 4 - review and dry-run quarantine
+
+Do not edit candidate entries. If the operator explicitly approves quarantine, make a separately retained reviewed copy of the exact manifest and change **only**:
+
+```text
+quarantine_authorized=true
+```
+
+Keep:
+
+```text
+physical_delete_authorized=false
+```
+
+First validate the reviewed copy:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+    -File ".\scripts\docker-production-storage-quarantine.ps1" `
+    -ManifestPath "<reviewed-manifest.json>" `
+    -ValidateOnly
+```
+
+Then perform a non-mutating full dry run using the exact quarantine path intended for the real move:
+
+```powershell
+$quarantine = "C:\Users\SinicinVV\git_h\iguana-legacy-storage-quarantine\<timestamp>"
+
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+    -File ".\scripts\docker-production-storage-quarantine.ps1" `
+    -ManifestPath "<reviewed-manifest.json>" `
+    -QuarantineRoot $quarantine
+```
+
+The helper rechecks current HEAD, rollback backup, both storage gates, runtime service health, fallback state, each source path, size and SHA-256. It refuses paths outside the two reviewed roots. `-Apply` additionally requires an explicit quarantine root on the same Windows volume as every source file.
+
+An additional PowerShell `-WhatIf` rehearsal is available only after the reviewed manifest has `quarantine_authorized=true`:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+    -File ".\scripts\docker-production-storage-quarantine.ps1" `
+    -ManifestPath "<reviewed-manifest.json>" `
+    -QuarantineRoot $quarantine `
+    -Apply `
+    -WhatIf
+```
+
+Review every planned source/destination path. No real quarantine is authorized by this runbook update itself.
+
+## Phase 5 - quarantine execution
+
+The first real mutation is an exact manifest-driven move, never deletion. Execute it only after a separate explicit operator decision.
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+    -File ".\scripts\docker-production-storage-quarantine.ps1" `
+    -ManifestPath "<reviewed-manifest.json>" `
+    -QuarantineRoot $quarantine `
+    -Apply
+```
+
+The helper uses only exact `Move-Item -LiteralPath` operations and preserves root name plus relative path under quarantine. It contains no physical-delete path.
+
+Never use broad `Remove-Item -Recurse`, `rm -rf`, wildcard deletion, directory-wide move, or whole-root rename.
+
+## Phase 6 - post-quarantine observation
 
 After quarantine:
 
 1. keep `APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=false`;
 2. confirm `ops-worker`, `panel-web`, and `panel-direct` remain healthy;
-3. re-run both read-only cutover gates;
-4. repeat the manual UI/media smoke:
-   - login;
-   - dialogs list and representative dialogs;
-   - representative historical image;
-   - document/PDF;
-   - video;
-   - panel/operator avatar;
-   - client avatar when a client with avatar history exists;
-5. inspect runtime logs for new storage/object-not-found errors.
+3. re-run both read-only storage gates;
+4. repeat manual UI/media smoke for representative dialog image/document/PDF/video and avatars;
+5. inspect runtime logs for new object-not-found/storage errors;
+6. retain the reviewed manifest and quarantine path as rollback evidence.
 
-If any regression appears, restore quarantined files before considering physical deletion.
+If any regression appears, restore exact manifest paths from quarantine. Do not restore by wildcard.
 
-## Phase 6 - rollback options
+## Phase 7 - rollback
 
 ### Rollback A - quarantine only
 
-If files were only moved to quarantine, restore each manifest path to its original relative location. Do not restore files by wildcard.
+Move each quarantined file back to its original manifest source path, preserving exact paths. Then rerun both gates and manual UI/media smoke.
 
-Then rerun both read-only gates and manual UI/media smoke.
+### Rollback B - compatibility fallback
 
-### Rollback B - re-enable legacy local fallback
+Use only if a production regression requires it:
 
-Use this only when a production regression requires compatibility fallback.
-
-1. restore the known-good cutover `.env` backup **or** explicitly set:
-
-```text
-APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=true
-```
-
-2. clear any process-level override in the current PowerShell session;
-3. targeted-recreate only `ops-worker` and `panel-web`, preserving their replica counts;
+1. restore the known-good cutover `.env` backup or explicitly set `APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=true`;
+2. clear any process-level override;
+3. targeted-recreate only `ops-worker` and `panel-web`, preserving replica counts;
 4. do not recreate PostgreSQL, MinIO, RabbitMQ, Redis, `panel-direct`, bots, or observability solely for this rollback;
-5. verify both runtime containers actually contain `APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=true`;
-6. re-run storage audits and manual UI/media smoke.
+5. verify the runtime containers contain fallback `true`;
+6. rerun storage gates and UI/media smoke.
 
-Do not use `--remove-orphans` for this rollback.
+Do not use `--remove-orphans`.
 
-### Rollback C - after physical deletion
+## Phase 8 - physical deletion
 
-Once quarantine contents have been physically deleted, rollback is possible only from another retained backup/source. Therefore physical deletion is forbidden until the operator explicitly closes the rollback window and confirms that an independent recovery source is available or no rollback is required.
+Physical deletion is a separate future operator decision. It is forbidden until the rollback window is explicitly closed and recovery evidence is accepted.
 
-## Phase 7 - physical deletion
-
-Physical deletion is a separate operator decision and must not be bundled with cutover/quarantine.
-
-It is allowed only when:
-
-- the operator explicitly closes the rollback window;
-- quarantine observation is successful;
-- both cutover gates remain GREEN;
-- UI/media smoke remains GREEN;
-- no new storage errors have appeared;
-- the exact quarantine manifest is retained as evidence;
-- required backup/recovery evidence has been accepted.
-
-Delete only the reviewed quarantine contents. Never delete the source roots broadly.
-
-After deletion, rerun both gates and the manual UI/media smoke one final time.
+Only reviewed quarantine contents may ever be considered for deletion. Never delete source roots broadly, and never include the 22 observed orphan paths (or any future orphans) without a dedicated audit.
 
 ## Stop conditions
 
-Stop and do not purge if any of these occur:
+Stop immediately if any of these occurs:
 
-- a new missing S3 object outside the reviewed known-unrecoverable manifest;
-- a stale known-unrecoverable manifest entry;
-- any panel/client avatar gap;
-- any metadata row without required storage mapping;
-- a candidate cannot be mapped one-to-one to a canonical S3 object;
-- a local file belongs to an unaudited domain;
-- the `.env` rollback backup is missing/unreadable;
+- Git working tree is dirty or production HEAD differs from the evidence manifest;
+- a storage gate is not GREEN;
+- local fallback is enabled unexpectedly;
+- the rollback backup is missing;
+- a new missing canonical S3 object appears outside the reviewed known-unrecoverable set;
+- a known-unrecoverable manifest entry becomes stale;
+- a known-unrecoverable row is rediscovered as a local source;
+- duplicate local paths have different SHA-256;
+- a candidate has zero or multiple authoritative metadata mappings;
+- a source file changed size or SHA-256 since manifest generation;
+- an orphan or unaudited domain enters the candidate set;
+- quarantine is inside a source root/repository or on another volume;
 - runtime health is degraded;
-- the operator has not explicitly closed the rollback window.
+- the operator has not explicitly authorized the current mutation phase.
 
 ## Completion evidence
 
-A completed purge change record must include:
+A completed quarantine/purge change record must retain:
 
-- candidate manifest;
-- quarantine manifest and location;
-- pre- and post-quarantine gate outputs;
-- pre- and post-delete gate outputs;
-- runtime fallback state;
+- fresh inventory evidence;
+- exact mapping report;
+- orphan report;
+- candidate manifest and `candidate_set_sha256`;
+- reviewed quarantine-authorized manifest;
+- quarantine location;
+- pre/post quarantine gate outputs;
+- runtime fallback/health evidence;
 - manual UI/media smoke confirmation;
-- rollback-window closure confirmation;
-- exact list/count/size of physically deleted files.
+- rollback-window closure confirmation before any physical deletion;
+- exact count/size/list of any later physically deleted quarantine files.
