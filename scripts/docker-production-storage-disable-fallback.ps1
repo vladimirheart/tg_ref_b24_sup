@@ -253,7 +253,7 @@ $inheritedFallback = [Environment]::GetEnvironmentVariable(
 )
 if (-not [string]::IsNullOrWhiteSpace($inheritedFallback) `
         -and $inheritedFallback.Trim().ToLowerInvariant() -ne "false") {
-    throw "Current PowerShell environment overrides APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED='$inheritedFallback'. Clear that parent-shell override before cutover (for example: Remove-Item Env:APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED -ErrorAction SilentlyContinue)."
+    throw "Current PowerShell environment overrides APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED='$inheritedFallback'. Clear that parent-shell override before cutover and rerun this helper."
 }
 
 Write-Host "[INFO] Running pre-cutover authoritative storage gate..."
