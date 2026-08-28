@@ -264,6 +264,15 @@ function Find-ExistingLegacyAttachment {
     return $null
 }
 
+function ConvertTo-LfLineEndings {
+    param([string]$Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+    return $Value.Replace("`r`n", "`n").Replace("`r", "`n")
+}
+
 function Invoke-MinioClient {
     param(
         [string]$Docker,
@@ -274,6 +283,7 @@ function Invoke-MinioClient {
         [switch]$IncludeObjectKey
     )
 
+    $normalizedShellCommand = ConvertTo-LfLineEndings -Value $ShellCommand
     $arguments = @(
         "run", "--rm", "--no-deps", "-T",
         "-e", "IGUANA_BACKFILL_ACCESS_KEY",
@@ -293,7 +303,7 @@ function Invoke-MinioClient {
     $arguments += @(
         "--entrypoint", "/bin/sh",
         "minio-init",
-        "-c", $ShellCommand
+        "-c", $normalizedShellCommand
     )
 
     return Invoke-ComposeCapture -Docker $Docker -ComposePrefix $ComposePrefix -Arguments $arguments
