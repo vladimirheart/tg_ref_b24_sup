@@ -19,6 +19,50 @@ function Get-RepoRoot {
     return [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 }
 
+function Read-DotEnv {
+    param([string]$Path)
+
+    $values = @{}
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $values
+    }
+
+    foreach ($line in Get-Content -LiteralPath $Path -Encoding UTF8) {
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+        $trimmed = $line.Trim()
+        if ($trimmed.StartsWith("#")) {
+            continue
+        }
+        $separatorIndex = $trimmed.IndexOf("=")
+        if ($separatorIndex -lt 1) {
+            continue
+        }
+        $name = $trimmed.Substring(0, $separatorIndex).Trim()
+        $value = $trimmed.Substring($separatorIndex + 1).Trim()
+        $values[$name] = $value
+    }
+    return $values
+}
+
+function Get-SettingValue {
+    param(
+        [hashtable]$DotEnv,
+        [string]$Name,
+        [string]$DefaultValue = ""
+    )
+
+    $fromEnvironment = [Environment]::GetEnvironmentVariable($Name, "Process")
+    if (-not [string]::IsNullOrWhiteSpace($fromEnvironment)) {
+        return $fromEnvironment.Trim()
+    }
+    if ($DotEnv.ContainsKey($Name) -and -not [string]::IsNullOrWhiteSpace([string]$DotEnv[$Name])) {
+        return ([string]$DotEnv[$Name]).Trim()
+    }
+    return $DefaultValue
+}
+
 function Ensure-DockerAvailable {
     $dockerCommand = Get-Command docker -ErrorAction SilentlyContinue
     if (-not $dockerCommand) {
@@ -31,9 +75,9 @@ function Ensure-DockerAvailable {
     return $dockerCommand.Source
 }
 
-function Invoke-NativeCapture {
+function Invoke-DockerCapture {
     param(
-        [string]$Executable,
+        [string]$Docker,
         [string[]]$Arguments
     )
 
@@ -42,7 +86,7 @@ function Invoke-NativeCapture {
     $output = @()
     try {
         $ErrorActionPreference = "Continue"
-        $output = @(& $Executable @Arguments 2>&1)
+        $output = @(& $Docker @Arguments 2>&1)
         $code = $LASTEXITCODE
     } finally {
         $ErrorActionPreference = $saved
@@ -52,14 +96,6 @@ function Invoke-NativeCapture {
         ExitCode = $code
         Output = @($output | ForEach-Object { [string]$_ })
     }
-}
-
-function Invoke-DockerCapture {
-    param(
-        [string]$Docker,
-        [string[]]$Arguments
-    )
-    return Invoke-NativeCapture -Executable $Docker -Arguments $Arguments
 }
 
 function Assert-DockerSuccess {
@@ -131,27 +167,12 @@ function ConvertFrom-HexUtf8 {
     if (($Hex.Length % 2) -ne 0 -or $Hex -notmatch '^[0-9A-Fa-f]+$') {
         throw "Invalid UTF-8 hex payload received from PostgreSQL."
     }
-    $bytes = New-Object byte[] ($Hex.Length / 2)
+    $byteCount = [int]($Hex.Length / 2)
+    $bytes = New-Object byte[] $byteCount
     for ($i = 0; $i -lt $Hex.Length; $i += 2) {
         $bytes[$i / 2] = [Convert]::ToByte($Hex.Substring($i, 2), 16)
     }
     return [System.Text.Encoding]::UTF8.GetString($bytes)
-}
-
-function Get-ResultInteger {
-    param(
-        [string[]]$Lines,
-        [string]$Name
-    )
-
-    $pattern = '\[RESULT\]\s+' + [regex]::Escape($Name) + '=(\d+)'
-    foreach ($line in @($Lines)) {
-        $match = [regex]::Match([string]$line, $pattern)
-        if ($match.Success) {
-            return [int]$match.Groups[1].Value
-        }
-    }
-    throw "Upstream storage audit did not emit [RESULT] $Name."
 }
 
 function Get-ContainerEnvOrDefault {
@@ -173,6 +194,61 @@ function Get-ContainerEnvOrDefault {
         }
     }
     return $DefaultValue
+}
+
+function Resolve-PanelAvatarReference {
+    param([string]$Photo)
+
+    if ([string]::IsNullOrWhiteSpace($Photo)) {
+        return [pscustomobject]@{ Kind = "empty"; Filename = "" }
+    }
+
+    $normalized = $Photo.Trim().Replace("\", "/")
+    $lower = $normalized.ToLowerInvariant()
+    if ($lower.StartsWith("http://") -or $lower.StartsWith("https://") -or $lower.StartsWith("data:")) {
+        return [pscustomobject]@{ Kind = "external"; Filename = "" }
+    }
+    if ($lower -eq "/avatar_default.svg" -or $lower -eq "avatar_default.svg") {
+        return [pscustomobject]@{ Kind = "static"; Filename = "" }
+    }
+
+    $prefixes = @(
+        "/api/attachments/avatars/",
+        "api/attachments/avatars/",
+        "/avatars/",
+        "avatars/",
+        "/static/user_photos/",
+        "static/user_photos/",
+        "/user_photos/",
+        "user_photos/"
+    )
+    foreach ($prefix in $prefixes) {
+        if ($lower.StartsWith($prefix)) {
+            $candidate = $normalized.Substring($prefix.Length)
+            $slashIndex = $candidate.LastIndexOf("/")
+            if ($slashIndex -ge 0) {
+                $candidate = $candidate.Substring($slashIndex + 1)
+            }
+            if ([string]::IsNullOrWhiteSpace($candidate) -or $candidate.Contains("..") -or $candidate -eq ".") {
+                return [pscustomobject]@{ Kind = "invalid"; Filename = "" }
+            }
+            return [pscustomobject]@{ Kind = "object"; Filename = $candidate }
+        }
+    }
+
+    if ($normalized.StartsWith("/")) {
+        return [pscustomobject]@{ Kind = "static"; Filename = "" }
+    }
+
+    $filename = $normalized
+    $lastSlash = $filename.LastIndexOf("/")
+    if ($lastSlash -ge 0) {
+        $filename = $filename.Substring($lastSlash + 1)
+    }
+    if ([string]::IsNullOrWhiteSpace($filename) -or $filename.Contains("..") -or $filename -eq ".") {
+        return [pscustomobject]@{ Kind = "invalid"; Filename = "" }
+    }
+    return [pscustomobject]@{ Kind = "object"; Filename = $filename }
 }
 
 function Test-CanonicalObject {
@@ -209,11 +285,11 @@ $repoRoot = Get-RepoRoot
 $docker = Ensure-DockerAvailable
 $dotEnvPath = Join-Path $repoRoot ".env"
 $composeFile = Join-Path $repoRoot "docker-compose.production-contour.yml"
-$upstreamAudit = Join-Path $repoRoot "scripts/docker-production-storage-cutover-audit.ps1"
 $manifestPath = Join-Path $repoRoot "ai-context/storage-known-unrecoverable-dialog-attachments.json"
 $objectStatHelper = Join-Path $repoRoot "scripts/internal/storage-cutover-object-stat.sh"
+$dotEnv = Read-DotEnv -Path $dotEnvPath
 
-foreach ($requiredFile in @($composeFile, $upstreamAudit, $manifestPath, $objectStatHelper)) {
+foreach ($requiredFile in @($composeFile, $manifestPath, $objectStatHelper)) {
     if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
         throw "Required cutover gate file is missing: $requiredFile"
     }
@@ -244,11 +320,10 @@ foreach ($entry in $manifestEntries) {
         throw "Known-unrecoverable manifest contains an invalid entry."
     }
     $idKey = [string]$id
-    $storageKeyLookup = $storageKey.ToLowerInvariant()
     if ($manifestById.ContainsKey($idKey)) {
         throw "Duplicate metadata_id in known-unrecoverable manifest: $id"
     }
-    if ($manifestByKey.ContainsKey($storageKeyLookup)) {
+    if ($manifestByKey.ContainsKey($storageKey)) {
         throw "Duplicate storage_key in known-unrecoverable manifest: $storageKey"
     }
     $manifestEntry = [pscustomobject]@{
@@ -256,7 +331,7 @@ foreach ($entry in $manifestEntries) {
         StorageKey = $storageKey
     }
     $manifestById[$idKey] = $manifestEntry
-    $manifestByKey[$storageKeyLookup] = $manifestEntry
+    $manifestByKey[$storageKey] = $manifestEntry
 }
 
 $composePrefix = @("compose", "--project-directory", $repoRoot)
@@ -270,28 +345,20 @@ Assert-DockerSuccess `
     -Arguments ($composePrefix + @("config", "-q")) `
     -ErrorMessage "Production Compose model is invalid" | Out-Null
 
-$powershellExe = Join-Path $PSHOME "powershell.exe"
-if (-not (Test-Path -LiteralPath $powershellExe -PathType Leaf)) {
-    $powershellCommand = Get-Command powershell.exe -ErrorAction SilentlyContinue
-    if (-not $powershellCommand) {
-        throw "powershell.exe is unavailable for the upstream storage audit."
-    }
-    $powershellExe = $powershellCommand.Source
-}
+$requestedObjectKeyPrefix = Normalize-ObjectKeyPrefix -Value (Get-SettingValue `
+    -DotEnv $dotEnv `
+    -Name "APP_STORAGE_OBJECT_KEY_PREFIX" `
+    -DefaultValue "iguana")
+$requestedObjectBucket = Get-SettingValue `
+    -DotEnv $dotEnv `
+    -Name "APP_STORAGE_OBJECT_BUCKET" `
+    -DefaultValue "iguana"
 
 if ($ValidateOnly) {
-    $upstreamValidation = Invoke-NativeCapture `
-        -Executable $powershellExe `
-        -Arguments @(
-            "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
-            "-File", $upstreamAudit,
-            "-ValidateOnly"
-        )
-    if ($upstreamValidation.ExitCode -ne 0) {
-        throw "Upstream storage audit ValidateOnly failed with exit code $($upstreamValidation.ExitCode): $($upstreamValidation.Output -join ' ')"
-    }
     Write-Host "[GREEN] Storage cutover gate parsed successfully and the production Compose model is valid."
     Write-Host "[RESULT] known_unrecoverable_manifest_entries=$($manifestEntries.Count)"
+    Write-Host "[RESULT] requested_object_key_prefix=$requestedObjectKeyPrefix"
+    Write-Host "[RESULT] requested_object_bucket=$requestedObjectBucket"
     Write-Host "[RESULT] object_stat_helper_lf=true"
     Write-Host "[RESULT] validation is read-only and no runtime data was accessed."
     return
@@ -312,29 +379,15 @@ foreach ($name in $environmentNames) {
 try {
     [Environment]::SetEnvironmentVariable("COMPOSE_IGNORE_ORPHANS", "true", "Process")
 
-    $upstreamResult = Invoke-NativeCapture `
-        -Executable $powershellExe `
-        -Arguments @(
-            "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
-            "-File", $upstreamAudit
-        )
-
-    $missingMetadataRows = Get-ResultInteger -Lines $upstreamResult.Output -Name "missing_metadata_rows"
-    $missingPanelAvatars = Get-ResultInteger -Lines $upstreamResult.Output -Name "missing_s3_panel_avatars"
-    $invalidPanelAvatarRefs = Get-ResultInteger -Lines $upstreamResult.Output -Name "invalid_panel_avatar_refs"
-
-    Write-Host "[RESULT] upstream_missing_metadata_rows=$missingMetadataRows"
-    Write-Host "[RESULT] upstream_missing_s3_panel_avatars=$missingPanelAvatars"
-    Write-Host "[RESULT] upstream_invalid_panel_avatar_refs=$invalidPanelAvatarRefs"
-
-    if ($missingMetadataRows -ne 0) {
-        throw "Storage cutover remains blocked: missing_metadata_rows=$missingMetadataRows"
-    }
-    if ($missingPanelAvatars -ne 0) {
-        throw "Storage cutover remains blocked: missing_s3_panel_avatars=$missingPanelAvatars"
-    }
-    if ($invalidPanelAvatarRefs -ne 0) {
-        throw "Storage cutover remains blocked: invalid_panel_avatar_refs=$invalidPanelAvatarRefs"
+    $runningResult = Assert-DockerSuccess `
+        -Docker $docker `
+        -Arguments ($composePrefix + @("ps", "--status", "running", "--services")) `
+        -ErrorMessage "Unable to inspect production contour services"
+    $runningServices = @($runningResult.Output | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ })
+    foreach ($requiredService in @("postgres", "minio", "panel-web")) {
+        if ($runningServices -notcontains $requiredService) {
+            throw "Required service is not running: $requiredService"
+        }
     }
 
     $dbUser = Get-ContainerEnvOrDefault `
@@ -377,17 +430,40 @@ try {
     if ([string]::IsNullOrWhiteSpace($accessKey) -or [string]::IsNullOrWhiteSpace($secretKey)) {
         throw "Unable to resolve MinIO runtime credentials."
     }
+    if ($objectKeyPrefix -cne $requestedObjectKeyPrefix) {
+        throw "Object key prefix mismatch: .env/process requests '$requestedObjectKeyPrefix' but panel-web uses '$objectKeyPrefix'."
+    }
+    if ($objectBucket -cne $requestedObjectBucket) {
+        throw "Object bucket mismatch: .env/process requests '$requestedObjectBucket' but panel-web uses '$objectBucket'."
+    }
 
     [Environment]::SetEnvironmentVariable("IGUANA_GATE_ACCESS_KEY", $accessKey, "Process")
     [Environment]::SetEnvironmentVariable("IGUANA_GATE_SECRET_KEY", $secretKey, "Process")
     [Environment]::SetEnvironmentVariable("IGUANA_GATE_BUCKET", $objectBucket, "Process")
 
-    $sql = "SELECT id || chr(9) || encode(convert_to(storage_key, 'UTF8'), 'hex') || chr(9) || COALESCE(lower(availability_status), '') FROM chat_attachment_metadata WHERE storage_key IS NOT NULL AND btrim(storage_key) <> '' AND COALESCE(lower(storage_provider), '') <> 'external_url' ORDER BY id"
+    $missingMetadataSql = "SELECT COUNT(*) FROM chat_history ch WHERE ch.attachment IS NOT NULL AND btrim(ch.attachment) <> '' AND NOT EXISTS (SELECT 1 FROM chat_attachment_metadata cam WHERE cam.chat_history_id = ch.id)"
+    $missingMetadataResult = Assert-DockerSuccess `
+        -Docker $docker `
+        -Arguments ($composePrefix + @(
+            "exec", "-T", "postgres",
+            "psql", "-U", $dbUser, "-d", $dbName, "-Atc", $missingMetadataSql
+        )) `
+        -ErrorMessage "Unable to count attachment metadata gaps"
+    $missingMetadataText = (($missingMetadataResult.Output | ForEach-Object { [string]$_ }) -join "").Trim()
+    $missingMetadataRows = 0
+    if (-not [int]::TryParse($missingMetadataText, [ref]$missingMetadataRows)) {
+        throw "Invalid missing metadata count returned by PostgreSQL: '$missingMetadataText'"
+    }
+    if ($missingMetadataRows -ne 0) {
+        throw "Storage cutover remains blocked: missing_metadata_rows=$missingMetadataRows"
+    }
+
+    $attachmentSql = "SELECT id || chr(9) || encode(convert_to(storage_key, 'UTF8'), 'hex') || chr(9) || COALESCE(lower(availability_status), '') FROM chat_attachment_metadata WHERE storage_key IS NOT NULL AND btrim(storage_key) <> '' AND COALESCE(lower(storage_provider), '') <> 'external_url' ORDER BY id"
     $metadataResult = Assert-DockerSuccess `
         -Docker $docker `
         -Arguments ($composePrefix + @(
             "exec", "-T", "postgres",
-            "psql", "-U", $dbUser, "-d", $dbName, "-Atc", $sql
+            "psql", "-U", $dbUser, "-d", $dbName, "-Atc", $attachmentSql
         )) `
         -ErrorMessage "Unable to read attachment metadata for cutover gate"
 
@@ -439,7 +515,6 @@ try {
     $knownMissing = @()
     $unexpectedMissing = @()
     $staleManifest = @()
-
     foreach ($row in $metadataRows) {
         $objectKey = Join-ObjectKey `
             -Prefix $objectKeyPrefix `
@@ -488,16 +563,82 @@ try {
         }
         throw "Known-unrecoverable manifest is stale for $($staleManifest.Count) attachment(s). Review it before cutover."
     }
-
     if ($knownMissing.Count -ne $manifestEntries.Count) {
         throw "Canonical known-unrecoverable set differs from reviewed manifest. canonical_missing=$($knownMissing.Count) manifest=$($manifestEntries.Count)"
     }
-
     foreach ($item in $unexpectedMissing) {
         Write-Host "[WARN] unexpected_missing metadata_id=$($item.Id) availability=$($item.AvailabilityStatus) storage_key=$($item.StorageKey) object_key=$($item.ObjectKey)"
     }
     if ($unexpectedMissing.Count -gt 0) {
         throw "Storage cutover remains blocked: unexpected_missing_s3_dialog_objects=$($unexpectedMissing.Count)"
+    }
+
+    $panelAvatarSql = "SELECT id || chr(9) || encode(convert_to(COALESCE(photo, ''), 'UTF8'), 'hex') FROM users WHERE photo IS NOT NULL AND btrim(photo) <> '' ORDER BY id"
+    $panelAvatarResult = Assert-DockerSuccess `
+        -Docker $docker `
+        -Arguments ($composePrefix + @(
+            "exec", "-T", "postgres",
+            "psql", "-U", $dbUser, "-d", $dbName, "-Atc", $panelAvatarSql
+        )) `
+        -ErrorMessage "Unable to read panel avatar references"
+
+    $panelAvatarObjectCount = 0
+    $panelAvatarStaticOrExternalCount = 0
+    $invalidPanelAvatarRefs = @()
+    $missingPanelAvatars = @()
+    foreach ($lineObject in $panelAvatarResult.Output) {
+        $line = ([string]$lineObject).Trim()
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+        $parts = $line -split "`t", 2
+        if ($parts.Count -ne 2) {
+            throw "Malformed panel avatar row: $line"
+        }
+        $userId = [long]$parts[0]
+        $photo = ConvertFrom-HexUtf8 -Hex $parts[1].Trim()
+        $resolved = Resolve-PanelAvatarReference -Photo $photo
+        if ($resolved.Kind -eq "external" -or $resolved.Kind -eq "static" -or $resolved.Kind -eq "empty") {
+            $panelAvatarStaticOrExternalCount++
+            continue
+        }
+        if ($resolved.Kind -ne "object") {
+            $invalidPanelAvatarRefs += [pscustomobject]@{
+                Id = $userId
+                Photo = $photo
+            }
+            continue
+        }
+
+        $panelAvatarObjectCount++
+        $objectKey = Join-ObjectKey `
+            -Prefix $objectKeyPrefix `
+            -Domain "avatars" `
+            -LogicalKey ([string]$resolved.Filename)
+        if (-not (Test-CanonicalObject `
+                -Docker $docker `
+                -ComposePrefix $composePrefix `
+                -RepoRoot $repoRoot `
+                -ObjectKey $objectKey)) {
+            $missingPanelAvatars += [pscustomobject]@{
+                Id = $userId
+                Photo = $photo
+                ObjectKey = $objectKey
+            }
+        }
+    }
+
+    foreach ($item in ($missingPanelAvatars | Select-Object -First 20)) {
+        Write-Host "[WARN] panel_avatar user_id=$($item.Id) photo=$($item.Photo) object_key=$($item.ObjectKey)"
+    }
+    foreach ($item in ($invalidPanelAvatarRefs | Select-Object -First 20)) {
+        Write-Host "[WARN] invalid_panel_avatar_ref user_id=$($item.Id) photo=$($item.Photo)"
+    }
+    if ($missingPanelAvatars.Count -gt 0) {
+        throw "Storage cutover remains blocked: missing_s3_panel_avatars=$($missingPanelAvatars.Count)"
+    }
+    if ($invalidPanelAvatarRefs.Count -gt 0) {
+        throw "Storage cutover remains blocked: invalid_panel_avatar_refs=$($invalidPanelAvatarRefs.Count)"
     }
 
     Write-Host "[RESULT] STORAGE CUTOVER GATE"
@@ -509,8 +650,10 @@ try {
     Write-Host "[RESULT] unexpected_missing_s3_dialog_objects=$($unexpectedMissing.Count)"
     Write-Host "[RESULT] stale_known_unrecoverable_entries=$($staleManifest.Count)"
     Write-Host "[RESULT] missing_metadata_rows=$missingMetadataRows"
-    Write-Host "[RESULT] missing_s3_panel_avatars=$missingPanelAvatars"
-    Write-Host "[RESULT] invalid_panel_avatar_refs=$invalidPanelAvatarRefs"
+    Write-Host "[RESULT] panel_avatar_object_refs_checked=$panelAvatarObjectCount"
+    Write-Host "[RESULT] panel_avatar_static_or_external_refs=$panelAvatarStaticOrExternalCount"
+    Write-Host "[RESULT] missing_s3_panel_avatars=$($missingPanelAvatars.Count)"
+    Write-Host "[RESULT] invalid_panel_avatar_refs=$($invalidPanelAvatarRefs.Count)"
     Write-Host "[RESULT] gate is read-only and did not modify database rows, MinIO objects, or local files."
     Write-Host "[GREEN] STORAGE CUTOVER GATE PASSED: all unexpected dialog mapping and panel avatar gaps are zero; $($knownMissing.Count) reviewed historical attachments remain explicitly known-unrecoverable."
 } finally {
