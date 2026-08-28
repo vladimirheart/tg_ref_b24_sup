@@ -22,6 +22,27 @@ function Invoke-Native {
     return @($out | ForEach-Object { [string]$_ })
 }
 
+function Invoke-PowerShellScriptStreaming {
+    param(
+        [string]$Path,
+        [string]$Message,
+        [string]$Stage
+    )
+
+    Write-Host "[INFO] stage=$Stage status=started script=$([IO.Path]::GetFileName($Path))"
+    $saved = $ErrorActionPreference
+    $code = -1
+    try {
+        $ErrorActionPreference = "Continue"
+        & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $Path
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $saved
+    }
+    if ($code -ne 0) { throw "${Message}: exit_code=$code" }
+    Write-Host "[INFO] stage=$Stage status=completed"
+}
+
 function Lines { param([object[]]$Value)
     return @($Value | ForEach-Object { ([string]$_ -split "`r?`n") } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 }
@@ -112,9 +133,12 @@ if ($LASTEXITCODE -ne 0 -or $status.Count -gt 0) { throw "Production working tre
 $head = ((@(& git -C $repo rev-parse HEAD 2>&1) | ForEach-Object { [string]$_ }) -join "").Trim()
 if ($LASTEXITCODE -ne 0 -or $head -cne ([string]$summary.git_commit).Trim()) { throw "Inventory evidence is stale. inventory=$($summary.git_commit) current=$head" }
 
-Invoke-Native "powershell.exe" @("-NoLogo","-NoProfile","-ExecutionPolicy","Bypass","-File",(Join-Path $repo "scripts/docker-production-storage-cutover-gate.ps1")) "Storage cutover gate failed" | ForEach-Object { Write-Host $_ }
-Invoke-Native "powershell.exe" @("-NoLogo","-NoProfile","-ExecutionPolicy","Bypass","-File",(Join-Path $repo "scripts/docker-production-client-avatar-cutover-audit.ps1")) "Client avatar audit failed" | ForEach-Object { Write-Host $_ }
+$cutoverGate = Join-Path $repo "scripts/docker-production-storage-cutover-gate.ps1"
+$avatarGate = Join-Path $repo "scripts/docker-production-client-avatar-cutover-audit.ps1"
+Invoke-PowerShellScriptStreaming -Path $cutoverGate -Message "Storage cutover gate failed" -Stage "storage-cutover-gate"
+Invoke-PowerShellScriptStreaming -Path $avatarGate -Message "Client avatar audit failed" -Stage "client-avatar-cutover-audit"
 
+Write-Host "[INFO] stage=runtime-storage-contract status=started"
 $docker = (Get-Command docker -ErrorAction Stop).Source
 $postgres = Container-Id $docker "postgres"
 $panel = Inspect $docker (Container-Id $docker "panel-web")
@@ -125,7 +149,9 @@ $db = Inspect $docker $postgres
 $dbUser = Env-Value $db "POSTGRES_USER"
 $dbName = Env-Value $db "POSTGRES_DB"
 if ([string]::IsNullOrWhiteSpace($bucket) -or [string]::IsNullOrWhiteSpace($prefix) -or [string]::IsNullOrWhiteSpace($dbUser) -or [string]::IsNullOrWhiteSpace($dbName)) { throw "Runtime storage/database environment is incomplete." }
+Write-Host "[INFO] stage=runtime-storage-contract status=completed bucket=$bucket prefix=$prefix"
 
+Write-Host "[INFO] stage=attachment-metadata status=started"
 $sql = "SELECT id || chr(9) || encode(convert_to(storage_key, 'UTF8'), 'hex') || chr(9) || COALESCE(lower(availability_status), '') FROM chat_attachment_metadata WHERE storage_key IS NOT NULL AND btrim(storage_key) <> '' AND COALESCE(lower(storage_provider), '') <> 'external_url' ORDER BY id"
 $metadata = @()
 foreach ($line in (Lines (Invoke-Native $docker @("exec",$postgres,"psql","-U",$dbUser,"-d",$dbName,"-Atc",$sql) "Unable to read attachment metadata"))) {
@@ -133,7 +159,9 @@ foreach ($line in (Lines (Invoke-Native $docker @("exec",$postgres,"psql","-U",$
     if ($parts.Count -ne 3) { throw "Malformed metadata row: $line" }
     $metadata += [pscustomobject]@{ MetadataId=[long]$parts[0]; StorageKey=(Normalize-Key (From-HexUtf8 $parts[1])); Availability=([string]$parts[2]).Trim().ToLowerInvariant() }
 }
+Write-Host "[INFO] stage=attachment-metadata status=completed rows=$($metadata.Count)"
 
+Write-Host "[INFO] stage=local-sha256 status=started files=$($inventory.Count)"
 $local = @()
 foreach ($row in $inventory) {
     if (-not (Test-Path -LiteralPath $row.FullName -PathType Leaf)) { throw "Inventory file disappeared: $($row.FullName)" }
@@ -144,7 +172,9 @@ foreach ($row in $inventory) {
         Sha256=(Get-FileHash -LiteralPath $row.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
     }
 }
+Write-Host "[INFO] stage=local-sha256 status=completed files=$($local.Count)"
 
+Write-Host "[INFO] stage=exact-mapping status=started"
 $mapped=@(); $orphans=@(); $ambiguous=@(); $rediscovered=@(); $dupSame=0; $dupDifferent=0
 foreach ($key in @($local | Select-Object -ExpandProperty RelativePath | Sort-Object -Unique)) {
     $copies = @($local | Where-Object { $_.RelativePath -ceq $key })
@@ -160,6 +190,7 @@ foreach ($key in @($local | Select-Object -ExpandProperty RelativePath | Sort-Ob
     elseif ($copies.Count -gt 1) { $dupDifferent++; $ambiguous += [pscustomobject]@{RelativePath=$key;LocalFiles=$copies;Reason="duplicate_relative_path_has_different_sha256"}; continue }
     $mapped += [pscustomobject]@{ MetadataId=$m.MetadataId; StorageKey=$m.StorageKey; AvailabilityStatus=$m.Availability; CanonicalObjectBucket=$bucket; CanonicalObjectKey=(($prefix,"attachments",$m.StorageKey) -join "/"); LocalCopyCount=$copies.Count; LocalCopyState=$state; LocalFiles=$copies }
 }
+Write-Host "[INFO] stage=exact-mapping status=completed mapped=$($mapped.Count) orphans=$($orphans.Count) ambiguous=$($ambiguous.Count) rediscovered=$($rediscovered.Count)"
 
 $mappedFiles=[int](($mapped|ForEach-Object{@($_.LocalFiles).Count}|Measure-Object -Sum).Sum)
 $orphanFiles=[int](($orphans|ForEach-Object{@($_.LocalFiles).Count}|Measure-Object -Sum).Sum)
