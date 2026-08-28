@@ -54,6 +54,22 @@ function Invoke-NativeCapture {
     }
 }
 
+function Get-NativeOutputLines {
+    param([object[]]$Output)
+
+    $lines = @()
+    foreach ($item in @($Output)) {
+        $text = [string]$item
+        foreach ($line in ($text -split "`r?`n")) {
+            $trimmed = $line.Trim()
+            if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
+                $lines += $trimmed
+            }
+        }
+    }
+    return $lines
+}
+
 function Assert-NativeSuccess {
     param(
         [string]$Executable,
@@ -81,8 +97,7 @@ function Get-ComposeServiceContainerIds {
         -ErrorMessage "Unable to inspect service '$Service'"
 
     return @(
-        $result.Output |
-            ForEach-Object { ([string]$_).Trim() } |
+        Get-NativeOutputLines -Output $result.Output |
             Where-Object { $_ -match '^[0-9A-Fa-f]{12,64}$' }
     )
 }
@@ -108,7 +123,7 @@ function Wait-ContainersHealthy {
                 $allHealthy = $false
                 break
             }
-            $status = (($statusResult.Output | ForEach-Object { [string]$_ }) -join "").Trim().ToLowerInvariant()
+            $status = ((Get-NativeOutputLines -Output $statusResult.Output) -join "").Trim().ToLowerInvariant()
             if ($status -ne "healthy" -and $status -ne "running") {
                 $allHealthy = $false
                 break
@@ -136,9 +151,10 @@ function Assert-FallbackDisabledInContainers {
             -Executable $Docker `
             -Arguments @("inspect", "--format", '{{range .Config.Env}}{{println .}}{{end}}', $containerId) `
             -ErrorMessage "Unable to inspect environment for $Service container $containerId"
-        $fallbackLine = @($envResult.Output | Where-Object {
-            ([string]$_).StartsWith("APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=")
-        })
+        $fallbackLine = @(
+            Get-NativeOutputLines -Output $envResult.Output |
+                Where-Object { $_.StartsWith("APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=") }
+        )
         if ($fallbackLine.Count -ne 1 -or ([string]$fallbackLine[0]).Trim().ToLowerInvariant() -ne "app_storage_object_legacy_local_fallback_enabled=false") {
             throw "Fallback is not disabled inside $Service container $containerId."
         }
@@ -162,8 +178,8 @@ function Invoke-OperatorScript {
     }
 
     $result = Invoke-NativeCapture -Executable $PowerShellExe -Arguments $arguments
-    foreach ($line in $result.Output) {
-        Write-Host ([string]$line)
+    foreach ($line in (Get-NativeOutputLines -Output $result.Output)) {
+        Write-Host $line
     }
     if ($result.ExitCode -ne 0) {
         throw "Operator script failed: $ScriptPath (exit_code=$($result.ExitCode))"
