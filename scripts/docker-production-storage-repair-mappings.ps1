@@ -202,7 +202,9 @@ function ConvertFrom-HexUtf8 {
     if (($Hex.Length % 2) -ne 0 -or $Hex -notmatch '^[0-9A-Fa-f]+$') {
         throw "Invalid UTF-8 hex payload received from PostgreSQL."
     }
-    $bytes = New-Object byte[] ($Hex.Length / 2)
+
+    $byteCount = [int]($Hex.Length / 2)
+    $bytes = New-Object byte[] $byteCount
     for ($i = 0; $i -lt $Hex.Length; $i += 2) {
         $bytes[$i / 2] = [Convert]::ToByte($Hex.Substring($i, 2), 16)
     }
@@ -269,7 +271,7 @@ function Get-RepairState {
     param([string[]]$Output)
 
     foreach ($line in @($Output)) {
-        $match = [regex]::Match([string]$line, '\[REPAIR_RESULT\]\s+(canonical|local|legacy|missing)')
+        $match = [regex]::Match([string]$line, '\[REPAIR_RESULT\]\s+(canonical|local|legacy|missing|error)')
         if ($match.Success) {
             return $match.Groups[1].Value
         }
@@ -286,7 +288,10 @@ function Get-PanelRuntimeObjectKeyPrefix {
     $result = Assert-ComposeSuccess `
         -Docker $Docker `
         -ComposePrefix $ComposePrefix `
-        -Arguments @("exec", "-T", "panel-web", "/bin/sh", "-c", 'printf "%s" "${APP_STORAGE_OBJECT_KEY_PREFIX:-iguana}"') `
+        -Arguments @(
+            "exec", "-T", "panel-web", "/bin/sh", "-c",
+            'printf "%s" "${APP_STORAGE_OBJECT_KEY_PREFIX:-iguana}"'
+        ) `
         -ErrorMessage "Unable to resolve APP_STORAGE_OBJECT_KEY_PREFIX from panel-web"
     return Normalize-ObjectKeyPrefix -Value ((($result.Output | ForEach-Object { [string]$_ }) -join "").Trim())
 }
@@ -295,9 +300,14 @@ $repoRoot = Get-RepoRoot
 $docker = Ensure-DockerAvailable
 $dotEnvPath = Join-Path $repoRoot ".env"
 $baseCompose = Join-Path $repoRoot "docker-compose.production-contour.yml"
+$repairShellScript = Join-Path $repoRoot "scripts/internal/storage-repair-mapping.sh"
 $attachmentsRoot = Join-Path $repoRoot "attachments"
 $javaBotAttachmentsRoot = Join-Path $repoRoot "java-bot/attachments"
 $dotEnv = Read-DotEnv -Path $dotEnvPath
+
+if (-not (Test-Path -LiteralPath $repairShellScript -PathType Leaf)) {
+    throw "Repair shell helper is missing: $repairShellScript"
+}
 
 $composePrefix = @("compose", "--project-directory", $repoRoot)
 if (Test-Path -LiteralPath $dotEnvPath -PathType Leaf) {
@@ -385,6 +395,7 @@ try {
         if ([string]::IsNullOrWhiteSpace($line)) {
             continue
         }
+
         $parts = $line -split "`t", 3
         if ($parts.Count -ne 3) {
             $errors += "Malformed PostgreSQL row: $line"
@@ -420,21 +431,6 @@ try {
         [Environment]::SetEnvironmentVariable("IGUANA_REPAIR_LEGACY_KEY", $legacyKey, "Process")
         [Environment]::SetEnvironmentVariable("IGUANA_REPAIR_LOCAL_PATH", $localContainerPath, "Process")
 
-        $shellCommand = @(
-            'mc alias set local http://minio:9000 "$IGUANA_REPAIR_ACCESS_KEY" "$IGUANA_REPAIR_SECRET_KEY" >/dev/null || exit 2',
-            'canonical="local/$IGUANA_REPAIR_BUCKET/$IGUANA_REPAIR_CANONICAL_KEY"',
-            'legacy="local/$IGUANA_REPAIR_BUCKET/$IGUANA_REPAIR_LEGACY_KEY"',
-            'if mc stat "$canonical" >/dev/null 2>&1; then echo "[REPAIR_RESULT] canonical"; exit 0; fi',
-            'if [ -n "$IGUANA_REPAIR_LOCAL_PATH" ] && [ -f "$IGUANA_REPAIR_LOCAL_PATH" ]; then',
-            '  if mc cp "$IGUANA_REPAIR_LOCAL_PATH" "$canonical" >/dev/null 2>&1 && mc stat "$canonical" >/dev/null 2>&1; then echo "[REPAIR_RESULT] local"; exit 0; fi',
-            'fi',
-            'if mc stat "$legacy" >/dev/null 2>&1; then',
-            '  if mc cp "$legacy" "$canonical" >/dev/null 2>&1 && mc stat "$canonical" >/dev/null 2>&1; then echo "[REPAIR_RESULT] legacy"; exit 0; fi',
-            'fi',
-            'echo "[REPAIR_RESULT] missing"',
-            'exit 4'
-        ) -join "`n"
-
         $arguments = @(
             "run", "--rm", "--no-deps", "-T",
             "-e", "IGUANA_REPAIR_ACCESS_KEY",
@@ -446,21 +442,46 @@ try {
             "--volume", "${repoRoot}:/workspace:ro",
             "--entrypoint", "/bin/sh",
             "minio-init",
-            "-c", $shellCommand
+            "/workspace/scripts/internal/storage-repair-mapping.sh"
         )
         $result = Invoke-ComposeCapture -Docker $docker -ComposePrefix $composePrefix -Arguments $arguments
         $state = Get-RepairState -Output $result.Output
 
         switch ($state) {
-            "canonical" { $alreadyCanonical++; continue }
-            "local" { $recoveredLocal++; continue }
-            "legacy" { $recoveredLegacy++; continue }
+            "canonical" {
+                if ($result.ExitCode -eq 0) {
+                    $alreadyCanonical++
+                } else {
+                    $errors += "metadata_id=$id canonical marker returned exit_code=$($result.ExitCode)"
+                }
+                continue
+            }
+            "local" {
+                if ($result.ExitCode -eq 0) {
+                    $recoveredLocal++
+                } else {
+                    $errors += "metadata_id=$id local marker returned exit_code=$($result.ExitCode)"
+                }
+                continue
+            }
+            "legacy" {
+                if ($result.ExitCode -eq 0) {
+                    $recoveredLegacy++
+                } else {
+                    $errors += "metadata_id=$id legacy marker returned exit_code=$($result.ExitCode)"
+                }
+                continue
+            }
             "missing" {
-                $missing += [pscustomobject]@{
-                    Id = $id
-                    StorageKey = $storageKey
-                    HasLocalSource = ($null -ne $source)
-                    LegacyKey = $legacyKey
+                if ($result.ExitCode -eq 4) {
+                    $missing += [pscustomobject]@{
+                        Id = $id
+                        StorageKey = $storageKey
+                        HasLocalSource = ($null -ne $source)
+                        LegacyKey = $legacyKey
+                    }
+                } else {
+                    $errors += "metadata_id=$id missing marker returned unexpected exit_code=$($result.ExitCode)"
                 }
                 continue
             }
