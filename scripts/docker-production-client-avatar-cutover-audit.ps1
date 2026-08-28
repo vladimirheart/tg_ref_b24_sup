@@ -139,6 +139,12 @@ function Join-AvatarObjectKey {
     return "$normalizedPrefix/avatars/$normalizedFilename"
 }
 
+function ConvertTo-LfLineEndings {
+    param([string]$Value)
+    if ($null -eq $Value) { return "" }
+    return $Value.Replace("`r`n", "`n").Replace("`r", "`n")
+}
+
 function Test-MinioObject {
     param(
         [string]$Docker,
@@ -151,6 +157,7 @@ set -eu
 mc alias set local http://minio:9000 "$IGUANA_CLIENT_AVATAR_AUDIT_ACCESS_KEY" "$IGUANA_CLIENT_AVATAR_AUDIT_SECRET_KEY" >/dev/null
 mc stat "local/$IGUANA_CLIENT_AVATAR_AUDIT_BUCKET/$IGUANA_CLIENT_AVATAR_AUDIT_OBJECT_KEY" >/dev/null
 '@
+    $normalizedShellCommand = ConvertTo-LfLineEndings -Value $shellCommand
     $result = Invoke-ComposeCapture -Docker $Docker -ComposePrefix $ComposePrefix -Arguments @(
         "run", "--rm", "--no-deps", "-T",
         "-e", "IGUANA_CLIENT_AVATAR_AUDIT_ACCESS_KEY",
@@ -159,7 +166,7 @@ mc stat "local/$IGUANA_CLIENT_AVATAR_AUDIT_BUCKET/$IGUANA_CLIENT_AVATAR_AUDIT_OB
         "-e", "IGUANA_CLIENT_AVATAR_AUDIT_OBJECT_KEY",
         "--entrypoint", "/bin/sh",
         "minio-init",
-        "-c", $shellCommand
+        "-c", $normalizedShellCommand
     )
     return ($result.ExitCode -eq 0)
 }
