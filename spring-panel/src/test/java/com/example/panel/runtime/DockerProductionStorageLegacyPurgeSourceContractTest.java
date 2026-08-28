@@ -69,16 +69,20 @@ class DockerProductionStorageLegacyPurgeSourceContractTest {
     }
 
     @Test
-    void quarantineIsManifestDrivenHashCheckedAndNeverDeletes() throws IOException {
+    void quarantineIsManifestDrivenHashCheckedWhatIfSafeAndNeverDeletes() throws IOException {
         String ps = read("scripts/docker-production-storage-quarantine.ps1");
 
         assertThat(ps)
             .contains("SupportsShouldProcess = $true")
             .contains("[switch]$Apply")
             .contains("[switch]$ValidateOnly")
-            .contains("function Invoke-Native { param([string]$Exe,[string[]]$Arguments,[string]$Message)")
-            .contains("$out=@(& $Exe @Arguments 2>&1)")
-            .doesNotContain("function Invoke-Native { param([string]$Exe,[string[]]$Args,[string]$Message)")
+            .contains("param([string]$Exe, [string[]]$Arguments, [string]$Message)")
+            .contains("$out = @(& $Exe @Arguments 2>&1)")
+            .doesNotContain("param([string]$Exe, [string[]]$Args, [string]$Message)")
+            .contains("function Get-Sha256ReadOnly")
+            .contains("$WhatIfPreference = $false")
+            .contains("$hash = Get-Sha256ReadOnly -Path $source")
+            .contains("$invocationWhatIf = [bool]$WhatIfPreference")
             .contains("candidate_set_sha256")
             .contains("Manifest is not authorized for quarantine")
             .contains("QuarantineRoot must be explicit when -Apply is used")
@@ -92,6 +96,11 @@ class DockerProductionStorageLegacyPurgeSourceContractTest {
             .contains("label=com.docker.compose.project=tg_ref_b24_sup")
             .contains("docker-production-storage-cutover-gate.ps1")
             .contains("docker-production-client-avatar-cutover-audit.ps1")
+            .contains("Invoke-PowerShellScriptStreaming")
+            .contains("stage=storage-cutover-gate")
+            .contains("stage=client-avatar-cutover-audit")
+            .contains("stage=manifest-source-verification")
+            .doesNotContain("Invoke-Native \"powershell.exe\"")
             .doesNotContain("Remove-Item")
             .doesNotContain("DELETE ")
             .doesNotContain("mc rm")
