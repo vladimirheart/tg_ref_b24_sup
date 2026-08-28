@@ -80,7 +80,11 @@ function Get-ComposeServiceContainerIds {
         -Arguments ($ComposePrefix + @("ps", "-q", $Service)) `
         -ErrorMessage "Unable to inspect service '$Service'"
 
-    return @($result.Output | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ })
+    return @(
+        $result.Output |
+            ForEach-Object { ([string]$_).Trim() } |
+            Where-Object { $_ -match '^[0-9A-Fa-f]{12,64}$' }
+    )
 }
 
 function Wait-ContainersHealthy {
@@ -241,6 +245,15 @@ if ($ValidateOnly) {
     Write-Host "[RESULT] target_fallback_enabled=false"
     Write-Host "[RESULT] validation did not modify .env or runtime containers."
     return
+}
+
+$inheritedFallback = [Environment]::GetEnvironmentVariable(
+    "APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED",
+    "Process"
+)
+if (-not [string]::IsNullOrWhiteSpace($inheritedFallback) `
+        -and $inheritedFallback.Trim().ToLowerInvariant() -ne "false") {
+    throw "Current PowerShell environment overrides APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED='$inheritedFallback'. Clear that parent-shell override before cutover (for example: Remove-Item Env:APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED -ErrorAction SilentlyContinue)."
 }
 
 Write-Host "[INFO] Running pre-cutover authoritative storage gate..."
