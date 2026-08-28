@@ -103,7 +103,7 @@ function Get-ContainerInspectObject {
     try {
         $parsed = @($json | ConvertFrom-Json)
     } catch {
-        throw "Unable to parse docker inspect JSON for container $ContainerId: $($_.Exception.Message)"
+        throw "Unable to parse docker inspect JSON for container ${ContainerId}: $($_.Exception.Message)"
     }
     if ($parsed.Count -ne 1) {
         throw "Expected one docker inspect object for container $ContainerId, got $($parsed.Count)."
