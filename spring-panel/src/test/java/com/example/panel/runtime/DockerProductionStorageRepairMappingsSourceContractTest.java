@@ -14,10 +14,8 @@ class DockerProductionStorageRepairMappingsSourceContractTest {
 
     @Test
     void repairUsesExactMetadataKeysWithoutDatabaseOrSourceDeletion() throws IOException {
-        String ps = Files.readString(
-            REPO_ROOT.resolve("scripts/docker-production-storage-repair-mappings.ps1"),
-            StandardCharsets.UTF_8
-        );
+        String ps = read("scripts/docker-production-storage-repair-mappings.ps1");
+        String sh = read("scripts/internal/storage-repair-mapping.sh");
 
         assertThat(ps)
             .contains("[switch]$ValidateOnly")
@@ -27,6 +25,19 @@ class DockerProductionStorageRepairMappingsSourceContractTest {
             .contains("Join-ObjectKey -Prefix \"\" -Domain \"attachments\" -LogicalKey $storageKey")
             .contains("/workspace/java-bot/attachments/$storageKey")
             .contains("/workspace/attachments/$storageKey")
+            .contains("/workspace/scripts/internal/storage-repair-mapping.sh")
+            .contains("[REPAIR_RESULT]")
+            .contains("no database rows or local source files were modified")
+            .doesNotContain("$shellCommand = @(")
+            .doesNotContain("UPDATE ")
+            .doesNotContain("DELETE ")
+            .doesNotContain("mc rm")
+            .doesNotContain("Remove-Item")
+            .doesNotContain("rm -rf")
+            .doesNotContain("--remove-orphans");
+
+        assertThat(sh)
+            .contains("set -u")
             .contains("mc stat \"$canonical\"")
             .contains("mc cp \"$IGUANA_REPAIR_LOCAL_PATH\" \"$canonical\"")
             .contains("mc cp \"$legacy\" \"$canonical\"")
@@ -34,13 +45,13 @@ class DockerProductionStorageRepairMappingsSourceContractTest {
             .contains("[REPAIR_RESULT] local")
             .contains("[REPAIR_RESULT] legacy")
             .contains("[REPAIR_RESULT] missing")
-            .contains(") -join \"`n\"")
-            .contains("no database rows or local source files were modified")
-            .doesNotContain("UPDATE ")
-            .doesNotContain("DELETE ")
             .doesNotContain("mc rm")
-            .doesNotContain("Remove-Item")
             .doesNotContain("rm -rf")
-            .doesNotContain("--remove-orphans");
+            .doesNotContain("DELETE ")
+            .doesNotContain("UPDATE ");
+    }
+
+    private String read(String relativePath) throws IOException {
+        return Files.readString(REPO_ROOT.resolve(relativePath), StandardCharsets.UTF_8);
     }
 }
