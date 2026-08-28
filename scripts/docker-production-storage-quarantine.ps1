@@ -10,9 +10,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-function Invoke-Native { param([string]$Exe,[string[]]$Args,[string]$Message)
+function Invoke-Native { param([string]$Exe,[string[]]$Arguments,[string]$Message)
     $saved=$ErrorActionPreference
-    try { $ErrorActionPreference="Continue"; $out=@(& $Exe @Args 2>&1); $code=$LASTEXITCODE }
+    try { $ErrorActionPreference="Continue"; $out=@(& $Exe @Arguments 2>&1); $code=$LASTEXITCODE }
     finally { $ErrorActionPreference=$saved }
     if ($code -ne 0) { throw "${Message}: $($out -join ' ')" }
     return @($out|ForEach-Object{[string]$_})
@@ -25,7 +25,7 @@ function Inside { param([string]$Candidate,[string]$Root)
     return $c.StartsWith($r,[StringComparison]::OrdinalIgnoreCase)
 }
 function Container-Id { param([string]$Docker,[string]$Service)
-    $ids=Lines (Invoke-Native $Docker @("ps","-q","--filter","label=com.docker.compose.project=tg_ref_b24_sup","--filter","label=com.docker.compose.service=$Service") "Unable to discover $Service")
+    $ids=@(Lines (Invoke-Native $Docker @("ps","-q","--filter","label=com.docker.compose.project=tg_ref_b24_sup","--filter","label=com.docker.compose.service=$Service") "Unable to discover $Service"))
     if ($ids.Count -ne 1) { throw "Expected exactly one running ${Service} container, found $($ids.Count)." }
     return $ids[0]
 }
