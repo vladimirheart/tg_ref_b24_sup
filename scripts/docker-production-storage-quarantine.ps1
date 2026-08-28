@@ -112,25 +112,48 @@ function Candidate-Hash {
     }
 }
 
+function Get-FileLengthReadOnly {
+    param([string]$Path)
+
+    try {
+        $info = [IO.FileInfo]::new($Path)
+    } catch {
+        throw "Unable to read file metadata for manifest source: $Path"
+    }
+
+    if (-not $info.Exists) {
+        throw "Manifest source file is missing: $Path"
+    }
+
+    return [long]$info.Length
+}
+
 function Get-Sha256ReadOnly {
     param([string]$Path)
 
-    # Windows PowerShell 5.1 can leak the script-level -WhatIf preference into
-    # Get-FileHash's provider lookup. Disable it only for this read-only hash,
-    # then restore it before any ShouldProcess/Move-Item decision is reached.
-    $savedWhatIf = $WhatIfPreference
+    $sha = [Security.Cryptography.SHA256]::Create()
     try {
-        $WhatIfPreference = $false
-        $hashResult = Get-FileHash -LiteralPath $Path -Algorithm SHA256
+        $stream = [IO.File]::Open(
+            $Path,
+            [IO.FileMode]::Open,
+            [IO.FileAccess]::Read,
+            [IO.FileShare]::ReadWrite
+        )
+
+        try {
+            $bytes = $sha.ComputeHash($stream)
+        } finally {
+            $stream.Dispose()
+        }
     } finally {
-        $WhatIfPreference = $savedWhatIf
+        $sha.Dispose()
     }
 
-    if ($null -eq $hashResult -or [string]::IsNullOrWhiteSpace([string]$hashResult.Hash)) {
+    if ($null -eq $bytes -or $bytes.Length -eq 0) {
         throw "Unable to read SHA-256 for manifest source: $Path"
     }
 
-    return ([string]$hashResult.Hash).ToLowerInvariant()
+    return ([BitConverter]::ToString($bytes)).Replace("-", "").ToLowerInvariant()
 }
 
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
@@ -205,11 +228,10 @@ foreach ($entry in $entries) {
         $relative = ([string]$file.RelativePath).Replace("/", [string][IO.Path]::DirectorySeparatorChar)
         $expected = [IO.Path]::GetFullPath((Join-Path $root $relative))
         if (-not $source.Equals($expected, [StringComparison]::OrdinalIgnoreCase)) { throw "Manifest FullName does not match RootName + RelativePath: $source" }
-        if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Manifest source file is missing: $source" }
         if (-not ([IO.Path]::GetPathRoot($source)).Equals($qVolume, [StringComparison]::OrdinalIgnoreCase)) { throw "QuarantineRoot must be on the same volume as every source file." }
 
-        $current = Get-Item -LiteralPath $source
-        if ([long]$current.Length -ne [long]$file.Length) { throw "Manifest source length changed: $source" }
+        $currentLength = Get-FileLengthReadOnly -Path $source
+        if ($currentLength -ne [long]$file.Length) { throw "Manifest source length changed: $source" }
 
         $hash = Get-Sha256ReadOnly -Path $source
         if ($hash -cne ([string]$file.Sha256).Trim().ToLowerInvariant()) { throw "Manifest source SHA-256 changed: $source" }
