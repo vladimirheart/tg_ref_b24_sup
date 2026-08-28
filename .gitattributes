@@ -1,1 +1,1 @@
-scripts/internal/storage-repair-mapping.sh text eol=lf
+scripts/internal/*.sh text eol=lf
