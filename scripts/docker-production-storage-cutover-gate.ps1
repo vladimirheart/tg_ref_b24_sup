@@ -19,6 +19,94 @@ function Get-RepoRoot {
     return [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 }
 
+function Ensure-DockerAvailable {
+    $dockerCommand = Get-Command docker -ErrorAction SilentlyContinue
+    if (-not $dockerCommand) {
+        throw "Docker is not installed or not available in PATH."
+    }
+    & $dockerCommand.Source compose version *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw "docker compose is unavailable."
+    }
+    return $dockerCommand.Source
+}
+
+function Invoke-NativeCapture {
+    param(
+        [string]$Executable,
+        [string[]]$Arguments
+    )
+
+    $saved = $ErrorActionPreference
+    $code = -1
+    $output = @()
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = @(& $Executable @Arguments 2>&1)
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $saved
+    }
+
+    return [pscustomobject]@{
+        ExitCode = $code
+        Output = @($output | ForEach-Object { [string]$_ })
+    }
+}
+
+function Get-NativeOutputLines {
+    param([object[]]$Output)
+
+    $lines = @()
+    foreach ($item in @($Output)) {
+        $text = [string]$item
+        foreach ($line in ($text -split "`r?`n")) {
+            $trimmed = $line.Trim()
+            if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
+                $lines += $trimmed
+            }
+        }
+    }
+    return $lines
+}
+
+function Assert-DockerSuccess {
+    param(
+        [string]$Docker,
+        [string[]]$Arguments,
+        [string]$ErrorMessage
+    )
+
+    $result = Invoke-NativeCapture -Executable $Docker -Arguments $Arguments
+    if ($result.ExitCode -ne 0) {
+        throw "${ErrorMessage}: $($result.Output -join ' ')"
+    }
+    return $result
+}
+
+function Get-RunningServiceContainerIds {
+    param(
+        [string]$Docker,
+        [string[]]$ComposePrefix,
+        [string]$Service
+    )
+
+    $result = Assert-DockerSuccess `
+        -Docker $Docker `
+        -Arguments ($ComposePrefix + @("ps", "--status", "running", "-q", $Service)) `
+        -ErrorMessage "Unable to inspect required service '$Service'"
+
+    $ids = @(
+        Get-NativeOutputLines -Output $result.Output |
+            Where-Object { $_ -match '^[0-9A-Fa-f]{12,64}$' }
+    )
+    if ($ids.Count -lt 1) {
+        $diagnostic = (Get-NativeOutputLines -Output $result.Output) -join " | "
+        throw "Required service is not running: $Service. compose_ps_output='$diagnostic'"
+    }
+    return $ids
+}
+
 function Read-DotEnv {
     param([string]$Path)
 
@@ -26,7 +114,6 @@ function Read-DotEnv {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         return $values
     }
-
     foreach ($line in Get-Content -LiteralPath $Path -Encoding UTF8) {
         if ([string]::IsNullOrWhiteSpace($line)) {
             continue
@@ -53,7 +140,7 @@ function Get-SettingValue {
         [string]$DefaultValue = ""
     )
 
-    $fromEnvironment = [Environment]::GetEnvironmentVariable($Name, "Process")
+    $fromEnvironment = [Environment]::GetEnvironmentVariable($Name)
     if (-not [string]::IsNullOrWhiteSpace($fromEnvironment)) {
         return $fromEnvironment.Trim()
     }
@@ -61,55 +148,6 @@ function Get-SettingValue {
         return ([string]$DotEnv[$Name]).Trim()
     }
     return $DefaultValue
-}
-
-function Ensure-DockerAvailable {
-    $dockerCommand = Get-Command docker -ErrorAction SilentlyContinue
-    if (-not $dockerCommand) {
-        throw "Docker is not installed or not available in PATH."
-    }
-    & $dockerCommand.Source compose version *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw "docker compose is unavailable."
-    }
-    return $dockerCommand.Source
-}
-
-function Invoke-DockerCapture {
-    param(
-        [string]$Docker,
-        [string[]]$Arguments
-    )
-
-    $saved = $ErrorActionPreference
-    $code = -1
-    $output = @()
-    try {
-        $ErrorActionPreference = "Continue"
-        $output = @(& $Docker @Arguments 2>&1)
-        $code = $LASTEXITCODE
-    } finally {
-        $ErrorActionPreference = $saved
-    }
-
-    return [pscustomobject]@{
-        ExitCode = $code
-        Output = @($output | ForEach-Object { [string]$_ })
-    }
-}
-
-function Assert-DockerSuccess {
-    param(
-        [string]$Docker,
-        [string[]]$Arguments,
-        [string]$ErrorMessage
-    )
-
-    $result = Invoke-DockerCapture -Docker $Docker -Arguments $Arguments
-    if ($result.ExitCode -ne 0) {
-        throw "${ErrorMessage}: $($result.Output -join ' ')"
-    }
-    return $result
 }
 
 function Normalize-StorageKey {
@@ -170,30 +208,47 @@ function ConvertFrom-HexUtf8 {
     $byteCount = [int]($Hex.Length / 2)
     $bytes = New-Object byte[] $byteCount
     for ($i = 0; $i -lt $Hex.Length; $i += 2) {
-        $bytes[$i / 2] = [Convert]::ToByte($Hex.Substring($i, 2), 16)
+        $bytes[[int]($i / 2)] = [Convert]::ToByte($Hex.Substring($i, 2), 16)
     }
     return [System.Text.Encoding]::UTF8.GetString($bytes)
 }
 
-function Get-ContainerEnvOrDefault {
+function Get-ContainerEnvRequired {
     param(
         [string]$Docker,
         [string[]]$ComposePrefix,
         [string]$Service,
-        [string]$Name,
-        [string]$DefaultValue = ""
+        [string]$Name
     )
 
-    $result = Invoke-DockerCapture -Docker $Docker -Arguments ($ComposePrefix + @(
-        "exec", "-T", $Service, "printenv", $Name
-    ))
-    if ($result.ExitCode -eq 0) {
-        $value = (($result.Output | ForEach-Object { [string]$_ }) -join "").Trim()
-        if (-not [string]::IsNullOrWhiteSpace($value)) {
-            return $value
-        }
+    $result = Assert-DockerSuccess `
+        -Docker $Docker `
+        -Arguments ($ComposePrefix + @("exec", "-T", $Service, "printenv", $Name)) `
+        -ErrorMessage "Unable to resolve $Name from service '$Service'"
+    $value = ((Get-NativeOutputLines -Output $result.Output) -join "").Trim()
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        throw "Required runtime environment variable is empty: $Service/$Name"
     }
-    return $DefaultValue
+    return $value
+}
+
+function Invoke-PostgresQuery {
+    param(
+        [string]$Docker,
+        [string[]]$ComposePrefix,
+        [string]$User,
+        [string]$Database,
+        [string]$Sql,
+        [string]$ErrorMessage
+    )
+
+    return Assert-DockerSuccess `
+        -Docker $Docker `
+        -Arguments ($ComposePrefix + @(
+            "exec", "-T", "postgres",
+            "psql", "-U", $User, "-d", $Database, "-Atc", $Sql
+        )) `
+        -ErrorMessage $ErrorMessage
 }
 
 function Resolve-PanelAvatarReference {
@@ -260,7 +315,7 @@ function Test-CanonicalObject {
     )
 
     [Environment]::SetEnvironmentVariable("IGUANA_GATE_OBJECT_KEY", $ObjectKey, "Process")
-    $result = Invoke-DockerCapture -Docker $Docker -Arguments ($ComposePrefix + @(
+    $result = Invoke-NativeCapture -Executable $Docker -Arguments ($ComposePrefix + @(
         "run", "--rm", "--no-deps", "-T",
         "-e", "IGUANA_GATE_ACCESS_KEY",
         "-e", "IGUANA_GATE_SECRET_KEY",
@@ -379,57 +434,44 @@ foreach ($name in $environmentNames) {
 try {
     [Environment]::SetEnvironmentVariable("COMPOSE_IGNORE_ORPHANS", "true", "Process")
 
-    $runningResult = Assert-DockerSuccess `
-        -Docker $docker `
-        -Arguments ($composePrefix + @("ps", "--status", "running", "--services")) `
-        -ErrorMessage "Unable to inspect production contour services"
-    $runningServices = @($runningResult.Output | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_ })
     foreach ($requiredService in @("postgres", "minio", "panel-web")) {
-        if ($runningServices -notcontains $requiredService) {
-            throw "Required service is not running: $requiredService"
-        }
+        Get-RunningServiceContainerIds `
+            -Docker $docker `
+            -ComposePrefix $composePrefix `
+            -Service $requiredService | Out-Null
     }
 
-    $dbUser = Get-ContainerEnvOrDefault `
+    $dbUser = Get-ContainerEnvRequired `
         -Docker $docker `
         -ComposePrefix $composePrefix `
         -Service "postgres" `
         -Name "POSTGRES_USER"
-    $dbName = Get-ContainerEnvOrDefault `
+    $dbName = Get-ContainerEnvRequired `
         -Docker $docker `
         -ComposePrefix $composePrefix `
         -Service "postgres" `
         -Name "POSTGRES_DB"
-    if ([string]::IsNullOrWhiteSpace($dbUser) -or [string]::IsNullOrWhiteSpace($dbName)) {
-        throw "Unable to resolve PostgreSQL runtime database/user."
-    }
-
-    $accessKey = Get-ContainerEnvOrDefault `
+    $accessKey = Get-ContainerEnvRequired `
         -Docker $docker `
         -ComposePrefix $composePrefix `
         -Service "minio" `
         -Name "MINIO_ROOT_USER"
-    $secretKey = Get-ContainerEnvOrDefault `
+    $secretKey = Get-ContainerEnvRequired `
         -Docker $docker `
         -ComposePrefix $composePrefix `
         -Service "minio" `
         -Name "MINIO_ROOT_PASSWORD"
-    $objectBucket = Get-ContainerEnvOrDefault `
+    $objectBucket = Get-ContainerEnvRequired `
         -Docker $docker `
         -ComposePrefix $composePrefix `
         -Service "panel-web" `
-        -Name "APP_STORAGE_OBJECT_BUCKET" `
-        -DefaultValue "iguana"
-    $objectKeyPrefix = Normalize-ObjectKeyPrefix -Value (Get-ContainerEnvOrDefault `
+        -Name "APP_STORAGE_OBJECT_BUCKET"
+    $objectKeyPrefix = Normalize-ObjectKeyPrefix -Value (Get-ContainerEnvRequired `
         -Docker $docker `
         -ComposePrefix $composePrefix `
         -Service "panel-web" `
-        -Name "APP_STORAGE_OBJECT_KEY_PREFIX" `
-        -DefaultValue "iguana")
+        -Name "APP_STORAGE_OBJECT_KEY_PREFIX")
 
-    if ([string]::IsNullOrWhiteSpace($accessKey) -or [string]::IsNullOrWhiteSpace($secretKey)) {
-        throw "Unable to resolve MinIO runtime credentials."
-    }
     if ($objectKeyPrefix -cne $requestedObjectKeyPrefix) {
         throw "Object key prefix mismatch: .env/process requests '$requestedObjectKeyPrefix' but panel-web uses '$objectKeyPrefix'."
     }
@@ -442,14 +484,14 @@ try {
     [Environment]::SetEnvironmentVariable("IGUANA_GATE_BUCKET", $objectBucket, "Process")
 
     $missingMetadataSql = "SELECT COUNT(*) FROM chat_history ch WHERE ch.attachment IS NOT NULL AND btrim(ch.attachment) <> '' AND NOT EXISTS (SELECT 1 FROM chat_attachment_metadata cam WHERE cam.chat_history_id = ch.id)"
-    $missingMetadataResult = Assert-DockerSuccess `
+    $missingMetadataResult = Invoke-PostgresQuery `
         -Docker $docker `
-        -Arguments ($composePrefix + @(
-            "exec", "-T", "postgres",
-            "psql", "-U", $dbUser, "-d", $dbName, "-Atc", $missingMetadataSql
-        )) `
+        -ComposePrefix $composePrefix `
+        -User $dbUser `
+        -Database $dbName `
+        -Sql $missingMetadataSql `
         -ErrorMessage "Unable to count attachment metadata gaps"
-    $missingMetadataText = (($missingMetadataResult.Output | ForEach-Object { [string]$_ }) -join "").Trim()
+    $missingMetadataText = ((Get-NativeOutputLines -Output $missingMetadataResult.Output) -join "").Trim()
     $missingMetadataRows = 0
     if (-not [int]::TryParse($missingMetadataText, [ref]$missingMetadataRows)) {
         throw "Invalid missing metadata count returned by PostgreSQL: '$missingMetadataText'"
@@ -459,21 +501,17 @@ try {
     }
 
     $attachmentSql = "SELECT id || chr(9) || encode(convert_to(storage_key, 'UTF8'), 'hex') || chr(9) || COALESCE(lower(availability_status), '') FROM chat_attachment_metadata WHERE storage_key IS NOT NULL AND btrim(storage_key) <> '' AND COALESCE(lower(storage_provider), '') <> 'external_url' ORDER BY id"
-    $metadataResult = Assert-DockerSuccess `
+    $metadataResult = Invoke-PostgresQuery `
         -Docker $docker `
-        -Arguments ($composePrefix + @(
-            "exec", "-T", "postgres",
-            "psql", "-U", $dbUser, "-d", $dbName, "-Atc", $attachmentSql
-        )) `
+        -ComposePrefix $composePrefix `
+        -User $dbUser `
+        -Database $dbName `
+        -Sql $attachmentSql `
         -ErrorMessage "Unable to read attachment metadata for cutover gate"
 
     $metadataRows = @()
     $metadataById = @{}
-    foreach ($lineObject in $metadataResult.Output) {
-        $line = ([string]$lineObject).Trim()
-        if ([string]::IsNullOrWhiteSpace($line)) {
-            continue
-        }
+    foreach ($line in (Get-NativeOutputLines -Output $metadataResult.Output)) {
         $parts = $line -split "`t", 3
         if ($parts.Count -ne 3) {
             throw "Malformed attachment metadata row: $line"
@@ -574,23 +612,19 @@ try {
     }
 
     $panelAvatarSql = "SELECT id || chr(9) || encode(convert_to(COALESCE(photo, ''), 'UTF8'), 'hex') FROM users WHERE photo IS NOT NULL AND btrim(photo) <> '' ORDER BY id"
-    $panelAvatarResult = Assert-DockerSuccess `
+    $panelAvatarResult = Invoke-PostgresQuery `
         -Docker $docker `
-        -Arguments ($composePrefix + @(
-            "exec", "-T", "postgres",
-            "psql", "-U", $dbUser, "-d", $dbName, "-Atc", $panelAvatarSql
-        )) `
+        -ComposePrefix $composePrefix `
+        -User $dbUser `
+        -Database $dbName `
+        -Sql $panelAvatarSql `
         -ErrorMessage "Unable to read panel avatar references"
 
     $panelAvatarObjectCount = 0
     $panelAvatarStaticOrExternalCount = 0
     $invalidPanelAvatarRefs = @()
     $missingPanelAvatars = @()
-    foreach ($lineObject in $panelAvatarResult.Output) {
-        $line = ([string]$lineObject).Trim()
-        if ([string]::IsNullOrWhiteSpace($line)) {
-            continue
-        }
+    foreach ($line in (Get-NativeOutputLines -Output $panelAvatarResult.Output)) {
         $parts = $line -split "`t", 2
         if ($parts.Count -ne 2) {
             throw "Malformed panel avatar row: $line"
@@ -603,13 +637,9 @@ try {
             continue
         }
         if ($resolved.Kind -ne "object") {
-            $invalidPanelAvatarRefs += [pscustomobject]@{
-                Id = $userId
-                Photo = $photo
-            }
+            $invalidPanelAvatarRefs += [pscustomobject]@{ Id = $userId; Photo = $photo }
             continue
         }
-
         $panelAvatarObjectCount++
         $objectKey = Join-ObjectKey `
             -Prefix $objectKeyPrefix `
@@ -628,10 +658,10 @@ try {
         }
     }
 
-    foreach ($item in ($missingPanelAvatars | Select-Object -First 20)) {
+    foreach ($item in $missingPanelAvatars) {
         Write-Host "[WARN] panel_avatar user_id=$($item.Id) photo=$($item.Photo) object_key=$($item.ObjectKey)"
     }
-    foreach ($item in ($invalidPanelAvatarRefs | Select-Object -First 20)) {
+    foreach ($item in $invalidPanelAvatarRefs) {
         Write-Host "[WARN] invalid_panel_avatar_ref user_id=$($item.Id) photo=$($item.Photo)"
     }
     if ($missingPanelAvatars.Count -gt 0) {
