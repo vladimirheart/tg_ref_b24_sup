@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-08-28",
+  "reason": "Source bytes were not found in canonical MinIO, legacy unprefixed MinIO, current attachment roots, legacy absolute attachment roots, or a read-only search of the Windows user profile. These records remain availability_status=missing and are not recoverable by local fallback.",
+  "entries": [
+    {"metadata_id": 23, "storage_key": "db451072-89f1-4dd1-8051-8e0bddeb74c0/4467342b-4316-40d9-b99d-fc1ae347b87c_0c22aa0afa4a24210bdabb32 (1).mp4"},
+    {"metadata_id": 24, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/5e57a7c166cab858ab56f974.mp4"},
+    {"metadata_id": 25, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/bd834e522cbea37bc69f866c.mp4"},
+    {"metadata_id": 26, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/09bf23d774393758f2284c49.webp"},
+    {"metadata_id": 27, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/c0cfcaf83543eed66d93a52b.webp"},
+    {"metadata_id": 28, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/13764ab1ed9adf2d7d20d078.mp4"},
+    {"metadata_id": 29, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/b9eb9237715051bfb61a7e4e.mp4"},
+    {"metadata_id": 30, "storage_key": "db451072-89f1-4dd1-8051-8e0bddeb74c0/8e138426-d4aa-4eac-af2b-7fee4c0cef85_0c22aa0afa4a24210bdabb32 (1).mp4"},
+    {"metadata_id": 31, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/54ea3aea446df7f2a9f48a07.mp4"},
+    {"metadata_id": 32, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/e22691704da0de57254f484b.mp4"},
+    {"metadata_id": 33, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/d0808ca544227f362451f804.mp4"},
+    {"metadata_id": 34, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/1e346cb13934e12e8ea059b8.mp4"},
+    {"metadata_id": 35, "storage_key": "db451072-89f1-4dd1-8051-8e0bddeb74c0/5f4b3f7a-df81-4b99-8f06-e069256276d3_0c22aa0afa4a24210bdabb32.mp4"},
+    {"metadata_id": 36, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/0e8a5bb49dff21df4f4b0335.webp"},
+    {"metadata_id": 37, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/0b4f36eb0b911f321886d9d8.webp"},
+    {"metadata_id": 38, "storage_key": "3d543ab982d2f414aa9dc8b135805291/2026/03/24/f1affa4688a6a1668c4e72e9.jpg"},
+    {"metadata_id": 64, "storage_key": "39911e81-8e28-4974-9f18-2b1a80225ad3/2499e2fe-7e90-4886-8949-75b23f341701_20260709_112331.jpg"},
+    {"metadata_id": 65, "storage_key": "39911e81-8e28-4974-9f18-2b1a80225ad3/dd0355c6-f48d-4046-a378-086dde799717_040726-598-лк.pdf"},
+    {"metadata_id": 72, "storage_key": "f5b6bedf-dfac-4683-940c-5617b57314fe/8436b57b-cf0b-4fbe-b0ed-0c632503266f_409963501_full.jpg"},
+    {"metadata_id": 73, "storage_key": "f5b6bedf-dfac-4683-940c-5617b57314fe/92f534f3-67e7-4663-b0f1-040a5e46ed79_409963501_full.jpg"}
+  ]
+}
