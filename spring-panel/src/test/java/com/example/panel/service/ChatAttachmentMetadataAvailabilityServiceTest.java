@@ -9,20 +9,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.storage.AttachmentObjectStorageService;
-import com.example.panel.storage.AttachmentService;
+import java.io.InputStream;
 import java.sql.ResultSet;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 class ChatAttachmentMetadataAvailabilityServiceTest {
 
     @Test
     void reconcileDoesNotAttemptSchemaMutationDuringAvailabilityRefresh() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        AttachmentService attachmentService = mock(AttachmentService.class);
         AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
         ChatAttachmentMetadataService chatAttachmentMetadataService = mock(ChatAttachmentMetadataService.class);
         doReturn(List.of()).when(jdbcTemplate)
@@ -31,7 +32,6 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
         ChatAttachmentMetadataAvailabilityService service =
                 new ChatAttachmentMetadataAvailabilityService(
                         jdbcTemplate,
-                        attachmentService,
                         attachmentObjectStorageService,
                         chatAttachmentMetadataService
                 );
@@ -42,17 +42,23 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
     }
 
     @Test
-    void reconcileUpdatesEachAttachmentRowByIdAfterBackfillCheck() throws Exception {
+    void reconcileUpdatesEachAttachmentRowAfterConfirmedS3Probe() throws Exception {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        AttachmentService attachmentService = mock(AttachmentService.class);
         AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
         ChatAttachmentMetadataService chatAttachmentMetadataService = mock(ChatAttachmentMetadataService.class);
 
         when(attachmentObjectStorageService.providerLabel()).thenReturn("s3");
         when(attachmentObjectStorageService.backfillDialogAttachmentByStorageKey("ticket-1/file-1.jpg")).thenReturn(true);
         when(attachmentObjectStorageService.backfillDialogAttachmentByStorageKey("ticket-1/file-2.jpg")).thenReturn(false);
-        when(attachmentService.hasTicketAttachmentByStorageKey("ticket-1/file-1.jpg")).thenReturn(true);
-        when(attachmentService.hasTicketAttachmentByStorageKey("ticket-1/file-2.jpg")).thenReturn(false);
+        when(attachmentObjectStorageService.openDialogAttachmentByStorageKey("ticket-1/file-1.jpg"))
+                .thenReturn(new AttachmentObjectStorageService.StoredBinary(
+                        "ticket-1/file-1.jpg",
+                        "image/jpeg",
+                        10L,
+                        InputStream.nullInputStream()
+                ));
+        when(attachmentObjectStorageService.openDialogAttachmentByStorageKey("ticket-1/file-2.jpg"))
+                .thenThrow(NoSuchKeyException.builder().message("missing").build());
 
         org.mockito.Mockito.doAnswer(invocation -> {
             String sql = invocation.getArgument(0, String.class);
@@ -72,7 +78,7 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
 
             ResultSet second = mock(ResultSet.class);
             when(second.getLong("id")).thenReturn(12L);
-            when(second.getLong("chat_history_id")).thenReturn(101L);
+            when(second.getLong("chat_history_id")).thenReturn(102L);
             when(second.getString("storage_provider")).thenReturn("local_fs");
             when(second.getString("storage_key")).thenReturn("ticket-1/file-2.jpg");
             when(second.getString("legacy_attachment_ref")).thenReturn("attachments/ticket-1/file-2.jpg");
@@ -87,7 +93,6 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
         ChatAttachmentMetadataAvailabilityService service =
                 new ChatAttachmentMetadataAvailabilityService(
                         jdbcTemplate,
-                        attachmentService,
                         attachmentObjectStorageService,
                         chatAttachmentMetadataService
                 );
@@ -96,14 +101,59 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
 
         verify(attachmentObjectStorageService).backfillDialogAttachmentByStorageKey("ticket-1/file-1.jpg");
         verify(attachmentObjectStorageService).backfillDialogAttachmentByStorageKey("ticket-1/file-2.jpg");
+        verify(attachmentObjectStorageService).openDialogAttachmentByStorageKey("ticket-1/file-1.jpg");
+        verify(attachmentObjectStorageService).openDialogAttachmentByStorageKey("ticket-1/file-2.jpg");
         verify(jdbcTemplate).update(anyString(), eq("s3"), eq("normalized"), eq("available"), eq(11L));
         verify(jdbcTemplate).update(anyString(), eq("s3"), eq("normalized"), eq("missing"), eq(12L));
     }
 
     @Test
+    void reconcileKeepsExistingStatusWhenS3ProbeFailsTransiently() throws Exception {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
+        ChatAttachmentMetadataService chatAttachmentMetadataService = mock(ChatAttachmentMetadataService.class);
+
+        when(attachmentObjectStorageService.providerLabel()).thenReturn("s3");
+        when(attachmentObjectStorageService.backfillDialogAttachmentByStorageKey("ticket-1/file-1.jpg")).thenReturn(false);
+        when(attachmentObjectStorageService.openDialogAttachmentByStorageKey("ticket-1/file-1.jpg"))
+                .thenThrow(S3Exception.builder().statusCode(503).message("temporary S3 outage").build());
+
+        org.mockito.Mockito.doAnswer(invocation -> {
+            String sql = invocation.getArgument(0, String.class);
+            @SuppressWarnings("unchecked")
+            RowMapper<Object> rowMapper = invocation.getArgument(1, RowMapper.class);
+            if (sql.contains("FROM chat_history ch")) {
+                return List.of();
+            }
+
+            ResultSet row = mock(ResultSet.class);
+            when(row.getLong("id")).thenReturn(11L);
+            when(row.getLong("chat_history_id")).thenReturn(101L);
+            when(row.getString("storage_provider")).thenReturn("s3");
+            when(row.getString("storage_key")).thenReturn("ticket-1/file-1.jpg");
+            when(row.getString("legacy_attachment_ref")).thenReturn("attachments/ticket-1/file-1.jpg");
+            when(row.getString("normalization_status")).thenReturn("normalized");
+
+            return List.of(rowMapper.mapRow(row, 0));
+        }).when(jdbcTemplate).query(anyString(), ArgumentMatchers.<RowMapper<Object>>any());
+
+        ChatAttachmentMetadataAvailabilityService service =
+                new ChatAttachmentMetadataAvailabilityService(
+                        jdbcTemplate,
+                        attachmentObjectStorageService,
+                        chatAttachmentMetadataService
+                );
+
+        service.reconcileAvailabilityStatuses();
+
+        verify(attachmentObjectStorageService).openDialogAttachmentByStorageKey("ticket-1/file-1.jpg");
+        verify(jdbcTemplate, never()).update(anyString(), eq("s3"), eq("normalized"), eq("available"), eq(11L));
+        verify(jdbcTemplate, never()).update(anyString(), eq("s3"), eq("normalized"), eq("missing"), eq(11L));
+    }
+
+    @Test
     void reconcileBackfillsMissingMetadataRowsBeforeAvailabilityRefresh() throws Exception {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        AttachmentService attachmentService = mock(AttachmentService.class);
         AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
         ChatAttachmentMetadataService chatAttachmentMetadataService = mock(ChatAttachmentMetadataService.class);
 
@@ -129,7 +179,6 @@ class ChatAttachmentMetadataAvailabilityServiceTest {
         ChatAttachmentMetadataAvailabilityService service =
                 new ChatAttachmentMetadataAvailabilityService(
                         jdbcTemplate,
-                        attachmentService,
                         attachmentObjectStorageService,
                         chatAttachmentMetadataService
                 );
