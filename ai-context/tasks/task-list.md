@@ -243,4 +243,5 @@
 🟣 [01-221] Провести предметный аудит client avatars и dialog media после recovery storage-контура и закрыть остаточные legacy-ожидания
 🟡 [01-222] Собрать controlled migration workflow для persisted infra credentials после secure bootstrap
 🟡 [01-223] Реализовать component-specific apply/rotation workflow для persisted credentials поверх existing volumes
-🔴 [01-224] Реализовать coordinated Redis/MinIO persisted credential migration и restart choreography
+🟡 [01-224] Реализовать coordinated Redis/MinIO persisted credential migration и restart choreography
+🔴 [01-225] Довести persisted credential rotation до Bash parity и remaining apply contour
