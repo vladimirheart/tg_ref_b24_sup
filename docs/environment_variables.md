@@ -155,7 +155,10 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 - default bootstrap-path должен завершаться в `PostgreSQL + RabbitMQ`;
 - SQLite first-run bootstrap больше не поддерживается ни как compatibility override, ни как fallback.
 - bootstrap-скрипты `scripts/bootstrap-first-run.ps1` и `scripts/bootstrap-first-run.sh` для локального PostgreSQL-контура теперь сразу генерируют `APP_INTERNAL_BOT_API_TOKEN` и `APP_SECURITY_REMEMBER_ME_KEY`;
-- `spring-panel/run-windows.bat` дополнительно умеет долечить старый локальный bootstrap-`.env`, если он был создан до этого изменения, но явные пользовательские env overrides по-прежнему имеют приоритет.
+- bootstrap-скрипты `scripts/bootstrap-first-run.ps1` и `scripts/bootstrap-first-run.sh` на fresh install теперь также генерируют `IGUANA_POSTGRES_PASSWORD`, `IGUANA_RABBITMQ_PASSWORD`, `IGUANA_REDIS_PASSWORD`, `APP_STORAGE_OBJECT_ACCESS_KEY`, `APP_STORAGE_OBJECT_SECRET_KEY`, `MONITORING_CREDENTIALS_MASTER_KEY` и `IGUANA_GRAFANA_ADMIN_PASSWORD`;
+- если в `config/shared/monitoring-credentials.key` уже лежит legacy AES key, bootstrap использует `MONITORING_CREDENTIALS_MASTER_KEY=base64:<legacy-key>` вместо ротации, чтобы старые `enc:v1:` monitoring credentials продолжили расшифровываться;
+- `spring-panel/run-windows.bat` и `spring-panel/run-linux.sh` дополнительно умеют долечить старый локальный bootstrap-`.env`, если он был создан до этого изменения, но только для app-side секретов без persisted volume state; явные пользовательские env overrides по-прежнему имеют приоритет;
+- bootstrap намеренно не ротирует автоматически существующие PostgreSQL/RabbitMQ/Redis/MinIO/Grafana credentials поверх уже инициализированных volumes: для этого нужен отдельный migration workflow.
 
 Для containerized contour из [docs/docker-production-contour.md](docker-production-contour.md) действует ещё один практический инвариант:
 

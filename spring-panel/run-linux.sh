@@ -19,6 +19,16 @@ if [[ -n "${BOOTSTRAP_REASON}" ]]; then
   bash "${WORKSPACE_ROOT}/scripts/bootstrap-first-run.sh"
 fi
 
+if [[ -f "${WORKSPACE_ROOT}/.env" ]]; then
+  if [[ -f "${WORKSPACE_ROOT}/scripts/ensure-local-bootstrap-secrets.sh" ]]; then
+    bash "${WORKSPACE_ROOT}/scripts/ensure-local-bootstrap-secrets.sh" \
+      --env-file "${WORKSPACE_ROOT}/.env"
+  else
+    echo "[ERROR] Missing local bootstrap secret helper: ${WORKSPACE_ROOT}/scripts/ensure-local-bootstrap-secrets.sh" >&2
+    exit 1
+  fi
+fi
+
 # Choose a port if the default one is busy and the user has not explicitly set APP_HTTP_PORT.
 DEFAULT_PORT="${APP_HTTP_PORT:-8080}"
 is_port_listening() {

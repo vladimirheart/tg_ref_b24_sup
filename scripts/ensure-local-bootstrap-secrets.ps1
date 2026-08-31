@@ -30,6 +30,58 @@ function New-RandomHexToken {
     return ([System.BitConverter]::ToString($bytes)).Replace("-", "").ToLowerInvariant()
 }
 
+function New-RandomBase64Token {
+    param(
+        [int]$BytesLength = 32
+    )
+
+    $bytes = New-Object byte[] $BytesLength
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $rng.GetBytes($bytes)
+    } finally {
+        $rng.Dispose()
+    }
+    return [Convert]::ToBase64String($bytes)
+}
+
+function Test-ValidMonitoringMasterKeyPayload {
+    param(
+        [string]$EncodedValue
+    )
+
+    if ([string]::IsNullOrWhiteSpace($EncodedValue)) {
+        return $false
+    }
+
+    try {
+        $decoded = [Convert]::FromBase64String($EncodedValue.Trim())
+        return $decoded.Length -in @(16, 24, 32)
+    } catch {
+        return $false
+    }
+}
+
+function Resolve-MonitoringMasterKeyValue {
+    param(
+        [string]$EnvFilePath
+    )
+
+    $repoRoot = Split-Path -Parent $EnvFilePath
+    $legacyKeyPath = Join-Path $repoRoot "config\shared\monitoring-credentials.key"
+    if (Test-Path -LiteralPath $legacyKeyPath) {
+        $legacyEncoded = [System.IO.File]::ReadAllText($legacyKeyPath, [System.Text.Encoding]::UTF8).Trim()
+        if (-not [string]::IsNullOrWhiteSpace($legacyEncoded)) {
+            if (-not (Test-ValidMonitoringMasterKeyPayload -EncodedValue $legacyEncoded)) {
+                throw "Legacy monitoring credentials key is not valid Base64 AES material: $legacyKeyPath"
+            }
+            return "base64:$legacyEncoded"
+        }
+    }
+
+    return "base64:$(New-RandomBase64Token)"
+}
+
 function Read-DotEnvState {
     param(
         [string]$Path
@@ -162,10 +214,17 @@ $secretRules = @(
     @{
         Name = "APP_INTERNAL_BOT_API_TOKEN"
         Disallowed = @("change-me", "iguana-internal-bot-token")
+        Generator = { New-RandomHexToken }
     },
     @{
         Name = "APP_SECURITY_REMEMBER_ME_KEY"
         Disallowed = @("change-me", "iguana-panel-remember-me")
+        Generator = { New-RandomHexToken }
+    },
+    @{
+        Name = "MONITORING_CREDENTIALS_MASTER_KEY"
+        Disallowed = @("change-me", "iguana-monitoring-key")
+        Generator = { Resolve-MonitoringMasterKeyValue -EnvFilePath $EnvFile }
     }
 )
 
@@ -184,7 +243,7 @@ foreach ($rule in $secretRules) {
         continue
     }
 
-    $newValue = New-RandomHexToken
+    $newValue = & $rule.Generator
     $newLine = "$name=$newValue"
 
     if ($state.Indices.ContainsKey($name)) {
@@ -207,7 +266,7 @@ if ($pendingAdds.Count -gt 0) {
     if ($state.Lines.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace($state.Lines[$state.Lines.Count - 1])) {
         $state.Lines.Add("")
     }
-    $state.Lines.Add("# Local bootstrap secrets required by panel security guard")
+    $state.Lines.Add("# Local bootstrap generated secrets")
     foreach ($line in $pendingAdds) {
         $state.Lines.Add($line)
     }

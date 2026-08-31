@@ -25,7 +25,12 @@ APP_POSTGRES_PORT=5432
 APP_DB_MODE=postgresql
 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/iguana
 SPRING_DATASOURCE_USERNAME=iguana
-SPRING_DATASOURCE_PASSWORD=iguana
+SPRING_DATASOURCE_PASSWORD=<generated>
+IGUANA_POSTGRES_PASSWORD=<generated>
+IGUANA_RABBITMQ_PASSWORD=<generated>
+APP_STORAGE_OBJECT_ACCESS_KEY=<generated>
+APP_STORAGE_OBJECT_SECRET_KEY=<generated>
+MONITORING_CREDENTIALS_MASTER_KEY=base64:<generated-or-legacy-key>
 ```
 
 Поведение bootstrap:
@@ -33,6 +38,8 @@ SPRING_DATASOURCE_PASSWORD=iguana
 - `IGUANA_BOOTSTRAP_DB_MODE=auto` — на Windows сначала пытается автоматически поставить Docker Desktop через `winget`, затем поднимает локальный PostgreSQL/RabbitMQ через Docker; без Docker bootstrap теперь завершается ошибкой;
 - `IGUANA_BOOTSTRAP_DB_MODE=postgresql` — требует Docker и поднимает `docker-compose.local-postgres.yml`;
 - SQLite first-run path больше не поддерживается: новый bootstrap всегда должен завершаться в локальном `PostgreSQL + RabbitMQ`.
+- Fresh install bootstrap теперь генерирует отдельные случайные значения минимум для `IGUANA_POSTGRES_PASSWORD`, `IGUANA_RABBITMQ_PASSWORD`, `IGUANA_REDIS_PASSWORD`, `APP_STORAGE_OBJECT_ACCESS_KEY`, `APP_STORAGE_OBJECT_SECRET_KEY`, `APP_INTERNAL_BOT_API_TOKEN`, `APP_SECURITY_REMEMBER_ME_KEY`, `MONITORING_CREDENTIALS_MASTER_KEY` и `IGUANA_GRAFANA_ADMIN_PASSWORD`.
+- Existing `.env` bootstrap-скрипты не ротируют автоматически volume-backed credentials. Для уже созданных PostgreSQL/RabbitMQ/Redis/MinIO/Grafana volumes нужен отдельный migration path, иначе `.env` и persisted state можно рассинхронизировать.
 
 Ключевые переменные:
 
@@ -77,6 +84,7 @@ SPRING_DATASOURCE_PASSWORD=secret
 - `spring-panel` больше не подставляет `APP_DB_*` SQLite-пути автоматически, если `app.datasource.mode` не выставлен в явный `sqlite`.
 - normal first-run path больше не должен неявно переводить проект обратно в SQLite только потому, что Docker недоступен.
 - `VK` webhook mode не должен silently жить рядом с long-poll: при `vk-bot.webhook-enabled=true` long-poll runner должен быть выключен, а webhook/runtime state должен идти через shared coordination/session layer.
+- `spring-panel/run-windows.bat` и `spring-panel/run-linux.sh` умеют мягко долечить старый local bootstrap `.env` только для безопасных app-side секретов (`APP_INTERNAL_BOT_API_TOKEN`, `APP_SECURITY_REMEMBER_ME_KEY`, `MONITORING_CREDENTIALS_MASTER_KEY`) и не должны молча ротировать persisted infra credentials.
 
 > 💡 ID группы поддержки для Telegram можно сохранить в панели администратора в разделе «Каналы (боты)». Если оставить пустым, бот запишет ID автоматически после добавления в чат.
 

@@ -4,15 +4,15 @@ services:
     container_name: iguana-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: iguana
-      POSTGRES_USER: iguana
-      POSTGRES_PASSWORD: iguana
+      POSTGRES_DB: ${IGUANA_POSTGRES_DB:-iguana}
+      POSTGRES_USER: ${IGUANA_POSTGRES_USER:-iguana}
+      POSTGRES_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
     ports:
       - "${APP_POSTGRES_PORT:-5432}:5432"
     volumes:
       - iguana-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U iguana -d iguana"]
+      test: ["CMD-SHELL", "pg_isready -U ${IGUANA_POSTGRES_USER:-iguana} -d ${IGUANA_POSTGRES_DB:-iguana}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -21,8 +21,8 @@ services:
     container_name: iguana-rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: iguana
-      RABBITMQ_DEFAULT_PASS: iguana
+      RABBITMQ_DEFAULT_USER: ${IGUANA_RABBITMQ_USER:-iguana}
+      RABBITMQ_DEFAULT_PASS: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
     ports:
       - "${APP_RABBITMQ_AMQP_PORT:-5672}:5672"
       - "${APP_RABBITMQ_HTTP_PORT:-15672}:15672"
