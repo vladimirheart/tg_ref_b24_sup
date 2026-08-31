@@ -4,7 +4,6 @@ import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.runtime.RuntimeRole;
 import com.example.panel.runtime.RuntimeWorkload;
 
-import com.example.panel.storage.AttachmentService;
 import com.example.panel.storage.AttachmentStorageKeyResolver;
 import com.example.panel.storage.AttachmentObjectStorageService;
 import org.slf4j.Logger;
@@ -29,16 +28,13 @@ public class ChatAttachmentMetadataAvailabilityService {
     private static final Logger log = LoggerFactory.getLogger(ChatAttachmentMetadataAvailabilityService.class);
 
     private final JdbcTemplate jdbcTemplate;
-    private final AttachmentService attachmentService;
     private final AttachmentObjectStorageService attachmentObjectStorageService;
     private final ChatAttachmentMetadataService chatAttachmentMetadataService;
 
     public ChatAttachmentMetadataAvailabilityService(JdbcTemplate jdbcTemplate,
-                                                     AttachmentService attachmentService,
                                                      AttachmentObjectStorageService attachmentObjectStorageService,
                                                      ChatAttachmentMetadataService chatAttachmentMetadataService) {
         this.jdbcTemplate = jdbcTemplate;
-        this.attachmentService = attachmentService;
         this.attachmentObjectStorageService = attachmentObjectStorageService;
         this.chatAttachmentMetadataService = chatAttachmentMetadataService;
     }
@@ -61,7 +57,17 @@ public class ChatAttachmentMetadataAvailabilityService {
             for (AttachmentMetadataRow row : rows) {
                 String storageProvider = resolveStorageProvider(row);
                 String normalizationStatus = resolveNormalizationStatus(row, storageProvider);
-                String availabilityStatus = resolveAvailabilityStatus(row, storageProvider);
+                String availabilityStatus;
+                try {
+                    availabilityStatus = resolveAvailabilityStatus(row, storageProvider);
+                } catch (RuntimeException ex) {
+                    log.warn(
+                            "Keeping attachment metadata row {} unchanged because object storage availability could not be determined: {}",
+                            row.id(),
+                            summarizeAvailabilityFailure(ex)
+                    );
+                    continue;
+                }
                 jdbcTemplate.update("""
                         UPDATE chat_attachment_metadata
                            SET storage_provider = ?,
@@ -182,7 +188,15 @@ public class ChatAttachmentMetadataAvailabilityService {
             return "unresolved";
         }
         attachmentObjectStorageService.backfillDialogAttachmentByStorageKey(row.storageKey());
-        return attachmentService.hasTicketAttachmentByStorageKey(row.storageKey()) ? "available" : "missing";
+        return attachmentObjectStorageService.dialogAttachmentExistsByStorageKey(row.storageKey()) ? "available" : "missing";
+    }
+
+    private String summarizeAvailabilityFailure(RuntimeException ex) {
+        String message = ex.getMessage();
+        if (StringUtils.hasText(message)) {
+            return ex.getClass().getSimpleName() + ": " + message.trim();
+        }
+        return ex.getClass().getSimpleName();
     }
 
     private String trim(String value) {
