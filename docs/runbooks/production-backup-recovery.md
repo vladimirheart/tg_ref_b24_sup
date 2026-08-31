@@ -182,6 +182,11 @@ status helper из `01-222`:
 
 Если helper возвращает `migration_required`, не считайте `.env` источником истины
 без отдельного component-specific migration/apply runbook.
+
+Для Windows-first apply slice по PostgreSQL/RabbitMQ теперь есть отдельный
+runbook:
+
+`docs/runbooks/persisted-credential-rotation-apply.md`
 ## MinIO backup tooling image
 
 The upstream minio/mc container is intentionally minimal and must not be treated as a general Unix toolbox.
