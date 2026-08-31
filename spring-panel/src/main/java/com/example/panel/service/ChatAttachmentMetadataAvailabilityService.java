@@ -4,16 +4,20 @@ import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.runtime.RuntimeRole;
 import com.example.panel.runtime.RuntimeWorkload;
 
-import com.example.panel.storage.AttachmentStorageKeyResolver;
 import com.example.panel.storage.AttachmentObjectStorageService;
+import com.example.panel.storage.AttachmentStorageKeyResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import jakarta.annotation.PostConstruct;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.sql.ResultSet;
 import java.util.List;
 
@@ -188,7 +192,34 @@ public class ChatAttachmentMetadataAvailabilityService {
             return "unresolved";
         }
         attachmentObjectStorageService.backfillDialogAttachmentByStorageKey(row.storageKey());
-        return attachmentObjectStorageService.dialogAttachmentExistsByStorageKey(row.storageKey()) ? "available" : "missing";
+        boolean available = "s3".equalsIgnoreCase(storageProvider)
+                ? probeS3DialogAttachment(row.storageKey())
+                : attachmentObjectStorageService.dialogAttachmentExistsByStorageKey(row.storageKey());
+        return available ? "available" : "missing";
+    }
+
+    private boolean probeS3DialogAttachment(String storageKey) {
+        try (AttachmentObjectStorageService.StoredBinary ignored =
+                     attachmentObjectStorageService.openDialogAttachmentByStorageKey(storageKey)) {
+            return true;
+        } catch (NoSuchKeyException ex) {
+            return false;
+        } catch (S3Exception ex) {
+            if (isMissingObject(ex)) {
+                return false;
+            }
+            throw ex;
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Unable to probe dialog attachment in object storage", ex);
+        }
+    }
+
+    private boolean isMissingObject(S3Exception ex) {
+        if (ex.statusCode() == 404) {
+            return true;
+        }
+        return ex.awsErrorDetails() != null
+                && "NoSuchKey".equalsIgnoreCase(ex.awsErrorDetails().errorCode());
     }
 
     private String summarizeAvailabilityFailure(RuntimeException ex) {
