@@ -32,7 +32,7 @@ SPRING_DATASOURCE_PASSWORD=iguana
 
 - `IGUANA_BOOTSTRAP_DB_MODE=auto` — на Windows сначала пытается автоматически поставить Docker Desktop через `winget`, затем поднимает локальный PostgreSQL/RabbitMQ через Docker; без Docker bootstrap теперь завершается ошибкой;
 - `IGUANA_BOOTSTRAP_DB_MODE=postgresql` — требует Docker и поднимает `docker-compose.local-postgres.yml`;
-- `IGUANA_BOOTSTRAP_DB_MODE=sqlite` — оставляет локальный compatibility path без Docker и должен использоваться только сознательно для legacy/dev-слоя.
+- SQLite first-run path больше не поддерживается: новый bootstrap всегда должен завершаться в локальном `PostgreSQL + RabbitMQ`.
 
 Ключевые переменные:
 
@@ -46,7 +46,6 @@ SPRING_DATASOURCE_PASSWORD=iguana
 - `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` — preferred-конфиг для external DB.
 - `DATABASE_URL` — compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL.
 - `IGUANA_BOOTSTRAP_INSTALL_DOCKER` — разрешает bootstrap на Windows автоматически поставить Docker Desktop через `winget` (по умолчанию `true`).
-- `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK` — аварийно разрешает в `IGUANA_BOOTSTRAP_DB_MODE=auto` откатиться на SQLite, если Docker так и не стал доступен после install/start попытки (по умолчанию `false`).
 - `IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS` — сколько ждать готовности Docker Desktop после установки/старта (по умолчанию `300` секунд).
 - `APP_COORDINATION_MODE` — coordination backend для shared leases/counters/cooldowns; для production contour с multi-instance bot ingress должен быть `redis`.
 - `APP_COORDINATION_BOT_INGRESS_LEASE_TTL`, `APP_COORDINATION_BOT_INGRESS_RENEW_INTERVAL`, `APP_COORDINATION_BOT_INGRESS_FOLLOWER_BACKOFF` — tuning shared ingress ownership для `Telegram` / `VK` / `MAX` long-poll runtimes.
@@ -68,7 +67,7 @@ SPRING_DATASOURCE_PASSWORD=secret
 - `spring-panel` в external DB-режиме поднимает secondary/user/bot/settings datasources поверх primary JDBC-контура и не пытается создавать отдельные SQLite-файлы для этих ролей.
 - `java-bot` больше не использует Spring Boot `sql.init` как runtime-механику владения схемой: в external PostgreSQL-режиме бот просто подключается к готовой схеме, а не пытается инициализировать её сам.
 - `java-bot` в SQLite-режиме теперь поднимает local schema явным `SqliteSchemaInitializer`, который исполняет `schema-sqlite.sql` только для local/dev-контура.
-- runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели, а SQLite-пути используются только в явном `sqlite`-режиме без дополнительных `SPRING_SQL_INIT_*` флагов.
+- runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели; child `java-bot` JDBC launch больше не поддерживает SQLite compatibility env.
 - для multi-instance bot ingress production contour теперь предполагает shared coordination:
   - `Telegram`, `VK`, `MAX` long-poll ownership должен идти через `APP_COORDINATION_MODE=redis`;
   - связанные bot-side schedulers должны идти через shared job lease, а не через process-local таймеры.

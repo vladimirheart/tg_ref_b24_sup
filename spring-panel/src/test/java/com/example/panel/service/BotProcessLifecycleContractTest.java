@@ -53,7 +53,11 @@ class BotProcessLifecycleContractTest {
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
         IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());
-        MockEnvironment environment = new MockEnvironment().withProperty("app.datasource.mode", "sqlite");
+        MockEnvironment environment = new MockEnvironment()
+            .withProperty("app.datasource.mode", "postgresql")
+            .withProperty("spring.datasource.url", "jdbc:postgresql://db.example.local:5432/iguana")
+            .withProperty("spring.datasource.username", "iguana")
+            .withProperty("spring.datasource.password", "secret");
         BotRuntimeContractService contractService = new BotRuntimeContractService(
             sqliteProperties,
             botSqliteProperties,

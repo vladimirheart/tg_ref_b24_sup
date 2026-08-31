@@ -87,7 +87,7 @@ public class BotRuntimeContractService {
         }
         if (databaseRuntimeMode.isSqliteMode()) {
             warnings.add(
-                "SQLite runtime contract остаётся только local/dev bootstrap perimeter: он допустим для первого запуска и fallback-сценариев, но не считается production ownership path."
+                "SQLite panel runtime больше не поддерживается для child bot JDBC contract: сначала переведите backend на PostgreSQL или используйте worker contour через RabbitMQ."
             );
         }
         databaseRuntimeMode.externalSettings()
@@ -319,8 +319,6 @@ public class BotRuntimeContractService {
         ));
         if (isRabbitMqTransportMode()) {
             keys.add("APP_DB_MODE");
-        } else if (databaseRuntimeMode.isSqliteMode()) {
-            keys.addAll(List.of("APP_DB_BOT_RUNTIME", "SUPPORT_BOT_DATABASE_PATH"));
         } else {
             keys.addAll(List.of("APP_DB_MODE", "SPRING_DATASOURCE_URL"));
         }
@@ -346,8 +344,6 @@ public class BotRuntimeContractService {
         List<String> keys = new ArrayList<>();
         if (isRabbitMqTransportMode()) {
             // Production workers deliberately receive no business-database credentials.
-        } else if (databaseRuntimeMode.isSqliteMode()) {
-            keys.add("APP_DB_BOT");
         } else {
             keys.addAll(List.of("SPRING_DATASOURCE_USERNAME", "SPRING_DATASOURCE_PASSWORD", "DATABASE_URL"));
         }
@@ -410,13 +406,9 @@ public class BotRuntimeContractService {
 
     private void applyDatabaseEnvironment(Map<String, String> env) {
         if (databaseRuntimeMode.isSqliteMode()) {
-            String panelRuntimeDbPath = ticketsDbProperties.getNormalizedPath().toString();
-            String botRuntimeDbPath = botRuntimeDbProperties.getNormalizedPath().toString();
-            env.put("APP_DB_MODE", "sqlite");
-            env.put("APP_DB_BOT_RUNTIME", botRuntimeDbPath);
-            env.put("APP_DB_BOT", botRuntimeDbPath);
-            env.put("SUPPORT_BOT_DATABASE_PATH", panelRuntimeDbPath);
-            return;
+            throw new IllegalStateException(
+                "Bot runtime JDBC contract requires canonical PostgreSQL datasource. Current panel runtime is still in SQLite compatibility mode."
+            );
         }
 
         ExternalDatabaseSettings settings = databaseRuntimeMode.externalSettings()

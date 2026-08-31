@@ -307,27 +307,20 @@ function Build-EnvContent {
         ""
     )
 
-    if ($Mode -eq "postgresql") {
-        $lines += @(
-            "APP_DB_MODE=postgresql",
-            "SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:$PostgresPort/iguana",
-            "SPRING_DATASOURCE_USERNAME=iguana",
-            "SPRING_DATASOURCE_PASSWORD=iguana",
-            "APP_COORDINATION_MODE=direct",
-            "APP_COORDINATION_REQUIRED_FOR_POSTGRESQL=false",
-            "APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL=false",
-            "",
-            "# Local bootstrap secrets required by panel security guard",
-            "APP_INTERNAL_BOT_API_TOKEN=$internalBotApiToken",
-            "APP_SECURITY_REMEMBER_ME_KEY=$rememberMeKey",
-            ""
-        )
-    } else {
-        $lines += @(
-            "APP_DB_MODE=sqlite",
-            ""
-        )
-    }
+    $lines += @(
+        "APP_DB_MODE=postgresql",
+        "SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:$PostgresPort/iguana",
+        "SPRING_DATASOURCE_USERNAME=iguana",
+        "SPRING_DATASOURCE_PASSWORD=iguana",
+        "APP_COORDINATION_MODE=direct",
+        "APP_COORDINATION_REQUIRED_FOR_POSTGRESQL=false",
+        "APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL=false",
+        "",
+        "# Local bootstrap secrets required by panel security guard",
+        "APP_INTERNAL_BOT_API_TOKEN=$internalBotApiToken",
+        "APP_SECURITY_REMEMBER_ME_KEY=$rememberMeKey",
+        ""
+    )
 
     $lines += @(
         "APP_INTEGRATION_TRANSPORT_MODE=$TransportMode",
@@ -362,14 +355,12 @@ if ([string]::IsNullOrWhiteSpace($bootstrapMode)) {
     $bootstrapMode = "auto"
 }
 $bootstrapMode = $bootstrapMode.Trim().ToLowerInvariant()
-$allowSqliteFallback = Get-BoolSetting -Name "IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK" -Default $false
-
-if ($bootstrapMode -notin @("auto", "sqlite", "postgresql")) {
-    throw "Unsupported IGUANA_BOOTSTRAP_DB_MODE '$bootstrapMode'. Allowed values: auto, sqlite, postgresql."
+if ($bootstrapMode -notin @("auto", "postgresql")) {
+    throw "Unsupported IGUANA_BOOTSTRAP_DB_MODE '$bootstrapMode'. Allowed values: auto, postgresql."
 }
 
 $dockerAvailable = $false
-if (-not $SkipDocker -and $bootstrapMode -ne "sqlite") {
+if (-not $SkipDocker) {
     $dockerAvailable = Ensure-DockerAvailable -BootstrapMode $bootstrapMode -AllowInstallation (-not $ValidateOnly)
 }
 
@@ -380,35 +371,28 @@ $effectiveMode = switch ($bootstrapMode) {
         }
         "postgresql"
     }
-    "sqlite" { "sqlite" }
     default {
-        if ($dockerAvailable) {
-            "postgresql"
-        } elseif ($allowSqliteFallback) {
-            Write-Warning "Docker is unavailable after bootstrap checks. Falling back to SQLite only because IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=true explicitly enabled compatibility mode."
-            "sqlite"
-        } else {
-            throw "Docker is unavailable after bootstrap checks. Default first-run bootstrap now requires PostgreSQL/RabbitMQ. Use IGUANA_BOOTSTRAP_DB_MODE=sqlite only as an explicit local compatibility override."
+        if (-not $dockerAvailable -and -not $SkipDocker) {
+            throw "Docker is unavailable after bootstrap checks. First-run bootstrap requires PostgreSQL/RabbitMQ via docker compose."
         }
+        "postgresql"
     }
 }
 
 $preferredPort = 5432
-$effectivePort = if ($effectiveMode -eq "postgresql") { Find-FreePort -StartPort $preferredPort } else { $preferredPort }
+$effectivePort = Find-FreePort -StartPort $preferredPort
 $preferredRabbitAmqpPort = 5672
 $preferredRabbitHttpPort = 15672
-$effectiveRabbitAmqpPort = if ($effectiveMode -eq "postgresql") { Find-FreePort -StartPort $preferredRabbitAmqpPort } else { $preferredRabbitAmqpPort }
-$effectiveRabbitHttpPort = if ($effectiveMode -eq "postgresql") { Find-FreePort -StartPort $preferredRabbitHttpPort } else { $preferredRabbitHttpPort }
-$effectiveTransportMode = if ($effectiveMode -eq "postgresql") { "rabbitmq" } else { "jdbc" }
+$effectiveRabbitAmqpPort = Find-FreePort -StartPort $preferredRabbitAmqpPort
+$effectiveRabbitHttpPort = Find-FreePort -StartPort $preferredRabbitHttpPort
+$effectiveTransportMode = "rabbitmq"
 
 if ($ValidateOnly) {
     Write-Host "[INFO] Bootstrap validation succeeded."
     Write-Host "[INFO] Mode: $effectiveMode"
-    if ($effectiveMode -eq "postgresql") {
-        Write-Host "[INFO] PostgreSQL port: $effectivePort"
-        Write-Host "[INFO] RabbitMQ AMQP port: $effectiveRabbitAmqpPort"
-        Write-Host "[INFO] RabbitMQ HTTP port: $effectiveRabbitHttpPort"
-    }
+    Write-Host "[INFO] PostgreSQL port: $effectivePort"
+    Write-Host "[INFO] RabbitMQ AMQP port: $effectiveRabbitAmqpPort"
+    Write-Host "[INFO] RabbitMQ HTTP port: $effectiveRabbitHttpPort"
     Write-Host "[INFO] Transport mode: $effectiveTransportMode"
     exit 0
 }
@@ -439,7 +423,7 @@ if ((-not (Test-Path -LiteralPath $envFile)) -or $Force) {
     Write-Host "[INFO] Keeping existing $envFile"
 }
 
-if ($effectiveMode -eq "postgresql" -and -not $SkipDocker) {
+if (-not $SkipDocker) {
     Write-Host "[INFO] Starting local PostgreSQL and RabbitMQ via docker compose"
     $dockerCommand = Get-DockerCommandPath
     if (-not $dockerCommand) {
@@ -452,8 +436,6 @@ if ($effectiveMode -eq "postgresql" -and -not $SkipDocker) {
     }
     Write-Host "[INFO] Local PostgreSQL is starting on localhost:$effectivePort"
     Write-Host "[INFO] Local RabbitMQ is starting on localhost:$effectiveRabbitAmqpPort (management UI: http://localhost:$effectiveRabbitHttpPort)"
-} elseif ($effectiveMode -eq "sqlite") {
-    Write-Host "[WARN] Bootstrap is running in explicit SQLite compatibility mode."
 }
 
 Write-Host "[INFO] First-run bootstrap completed."

@@ -30,7 +30,7 @@ class MonitoringSqliteDataSourceConfigurationTest {
     }
 
     @Test
-    void monitoringRuntimeJdbcTemplateUsesDedicatedMonitoringTemplateInSqliteMode() {
+    void monitoringRuntimeJdbcTemplateAlwaysUsesPrimaryTemplate() {
         JdbcTemplate primaryJdbcTemplate = mock(JdbcTemplate.class);
         JdbcTemplate monitoringJdbcTemplate = mock(JdbcTemplate.class);
 
@@ -40,6 +40,6 @@ class MonitoringSqliteDataSourceConfigurationTest {
             new PanelDatabaseRuntimeMode(new MockEnvironment())
         );
 
-        assertThat(runtimeJdbcTemplate).isSameAs(monitoringJdbcTemplate);
+        assertThat(runtimeJdbcTemplate).isSameAs(primaryJdbcTemplate);
     }
 }

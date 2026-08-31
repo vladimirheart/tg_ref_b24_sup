@@ -36,15 +36,6 @@
 - `schema-sqlite.sql`
   Разрешён только как local/dev bootstrap ресурс.
 
-### first-run bootstrap
-
-- `scripts/bootstrap-first-run.ps1`
-- `scripts/bootstrap-first-run.sh`
-- explicit compatibility override `IGUANA_BOOTSTRAP_DB_MODE=sqlite`
-- аварийный fallback только при явном `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=true`
-
-Этот слой допустим только для того, чтобы новый клон можно было запустить без ручной SQL-подготовки.
-
 ## 2. Что в этот perimeter больше входить не должно
 
 В external PostgreSQL path запрещены:
@@ -52,6 +43,7 @@
 - runtime `ALTER TABLE`, `CREATE TABLE IF NOT EXISTS`, `INSERT OR IGNORE`, SQLite `PRAGMA`;
 - создание или миграция business-таблиц из `java-bot`;
 - зависимость запуска бота от `schema-sqlite.sql`, `SPRING_SQL_INIT_MODE`, `spring.sql.init.platform`;
+- first-run bootstrap через `scripts/bootstrap-first-run.ps1` / `scripts/bootstrap-first-run.sh`, который создаёт новый `.env` в SQLite-режиме;
 - неявное создание `bot-<channelId>.db`, `monitoring.db` или secondary SQLite-файлов при `APP_DB_MODE=postgresql`;
 - operator-facing live reads, которые в `APP_DB_MODE=postgresql` продолжают напрямую открывать per-channel SQLite-файлы вместо canonical datasource;
 - schema ownership вспомогательных SQLite-таблиц внутри live controller/service bean’ов (`PasswordResetRequestApiController`, `UiEventOutboxWatcher`, `ChatAttachmentMetadata*`);
@@ -65,7 +57,7 @@
 SQLite остаётся только в трёх ролях:
 
 - local/dev bootstrap;
-- explicit compatibility fallback, а не normal first-run path;
+- manual compatibility launch с явным `APP_DB_MODE=sqlite`, а не first-run bootstrap;
 - explicit one-time import/recovery flow, а не always-on production helper;
 - legacy/test perimeter, который не должен участвовать в external production-like path.
 
@@ -77,5 +69,5 @@ SQLite остаётся только в трёх ролях:
 
 - при `APP_DB_MODE=postgresql` runtime не выполняет SQLite DDL/trigger bootstrap;
 - Flyway остаётся единственным владельцем PostgreSQL schema;
-- first-run bootstrap создаёт только локальное окружение, но не меняет ownership external DB;
+- first-run bootstrap создаёт только локальный PostgreSQL/RabbitMQ контур и больше не генерирует SQLite `.env`;
 - новый SQLite code path явно gated через runtime mode и документирован как local/dev only.

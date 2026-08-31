@@ -36,7 +36,7 @@ class UsersSqliteDataSourceConfigurationTest {
     }
 
     @Test
-    void usersJdbcTemplateCreatesCompatibilityTemplateInSqliteMode() {
+    void usersJdbcTemplateAlwaysUsesPrimaryTemplate() {
         JdbcTemplate primaryJdbcTemplate = mock(JdbcTemplate.class);
         UsersSqliteDataSourceProperties properties = new UsersSqliteDataSourceProperties();
         properties.setPath(tempDir.resolve("panel_identity.db").toString());
@@ -47,7 +47,6 @@ class UsersSqliteDataSourceConfigurationTest {
             new PanelDatabaseRuntimeMode(new MockEnvironment())
         );
 
-        assertThat(runtimeJdbcTemplate).isNotSameAs(primaryJdbcTemplate);
-        assertThat(runtimeJdbcTemplate.getDataSource()).isNotNull();
+        assertThat(runtimeJdbcTemplate).isSameAs(primaryJdbcTemplate);
     }
 }

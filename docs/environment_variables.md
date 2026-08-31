@@ -21,10 +21,9 @@
 | `SPRING_DATASOURCE_URL` | явный JDBC URL для external DB | Панель и бот |
 | `SPRING_DATASOURCE_USERNAME` | пользователь external DB | Панель и бот |
 | `SPRING_DATASOURCE_PASSWORD` | пароль external DB | Панель и бот |
-| `IGUANA_BOOTSTRAP_DB_MODE` | режим first-run bootstrap: `auto`, `sqlite`, `postgresql`; normal path должен вести в PostgreSQL/RabbitMQ | bootstrap scripts |
+| `IGUANA_BOOTSTRAP_DB_MODE` | режим first-run bootstrap: `auto` или `postgresql`; normal path всегда должен вести в PostgreSQL/RabbitMQ | bootstrap scripts |
 | `APP_POSTGRES_PORT` | локальный порт для dockerized PostgreSQL bootstrap | bootstrap scripts |
 | `IGUANA_BOOTSTRAP_INSTALL_DOCKER` | разрешить Windows bootstrap автоматически поставить Docker Desktop через `winget` | bootstrap scripts |
-| `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK` | аварийно разрешить `auto`-bootstrap откатиться на SQLite, если Docker не стал доступен | bootstrap scripts |
 | `IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS` | timeout ожидания готовности Docker Desktop после установки/старта | bootstrap scripts |
 | `APP_INTEGRATION_TRANSPORT_MODE` | transport boundary для integration runtime: `jdbc` только compatibility/dev path, `rabbitmq` для live contour | Java-бот |
 | `APP_PANEL_INTERNAL_API_BASE_URL` | base URL internal panel API для bot-side live reads/writes в `rabbitmq` contour | Java-бот |
@@ -137,7 +136,7 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 
 Для `java-bot` действует явная граница:
 
-- в `APP_DB_MODE=sqlite` runtime сам поднимает local schema через `SqliteSchemaInitializer`;
+- в `APP_DB_MODE=sqlite` runtime сам поднимает local schema через `SqliteSchemaInitializer`, но panel-side child JDBC contract больше не должен запускать этот путь автоматически;
 - в `APP_DB_MODE=postgresql` runtime получает готовый PostgreSQL datasource-контракт и не несёт `SPRING_SQL_INIT_MODE`/`schema-sqlite.sql` в production-path.
 - в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` bot-side business операции по ticket/channel/feedback/blacklist должны идти через `APP_PANEL_INTERNAL_API_*`; silent fallback в local `JPA/SQLite` business storage больше не считается допустимым live-path.
 - для multi-instance bot ingress в production contour нужно использовать `APP_COORDINATION_MODE=redis`, чтобы `Telegram`/`VK`/`MAX` long-poll owner semantics не оставались process-local.
@@ -154,7 +153,7 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 Для first-run bootstrap после стартового production-slice `01-183` действует ещё одно правило:
 
 - default bootstrap-path должен завершаться в `PostgreSQL + RabbitMQ`;
-- SQLite допускается только как явный compatibility override (`IGUANA_BOOTSTRAP_DB_MODE=sqlite`) или как аварийный fallback при явно включённом `IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK=true`.
+- SQLite first-run bootstrap больше не поддерживается ни как compatibility override, ни как fallback.
 - bootstrap-скрипты `scripts/bootstrap-first-run.ps1` и `scripts/bootstrap-first-run.sh` для локального PostgreSQL-контура теперь сразу генерируют `APP_INTERNAL_BOT_API_TOKEN` и `APP_SECURITY_REMEMBER_ME_KEY`;
 - `spring-panel/run-windows.bat` дополнительно умеет долечить старый локальный bootstrap-`.env`, если он был создан до этого изменения, но явные пользовательские env overrides по-прежнему имеют приоритет.
 

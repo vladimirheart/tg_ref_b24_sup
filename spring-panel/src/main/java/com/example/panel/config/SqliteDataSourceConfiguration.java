@@ -19,7 +19,6 @@ import org.springframework.util.StringUtils;
 
 import jakarta.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -38,46 +37,34 @@ public class SqliteDataSourceConfiguration {
     @Primary
     public DataSource dataSource(SqliteDataSourceProperties properties, ConfigurableEnvironment environment) {
         Optional<ExternalDatabaseSettings> externalDatabaseSettings = ExternalDatabaseSettingsResolver.resolve(environment);
-        if (externalDatabaseSettings.isPresent()) {
-            ExternalDatabaseSettings settings = externalDatabaseSettings.get();
-
-            // Hibernate 6 can detect PostgreSQL/MySQL directly from JDBC metadata.
-            // Supplying PostgreSQLDialect explicitly only produces a deprecation
-            // warning and is unnecessary for external database mode.
-            registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
-
-            log.info("Using external {} database at {}", settings.vendor().name().toLowerCase(), settings.jdbcUrl());
-
-            DataSourceBuilder<?> builder = DataSourceBuilder.create();
-            if (StringUtils.hasText(settings.driverClassName())) {
-                builder.driverClassName(settings.driverClassName());
-            }
-            builder.url(settings.jdbcUrl());
-            if (StringUtils.hasText(settings.username())) {
-                builder.username(settings.username());
-            }
-            if (StringUtils.hasText(settings.password())) {
-                builder.password(settings.password());
-            }
-            DataSource externalDataSource = builder.build();
-            configureExternalHikari(externalDataSource, environment);
-            return externalDataSource;
+        if (externalDatabaseSettings.isEmpty()) {
+            throw new IllegalStateException(
+                "spring-panel now requires an external datasource contract. SQLite runtime mode is no longer supported."
+            );
         }
+        ExternalDatabaseSettings settings = externalDatabaseSettings.get();
 
-        Path normalized = properties.getNormalizedPath();
-        String url = properties.buildJdbcUrl();
-        log.info("Using SQLite database at {}", normalized);
-
-        DataSource dataSource = SqliteConnectionConfigSupport.createDataSource(
-            url,
-            properties.getJournalMode(),
-            properties.getBusyTimeoutMs()
-        );
-        // SQLite is not a Hibernate core dialect, so explicit community dialect
-        // selection is still required for compatibility mode.
-        registerRuntimeProperty(environment, "spring.jpa.database-platform", "org.hibernate.community.dialect.SQLiteDialect");
+        // Hibernate 6 can detect PostgreSQL/MySQL directly from JDBC metadata.
+        // Supplying PostgreSQLDialect explicitly only produces a deprecation
+        // warning and is unnecessary for external database mode.
         registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
-        return dataSource;
+
+        log.info("Using external {} database at {}", settings.vendor().name().toLowerCase(), settings.jdbcUrl());
+
+        DataSourceBuilder<?> builder = DataSourceBuilder.create();
+        if (StringUtils.hasText(settings.driverClassName())) {
+            builder.driverClassName(settings.driverClassName());
+        }
+        builder.url(settings.jdbcUrl());
+        if (StringUtils.hasText(settings.username())) {
+            builder.username(settings.username());
+        }
+        if (StringUtils.hasText(settings.password())) {
+            builder.password(settings.password());
+        }
+        DataSource externalDataSource = builder.build();
+        configureExternalHikari(externalDataSource, environment);
+        return externalDataSource;
     }
 
     @Bean

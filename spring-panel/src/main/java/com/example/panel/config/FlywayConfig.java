@@ -68,7 +68,9 @@ public class FlywayConfig {
     private String resolveFlywayLocation(Environment environment) {
         DatabaseMode requestedMode = DatabaseMode.from(environment.getProperty("app.datasource.mode"));
         if (requestedMode == DatabaseMode.SQLITE) {
-            return "classpath:db/migration/sqlite";
+            throw new IllegalStateException(
+                "spring-panel Flyway no longer supports SQLite runtime mode. Configure an external PostgreSQL/MySQL datasource."
+            );
         }
         if (requestedMode == DatabaseMode.POSTGRESQL) {
             return "classpath:db/migration/postgresql";
@@ -82,7 +84,9 @@ public class FlywayConfig {
             databaseUrl = environment.getProperty("DATABASE_URL");
         }
         if (!StringUtils.hasText(databaseUrl)) {
-            return "classpath:db/migration/sqlite";
+            throw new IllegalStateException(
+                "Unable to resolve Flyway migration location without spring.datasource.url or DATABASE_URL."
+            );
         }
 
         String normalized = databaseUrl.trim().toLowerCase(Locale.ROOT);
@@ -94,7 +98,9 @@ public class FlywayConfig {
         if (normalized.startsWith("jdbc:mysql:") || normalized.startsWith("mysql:")) {
             return "classpath:db/migration/mysql";
         }
-        return "classpath:db/migration/sqlite";
+        throw new IllegalStateException(
+            "Unsupported datasource URL for Flyway migration location resolution: " + databaseUrl
+        );
     }
 
     private void normalizeSchemaHistory(Flyway flyway) {

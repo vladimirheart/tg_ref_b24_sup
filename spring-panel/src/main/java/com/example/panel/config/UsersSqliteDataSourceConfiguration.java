@@ -17,11 +17,7 @@ public class UsersSqliteDataSourceConfiguration {
     public JdbcTemplate usersJdbcTemplate(UsersSqliteDataSourceProperties props,
                                           JdbcTemplate primaryJdbcTemplate,
                                           PanelDatabaseRuntimeMode databaseRuntimeMode) {
-        if (databaseRuntimeMode.isExternalDatabaseEnabled()) {
-            log.info("Using primary external {} datasource as USERS runtime template", databaseRuntimeMode.modeLabel());
-            return primaryJdbcTemplate;
-        }
-        log.info("Using USERS SQLite database at {}", props.getNormalizedPath());
-        return new JdbcTemplate(SqliteConnectionConfigSupport.createDataSource(props));
+        log.info("Using primary {} datasource as USERS runtime template", databaseRuntimeMode.modeLabel());
+        return primaryJdbcTemplate;
     }
 }

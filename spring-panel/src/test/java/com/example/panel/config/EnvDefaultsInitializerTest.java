@@ -17,7 +17,7 @@ class EnvDefaultsInitializerTest {
     Path tempDir;
 
     @Test
-    void initializeAppliesDefaultsForMissingDbPaths() throws Exception {
+    void initializeSkipsRetiredSqliteDefaultsEvenWhenSqliteModeIsRequested() throws Exception {
         GenericApplicationContext context = new GenericApplicationContext();
         MockEnvironment environment = new MockEnvironment()
             .withProperty("app.datasource.mode", "sqlite");
@@ -25,15 +25,15 @@ class EnvDefaultsInitializerTest {
 
         new EnvDefaultsInitializer().initialize(context);
 
-        assertTrue(environment.getProperty("APP_DB_PANEL_RUNTIME").endsWith("panel_runtime.db"));
-        assertTrue(environment.getProperty("APP_DB_TICKETS").endsWith("panel_runtime.db"));
-        assertTrue(environment.getProperty("APP_DB_PANEL_IDENTITY").endsWith("panel_identity.db"));
-        assertTrue(environment.getProperty("APP_DB_USERS").endsWith("panel_identity.db"));
+        assertNull(environment.getProperty("APP_DB_PANEL_RUNTIME"));
+        assertNull(environment.getProperty("APP_DB_TICKETS"));
+        assertNull(environment.getProperty("APP_DB_PANEL_IDENTITY"));
+        assertNull(environment.getProperty("APP_DB_USERS"));
         assertNull(environment.getProperty("APP_DB_SETTINGS"));
     }
 
     @Test
-    void initializeRespectsExistingValidProperty() throws Exception {
+    void initializeLeavesExplicitSqliteCompatibilityPathsUntouched() throws Exception {
         Path customUsersDb = Files.createFile(tempDir.resolve("custom-panel-identity.db"));
 
         GenericApplicationContext context = new GenericApplicationContext();
@@ -45,9 +45,9 @@ class EnvDefaultsInitializerTest {
         new EnvDefaultsInitializer().initialize(context);
 
         assertEquals(customUsersDb.toString(), environment.getProperty("APP_DB_PANEL_IDENTITY"));
-        assertEquals(customUsersDb.toString(), environment.getProperty("APP_DB_USERS"));
-        assertTrue(environment.getProperty("APP_DB_PANEL_RUNTIME").endsWith("panel_runtime.db"));
-        assertTrue(environment.getProperty("APP_DB_TICKETS").endsWith("panel_runtime.db"));
+        assertNull(environment.getProperty("APP_DB_USERS"));
+        assertNull(environment.getProperty("APP_DB_PANEL_RUNTIME"));
+        assertNull(environment.getProperty("APP_DB_TICKETS"));
     }
 
     @Test

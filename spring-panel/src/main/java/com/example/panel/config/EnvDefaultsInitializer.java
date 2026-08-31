@@ -43,116 +43,18 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
         ConfigurableEnvironment environment = applicationContext.getEnvironment();
-        if (!isExplicitSqliteCompatibilityMode(environment)) {
-            log.info(
-                "Skipping automatic SQLite path defaults because {} is '{}'.",
-                DATASOURCE_MODE,
-                environment.getProperty(DATASOURCE_MODE, "postgresql")
+        if (isExplicitSqliteCompatibilityMode(environment)) {
+            log.warn(
+                "Ignoring retired automatic SQLite path defaults because {} is explicitly set to 'sqlite'. spring-panel runtime now requires an external datasource.",
+                DATASOURCE_MODE
             );
             return;
         }
-        Path currentDirectory = Paths.get("").toAbsolutePath().normalize();
-        Path workspaceRoot = locateWorkspaceRoot(currentDirectory);
-        Path panelHome = locatePanelHome(currentDirectory, workspaceRoot);
-        Map<String, String> dotEnv = loadDotEnv(workspaceRoot.resolve(".env"));
-        String panelRuntimePath = resolveCanonicalPath(
-            environment,
-            dotEnv,
-            workspaceRoot,
-            panelHome,
-            new String[]{APP_DB_PANEL_RUNTIME, APP_DB_TICKETS},
-            null,
-            new String[]{"panel_runtime.db", "tickets.db"},
-            "panel_runtime.db"
+        log.info(
+            "Skipping retired automatic SQLite path defaults because {} is '{}'.",
+            DATASOURCE_MODE,
+            environment.getProperty(DATASOURCE_MODE, "postgresql")
         );
-        String panelIdentityPath = resolveCanonicalPath(
-            environment,
-            dotEnv,
-            workspaceRoot,
-            panelHome,
-            new String[]{APP_DB_PANEL_IDENTITY, APP_DB_USERS},
-            panelRuntimePath,
-            new String[]{"panel_identity.db", "users.db"},
-            "panel_identity.db"
-        );
-        String botRuntimePath = resolveCanonicalPath(
-            environment,
-            dotEnv,
-            workspaceRoot,
-            panelHome,
-            new String[]{APP_DB_BOT_RUNTIME, APP_DB_BOT},
-            panelRuntimePath,
-            new String[]{"bot_runtime.db", "bot_database.db"},
-            "bot_runtime.db"
-        );
-        String monitoringPath = resolveCanonicalPath(
-            environment,
-            dotEnv,
-            workspaceRoot,
-            panelHome,
-            new String[]{APP_DB_MONITORING},
-            panelRuntimePath,
-            new String[]{"monitoring.db"},
-            "monitoring.db"
-        );
-        String objectPassportsPath = resolveCanonicalPath(
-            environment,
-            dotEnv,
-            workspaceRoot,
-            panelHome,
-            new String[]{APP_DB_OBJECT_PASSPORTS},
-            panelRuntimePath,
-            new String[]{"object_passports.db"},
-            "object_passports.db"
-        );
-        String clientsPath = resolveCanonicalPath(
-            environment,
-            dotEnv,
-            workspaceRoot,
-            panelHome,
-            new String[]{APP_DB_CLIENTS},
-            panelRuntimePath,
-            new String[]{"clients.db"},
-            "clients.db"
-        );
-        String knowledgePath = resolveCanonicalPath(
-            environment,
-            dotEnv,
-            workspaceRoot,
-            panelHome,
-            new String[]{APP_DB_KNOWLEDGE},
-            panelRuntimePath,
-            new String[]{"knowledge_base.db"},
-            "knowledge_base.db"
-        );
-        String objectsPath = resolveCanonicalPath(
-            environment,
-            dotEnv,
-            workspaceRoot,
-            panelHome,
-            new String[]{APP_DB_OBJECTS},
-            panelRuntimePath,
-            new String[]{"objects.db"},
-            "objects.db"
-        );
-        Map<String, Object> defaults = new HashMap<>();
-        registerDefault(defaults, environment, APP_DB_PANEL_RUNTIME, panelRuntimePath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_TICKETS, panelRuntimePath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_PANEL_IDENTITY, panelIdentityPath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_USERS, panelIdentityPath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_BOT_RUNTIME, botRuntimePath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_BOT, botRuntimePath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_MONITORING, monitoringPath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_OBJECT_PASSPORTS, objectPassportsPath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_CLIENTS, clientsPath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_KNOWLEDGE, knowledgePath, workspaceRoot);
-        registerDefault(defaults, environment, APP_DB_OBJECTS, objectsPath, workspaceRoot);
-
-        if (!defaults.isEmpty()) {
-            MutablePropertySources sources = environment.getPropertySources();
-            sources.addFirst(new MapPropertySource("autoDbDefaults", defaults));
-            log.info("Applied default SQLite paths for missing APP_DB_* variables: {}", defaults);
-        }
     }
 
     private boolean isExplicitSqliteCompatibilityMode(ConfigurableEnvironment environment) {

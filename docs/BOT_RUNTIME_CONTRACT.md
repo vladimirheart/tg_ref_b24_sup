@@ -39,22 +39,13 @@
 
 `APP_DB_MODE=worker` стартует с пустым временным per-process SQLite DataSource из системной temp-директории. Full business schema туда намеренно не инициализируется: допускаются только self-owned technical tables, которые worker-сервисы создают для своей технической координации/dedup (например, `integration_outbound_event_deliveries`). Случайный repository/JDBC путь к `tickets/messages/channels/...` должен fail-closed, а не тихо читать или писать локальную business-копию. Business reads/writes в `rabbitmq` режиме обязаны идти через queue/internal panel API.
 
-SQLite compatibility env keys остаются обязательными только при явном `APP_DB_MODE=sqlite`:
+Для panel-side child JDBC launch теперь допустим только canonical PostgreSQL datasource contract:
 
-- `APP_DB_BOT_RUNTIME`
-- `SUPPORT_BOT_DATABASE_PATH`
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_BOT_USERNAME`
-- `GROUP_CHAT_ID`
-- `APP_BOT_LOG_PATH`
-- `SPRING_PROFILES_ACTIVE`
-- `JAVA_TOOL_OPTIONS`
+- `APP_DB_MODE=postgresql`
+- `SPRING_DATASOURCE_URL`
+- опционально `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `DATABASE_URL`
 
-Legacy compatibility:
-
-- panel больше не делает `APP_DB_PANEL_RUNTIME`/`APP_DB_TICKETS` default runtime contract для `java-bot`;
-- если SQLite compatibility path всё ещё требует shared panel runtime, он передаётся явно через `SUPPORT_BOT_DATABASE_PATH`;
-- `APP_DB_BOT` остаётся legacy alias для `APP_DB_BOT_RUNTIME`.
+Если panel сама ещё находится в `APP_DB_MODE=sqlite`, child `java-bot` JDBC contract должен завершаться ошибкой, а не получать `APP_DB_BOT_RUNTIME` / `SUPPORT_BOT_DATABASE_PATH`.
 
 Platform-specific:
 
@@ -111,7 +102,7 @@ Platform-specific:
 
 После шагов `01-181` diagnostic payload должен также явно показывать DB boundary:
 
-- в `APP_DB_MODE=sqlite` warnings/blockers обязаны сигнализировать, что это только local/dev bootstrap perimeter;
+- в `APP_DB_MODE=sqlite` warnings/blockers обязаны сигнализировать, что child JDBC contract больше не поддержан и backend нужно перевести на PostgreSQL;
 - production-ready статус для bot runtime допустим только при canonical PostgreSQL backend + `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` + isolated `APP_DB_MODE=worker`; прямой `SPRING_DATASOURCE_URL` в child process теперь считается нарушением production boundary.
 - `APP_DB_MODE=postgresql` остаётся поддержанным java-bot compatibility/JDBC режимом для controlled migration/dev scenarios, но больше не является production worker contract.
 - normal runtime default панели остаётся PostgreSQL; SQLite contract не должен восприниматься как implicit production path.

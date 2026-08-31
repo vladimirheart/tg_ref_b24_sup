@@ -95,7 +95,7 @@ class PostgresRuntimeReadinessVerifierTest {
     }
 
     @Test
-    void sqliteModeSkipsPostgresSpecificProbes() {
+    void sqliteModeFailsReadiness() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         MockEnvironment environment = new MockEnvironment()
                 .withProperty("app.datasource.mode", "sqlite");
@@ -109,8 +109,9 @@ class PostgresRuntimeReadinessVerifierTest {
                 attachmentObjectStorageService
         );
 
-        assertThatCode(() -> verifier.onApplicationEvent(null))
-                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> verifier.onApplicationEvent(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("SQLite runtime mode is retired");
 
         verify(jdbcTemplate, never()).queryForList(anyString());
     }

@@ -21,12 +21,8 @@ public class MonitoringSqliteDataSourceConfiguration {
     public DataSource monitoringDataSource(MonitoringSqliteDataSourceProperties props,
                                            @Qualifier("dataSource") DataSource primaryDataSource,
                                            PanelDatabaseRuntimeMode databaseRuntimeMode) {
-        if (databaseRuntimeMode.isExternalDatabaseEnabled()) {
-            log.info("Using primary external {} datasource as MONITORING datasource", databaseRuntimeMode.modeLabel());
-            return primaryDataSource;
-        }
-        log.info("Using MONITORING SQLite database at {}", props.getNormalizedPath());
-        return SqliteConnectionConfigSupport.createDataSource(props);
+        log.info("Using primary {} datasource as MONITORING datasource", databaseRuntimeMode.modeLabel());
+        return primaryDataSource;
     }
 
     @Bean(name = "monitoringJdbcTemplate")
@@ -38,10 +34,7 @@ public class MonitoringSqliteDataSourceConfiguration {
     public JdbcTemplate monitoringRuntimeJdbcTemplate(JdbcTemplate primaryJdbcTemplate,
                                                       @Qualifier("monitoringJdbcTemplate") JdbcTemplate monitoringJdbcTemplate,
                                                       PanelDatabaseRuntimeMode databaseRuntimeMode) {
-        if (databaseRuntimeMode.isExternalDatabaseEnabled()) {
-            return primaryJdbcTemplate;
-        }
-        return monitoringJdbcTemplate;
+        return primaryJdbcTemplate;
     }
 
     @Bean(name = "monitoringTransactionManager")

@@ -54,6 +54,11 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
             .trim()
             .toLowerCase(Locale.ROOT);
 
+        if ("sqlite".equals(mode)) {
+            throw new IllegalStateException(
+                "SQLite runtime mode is retired for spring-panel. Configure PostgreSQL and restart."
+            );
+        }
         if (!"postgresql".equals(mode)) {
             log.info(
                 "[READY] Iguana panel is ready on http://127.0.0.1:{}/ (database mode: {})",
