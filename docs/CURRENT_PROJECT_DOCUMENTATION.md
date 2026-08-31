@@ -34,8 +34,9 @@
 5. Для production target-state открыть [target-production-architecture-plan.md](./target-production-architecture-plan.md), [POSTGRESQL_FIRST_READINESS_CLOSEOUT.md](./POSTGRESQL_FIRST_READINESS_CLOSEOUT.md) и [runbooks/postgresql-production-contour.md](./runbooks/postgresql-production-contour.md).
 6. Для реального go-live checklist и пошагового запуска открыть [runbooks/production-launch-checklist.md](./runbooks/production-launch-checklist.md).
 7. Для ingress/egress, internal bot API auth, idempotency, retries и replay открыть [integration-contract-hardening.md](./integration-contract-hardening.md).
-8. Для rehearsal миграции, data reconciliation, rollback checkpoints и production smoke открыть [runbooks/postgresql-cutover-rehearsal.md](./runbooks/postgresql-cutover-rehearsal.md) и [runbooks/production-e2e-smoke.md](./runbooks/production-e2e-smoke.md).
-9. Для roadmap мониторинга внешних support-систем, delivery-каналов и корпоративных зависимостей открыть [support-systems-monitoring-roadmap.md](./support-systems-monitoring-roadmap.md).
+8. Для классификации existing volumes перед ротацией persisted credentials открыть [runbooks/persisted-credential-migration-status.md](./runbooks/persisted-credential-migration-status.md).
+9. Для rehearsal миграции, data reconciliation, rollback checkpoints и production smoke открыть [runbooks/postgresql-cutover-rehearsal.md](./runbooks/postgresql-cutover-rehearsal.md) и [runbooks/production-e2e-smoke.md](./runbooks/production-e2e-smoke.md).
+10. Для roadmap мониторинга внешних support-систем, delivery-каналов и корпоративных зависимостей открыть [support-systems-monitoring-roadmap.md](./support-systems-monitoring-roadmap.md).
 
 ## 3. Текущее архитектурное состояние
 

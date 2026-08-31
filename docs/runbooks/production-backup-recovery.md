@@ -166,6 +166,22 @@ Smoke использует `.tmp/backup-smoke-*`, то есть локально
 
 Backup destination credentials/SMB/NFS authentication настраиваются на host mount
 уровне и не должны попадать в repository files.
+
+Перед любой такой ротацией на existing contour сначала прогоняйте non-mutating
+status helper из `01-222`:
+
+```powershell
+.\scripts\docker-production-credential-migration-status.ps1
+```
+
+или:
+
+```bash
+./scripts/docker-production-credential-migration-status.sh
+```
+
+Если helper возвращает `migration_required`, не считайте `.env` источником истины
+без отдельного component-specific migration/apply runbook.
 ## MinIO backup tooling image
 
 The upstream minio/mc container is intentionally minimal and must not be treated as a general Unix toolbox.

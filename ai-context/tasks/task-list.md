@@ -241,4 +241,5 @@
 🟣 [01-219] Восстановить production bot launcher в panel contour: упаковать prebuilt bot jars в образ и вернуть ручной запуск каналов
 🟢 [01-220] Повторить fresh storage evidence и безопасный `-Apply -WhatIf` quarantine rehearsal на текущем recovery HEAD
 🟣 [01-221] Провести предметный аудит client avatars и dialog media после recovery storage-контура и закрыть остаточные legacy-ожидания
-🔴 [01-222] Собрать controlled migration workflow для persisted infra credentials после secure bootstrap
+🟡 [01-222] Собрать controlled migration workflow для persisted infra credentials после secure bootstrap
+🔴 [01-223] Реализовать component-specific apply/rotation workflow для persisted credentials поверх existing volumes
