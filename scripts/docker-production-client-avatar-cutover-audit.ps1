@@ -139,6 +139,22 @@ function Join-AvatarObjectKey {
     return "$normalizedPrefix/avatars/$normalizedFilename"
 }
 
+function Get-ClientAvatarObjectKeys {
+    param(
+        [string]$Prefix,
+        [long]$UserId,
+        [bool]$Full
+    )
+
+    $base = if ($Full) { "${UserId}_full" } else { "$UserId" }
+    $extensions = @(".jpg", ".jpeg", ".png", ".gif", ".webp")
+    $keys = @()
+    foreach ($extension in $extensions) {
+        $keys += Join-AvatarObjectKey -Prefix $Prefix -Filename ($base + $extension)
+    }
+    return $keys
+}
+
 function Get-LegacyLocalClientAvatarUsers {
     param([string]$RepoRoot)
 
@@ -234,6 +250,7 @@ if ($ValidateOnly) {
     Write-Host "[GREEN] PowerShell parsed successfully and the production Compose model is valid."
     Write-Host "[RESULT] requested_object_key_prefix=$requestedPrefix"
     Write-Host "[RESULT] audit_sources=client_avatar_history,attachments/avatars"
+    Write-Host "[RESULT] client_avatar_filename_variants=.jpg,.jpeg,.png,.gif,.webp"
     Write-Host "[RESULT] client-avatar audit is read-only and no runtime data was accessed."
     return
 }
@@ -310,15 +327,20 @@ try {
     foreach ($userId in @($allUserIds | Sort-Object)) {
         if ($userId -le 0) { continue }
         $checkedClients++
-        $thumbKey = Join-AvatarObjectKey -Prefix $runtimePrefix -Filename "${userId}.jpg"
-        $fullKey = Join-AvatarObjectKey -Prefix $runtimePrefix -Filename "${userId}_full.jpg"
-        $thumbExists = Test-MinioObject -Docker $docker -ComposePrefix $composePrefix -ObjectKey $thumbKey
-        $fullExists = Test-MinioObject -Docker $docker -ComposePrefix $composePrefix -ObjectKey $fullKey
-        if (-not $thumbExists -and -not $fullExists) {
+        $candidateKeys = @()
+        $candidateKeys += @(Get-ClientAvatarObjectKeys -Prefix $runtimePrefix -UserId $userId -Full $false)
+        $candidateKeys += @(Get-ClientAvatarObjectKeys -Prefix $runtimePrefix -UserId $userId -Full $true)
+        $foundAny = $false
+        foreach ($objectKey in $candidateKeys) {
+            if (Test-MinioObject -Docker $docker -ComposePrefix $composePrefix -ObjectKey $objectKey) {
+                $foundAny = $true
+                break
+            }
+        }
+        if (-not $foundAny) {
             $missingClients += [pscustomobject]@{
                 UserId = $userId
-                ThumbKey = $thumbKey
-                FullKey = $fullKey
+                CandidateKeys = $candidateKeys
                 Sources = @($userSources[$userId] | Sort-Object) -join ","
             }
         }
@@ -332,12 +354,13 @@ try {
 Write-Host "[RESULT] CLIENT AVATAR CUTOVER AUDIT"
 Write-Host "[RESULT] object_bucket=$objectBucket"
 Write-Host "[RESULT] object_key_prefix=$runtimePrefix"
+Write-Host "[RESULT] client_avatar_filename_variants=.jpg,.jpeg,.png,.gif,.webp"
 Write-Host "[RESULT] client_avatar_history_users_checked=$($historyUserIds.Count)"
 Write-Host "[RESULT] legacy_local_avatar_users_checked=$($legacyLocalUserIds.Count)"
 Write-Host "[RESULT] effective_client_avatar_users_checked=$checkedClients"
 Write-Host "[RESULT] missing_s3_client_avatars=$($missingClients.Count)"
 foreach ($item in ($missingClients | Select-Object -First 20)) {
-    Write-Host "[WARN] client_avatar user_id=$($item.UserId) sources=$($item.Sources) expected_one_of=$($item.ThumbKey);$($item.FullKey)"
+    Write-Host "[WARN] client_avatar user_id=$($item.UserId) sources=$($item.Sources) expected_any_of=$(@($item.CandidateKeys) -join ';')"
 }
 if ($missingClients.Count -gt 20) {
     Write-Host "[WARN] Additional missing client avatars omitted: $($missingClients.Count - 20)"

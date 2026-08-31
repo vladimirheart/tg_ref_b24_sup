@@ -273,6 +273,24 @@ public class PanelUserPhotoService {
         return userId + (full ? "_full" : "") + ".jpg";
     }
 
+    public List<String> clientAvatarFileNames(long userId, boolean full) {
+        java.util.ArrayList<String> candidates = new java.util.ArrayList<>();
+        String base = userId + (full ? "_full" : "");
+        for (String extension : ALLOWED_EXTENSIONS) {
+            candidates.add(base + extension);
+        }
+        return List.copyOf(candidates);
+    }
+
+    public String resolveClientAvatarStoredName(long userId, boolean full) {
+        for (String storedName : clientAvatarFileNames(userId, full)) {
+            if (avatarExists(storedName) || migrateLegacyLocalAvatar(storedName)) {
+                return storedName;
+            }
+        }
+        return null;
+    }
+
     public boolean avatarExists(long userId, boolean full) {
         return StringUtils.hasText(resolveAvatarUrl(userId, full));
     }
@@ -295,10 +313,7 @@ public class PanelUserPhotoService {
         }
 
         // Historical id.jpg / id_full.jpg naming, now with every accepted extension.
-        String legacyBase = userId + (full ? "_full" : "");
-        for (String extension : ALLOWED_EXTENSIONS) {
-            candidates.add(legacyBase + extension);
-        }
+        candidates.addAll(clientAvatarFileNames(userId, full));
 
         return candidates;
     }

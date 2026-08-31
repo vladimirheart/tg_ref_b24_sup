@@ -240,4 +240,4 @@
 🟢 [01-218] Выполнить финальный cutover legacy media: пересобрать runtime с metadata backfill, отключить local fallback и подготовить purge legacy storage
 🟣 [01-219] Восстановить production bot launcher в panel contour: упаковать prebuilt bot jars в образ и вернуть ручной запуск каналов
 🟢 [01-220] Повторить fresh storage evidence и безопасный `-Apply -WhatIf` quarantine rehearsal на текущем recovery HEAD
-🟠 [01-221] Провести предметный аудит client avatars и dialog media после recovery storage-контура и закрыть остаточные legacy-ожидания
+🟣 [01-221] Провести предметный аудит client avatars и dialog media после recovery storage-контура и закрыть остаточные legacy-ожидания

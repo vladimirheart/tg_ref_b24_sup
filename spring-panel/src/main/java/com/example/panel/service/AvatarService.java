@@ -37,13 +37,13 @@ public class AvatarService {
                                                boolean full,
                                                boolean allowFallback) throws IOException {
         requireAuthority(authentication, "PAGE_CLIENTS");
-        String primary = panelUserPhotoService.avatarFileName(userId, full);
-        String fallback = panelUserPhotoService.avatarFileName(userId, !full);
+        String primary = panelUserPhotoService.resolveClientAvatarStoredName(userId, full);
+        String fallback = panelUserPhotoService.resolveClientAvatarStoredName(userId, !full);
 
-        if (attachmentObjectStorageService.avatarExists(primary)) {
+        if (StringUtils.hasText(primary)) {
             return buildResponse(attachmentObjectStorageService.openAvatar(primary));
         }
-        if (attachmentObjectStorageService.avatarExists(fallback)) {
+        if (StringUtils.hasText(fallback) && !fallback.equals(primary)) {
             return buildResponse(attachmentObjectStorageService.openAvatar(fallback));
         }
         if (!allowFallback) {

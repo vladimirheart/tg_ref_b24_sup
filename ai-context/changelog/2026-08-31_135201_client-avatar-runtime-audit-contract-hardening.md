@@ -1,0 +1,22 @@
+# 2026-08-31 13:52:01 - client avatar runtime and audit contract hardening
+
+- User prompt:
+  - `проверь задачи 01-212 и 01-217 на предмет завершённости`
+  - `давай. и сразу приступай к выполнению`
+- Scope:
+  - `01-217`
+  - `01-221`
+- Files:
+  - `spring-panel/src/main/java/com/example/panel/service/AvatarService.java`
+  - `spring-panel/src/main/java/com/example/panel/service/PanelUserPhotoService.java`
+  - `scripts/docker-production-client-avatar-cutover-audit.ps1`
+  - `spring-panel/src/test/java/com/example/panel/service/AvatarServiceTest.java`
+  - `spring-panel/src/test/java/com/example/panel/runtime/DockerProductionStorageCutoverSourceContractTest.java`
+  - `ai-context/tasks/task-details/01-217.md`
+  - `ai-context/tasks/task-details/01-221.md`
+  - `ai-context/tasks/task-list.md`
+- Summary:
+  - runtime `/avatar/{userId}` now resolves the same client-avatar filename variants as the production audit instead of assuming only `.jpg`;
+  - production client-avatar audit now checks `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp` thumb/full candidates and reports the active filename variants explicitly;
+  - added targeted Java and source-contract regression tests and recorded the result in task evidence;
+  - `01-221` moved to `🟣` because the AI-side contract fix is complete and only manual UI verification remains.
