@@ -1,12 +1,14 @@
 param(
-    [Parameter(Mandatory = $true)]
-    [ValidateSet("postgresql", "rabbitmq", "redis", "minio")]
-    [string]$Component,
+    [ValidateSet("postgresql", "rabbitmq", "redis", "minio", "grafana", "all")]
+    [string]$Component = "",
+    [string[]]$Components = @(),
     [string]$ProjectName = "",
     [string]$TargetPassword = "",
     [string]$TargetAccessKey = "",
     [string]$TargetSecretKey = "",
     [switch]$Apply,
+    [switch]$Rehearsal,
+    [string]$BackupDirectory = "",
     [int]$HealthTimeoutSeconds = 180
 )
 
@@ -25,6 +27,180 @@ function Get-DockerCommandPath {
         return $dockerCommand.Source
     }
     return $null
+}
+
+function Get-SupportedRotationComponents {
+    return @("postgresql", "rabbitmq", "redis", "minio", "grafana")
+}
+
+function Resolve-RotationComponents {
+    param(
+        [string]$SingleComponent,
+        [string[]]$MultipleComponents
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($SingleComponent) -and $MultipleComponents.Count -gt 0) {
+        throw "Use either -Component or -Components, but not both."
+    }
+
+    $requested = New-Object 'System.Collections.Generic.List[string]'
+    if (-not [string]::IsNullOrWhiteSpace($SingleComponent)) {
+        $requested.Add($SingleComponent.Trim().ToLowerInvariant())
+    }
+
+    foreach ($entry in @($MultipleComponents)) {
+        if ([string]::IsNullOrWhiteSpace($entry)) {
+            continue
+        }
+        foreach ($token in $entry.Split(",", [System.StringSplitOptions]::RemoveEmptyEntries)) {
+            $normalized = $token.Trim().ToLowerInvariant()
+            if (-not [string]::IsNullOrWhiteSpace($normalized)) {
+                $requested.Add($normalized)
+            }
+        }
+    }
+
+    if ($requested.Count -eq 0) {
+        throw "Specify -Component <name>|all or -Components <name1,name2,...>."
+    }
+
+    $supported = Get-SupportedRotationComponents
+    if (($requested -contains "all") -and $requested.Count -gt 1) {
+        throw "Value 'all' cannot be combined with other components."
+    }
+
+    if ($requested.Count -eq 1 -and $requested[0] -eq "all") {
+        return $supported
+    }
+
+    $requestedSet = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($candidate in $requested) {
+        if (-not ($supported -contains $candidate)) {
+            throw "Unsupported component '$candidate'. Supported values: $($supported -join ', ')."
+        }
+        [void]$requestedSet.Add($candidate)
+    }
+
+    $ordered = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($candidate in $supported) {
+        if ($requestedSet.Contains($candidate)) {
+            $ordered.Add($candidate)
+        }
+    }
+    return @($ordered)
+}
+
+function New-PreApplyBackupSnapshot {
+    param(
+        [string]$DockerCommand,
+        [string]$RepoRoot,
+        [string]$ProjectName,
+        [string[]]$SelectedComponents,
+        [string]$RequestedDirectory
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RequestedDirectory)) {
+        return $null
+    }
+
+    $targetRoot = if ([System.IO.Path]::IsPathRooted($RequestedDirectory)) {
+        $RequestedDirectory
+    } else {
+        Join-Path $RepoRoot $RequestedDirectory
+    }
+
+    $snapshotDir = Join-Path $targetRoot ("credential-rotation-{0}" -f (Get-Date -Format "yyyyMMdd-HHmmss"))
+    [void](New-Item -ItemType Directory -Path $snapshotDir -Force)
+
+    $envFile = Join-Path $RepoRoot ".env"
+    if (Test-Path -LiteralPath $envFile) {
+        Copy-FileExact -SourcePath $envFile -TargetPath (Join-Path $snapshotDir "env.before")
+    }
+
+    Write-Utf8NoBomFile -Path (Join-Path $snapshotDir "component-order.txt") -Content (($SelectedComponents -join [Environment]::NewLine) + [Environment]::NewLine)
+
+    $containerSnapshot = Invoke-DockerCli -DockerCommand $DockerCommand -Arguments @(
+        "ps",
+        "--filter", "label=com.docker.compose.project=$ProjectName",
+        "--format", "table {{.Names}}`t{{.Status}}`t{{.Image}}"
+    ) -IgnoreExitCode
+    Write-Utf8NoBomFile -Path (Join-Path $snapshotDir "docker-ps.txt") -Content (($containerSnapshot.Text.TrimEnd()) + [Environment]::NewLine)
+
+    return $snapshotDir
+}
+
+function Invoke-RotationOrchestration {
+    param(
+        [string]$ScriptPath,
+        [string[]]$SelectedComponents,
+        [string]$ProjectName,
+        [switch]$Apply,
+        [switch]$Rehearsal,
+        [string]$BackupDirectory,
+        [int]$HealthTimeoutSeconds
+    )
+
+    $mode = if ($Apply) { "apply" } elseif ($Rehearsal) { "rehearsal" } else { "dry-run" }
+    Write-Host "[INFO] Credential rotation orchestration mode: $mode"
+    Write-Host "[INFO] Ordered component flow: $($SelectedComponents -join ', ')"
+
+    if ($SelectedComponents.Count -gt 1 -and (
+        -not [string]::IsNullOrWhiteSpace($TargetPassword) -or
+        -not [string]::IsNullOrWhiteSpace($TargetAccessKey) -or
+        -not [string]::IsNullOrWhiteSpace($TargetSecretKey)
+    )) {
+        throw "Explicit target credential arguments are supported only for single-component runs."
+    }
+
+    if ($Apply -and $Rehearsal) {
+        throw "-Apply and -Rehearsal cannot be used together."
+    }
+
+    $snapshotDir = $null
+    if ($Apply) {
+        $repoRoot = Get-RepoRoot
+        $dockerCommand = Ensure-DockerAvailable
+        $envPath = Join-Path $repoRoot ".env"
+        $state = Read-DotEnvState -Path $envPath
+        $project = Resolve-ComposeProjectName -ExplicitName $ProjectName -Settings $state.Settings -RepoRoot $repoRoot
+        $snapshotDir = New-PreApplyBackupSnapshot -DockerCommand $dockerCommand -RepoRoot $repoRoot -ProjectName $project -SelectedComponents $SelectedComponents -RequestedDirectory $BackupDirectory
+        if ($snapshotDir) {
+            Write-Host "[INFO] Pre-apply snapshot created at: $snapshotDir"
+        }
+    } elseif (-not [string]::IsNullOrWhiteSpace($BackupDirectory)) {
+        Write-Warning "BackupDirectory is used only together with -Apply. Snapshot creation skipped."
+    }
+
+    for ($index = 0; $index -lt $SelectedComponents.Count; $index++) {
+        $component = $SelectedComponents[$index]
+        Write-Host "[INFO] Starting step $($index + 1)/$($SelectedComponents.Count): $component"
+        $childArgs = @{
+            Component = $component
+            ProjectName = $ProjectName
+            HealthTimeoutSeconds = $HealthTimeoutSeconds
+        }
+        if (-not [string]::IsNullOrWhiteSpace($TargetPassword)) {
+            $childArgs["TargetPassword"] = $TargetPassword
+        }
+        if (-not [string]::IsNullOrWhiteSpace($TargetAccessKey)) {
+            $childArgs["TargetAccessKey"] = $TargetAccessKey
+        }
+        if (-not [string]::IsNullOrWhiteSpace($TargetSecretKey)) {
+            $childArgs["TargetSecretKey"] = $TargetSecretKey
+        }
+        if ($Apply) {
+            $childArgs["Apply"] = $true
+        }
+
+        & $ScriptPath @childArgs
+        Write-Host "[INFO] Completed step $($index + 1)/$($SelectedComponents.Count): $component"
+    }
+
+    switch ($mode) {
+        "apply" { Write-Host "[INFO] Bulk credential rotation apply completed successfully." }
+        "rehearsal" { Write-Host "[INFO] Bulk credential rotation rehearsal completed successfully." }
+        default { Write-Host "[INFO] Bulk credential rotation dry-run completed successfully." }
+    }
 }
 
 function Ensure-DockerAvailable {
@@ -362,6 +538,24 @@ function Test-RedisCredential {
     return $result.ExitCode -eq 0 -and $result.Text -match "PONG"
 }
 
+function Test-GrafanaCredential {
+    param(
+        [string]$BindHost,
+        [string]$Port,
+        [string]$UserName,
+        [string]$Password
+    )
+
+    try {
+        $token = [Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes("$UserName`:$Password"))
+        $headers = @{ Authorization = "Basic $token" }
+        $response = Invoke-WebRequest -Uri "http://$BindHost`:$Port/api/user" -Headers $headers -UseBasicParsing -TimeoutSec 10
+        return $response.StatusCode -eq 200
+    } catch {
+        return $false
+    }
+}
+
 function Resolve-CurrentPostgresPassword {
     param(
         [string]$DockerCommand,
@@ -444,6 +638,35 @@ function Resolve-CurrentRedisPassword {
     }
 
     throw "Unable to authenticate to live Redis with configured or documented fallback credentials."
+}
+
+function Resolve-CurrentGrafanaPassword {
+    param(
+        [string]$BindHost,
+        [string]$Port,
+        [hashtable]$Settings,
+        [string]$UserName
+    )
+
+    $candidates = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($candidate in @(
+        (Get-SettingValue -Settings $Settings -Name "IGUANA_GRAFANA_ADMIN_PASSWORD"),
+        "change-me",
+        "admin",
+        "grafana"
+    )) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and -not $candidates.Contains($candidate)) {
+            $candidates.Add($candidate)
+        }
+    }
+
+    foreach ($candidate in $candidates) {
+        if (Test-GrafanaCredential -BindHost $BindHost -Port $Port -UserName $UserName -Password $candidate) {
+            return $candidate
+        }
+    }
+
+    throw "Unable to authenticate to live Grafana with configured or documented fallback credentials."
 }
 
 function Resolve-CurrentMinIoCredentialPair {
@@ -531,6 +754,26 @@ function Update-RedisPassword {
         "CONFIG",
         "SET",
         "requirepass",
+        $NewPassword
+    ) | Out-Null
+}
+
+function Update-GrafanaPassword {
+    param(
+        [string]$DockerCommand,
+        [string]$ContainerId,
+        [string]$NewPassword
+    )
+
+    Invoke-DockerCli -DockerCommand $DockerCommand -Arguments @(
+        "exec",
+        $ContainerId,
+        "grafana",
+        "cli",
+        "--homepath", "/usr/share/grafana",
+        "--config", "/etc/grafana/grafana.ini",
+        "admin",
+        "reset-admin-password",
         $NewPassword
     ) | Out-Null
 }
@@ -697,6 +940,24 @@ function Test-MinIoBucketAccess {
     return $result.ExitCode -eq 0
 }
 
+if ($Apply -and $Rehearsal) {
+    throw "-Apply and -Rehearsal cannot be used together."
+}
+
+$selectedComponents = @(Resolve-RotationComponents -SingleComponent $Component -MultipleComponents $Components)
+$scriptPath = $PSCommandPath
+$useOrchestration = $Rehearsal -or
+    ($selectedComponents.Count -gt 1) -or
+    ($Components.Count -gt 0) -or
+    ($Component -eq "all") -or
+    (-not [string]::IsNullOrWhiteSpace($BackupDirectory))
+
+if ($useOrchestration) {
+    Invoke-RotationOrchestration -ScriptPath $scriptPath -SelectedComponents $selectedComponents -ProjectName $ProjectName -Apply:$Apply -Rehearsal:$Rehearsal -BackupDirectory $BackupDirectory -HealthTimeoutSeconds $HealthTimeoutSeconds
+    return
+}
+
+$Component = $selectedComponents[0]
 $repoRoot = Get-RepoRoot
 $dockerCommand = Ensure-DockerAvailable
 $envPath = Join-Path $repoRoot ".env"
@@ -745,7 +1006,7 @@ switch ($Component) {
             Write-Host "[INFO] Planned updates: IGUANA_POSTGRES_PASSWORD and SPRING_DATASOURCE_PASSWORD in repository .env."
             Write-Host "[INFO] Planned dependent service recreate: $(@($restartServices) -join ', ')"
             Write-Host "[INFO] Rollback checkpoint file would be created at: $backupPath"
-            exit 0
+            return
         }
 
         if (Test-Path -LiteralPath $envPath) {
@@ -846,7 +1107,7 @@ switch ($Component) {
             Write-Host "[INFO] Planned updates: IGUANA_RABBITMQ_PASSWORD and SPRING_RABBITMQ_PASSWORD in repository .env."
             Write-Host "[INFO] Planned dependent service recreate: $(@($restartServices) -join ', ')"
             Write-Host "[INFO] Rollback checkpoint file would be created at: $backupPath"
-            exit 0
+            return
         }
 
         if (Test-Path -LiteralPath $envPath) {
@@ -945,7 +1206,7 @@ switch ($Component) {
             Write-Host "[INFO] Planned updates: IGUANA_REDIS_PASSWORD and SPRING_DATA_REDIS_PASSWORD in repository .env."
             Write-Host "[INFO] Planned service recreate: $(@($restartServices) -join ', ')"
             Write-Host "[INFO] Rollback checkpoint file would be created at: $backupPath"
-            exit 0
+            return
         }
 
         if (Test-Path -LiteralPath $envPath) {
@@ -1061,7 +1322,7 @@ switch ($Component) {
             Write-Host "[INFO] Planned updates: APP_STORAGE_OBJECT_ACCESS_KEY and APP_STORAGE_OBJECT_SECRET_KEY in repository .env."
             Write-Host "[INFO] Planned service recreate: $(@($restartServices) -join ', ')"
             Write-Host "[INFO] Rollback checkpoint file would be created at: $backupPath"
-            exit 0
+            return
         }
 
         if (Test-Path -LiteralPath $envPath) {
@@ -1114,6 +1375,108 @@ switch ($Component) {
                     Invoke-ComposeRecreate -DockerCommand $dockerCommand -ComposeFiles $composeFiles -Services @($restartServices) -ProjectName $project
                 } catch {
                     Write-Warning "Best-effort coordinated MinIO rollback recreate failed. Manual restart may be required."
+                }
+            }
+
+            throw
+        }
+    }
+    "grafana" {
+        $serviceName = "grafana"
+        $container = Get-ComposeContainerRecord -DockerCommand $dockerCommand -ProjectName $project -ServiceName $serviceName
+        if (-not $container -or -not $container.Running) {
+            throw "Grafana container is not running for compose project '$project'."
+        }
+
+        $userName = Get-SettingValue -Settings $state.Settings -Name "IGUANA_GRAFANA_ADMIN_USER"
+        if ([string]::IsNullOrWhiteSpace($userName)) { $userName = "admin" }
+        $bindHost = Get-SettingValue -Settings $state.Settings -Name "IGUANA_GRAFANA_BIND_HOST"
+        if ([string]::IsNullOrWhiteSpace($bindHost)) { $bindHost = "127.0.0.1" }
+        $port = Get-SettingValue -Settings $state.Settings -Name "IGUANA_GRAFANA_PORT"
+        if ([string]::IsNullOrWhiteSpace($port)) { $port = "3000" }
+
+        $currentPassword = Resolve-CurrentGrafanaPassword -BindHost $bindHost -Port $port -Settings $state.Settings -UserName $userName
+        $newPassword = $TargetPassword
+        if ([string]::IsNullOrWhiteSpace($newPassword)) {
+            $newPassword = New-RandomHexToken
+        }
+        if ($newPassword -eq $currentPassword) {
+            throw "Target Grafana password must differ from the current live password."
+        }
+
+        $restartServices = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($candidate in @("grafana")) {
+            if ($runningServices -contains $candidate -and -not $restartServices.Contains($candidate)) {
+                $restartServices.Add($candidate)
+            }
+        }
+        $composeFiles = Get-ComposeFilesForServices -Services @($restartServices) -RunningServices $runningServices -RepoRoot $repoRoot
+
+        if (-not $Apply) {
+            Write-Host "[INFO] Dry-run: Grafana credential migration plan is ready."
+            Write-Host "[INFO] Compose project: $project"
+            Write-Host "[INFO] Live Grafana authentication succeeded with the current credential candidate."
+            Write-Host "[INFO] Planned updates: IGUANA_GRAFANA_ADMIN_PASSWORD in repository .env."
+            Write-Host "[INFO] Planned service recreate: $(@($restartServices) -join ', ')"
+            Write-Host "[INFO] Rollback checkpoint file would be created at: $backupPath"
+            return
+        }
+
+        if (Test-Path -LiteralPath $envPath) {
+            Copy-FileExact -SourcePath $envPath -TargetPath $backupPath
+        }
+
+        try {
+            Update-GrafanaPassword -DockerCommand $dockerCommand -ContainerId $container.Id -NewPassword $newPassword
+            $liveChanged = $true
+
+            if (-not (Test-GrafanaCredential -BindHost $bindHost -Port $port -UserName $userName -Password $newPassword)) {
+                throw "Grafana accepted the password change command, but live verification with the new credential failed."
+            }
+
+            Set-OrAddDotEnvSetting -State $state -Name "IGUANA_GRAFANA_ADMIN_PASSWORD" -Value $newPassword
+            Persist-DotEnvState -Path $envPath -State $state
+            $envUpdated = $true
+
+            Invoke-ComposeRecreate -DockerCommand $dockerCommand -ComposeFiles $composeFiles -Services @($restartServices) -ProjectName $project
+            $restartAttempted = $true
+
+            foreach ($service in $restartServices) {
+                Wait-ForServiceReady -DockerCommand $dockerCommand -ProjectName $project -ServiceName $service -TimeoutSeconds $HealthTimeoutSeconds
+            }
+
+            $grafanaAfterRestart = Get-ComposeContainerRecord -DockerCommand $dockerCommand -ProjectName $project -ServiceName $serviceName
+            if (-not $grafanaAfterRestart -or -not $grafanaAfterRestart.Running) {
+                throw "Grafana container is not running after service recreation."
+            }
+            if (-not (Test-GrafanaCredential -BindHost $bindHost -Port $port -UserName $userName -Password $newPassword)) {
+                throw "Grafana auth verification failed after service recreation."
+            }
+
+            Write-Host "[INFO] Grafana credential rotation applied successfully."
+            Write-Host "[INFO] Updated repository .env and recreated services: $(@($restartServices) -join ', ')"
+            Write-Host "[INFO] Rollback checkpoint: $backupPath"
+        } catch {
+            if ($liveChanged) {
+                try {
+                    $currentContainer = Get-ComposeContainerRecord -DockerCommand $dockerCommand -ProjectName $project -ServiceName $serviceName
+                    if ($currentContainer -and $currentContainer.Running) {
+                        Update-GrafanaPassword -DockerCommand $dockerCommand -ContainerId $currentContainer.Id -NewPassword $currentPassword
+                    }
+                } catch {
+                    Write-Warning "Best-effort Grafana rollback failed. Manual intervention may be required."
+                }
+            }
+
+            if ($envUpdated -and (Test-Path -LiteralPath $backupPath)) {
+                Copy-FileExact -SourcePath $backupPath -TargetPath $envPath
+            }
+
+            if ($restartAttempted) {
+                try {
+                    Invoke-ComposeRecreate -DockerCommand $dockerCommand -ComposeFiles $composeFiles -Services @($restartServices) -ProjectName $project
+                } catch {
+                    Write-Warning "Best-effort Grafana rollback recreate failed. Manual restart may be required."
                 }
             }
 

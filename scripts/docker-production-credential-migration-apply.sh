@@ -3,16 +3,23 @@ set -uo pipefail
 
 PROJECT_NAME=""
 COMPONENT=""
+COMPONENT_ARGS=()
 TARGET_PASSWORD=""
 TARGET_ACCESS_KEY=""
 TARGET_SECRET_KEY=""
 APPLY=0
+REHEARSAL=0
+BACKUP_DIR=""
 HEALTH_TIMEOUT_SECONDS=180
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --component)
       COMPONENT="${2:-}"
+      shift 2
+      ;;
+    --components)
+      COMPONENT_ARGS+=("${2:-}")
       shift 2
       ;;
     --project-name)
@@ -35,6 +42,14 @@ while [[ $# -gt 0 ]]; do
       APPLY=1
       shift
       ;;
+    --rehearsal)
+      REHEARSAL=1
+      shift
+      ;;
+    --backup-dir)
+      BACKUP_DIR="${2:-}"
+      shift 2
+      ;;
     --health-timeout-seconds)
       HEALTH_TIMEOUT_SECONDS="${2:-}"
       shift 2
@@ -46,17 +61,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-case "${COMPONENT}" in
-  postgresql|rabbitmq|redis|minio) ;;
-  *)
-    echo "[ERROR] --component must be one of: postgresql, rabbitmq, redis, minio." >&2
-    exit 1
-    ;;
-esac
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_PATH="${SCRIPT_DIR}/$(basename "${BASH_SOURCE[0]}")"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ENV_FILE="${REPO_ROOT}/.env"
+SUPPORTED_COMPONENTS=(postgresql rabbitmq redis minio grafana)
 
 die() {
   echo "[ERROR] $*" >&2
@@ -165,6 +174,66 @@ array_contains() {
     fi
   done
   return 1
+}
+
+resolve_selected_components() {
+  if [[ -n "${COMPONENT}" && ${#COMPONENT_ARGS[@]} -gt 0 ]]; then
+    die "Use either --component or --components, but not both."
+  fi
+
+  local requested=()
+  local entry
+  local token
+  if [[ -n "${COMPONENT}" ]]; then
+    requested+=("$(printf '%s' "${COMPONENT}" | tr '[:upper:]' '[:lower:]')")
+  fi
+
+  for entry in "${COMPONENT_ARGS[@]}"; do
+    [[ -n "${entry}" ]] || continue
+    IFS=',' read -r -a split_tokens <<< "${entry}"
+    for token in "${split_tokens[@]}"; do
+      token="$(printf '%s' "${token}" | tr '[:upper:]' '[:lower:]' | xargs)"
+      [[ -n "${token}" ]] || continue
+      requested+=("${token}")
+    done
+  done
+
+  if [[ ${#requested[@]} -eq 0 ]]; then
+    die "Specify --component <name>|all or --components <name1,name2,...>."
+  fi
+
+  if [[ ${#requested[@]} -gt 1 ]]; then
+    local requested_item
+    for requested_item in "${requested[@]}"; do
+      [[ "${requested_item}" != "all" ]] || die "Value 'all' cannot be combined with other components."
+    done
+  fi
+
+  if [[ ${#requested[@]} -eq 1 && "${requested[0]}" == "all" ]]; then
+    SELECTED_COMPONENTS=("${SUPPORTED_COMPONENTS[@]}")
+    return
+  fi
+
+  local unique_requested=()
+  local candidate
+  local supported
+  local is_supported
+  for candidate in "${requested[@]}"; do
+    is_supported=0
+    for supported in "${SUPPORTED_COMPONENTS[@]}"; do
+      if [[ "${candidate}" == "${supported}" ]]; then
+        is_supported=1
+        break
+      fi
+    done
+    (( is_supported == 1 )) || die "Unsupported component '${candidate}'. Supported values: $(join_by_comma "${SUPPORTED_COMPONENTS[@]}")."
+    array_contains "${candidate}" "${unique_requested[@]}" || unique_requested+=("${candidate}")
+  done
+
+  SELECTED_COMPONENTS=()
+  for candidate in "${SUPPORTED_COMPONENTS[@]}"; do
+    array_contains "${candidate}" "${unique_requested[@]}" && SELECTED_COMPONENTS+=("${candidate}")
+  done
 }
 
 join_by_comma() {
@@ -309,6 +378,15 @@ test_redis_credential() {
   docker exec "${container_id}" redis-cli --no-auth-warning -a "${password}" ping 2>/dev/null | grep -q "PONG"
 }
 
+test_grafana_credential() {
+  local bind_host="$1"
+  local port="$2"
+  local user_name="$3"
+  local password="$4"
+  command -v curl >/dev/null 2>&1 || return 1
+  curl -fsS -u "${user_name}:${password}" "http://${bind_host}:${port}/api/user" >/dev/null 2>&1
+}
+
 resolve_current_postgres_password() {
   local container_id="$1"
   local user_name="$2"
@@ -357,6 +435,24 @@ resolve_current_redis_password() {
   return 1
 }
 
+resolve_current_grafana_password() {
+  local bind_host="$1"
+  local port="$2"
+  local user_name="$3"
+  local candidate
+  for candidate in \
+    "$(get_setting_value "IGUANA_GRAFANA_ADMIN_PASSWORD")" \
+    "change-me" \
+    "admin" \
+    "grafana"; do
+    if [[ -n "${candidate}" ]] && test_grafana_credential "${bind_host}" "${port}" "${user_name}" "${candidate}"; then
+      printf '%s' "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
 update_postgres_password() {
   local container_id="$1"
   local user_name="$2"
@@ -382,6 +478,12 @@ update_redis_password() {
   local current_password="$2"
   local new_password="$3"
   docker exec "${container_id}" redis-cli --no-auth-warning -a "${current_password}" CONFIG SET requirepass "${new_password}" >/dev/null
+}
+
+update_grafana_password() {
+  local container_id="$1"
+  local new_password="$2"
+  docker exec "${container_id}" grafana cli --homepath /usr/share/grafana --config /etc/grafana/grafana.ini admin reset-admin-password "${new_password}" >/dev/null
 }
 
 get_compose_service_name_from_container() {
@@ -468,7 +570,97 @@ test_minio_bucket_access() {
     -c 'mc alias set local http://minio:9000 "$MINIO_ACCESS_KEY" "$MINIO_SECRET_KEY" >/dev/null && mc ls "local/$MINIO_BUCKET" >/dev/null' >/dev/null 2>&1
 }
 
+create_preapply_snapshot() {
+  local project="$1"
+  shift
+  local selected_components=("$@")
+  [[ -n "${BACKUP_DIR}" ]] || return 0
+
+  local target_root="${BACKUP_DIR}"
+  case "${target_root}" in
+    /*|[A-Za-z]:/*) ;;
+    *) target_root="${REPO_ROOT}/${target_root}" ;;
+  esac
+
+  local snapshot_dir="${target_root}/credential-rotation-$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "${snapshot_dir}" || die "Unable to create backup directory '${snapshot_dir}'."
+
+  if [[ -f "${ENV_FILE}" ]]; then
+    copy_file_exact "${ENV_FILE}" "${snapshot_dir}/env.before" || die "Unable to create .env snapshot in '${snapshot_dir}'."
+  fi
+
+  printf '%s\n' "${selected_components[@]}" > "${snapshot_dir}/component-order.txt"
+  docker ps \
+    --filter "label=com.docker.compose.project=${project}" \
+    --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' > "${snapshot_dir}/docker-ps.txt" 2>&1 || true
+
+  echo "[INFO] Pre-apply snapshot created at: ${snapshot_dir}"
+}
+
+run_orchestration() {
+  local mode="dry-run"
+  (( APPLY == 1 )) && mode="apply"
+  (( REHEARSAL == 1 )) && mode="rehearsal"
+
+  if (( APPLY == 1 && REHEARSAL == 1 )); then
+    die "--apply and --rehearsal cannot be used together."
+  fi
+
+  if (( ${#SELECTED_COMPONENTS[@]} > 1 )) && [[ -n "${TARGET_PASSWORD}${TARGET_ACCESS_KEY}${TARGET_SECRET_KEY}" ]]; then
+    die "Explicit target credential arguments are supported only for single-component runs."
+  fi
+
+  echo "[INFO] Credential rotation orchestration mode: ${mode}"
+  echo "[INFO] Ordered component flow: $(join_by_comma "${SELECTED_COMPONENTS[@]}")"
+
+  if (( APPLY == 1 )); then
+    create_preapply_snapshot "${PROJECT}" "${SELECTED_COMPONENTS[@]}"
+  elif [[ -n "${BACKUP_DIR}" ]]; then
+    warn "BACKUP_DIR is used only together with --apply. Snapshot creation skipped."
+  fi
+
+  local total="${#SELECTED_COMPONENTS[@]}"
+  local index=0
+  local component
+  for component in "${SELECTED_COMPONENTS[@]}"; do
+    index=$((index + 1))
+    echo "[INFO] Starting step ${index}/${total}: ${component}"
+    local child_args=(--component "${component}" --project-name "${PROJECT_NAME}" --health-timeout-seconds "${HEALTH_TIMEOUT_SECONDS}")
+    [[ -n "${TARGET_PASSWORD}" ]] && child_args+=(--target-password "${TARGET_PASSWORD}")
+    [[ -n "${TARGET_ACCESS_KEY}" ]] && child_args+=(--target-access-key "${TARGET_ACCESS_KEY}")
+    [[ -n "${TARGET_SECRET_KEY}" ]] && child_args+=(--target-secret-key "${TARGET_SECRET_KEY}")
+    (( APPLY == 1 )) && child_args+=(--apply)
+    bash "${SCRIPT_PATH}" "${child_args[@]}"
+    echo "[INFO] Completed step ${index}/${total}: ${component}"
+  done
+
+  if (( APPLY == 1 )); then
+    echo "[INFO] Bulk credential rotation apply completed successfully."
+  elif (( REHEARSAL == 1 )); then
+    echo "[INFO] Bulk credential rotation rehearsal completed successfully."
+  else
+    echo "[INFO] Bulk credential rotation dry-run completed successfully."
+  fi
+}
+
 PROJECT="$(resolve_project_name)"
+SELECTED_COMPONENTS=()
+resolve_selected_components
+if (( APPLY == 1 && REHEARSAL == 1 )); then
+  die "--apply and --rehearsal cannot be used together."
+fi
+USE_ORCHESTRATION=0
+(( REHEARSAL == 1 )) && USE_ORCHESTRATION=1
+(( ${#SELECTED_COMPONENTS[@]} > 1 )) && USE_ORCHESTRATION=1
+(( ${#COMPONENT_ARGS[@]} > 0 )) && USE_ORCHESTRATION=1
+[[ "${COMPONENT}" == "all" ]] && USE_ORCHESTRATION=1
+[[ -n "${BACKUP_DIR}" ]] && USE_ORCHESTRATION=1
+if (( USE_ORCHESTRATION == 1 )); then
+  PROJECT="$(resolve_project_name)"
+  run_orchestration
+  exit 0
+fi
+COMPONENT="${SELECTED_COMPONENTS[0]}"
 load_running_services
 
 run_postgresql() {
@@ -859,6 +1051,100 @@ run_minio() {
   echo "[INFO] Rollback checkpoint: ${backup_path}"
 }
 
+run_grafana() {
+  local service_name="grafana"
+  local container_id
+  container_id="$(get_container_id "${PROJECT}" "${service_name}")"
+  [[ -n "${container_id}" ]] || die "Grafana container is not running for compose project '${PROJECT}'."
+  [[ "$(get_container_status "${container_id}")" == "running" ]] || die "Grafana container is not running for compose project '${PROJECT}'."
+
+  local user_name
+  local bind_host
+  local port
+  user_name="$(get_setting_value "IGUANA_GRAFANA_ADMIN_USER")"
+  bind_host="$(get_setting_value "IGUANA_GRAFANA_BIND_HOST")"
+  port="$(get_setting_value "IGUANA_GRAFANA_PORT")"
+  [[ -n "${user_name}" ]] || user_name="admin"
+  [[ -n "${bind_host}" ]] || bind_host="127.0.0.1"
+  [[ -n "${port}" ]] || port="3000"
+
+  local current_password
+  current_password="$(resolve_current_grafana_password "${bind_host}" "${port}" "${user_name}")" || die "Unable to authenticate to live Grafana with configured or documented fallback credentials."
+
+  local new_password="${TARGET_PASSWORD}"
+  [[ -n "${new_password}" ]] || new_password="$(new_random_hex_token 32)"
+  [[ "${new_password}" != "${current_password}" ]] || die "Target Grafana password must differ from the current live password."
+
+  RESTART_SERVICES=()
+  service_is_running "grafana" && RESTART_SERVICES+=("grafana")
+  build_compose_files
+
+  local backup_path="${REPO_ROOT}/.env.credential-migration-grafana-$(date +%Y%m%d-%H%M%S).bak"
+  if (( APPLY == 0 )); then
+    echo "[INFO] Dry-run: Grafana credential migration plan is ready."
+    echo "[INFO] Compose project: ${PROJECT}"
+    echo "[INFO] Live Grafana authentication succeeded with the current credential candidate."
+    echo "[INFO] Planned updates: IGUANA_GRAFANA_ADMIN_PASSWORD in repository .env."
+    echo "[INFO] Planned service recreate: $(join_by_comma "${RESTART_SERVICES[@]}")"
+    echo "[INFO] Rollback checkpoint file would be created at: ${backup_path}"
+    return 0
+  fi
+
+  local live_changed=0
+  local env_updated=0
+  local restart_attempted=0
+
+  rollback_grafana() {
+    if (( live_changed == 1 )); then
+      local current_container
+      current_container="$(get_container_id "${PROJECT}" "${service_name}")"
+      if [[ -n "${current_container}" ]] && [[ "$(get_container_status "${current_container}")" == "running" ]]; then
+        if ! update_grafana_password "${current_container}" "${current_password}"; then
+          warn "Best-effort Grafana rollback failed. Manual intervention may be required."
+        fi
+      fi
+    fi
+    if (( env_updated == 1 )) && [[ -f "${backup_path}" ]]; then
+      copy_file_exact "${backup_path}" "${ENV_FILE}" || true
+    fi
+    if (( restart_attempted == 1 )); then
+      if ! invoke_compose_recreate; then
+        warn "Best-effort Grafana rollback recreate failed. Manual restart may be required."
+      fi
+    fi
+  }
+
+  [[ ! -f "${ENV_FILE}" ]] || copy_file_exact "${ENV_FILE}" "${backup_path}" || die "Unable to create rollback checkpoint for .env."
+  update_grafana_password "${container_id}" "${new_password}" || die "Failed to change Grafana password in the live container."
+  live_changed=1
+
+  if ! test_grafana_credential "${bind_host}" "${port}" "${user_name}" "${new_password}"; then
+    rollback_grafana
+    die "Grafana accepted the password change command, but live verification with the new credential failed."
+  fi
+
+  ensure_env_file
+  update_or_add_env_setting "IGUANA_GRAFANA_ADMIN_PASSWORD" "${new_password}" "${ENV_FILE}" || { rollback_grafana; die "Failed to update IGUANA_GRAFANA_ADMIN_PASSWORD in repository .env."; }
+  env_updated=1
+
+  invoke_compose_recreate || { rollback_grafana; die "Failed to recreate Grafana after password rotation."; }
+  restart_attempted=1
+
+  local service
+  for service in "${RESTART_SERVICES[@]}"; do
+    wait_for_service_ready "${PROJECT}" "${service}" "${HEALTH_TIMEOUT_SECONDS}" || { rollback_grafana; die "Service '${service}' did not become ready after Grafana rotation."; }
+  done
+
+  local grafana_after_restart
+  grafana_after_restart="$(get_container_id "${PROJECT}" "${service_name}")"
+  [[ -n "${grafana_after_restart}" ]] && [[ "$(get_container_status "${grafana_after_restart}")" == "running" ]] || { rollback_grafana; die "Grafana container is not running after service recreation."; }
+  test_grafana_credential "${bind_host}" "${port}" "${user_name}" "${new_password}" || { rollback_grafana; die "Grafana auth verification failed after service recreation."; }
+
+  echo "[INFO] Grafana credential rotation applied successfully."
+  echo "[INFO] Updated repository .env and recreated services: $(join_by_comma "${RESTART_SERVICES[@]}")"
+  echo "[INFO] Rollback checkpoint: ${backup_path}"
+}
+
 case "${COMPONENT}" in
   postgresql)
     run_postgresql
@@ -871,5 +1157,8 @@ case "${COMPONENT}" in
     ;;
   minio)
     run_minio
+    ;;
+  grafana)
+    run_grafana
     ;;
 esac
