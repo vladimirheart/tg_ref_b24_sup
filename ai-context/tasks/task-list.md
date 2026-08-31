@@ -244,4 +244,5 @@
 🟡 [01-222] Собрать controlled migration workflow для persisted infra credentials после secure bootstrap
 🟡 [01-223] Реализовать component-specific apply/rotation workflow для persisted credentials поверх existing volumes
 🟡 [01-224] Реализовать coordinated Redis/MinIO persisted credential migration и restart choreography
-🔴 [01-225] Довести persisted credential rotation до Bash parity и remaining apply contour
+🟡 [01-225] Довести persisted credential rotation до Bash parity и remaining apply contour
+🔴 [01-226] Добавить Grafana apply-path и multi-component rehearsal для persisted credential rotation

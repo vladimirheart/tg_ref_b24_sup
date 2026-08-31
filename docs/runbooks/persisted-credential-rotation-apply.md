@@ -1,99 +1,94 @@
 # Persisted credential rotation apply runbook
 
-Этот runbook продолжает `01-223` и `01-224` после диагностического helper'а из
-`docs/runbooks/persisted-credential-migration-status.md`.
+Этот runbook продолжает `01-223`, `01-224` и текущий Bash parity slice из `01-225`
+после диагностического helper'а из `docs/runbooks/persisted-credential-migration-status.md`.
 
-На текущем шаге Windows-first apply workflow покрывает:
+На текущем шаге controlled apply workflow покрывает:
 
 - `postgresql`;
 - `rabbitmq`;
 - `redis`;
 - `minio`.
 
+Поддерживаются два entrypoint:
+
+- PowerShell: `scripts/docker-production-credential-migration-apply.ps1`;
+- Bash: `scripts/docker-production-credential-migration-apply.sh`.
+
 По умолчанию workflow не делает изменений. Реальные действия происходят только с
-явным `-Apply`.
+явным `-Apply` в PowerShell или `--apply` в Bash.
 
 ## 1. Когда использовать
 
-Используйте `scripts/docker-production-credential-migration-apply.ps1`, когда:
+Используйте apply workflow, когда:
 
-- `docker-production-credential-migration-status.ps1` показывает `migration_required`;
+- `docker-production-credential-migration-status.ps1` или `.sh` показывает `migration_required`;
 - нужный контейнер уже запущен и volume-backed contour существует;
 - нужно убрать drift между live persisted credential и repository `.env`;
 - важна coordinated restart choreography, а не простая перезапись `.env`.
 
 ## 2. Что делает script
 
-Скрипт:
+Оба script entrypoint делают одно и то же:
 
-1. находит живой контейнер нужного компонента;
-2. определяет текущий рабочий credential-кандидат:
+1. находят живой контейнер нужного компонента;
+2. определяют текущий рабочий credential-кандидат:
    - canonical `IGUANA_*`;
    - compatibility `SPRING_*`, если это локально релевантно;
    - documented fallback только если live auth реально проходит;
-3. создаёт checkpoint `.env.credential-migration-<component>-<timestamp>.bak`;
-4. выполняет controlled switch:
+3. создают checkpoint `.env.credential-migration-<component>-<timestamp>.bak`;
+4. выполняют controlled switch:
    - `postgresql` и `rabbitmq` меняют live credential до записи в `.env`;
    - `redis` сначала меняет live `requirepass`, затем пересоздаёт runtime;
    - `minio` меняет `.env`, пересоздаёт `minio` и `minio-init`, а потом проверяет bucket access;
-5. пересоздаёт только нужные сервисы текущего compose project;
-6. если observability overlay уже поднят, автоматически добавляет
+5. пересоздают только нужные сервисы текущего compose project;
+6. если observability overlay уже поднят, автоматически добавляют
    `docker-compose.production-observability.yml`, чтобы не потерять overlay-конфиг;
-7. делает post-change verification;
-8. при сбое выполняет best-effort rollback live credential и/или `.env`.
+7. делают post-change verification;
+8. при сбое выполняют best-effort rollback live credential и/или `.env`.
 
 ## 3. Dry-run
 
-### PostgreSQL
+### PowerShell
 
 ```powershell
 .\scripts\docker-production-credential-migration-apply.ps1 -Component postgresql
-```
-
-### RabbitMQ
-
-```powershell
 .\scripts\docker-production-credential-migration-apply.ps1 -Component rabbitmq
-```
-
-### Redis
-
-```powershell
 .\scripts\docker-production-credential-migration-apply.ps1 -Component redis
+.\scripts\docker-production-credential-migration-apply.ps1 -Component minio
 ```
 
-### MinIO
+### Bash
+
+```bash
+./scripts/docker-production-credential-migration-apply.sh --component postgresql
+./scripts/docker-production-credential-migration-apply.sh --component rabbitmq
+./scripts/docker-production-credential-migration-apply.sh --component redis
+./scripts/docker-production-credential-migration-apply.sh --component minio
+```
+
+На Windows используйте Git Bash, например:
 
 ```powershell
-.\scripts\docker-production-credential-migration-apply.ps1 -Component minio
+& 'C:\Program Files\Git\bin\bash.exe' -lc 'cd /c/Users/<user>/git_h/tg_ref_b24_sup && ./scripts/docker-production-credential-migration-apply.sh --component redis'
 ```
 
 Dry-run не раскрывает новый secret и не меняет ни `.env`, ни live runtime.
 
 ## 4. Real apply
 
-### PostgreSQL
-
-```powershell
-.\scripts\docker-production-credential-migration-apply.ps1 -Component postgresql -Apply
-```
-
-### RabbitMQ
-
-```powershell
-.\scripts\docker-production-credential-migration-apply.ps1 -Component rabbitmq -Apply
-```
-
-### Redis
+### PowerShell
 
 ```powershell
 .\scripts\docker-production-credential-migration-apply.ps1 -Component redis -Apply
+.\scripts\docker-production-credential-migration-apply.ps1 -Component minio -Apply
 ```
 
-### MinIO
+### Bash
 
-```powershell
-.\scripts\docker-production-credential-migration-apply.ps1 -Component minio -Apply
+```bash
+./scripts/docker-production-credential-migration-apply.sh --component redis --apply
+./scripts/docker-production-credential-migration-apply.sh --component minio --apply
 ```
 
 Можно передавать свои целевые секреты:
@@ -102,8 +97,16 @@ Dry-run не раскрывает новый secret и не меняет ни `.
 .\scripts\docker-production-credential-migration-apply.ps1 -Component redis -Apply -TargetPassword "<secret>"
 ```
 
+```bash
+./scripts/docker-production-credential-migration-apply.sh --component redis --apply --target-password "<secret>"
+```
+
 ```powershell
 .\scripts\docker-production-credential-migration-apply.ps1 -Component minio -Apply -TargetAccessKey "<access-key>" -TargetSecretKey "<secret-key>"
+```
+
+```bash
+./scripts/docker-production-credential-migration-apply.sh --component minio --apply --target-access-key "<access-key>" --target-secret-key "<secret-key>"
 ```
 
 ## 5. Какие env-ключи обновляются
@@ -184,11 +187,15 @@ Dry-run не раскрывает новый secret и не меняет ни `.
 - bucket access probe через ephemeral `minio/mc` в compose network;
 - повторная bucket/access проверка после recreate и `minio-init`.
 
+В Git Bash MinIO probe уже защищён от MSYS path conversion через
+`MSYS_NO_PATHCONV=1` и `MSYS2_ARG_CONV_EXCL='*'`, чтобы `--entrypoint /bin/sh`
+не превращался в Windows-путь.
+
 ## 8. Что осталось вне этого apply-path
 
-- Bash parity для apply workflow пока не реализован;
 - `grafana` пока только диагностируется, но не ротируется через controlled apply-path;
 - нет bulk rotation нескольких компонентов за один прогон;
-- нет автоматического backup snapshot перед apply, только `.env` rollback checkpoint.
+- нет автоматического backup snapshot перед apply, только `.env` rollback checkpoint;
+- нужен rehearsal flow для multi-component rotation.
 
-Этот remaining contour вынесен в `01-225`.
+Этот remaining contour вынесен в `01-226`.
