@@ -15,8 +15,6 @@
 
 ## Tasks
 
-🟣 [01-219] Восстановить production bot launcher в panel contour: упаковать prebuilt bot jars в образ и вернуть ручной запуск каналов
-
 <!--
 Добавляй новые задачи ниже этой секции по одной строке.
 Можно писать сырой текст без кода и статуса.
@@ -240,3 +238,6 @@
 🔴 [01-216] ВНЕДРИТЬ БЕЗОПАСНЫЙ FIRST-RUN BOOTSTRAP PRODUCTION-СЕКРЕТОВ И МИГРАЦИЮ СУЩЕСТВУЮЩИХ PERSISTENT VOLUMES
 🟡 [01-217] Мигрировать legacy media и avatars в MinIO/S3, убрать runtime-зависимость от local attachments и подготовить безопасный финальный purge
 🟢 [01-218] Выполнить финальный cutover legacy media: пересобрать runtime с metadata backfill, отключить local fallback и подготовить purge legacy storage
+🟣 [01-219] Восстановить production bot launcher в panel contour: упаковать prebuilt bot jars в образ и вернуть ручной запуск каналов
+🟢 [01-220] Повторить fresh storage evidence и безопасный `-Apply -WhatIf` quarantine rehearsal на текущем recovery HEAD
+🟠 [01-221] Провести предметный аудит client avatars и dialog media после recovery storage-контура и закрыть остаточные legacy-ожидания

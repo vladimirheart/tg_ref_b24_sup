@@ -139,6 +139,27 @@ function Join-AvatarObjectKey {
     return "$normalizedPrefix/avatars/$normalizedFilename"
 }
 
+function Get-LegacyLocalClientAvatarUsers {
+    param([string]$RepoRoot)
+
+    $avatarsRoot = Join-Path $RepoRoot "attachments/avatars"
+    if (-not (Test-Path -LiteralPath $avatarsRoot -PathType Container)) {
+        return @()
+    }
+
+    $users = New-Object 'System.Collections.Generic.HashSet[long]'
+    foreach ($file in @(Get-ChildItem -LiteralPath $avatarsRoot -File -Recurse -Force -ErrorAction Stop)) {
+        if ([string]::IsNullOrWhiteSpace($file.Name)) {
+            continue
+        }
+        if ($file.Name -match '^(?<userId>\d+)(?:_full)?\.(jpg|jpeg|png|gif|webp)$') {
+            [void]$users.Add([long]$matches.userId)
+        }
+    }
+
+    return @($users | Sort-Object)
+}
+
 function ConvertTo-LfLineEndings {
     param([string]$Value)
     if ($null -eq $Value) { return "" }
@@ -212,6 +233,7 @@ Assert-ComposeSuccess `
 if ($ValidateOnly) {
     Write-Host "[GREEN] PowerShell parsed successfully and the production Compose model is valid."
     Write-Host "[RESULT] requested_object_key_prefix=$requestedPrefix"
+    Write-Host "[RESULT] audit_sources=client_avatar_history,attachments/avatars"
     Write-Host "[RESULT] client-avatar audit is read-only and no runtime data was accessed."
     return
 }
@@ -240,6 +262,33 @@ $clientRowsRaw = Query-Postgres `
     -Database $dbName `
     -Sql "SELECT json_build_object('user_id', user_id)::text FROM (SELECT DISTINCT user_id FROM client_avatar_history WHERE user_id IS NOT NULL AND user_id > 0) q ORDER BY user_id"
 
+$historyUserIds = New-Object 'System.Collections.Generic.HashSet[long]'
+if (-not [string]::IsNullOrWhiteSpace($clientRowsRaw)) {
+    foreach ($line in ($clientRowsRaw -split "`n")) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        $row = $line | ConvertFrom-Json
+        $userId = [long]$row.user_id
+        if ($userId -le 0) { continue }
+        [void]$historyUserIds.Add($userId)
+    }
+}
+
+$legacyLocalUserIds = @(Get-LegacyLocalClientAvatarUsers -RepoRoot $repoRoot)
+$allUserIds = New-Object 'System.Collections.Generic.HashSet[long]'
+$userSources = @{}
+foreach ($userId in @($historyUserIds)) {
+    [void]$allUserIds.Add($userId)
+    $userSources[$userId] = New-Object 'System.Collections.Generic.HashSet[string]'
+    [void]$userSources[$userId].Add("client_avatar_history")
+}
+foreach ($userId in $legacyLocalUserIds) {
+    [void]$allUserIds.Add($userId)
+    if (-not $userSources.ContainsKey($userId)) {
+        $userSources[$userId] = New-Object 'System.Collections.Generic.HashSet[string]'
+    }
+    [void]$userSources[$userId].Add("attachments/avatars")
+}
+
 $environmentNames = @(
     "IGUANA_CLIENT_AVATAR_AUDIT_ACCESS_KEY",
     "IGUANA_CLIENT_AVATAR_AUDIT_SECRET_KEY",
@@ -258,23 +307,19 @@ try {
     [Environment]::SetEnvironmentVariable("IGUANA_CLIENT_AVATAR_AUDIT_SECRET_KEY", $objectSecretKey, "Process")
     [Environment]::SetEnvironmentVariable("IGUANA_CLIENT_AVATAR_AUDIT_BUCKET", $objectBucket, "Process")
 
-    if (-not [string]::IsNullOrWhiteSpace($clientRowsRaw)) {
-        foreach ($line in ($clientRowsRaw -split "`n")) {
-            if ([string]::IsNullOrWhiteSpace($line)) { continue }
-            $row = $line | ConvertFrom-Json
-            $userId = [long]$row.user_id
-            if ($userId -le 0) { continue }
-            $checkedClients++
-            $thumbKey = Join-AvatarObjectKey -Prefix $runtimePrefix -Filename "${userId}.jpg"
-            $fullKey = Join-AvatarObjectKey -Prefix $runtimePrefix -Filename "${userId}_full.jpg"
-            $thumbExists = Test-MinioObject -Docker $docker -ComposePrefix $composePrefix -ObjectKey $thumbKey
-            $fullExists = Test-MinioObject -Docker $docker -ComposePrefix $composePrefix -ObjectKey $fullKey
-            if (-not $thumbExists -and -not $fullExists) {
-                $missingClients += [pscustomobject]@{
-                    UserId = $userId
-                    ThumbKey = $thumbKey
-                    FullKey = $fullKey
-                }
+    foreach ($userId in @($allUserIds | Sort-Object)) {
+        if ($userId -le 0) { continue }
+        $checkedClients++
+        $thumbKey = Join-AvatarObjectKey -Prefix $runtimePrefix -Filename "${userId}.jpg"
+        $fullKey = Join-AvatarObjectKey -Prefix $runtimePrefix -Filename "${userId}_full.jpg"
+        $thumbExists = Test-MinioObject -Docker $docker -ComposePrefix $composePrefix -ObjectKey $thumbKey
+        $fullExists = Test-MinioObject -Docker $docker -ComposePrefix $composePrefix -ObjectKey $fullKey
+        if (-not $thumbExists -and -not $fullExists) {
+            $missingClients += [pscustomobject]@{
+                UserId = $userId
+                ThumbKey = $thumbKey
+                FullKey = $fullKey
+                Sources = @($userSources[$userId] | Sort-Object) -join ","
             }
         }
     }
@@ -287,10 +332,12 @@ try {
 Write-Host "[RESULT] CLIENT AVATAR CUTOVER AUDIT"
 Write-Host "[RESULT] object_bucket=$objectBucket"
 Write-Host "[RESULT] object_key_prefix=$runtimePrefix"
-Write-Host "[RESULT] client_avatar_history_users_checked=$checkedClients"
+Write-Host "[RESULT] client_avatar_history_users_checked=$($historyUserIds.Count)"
+Write-Host "[RESULT] legacy_local_avatar_users_checked=$($legacyLocalUserIds.Count)"
+Write-Host "[RESULT] effective_client_avatar_users_checked=$checkedClients"
 Write-Host "[RESULT] missing_s3_client_avatars=$($missingClients.Count)"
 foreach ($item in ($missingClients | Select-Object -First 20)) {
-    Write-Host "[WARN] client_avatar user_id=$($item.UserId) expected_one_of=$($item.ThumbKey);$($item.FullKey)"
+    Write-Host "[WARN] client_avatar user_id=$($item.UserId) sources=$($item.Sources) expected_one_of=$($item.ThumbKey);$($item.FullKey)"
 }
 if ($missingClients.Count -gt 20) {
     Write-Host "[WARN] Additional missing client avatars omitted: $($missingClients.Count - 20)"
@@ -300,4 +347,4 @@ if ($missingClients.Count -gt 0) {
     throw "Client avatar cutover audit failed. Keep APP_STORAGE_OBJECT_LEGACY_LOCAL_FALLBACK_ENABLED=true until mapped client avatar objects are restored."
 }
 
-Write-Host "[GREEN] CLIENT AVATAR CUTOVER AUDIT PASSED: every client with avatar history has at least one canonical runtime avatar object."
+Write-Host "[GREEN] CLIENT AVATAR CUTOVER AUDIT PASSED: every client avatar candidate from avatar history or legacy local avatar roots has at least one canonical runtime avatar object."
