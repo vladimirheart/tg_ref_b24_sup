@@ -53,6 +53,10 @@ public class BotIngressCoordinationService {
         return tryAcquireOrRenewLease("ingress", platform, channelId, null, properties.getIngressLeaseTtl());
     }
 
+    public boolean tryAcquireOrRenew(String platform, String ingressIdentity) {
+        return tryAcquireOrRenewLease("ingress", platform, ingressIdentity, null, properties.getIngressLeaseTtl());
+    }
+
     public boolean tryAcquireOrRenewJob(String platform, Long channelId, String jobName) {
         return tryAcquireOrRenewLease("job", platform, channelId, jobName, properties.getJobLeaseTtl());
     }
@@ -80,6 +84,10 @@ public class BotIngressCoordinationService {
         releaseLease("ingress", platform, channelId, null);
     }
 
+    public void release(String platform, String ingressIdentity) {
+        releaseLease("ingress", platform, ingressIdentity, null);
+    }
+
     public void releaseJob(String platform, Long channelId, String jobName) {
         releaseLease("job", platform, channelId, jobName);
     }
@@ -101,7 +109,15 @@ public class BotIngressCoordinationService {
                                            Long channelId,
                                            String leaseName,
                                            Duration configuredTtl) {
-        String leaseKey = buildLeaseKey(leaseType, platform, channelId, leaseName);
+        return tryAcquireOrRenewLease(leaseType, platform, normalizeChannelId(channelId), leaseName, configuredTtl);
+    }
+
+    private boolean tryAcquireOrRenewLease(String leaseType,
+                                           String platform,
+                                           String ingressIdentity,
+                                           String leaseName,
+                                           Duration configuredTtl) {
+        String leaseKey = buildLeaseKey(leaseType, platform, ingressIdentity, leaseName);
         if (!properties.isRedisMode()) {
             localOwnership.put(leaseKey, Boolean.TRUE);
             return true;
@@ -129,7 +145,11 @@ public class BotIngressCoordinationService {
     }
 
     private void releaseLease(String leaseType, String platform, Long channelId, String leaseName) {
-        String leaseKey = buildLeaseKey(leaseType, platform, channelId, leaseName);
+        releaseLease(leaseType, platform, normalizeChannelId(channelId), leaseName);
+    }
+
+    private void releaseLease(String leaseType, String platform, String ingressIdentity, String leaseName) {
+        String leaseKey = buildLeaseKey(leaseType, platform, ingressIdentity, leaseName);
         localOwnership.remove(leaseKey);
         if (!properties.isRedisMode()) {
             return;
@@ -150,12 +170,16 @@ public class BotIngressCoordinationService {
     }
 
     private String buildLeaseKey(String leaseType, String platform, Long channelId, String leaseName) {
+        return buildLeaseKey(leaseType, platform, normalizeChannelId(channelId), leaseName);
+    }
+
+    private String buildLeaseKey(String leaseType, String platform, String ingressIdentity, String leaseName) {
         String namespace = StringUtils.hasText(properties.getLeaseNamespace())
             ? properties.getLeaseNamespace().trim()
             : "iguana";
         String normalizedLeaseType = StringUtils.hasText(leaseType) ? leaseType.trim().toLowerCase() : "ingress";
         String normalizedPlatform = StringUtils.hasText(platform) ? platform.trim().toLowerCase() : "unknown";
-        String normalizedChannel = channelId == null ? "0" : Long.toString(channelId);
+        String normalizedChannel = StringUtils.hasText(ingressIdentity) ? ingressIdentity.trim() : "0";
         StringBuilder key = new StringBuilder(namespace)
             .append(":bot-lease:")
             .append(normalizedLeaseType)
@@ -167,6 +191,10 @@ public class BotIngressCoordinationService {
             key.append(":name:").append(leaseName.trim().toLowerCase());
         }
         return key.toString();
+    }
+
+    private String normalizeChannelId(Long channelId) {
+        return channelId == null ? "0" : Long.toString(channelId);
     }
 
     private Duration safeDuration(Duration value, Duration fallback) {

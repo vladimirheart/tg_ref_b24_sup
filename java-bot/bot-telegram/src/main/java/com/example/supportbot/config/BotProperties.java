@@ -1,5 +1,9 @@
 package com.example.supportbot.config;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -33,5 +37,17 @@ public class BotProperties {
 
     public void setChannelId(Long channelId) {
         this.channelId = channelId;
+    }
+
+    public String ingressLeaseIdentity() {
+        if (token == null || token.isBlank()) {
+            return "username:" + (username == null ? "unknown" : username.trim().toLowerCase());
+        }
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8));
+            return "token-sha256:" + HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable for Telegram ingress coordination.", ex);
+        }
     }
 }

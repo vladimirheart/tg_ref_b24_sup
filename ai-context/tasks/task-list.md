@@ -251,6 +251,7 @@
 🟠 [01-229] Удалить SQLite compatibility perimeter из production-исходников, UI и reference-документации
 🟠 [01-230] Сверить и безопасно консолидировать изменившиеся legacy bot shard-файлы
 🟣 [01-231] Исправить битую UTF-8 кодировку fallback-ответа Telegram-бота для стикеров
-🟠 [01-232] Устранить конкурирующие Telegram long-polling экземпляры с одним токеном
+🟣 [01-232] Устранить конкурирующие Telegram long-polling экземпляры с одним токеном
 🟣 [01-233] Сделать интервалы и паузы RMS-мониторинга настраиваемыми из UI
-🟡 [01-234] Перевести production bot runtime на обязательный PostgreSQL datasource
+🟣 [01-234] Перевести production bot runtime на обязательный PostgreSQL datasource
+🟠 [01-235] Восстановить core production services и выполнить контролируемый rollout bot runtime с PostgreSQL и Redis lease

@@ -335,12 +335,11 @@ public class BotRuntimeContractService {
     }
 
     private List<String> optionalEnvironmentKeys(Channel channel) {
-        List<String> keys = new ArrayList<>();
-        if (isRabbitMqTransportMode()) {
-            // Production workers deliberately receive no business-database credentials.
-        } else {
-            keys.addAll(List.of("SPRING_DATASOURCE_USERNAME", "SPRING_DATASOURCE_PASSWORD", "DATABASE_URL"));
-        }
+        List<String> keys = new ArrayList<>(List.of(
+            "SPRING_DATASOURCE_USERNAME",
+            "SPRING_DATASOURCE_PASSWORD",
+            "DATABASE_URL"
+        ));
         String platform = normalizePlatform(channel);
         if ("vk".equals(platform)) {
             keys.addAll(List.of("VK_GROUP_ID", "VK_CONFIRMATION_TOKEN", "VK_WEBHOOK_SECRET"));
@@ -392,10 +391,6 @@ public class BotRuntimeContractService {
     private long resolveChannelId(Channel channel) {
         Long channelId = channel != null ? channel.getId() : null;
         return channelId != null && channelId > 0 ? channelId : 0L;
-    }
-
-    private void applyWorkerDatabaseEnvironment(Map<String, String> env) {
-        env.put("APP_DB_MODE", "worker");
     }
 
     private void applyDatabaseEnvironment(Map<String, String> env) {

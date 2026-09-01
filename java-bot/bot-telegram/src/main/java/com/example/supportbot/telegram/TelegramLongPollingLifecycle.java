@@ -49,7 +49,7 @@ public class TelegramLongPollingLifecycle implements SmartLifecycle {
     private void coordinationLoop() {
         while (running) {
             try {
-                if (ingressCoordinationService.tryAcquireOrRenew("telegram", properties.getChannelId())) {
+                if (ingressCoordinationService.tryAcquireOrRenew("telegram", properties.ingressLeaseIdentity())) {
                     ensureSessionStarted();
                     sleepSilently(ingressCoordinationService.renewInterval());
                 } else {
@@ -88,7 +88,7 @@ public class TelegramLongPollingLifecycle implements SmartLifecycle {
             thread.interrupt();
         }
         ensureSessionStopped(true);
-        ingressCoordinationService.release("telegram", properties.getChannelId());
+        ingressCoordinationService.release("telegram", properties.ingressLeaseIdentity());
         log.info("Telegram long polling stopped. username={}", supportBot.getBotUsername());
     }
 

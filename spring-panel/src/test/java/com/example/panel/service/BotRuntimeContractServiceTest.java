@@ -98,9 +98,13 @@ class BotRuntimeContractServiceTest {
 
         assertThat(contract.resolvedLauncherKind()).isEqualTo("jar");
         assertThat(contract.artifactSource()).isEqualTo("explicit-config");
-        assertThat(contract.requiredEnvironmentKeys()).contains("APP_DB_MODE", "APP_INTEGRATION_TRANSPORT_MODE");
-        assertThat(contract.requiredEnvironmentKeys()).doesNotContain("SPRING_DATASOURCE_URL", "APP_DB_PANEL_RUNTIME");
-        assertThat(contract.optionalEnvironmentKeys()).doesNotContain(
+        assertThat(contract.requiredEnvironmentKeys()).contains(
+            "APP_DB_MODE",
+            "SPRING_DATASOURCE_URL",
+            "APP_INTEGRATION_TRANSPORT_MODE"
+        );
+        assertThat(contract.requiredEnvironmentKeys()).doesNotContain("APP_DB_PANEL_RUNTIME");
+        assertThat(contract.optionalEnvironmentKeys()).contains(
             "SPRING_DATASOURCE_USERNAME",
             "SPRING_DATASOURCE_PASSWORD",
             "DATABASE_URL"
@@ -111,7 +115,7 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
-    void buildEnvironmentUsesIsolatedWorkerModeForRabbitMqAndOmitsCanonicalDatabaseCredentials() {
+    void buildEnvironmentUsesPostgresForRabbitMqAndPassesCanonicalDatabaseCredentials() {
         BotRuntimeContractService service = createService(
             "auto",
             Map.of(),
@@ -135,12 +139,12 @@ class BotRuntimeContractServiceTest {
         );
 
         assertThat(env)
-            .containsEntry("APP_DB_MODE", "worker")
+            .containsEntry("APP_DB_MODE", "postgresql")
+            .containsEntry("SPRING_DATASOURCE_URL", "jdbc:postgresql://db.example.local:5432/iguana")
+            .containsEntry("SPRING_DATASOURCE_USERNAME", "iguana")
+            .containsEntry("SPRING_DATASOURCE_PASSWORD", "secret")
             .containsEntry("APP_INTEGRATION_TRANSPORT_MODE", "rabbitmq")
             .doesNotContainKeys(
-                "SPRING_DATASOURCE_URL",
-                "SPRING_DATASOURCE_USERNAME",
-                "SPRING_DATASOURCE_PASSWORD",
                 "DATABASE_URL",
                 "APP_DB_BOT_RUNTIME",
                 "SUPPORT_BOT_DATABASE_PATH"
