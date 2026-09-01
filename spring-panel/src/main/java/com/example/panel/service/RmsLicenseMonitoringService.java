@@ -162,6 +162,10 @@ public class RmsLicenseMonitoringService {
         this.networkRefreshExecutor = Executors.newSingleThreadExecutor(namedThreadFactory("rms-network-refresh"));
     }
 
+    RmsLicenseMonitoringService(RmsLicenseMonitorRepository repository, MonitoringCheckHistoryRepository historyRepository, NotificationService notificationService, RmsRefreshQueueRepository refreshQueueRepository, ObjectMapper objectMapper) {
+        this(repository, historyRepository, notificationService, refreshQueueRepository, objectMapper, null);
+    }
+
     @PreDestroy
     void shutdownExecutors() {
         licenseRefreshExecutor.shutdownNow();
@@ -1627,7 +1631,7 @@ public class RmsLicenseMonitoringService {
             return;
         }
         try {
-            Thread.sleep(scheduleSettingsService.load().queueGapSeconds() * 1000L);
+            Thread.sleep((scheduleSettingsService != null ? scheduleSettingsService.load().queueGapSeconds() : 20) * 1000L);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }

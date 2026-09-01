@@ -147,11 +147,9 @@ public class BotRuntimeContractService {
 
     public Map<String, String> buildEnvironment(Channel channel, BotCredential credential, Path logFile) {
         Map<String, String> env = new LinkedHashMap<>();
-        if (isRabbitMqTransportMode()) {
-            applyWorkerDatabaseEnvironment(env);
-        } else {
-            applyDatabaseEnvironment(env);
-        }
+        // RabbitMQ carries integration events, not canonical bot persistence.
+        // Every production bot still needs the shared PostgreSQL source of truth.
+        applyDatabaseEnvironment(env);
         applyStorageEnvironment(env);
         env.put("TELEGRAM_BOT_TOKEN", credential.token());
         env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
@@ -317,11 +315,7 @@ public class BotRuntimeContractService {
             "SPRING_PROFILES_ACTIVE",
             "JAVA_TOOL_OPTIONS"
         ));
-        if (isRabbitMqTransportMode()) {
-            keys.add("APP_DB_MODE");
-        } else {
-            keys.addAll(List.of("APP_DB_MODE", "SPRING_DATASOURCE_URL"));
-        }
+        keys.addAll(List.of("APP_DB_MODE", "SPRING_DATASOURCE_URL"));
         String platform = normalizePlatform(channel);
         if ("vk".equals(platform)) {
             keys.addAll(List.of("VK_BOT_ENABLED", "VK_BOT_TOKEN", "VK_OPERATOR_CHAT_ID", "VK_WEBHOOK_ENABLED"));

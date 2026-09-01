@@ -256,7 +256,10 @@ services:
       panel-web:
         condition: service_healthy
     environment:
-      APP_DB_MODE: worker
+      APP_DB_MODE: postgresql
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IGUANA_POSTGRES_DB:-iguana}
+      SPRING_DATASOURCE_USERNAME: ${IGUANA_POSTGRES_USER:-iguana}
+      SPRING_DATASOURCE_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
       APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
       APP_COORDINATION_MODE: redis
       APP_STORAGE_OBJECT_MODE: s3
@@ -307,7 +310,10 @@ services:
       panel-web:
         condition: service_healthy
     environment:
-      APP_DB_MODE: worker
+      APP_DB_MODE: postgresql
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IGUANA_POSTGRES_DB:-iguana}
+      SPRING_DATASOURCE_USERNAME: ${IGUANA_POSTGRES_USER:-iguana}
+      SPRING_DATASOURCE_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
       APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
       APP_COORDINATION_MODE: redis
       APP_STORAGE_OBJECT_MODE: s3
@@ -365,7 +371,10 @@ services:
       panel-web:
         condition: service_healthy
     environment:
-      APP_DB_MODE: worker
+      APP_DB_MODE: postgresql
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IGUANA_POSTGRES_DB:-iguana}
+      SPRING_DATASOURCE_USERNAME: ${IGUANA_POSTGRES_USER:-iguana}
+      SPRING_DATASOURCE_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
       APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
       APP_COORDINATION_MODE: redis
       APP_STORAGE_OBJECT_MODE: s3
