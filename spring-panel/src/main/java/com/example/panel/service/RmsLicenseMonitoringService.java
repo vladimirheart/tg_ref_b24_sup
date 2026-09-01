@@ -145,6 +145,7 @@ public class RmsLicenseMonitoringService {
     @Autowired(required = false)
     private BackendOpsCommandExecutionContext backendOpsExecutionContext;
 
+    @Autowired
     public RmsLicenseMonitoringService(RmsLicenseMonitorRepository repository,
                                        MonitoringCheckHistoryRepository historyRepository,
                                        NotificationService notificationService,

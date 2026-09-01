@@ -807,7 +807,7 @@ public class NetBoxObjectPassportSyncService {
             ExistingItConnectionParameter existing = existingByValue.get(buildItParameterValueKey(desired.value()));
             if (existing != null && existing.id() != null) {
                 jdbcTemplate.update(
-                        "UPDATE settings_parameters SET value = ?, state = ?, is_deleted = 0, deleted_at = NULL, extra_json = ? WHERE id = ?",
+                        "UPDATE settings_parameters SET value = ?, state = ?, is_deleted = FALSE, deleted_at = NULL, extra_json = ? WHERE id = ?",
                         desired.value(),
                         STATUS_ACTIVE,
                         extraJson,
@@ -815,7 +815,7 @@ public class NetBoxObjectPassportSyncService {
                 );
             } else {
                 jdbcTemplate.update(
-                        "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, ?, 0, ?)",
+                        "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, ?, FALSE, ?)",
                         "it_connection",
                         desired.value(),
                         STATUS_ACTIVE,

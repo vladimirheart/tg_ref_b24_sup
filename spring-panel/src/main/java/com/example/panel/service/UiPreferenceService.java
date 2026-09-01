@@ -80,7 +80,7 @@ public class UiPreferenceService {
         }
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT extra_json FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = 0 LIMIT 1",
+                "SELECT extra_json FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = FALSE LIMIT 1",
                 PARAM_TYPE,
                 username.trim()
             );
@@ -106,13 +106,13 @@ public class UiPreferenceService {
         }
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT id FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = 0 LIMIT 1",
+                "SELECT id FROM settings_parameters WHERE param_type = ? AND lower(value) = lower(?) AND is_deleted = FALSE LIMIT 1",
                 PARAM_TYPE,
                 username.trim()
             );
             if (rows.isEmpty()) {
                 jdbcTemplate.update(
-                    "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', 0, ?)",
+                    "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', FALSE, ?)",
                     PARAM_TYPE,
                     username.trim(),
                     json
@@ -120,7 +120,7 @@ public class UiPreferenceService {
             } else {
                 Number id = (Number) rows.get(0).get("id");
                 jdbcTemplate.update(
-                    "UPDATE settings_parameters SET state = 'Активен', is_deleted = 0, deleted_at = NULL, extra_json = ? WHERE id = ?",
+                    "UPDATE settings_parameters SET state = 'Активен', is_deleted = FALSE, deleted_at = NULL, extra_json = ? WHERE id = ?",
                     json,
                     id != null ? id.longValue() : null
                 );

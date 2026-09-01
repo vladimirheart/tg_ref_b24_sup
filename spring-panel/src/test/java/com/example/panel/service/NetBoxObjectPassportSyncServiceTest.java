@@ -336,7 +336,7 @@ class NetBoxObjectPassportSyncServiceTest {
 
         assertEquals("success", result.state());
         verify(jdbcTemplate).update(
-                "UPDATE settings_parameters SET value = ?, state = ?, is_deleted = 0, deleted_at = NULL, extra_json = ? WHERE id = ?",
+                "UPDATE settings_parameters SET value = ?, state = ?, is_deleted = FALSE, deleted_at = NULL, extra_json = ? WHERE id = ?",
                 "Cisco",
                 "Активен",
                 "{\"category\":\"equipment_vendor\",\"category_label\":\"Производитель оборудования\",\"equipment_type\":\"\",\"equipment_vendor\":\"Cisco\",\"equipment_model\":\"\",\"equipment_status\":\"\"}",
