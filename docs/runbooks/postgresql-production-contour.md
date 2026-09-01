@@ -229,6 +229,50 @@ Get-Content ..\logs\errors.log -Encoding UTF8 -Tail 100 -Wait
 `sqlite`, `jdbc` и `local_fs` остаются допустимыми только для явно выбранных compatibility/dev/import сценариев. Snapshot `compatibility` не является production-ready состоянием.
 
 После выполнения этого gate дальнейшие richer reporting, external alerting и worker-forensics следует вести отдельными задачами: они улучшают maturity, но не открывают заново базовый production-contour scope `01-183`.
+
+## Закрытие переноса legacy SQLite
+
+В canonical production contour SQLite не должен быть runtime dependency. Если инсталляция содержит исторические `*.db`, их перенос выполняет только одноразовая роль `db-migrate`; `panel-web` и `ops-worker` не получают доступ к этим файлам.
+
+Подготовьте неизменяемую staging-копию. Скрипт читает source, создаёт копии в `.tmp/legacy-sqlite-import` и записывает SHA-256 manifest. Исходные БД не изменяются.
+
+```powershell
+.\scripts\stage-legacy-sqlite-import.ps1 -Replace
+```
+
+```bash
+./scripts/stage-legacy-sqlite-import.sh --replace
+```
+
+Для разового import window установите в локальном `.env`:
+
+```text
+IGUANA_LEGACY_SQLITE_AUTO_IMPORT=true
+IGUANA_LEGACY_SQLITE_STAGING_DIR=./.tmp/legacy-sqlite-import
+```
+
+Запустите только мигратор. Он использует staging как read-only mount, а не живые файлы из корня репозитория:
+
+```powershell
+docker compose -f docker-compose.production-contour.yml up --no-deps --force-recreate db-migrate
+```
+
+После exit code `0` обязательно выполните сверку. Она проверяет critical tables из `panel_runtime.db` (`messages`, `chat_history`, `notifications`, `web_form_sessions`, `chat_attachment_metadata`) и наличие recovery evidence в PostgreSQL. Если PostgreSQL содержит меньше строк, команда завершается ошибкой.
+
+```powershell
+.\scripts\verify-legacy-sqlite-import.ps1
+```
+
+`bot-*.db`, изменившийся после прошлого import marker, не переимпортируется автоматически. Verifier выводит его как отдельный warning; такой shard нужно разобрать вручную и перенести отдельным идемпотентным сценарием, а не удалять marker.
+
+Только после зелёной сверки и проверки dialog/media/UI:
+
+1. Установите `IGUANA_LEGACY_SQLITE_AUTO_IMPORT=false`.
+2. Пересоздайте обычный contour через `scripts/docker-production-up.ps1`.
+3. Сохраните staging manifest и исходные SQLite-файлы в off-host архиве на согласованное rollback window.
+4. Уберите источники из runtime-монтажа только отдельным решением после истечения rollback window.
+
+Не удаляйте и не выполняйте `VACUUM` над SQLite-источниками до завершения этой последовательности.
 ## Monitoring history retention / legacy compaction (v39)
 
 `monitoring_check_history` хранится не более 30 дней на текущем canonical monitoring runtime:

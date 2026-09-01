@@ -236,7 +236,7 @@ import java.util.regex.Pattern;
         long importedRows = 0L;
         List<String> failedTables = new ArrayList<>();
 
-        String sqliteUrl = "jdbc:sqlite:" + source.path().toAbsolutePath().normalize();
+        String sqliteUrl = readOnlySqliteUrl(source.path());
         try (Connection sqlite = java.sql.DriverManager.getConnection(sqliteUrl)) {
             List<String> tables = loadSqliteTables(sqlite);
             tables.sort(tableComparator());
@@ -278,11 +278,7 @@ import java.util.regex.Pattern;
         Connection target,
         Path source) {
 
-    String sqliteUrl =
-        "jdbc:sqlite:"
-            + source
-                .toAbsolutePath()
-                .normalize();
+    String sqliteUrl = readOnlySqliteUrl(source);
 
     int recovered = 0;
 
@@ -735,6 +731,11 @@ import java.util.regex.Pattern;
             resolved.putIfAbsent(normalized, new LegacySource(group.label(), normalized));
         }
         return new ArrayList<>(resolved.values());
+    }
+
+    private String readOnlySqliteUrl(Path source) {
+        String normalized = source.toAbsolutePath().normalize().toString().replace('\\', '/');
+        return "jdbc:sqlite:file:" + normalized + "?mode=ro&immutable=1";
     }
 
     private Path resolveSource(SourceGroup group, Path workspaceRoot, Path panelHome) {

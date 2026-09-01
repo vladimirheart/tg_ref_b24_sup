@@ -116,7 +116,7 @@ import java.util.regex.Pattern;
         int processedTables = 0;
 
         try (Connection target = dataSource.getConnection();
-             Connection sqlite = java.sql.DriverManager.getConnection("jdbc:sqlite:" + source.toAbsolutePath().normalize())) {
+             Connection sqlite = java.sql.DriverManager.getConnection(readOnlySqliteUrl(source))) {
             boolean previousAutoCommit = target.getAutoCommit();
             target.setAutoCommit(false);
             try {
@@ -589,6 +589,11 @@ import java.util.regex.Pattern;
             .filter(this::isUsable)
             .max(Comparator.comparingLong(this::fileSize))
             .orElse(null);
+    }
+
+    private String readOnlySqliteUrl(Path source) {
+        String normalized = source.toAbsolutePath().normalize().toString().replace('\\', '/');
+        return "jdbc:sqlite:file:" + normalized + "?mode=ro&immutable=1";
     }
 
     private boolean isUsable(Path path) {

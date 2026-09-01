@@ -61,6 +61,15 @@ x-panel-volumes: &panel-volumes
   - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
   - ${IGUANA_BOT_DATABASES_DIR:-./bot_databases}:/opt/iguana/bot_databases
 
+# Legacy SQLite sources are exposed only to the one-shot migrator. Operators
+# stage immutable copies here; web and worker roles never receive this mount.
+x-db-migrate-volumes: &db-migrate-volumes
+  - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared:ro
+  - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments:ro
+  - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
+  - ${IGUANA_LEGACY_SQLITE_STAGING_DIR:-./.tmp/legacy-sqlite-import}:/opt/iguana/legacy-sqlite:ro
+  - ${IGUANA_LEGACY_SQLITE_STAGING_DIR:-./.tmp/legacy-sqlite-import}/bot_databases:/opt/iguana/bot_databases:ro
+
 x-panel-infra-depends: &panel-infra-depends
   postgres:
     condition: service_healthy
@@ -169,7 +178,15 @@ services:
       APP_RUNTIME_ROLE: db-migrate
       APP_RUNTIME_EXIT_AFTER_MIGRATION: "true"
       APP_INSTANCE_ID: db-migrate
-    volumes: *panel-volumes
+      APP_DB_PANEL_RUNTIME: /opt/iguana/legacy-sqlite/panel_runtime.db
+      APP_DB_PANEL_IDENTITY: /opt/iguana/legacy-sqlite/panel_identity.db
+      APP_DB_MONITORING: /opt/iguana/legacy-sqlite/monitoring.db
+      APP_DB_BOT_RUNTIME: /opt/iguana/legacy-sqlite/bot_runtime.db
+      APP_DB_CLIENTS: /opt/iguana/legacy-sqlite/clients.db
+      APP_DB_KNOWLEDGE: /opt/iguana/legacy-sqlite/knowledge_base.db
+      APP_DB_OBJECTS: /opt/iguana/legacy-sqlite/objects.db
+      APP_BOT_DATABASE_DIR: /opt/iguana/bot_databases
+    volumes: *db-migrate-volumes
 
   ops-worker:
     <<: *panel-build

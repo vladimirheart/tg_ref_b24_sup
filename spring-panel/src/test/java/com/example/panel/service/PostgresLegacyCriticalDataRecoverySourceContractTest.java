@@ -18,6 +18,7 @@ class PostgresLegacyCriticalDataRecoverySourceContractTest {
             .contains("\"chat_history\"")
             .contains("\"notifications\"")
             .contains("\"web_form_sessions\"")
-            .contains("\"chat_attachment_metadata\"");
+            .contains("\"chat_attachment_metadata\"")
+            .contains("?mode=ro&immutable=1");
     }
 }

@@ -247,3 +247,6 @@
 🟣 [01-225] Довести persisted credential rotation до Bash parity и remaining apply contour
 🟢 [01-226] Добавить Grafana apply-path и multi-component rehearsal для persisted credential rotation
 🟢 [01-227] Автоматизировать bulk rotation и rehearsal flow для persisted credentials
+🟣 [01-228] Завершить контролируемый перенос legacy SQLite данных в PostgreSQL и закрыть runtime-доступ к исходным БД
+🟠 [01-229] Удалить SQLite compatibility perimeter из production-исходников, UI и reference-документации
+🟠 [01-230] Сверить и безопасно консолидировать изменившиеся legacy bot shard-файлы

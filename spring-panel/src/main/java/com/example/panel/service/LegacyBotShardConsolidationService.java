@@ -194,7 +194,7 @@ import java.util.stream.Stream;
     private long importShard(Connection target, Path shardFile) throws SQLException {
         boolean previousAutoCommit = target.getAutoCommit();
         target.setAutoCommit(false);
-        try (Connection source = DriverManager.getConnection("jdbc:sqlite:" + shardFile.toAbsolutePath().normalize())) {
+        try (Connection source = DriverManager.getConnection(readOnlySqliteUrl(shardFile))) {
             long importedRows = 0L;
             importedRows += importBotUsers(source, target);
             importedRows += importBotChatHistory(source, target);
@@ -208,6 +208,11 @@ import java.util.stream.Stream;
         } finally {
             target.setAutoCommit(previousAutoCommit);
         }
+    }
+
+    private String readOnlySqliteUrl(Path source) {
+        String normalized = source.toAbsolutePath().normalize().toString().replace('\\', '/');
+        return "jdbc:sqlite:file:" + normalized + "?mode=ro&immutable=1";
     }
 
     private long importBotUsers(Connection source, Connection target) throws SQLException {

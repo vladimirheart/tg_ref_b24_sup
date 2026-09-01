@@ -52,6 +52,17 @@ class DockerProductionRoleTopologySourceContractTest {
             .contains("expose:")
             .doesNotContain("\n    ports:");
 
+        String migrator = section(compose, "  db-migrate:", "  ops-worker:");
+        assertThat(migrator)
+            .contains("APP_DB_PANEL_RUNTIME: /opt/iguana/legacy-sqlite/panel_runtime.db")
+            .contains("APP_BOT_DATABASE_DIR: /opt/iguana/bot_databases")
+            .contains("volumes: *db-migrate-volumes");
+
+        assertThat(compose)
+            .contains("x-db-migrate-volumes: &db-migrate-volumes")
+            .contains("/opt/iguana/legacy-sqlite:ro")
+            .contains("/opt/iguana/bot_databases:ro");
+
         assertThat(count(compose, "condition: service_completed_successfully"))
             .isGreaterThanOrEqualTo(3);
     }
@@ -128,7 +139,8 @@ class DockerProductionRoleTopologySourceContractTest {
         assertThat(env)
             .contains("IGUANA_PANEL_WEB_REPLICAS=1")
             .contains("IGUANA_OPS_WORKER_REPLICAS=1")
-            .contains("MONITORING_CREDENTIALS_MASTER_KEY=change-me");
+            .contains("MONITORING_CREDENTIALS_MASTER_KEY=change-me")
+            .contains("IGUANA_LEGACY_SQLITE_STAGING_DIR=./.tmp/legacy-sqlite-import");
 
         assertThat(entrypoint)
             .contains("APP_INSTANCE_ID")
@@ -221,7 +233,7 @@ void dockerSmokeDecodesWindowsPowerShellByteArrayHttpBodiesBeforeJsonParsing() t
         return Files.readString(
             REPO_ROOT.resolve(relativePath),
             StandardCharsets.UTF_8
-        );
+        ).replace("\r\n", "\n");
     }
 
     private String section(String content, String startMarker, String endMarker) {
