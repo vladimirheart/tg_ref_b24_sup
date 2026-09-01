@@ -96,6 +96,7 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    command: ["postgres", "-c", "max_connections=${APP_POSTGRES_MAX_CONNECTIONS:-150}"]
     environment:
       POSTGRES_DB: ${IGUANA_POSTGRES_DB:-iguana}
       POSTGRES_USER: ${IGUANA_POSTGRES_USER:-iguana}
