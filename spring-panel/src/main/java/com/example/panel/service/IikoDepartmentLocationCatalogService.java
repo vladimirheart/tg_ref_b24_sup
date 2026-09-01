@@ -213,6 +213,11 @@ public class IikoDepartmentLocationCatalogService {
                 ? new LinkedHashMap<>(snapshot.statuses())
                 : toStringObjectMap(merged.get("statuses"));
 
+        Map<String, Object> existingLocationMeta = toStringObjectMap(merged.get("location_meta"));
+        if (snapshot != null && LIVE_SOURCE.equals(snapshot.source())) {
+            applyManualLocationNameOverrides(resolvedTree, resolvedStatuses, existingLocationMeta);
+        }
+
         merged.put("tree", resolvedTree);
         merged.put("statuses", resolvedStatuses);
 
@@ -222,10 +227,69 @@ public class IikoDepartmentLocationCatalogService {
                     merged.get("city_meta")));
             merged.put("location_meta", mergeGeneratedMeta(
                     buildLocationMetaFromTree(resolvedTree),
-                    merged.get("location_meta")));
+                    clearConsumedSyncOverwriteFlags(existingLocationMeta)));
         }
 
         return merged;
+    }
+
+    private void applyManualLocationNameOverrides(Map<String, Object> tree,
+                                                  Map<String, Object> statuses,
+                                                  Map<String, Object> locationMeta) {
+        locationMeta.forEach((metaKey, rawMeta) -> {
+            Map<String, Object> meta = toStringObjectMap(rawMeta);
+            Object rawSourceName = meta.get("iiko_sync_source_name");
+            String sourceName = rawSourceName instanceof String value ? normalizeText(value) : "";
+            if (!Boolean.TRUE.equals(meta.get("iiko_sync_manual_override")) || !StringUtils.hasText(sourceName)) {
+                return;
+            }
+            String[] parts = metaKey.split("::", 4);
+            if (parts.length != 4) {
+                return;
+            }
+            String sourceStatusKey = "location::" + String.join("::", parts[0], parts[1], parts[2], sourceName);
+            String manualStatusKey = "location::" + metaKey;
+            Object sourceStatus = statuses.get(sourceStatusKey);
+            if (sourceStatus != null) {
+                // Status remains owned by iiko even while the operator protects the display name.
+                statuses.put(manualStatusKey, sourceStatus);
+            }
+            if (Boolean.TRUE.equals(meta.get("iiko_sync_overwrite_once"))) {
+                removeLocation(tree, parts[0], parts[1], parts[2], parts[3]);
+            } else {
+                removeLocation(tree, parts[0], parts[1], parts[2], sourceName);
+                statuses.remove(sourceStatusKey);
+            }
+        });
+    }
+
+    private void removeLocation(Map<String, Object> tree,
+                                String business,
+                                String locationType,
+                                String city,
+                                String location) {
+        Map<String, Object> types = toStringObjectMap(tree.get(business));
+        Map<String, Object> cities = toStringObjectMap(types.get(locationType));
+        List<String> locations = new ArrayList<>(toStringList(cities.get(city)));
+        if (locations.remove(location)) {
+            cities.put(city, locations);
+            types.put(locationType, cities);
+            tree.put(business, types);
+        }
+    }
+
+    private Map<String, Object> clearConsumedSyncOverwriteFlags(Map<String, Object> existingMeta) {
+        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+        existingMeta.forEach((key, rawValue) -> {
+            LinkedHashMap<String, Object> meta = new LinkedHashMap<>(toStringObjectMap(rawValue));
+            if (Boolean.TRUE.equals(meta.get("iiko_sync_overwrite_once"))) {
+                meta.put("iiko_sync_overwrite_once", false);
+                meta.put("iiko_sync_manual_override", false);
+                meta.remove("iiko_sync_source_name");
+            }
+            result.put(key, meta);
+        });
+        return result;
     }
 
     private Map<String, Object> sanitizeLocationsPayload(Map<String, Object> rawPayload) {

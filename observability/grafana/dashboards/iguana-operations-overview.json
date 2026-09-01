@@ -1,0 +1,113 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    { "title": "Runtime drill-down", "type": "link", "url": "/d/iguana-runtime-overview", "targetBlank": false },
+    { "title": "Infrastructure drill-down", "type": "link", "url": "/d/iguana-infrastructure", "targetBlank": false },
+    { "title": "Logs", "type": "link", "url": "/d/iguana-logs", "targetBlank": false }
+  ],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "mappings": [{ "options": { "0": { "color": "red", "text": "NOT READY" }, "1": { "color": "green", "text": "READY" } }, "type": "value" }], "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value_and_name" },
+      "targets": [{ "expr": "max(iguana_production_readiness{job=\"iguana-ops-worker\"})", "instant": true, "refId": "A" }],
+      "title": "Production readiness",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 0.01 }, { "color": "red", "value": 0.02 }] } }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value_and_name" },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"iguana-panel-web\",status=~\"5..\",uri!~\"/actuator.*\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=\"iguana-panel-web\",uri!~\"/actuator.*\"}[5m])), 0.001)", "instant": true, "refId": "A" }],
+      "title": "5xx rate, 5m",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 2 }] } }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value_and_name" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"iguana-panel-web\",uri!~\"/actuator.*\"}[5m])))", "instant": true, "refId": "A" }],
+      "title": "p95 latency, 5m",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "value_and_name" },
+      "targets": [{ "expr": "max(iguana_transport_queue_messages{job=\"iguana-ops-worker\",queue_metric=~\".*_dlq_messages\"})", "instant": true, "refId": "A" }],
+      "title": "DLQ messages",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 5 },
+      "id": 5,
+      "options": { "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "expr": "sum(rate(http_server_requests_seconds_count{job=\"iguana-panel-web\",uri!~\"/actuator.*\"}[5m]))", "legendFormat": "requests", "refId": "A" }, { "expr": "sum(rate(http_server_requests_seconds_count{job=\"iguana-panel-web\",status=~\"5..\",uri!~\"/actuator.*\"}[5m]))", "legendFormat": "5xx", "refId": "B" }],
+      "title": "User-facing traffic",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 5 },
+      "id": 6,
+      "options": { "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "expr": "max by (queue_metric) (iguana_transport_queue_messages{job=\"iguana-ops-worker\"})", "legendFormat": "{{queue_metric}}", "refId": "A" }],
+      "title": "Transport queues",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 5 },
+      "id": 7,
+      "options": { "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "expr": "max by (metric) (iguana_incident_delivery_outbox{job=\"iguana-ops-worker\",metric=~\"failed_current|stale_processing\"})", "legendFormat": "{{metric}}", "refId": "A" }],
+      "title": "Incident delivery exceptions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "mappings": [{ "options": { "0": { "color": "red", "text": "DOWN" }, "1": { "color": "green", "text": "UP" } }, "type": "value" }], "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 13 },
+      "id": 8,
+      "options": { "showHeader": true },
+      "targets": [{ "expr": "max by (job) (up{job=~\"postgres|redis|rabbitmq|minio|prometheus|loki|alloy|alertmanager\"})", "format": "table", "instant": true, "refId": "A" }],
+      "title": "Dependency health",
+      "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "instance": true }, "renameByName": { "Value": "Health", "job": "Dependency" } } }],
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 13 },
+      "id": 9,
+      "options": { "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "expr": "sum by (runtime_role,instance_id) (jvm_memory_used_bytes{area=\"heap\",job=~\"iguana-panel-web|iguana-ops-worker\"}) / sum by (runtime_role,instance_id) (jvm_memory_max_bytes{area=\"heap\",job=~\"iguana-panel-web|iguana-ops-worker\"})", "legendFormat": "{{runtime_role}} / {{instance_id}}", "refId": "A" }],
+      "title": "Application heap usage",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": ["iguana", "operations", "sli"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "title": "Iguana Operations Overview",
+  "uid": "iguana-operations-overview",
+  "version": 1
+}

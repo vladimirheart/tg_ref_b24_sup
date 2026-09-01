@@ -108,10 +108,13 @@
       }
       const country = typeof value.country === 'string' ? value.country.trim() : '';
       const partnerType = typeof value.partner_type === 'string' ? value.partner_type.trim() : '';
-      if (!country && !partnerType) {
+      const manualOverride = value.iiko_sync_manual_override === true;
+      const overwriteOnce = value.iiko_sync_overwrite_once === true;
+      const sourceName = typeof value.iiko_sync_source_name === 'string' ? value.iiko_sync_source_name.trim() : '';
+      if (!country && !partnerType && !manualOverride && !overwriteOnce) {
         return;
       }
-      result[key] = { country, partner_type: partnerType };
+      result[key] = { country, partner_type: partnerType, iiko_sync_manual_override: manualOverride, iiko_sync_overwrite_once: overwriteOnce, iiko_sync_source_name: sourceName };
     });
     return result;
   }
@@ -256,11 +259,14 @@
       const storage = state && typeof state === 'object' ? state[mapName] : null;
       const raw = storage && typeof storage === 'object' ? storage[key] : null;
       if (!raw || typeof raw !== 'object') {
-        return { country: '', partner_type: '' };
+        return { country: '', partner_type: '', iiko_sync_manual_override: false, iiko_sync_overwrite_once: false, iiko_sync_source_name: '' };
       }
       return {
         country: typeof raw.country === 'string' ? raw.country.trim() : '',
         partner_type: typeof raw.partner_type === 'string' ? raw.partner_type.trim() : '',
+        iiko_sync_manual_override: raw.iiko_sync_manual_override === true,
+        iiko_sync_overwrite_once: raw.iiko_sync_overwrite_once === true,
+        iiko_sync_source_name: typeof raw.iiko_sync_source_name === 'string' ? raw.iiko_sync_source_name.trim() : '',
       };
     }
 
@@ -274,7 +280,7 @@
         delete state[mapName][key];
         return;
       }
-      state[mapName][key] = { country, partner_type: partnerType };
+      state[mapName][key] = { country, partner_type: partnerType, iiko_sync_manual_override: meta.iiko_sync_manual_override === true, iiko_sync_overwrite_once: meta.iiko_sync_overwrite_once === true, iiko_sync_source_name: typeof meta.iiko_sync_source_name === 'string' ? meta.iiko_sync_source_name.trim() : '' };
     }
 
     function getStatus(level, ...parts) {
@@ -774,6 +780,20 @@
       if (meta) {
         card.appendChild(meta);
       }
+      const syncButton = document.createElement('button');
+      syncButton.type = 'button';
+      syncButton.className = 'btn btn-sm btn-outline-secondary mt-1';
+      syncButton.textContent = locationMeta.iiko_sync_overwrite_once ? 'iiko вернёт имя при следующем обновлении' : 'Разрешить iiko вернуть имя';
+      syncButton.disabled = locationMeta.iiko_sync_overwrite_once;
+      syncButton.addEventListener('click', () => {
+        writeNodeMeta('location_meta', makeLocationMetaKey(businessName, typeName, cityName, locationName), {
+          ...locationMeta,
+          iiko_sync_manual_override: true,
+          iiko_sync_overwrite_once: true,
+        });
+        buildLocationsTree();
+      });
+      card.appendChild(syncButton);
       item.appendChild(card);
 
       return item;
@@ -1285,6 +1305,16 @@
         [business, typeName, cityName, trimmed],
         statusValue || getStatus('location', business, typeName, cityName, trimmed),
       );
+      if (trimmed !== currentName) {
+        const metaKey = makeLocationMetaKey(business, typeName, cityName, trimmed);
+        const existingMeta = readNodeMeta('location_meta', metaKey);
+        writeNodeMeta('location_meta', metaKey, {
+          ...existingMeta,
+          iiko_sync_manual_override: true,
+          iiko_sync_overwrite_once: false,
+          iiko_sync_source_name: existingMeta.iiko_sync_source_name || currentName,
+        });
+      }
       buildLocationsTree();
       return true;
     }
