@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
+import com.example.panel.runtime.RuntimeRoleProperties;
 import com.example.panel.service.BotProcessService;
 import com.example.panel.service.BotRuntimeContractService;
 import com.example.panel.service.UiEventStreamService;
@@ -36,6 +37,9 @@ class BotProcessApiControllerWebMvcTest {
 
     @MockBean
     private UiEventStreamService uiEventStreamService;
+
+    @MockBean
+    private RuntimeRoleProperties runtimeRoleProperties;
 
     @Test
     void startReturnsStructuredStatusForExistingChannel() throws Exception {

@@ -2,6 +2,8 @@ package com.example.panel.controller;
 
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
+import com.example.panel.runtime.RuntimeRole;
+import com.example.panel.runtime.RuntimeRoleProperties;
 import com.example.panel.service.BotProcessService;
 import com.example.panel.service.BotProcessService.BotProcessStatus;
 import com.example.panel.service.UiEventStreamService;
@@ -21,17 +23,24 @@ public class BotProcessApiController {
     private final BotProcessService botProcessService;
     private final ChannelRepository channelRepository;
     private final UiEventStreamService uiEventStreamService;
+    private final RuntimeRoleProperties runtimeRoleProperties;
 
     public BotProcessApiController(BotProcessService botProcessService,
                                    ChannelRepository channelRepository,
-                                   UiEventStreamService uiEventStreamService) {
+                                   UiEventStreamService uiEventStreamService,
+                                   RuntimeRoleProperties runtimeRoleProperties) {
         this.botProcessService = botProcessService;
         this.channelRepository = channelRepository;
         this.uiEventStreamService = uiEventStreamService;
+        this.runtimeRoleProperties = runtimeRoleProperties;
     }
 
     @PostMapping("/{channelId}/start")
     public ResponseEntity<Map<String, Object>> start(@PathVariable Long channelId) {
+        ResponseEntity<Map<String, Object>> denied = rejectNonSupervisorLifecycleRequest();
+        if (denied != null) {
+            return denied;
+        }
         Channel channel = channelRepository.findById(channelId).orElse(null);
         if (channel == null) {
             Map<String, Object> response = new LinkedHashMap<>();
@@ -50,6 +59,10 @@ public class BotProcessApiController {
 
     @PostMapping("/{channelId}/stop")
     public ResponseEntity<Map<String, Object>> stop(@PathVariable Long channelId) {
+        ResponseEntity<Map<String, Object>> denied = rejectNonSupervisorLifecycleRequest();
+        if (denied != null) {
+            return denied;
+        }
         BotProcessStatus status = botProcessService.stop(channelId);
         uiEventStreamService.publishSidebarBotsChanged("bot_stopped", channelId);
         return ResponseEntity.ok(buildStatusResponse(isSuccessfulStatus(status), statusMessage(status), null));
@@ -109,5 +122,16 @@ public class BotProcessApiController {
             return "unknown";
         }
         return status.message();
+    }
+
+    private ResponseEntity<Map<String, Object>> rejectNonSupervisorLifecycleRequest() {
+        RuntimeRole role = RuntimeRole.from(runtimeRoleProperties.getRole());
+        if (role == RuntimeRole.ALL || role == RuntimeRole.BOT_RUNNER) {
+            return null;
+        }
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", false);
+        response.put("status", "Управление ботами выполняет bot-runner; перезапустите supervisor, а не web-реплику.");
+        return ResponseEntity.status(409).body(response);
     }
 }

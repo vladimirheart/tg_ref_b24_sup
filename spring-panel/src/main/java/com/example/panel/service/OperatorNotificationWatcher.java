@@ -39,7 +39,6 @@ public class OperatorNotificationWatcher {
     private static final Duration WATCH_LEASE_TTL = Duration.ofSeconds(45);
     private static final DateTimeFormatter LOCAL_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final String CHAT_HISTORY_CHECKPOINT_KEY = "operator-notification-watch.chat-history";
-    private static final String FEEDBACK_CHECKPOINT_KEY = "operator-notification-watch.feedbacks";
 
     private final JdbcTemplate jdbcTemplate;
     private final NotificationService notificationService;
@@ -55,7 +54,6 @@ public class OperatorNotificationWatcher {
     private DialogNotificationService dialogNotificationService;
 
     private final AtomicLong lastChatHistoryId = new AtomicLong(0);
-    private final AtomicLong lastFeedbackId = new AtomicLong(0);
 
     OperatorNotificationWatcher(JdbcTemplate jdbcTemplate,
                                 NotificationService notificationService,
@@ -104,9 +102,7 @@ public class OperatorNotificationWatcher {
     @PostConstruct
     void initialize() {
         lastChatHistoryId.set(checkpointService.readLongCursorOrInitialize(CHAT_HISTORY_CHECKPOINT_KEY, () -> readMaxId("chat_history")));
-        lastFeedbackId.set(checkpointService.readLongCursorOrInitialize(FEEDBACK_CHECKPOINT_KEY, () -> readMaxId("feedbacks")));
-        log.info("Operator notification watcher initialized (chatHistoryId={}, feedbackId={})",
-                lastChatHistoryId.get(), lastFeedbackId.get());
+        log.info("Operator notification watcher initialized (chatHistoryId={})", lastChatHistoryId.get());
     }
 
     @Scheduled(fixedDelayString = "${panel.notifications.watch-interval-ms:12000}")
@@ -114,7 +110,6 @@ public class OperatorNotificationWatcher {
         Runnable task = () -> {
             refreshSharedCursors();
             watchChatHistoryMessages();
-            watchFeedbacks();
             watchFirstResponseOverdue();
         };
         if (runtimeCoordinationService == null) {
@@ -127,8 +122,6 @@ public class OperatorNotificationWatcher {
     private void refreshSharedCursors() {
         checkpointService.readLongCursor(CHAT_HISTORY_CHECKPOINT_KEY)
             .ifPresent(lastChatHistoryId::set);
-        checkpointService.readLongCursor(FEEDBACK_CHECKPOINT_KEY)
-            .ifPresent(lastFeedbackId::set);
     }
     private void watchChatHistoryMessages() {
         long afterId = lastChatHistoryId.get();
@@ -211,59 +204,6 @@ public class OperatorNotificationWatcher {
         );
         publishDialogsChanged("incoming_client_message", ticketId);
         publishDialogHistoryChanged(ticketId, channel == null ? null : channel.getId(), "incoming_client_message");
-    }
-
-    private void watchFeedbacks() {
-        long afterId = lastFeedbackId.get();
-        Set<String> columns = loadColumns("feedbacks");
-        boolean hasTicketId = columns.contains("ticket_id");
-        String sql = hasTicketId
-                ? """
-                SELECT id, user_id, rating, ticket_id
-                  FROM feedbacks
-                 WHERE id > ?
-                 ORDER BY id ASC
-                """
-                : """
-                SELECT id, user_id, rating
-                  FROM feedbacks
-                 WHERE id > ?
-                 ORDER BY id ASC
-                """;
-        jdbcTemplate.query(
-                sql,
-                (org.springframework.jdbc.core.ResultSetExtractor<Void>) rs -> {
-                    long maxSeen = afterId;
-                    while (rs.next()) {
-                        long id = rs.getLong("id");
-                        if (id > maxSeen) {
-                            maxSeen = id;
-                        }
-                        Long userId = rs.getObject("user_id") != null ? rs.getLong("user_id") : null;
-                        Integer rating = rs.getObject("rating") != null ? rs.getInt("rating") : null;
-                        String ticketId = hasTicketId ? trimToNull(rs.getString("ticket_id")) : null;
-                        if (!StringUtils.hasText(ticketId) && userId != null) {
-                            ticketId = resolveLastTicketId(userId);
-                        }
-                        if (!StringUtils.hasText(ticketId) || rating == null) {
-                            continue;
-                        }
-                        notificationService.notifyDialogParticipants(
-                                ticketId,
-                                "Новая оценка по обращению " + ticketId + ": " + rating + "/5",
-                                notificationService.buildDialogUrl(ticketId),
-                                null
-                        );
-                        publishDialogsChanged("dialog_feedback_created", ticketId);
-                    }
-                    if (maxSeen > afterId) {
-                        lastFeedbackId.set(maxSeen);
-                        checkpointService.saveLongCursor(FEEDBACK_CHECKPOINT_KEY, maxSeen);
-                    }
-                    return null;
-                },
-                afterId
-        );
     }
 
     private void watchFirstResponseOverdue() {

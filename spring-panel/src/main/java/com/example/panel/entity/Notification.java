@@ -1,7 +1,5 @@
 package com.example.panel.entity;
 
-import com.example.panel.converter.LenientOffsetDateTimeConverter;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -28,7 +26,9 @@ public class Notification {
 
     private Boolean isRead;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
+    // PostgreSQL stores this field as timestamptz; the legacy String converter
+    // would bind new values as varchar and break realtime outbox processing.
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
     public Long getId() {

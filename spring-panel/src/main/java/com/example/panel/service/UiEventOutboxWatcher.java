@@ -13,6 +13,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RuntimeWorkload(
     id = "ui-event-outbox-watcher",
@@ -22,6 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class UiEventOutboxWatcher {
 
     private static final String CHECKPOINT_KEY = "ui-event-outbox-watch";
+    private static final Logger log = LoggerFactory.getLogger(UiEventOutboxWatcher.class);
 
     private final JdbcTemplate jdbcTemplate;
     private final DialogRealtimeEventService dialogRealtimeEventService;
@@ -61,15 +64,21 @@ public class UiEventOutboxWatcher {
                     if (id > maxSeen) {
                         maxSeen = id;
                     }
-                    handleEvent(
-                            rs.getString("event_type"),
-                            rs.getString("ticket_id"),
-                            rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
-                            rs.getString("message_text"),
-                            rs.getString("message_type"),
-                            rs.getString("attachment"),
-                            rs.getObject("rating") != null ? rs.getInt("rating") : null
-                    );
+                    try {
+                        handleEvent(
+                                rs.getString("event_type"),
+                                rs.getString("ticket_id"),
+                                rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
+                                rs.getString("message_text"),
+                                rs.getString("message_type"),
+                                rs.getString("attachment"),
+                                rs.getObject("rating") != null ? rs.getInt("rating") : null
+                        );
+                    } catch (RuntimeException ex) {
+                        // One best-effort UI notification must not hold the cursor and starve later messages/media.
+                        log.error("Unable to process UI outbox event id={} type={}; continuing with later events", id,
+                                rs.getString("event_type"), ex);
+                    }
                 }
                 if (maxSeen > afterId) {
                     lastProcessedId.set(maxSeen);
