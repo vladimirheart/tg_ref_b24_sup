@@ -16,12 +16,15 @@
 
 ## Runtime Inputs
 
-Обязательные cross-platform env keys для production worker, который запускается panel в `rabbitmq` contour:
+Обязательные cross-platform env keys для child runtime, который запускается `bot-runner` в production `rabbitmq` contour:
 
-- `APP_DB_MODE=worker`
+- `APP_DB_MODE=postgresql`
 - `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`
 - `APP_PANEL_INTERNAL_API_BASE_URL`
 - `APP_PANEL_INTERNAL_API_TOKEN`
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_USERNAME`
 - `GROUP_CHAT_ID`
@@ -29,23 +32,11 @@
 - `SPRING_PROFILES_ACTIVE`
 - `JAVA_TOOL_OPTIONS`
 
-В этом режиме `spring-panel` намеренно не передаёт и перед стартом удаляет из inherited process environment:
+`bot-runner` передаёт canonical PostgreSQL datasource через защищённую production configuration. Legacy SQLite business paths (`APP_DB_BOT*`, `SUPPORT_BOT_DATABASE_PATH`) не передаются дочерним процессам и не могут быть live fallback для ticket/channel/feedback/blacklist операций.
 
-- `SPRING_DATASOURCE_URL`
-- `SPRING_DATASOURCE_USERNAME`
-- `SPRING_DATASOURCE_PASSWORD`
-- `DATABASE_URL`
-- legacy SQLite business paths (`APP_DB_BOT*`, `SUPPORT_BOT_DATABASE_PATH`).
+Business operations в `rabbitmq` режиме используют queue/internal panel API boundary там, где это требуется transport contract. Прямой JDBC доступ остаётся только к canonical PostgreSQL datasource: он не создаёт локальную копию business data.
 
-`APP_DB_MODE=worker` стартует с пустым временным per-process SQLite DataSource из системной temp-директории. Full business schema туда намеренно не инициализируется: допускаются только self-owned technical tables, которые worker-сервисы создают для своей технической координации/dedup (например, `integration_outbound_event_deliveries`). Случайный repository/JDBC путь к `tickets/messages/channels/...` должен fail-closed, а не тихо читать или писать локальную business-копию. Business reads/writes в `rabbitmq` режиме обязаны идти через queue/internal panel API.
-
-Для panel-side child JDBC launch теперь допустим только canonical PostgreSQL datasource contract:
-
-- `APP_DB_MODE=postgresql`
-- `SPRING_DATASOURCE_URL`
-- опционально `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `DATABASE_URL`
-
-Если panel сама ещё находится в `APP_DB_MODE=sqlite`, child `java-bot` JDBC contract должен завершаться ошибкой, а не получать `APP_DB_BOT_RUNTIME` / `SUPPORT_BOT_DATABASE_PATH`.
+Если backend находится в `APP_DB_MODE=sqlite`, production child runtime должен завершаться ошибкой, а не получать `APP_DB_BOT_RUNTIME` / `SUPPORT_BOT_DATABASE_PATH`.
 
 Platform-specific:
 
@@ -100,11 +91,11 @@ Platform-specific:
 - production readiness и blocking reasons;
 - lifecycle expectations (`running/stopped/error`, startup/timeout behavior).
 
-После шагов `01-181` diagnostic payload должен также явно показывать DB boundary:
+Diagnostic payload должен также явно показывать DB boundary:
 
-- в `APP_DB_MODE=sqlite` warnings/blockers обязаны сигнализировать, что child JDBC contract больше не поддержан и backend нужно перевести на PostgreSQL;
-- production-ready статус для bot runtime допустим только при canonical PostgreSQL backend + `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` + isolated `APP_DB_MODE=worker`; прямой `SPRING_DATASOURCE_URL` в child process теперь считается нарушением production boundary.
-- `APP_DB_MODE=postgresql` остаётся поддержанным java-bot compatibility/JDBC режимом для controlled migration/dev scenarios, но больше не является production worker contract.
+- в `APP_DB_MODE=sqlite` warnings/blockers обязаны сигнализировать, что это compatibility path и backend нужно перевести на PostgreSQL;
+- production-ready статус для bot runtime допустим только при canonical PostgreSQL backend + `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` + `APP_DB_MODE=postgresql`;
+- child process получает canonical datasource через production configuration; прямое хранение business data в local SQLite считается нарушением production boundary.
 - normal runtime default панели остаётся PostgreSQL; SQLite contract не должен восприниматься как implicit production path.
 - per-channel `bot-<channelId>.db` больше не считается допустимым live runtime-path: legacy shard-файлы должны только импортироваться в canonical PostgreSQL contour.
 - в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` bot-side business reads/writes должны идти через internal panel API или queue boundary; silent fallback в local business storage больше не считается допустимым live поведением.
@@ -122,11 +113,21 @@ Production-ready contract считается выполненным, когда:
 
 - canonical panel runtime работает на PostgreSQL;
 - child transport явно равен `rabbitmq`;
-- child database mode равен `worker` и inherited canonical DB credentials удалены до запуска;
+- child database mode равен `postgresql` и использует canonical datasource;
 - launcher резолвится в `jar`;
 - executable jar найден;
 - jar взят из `explicit-config`, а не через `target` scan;
 - panel не зависит от `spring-boot:run` для боевого запуска.
+
+## Dynamic Supervisor
+
+В Docker production contour процесс `bot-runner` имеет роль `APP_RUNTIME_ROLE=bot-runner` и является единственным supervisor для всех активных каналов. После старта он читает их конфигурацию из PostgreSQL и поднимает отдельный prebuilt runtime JAR для каждого канала, поэтому число Telegram, VK и MAX-ботов не ограничено Compose services.
+
+- `bot-runner` должен иметь ровно одну реплику; `panel-web` и `ops-worker` масштабируются независимо.
+- Для Telegram Redis lease строится по SHA-256 fingerprint токена; для MAX/VK ownership привязан к channel. Это исключает логирование token в coordination keys.
+- Нельзя параллельно запускать static profile `bot-telegram`, `bot-vk` или `bot-max` с dynamic supervisor для того же канала: два consumer приведут к duplicate ingress, а Telegram вернёт `409 Conflict`.
+- Child runtimes обращаются к internal panel API по `http://panel-web:8080`. Клиент повторяет только временные transport failures и HTTP `5xx`, с ограничением существующими `retry-attempts` и `retry-backoff`; write requests сохраняют один idempotency key.
+- Изменение числа или набора каналов не требует добавления Docker service. Изменения токена, активности либо module configuration вносятся через settings/API и подхватываются supervisor lifecycle.
 
 ## Lifecycle Contract Test
 
@@ -139,6 +140,6 @@ Production-ready contract считается выполненным, когда:
 
 ## Remaining Gaps
 
-- ещё не оформлен end-to-end process contract test на полный lifecycle;
-- не зафиксирован единый production deployment recipe для всех окружений;
-- пока не введён отдельный supervisor/service поверх bot runtime.
+- Нужен полноценный automated end-to-end process contract test: создать несколько каналов, проверить запуск, остановку и замену token без duplicate lease.
+- Перед каждым go-live остаётся обязательной ручная проверка доставки входящего текста и media в каждом реально подключённом внешнем канале.
+- Static compatibility profiles следует удалить после того, как будет доказан аварийный recovery path через dynamic supervisor.

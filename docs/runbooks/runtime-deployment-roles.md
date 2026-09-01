@@ -1,7 +1,7 @@
 # Runtime deployment roles runbook
 
-Task: `01-211`
-Date: 2026-08-26
+Tasks: `01-211`, `01-237`, `01-238`
+Date: 2026-09-01
 
 ## Normal production roles
 
@@ -10,6 +10,7 @@ Date: 2026-08-26
 | `db-migrate` | `db-migrate` | 1 one-shot | no | yes |
 | `ops-worker` | `ops-worker` | 1+ when `singletonWorkloads=[]` | no | no |
 | `panel-web` | `panel-web` | 1+ | through nginx/panel-direct | no |
+| `bot-runner` | `bot-runner` | exactly 1 | no | no |
 
 ## What to inspect
 
@@ -33,6 +34,8 @@ Look at:
 ```
 
 Before increasing worker replicas, `singletonWorkloads` must be empty.
+
+`bot-runner` нельзя масштабировать. Он читает все active channels из PostgreSQL и запускает по одному дочернему runtime на канал; два supervisor создадут конкурирующий ingress для одного token.
 
 ## Duplicate/stuck job diagnostics
 
@@ -65,6 +68,15 @@ Increase replicas:
 ```
 
 Decrease by rerunning with lower counts.
+
+Перезапуск только bot supervisor после изменения bot image или его runtime-конфига:
+
+```powershell
+docker compose -f docker-compose.production-contour.yml up -d --no-deps --force-recreate bot-runner
+docker compose -f docker-compose.production-contour.yml logs --tail 200 bot-runner
+```
+
+Static Compose profiles `bot-telegram`, `bot-vk`, `bot-max` использовать только для изолированной аварийной диагностики. Перед их запуском остановите `bot-runner` или деактивируйте соответствующий канал, чтобы не получить duplicate Telegram long polling / `409 Conflict`.
 
 No hardcoded `container_name` is used, so Compose owns instance names.
 

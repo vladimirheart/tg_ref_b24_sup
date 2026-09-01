@@ -1,6 +1,6 @@
 # Docker Production Contour
 
-Актуально на `26 августа 2026 года` после задачи `01-211`.
+Актуально на `1 сентября 2026 года` после задач `01-237` и `01-238`.
 
 ## 1. Топология
 
@@ -24,9 +24,10 @@ panel-web x N
         |
         +---- optional nginx edge -> 80/443
 
-bot-telegram / bot-vk / bot-max
+bot-runner x 1
         |
-        +---- RabbitMQ + http://panel-web:8080 internal API
+        +---- child runtime x active channel
+        +---- PostgreSQL + RabbitMQ + Redis + MinIO/S3 + http://panel-web:8080 internal API
 ```
 
 `panel-web`, `ops-worker` и `db-migrate` используют один `docker/panel.Dockerfile` и один image tag `IGUANA_PANEL_IMAGE`.
@@ -49,6 +50,11 @@ bot-telegram / bot-vk / bot-max
   - `APP_RUNTIME_ROLE=panel-web`;
   - operator UI/API/security/session и web-local SSE workload;
   - сам не публикует host port, поэтому `docker compose --scale panel-web=N` не конфликтует по `8080`.
+- `bot-runner`:
+  - `APP_RUNTIME_ROLE=bot-runner`;
+  - запускает один supervisor и дочерний prebuilt JAR для каждого активного канала из PostgreSQL;
+  - не масштабируется: `bot-runner=1` обязателен для исключения duplicate ingress и Telegram `409 Conflict`;
+  - static profiles `bot-telegram`, `bot-vk`, `bot-max` сохранены только для аварийной диагностики и не должны работать параллельно с supervisor для того же token.
 - `panel-direct`:
   - lightweight nginx;
   - сохраняет исторический loopback URL `http://127.0.0.1:8080`;
@@ -72,6 +78,8 @@ postgres/rabbitmq/redis/minio
           |
           v
        panel-web
+          |
+          +--> bot-runner x1
           |
           +--> panel-direct
           +--> optional nginx edge
@@ -103,6 +111,8 @@ Defaults можно хранить в `.env`:
 IGUANA_PANEL_WEB_REPLICAS=1
 IGUANA_OPS_WORKER_REPLICAS=1
 ```
+
+`bot-runner` всегда запускается с одной репликой и в helper scripts принудительно закреплён как `--scale bot-runner=1`.
 
 Hardcoded `container_name` в contour отсутствуют, поэтому project name и `--scale` работают штатно.
 
@@ -171,11 +181,11 @@ Runtime role/instance также доступны в `/actuator/info` и metrics
 
 ## 9. Bot boundary
 
-`bot-*`:
+`bot-runner` и его child `bot-*` processes:
 
 - остаются transport runtimes;
-- не получают JDBC credentials business PostgreSQL;
-- используют RabbitMQ и `http://panel-web:8080`;
+- используют canonical PostgreSQL datasource, RabbitMQ, Redis, MinIO/S3 и `http://panel-web:8080`;
+- не используют SQLite как live business storage;
 - не являются source of truth business data.
 
 ## 10. Проверки

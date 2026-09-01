@@ -9,7 +9,7 @@ Iguana - многоканальная support CRM и операторская п
 
 ## Актуальная документация
 
-Если нужен один главный документ по текущему состоянию проекта на `25 августа 2026 года`, начинайте с [docs/CURRENT_PROJECT_DOCUMENTATION.md](docs/CURRENT_PROJECT_DOCUMENTATION.md).
+Если нужен один главный документ по текущему состоянию проекта на `1 сентября 2026 года`, начинайте с [docs/CURRENT_PROJECT_DOCUMENTATION.md](docs/CURRENT_PROJECT_DOCUMENTATION.md).
 
 Если нужен именно production launch runbook с checklist, cutover, smoke и rollback, используйте [docs/runbooks/production-launch-checklist.md](docs/runbooks/production-launch-checklist.md).
 
@@ -19,7 +19,9 @@ Iguana - многоканальная support CRM и операторская п
 
 Для roadmap мониторинга support-систем, внешних SaaS/API и корпоративных зависимостей используйте [docs/support-systems-monitoring-roadmap.md](docs/support-systems-monitoring-roadmap.md).
 
-Для containerized contour с `spring-panel + PostgreSQL + RabbitMQ + Redis + MinIO + external bot containers` используйте [docs/docker-production-contour.md](docs/docker-production-contour.md), [docker-compose.production-contour.yml](docker-compose.production-contour.yml) и для публичного ingress [docs/runbooks/docker-production-edge-deploy.md](docs/runbooks/docker-production-edge-deploy.md) вместе с [docker-compose.production-edge.yml](docker-compose.production-edge.yml).
+Для containerized contour с `spring-panel + PostgreSQL + RabbitMQ + Redis + MinIO + bot-runner` используйте [docs/docker-production-contour.md](docs/docker-production-contour.md), [docker-compose.production-contour.yml](docker-compose.production-contour.yml) и для публичного ingress [docs/runbooks/docker-production-edge-deploy.md](docs/runbooks/docker-production-edge-deploy.md) вместе с [docker-compose.production-edge.yml](docker-compose.production-edge.yml).
+
+В production `bot-runner` запускается в единственном экземпляре и автоматически поднимает отдельный runtime для каждого активного канала из PostgreSQL. Это снимает лимит на число Telegram, VK и MAX-ботов; статические Compose profiles `bot-telegram`, `bot-vk`, `bot-max` сохранены только для аварийной диагностики и не должны работать параллельно с тем же токеном.
 
 В нём собраны:
 
@@ -113,8 +115,14 @@ docker compose -f docker-compose.production-contour.yml -f docker-compose.produc
 ```powershell
 .\scripts\docker-production-up.ps1 -Build
 .\scripts\docker-production-up.ps1 -Build -Edge
-.\scripts\docker-production-up.ps1 -Build -Telegram
 .\scripts\docker-production-up.ps1 -ValidateOnly
+```
+
+После старта проверьте, что `bot-runner` healthy и только он владеет запуском активных каналов:
+
+```powershell
+docker compose -f docker-compose.production-contour.yml ps
+docker compose -f docker-compose.production-contour.yml logs --tail 200 bot-runner
 ```
 
 Для ручного повторного bootstrap используйте `scripts/bootstrap-first-run.ps1` или `scripts/bootstrap-first-run.sh`.
@@ -144,11 +152,10 @@ export SPRING_OPTS="--server.port=8080"
 
 1. `JDK 17`.
 2. Исходники этого репозитория.
-3. Актуальные SQLite-базы и `bot_databases/`.
-4. Каталог `attachments/`, если нужны вложения и пользовательские файлы.
-5. Корректные токены/секреты окружения для нужных каналов.
-6. JSON-конфиги в `config/shared/`.
-7. Для PostgreSQL-first transport path с ownership split нужен локальный или внешний `RabbitMQ`.
+3. Docker Desktop для локального PostgreSQL-first bootstrap либо доступные PostgreSQL, RabbitMQ, Redis и S3-совместимое object storage для внешнего окружения.
+4. Корректные токены/секреты окружения для нужных каналов.
+5. JSON-конфиги в `config/shared/`.
+6. Постоянный защищённый источник production-секретов; значения из `.env.example` использовать в production нельзя.
 
 Maven wrapper уже лежит в репозитории, поэтому отдельная установка Maven обычно не требуется.
 
@@ -164,27 +171,18 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 | `docs/` | эксплуатационная и архитектурная документация |
 | `ai-context/` | AI-контекст, правила проекта, task-tracking и changelog |
 
-## Основные базы данных
+## Данные и хранилища
 
-Канонические SQLite-файлы в текущем контуре:
+Production source of truth - PostgreSQL. В нём находятся business data панели, операторы, диалоги, сообщения, настройки каналов и runtime-ownership. RabbitMQ обеспечивает transport boundary, Redis - coordination и leases, а MinIO/S3 - медиа и файлы.
 
-- `panel_runtime.db` - обращения, сообщения, активный runtime панели;
-- `panel_identity.db` - пользователи панели, роли и часть identity-данных;
-- `bot_runtime.db` - shared bot runtime;
-- `monitoring.db` - monitoring-контур;
-- `clients.db` - transitional контур клиентов;
-- `knowledge_base.db` - transitional контур базы знаний;
-- `objects.db` - transitional контур паспортов объектов;
-- per-channel `bot-<channelId>.db` - legacy import-only слой, а не live source of truth.
-
-Подробная карта путей и canonical aliases описана в [docs/database-paths.md](docs/database-paths.md).
+SQLite и `bot_databases/` не являются live production storage: это только compatibility/import/diagnostic perimeter. Актуальная схема и требования к cutover приведены в [docs/database-paths.md](docs/database-paths.md), [docs/POSTGRESQL_FIRST_READINESS_CLOSEOUT.md](docs/POSTGRESQL_FIRST_READINESS_CLOSEOUT.md) и [docs/BOT_RUNTIME_CONTRACT.md](docs/BOT_RUNTIME_CONTRACT.md).
 
 ## Конфигурация
 
 Проект использует:
 
 - переменные окружения;
-- SQLite-файлы по умолчанию;
+- PostgreSQL как production database;
 - JSON-настройки в `config/shared/`;
 - UI-настройки через `spring-panel`.
 
@@ -207,12 +205,12 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 
 ## Как обычно запускается Iguana
 
-1. Поднимается `spring-panel`.
-2. Через UI открывается раздел `Настройки -> Каналы (боты)`.
-3. Для нужного канала запускается соответствующий bot runtime.
+1. `db-migrate` применяет миграции и завершает работу.
+2. Поднимаются `ops-worker`, `panel-web` и `bot-runner`.
+3. `bot-runner` читает активные каналы и запускает по одному дочернему процессу на канал.
 4. Операторы работают с обращениями через страницу диалогов.
 
-То есть панель является центром конфигурации и operational control, а сами боты могут жить отдельными процессами.
+Панель остаётся центром конфигурации и operational control. При создании или активации канала supervisor подхватывает его без добавления нового Compose service; для изменения конфигурации конкретного канала используйте UI, а не дублирующий статический bot container.
 
 ## Главные документы
 
@@ -277,4 +275,4 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 
 ## Практический смысл этого репозитория
 
-Iguana - не просто кодовая база, а рабочий support-контур с состоянием, ботами, SQLite-хранилищами, вложениями и служебными настройками. Поэтому для корректного переноса важно относиться к репозиторию как к приложению вместе с данными, а не только как к исходникам.
+Iguana - не просто кодовая база, а рабочий support-контур с PostgreSQL-данными, ботами, объектным хранилищем, вложениями и служебными настройками. Поэтому для корректного переноса важно относиться к репозиторию как к приложению вместе с данными и persistent infrastructure, а не только как к исходникам.

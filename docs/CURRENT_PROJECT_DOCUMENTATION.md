@@ -2,7 +2,7 @@
 
 ## Статус документа
 
-- Актуально на `25 августа 2026 года`.
+- Актуально на `1 сентября 2026 года`.
 - Этот документ описывает текущее состояние репозитория и runtime-контуров на момент обновления.
 - Если более узкоспециализированный документ в `docs/` описывает частный контур глубже, его нужно считать источником деталей, а этот документ - основной обзорной и навигационной точкой.
 
@@ -43,7 +43,7 @@
 
 ### 3.1. Коротко
 
-На `25 августа 2026 года` Iguana находится в состоянии `PostgreSQL-first` проекта с сохранённым `SQLite` compatibility perimeter.
+На `1 сентября 2026 года` Iguana работает в PostgreSQL production contour; `SQLite` сохранён только как compatibility/import/diagnostic perimeter и не является допустимым live storage для production.
 
 Это означает:
 
@@ -51,7 +51,7 @@
 - `spring-panel` является центром ownership для business data и operator-facing workflow;
 - `java-bot` больше не должен быть владельцем business schema в production-контуре;
 - `RabbitMQ`, `Redis` и object storage уже входят в целевую модель;
-- legacy `SQLite` остаётся для local/dev/bootstrap/compatibility сценариев и для части transitional артефактов.
+- legacy `SQLite` остаётся только для controlled import, диагностики и явно выбранных local compatibility-сценариев.
 
 ### 3.2. Что считается главным архитектурным направлением
 
@@ -348,10 +348,10 @@ PostgreSQL - это целевой primary contour для:
 
 Главное:
 
-- production worker path - это `APP_DB_MODE=worker` + `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
-- child process не должен наследовать canonical business DB credentials;
-- `java-bot` в worker-режиме не должен молча откатываться в local business storage;
-- `SQLite` path допустим только как явный compatibility/dev путь.
+- production bot path использует canonical `APP_DB_MODE=postgresql` и `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
+- `bot-runner` работает в одном экземпляре и автоматически запускает отдельный runtime для каждого активного канала;
+- дочерние процессы используют PostgreSQL, RabbitMQ, Redis, MinIO/S3 и internal panel API, но не local SQLite storage;
+- `SQLite` допустим только как явный compatibility/import/dev путь.
 
 ## 8.3. Запуск и orchestration
 
@@ -365,9 +365,10 @@ PostgreSQL - это целевой primary contour для:
 
 Текущий рекомендуемый production path:
 
-- собранные prebuilt `jar`;
-- явный `module -> jar path`;
-- запуск без зависимости от `spring-boot:run` как боевого механизма.
+- собранные prebuilt `jar` в production image;
+- единый `bot-runner`, а не ручной service на канал;
+- запуск без зависимости от `spring-boot:run` как боевого механизма;
+- ровно один ingress owner на token: статический bot-profile нельзя запускать параллельно с `bot-runner`.
 
 ## 9. Основные потоки данных
 
