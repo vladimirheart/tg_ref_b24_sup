@@ -245,6 +245,8 @@ function Initialize-InsecureDefaults {
     $defaults = [ordered]@{
         APP_INTERNAL_BOT_API_TOKEN = "change-me"
         APP_SECURITY_REMEMBER_ME_KEY = "change-me"
+        APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME = "local-admin"
+        APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD = "local-admin-password-change-me"
         MONITORING_CREDENTIALS_MASTER_KEY = (Resolve-InsecureMonitoringMasterKeyDefault -RepoRoot $RepoRoot)
         IGUANA_POSTGRES_PASSWORD = "iguana"
         IGUANA_RABBITMQ_PASSWORD = "iguana"
@@ -288,6 +290,8 @@ function Invoke-PreflightChecks {
     if ($AllowInsecure) {
         Assert-RequiredSetting -DotEnv $DotEnv -Name "APP_INTERNAL_BOT_API_TOKEN" -Message "Internal bot API token must be configured" | Out-Null
         Assert-RequiredSetting -DotEnv $DotEnv -Name "APP_SECURITY_REMEMBER_ME_KEY" -Message "Remember-me key must be configured" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME" -Message "Bootstrap admin username must be configured for a fresh local database" | Out-Null
+        Assert-RequiredSetting -DotEnv $DotEnv -Name "APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD" -Message "Bootstrap admin password must be configured for a fresh local database" | Out-Null
         Assert-RequiredSetting -DotEnv $DotEnv -Name "MONITORING_CREDENTIALS_MASTER_KEY" -Message "Shared monitoring credentials master key is required by split backend roles" | Out-Null
         Assert-RequiredSetting -DotEnv $DotEnv -Name "IGUANA_POSTGRES_PASSWORD" -Message "PostgreSQL password must be configured" | Out-Null
         Assert-RequiredSetting -DotEnv $DotEnv -Name "IGUANA_RABBITMQ_PASSWORD" -Message "RabbitMQ password must be configured" | Out-Null

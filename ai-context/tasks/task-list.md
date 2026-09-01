@@ -232,7 +232,7 @@
 🟣 [01-210] Сделать incidents workbench понятным для credential rotation сигналов и объяснить severity policy
 🟢 [01-211] Разделить spring-panel на scale-ready deployment roles panel-web и ops-worker с заделом на горизонтальное масштабирование
 🟡 [01-212] Реализовать реальные production backup jobs PostgreSQL и MinIO с off-host хранением и автоматизированным restore rehearsal
-🟡 [01-213] Подключить Alertmanager к утвержденному Iguana incident/notification delivery boundary и доказать end-to-end доставку firing/resolved alerts
+🟣 [01-213] Подключить Alertmanager к утвержденному Iguana incident/notification delivery boundary и доказать end-to-end доставку firing/resolved alerts
 🟣 [01-214] Убрать обязательный Redis UI fanout из local PostgreSQL bootstrap-контура Windows launcher
 🟣 [01-215] Исправить Production readiness для local PostgreSQL bootstrap и отделить compatibility-контур от full production gate
 🟡 [01-216] ВНЕДРИТЬ БЕЗОПАСНЫЙ FIRST-RUN BOOTSTRAP PRODUCTION-СЕКРЕТОВ И МИГРАЦИЮ СУЩЕСТВУЮЩИХ PERSISTENT VOLUMES
@@ -242,8 +242,8 @@
 🟢 [01-220] Повторить fresh storage evidence и безопасный `-Apply -WhatIf` quarantine rehearsal на текущем recovery HEAD
 🟣 [01-221] Провести предметный аудит client avatars и dialog media после recovery storage-контура и закрыть остаточные legacy-ожидания
 🟡 [01-222] Собрать controlled migration workflow для persisted infra credentials после secure bootstrap
-🟡 [01-223] Реализовать component-specific apply/rotation workflow для persisted credentials поверх existing volumes
-🟡 [01-224] Реализовать coordinated Redis/MinIO persisted credential migration и restart choreography
-🟡 [01-225] Довести persisted credential rotation до Bash parity и remaining apply contour
+🟣 [01-223] Реализовать component-specific apply/rotation workflow для persisted credentials поверх existing volumes
+🟣 [01-224] Реализовать coordinated Redis/MinIO persisted credential migration и restart choreography
+🟣 [01-225] Довести persisted credential rotation до Bash parity и remaining apply contour
 🟢 [01-226] Добавить Grafana apply-path и multi-component rehearsal для persisted credential rotation
 🟢 [01-227] Автоматизировать bulk rotation и rehearsal flow для persisted credentials
