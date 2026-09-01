@@ -17,4 +17,21 @@ class SupportBotChoiceInputContractTest {
                 message
         );
     }
+
+    @Test
+    void missingActiveDialogMessageIsReadableRussianText() {
+        assertEquals(
+                "Активного диалога нет. Напишите сообщение, и я создам новое обращение.",
+                SupportBot.noActiveDialogMessage()
+        );
+    }
+
+    @Test
+    void russianFallbacksAreReadableAndAliasesTreatYoAsYe() {
+        assertEquals(
+                "Здравствуйте! Опишите, пожалуйста, ваш вопрос, чтобы мы могли быстрее помочь.",
+                SupportBot.defaultStartAutoReply()
+        );
+        assertEquals("елка", SupportBot.normalizeAlias("Ёлка"));
+    }
 }

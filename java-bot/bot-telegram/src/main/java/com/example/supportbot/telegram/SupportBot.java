@@ -981,7 +981,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         SendMessage warning = SendMessage.builder()
                 .chatId(message.getChatId())
-                .text("��������� ������� ���. �������� ���������, � � ������ ����� ���������.")
+                .text(noActiveDialogMessage())
                 .replyMarkup(new ReplyKeyboardRemove(true))
                 .build();
         try {
@@ -989,6 +989,10 @@ public class SupportBot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             log.error("Failed to notify about missing active dialog", e);
         }
+    }
+
+    static String noActiveDialogMessage() {
+        return "Активного диалога нет. Напишите сообщение, и я создам новое обращение.";
     }
 
     private void notifyClosedDialog(Message message) {
@@ -1593,7 +1597,7 @@ public class SupportBot extends TelegramLongPollingBot {
         log.info("Conversation initialized for user {} - sending first prompt", session.userId());
         String startAutoReply = botSettingsService.startAutoReply(
                 settings,
-                "������������! �������, ����������, ��� ������, ����� �� ����� ������� ������."
+                defaultStartAutoReply()
         );
         if (!session.awaitingReuseDecision() && startAutoReply != null && !startAutoReply.isBlank()) {
             SendMessage greeting = SendMessage.builder()
@@ -1809,13 +1813,17 @@ public class SupportBot extends TelegramLongPollingBot {
         return null;
     }
 
-    private String normalizeAlias(String value) {
+    static String defaultStartAutoReply() {
+        return "Здравствуйте! Опишите, пожалуйста, ваш вопрос, чтобы мы могли быстрее помочь.";
+    }
+
+    static String normalizeAlias(String value) {
         if (value == null) {
             return "";
         }
         return value.trim()
                 .toLowerCase(Locale.ROOT)
-                .replace('�', '�')
+                .replace('ё', 'е')
                 .replaceAll("[\\p{Punct}\\s]+", "");
     }
 
@@ -2691,5 +2699,3 @@ public class SupportBot extends TelegramLongPollingBot {
         return trimmed.substring(0, 4) + "…" + trimmed.substring(trimmed.length() - 4) + " (" + trimmed.length() + ")";
     }
 }
-
-
