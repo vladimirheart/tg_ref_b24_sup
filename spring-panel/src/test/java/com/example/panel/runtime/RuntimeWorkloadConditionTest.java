@@ -70,6 +70,7 @@ class RuntimeWorkloadConditionTest {
         assertThat(RuntimeRole.from("panel-web")).isEqualTo(RuntimeRole.WEB);
         assertThat(RuntimeRole.from("worker")).isEqualTo(RuntimeRole.WORKER);
         assertThat(RuntimeRole.from("ops-worker")).isEqualTo(RuntimeRole.WORKER);
+        assertThat(RuntimeRole.from("bot-runner")).isEqualTo(RuntimeRole.BOT_RUNNER);
         assertThat(RuntimeRole.from("migrate")).isEqualTo(RuntimeRole.MIGRATOR);
         assertThat(RuntimeRole.from("db-migrate")).isEqualTo(RuntimeRole.MIGRATOR);
     }

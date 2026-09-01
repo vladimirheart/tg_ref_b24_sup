@@ -369,13 +369,14 @@ if [[ "${VALIDATE_ONLY}" == "1" ]]; then
   exit 0
 fi
 
-ARGS=("${BASE_ARGS[@]}" up --remove-orphans --scale "panel-web=${WEB_REPLICAS}" --scale "ops-worker=${WORKER_REPLICAS}")
+ARGS=("${BASE_ARGS[@]}" up --remove-orphans --scale "panel-web=${WEB_REPLICAS}" --scale "ops-worker=${WORKER_REPLICAS}" --scale "bot-runner=1")
 [[ "${BUILD}" == "1" ]] && ARGS+=(--build)
 [[ "${DETACH}" == "1" ]] && ARGS+=(-d)
 
 echo "[INFO] Starting Iguana docker production contour"
 echo "[INFO] panel-web replicas: ${WEB_REPLICAS}"
 echo "[INFO] ops-worker replicas: ${WORKER_REPLICAS}"
+echo "[INFO] bot-runner replicas: 1 (one dynamic process per active channel)"
 echo "[INFO] Edge enabled: ${EDGE}"
 echo "[INFO] Observability enabled: ${OBSERVABILITY}"
 

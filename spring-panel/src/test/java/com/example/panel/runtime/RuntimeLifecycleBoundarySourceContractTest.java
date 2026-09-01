@@ -36,7 +36,7 @@ class RuntimeLifecycleBoundarySourceContractTest {
     @Test
     void applicationReadyHooksHaveExplicitRoleSemantics() throws IOException {
         assertSource("service/BotAutoStartService.java",
-            "ApplicationReadyEvent", "@RuntimeWorkload(", "roles = {}");
+            "ApplicationReadyEvent", "@RuntimeWorkload(", "RuntimeRole.BOT_RUNNER");
         assertSource("service/RmsLicenseMonitoringService.java",
             "ApplicationReadyEvent", "RuntimeRole.ALL", "explicit roles use backend_ops_command");
         assertSource("config/PostgresRuntimeReadinessVerifier.java",

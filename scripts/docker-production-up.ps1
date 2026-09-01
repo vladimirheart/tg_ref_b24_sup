@@ -501,7 +501,8 @@ $arguments = $baseArguments + @(
     "up",
     "--remove-orphans",
     "--scale", "panel-web=$resolvedWebReplicas",
-    "--scale", "ops-worker=$resolvedWorkerReplicas"
+    "--scale", "ops-worker=$resolvedWorkerReplicas",
+    "--scale", "bot-runner=1"
 )
 if ($Build) {
     $arguments += "--build"
@@ -513,6 +514,7 @@ if (-not $NoDetach) {
 Write-Host "[INFO] Starting Iguana docker production contour"
 Write-Host "[INFO] panel-web replicas: $resolvedWebReplicas"
 Write-Host "[INFO] ops-worker replicas: $resolvedWorkerReplicas"
+Write-Host "[INFO] bot-runner replicas: 1 (one dynamic process per active channel)"
 Write-Host "[INFO] Profiles: $($(if ($profiles.Count -gt 0) { $profiles -join ', ' } else { 'none' }))"
 Write-Host "[INFO] Edge enabled: $Edge"
 Write-Host "[INFO] Observability enabled: $Observability"

@@ -256,3 +256,5 @@
 🟣 [01-234] Перевести production bot runtime на обязательный PostgreSQL datasource
 🟡 [01-235] Восстановить core production services и выполнить контролируемый rollout bot runtime с PostgreSQL и Redis lease
 🟠 [01-236] Настроить постоянный защищённый secret source для Docker bot profiles
+🟣 [01-237] Выделить единый dynamic bot-runner для неограниченного числа активных каналов
+🟠 [01-238] Устранить стартовые timeout внутреннего channel API для MAX и включить фактические retry

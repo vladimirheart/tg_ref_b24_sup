@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.runtime.RuntimeReplicaPolicy;
+import com.example.panel.runtime.RuntimeRole;
 import com.example.panel.runtime.RuntimeWorkload;
 
 import com.example.panel.config.BotProcessProperties;
@@ -20,7 +21,7 @@ import java.util.Objects;
 @Service
 @RuntimeWorkload(
     id = "local-bot-process-auto-start",
-    roles = {},
+    roles = {RuntimeRole.BOT_RUNNER},
     replicaPolicy = RuntimeReplicaPolicy.PROCESS_LOCAL
 )
 public class BotAutoStartService {

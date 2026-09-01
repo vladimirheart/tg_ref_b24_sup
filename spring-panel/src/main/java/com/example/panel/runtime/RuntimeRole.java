@@ -7,6 +7,7 @@ public enum RuntimeRole {
     ALL,
     WEB,
     WORKER,
+    BOT_RUNNER,
     MIGRATOR;
 
     public static RuntimeRole from(String rawValue) {
@@ -18,10 +19,11 @@ public enum RuntimeRole {
             case "all" -> ALL;
             case "web", "panel-web" -> WEB;
             case "worker", "ops-worker" -> WORKER;
+            case "bot-runner", "botrunner" -> BOT_RUNNER;
             case "migrate", "migrator", "db-migrate" -> MIGRATOR;
             default -> throw new IllegalArgumentException(
                 "Unsupported Iguana runtime role '" + rawValue
-                    + "'. Expected all, web/panel-web, worker/ops-worker or migrate/db-migrate."
+                    + "'. Expected all, web/panel-web, worker/ops-worker, bot-runner or migrate/db-migrate."
             );
         };
     }

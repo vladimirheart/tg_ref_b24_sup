@@ -19,10 +19,12 @@ class DockerProductionRoleTopologySourceContractTest {
         assertThat(compose)
             .contains("\n  db-migrate:\n")
             .contains("\n  ops-worker:\n")
+            .contains("\n  bot-runner:\n")
             .contains("\n  panel-web:\n")
             .contains("\n  panel-direct:\n")
             .contains("APP_RUNTIME_ROLE: db-migrate")
             .contains("APP_RUNTIME_ROLE: ops-worker")
+            .contains("APP_RUNTIME_ROLE: bot-runner")
             .contains("APP_RUNTIME_ROLE: panel-web")
             .contains("APP_RUNTIME_EXIT_AFTER_MIGRATION: \"true\"")
             .contains("condition: service_completed_successfully")
@@ -83,10 +85,16 @@ class DockerProductionRoleTopologySourceContractTest {
             String botSection = section(compose, "  " + bot, nextServiceMarker(compose, "  " + bot));
             assertThat(botSection)
                 .as(bot)
-                .doesNotContain("SPRING_DATASOURCE_URL")
-                .doesNotContain("SPRING_DATASOURCE_USERNAME")
-                .doesNotContain("SPRING_DATASOURCE_PASSWORD");
+                .contains("APP_DB_MODE: postgresql")
+                .contains("SPRING_DATASOURCE_URL")
+                .contains("SPRING_DATASOURCE_USERNAME")
+                .contains("SPRING_DATASOURCE_PASSWORD");
         }
+
+        String botRunner = section(compose, "  bot-runner:", "  panel-web:");
+        assertThat(botRunner)
+            .contains("APP_RUNTIME_ROLE: bot-runner")
+            .contains("APP_INTERNAL_BOT_API_BASE_URL: http://panel-web:8080");
 
         assertThat(edge)
             .contains("panel-web:")

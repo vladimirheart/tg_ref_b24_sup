@@ -14,7 +14,8 @@ x-panel-environment: &panel-environment
   APP_STORAGE_OBJECT_REQUIRED_FOR_POSTGRESQL: "true"
   APP_UI_EVENT_FANOUT_MODE: redis
   APP_UI_EVENT_FANOUT_CHANNEL: ${APP_UI_EVENT_FANOUT_CHANNEL:-iguana:ui-events:v1}
-  APP_BOT_AUTO_START_ENABLED: "false"
+  # Panel starts one isolated runtime per active channel; this scales beyond static compose profiles.
+  APP_BOT_AUTO_START_ENABLED: ${APP_BOT_AUTO_START_ENABLED:-true}
   APP_BOT_LAUNCH_MODE: jar
   APP_BOT_EXECUTABLE_JAR_TELEGRAM: ${APP_BOT_EXECUTABLE_JAR_TELEGRAM:-dist/bot-telegram-runtime.jar}
   APP_BOT_EXECUTABLE_JAR_VK: ${APP_BOT_EXECUTABLE_JAR_VK:-dist/bot-vk-runtime.jar}
@@ -199,6 +200,25 @@ services:
       <<: *panel-environment
       APP_RUNTIME_ROLE: ops-worker
       APP_RUNTIME_EXIT_AFTER_MIGRATION: "false"
+    expose:
+      - "8080"
+    volumes: *panel-volumes
+    healthcheck: *panel-healthcheck
+
+  # Exactly one supervisor owns all dynamically configured bot runtimes.
+  # Do not scale this service: each active channel maps to one child process.
+  bot-runner:
+    <<: *panel-build
+    restart: unless-stopped
+    depends_on:
+      <<: *panel-infra-depends
+      db-migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *panel-environment
+      APP_RUNTIME_ROLE: bot-runner
+      APP_RUNTIME_EXIT_AFTER_MIGRATION: "false"
+      APP_INTERNAL_BOT_API_BASE_URL: http://panel-web:8080
     expose:
       - "8080"
     volumes: *panel-volumes
