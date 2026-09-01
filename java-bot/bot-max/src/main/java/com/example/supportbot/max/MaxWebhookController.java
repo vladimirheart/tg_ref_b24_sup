@@ -385,7 +385,13 @@ public class MaxWebhookController {
         if (!ingressCoordinationService.tryAcquireOrRenewJob(SESSION_PLATFORM, properties.getChannelId(), EXPIRE_SESSIONS_JOB)) {
             return;
         }
-        Channel channel = getChannel();
+        Channel channel;
+        try {
+            channel = getChannel();
+        } catch (IllegalStateException ex) {
+            log.warn("Skipping MAX silent-session cleanup because channel resolution is temporarily unavailable: {}", ex.getMessage());
+            return;
+        }
         if (channel == null) {
             return;
         }

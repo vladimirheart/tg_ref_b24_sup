@@ -81,28 +81,72 @@ public class PanelChannelClient {
             String idempotencyKey = !"GET".equalsIgnoreCase(method)
                 ? requestHeadersFactory.newIdempotencyKey("panel-channel", path)
                 : null;
-            HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
-                .timeout(properties.getRequestTimeout());
-            requestHeadersFactory.apply(builder::header, method, uri, requestBody, idempotencyKey);
-            if (requestBody != null) {
-                builder.header("Content-Type", "application/json");
-                builder.method(method, HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8));
-            } else {
-                builder.method(method, HttpRequest.BodyPublishers.noBody());
+            int maxAttempts = Math.max(1, properties.getRetryAttempts() + 1);
+            for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                    HttpResponse<String> response = httpClient.send(
+                        buildRequest(uri, method, requestBody, idempotencyKey),
+                        HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+                    );
+                    if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                        ChannelResponse payload = objectMapper.readValue(response.body(), new TypeReference<ChannelResponse>() {});
+                        return Optional.of(payload.toChannel());
+                    }
+                    if (!isRetryableStatus(response.statusCode()) || attempt == maxAttempts) {
+                        log.warn("Internal panel channel API request {} {} failed with status {} after {}/{} attempt(s)",
+                            method, path, response.statusCode(), attempt, maxAttempts);
+                        return Optional.empty();
+                    }
+                    log.warn("Internal panel channel API request {} {} returned {}; retrying {}/{}",
+                        method, path, response.statusCode(), attempt + 1, maxAttempts);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    return Optional.empty();
+                } catch (IOException ex) {
+                    if (attempt == maxAttempts) {
+                        log.warn("Internal panel channel API request {} {} failed after {}/{} attempt(s): {}",
+                            method, path, attempt, maxAttempts, ex.getClass().getSimpleName());
+                        return Optional.empty();
+                    }
+                    log.warn("Internal panel channel API request {} {} failed with {}; retrying {}/{}",
+                        method, path, ex.getClass().getSimpleName(), attempt + 1, maxAttempts);
+                }
+                if (!backoff()) {
+                    return Optional.empty();
+                }
             }
-            HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("Internal panel channel API request {} {} failed with status {}", method, path, response.statusCode());
-                return Optional.empty();
-            }
-            ChannelResponse payload = objectMapper.readValue(response.body(), new TypeReference<ChannelResponse>() {});
-            return Optional.of(payload.toChannel());
-        } catch (IOException | InterruptedException ex) {
-            if (ex instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-            log.warn("Failed to call internal panel channel API {} {}", method, path, ex);
+        } catch (IOException ex) {
+            log.warn("Unable to serialize internal panel channel API request {}: {}", path, ex.getClass().getSimpleName());
             return Optional.empty();
+        }
+        return Optional.empty();
+    }
+
+    private HttpRequest buildRequest(URI uri, String method, String requestBody, String idempotencyKey) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(uri).timeout(properties.getRequestTimeout());
+        requestHeadersFactory.apply(builder::header, method, uri, requestBody, idempotencyKey);
+        if (requestBody != null) {
+            return builder.header("Content-Type", "application/json")
+                .method(method, HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
+                .build();
+        }
+        return builder.method(method, HttpRequest.BodyPublishers.noBody()).build();
+    }
+
+    private boolean isRetryableStatus(int statusCode) {
+        return statusCode >= 500 && statusCode < 600;
+    }
+
+    private boolean backoff() {
+        try {
+            long delayMillis = Math.max(0, properties.getRetryBackoff().toMillis());
+            if (delayMillis > 0) {
+                Thread.sleep(delayMillis);
+            }
+            return true;
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return false;
         }
     }
 
