@@ -62,7 +62,11 @@ import java.util.regex.Pattern;
     private static final List<String> CRITICAL_TABLES = List.of(
         "messages",
         "chat_history",
-        "client_avatar_history"
+        "client_avatar_history",
+        // These tables use PostgreSQL-only identity/timestamp semantics that the generic importer cannot preserve.
+        "notifications",
+        "web_form_sessions",
+        "chat_attachment_metadata"
     );
     private static final List<DateTimeFormatter> LOCAL_DATE_TIME_FORMATTERS = List.of(
         DateTimeFormatter.ISO_LOCAL_DATE_TIME,

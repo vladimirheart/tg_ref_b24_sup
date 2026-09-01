@@ -62,6 +62,21 @@ docker_compose_available() {
   docker info >/dev/null 2>&1 || return 1
 }
 
+existing_persistent_infrastructure_volumes() {
+  local project_name
+  project_name="$(basename "${REPO_ROOT}" | tr '[:upper:]' '[:lower:]')"
+  local logical_name
+  local candidate
+
+  for logical_name in iguana-postgres-data iguana-rabbitmq-data; do
+    for candidate in "${logical_name}" "${project_name}_${logical_name}"; do
+      if docker volume inspect "${candidate}" >/dev/null 2>&1; then
+        printf '%s\n' "${candidate}"
+      fi
+    done
+  done
+}
+
 generate_secret() {
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -hex 32
@@ -280,8 +295,12 @@ mkdir -p \
   "${REPO_ROOT}/bot_databases"
 
 if [[ ! -f "${ENV_FILE}" || "${FORCE}" == "1" ]]; then
-  if [[ -f "${ENV_FILE}" && "${FORCE}" == "1" ]]; then
-    echo "[WARN] Recreating an existing .env with --force rotates bootstrap secrets in the file only. Use this only for fresh installs or after an explicit persistent-volume migration/reset." >&2
+  if [[ "${DOCKER_AVAILABLE}" == "1" ]]; then
+    existing_volumes="$(existing_persistent_infrastructure_volumes)"
+    if [[ -n "${existing_volumes}" ]]; then
+      echo "[ERROR] Existing PostgreSQL/RabbitMQ persistent volume(s) detected: ${existing_volumes//$'\n'/, }. Refusing to create or regenerate .env because that can desynchronize persisted credentials. Use the controlled migration workflow from docs/runbooks/persisted-credential-migration-status.md or reset the contour explicitly." >&2
+      exit 1
+    fi
   fi
   build_env_file \
     "${EFFECTIVE_MODE}" \

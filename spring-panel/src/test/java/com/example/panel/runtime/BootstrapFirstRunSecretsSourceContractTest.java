@@ -30,7 +30,9 @@ class BootstrapFirstRunSecretsSourceContractTest {
             .contains("MONITORING_CREDENTIALS_MASTER_KEY=$monitoringMasterKey")
             .contains("IGUANA_GRAFANA_ADMIN_PASSWORD=$grafanaAdminPassword")
             .contains("return \"base64:$")
-            .contains("Existing persisted infrastructure credentials are not rotated automatically.");
+            .contains("Existing persisted infrastructure credentials are not rotated automatically.")
+            .contains("Get-ExistingPersistentInfrastructureVolumes")
+            .contains("Refusing to create or regenerate .env because that can desynchronize persisted credentials.");
 
         assertThat(sh)
             .contains("IGUANA_POSTGRES_PASSWORD=${postgres_password}")
@@ -43,7 +45,9 @@ class BootstrapFirstRunSecretsSourceContractTest {
             .contains("MONITORING_CREDENTIALS_MASTER_KEY=${monitoring_master_key}")
             .contains("IGUANA_GRAFANA_ADMIN_PASSWORD=${grafana_admin_password}")
             .contains("printf 'base64:%s'")
-            .contains("Existing persisted infrastructure credentials are not rotated automatically.");
+            .contains("Existing persisted infrastructure credentials are not rotated automatically.")
+            .contains("existing_persistent_infrastructure_volumes")
+            .contains("Refusing to create or regenerate .env because that can desynchronize persisted credentials.");
 
         assertThat(compose)
             .contains("POSTGRES_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}")

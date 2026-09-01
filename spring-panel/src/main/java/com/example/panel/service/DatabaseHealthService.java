@@ -33,12 +33,19 @@ public class DatabaseHealthService {
                                  PanelDatabaseRuntimeMode databaseRuntimeMode) {
         this.sqliteJdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
-        this.sqlitePath = sqliteProperties.getNormalizedPath().toString();
-        this.usersDbPath = usersProperties.getNormalizedPath().toString();
         this.databaseRuntimeMode = databaseRuntimeMode;
-        this.runtimeDescription = databaseRuntimeMode.externalSettings()
-            .map(settings -> settings.jdbcUrl())
-            .orElse(this.sqlitePath);
+        if (databaseRuntimeMode.isSqliteMode()) {
+            this.sqlitePath = sqliteProperties.getNormalizedPath().toString();
+            this.usersDbPath = usersProperties.getNormalizedPath().toString();
+            this.runtimeDescription = this.sqlitePath;
+        } else {
+            // Do not resolve compatibility paths in external mode: resolving them creates SQLite files.
+            this.sqlitePath = null;
+            this.usersDbPath = null;
+            this.runtimeDescription = databaseRuntimeMode.externalSettings()
+                .map(settings -> settings.jdbcUrl())
+                .orElseThrow(() -> new IllegalStateException("External database mode requires datasource settings"));
+        }
         if (databaseRuntimeMode.isSqliteMode()) {
             log.info("Spring panel is using SQLite database at: {} (tickets) and {} (users)",
                 this.sqlitePath, this.usersDbPath);

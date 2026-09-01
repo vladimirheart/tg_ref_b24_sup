@@ -328,6 +328,28 @@ function Ensure-Directory {
     }
 }
 
+function Get-ExistingPersistentInfrastructureVolumes {
+    param(
+        [string]$DockerCommand,
+        [string]$RepoRoot
+    )
+
+    $projectName = (Split-Path -Leaf $RepoRoot).ToLowerInvariant()
+    $logicalVolumeNames = @("iguana-postgres-data", "iguana-rabbitmq-data")
+    $existing = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($logicalName in $logicalVolumeNames) {
+        foreach ($candidate in @($logicalName, "${projectName}_${logicalName}")) {
+            & $DockerCommand volume inspect $candidate *> $null
+            if ($LASTEXITCODE -eq 0 -and -not $existing.Contains($candidate)) {
+                $existing.Add($candidate)
+            }
+        }
+    }
+
+    return $existing.ToArray()
+}
+
 function Build-EnvContent {
     param(
         [string]$RepoRoot,
@@ -482,6 +504,16 @@ foreach ($directory in $directories) {
 }
 
 if ((-not (Test-Path -LiteralPath $envFile)) -or $Force) {
+    if ($dockerAvailable) {
+        $dockerCommand = Get-DockerCommandPath
+        $existingVolumes = Get-ExistingPersistentInfrastructureVolumes `
+            -DockerCommand $dockerCommand `
+            -RepoRoot $repoRoot
+        if ($existingVolumes.Count -gt 0) {
+            throw "Existing PostgreSQL/RabbitMQ persistent volume(s) detected: $($existingVolumes -join ', '). Refusing to create or regenerate .env because that can desynchronize persisted credentials. Use the controlled migration workflow from docs/runbooks/persisted-credential-migration-status.md or reset the contour explicitly."
+        }
+    }
+
     $envContent = Build-EnvContent `
         -RepoRoot $repoRoot `
         -Mode $effectiveMode `
@@ -489,9 +521,6 @@ if ((-not (Test-Path -LiteralPath $envFile)) -or $Force) {
         -TransportMode $effectiveTransportMode `
         -RabbitAmqpPort $effectiveRabbitAmqpPort `
         -RabbitHttpPort $effectiveRabbitHttpPort
-    if ((Test-Path -LiteralPath $envFile) -and $Force) {
-        Write-Warning "Recreating an existing .env with -Force will rotate bootstrap secrets in the file only. Use this only for fresh installs or after an explicit persistent-volume migration/reset."
-    }
     Write-Utf8NoBomFile -Path $envFile -Content $envContent
     Write-Host "[INFO] Created $envFile"
 } else {
