@@ -1,5 +1,6 @@
 package com.example.supportbot.config;
 
+import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -57,7 +58,9 @@ public class DataSourceConfig {
             if (StringUtils.hasText(settings.password())) {
                 builder.password(settings.password());
             }
-            return builder.build();
+            DataSource externalDataSource = builder.build();
+            configureExternalHikari(externalDataSource, environment);
+            return externalDataSource;
         }
 
         String configuredPath = environment.getProperty("support-bot.database.path", "");
@@ -71,6 +74,24 @@ public class DataSourceConfig {
     static void applyExternalRuntimeProperties(ConfigurableEnvironment environment, ExternalDatabaseSettings settings) {
         registerRuntimePropertyOverride(environment, "spring.jpa.database-platform", settings.hibernateDialect());
         registerRuntimePropertyOverride(environment, "spring.jpa.hibernate.ddl-auto", "none");
+    }
+
+    private static void configureExternalHikari(DataSource dataSource, ConfigurableEnvironment environment) {
+        if (!(dataSource instanceof HikariDataSource hikari)) {
+            return;
+        }
+        String configuredMax = environment.getProperty("APP_DB_MAX_POOL_SIZE");
+        if (!StringUtils.hasText(configuredMax)) {
+            return;
+        }
+        try {
+            int maxPoolSize = Integer.parseInt(configuredMax.trim());
+            if (maxPoolSize > 0) {
+                hikari.setMaximumPoolSize(maxPoolSize);
+            }
+        } catch (NumberFormatException ignored) {
+            // Keep Hikari's default when an operator provides an invalid optional limit.
+        }
     }
 
     static void applySqliteRuntimeProperties(ConfigurableEnvironment environment) {

@@ -24,6 +24,7 @@
 | `IGUANA_BOOTSTRAP_DB_MODE` | режим first-run bootstrap: `auto` или `postgresql`; normal path всегда должен вести в PostgreSQL/RabbitMQ | bootstrap scripts |
 | `APP_POSTGRES_PORT` | локальный порт для dockerized PostgreSQL bootstrap | bootstrap scripts |
 | `APP_POSTGRES_MAX_CONNECTIONS` | лимит server-side подключений PostgreSQL в Docker contour; должен покрывать сумму ограниченных Hikari pools | compose/infrastructure |
+| `APP_POSTGRES_POOL_MAX_SIZE` | максимум JDBC-подключений на один panel/bot JVM в Docker contour | compose/infrastructure |
 | `IGUANA_BOOTSTRAP_INSTALL_DOCKER` | разрешить Windows bootstrap автоматически поставить Docker Desktop через `winget` | bootstrap scripts |
 | `IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS` | timeout ожидания готовности Docker Desktop после установки/старта | bootstrap scripts |
 | `APP_INTEGRATION_TRANSPORT_MODE` | transport boundary для integration runtime: `jdbc` только compatibility/dev path, `rabbitmq` для live contour | Java-бот |
