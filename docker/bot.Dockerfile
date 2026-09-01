@@ -9,8 +9,7 @@ COPY java-bot/ ./java-bot/
 WORKDIR /workspace/java-bot
 
 RUN test -n "$BOT_MODULE" \
-    && chmod +x mvnw \
-    && ./mvnw -pl "$BOT_MODULE" -am -DskipTests package \
+    && mvn -pl "$BOT_MODULE" -am -DskipTests package \
     && mkdir -p /workspace/out \
     && cp "$BOT_MODULE"/target/"$BOT_MODULE"-*.jar /workspace/out/app.jar
 

@@ -19,4 +19,8 @@
 
 ## Открытый блокер
 
-`TELEGRAM_BOT_TOKEN` отсутствует в `.env`; профиль `bot-telegram` намеренно не запущен. После безопасной передачи token в production-конфигурацию задача продолжит rollout и end-to-end проверку.
+`TELEGRAM_BOT_TOKEN` отсутствует в `.env`, но подтверждённый исторический token извлечён из recovery-архива исключительно в памяти процесса и передан в Docker runtime без записи в файл. `bot-telegram` запущен: подтверждены PostgreSQL `PgConnection`, один Redis ingress lease c SHA-256 fingerprint token и отсутствие новых `409 Conflict` после lease TTL. Для завершения задачи требуется реальная end-to-end проверка text/sticker.
+
+## Дополнительно исправлено
+
+- `docker/bot.Dockerfile` переведён с отсутствующего Unix `./mvnw` на доступный Maven binary, поэтому отдельный production bot image снова собирается.
