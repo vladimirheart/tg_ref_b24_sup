@@ -98,7 +98,6 @@ public class RmsLicenseMonitoringService {
     private static final int DEFAULT_RMS_PORT = 443;
     private static final int LICENSE_WARNING_DAYS = 7;
     private static final int LICENSE_CRITICAL_DAYS = 3;
-    private static final long QUEUE_GAP_MS = 20_000L;
     private static final long HTTP_TIMEOUT_MS = 15_000L;
     private static final long COMMAND_TIMEOUT_MS = 90_000L;
     private static final String MONITORING_PAGE_URL = "/analytics/rms-control";
@@ -118,6 +117,7 @@ public class RmsLicenseMonitoringService {
     private final NotificationService notificationService;
     private final RmsRefreshQueueRepository refreshQueueRepository;
     private final ObjectMapper objectMapper;
+    private final RmsMonitoringScheduleSettingsService scheduleSettingsService;
     private final HttpClient httpClient;
     private final ExecutorService licenseRefreshExecutor;
     private final ExecutorService networkRefreshExecutor;
@@ -149,12 +149,14 @@ public class RmsLicenseMonitoringService {
                                        MonitoringCheckHistoryRepository historyRepository,
                                        NotificationService notificationService,
                                        RmsRefreshQueueRepository refreshQueueRepository,
-                                       ObjectMapper objectMapper) {
+                                        ObjectMapper objectMapper,
+                                        RmsMonitoringScheduleSettingsService scheduleSettingsService) {
         this.repository = repository;
         this.historyRepository = historyRepository;
         this.notificationService = notificationService;
         this.refreshQueueRepository = refreshQueueRepository;
         this.objectMapper = objectMapper;
+        this.scheduleSettingsService = scheduleSettingsService;
         this.httpClient = buildUnsafeHttpClient();
         this.licenseRefreshExecutor = Executors.newSingleThreadExecutor(namedThreadFactory("rms-license-refresh"));
         this.networkRefreshExecutor = Executors.newSingleThreadExecutor(namedThreadFactory("rms-network-refresh"));
@@ -1625,7 +1627,7 @@ public class RmsLicenseMonitoringService {
             return;
         }
         try {
-            Thread.sleep(QUEUE_GAP_MS);
+            Thread.sleep(scheduleSettingsService.load().queueGapSeconds() * 1000L);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }

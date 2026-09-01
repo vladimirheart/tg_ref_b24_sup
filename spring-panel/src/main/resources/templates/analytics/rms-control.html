@@ -53,6 +53,7 @@
                     type="button">
                 Обновить статусы RMS
             </button>
+            <button class="btn btn-outline-secondary" id="openRmsScheduleSettingsBtn" type="button">Расписание проверок</button>
         </div>
     </div>
 
@@ -68,7 +69,7 @@
                         <span class="badge text-bg-secondary">Disabled / Unknown</span>
                     </div>
                     <div class="small text-muted mb-2">
-                        Автообновление лицензий запускается раз в сутки, статусов RMS — раз в 5 минут. Между проверками действует очередь с паузой 20 секунд.
+                        <span id="rmsScheduleSummary">Загрузка расписания проверок...</span>
                     </div>
                     <div class="d-flex flex-wrap gap-2 mb-2">
                         <button class="btn btn-outline-primary btn-sm" id="bulkEnableLicenseMonitoringBtn" type="button">Включить лицензии у всех</button>
@@ -104,6 +105,17 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="modal fade" id="rmsScheduleSettingsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog"><form class="modal-content" id="rmsScheduleSettingsForm">
+            <div class="modal-header"><h5 class="modal-title">Расписание RMS-проверок</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body"><p class="small text-muted">Изменения применяются worker без перезапуска. Ограничения защищают RMS от слишком частых запросов.</p>
+                <label class="form-label" for="rmsLicenseIntervalMinutes">Проверка лицензий, минут</label><input class="form-control mb-3" id="rmsLicenseIntervalMinutes" type="number" min="5" max="10080" required>
+                <label class="form-label" for="rmsNetworkIntervalMinutes">Проверка доступности RMS, минут</label><input class="form-control mb-3" id="rmsNetworkIntervalMinutes" type="number" min="1" max="1440" required>
+                <label class="form-label" for="rmsQueueGapSeconds">Пауза между запросами, секунд</label><input class="form-control" id="rmsQueueGapSeconds" type="number" min="0" max="300" required>
+            </div><div class="modal-footer"><button class="btn btn-primary" type="submit">Сохранить</button></div>
+        </form></div>
     </div>
 
     <div class="card analytics-section-card ops-section-card">

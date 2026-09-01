@@ -17,6 +17,11 @@
   const createForm = document.getElementById('rmsCreateForm');
   const refreshLicensesBtn = document.getElementById('refreshRmsLicensesBtn');
   const refreshNetworkBtn = document.getElementById('refreshRmsNetworkBtn');
+  const scheduleButton = document.getElementById('openRmsScheduleSettingsBtn');
+  const scheduleSummary = document.getElementById('rmsScheduleSummary');
+  const scheduleModalEl = document.getElementById('rmsScheduleSettingsModal');
+  const scheduleModal = scheduleModalEl && window.bootstrap ? new bootstrap.Modal(scheduleModalEl) : null;
+  const scheduleForm = document.getElementById('rmsScheduleSettingsForm');
   const rmsAddressInput = document.getElementById('rmsAddressInput');
   const rmsLoginInput = document.getElementById('rmsLoginInput');
   const rmsPasswordInput = document.getElementById('rmsPasswordInput');
@@ -64,6 +69,7 @@
   let sites = [];
   let refreshState = null;
   let availabilityOverview = null;
+  let scheduleSettings = null;
   let pollTimer = null;
   let availabilityFilter = 'all';
   const sortState = {
@@ -102,6 +108,11 @@
     { key: 'resolved_ip', label: 'IP-адрес', selected: true },
     { key: 'rms_status_message', label: 'Комментарий по доступности', selected: true },
   ];
+
+  function renderScheduleSettings() {
+    if (!scheduleSummary || !scheduleSettings) return;
+    scheduleSummary.textContent = `Лицензии: раз в ${scheduleSettings.license_interval_minutes} мин.; доступность RMS: раз в ${scheduleSettings.network_interval_minutes} мин.; пауза очереди: ${scheduleSettings.queue_gap_seconds} с.`;
+  }
 
   function escapeHtml(value) {
     if (value === null || value === undefined) return '';
@@ -789,6 +800,8 @@
       sites = Array.isArray(data.items) ? data.items : [];
       refreshState = data.refresh_state || null;
       availabilityOverview = data.availability_overview || null;
+      scheduleSettings = data.schedule_settings || scheduleSettings;
+      renderScheduleSettings();
       renderAvailabilityOverview();
       renderQueueState();
       renderSites();
@@ -1116,6 +1129,21 @@
   });
   refreshNetworkBtn?.addEventListener('click', () => {
     triggerRefresh('/api/monitoring/rms/refresh/network', 'Обновление статусов RMS поставлено в очередь.');
+  });
+
+  scheduleButton?.addEventListener('click', () => {
+    if (!scheduleSettings) return;
+    document.getElementById('rmsLicenseIntervalMinutes').value = scheduleSettings.license_interval_minutes;
+    document.getElementById('rmsNetworkIntervalMinutes').value = scheduleSettings.network_interval_minutes;
+    document.getElementById('rmsQueueGapSeconds').value = scheduleSettings.queue_gap_seconds;
+    scheduleModal?.show();
+  });
+  scheduleForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      const data = await requestJson('/api/monitoring/rms/schedule-settings', { method: 'PATCH', body: JSON.stringify({ license_interval_minutes: Number(document.getElementById('rmsLicenseIntervalMinutes').value), network_interval_minutes: Number(document.getElementById('rmsNetworkIntervalMinutes').value), queue_gap_seconds: Number(document.getElementById('rmsQueueGapSeconds').value) }) });
+      scheduleSettings = data.settings; renderScheduleSettings(); scheduleModal?.hide(); notify('Расписание RMS-проверок сохранено.', 'success');
+    } catch (error) { notify(error.message || 'Не удалось сохранить расписание RMS.', 'error'); }
   });
   bulkEnableLicenseMonitoringBtn?.addEventListener('click', () => {
     toggleBulkFeature('license', true);

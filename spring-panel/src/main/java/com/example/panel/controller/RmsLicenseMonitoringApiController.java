@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.entity.RmsLicenseMonitor;
 import com.example.panel.service.RmsLicenseMonitoringService;
+import com.example.panel.service.RmsMonitoringScheduleSettingsService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,9 +28,12 @@ import java.util.Map;
 public class RmsLicenseMonitoringApiController {
 
     private final RmsLicenseMonitoringService monitoringService;
+    private final RmsMonitoringScheduleSettingsService scheduleSettingsService;
 
-    public RmsLicenseMonitoringApiController(RmsLicenseMonitoringService monitoringService) {
+    public RmsLicenseMonitoringApiController(RmsLicenseMonitoringService monitoringService,
+                                             RmsMonitoringScheduleSettingsService scheduleSettingsService) {
         this.monitoringService = monitoringService;
+        this.scheduleSettingsService = scheduleSettingsService;
     }
 
     @GetMapping("/sites")
@@ -41,7 +45,17 @@ public class RmsLicenseMonitoringApiController {
         payload.put("items", items);
         payload.put("refresh_state", toRefreshState(monitoringService.currentRefreshState()));
         payload.put("availability_overview", toAvailabilityOverview(monitoringService.buildAvailabilityOverview(monitors)));
+        payload.put("schedule_settings", scheduleSettingsService.load().toMap());
         return payload;
+    }
+
+    @GetMapping("/schedule-settings")
+    public Map<String, Object> getScheduleSettings() { return Map.of("success", true, "settings", scheduleSettingsService.load().toMap()); }
+
+    @PatchMapping("/schedule-settings")
+    public ResponseEntity<Map<String, Object>> updateScheduleSettings(@RequestBody(required = false) Map<String, Object> payload) {
+        try { return ResponseEntity.ok(Map.of("success", true, "settings", scheduleSettingsService.save(payload).toMap())); }
+        catch (IllegalArgumentException ex) { return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage())); }
     }
 
     @PostMapping("/sites")
