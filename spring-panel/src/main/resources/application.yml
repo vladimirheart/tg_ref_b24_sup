@@ -91,7 +91,7 @@ app:
       bot-max: ${APP_BOT_EXECUTABLE_JAR_MAX:}
     preferred-production-launcher: ${APP_BOT_PREFERRED_PRODUCTION_LAUNCHER:jar}
     recommended-artifact-directory: ${APP_BOT_RECOMMENDED_ARTIFACT_DIRECTORY:dist}
-    startup-readiness-timeout: ${APP_BOT_STARTUP_READINESS_TIMEOUT:45s}
+    startup-readiness-timeout: ${APP_BOT_STARTUP_READINESS_TIMEOUT:90s}
     startup-poll-interval: ${APP_BOT_STARTUP_POLL_INTERVAL:250ms}
     internal-api:
       token: ${APP_INTERNAL_BOT_API_TOKEN:iguana-internal-bot-token}

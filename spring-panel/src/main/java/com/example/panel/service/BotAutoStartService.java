@@ -17,6 +17,9 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import jakarta.annotation.PreDestroy;
 
 @Service
 @RuntimeWorkload(
@@ -34,6 +37,11 @@ public class BotAutoStartService {
     private final BotProcessService botProcessService;
     private final SharedConfigService sharedConfigService;
     private final BotProcessProperties botProcessProperties;
+    private final ExecutorService autoStartExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "bot-auto-start");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     public BotAutoStartService(ChannelRepository channelRepository,
                                BotProcessService botProcessService,
@@ -47,6 +55,15 @@ public class BotAutoStartService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void autoStartActiveBots() {
+        autoStartExecutor.submit(this::startActiveBots);
+    }
+
+    @PreDestroy
+    public void stopAutoStartExecutor() {
+        autoStartExecutor.shutdownNow();
+    }
+
+    private void startActiveBots() {
         if (!botProcessProperties.isAutoStartEnabled()) {
             log.info("Bot auto-start is disabled by app.bots.auto-start-enabled=false");
             return;

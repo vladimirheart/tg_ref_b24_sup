@@ -183,6 +183,7 @@ public class MaxWebhookController {
         JsonNode message = update.path("message");
         Long userId = asLong(message.path("sender").path("user_id"));
         Long chatId = asLong(message.path("recipient").path("chat_id"));
+        Long providerMessageId = asLong(message.path("message_id"));
         String text = extractMessageText(message);
         MaxClientProfile clientProfile = resolveClientProfile(message, userId);
         List<MaxIncomingAttachment> attachments = extractIncomingAttachments(message);
@@ -261,7 +262,7 @@ public class MaxWebhookController {
                 messageType,
                 attachmentRef,
                 null,
-                null,
+                providerMessageId,
                 null,
                 null,
                 OffsetDateTime.now()

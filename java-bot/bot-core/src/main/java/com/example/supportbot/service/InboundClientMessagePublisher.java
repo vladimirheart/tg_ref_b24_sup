@@ -1,6 +1,7 @@
 package com.example.supportbot.service;
 
 import com.example.supportbot.config.IntegrationRabbitProperties;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -25,7 +26,7 @@ public class InboundClientMessagePublisher {
         if (command == null || command.channel() == null) {
             throw new IllegalArgumentException("Active inbound client message requires a resolved channel.");
         }
-        String eventId = UUID.randomUUID().toString();
+        String eventId = resolveEventId(command);
         OffsetDateTime occurredAt = command.occurredAt() != null ? command.occurredAt() : OffsetDateTime.now();
         String platform = command.channel().getPlatform() != null ? command.channel().getPlatform() : "telegram";
         InboundClientMessageEvent event = new InboundClientMessageEvent(
@@ -55,5 +56,17 @@ public class InboundClientMessagePublisher {
 
     private String stringify(Long value) {
         return value == null ? null : value.toString();
+    }
+
+    private String resolveEventId(ActiveInboundClientMessageCommand command) {
+        if (command.providerMessageId() == null) {
+            return UUID.randomUUID().toString();
+        }
+        String source = String.join(":",
+            "client_message.active_ticket",
+            String.valueOf(command.channel().getId()),
+            String.valueOf(command.ticketId()),
+            String.valueOf(command.providerMessageId()));
+        return UUID.nameUUIDFromBytes(source.getBytes(StandardCharsets.UTF_8)).toString();
     }
 }
