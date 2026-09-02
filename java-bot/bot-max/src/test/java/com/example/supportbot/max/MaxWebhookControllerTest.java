@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.example.supportbot.config.MaxBotProperties;
 import com.example.supportbot.service.BlacklistService;
+import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BotIngressCoordinationService;
 import com.example.supportbot.service.BotSessionStoreService;
 import com.example.supportbot.service.BotWebhookDeliveryGuardService;
@@ -74,6 +75,8 @@ class MaxWebhookControllerTest {
                 webhookDeliveryGuardService,
                 sessionStoreService,
                 runtimeConfigService,
+                mock(AttachmentService.class),
+                mock(MaxApiClient.class),
                 objectMapper
         );
     }

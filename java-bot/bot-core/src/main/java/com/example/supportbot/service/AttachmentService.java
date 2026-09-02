@@ -59,17 +59,19 @@ public class AttachmentService {
             log.info("Saved attachment {}", target);
             return new StoredAttachment(storageKey, "local_fs", target);
         }
-        byte[] payload;
+        Path tempFile = Files.createTempFile("iguana-attachment-upload-", ".bin");
         try (InputStream in = dataStream) {
-            payload = in.readAllBytes();
+            Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
+            s3Client().putObject(
+                    PutObjectRequest.builder()
+                            .bucket(requiredBucket())
+                            .key(objectKey(storageKey))
+                            .build(),
+                    RequestBody.fromFile(tempFile)
+            );
+        } finally {
+            Files.deleteIfExists(tempFile);
         }
-        s3Client().putObject(
-                PutObjectRequest.builder()
-                        .bucket(requiredBucket())
-                        .key(objectKey(storageKey))
-                        .build(),
-                RequestBody.fromBytes(payload)
-        );
         log.info("Saved attachment to object storage key {}", storageKey);
         return new StoredAttachment(storageKey, "s3", null);
     }

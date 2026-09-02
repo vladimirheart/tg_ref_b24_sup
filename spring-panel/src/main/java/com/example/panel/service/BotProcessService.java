@@ -207,24 +207,15 @@ public class BotProcessService {
 
     private BotCredential resolveCredential(Channel channel) {
         Long credentialId = channel.getCredentialId();
-        List<BotCredential> credentials = sharedConfigService.loadBotCredentials();
 
         if (credentialId != null) {
+            List<BotCredential> credentials = sharedConfigService.loadBotCredentials();
             return credentials.stream()
                 .filter(cred -> Objects.equals(cred.id(), credentialId))
                 .findFirst()
                 .orElse(fallbackToChannelToken(channel));
         }
-
-        BotCredential fromShared = credentials.stream()
-            .filter(cred -> channel.getPlatform() == null || channel.getPlatform().equalsIgnoreCase(cred.platform()))
-            .findFirst()
-            .orElse(null);
-
-        if (fromShared != null && fromShared.token() != null && !fromShared.token().isBlank()) {
-            return fromShared;
-        }
-
+        // Without an explicit credential binding, the channel owns its persisted token.
         return fallbackToChannelToken(channel);
     }
 
@@ -327,7 +318,7 @@ public class BotProcessService {
     }
 
     private void saveSharedStatus(Long channelId, BotProcessStatus status) {
-        if (channelId == null || status == null) {
+        if (channelId == null || status == null || sharedConfigService == null) {
             return;
         }
         try {
@@ -342,7 +333,7 @@ public class BotProcessService {
     }
 
     private java.util.Optional<BotProcessStatus> loadSharedStatus(Long channelId) {
-        if (channelId == null) {
+        if (channelId == null || sharedConfigService == null) {
             return java.util.Optional.empty();
         }
         Map<String, Object> payload = sharedConfigService.loadRuntimeStatus("runtime/bot-" + channelId + ".json");

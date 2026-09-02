@@ -623,6 +623,19 @@ public class DialogReplyTransportService {
                 elapsedMillis(startedAtNs)
             );
         }
+        if (!isAllowedMaxUploadUrl(uploadUrl)) {
+            return DialogReplyTransportResult.failure(
+                "MAX вернул URL загрузки вне разрешённого CDN-контура.",
+                "security_error",
+                "critical",
+                "terminal",
+                null,
+                null,
+                null,
+                null,
+                elapsedMillis(startedAtNs)
+            );
+        }
         Map<String, Object> uploadedPayload = uploadMaxBinary(channel, channel.getToken(), uploadUrl, file, originalName);
         if (uploadedPayload == null || uploadedPayload.isEmpty()) {
             return DialogReplyTransportResult.failure(
@@ -722,6 +735,19 @@ public class DialogReplyTransportService {
             return null;
         } finally {
             deleteTempFileQuietly(multipartFile);
+        }
+    }
+
+    private boolean isAllowedMaxUploadUrl(String rawUrl) {
+        try {
+            URI uri = URI.create(rawUrl);
+            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+            boolean allowedHost = host.equals("oneme.ru") || host.endsWith(".oneme.ru")
+                || host.equals("okcdn.ru") || host.endsWith(".okcdn.ru")
+                || host.equals("mycdn.me") || host.endsWith(".mycdn.me");
+            return "https".equalsIgnoreCase(uri.getScheme()) && allowedHost && uri.getUserInfo() == null;
+        } catch (IllegalArgumentException ex) {
+            return false;
         }
     }
 
@@ -893,15 +919,29 @@ public class DialogReplyTransportService {
         );
         for (String apiRoot : DEFAULT_MAX_API_ROOT_URLS) {
             for (int attempt = 0; attempt < MAX_ATTACHMENT_READY_RETRY_ATTEMPTS; attempt++) {
-                HttpClient client = integrationNetworkService.createChannelHttpClient(channel, GENERIC_PROVIDER_REQUEST_TIMEOUT);
-                HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiRoot + "/messages?user_id=" + userId))
-                    .timeout(GENERIC_PROVIDER_REQUEST_TIMEOUT)
-                    .header("Authorization", token)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody), StandardCharsets.UTF_8))
-                    .build();
-                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                HttpResponse<String> response;
+                try {
+                    HttpClient client = integrationNetworkService.createChannelHttpClient(channel, GENERIC_PROVIDER_REQUEST_TIMEOUT);
+                    HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(apiRoot + "/messages?user_id=" + userId))
+                        .timeout(GENERIC_PROVIDER_REQUEST_TIMEOUT)
+                        .header("Authorization", token)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody), StandardCharsets.UTF_8))
+                        .build();
+                    response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                } catch (IOException ex) {
+                    lastFailure = failureForException(
+                        "Не удалось отправить файл в MAX.",
+                        "network_error",
+                        "critical",
+                        "transient",
+                        ex,
+                        durationMs
+                    );
+                    log.warn("MAX media message request failed via host {}: {}", URI.create(apiRoot).getHost(), ex.getMessage());
+                    break;
+                }
                 DialogReplyTransportResult result = resolveMaxTransportResult(
                     response,
                     "Не удалось отправить файл в MAX.",

@@ -3,6 +3,8 @@ package com.example.supportbot.max;
 import com.example.supportbot.config.MaxBotProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -21,7 +23,8 @@ import org.springframework.stereotype.Component;
 public class MaxApiClient {
 
     private static final Logger log = LoggerFactory.getLogger(MaxApiClient.class);
-    private static final String API_BASE = "https://platform-api.max.ru";
+    private static final String API_BASE = "https://platform-api2.max.ru";
+    private static final long MAX_INCOMING_ATTACHMENT_BYTES = 256L * 1024L * 1024L;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
@@ -88,6 +91,53 @@ public class MaxApiClient {
         }
     }
 
+    public DownloadedAttachment downloadAttachment(String rawUrl) throws IOException, InterruptedException {
+        URI uri = validateAttachmentUri(rawUrl);
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(uri)
+            .timeout(Duration.ofSeconds(60))
+            .GET()
+            .build();
+        HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            response.body().close();
+            throw new IOException("MAX attachment download returned HTTP " + response.statusCode());
+        }
+        long contentLength = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
+        if (contentLength > MAX_INCOMING_ATTACHMENT_BYTES) {
+            response.body().close();
+            throw new IOException("MAX attachment exceeds the 256 MiB support limit");
+        }
+        String contentType = response.headers().firstValue("Content-Type").orElse(null);
+        String filename = filenameFromPath(uri.getPath());
+        return new DownloadedAttachment(response.body(), contentType, filename, contentLength);
+    }
+
+    URI validateAttachmentUri(String rawUrl) {
+        if (rawUrl == null || rawUrl.isBlank()) {
+            throw new IllegalArgumentException("MAX attachment URL is empty");
+        }
+        URI uri = URI.create(rawUrl.trim());
+        String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase();
+        boolean allowedHost = host.equals("max.ru") || host.endsWith(".max.ru")
+            || host.equals("oneme.ru") || host.endsWith(".oneme.ru")
+            || host.equals("okcdn.ru") || host.endsWith(".okcdn.ru")
+            || host.equals("mycdn.me") || host.endsWith(".mycdn.me");
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || !allowedHost || uri.getUserInfo() != null) {
+            throw new IllegalArgumentException("MAX attachment URL is outside the trusted CDN perimeter");
+        }
+        return uri;
+    }
+
+    private String filenameFromPath(String path) {
+        if (path == null || path.isBlank() || path.endsWith("/")) {
+            return null;
+        }
+        int separator = path.lastIndexOf('/');
+        String filename = separator >= 0 ? path.substring(separator + 1) : path;
+        return filename.isBlank() ? null : filename;
+    }
+
     private boolean send(String query, String text) {
         String token = properties.getToken();
         if (token == null || token.isBlank()) {
@@ -118,6 +168,16 @@ public class MaxApiClient {
     public record PollBatch(List<JsonNode> updates, String marker) {
         public static PollBatch empty(String marker) {
             return new PollBatch(List.of(), marker == null ? "" : marker);
+        }
+    }
+
+    public record DownloadedAttachment(InputStream body,
+                                       String contentType,
+                                       String filename,
+                                       long contentLength) implements AutoCloseable {
+        @Override
+        public void close() throws IOException {
+            body.close();
         }
     }
 }

@@ -66,6 +66,10 @@
     }
 
     function resolveSenderLabel(message, context) {
+      const rawSender = String(message?.sender || '').trim().toLowerCase();
+      if (rawSender === 'ai_agent') {
+        return 'AI Ops (система)';
+      }
       const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
       if (senderType === 'support') {
         return context?.operatorName || message?.sender || options.operatorDisplayName || 'Оператор';

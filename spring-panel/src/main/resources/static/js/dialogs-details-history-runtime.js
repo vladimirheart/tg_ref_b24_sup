@@ -589,15 +589,21 @@
         }
       };
       const statusNode = container.querySelector('.chat-media-sticker-status');
+      const showFallback = (message) => {
+        container.innerHTML = `
+          <div class="chat-media-sticker-status text-muted">${escapeHtml(message)}</div>
+          <a class="btn btn-sm btn-outline-secondary mt-2" href="${escapeAttribute(src)}" target="_blank" rel="noopener" download>
+            Открыть / скачать стикер
+          </a>
+        `;
+      };
       container.dataset.stickerState = 'loading';
       if (statusNode) {
         statusNode.textContent = 'Загрузка стикера…';
       }
       if (!window.lottie || typeof window.lottie.loadAnimation !== 'function') {
         container.dataset.stickerState = 'error';
-        if (statusNode) {
-          statusNode.textContent = 'Не удалось загрузить проигрыватель стикеров.';
-        }
+        showFallback('Проигрыватель стикеров недоступен.');
         return;
       }
       try {
@@ -623,11 +629,7 @@
         notifyLayoutChange();
       } catch (_error) {
         container.dataset.stickerState = 'error';
-        if (statusNode) {
-          statusNode.textContent = 'Не удалось показать стикер.';
-        } else {
-          container.innerHTML = '<div class="chat-media-sticker-status text-muted">Не удалось показать стикер.</div>';
-        }
+        showFallback('Анимацию стикера показать не удалось.');
         notifyLayoutChange();
       }
     }

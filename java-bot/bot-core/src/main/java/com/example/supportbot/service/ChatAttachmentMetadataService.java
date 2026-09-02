@@ -47,9 +47,7 @@ public class ChatAttachmentMetadataService {
         String normalizationStatus = "external_url".equals(storageProvider) || StringUtils.hasText(storageKey)
                 ? "normalized"
                 : "unresolved";
-        String availabilityStatus = "external_url".equals(storageProvider)
-                ? "external"
-                : (resolvedPath != null ? "available" : (StringUtils.hasText(storageKey) ? "missing" : "unresolved"));
+        String availabilityStatus = resolveAvailabilityStatus(storageProvider, storageKey, resolvedPath);
         String timestamp = OffsetDateTime.now().toString();
 
         jdbcTemplate.update("DELETE FROM chat_attachment_metadata WHERE chat_history_id = ?", chatHistoryId);
@@ -297,5 +295,18 @@ public class ChatAttachmentMetadataService {
             return "external_url";
         }
         return objectStorageProperties.isS3Mode() ? "s3" : "local_fs";
+    }
+
+    private String resolveAvailabilityStatus(String storageProvider, String storageKey, Path resolvedPath) {
+        if ("external_url".equals(storageProvider)) {
+            return "external";
+        }
+        if ("s3".equals(storageProvider) && StringUtils.hasText(storageKey)) {
+            return "available";
+        }
+        if (resolvedPath != null) {
+            return "available";
+        }
+        return StringUtils.hasText(storageKey) ? "missing" : "unresolved";
     }
 }

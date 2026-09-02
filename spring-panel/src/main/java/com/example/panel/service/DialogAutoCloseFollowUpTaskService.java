@@ -109,7 +109,9 @@ public class DialogAutoCloseFollowUpTaskService {
                     SELECT username
                       FROM ticket_participants
                      WHERE ticket_id = ?
-                     ORDER BY COALESCE(added_at, '') ASC, lower(username) ASC
+                     ORDER BY CASE WHEN added_at IS NULL THEN 0 ELSE 1 END ASC,
+                              added_at ASC,
+                              lower(username) ASC
                     """,
                 (rs, rowNum) -> rs.getString("username"),
                 ticketId

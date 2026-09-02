@@ -72,6 +72,12 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         assertThat(payload.bodyHtml()).contains("/dialogs/T-100");
         assertThat(payload.bodyHtml()).contains("Иван");
         assertThat(payload.title()).contains("T-100");
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate).query(sqlCaptor.capture(), any(RowMapper.class), eq("T-100"));
+        assertThat(sqlCaptor.getValue())
+            .contains("CASE WHEN added_at IS NULL")
+            .doesNotContain("COALESCE(added_at, '')");
     }
 
     @Test

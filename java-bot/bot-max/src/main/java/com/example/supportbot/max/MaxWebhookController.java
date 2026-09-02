@@ -5,6 +5,7 @@ import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.PendingFeedbackRequest;
 import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.service.ActiveInboundClientMessageCommand;
+import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.BotWebhookDeliveryGuardService;
 import com.example.supportbot.service.ChannelService;
@@ -28,10 +29,12 @@ import com.example.supportbot.settings.dto.QuestionRouteDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -40,6 +43,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -85,6 +89,8 @@ public class MaxWebhookController {
     private final BotWebhookDeliveryGuardService webhookDeliveryGuardService;
     private final BotSessionStoreService sessionStoreService;
     private final RuntimeConfigService runtimeConfigService;
+    private final AttachmentService attachmentService;
+    private final MaxApiClient maxApiClient;
     private final ObjectMapper objectMapper;
 
     private static String defaultFirstResponseTimeoutMessage() {
@@ -108,6 +114,8 @@ public class MaxWebhookController {
                                 BotWebhookDeliveryGuardService webhookDeliveryGuardService,
                                 BotSessionStoreService sessionStoreService,
                                 RuntimeConfigService runtimeConfigService,
+                                AttachmentService attachmentService,
+                                MaxApiClient maxApiClient,
                                 ObjectMapper objectMapper) {
         this.properties = properties;
         this.blacklistService = blacklistService;
@@ -121,6 +129,8 @@ public class MaxWebhookController {
         this.webhookDeliveryGuardService = webhookDeliveryGuardService;
         this.sessionStoreService = sessionStoreService;
         this.runtimeConfigService = runtimeConfigService;
+        this.attachmentService = attachmentService;
+        this.maxApiClient = maxApiClient;
         this.objectMapper = objectMapper;
     }
 
@@ -183,7 +193,7 @@ public class MaxWebhookController {
         JsonNode message = update.path("message");
         Long userId = asLong(message.path("sender").path("user_id"));
         Long chatId = asLong(message.path("recipient").path("chat_id"));
-        Long providerMessageId = asLong(message.path("message_id"));
+        Long providerMessageId = resolveProviderMessageId(update, message);
         String text = extractMessageText(message);
         MaxClientProfile clientProfile = resolveClientProfile(message, userId);
         List<MaxIncomingAttachment> attachments = extractIncomingAttachments(message);
@@ -250,7 +260,11 @@ public class MaxWebhookController {
             String ticketId = active.get().getTicketId();
             String clientText = !text.isBlank() ? text : "[вложение от клиента]";
             String messageType = hasAttachments ? normalizeAttachmentType(attachments.get(0).type()) : "text";
-            String attachmentRef = hasAttachments ? attachments.get(0).urlOrName() : null;
+            StoredIncomingAttachment storedAttachment = hasAttachments
+                    ? storeIncomingAttachment(channel, attachments.get(0))
+                    : null;
+            String attachmentRef = storedAttachment != null ? storedAttachment.storageKey() : null;
+            String attachmentName = storedAttachment != null ? storedAttachment.originalName() : null;
             ticketService.recordActiveClientMessage(new ActiveInboundClientMessageCommand(
                 userId,
                 clientProfile.identity(),
@@ -261,7 +275,7 @@ public class MaxWebhookController {
                 clientText,
                 messageType,
                 attachmentRef,
-                null,
+                attachmentName,
                 providerMessageId,
                 null,
                 null,
@@ -1060,6 +1074,65 @@ public class MaxWebhookController {
         return null;
     }
 
+    private StoredIncomingAttachment storeIncomingAttachment(Channel channel, MaxIncomingAttachment attachment) {
+        if (attachment == null) {
+            return null;
+        }
+        String fallbackRef = attachment.urlOrName();
+        if (!StringUtils.hasText(attachment.url())) {
+            return StringUtils.hasText(fallbackRef)
+                    ? new StoredIncomingAttachment(fallbackRef, attachment.name())
+                    : null;
+        }
+        try (MaxApiClient.DownloadedAttachment downloaded = maxApiClient.downloadAttachment(attachment.url())) {
+            String originalName = firstNonBlank(attachment.name(), downloaded.filename());
+            String extension = resolveAttachmentExtension(originalName, downloaded.contentType(), attachment.type());
+            String channelPublicId = firstNonBlank(
+                    channel != null ? channel.getPublicId() : null,
+                    channel != null && channel.getId() != null ? "max-" + channel.getId() : "max"
+            );
+            AttachmentService.StoredAttachment stored = attachmentService.store(channelPublicId, extension, downloaded.body());
+            return new StoredIncomingAttachment(stored.storageKey(), originalName);
+        } catch (IOException | InterruptedException | RuntimeException ex) {
+            if (ex instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            log.warn("Unable to persist incoming MAX attachment for channel {}: {}",
+                    channel != null ? channel.getId() : null,
+                    ex.getMessage());
+            return StringUtils.hasText(fallbackRef)
+                    ? new StoredIncomingAttachment(fallbackRef, attachment.name())
+                    : null;
+        }
+    }
+
+    private String resolveAttachmentExtension(String filename, String contentType, String attachmentType) {
+        if (StringUtils.hasText(filename)) {
+            String normalized = filename.trim();
+            int dot = normalized.lastIndexOf('.');
+            if (dot >= 0 && dot < normalized.length() - 1) {
+                String extension = normalized.substring(dot + 1).replaceAll("[^A-Za-z0-9]", "");
+                if (!extension.isBlank() && extension.length() <= 10) {
+                    return extension.toLowerCase();
+                }
+            }
+        }
+        String normalizedContentType = contentType == null ? "" : contentType.toLowerCase();
+        if (normalizedContentType.contains("jpeg")) return "jpg";
+        if (normalizedContentType.contains("png")) return "png";
+        if (normalizedContentType.contains("gif")) return "gif";
+        if (normalizedContentType.contains("webp")) return "webp";
+        if (normalizedContentType.contains("mp4")) return "mp4";
+        if (normalizedContentType.contains("ogg")) return "ogg";
+        if (normalizedContentType.contains("mpeg")) return "mp3";
+        if (normalizedContentType.contains("pdf")) return "pdf";
+        String normalizedType = attachmentType == null ? "" : attachmentType.toLowerCase();
+        if (normalizedType.contains("image") || normalizedType.contains("photo")) return "jpg";
+        if (normalizedType.contains("video")) return "mp4";
+        if (normalizedType.contains("audio")) return "ogg";
+        return "bin";
+    }
+
     private String trimOrNull(String value) {
         if (value == null) {
             return null;
@@ -1132,6 +1205,19 @@ public class MaxWebhookController {
         }
     }
 
+    private Long resolveProviderMessageId(JsonNode update, JsonNode message) {
+        Long numericId = asLong(message.path("message_id"));
+        if (numericId == null) {
+            numericId = asLong(message.path("body").path("mid"));
+        }
+        if (numericId != null) {
+            return numericId;
+        }
+        UUID stableId = UUID.nameUUIDFromBytes(buildDeliveryKey(update).getBytes(StandardCharsets.UTF_8));
+        long value = stableId.getMostSignificantBits() & Long.MAX_VALUE;
+        return value == 0L ? 1L : value;
+    }
+
     private record MaxIncomingAttachment(String type, String url, String name) {
         String urlOrName() {
             if (url != null && !url.isBlank()) {
@@ -1139,6 +1225,9 @@ public class MaxWebhookController {
             }
             return name;
         }
+    }
+
+    private record StoredIncomingAttachment(String storageKey, String originalName) {
     }
 
     private record MaxClientProfile(String username, String clientName, Long userId) {
