@@ -15,6 +15,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -121,6 +122,7 @@ public class BotProcessService {
             processes.put(channelId, process);
             startedAt.put(channelId, now);
             writePidFile(botWorkingDir, channelId, process.pid());
+            saveSharedStatus(channelId, startupStatus);
             log.info("Started bot process for channel {} at {} via {}", channelId, now, launchPlan.description());
             return startupStatus;
         } catch (Exception ex) {
@@ -138,6 +140,7 @@ public class BotProcessService {
         Path pidFile = resolvePidFile(botWorkingDir, channelId);
         stopProcessFromPidFile(pidFile, channelId);
         startedAt.remove(channelId);
+        saveSharedStatus(channelId, BotProcessStatus.stopped());
         log.info("Stopped bot process for channel {}", channelId);
         return BotProcessStatus.stopped();
     }
@@ -161,9 +164,11 @@ public class BotProcessService {
             if (detectedStart != null) {
                 startedAt.put(channelId, detectedStart);
             }
-            return BotProcessStatus.running(detectedStart);
+            BotProcessStatus status = BotProcessStatus.running(detectedStart);
+            saveSharedStatus(channelId, status);
+            return status;
         }
-        return BotProcessStatus.stopped();
+        return loadSharedStatus(channelId).orElse(BotProcessStatus.stopped());
     }
 
     public BotRuntimeContractService.BotRuntimeContract describeRuntimeContract(Channel channel) {
@@ -319,6 +324,44 @@ public class BotProcessService {
     private Path resolvePidFile(Path botWorkingDir, Long channelId) {
         Path runDir = botWorkingDir.resolve("../run").normalize();
         return runDir.resolve("bot-" + channelId + ".pid").toAbsolutePath().normalize();
+    }
+
+    private void saveSharedStatus(Long channelId, BotProcessStatus status) {
+        if (channelId == null || status == null) {
+            return;
+        }
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("status", status.message());
+            payload.put("startedAt", status.startedAt() == null ? null : status.startedAt().toString());
+            payload.put("updatedAt", OffsetDateTime.now().toString());
+            sharedConfigService.saveRuntimeStatus("runtime/bot-" + channelId + ".json", payload);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to save shared bot runtime status for channel {}: {}", channelId, ex.getMessage());
+        }
+    }
+
+    private java.util.Optional<BotProcessStatus> loadSharedStatus(Long channelId) {
+        if (channelId == null) {
+            return java.util.Optional.empty();
+        }
+        Map<String, Object> payload = sharedConfigService.loadRuntimeStatus("runtime/bot-" + channelId + ".json");
+        String status = Objects.toString(payload.get("status"), "").trim();
+        if (status.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        OffsetDateTime sharedStartedAt = null;
+        try {
+            String rawStartedAt = Objects.toString(payload.get("startedAt"), "").trim();
+            if (!rawStartedAt.isEmpty()) {
+                sharedStartedAt = OffsetDateTime.parse(rawStartedAt);
+            }
+        } catch (RuntimeException ignored) {
+            // Status remains useful even if an older runtime wrote an invalid timestamp.
+        }
+        return java.util.Optional.of("running".equalsIgnoreCase(status)
+            ? BotProcessStatus.running(sharedStartedAt)
+            : "stopped".equalsIgnoreCase(status) ? BotProcessStatus.stopped() : BotProcessStatus.error(status));
     }
 
     private Path resolveProcessOutputLogFile(Path logFile) {

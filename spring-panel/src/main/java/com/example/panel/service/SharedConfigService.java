@@ -87,6 +87,14 @@ public class SharedConfigService {
         return sharedConfigDir.resolve(fileName);
     }
 
+    public Map<String, Object> loadRuntimeStatus(String fileName) {
+        return readAsMap(fileName);
+    }
+
+    public void saveRuntimeStatus(String fileName, Map<String, Object> payload) {
+        writeMap(fileName, payload);
+    }
+
     private Path resolveSharedDir(String configuredPath) {
         Path configured = Paths.get(configuredPath);
         Path absolute = configured.toAbsolutePath().normalize();

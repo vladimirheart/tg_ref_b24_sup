@@ -264,7 +264,8 @@ services:
       retries: 10
 
   bot-telegram:
-    profiles: ["telegram"]
+    # Retained only for emergency rollback; dynamic bot-runner owns production channels.
+    profiles: ["legacy-static-bots-disabled"]
     build:
       context: .
       dockerfile: docker/bot.Dockerfile
@@ -318,7 +319,7 @@ services:
       - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
 
   bot-vk:
-    profiles: ["vk"]
+    profiles: ["legacy-static-bots-disabled"]
     build:
       context: .
       dockerfile: docker/bot.Dockerfile
@@ -379,7 +380,7 @@ services:
       - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
 
   bot-max:
-    profiles: ["max"]
+    profiles: ["legacy-static-bots-disabled"]
     build:
       context: .
       dockerfile: docker/bot.Dockerfile
