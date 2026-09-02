@@ -504,10 +504,18 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
   transition: opacity 0.15s ease, background 0.15s ease;
 }
 
-.chat-message:hover .chat-message-menu-toggle,
+.chat-message.is-actions-hovered .chat-message-menu-toggle,
 .chat-message:focus-within .chat-message-menu-toggle,
 .chat-message-menu.is-open .chat-message-menu-toggle,
 .chat-message-menu:hover .chat-message-menu-toggle {
+  opacity: 1;
+}
+
+.chat-history.has-open-message-menu .chat-message-menu-toggle {
+  opacity: 0;
+}
+
+.chat-history.has-open-message-menu .chat-message-menu.is-open .chat-message-menu-toggle {
   opacity: 1;
 }
 
@@ -520,7 +528,7 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
 .chat-message-menu-list {
   position: absolute;
   top: calc(100% + 0.35rem);
-  right: 0;
+  left: 0;
   background: var(--surface-card);
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
@@ -546,6 +554,32 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
 
 .chat-message-menu-list .btn {
   text-align: left;
+  white-space: nowrap;
+}
+
+.chat-message-reply-source {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.chat-message-reply-source:hover,
+button.chat-message-reply-source:focus-visible {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.chat-message-row.is-reply-target-highlight .chat-message {
+  animation: chat-message-reply-target-pulse 1.8s ease;
+}
+
+@keyframes chat-message-reply-target-pulse {
+  0%, 100% { box-shadow: none; }
+  30%, 70% { box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary) 35%, transparent); }
 }
 
 .chat-history {

@@ -8,17 +8,21 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Flow;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +33,38 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DialogReplyTransportServiceTest {
+
+    @Test
+    void sendMaxTextIncludesReplyLink() throws Exception {
+        HttpClient httpClient = mock(HttpClient.class);
+        IntegrationNetworkService integrationNetworkService = mock(IntegrationNetworkService.class);
+        when(integrationNetworkService.createChannelHttpClient(any(), any(Duration.class))).thenReturn(httpClient);
+
+        List<HttpRequest> requests = new ArrayList<>();
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenAnswer(invocation -> {
+                    HttpRequest request = invocation.getArgument(0);
+                    requests.add(request);
+                    return responseFor(request, new ArrayList<>(),
+                            "{\"message\":{\"body\":{\"mid\":\"9002\"}}}", 200);
+                });
+
+        DialogReplyTransportService service = new DialogReplyTransportService(
+                mock(com.example.panel.repository.ChannelRepository.class),
+                integrationNetworkService,
+                new ObjectMapper()
+        );
+
+        DialogReplyTransportService.DialogReplyTransportResult result = service.sendText(
+                maxChannel(), 42L, "Ответ оператора", 9001L);
+
+        assertThat(result.success()).isTrue();
+        assertThat(requests).hasSize(1);
+        assertThat(requests.get(0).uri().getHost()).isEqualTo("platform-api2.max.ru");
+        var link = new ObjectMapper().readTree(requestBody(requests.get(0))).path("link");
+        assertThat(link.path("type").asText()).isEqualTo("reply");
+        assertThat(link.path("mid").asText()).isEqualTo("9001");
+    }
 
     @Test
     void sendMediaSendsJpgAsTelegramDocument() throws Exception {
@@ -372,10 +408,48 @@ class DialogReplyTransportServiceTest {
         return response;
     }
 
+    private static String requestBody(HttpRequest request) throws Exception {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        CompletableFuture<Void> completed = new CompletableFuture<>();
+        request.bodyPublisher().orElseThrow().subscribe(new Flow.Subscriber<>() {
+            @Override
+            public void onSubscribe(Flow.Subscription subscription) {
+                subscription.request(Long.MAX_VALUE);
+            }
+
+            @Override
+            public void onNext(ByteBuffer item) {
+                ByteBuffer copy = item.slice();
+                byte[] chunk = new byte[copy.remaining()];
+                copy.get(chunk);
+                bytes.writeBytes(chunk);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                completed.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onComplete() {
+                completed.complete(null);
+            }
+        });
+        completed.get();
+        return bytes.toString(StandardCharsets.UTF_8);
+    }
+
     private static Channel telegramChannel() {
         Channel channel = new Channel();
         channel.setPlatform("telegram");
         channel.setToken("123456:test-token");
+        return channel;
+    }
+
+    private static Channel maxChannel() {
+        Channel channel = new Channel();
+        channel.setPlatform("max");
+        channel.setToken("max-test-token");
         return channel;
     }
 }

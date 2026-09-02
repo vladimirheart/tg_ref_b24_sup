@@ -148,6 +148,35 @@ class MaxWebhookControllerTest {
         assertThat(command.getValue().forwardedFrom()).isEqualTo("Алексей (@alexey)");
     }
 
+    @Test
+    void recordsReplyTargetFromMaxLinkedMessage() throws Exception {
+        Channel channel = mock(Channel.class);
+        TicketActive active = new TicketActive();
+        active.setTicketId("INC-100");
+        when(ingressCoordinationService.tryAcquireOrRenew("max", 55L)).thenReturn(true);
+        when(webhookDeliveryGuardService.tryClaim(eq("max"), eq(55L), anyString()))
+                .thenReturn(new BotWebhookDeliveryGuardService.DeliveryClaim(
+                        "max:55:reply-1",
+                        "token",
+                        BotWebhookDeliveryGuardService.ClaimStatus.ACQUIRED
+                ));
+        when(channelService.resolveConfiguredChannel(55L, null, "MAX", "max")).thenReturn(channel);
+        when(blacklistService.resolveStatus(eq(1001L), anyString(), anyString(), eq("2002")))
+                .thenReturn(new BlacklistService.ResolvedBlacklistStatus(
+                        null,
+                        new BlacklistService.BlacklistStatus(false, false)
+                ));
+        when(ticketService.findActiveTicketForUser(eq(1001L), anyString(), isNull())).thenReturn(Optional.of(active));
+        when(ticketService.findByTicketId("INC-100"))
+                .thenReturn(Optional.of(new TicketService.TicketWithUser(1001L, "INC-100", "open")));
+
+        controller.handleUpdate(replyMessageCreatedUpdate(), "secret");
+
+        ArgumentCaptor<ActiveInboundClientMessageCommand> command = ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);
+        verify(ticketService).recordActiveClientMessage(command.capture());
+        assertThat(command.getValue().replyToProviderMessageId()).isEqualTo(9001L);
+    }
+
     private JsonNode messageCreatedUpdate() throws Exception {
         return objectMapper.readTree("""
             {
@@ -177,6 +206,27 @@ class MaxWebhookControllerTest {
                     "author": { "user_id": 3003, "name": "Алексей", "username": "alexey" },
                     "message": {
                     "body": { "text": "Текст от другого пользователя" }
+                  }
+                }
+              }
+            }
+            """);
+    }
+
+    private JsonNode replyMessageCreatedUpdate() throws Exception {
+        return objectMapper.readTree("""
+            {
+              "update_type": "message_created",
+              "update_id": "reply-1",
+              "message": {
+                "sender": { "user_id": 1001, "name": "Клиент" },
+                "recipient": { "chat_id": 2002 },
+                "body": { "text": "Это ответ" },
+                "link": {
+                  "type": "reply",
+                  "message": {
+                    "mid": "9001",
+                    "body": { "text": "Исходное сообщение" }
                   }
                 }
               }

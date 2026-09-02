@@ -278,7 +278,7 @@ public class MaxWebhookController {
                 attachmentRef,
                 attachmentName,
                 providerMessageId,
-                null,
+                resolveReplyToProviderMessageId(message),
                 inboundPayload.forwardedFrom(),
                 OffsetDateTime.now()
             ));
@@ -1317,6 +1317,29 @@ public class MaxWebhookController {
         UUID stableId = UUID.nameUUIDFromBytes(buildDeliveryKey(update).getBytes(StandardCharsets.UTF_8));
         long value = stableId.getMostSignificantBits() & Long.MAX_VALUE;
         return value == 0L ? 1L : value;
+    }
+
+    private Long resolveReplyToProviderMessageId(JsonNode message) {
+        JsonNode link = message != null ? message.path("link") : null;
+        if (link == null || link.isMissingNode() || link.isNull()
+                || !"reply".equalsIgnoreCase(text(link, "type"))) {
+            return null;
+        }
+
+        JsonNode linkedMessage = link.path("message");
+        for (JsonNode candidate : List.of(
+                link.path("message_id"),
+                link.path("mid"),
+                linkedMessage.path("message_id"),
+                linkedMessage.path("mid"),
+                linkedMessage.path("body").path("message_id"),
+                linkedMessage.path("body").path("mid"))) {
+            Long messageId = asLong(candidate);
+            if (messageId != null) {
+                return messageId;
+            }
+        }
+        return null;
     }
 
     private record MaxIncomingAttachment(String type, String url, String name) {

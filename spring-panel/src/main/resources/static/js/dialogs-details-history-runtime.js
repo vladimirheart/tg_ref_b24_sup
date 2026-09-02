@@ -22,6 +22,7 @@
       historyPinnedIntent: false,
       historyScrollTimeouts: [],
       historyInteractionsBound: false,
+      replyTargetHighlightTimeout: null,
     };
     const PENDING_MEDIA_CHANGED_EVENT = 'dialogs:pending-media-files-changed';
 
@@ -684,8 +685,11 @@
       const mediaKind = message?.attachment
         ? resolveAttachmentKind(message.messageType, message.attachment)
         : (message?.attachmentStatus ? resolveAttachmentKind(message.messageType, message.attachmentName || message.attachmentStatus) : '');
+      const replyTargetId = Number(message?.replyToTelegramMessageId);
       const replyPreview = message?.replyPreview
-        ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
+        ? Number.isSafeInteger(replyTargetId)
+          ? `<button type="button" class="small text-muted border-start ps-2 mb-1 chat-message-reply-source" data-history-reply-source data-reply-to-message-id="${replyTargetId}" aria-label="Перейти к исходному сообщению">↪ ${escapeHtml(message.replyPreview)}</button>`
+          : `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
         : '';
       const forwardedBadge = message?.forwardedFrom
         ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
@@ -1574,6 +1578,11 @@
 					toggle.focus({ preventScroll: true });
 				});
 			}
+
+      elements.detailsHistory?.classList.toggle(
+        'has-open-message-menu',
+        Boolean(elements.detailsHistory.querySelector('.chat-message-menu.is-open'))
+      );
 		}
 
 		function closeHistoryActionMenus(
@@ -1595,6 +1604,38 @@
 				});
 		}
 
+    function setHistoryActionHover(messageNode) {
+      if (!elements.detailsHistory) return;
+      elements.detailsHistory.querySelectorAll('.chat-message.is-actions-hovered').forEach((node) => {
+        node.classList.toggle('is-actions-hovered', node === messageNode);
+      });
+      messageNode?.classList.add('is-actions-hovered');
+    }
+
+    function focusHistoryReplyTarget(rawMessageId) {
+      if (!elements.detailsHistory) return;
+      const messageId = Number.parseInt(rawMessageId, 10);
+      if (!Number.isSafeInteger(messageId)) return;
+      const target = elements.detailsHistory.querySelector(
+        `.chat-message-row[data-telegram-message-id="${messageId}"]`
+      );
+      if (!target) {
+        notify('Исходное сообщение ещё не загружено в историю.', 'info');
+        return;
+      }
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.remove('is-reply-target-highlight');
+      void target.offsetWidth;
+      target.classList.add('is-reply-target-highlight');
+      if (state.replyTargetHighlightTimeout) {
+        window.clearTimeout(state.replyTargetHighlightTimeout);
+      }
+      state.replyTargetHighlightTimeout = window.setTimeout(() => {
+        target.classList.remove('is-reply-target-highlight');
+        state.replyTargetHighlightTimeout = null;
+      }, 1800);
+    }
+
     function bindHistoryInteractionEvents() {
       if (state.historyInteractionsBound) {
         return;
@@ -1604,10 +1645,28 @@
         elements.detailsHistory.addEventListener('scroll', () => {
           syncHistoryPinnedIntent();
         }, { passive: true });
+        elements.detailsHistory.addEventListener('pointerover', (event) => {
+          const messageNode = event.target.closest('.chat-message');
+          if (messageNode && elements.detailsHistory.contains(messageNode)) {
+            setHistoryActionHover(messageNode);
+          }
+        });
+        elements.detailsHistory.addEventListener('pointerout', (event) => {
+          const messageNode = event.target.closest('.chat-message');
+          const nextMessageNode = event.relatedTarget?.closest?.('.chat-message');
+          if (messageNode && messageNode !== nextMessageNode) {
+            messageNode.classList.remove('is-actions-hovered');
+          }
+        });
         elements.detailsHistory.addEventListener('click', async (event) => {
           const loadPreviousButton = event.target.closest('button[data-action="load-previous-history"]');
           if (loadPreviousButton) {
             await loadPreviousDialogHistory();
+            return;
+          }
+          const replySource = event.target.closest('[data-history-reply-source]');
+          if (replySource) {
+            focusHistoryReplyTarget(replySource.dataset.replyToMessageId);
             return;
           }
           if (handleMediaSurfaceClick(event)) {

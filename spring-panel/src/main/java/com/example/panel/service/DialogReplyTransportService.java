@@ -78,7 +78,7 @@ public class DialogReplyTransportService {
         String platform = normalizePlatform(channel != null ? channel.getPlatform() : null);
         return switch (platform) {
             case "vk" -> sendVkText(channel, userId, message);
-            case "max" -> sendMaxText(channel, userId, message);
+            case "max" -> sendMaxText(channel, userId, message, replyToTelegramId);
             default -> sendTelegramText(channel, userId, message, replyToTelegramId);
         };
     }
@@ -231,7 +231,7 @@ public class DialogReplyTransportService {
                                                 Long replyToTelegramId) {
         String platform = normalizePlatform(channel != null ? channel.getPlatform() : null);
         if ("max".equals(platform)) {
-            return sendMaxMedia(channel, userId, file, caption, originalName);
+            return sendMaxMedia(channel, userId, file, caption, originalName, replyToTelegramId);
         }
         if ("telegram".equals(platform)) {
             return sendTelegramMediaSafely(channel, userId, file, caption, originalName, replyToTelegramId);
@@ -366,7 +366,10 @@ public class DialogReplyTransportService {
         }
     }
 
-    private DialogReplyTransportResult sendMaxText(Channel channel, Long userId, String text) {
+    private DialogReplyTransportResult sendMaxText(Channel channel,
+                                                    Long userId,
+                                                    String text,
+                                                    Long replyToTelegramId) {
         if (userId == null || !StringUtils.hasText(text)) {
             return DialogReplyTransportResult.failure(
                 "Некорректные параметры отправки в MAX.",
@@ -382,13 +385,16 @@ public class DialogReplyTransportService {
         }
         long startedAtNs = System.nanoTime();
         try {
+            Map<String, Object> requestBody = new LinkedHashMap<>();
+            requestBody.put("text", text);
+            appendMaxReplyLink(requestBody, replyToTelegramId);
             HttpClient client = integrationNetworkService.createChannelHttpClient(channel, GENERIC_PROVIDER_REQUEST_TIMEOUT);
             HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://platform-api.max.ru/messages?user_id=" + userId))
+                .uri(URI.create(DEFAULT_MAX_API_ROOT_URLS.get(0) + "/messages?user_id=" + userId))
                 .timeout(GENERIC_PROVIDER_REQUEST_TIMEOUT)
                 .header("Authorization", channel.getToken())
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(Map.of("text", text)), StandardCharsets.UTF_8))
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody), StandardCharsets.UTF_8))
                 .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             return resolveMaxTransportResult(
@@ -575,7 +581,8 @@ public class DialogReplyTransportService {
                                                     Long userId,
                                                     MultipartFile file,
                                                     String caption,
-                                                    String originalName) {
+                                                    String originalName,
+                                                    Long replyToTelegramId) {
         long startedAtNs = System.nanoTime();
         if (userId == null) {
             return DialogReplyTransportResult.failure(
@@ -662,6 +669,7 @@ public class DialogReplyTransportService {
             "type", attachmentType,
             "payload", uploadedPayload
         )));
+        appendMaxReplyLink(requestBody, replyToTelegramId);
         try {
             return sendMaxMediaMessage(channel, channel.getToken(), userId, requestBody, elapsedMillis(startedAtNs));
         } catch (InterruptedException ex) {
@@ -736,6 +744,16 @@ public class DialogReplyTransportService {
         } finally {
             deleteTempFileQuietly(multipartFile);
         }
+    }
+
+    private void appendMaxReplyLink(Map<String, Object> requestBody, Long replyToTelegramId) {
+        if (replyToTelegramId == null || replyToTelegramId <= 0L) {
+            return;
+        }
+        requestBody.put("link", Map.of(
+            "type", "reply",
+            "mid", String.valueOf(replyToTelegramId)
+        ));
     }
 
     private boolean isAllowedMaxUploadUrl(String rawUrl) {
