@@ -262,3 +262,4 @@
 🟣 [01-240] Восстановить realtime inbox, feedback и media после исчерпания PostgreSQL connections и duplicate bot runtime
 🟡 [01-241] Перевести ручной lifecycle bot runtime из web API в подтверждаемые команды dynamic bot-runner
 🟡 [01-242] Устранить дубли входящих событий, диалогов и системных сообщений Telegram/MAX
+🟡 [01-243] Разделить traffic readiness Docker-ролей и operational degradation Production readiness

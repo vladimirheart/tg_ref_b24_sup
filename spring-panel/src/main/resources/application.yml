@@ -214,7 +214,10 @@ management:
         liveness:
           include: ping
         readiness:
-          include: db,redis,rabbit,iguanaProduction
+          # Traffic readiness must reflect dependencies required to serve requests.
+          # Operational degradations (DLQ/delivery backlog) remain visible through
+          # iguanaProduction, but must not restart healthy application roles.
+          include: db,redis,rabbit
     prometheus:
       enabled: true
     metrics:

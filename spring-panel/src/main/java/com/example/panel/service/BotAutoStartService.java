@@ -54,6 +54,13 @@ public class BotAutoStartService {
         try {
             botProcessService.stopAllForStartup();
             List<Channel> channels = channelRepository.findAll();
+            // A runner restart has no local Process handles. Reset persisted statuses first,
+            // otherwise an old "running" record can prevent every active channel from starting.
+            for (Channel channel : channels) {
+                if (channel != null && channel.getId() != null && Boolean.TRUE.equals(channel.getActive())) {
+                    botProcessService.stop(channel.getId());
+                }
+            }
             int started = 0;
             for (Channel channel : channels) {
                 try {
