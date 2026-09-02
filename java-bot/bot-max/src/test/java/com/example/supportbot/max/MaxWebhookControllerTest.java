@@ -3,11 +3,16 @@ package com.example.supportbot.max;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.supportbot.config.MaxBotProperties;
+import com.example.supportbot.entity.Channel;
+import com.example.supportbot.entity.TicketActive;
+import com.example.supportbot.service.ActiveInboundClientMessageCommand;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BotIngressCoordinationService;
@@ -28,12 +33,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.util.Map;
+import java.util.Optional;
+import org.mockito.ArgumentCaptor;
 
 class MaxWebhookControllerTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private ChannelService channelService;
+    private BlacklistService blacklistService;
     private TicketService ticketService;
     private ChatHistoryService chatHistoryService;
     private MessagingService messagingService;
@@ -50,7 +58,7 @@ class MaxWebhookControllerTest {
         properties.setChannelId(55L);
         properties.setWebhookSecret("secret");
 
-        BlacklistService blacklistService = mock(BlacklistService.class);
+        blacklistService = mock(BlacklistService.class);
         channelService = mock(ChannelService.class);
         ticketService = mock(TicketService.class);
         chatHistoryService = mock(ChatHistoryService.class);
@@ -109,6 +117,37 @@ class MaxWebhookControllerTest {
         verifyNoInteractions(channelService, ticketService, messagingService, feedbackService, botSettingsService);
     }
 
+    @Test
+    void recordsForwardedMaxMessageWhenOuterBodyIsEmpty() throws Exception {
+        Channel channel = mock(Channel.class);
+        TicketActive active = new TicketActive();
+        active.setTicketId("INC-99");
+        when(ingressCoordinationService.tryAcquireOrRenew("max", 55L)).thenReturn(true);
+        when(webhookDeliveryGuardService.tryClaim(eq("max"), eq(55L), anyString()))
+                .thenReturn(new BotWebhookDeliveryGuardService.DeliveryClaim(
+                        "max:55:forward-1",
+                        "token",
+                        BotWebhookDeliveryGuardService.ClaimStatus.ACQUIRED
+                ));
+        when(channelService.resolveConfiguredChannel(55L, null, "MAX", "max")).thenReturn(channel);
+        when(blacklistService.resolveStatus(eq(1001L), anyString(), anyString(), eq("2002")))
+                .thenReturn(new BlacklistService.ResolvedBlacklistStatus(
+                        null,
+                        new BlacklistService.BlacklistStatus(false, false)
+                ));
+        when(ticketService.findActiveTicketForUser(eq(1001L), anyString(), isNull())).thenReturn(Optional.of(active));
+        when(ticketService.findByTicketId("INC-99"))
+                .thenReturn(Optional.of(new TicketService.TicketWithUser(1001L, "INC-99", "open")));
+
+        ResponseEntity<Map<String, Object>> response = controller.handleUpdate(forwardedMessageCreatedUpdate(), "secret");
+
+        ArgumentCaptor<ActiveInboundClientMessageCommand> command = ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);
+        verify(ticketService).recordActiveClientMessage(command.capture());
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(command.getValue().text()).isEqualTo("Текст от другого пользователя");
+        assertThat(command.getValue().forwardedFrom()).isEqualTo("Алексей (@alexey)");
+    }
+
     private JsonNode messageCreatedUpdate() throws Exception {
         return objectMapper.readTree("""
             {
@@ -118,6 +157,27 @@ class MaxWebhookControllerTest {
                 "sender": { "user_id": 1001 },
                 "recipient": { "chat_id": 2002 },
                 "body": { "text": "hello" }
+              }
+            }
+            """);
+    }
+
+    private JsonNode forwardedMessageCreatedUpdate() throws Exception {
+        return objectMapper.readTree("""
+            {
+              "update_type": "message_created",
+              "update_id": "forward-1",
+              "message": {
+                "sender": { "user_id": 1001, "name": "Клиент" },
+                "recipient": { "chat_id": 2002 },
+                "body": null,
+                "link": {
+                  "type": "forward",
+                  "message": {
+                    "sender": { "user_id": 3003, "name": "Алексей", "username": "alexey" },
+                    "body": { "text": "Текст от другого пользователя" }
+                  }
+                }
               }
             }
             """);

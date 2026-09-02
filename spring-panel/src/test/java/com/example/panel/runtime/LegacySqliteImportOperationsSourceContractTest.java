@@ -18,6 +18,7 @@ class LegacySqliteImportOperationsSourceContractTest {
         String stagingSh = read("scripts/stage-legacy-sqlite-import.sh");
         String verificationPs = read("scripts/verify-legacy-sqlite-import.ps1");
         String runbook = read("docs/runbooks/postgresql-production-contour.md");
+        String archiveCompose = read("docker-compose.legacy-sqlite-import.yml");
 
         assertThat(stagingPs)
             .contains("Get-FileHash")
@@ -40,7 +41,10 @@ class LegacySqliteImportOperationsSourceContractTest {
         assertThat(runbook)
             .contains("stage-legacy-sqlite-import.ps1")
             .contains("verify-legacy-sqlite-import.ps1")
-            .contains("IGUANA_LEGACY_SQLITE_AUTO_IMPORT=false");
+            .contains("docker-compose.legacy-sqlite-import.yml");
+        assertThat(archiveCompose)
+            .contains("IGUANA_LEGACY_SQLITE_AUTO_IMPORT: \"true\"")
+            .contains("/opt/iguana/legacy-sqlite:ro");
     }
 
     private String read(String relativePath) throws IOException {

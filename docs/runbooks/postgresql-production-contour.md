@@ -232,7 +232,7 @@ Get-Content ..\logs\errors.log -Encoding UTF8 -Tail 100 -Wait
 
 ## Закрытие переноса legacy SQLite
 
-В canonical production contour SQLite не должен быть runtime dependency. Если инсталляция содержит исторические `*.db`, их перенос выполняет только одноразовая роль `db-migrate`; `panel-web` и `ops-worker` не получают доступ к этим файлам.
+В canonical production contour SQLite не является runtime dependency: обычный `db-migrate`, `panel-web`, `ops-worker` и `bot-runner` не получают доступ к историческим `*.db`. Архивный импорт отделён от штатного запуска и требует явного compose-override.
 
 Подготовьте неизменяемую staging-копию. Скрипт читает source, создаёт копии в `.tmp/legacy-sqlite-import` и записывает SHA-256 manifest. Исходные БД не изменяются.
 
@@ -244,17 +244,12 @@ Get-Content ..\logs\errors.log -Encoding UTF8 -Tail 100 -Wait
 ./scripts/stage-legacy-sqlite-import.sh --replace
 ```
 
-Для разового import window установите в локальном `.env`:
-
-```text
-IGUANA_LEGACY_SQLITE_AUTO_IMPORT=true
-IGUANA_LEGACY_SQLITE_STAGING_DIR=./.tmp/legacy-sqlite-import
-```
-
-Запустите только мигратор. Он использует staging как read-only mount, а не живые файлы из корня репозитория:
+Для согласованного разового import window задайте staging только в текущей shell-сессии и запустите мигратор с архивным override. Он использует staging как read-only mount, а не живые файлы из корня репозитория:
 
 ```powershell
-docker compose -f docker-compose.production-contour.yml up --no-deps --force-recreate db-migrate
+$env:IGUANA_LEGACY_SQLITE_STAGING_DIR = './.tmp/legacy-sqlite-import'
+docker compose -f docker-compose.production-contour.yml -f docker-compose.legacy-sqlite-import.yml up --no-deps --force-recreate db-migrate
+Remove-Item Env:IGUANA_LEGACY_SQLITE_STAGING_DIR
 ```
 
 После exit code `0` обязательно выполните сверку. Она проверяет critical tables из `panel_runtime.db` (`messages`, `chat_history`, `notifications`, `web_form_sessions`, `chat_attachment_metadata`) и наличие recovery evidence в PostgreSQL. Если PostgreSQL содержит меньше строк, команда завершается ошибкой.
@@ -267,10 +262,9 @@ docker compose -f docker-compose.production-contour.yml up --no-deps --force-rec
 
 Только после зелёной сверки и проверки dialog/media/UI:
 
-1. Установите `IGUANA_LEGACY_SQLITE_AUTO_IMPORT=false`.
-2. Пересоздайте обычный contour через `scripts/docker-production-up.ps1`.
-3. Сохраните staging manifest и исходные SQLite-файлы в off-host архиве на согласованное rollback window.
-4. Уберите источники из runtime-монтажа только отдельным решением после истечения rollback window.
+1. Пересоздайте обычный contour только с `docker-compose.production-contour.yml` через `scripts/docker-production-up.ps1`.
+2. Сохраните staging manifest и исходные SQLite-файлы в off-host архиве на согласованное rollback window.
+3. Не добавляйте архивный compose-override в service, CI или штатный production command.
 
 Не удаляйте и не выполняйте `VACUUM` над SQLite-источниками до завершения этой последовательности.
 ## Monitoring history retention / legacy compaction (v39)
@@ -281,13 +275,16 @@ docker compose -f docker-compose.production-contour.yml up --no-deps --force-rec
 - SQLite compatibility: runtime history живёт в `monitoring.db`; bootstrap переносит legacy history из primary SQLite и очищает старую копию;
 - cleanup выполняется при startup и затем периодически (`PANEL_MONITORING_HISTORY_RETENTION_INTERVAL_MS`, default 6h); срок 30 дней не расширяется настройкой.
 
-Для PostgreSQL-first инсталляции старые SQLite-файлы после завершённого compatibility import можно физически уплотнить одноразовым запуском:
+Для PostgreSQL-first инсталляции старые SQLite-файлы после завершённого compatibility import можно физически уплотнить только отдельным согласованным архивным запуском. Обычный production contour для этого не используется:
 
-```text
-IGUANA_LEGACY_SQLITE_AUTO_IMPORT=true
-IGUANA_LEGACY_MONITORING_HISTORY_COMPACT=true
+```powershell
+$env:IGUANA_LEGACY_SQLITE_STAGING_DIR = './.tmp/legacy-sqlite-import'
+$env:IGUANA_LEGACY_MONITORING_HISTORY_COMPACT = 'true'
+docker compose -f docker-compose.production-contour.yml -f docker-compose.legacy-sqlite-import.yml up --no-deps --force-recreate db-migrate
+Remove-Item Env:IGUANA_LEGACY_MONITORING_HISTORY_COMPACT
+Remove-Item Env:IGUANA_LEGACY_SQLITE_STAGING_DIR
 ```
 
 Compactor проверяет `panel_runtime.db`, `monitoring.db`, `bot_runtime.db` и legacy `bot_database.db`. Строки в актуальном 30-дневном окне сначала должны присутствовать в PostgreSQL (missing rows докопируются); старые строки считаются истёкшими по retention. Только после успешной verification source `monitoring_check_history` очищается и выполняется `VACUUM`.
 
-Если встречается current-window row с неразбираемым `created_at`/обязательными полями, destructive cleanup для этого файла отменяется. После успешного одноразового compaction переменную `IGUANA_LEGACY_MONITORING_HISTORY_COMPACT` следует убрать.
+Если встречается current-window row с неразбираемым `created_at`/обязательными полями, destructive cleanup для этого файла отменяется. Не включайте archive override или `IGUANA_LEGACY_MONITORING_HISTORY_COMPACT` в `.env`, CI или штатную команду запуска.

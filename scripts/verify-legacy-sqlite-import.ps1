@@ -43,12 +43,7 @@ $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $envFile = Join-Path $repoRoot ".env"
 if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) { throw "Missing .env: $envFile" }
 $dotEnv = Read-DotEnv -Path $envFile
-$configuredStageDirectory = if ($dotEnv.ContainsKey("IGUANA_LEGACY_SQLITE_STAGING_DIR")) {
-    $dotEnv["IGUANA_LEGACY_SQLITE_STAGING_DIR"]
-} else {
-    ".tmp/legacy-sqlite-import"
-}
-$stageRoot = Resolve-RepoPath -Value $StagingDirectory -DefaultValue $configuredStageDirectory -RepoRoot $repoRoot
+$stageRoot = Resolve-RepoPath -Value $StagingDirectory -DefaultValue ".tmp/legacy-sqlite-import" -RepoRoot $repoRoot
 $composePath = Resolve-RepoPath -Value $ComposeFile -DefaultValue "docker-compose.production-contour.yml" -RepoRoot $repoRoot
 $sqlite3 = Get-Command sqlite3 -ErrorAction SilentlyContinue
 $dockerCommand = Get-Command docker -ErrorAction SilentlyContinue

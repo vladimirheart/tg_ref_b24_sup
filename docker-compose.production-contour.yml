@@ -47,7 +47,6 @@ x-panel-environment: &panel-environment
   APP_STORAGE_KNOWLEDGE_BASE: /opt/iguana/attachments/knowledge_base
   APP_STORAGE_AVATARS: /opt/iguana/attachments/avatars
   APP_STORAGE_WEBFORMS: /opt/iguana/attachments/forms
-  APP_BOT_DATABASE_DIR: /opt/iguana/bot_databases
   APP_PANEL_LOG_DIR: /opt/iguana/logs
   SHARED_CONFIG_DIR: /opt/iguana/config/shared
   APP_ADMIN_REPOSITORY_ROOT: /opt/iguana
@@ -58,22 +57,18 @@ x-panel-environment: &panel-environment
   APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME: ${APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME:-}
   APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD: ${APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD:-}
   MONITORING_CREDENTIALS_MASTER_KEY: ${MONITORING_CREDENTIALS_MASTER_KEY:-}
-  IGUANA_LEGACY_SQLITE_AUTO_IMPORT: ${IGUANA_LEGACY_SQLITE_AUTO_IMPORT:-false}
 
 x-panel-volumes: &panel-volumes
   - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
   - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
   - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
-  - ${IGUANA_BOT_DATABASES_DIR:-./bot_databases}:/opt/iguana/bot_databases
 
-# Legacy SQLite sources are exposed only to the one-shot migrator. Operators
-# stage immutable copies here; web and worker roles never receive this mount.
+# The normal migrator owns only the PostgreSQL schema. Historical SQLite import
+# is deliberately absent from the production contour; use the explicit archive
+# override when an approved recovery operation is required.
 x-db-migrate-volumes: &db-migrate-volumes
   - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared:ro
-  - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments:ro
   - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
-  - ${IGUANA_LEGACY_SQLITE_STAGING_DIR:-./.tmp/legacy-sqlite-import}:/opt/iguana/legacy-sqlite:ro
-  - ${IGUANA_LEGACY_SQLITE_STAGING_DIR:-./.tmp/legacy-sqlite-import}/bot_databases:/opt/iguana/bot_databases:ro
 
 x-panel-infra-depends: &panel-infra-depends
   postgres:
@@ -184,14 +179,6 @@ services:
       APP_RUNTIME_ROLE: db-migrate
       APP_RUNTIME_EXIT_AFTER_MIGRATION: "true"
       APP_INSTANCE_ID: db-migrate
-      APP_DB_PANEL_RUNTIME: /opt/iguana/legacy-sqlite/panel_runtime.db
-      APP_DB_PANEL_IDENTITY: /opt/iguana/legacy-sqlite/panel_identity.db
-      APP_DB_MONITORING: /opt/iguana/legacy-sqlite/monitoring.db
-      APP_DB_BOT_RUNTIME: /opt/iguana/legacy-sqlite/bot_runtime.db
-      APP_DB_CLIENTS: /opt/iguana/legacy-sqlite/clients.db
-      APP_DB_KNOWLEDGE: /opt/iguana/legacy-sqlite/knowledge_base.db
-      APP_DB_OBJECTS: /opt/iguana/legacy-sqlite/objects.db
-      APP_BOT_DATABASE_DIR: /opt/iguana/bot_databases
     volumes: *db-migrate-volumes
 
   ops-worker:

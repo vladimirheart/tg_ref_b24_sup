@@ -360,10 +360,6 @@ function Build-EnvContent {
         [int]$RabbitHttpPort
     )
 
-    $legacySqliteAutoImport = Get-BoolSetting `
-        -Name "IGUANA_LEGACY_SQLITE_AUTO_IMPORT" `
-        -Default $false
-
     $postgresPassword = New-RandomHexToken
     $rabbitPassword = New-RandomHexToken
     $redisPassword = New-RandomHexToken
@@ -421,9 +417,6 @@ function Build-EnvContent {
         "SPRING_RABBITMQ_PORT=$RabbitAmqpPort",
         "SPRING_RABBITMQ_USERNAME=iguana",
         "SPRING_RABBITMQ_PASSWORD=$rabbitPassword",
-        "",
-        "# One-time legacy SQLite migration compatibility",
-        "IGUANA_LEGACY_SQLITE_AUTO_IMPORT=$($legacySqliteAutoImport.ToString().ToLowerInvariant())",
         ""
     )
 
@@ -432,7 +425,6 @@ function Build-EnvContent {
         "APP_STORAGE_KNOWLEDGE_BASE=../attachments/knowledge_base",
         "APP_STORAGE_AVATARS=../attachments/avatars",
         "APP_STORAGE_WEBFORMS=../attachments/forms",
-        "APP_BOT_DATABASE_DIR=../bot_databases",
         "APP_PANEL_LOG_DIR=../logs",
         "APP_BOT_LOG_DIR=../logs"
     )

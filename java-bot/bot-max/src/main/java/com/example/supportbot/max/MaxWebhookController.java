@@ -194,9 +194,10 @@ public class MaxWebhookController {
         Long userId = asLong(message.path("sender").path("user_id"));
         Long chatId = asLong(message.path("recipient").path("chat_id"));
         Long providerMessageId = resolveProviderMessageId(update, message);
-        String text = extractMessageText(message);
+        MaxInboundPayload inboundPayload = resolveInboundPayload(message);
+        String text = inboundPayload.text();
         MaxClientProfile clientProfile = resolveClientProfile(message, userId);
-        List<MaxIncomingAttachment> attachments = extractIncomingAttachments(message);
+        List<MaxIncomingAttachment> attachments = inboundPayload.attachments();
         boolean hasAttachments = !attachments.isEmpty();
         try {
             if (userId == null || (text.isBlank() && !hasAttachments)) {
@@ -278,7 +279,7 @@ public class MaxWebhookController {
                 attachmentName,
                 providerMessageId,
                 null,
-                null,
+                inboundPayload.forwardedFrom(),
                 OffsetDateTime.now()
             ));
             notifyOperatorsAboutActiveMessage(channel, ticketId, clientProfile, clientText, messageType, attachmentRef, attachments.size());
@@ -916,6 +917,61 @@ public class MaxWebhookController {
         return text(message, "text").trim();
     }
 
+    /**
+     * MAX places the original content under {@code link} for forwarded messages
+     * and may leave the outer body null. Keep the outer sender as the client
+     * while storing the original author separately for the operator timeline.
+     */
+    private MaxInboundPayload resolveInboundPayload(JsonNode message) {
+        String directText = extractMessageText(message);
+        List<MaxIncomingAttachment> attachments = extractIncomingAttachments(message);
+        JsonNode forwardedMessage = resolveForwardedMessage(message);
+        boolean forwarded = forwardedMessage != null;
+
+        if (directText.isBlank() && forwarded) {
+            directText = extractMessageText(forwardedMessage);
+        }
+        if (attachments.isEmpty() && forwarded) {
+            attachments = extractIncomingAttachments(forwardedMessage);
+        }
+
+        return new MaxInboundPayload(
+                directText,
+                attachments,
+                forwarded ? resolveForwardedFrom(forwardedMessage) : null
+        );
+    }
+
+    private JsonNode resolveForwardedMessage(JsonNode message) {
+        if (message == null || message.isNull() || message.isMissingNode()) {
+            return null;
+        }
+        JsonNode link = message.path("link");
+        if (link.isMissingNode() || link.isNull() || !isForwardLink(link)) {
+            return null;
+        }
+        for (String field : List.of("message", "linked_message", "forwarded_message", "forward", "source")) {
+            JsonNode candidate = link.path(field);
+            if (candidate.isObject()) {
+                return candidate;
+            }
+        }
+        return link.isObject() ? link : null;
+    }
+
+    private boolean isForwardLink(JsonNode link) {
+        String type = firstNonBlank(text(link, "type"), text(link, "link_type"));
+        return type != null && ("forward".equalsIgnoreCase(type) || "forwarded".equalsIgnoreCase(type));
+    }
+
+    private String resolveForwardedFrom(JsonNode forwardedMessage) {
+        JsonNode sender = forwardedMessage.path("sender");
+        Long senderId = asLong(sender.path("user_id"));
+        MaxClientProfile profile = resolveClientProfile(forwardedMessage, senderId);
+        String label = profile.displayLabel();
+        return label == null || label.isBlank() || label.startsWith("MAX user ") ? null : label;
+    }
+
     private MaxClientProfile resolveClientProfile(JsonNode message, Long userId) {
         JsonNode sender = message != null ? message.path("sender") : null;
         String username = firstNonBlank(
@@ -1225,6 +1281,11 @@ public class MaxWebhookController {
             }
             return name;
         }
+    }
+
+    private record MaxInboundPayload(String text,
+                                     List<MaxIncomingAttachment> attachments,
+                                     String forwardedFrom) {
     }
 
     private record StoredIncomingAttachment(String storageKey, String originalName) {

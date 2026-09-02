@@ -1,0 +1,20 @@
+# Explicit archival recovery override. Never include this file in the normal
+# production startup command: it grants the one-shot db-migrate role read-only
+# access to a staged historical SQLite snapshot.
+services:
+  db-migrate:
+    environment:
+      IGUANA_LEGACY_SQLITE_AUTO_IMPORT: "true"
+      APP_DB_PANEL_RUNTIME: /opt/iguana/legacy-sqlite/panel_runtime.db
+      APP_DB_PANEL_IDENTITY: /opt/iguana/legacy-sqlite/panel_identity.db
+      APP_DB_MONITORING: /opt/iguana/legacy-sqlite/monitoring.db
+      APP_DB_BOT_RUNTIME: /opt/iguana/legacy-sqlite/bot_runtime.db
+      APP_DB_CLIENTS: /opt/iguana/legacy-sqlite/clients.db
+      APP_DB_KNOWLEDGE: /opt/iguana/legacy-sqlite/knowledge_base.db
+      APP_DB_OBJECTS: /opt/iguana/legacy-sqlite/objects.db
+      APP_BOT_DATABASE_DIR: /opt/iguana/bot_databases
+    volumes:
+      - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared:ro
+      - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
+      - ${IGUANA_LEGACY_SQLITE_STAGING_DIR:-./.tmp/legacy-sqlite-import}:/opt/iguana/legacy-sqlite:ro
+      - ${IGUANA_LEGACY_SQLITE_STAGING_DIR:-./.tmp/legacy-sqlite-import}/bot_databases:/opt/iguana/bot_databases:ro
