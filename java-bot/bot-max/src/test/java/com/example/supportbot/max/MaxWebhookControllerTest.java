@@ -170,11 +170,12 @@ class MaxWebhookControllerTest {
               "message": {
                 "sender": { "user_id": 1001, "name": "Клиент" },
                 "recipient": { "chat_id": 2002 },
-                "body": null,
-                "link": {
-                  "type": "forward",
-                  "message": {
-                    "sender": { "user_id": 3003, "name": "Алексей", "username": "alexey" },
+                  "body": null,
+                  "link": {
+                    "type": "forward",
+                    "sender": { "user_id": 1001, "name": "Клиент" },
+                    "author": { "user_id": 3003, "name": "Алексей", "username": "alexey" },
+                    "message": {
                     "body": { "text": "Текст от другого пользователя" }
                   }
                 }

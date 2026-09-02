@@ -194,9 +194,9 @@ public class MaxWebhookController {
         Long userId = asLong(message.path("sender").path("user_id"));
         Long chatId = asLong(message.path("recipient").path("chat_id"));
         Long providerMessageId = resolveProviderMessageId(update, message);
-        MaxInboundPayload inboundPayload = resolveInboundPayload(message);
-        String text = inboundPayload.text();
         MaxClientProfile clientProfile = resolveClientProfile(message, userId);
+        MaxInboundPayload inboundPayload = resolveInboundPayload(message, clientProfile);
+        String text = inboundPayload.text();
         List<MaxIncomingAttachment> attachments = inboundPayload.attachments();
         boolean hasAttachments = !attachments.isEmpty();
         try {
@@ -922,7 +922,7 @@ public class MaxWebhookController {
      * and may leave the outer body null. Keep the outer sender as the client
      * while storing the original author separately for the operator timeline.
      */
-    private MaxInboundPayload resolveInboundPayload(JsonNode message) {
+    private MaxInboundPayload resolveInboundPayload(JsonNode message, MaxClientProfile clientProfile) {
         String directText = extractMessageText(message);
         List<MaxIncomingAttachment> attachments = extractIncomingAttachments(message);
         JsonNode forwardedMessage = resolveForwardedMessage(message);
@@ -938,7 +938,7 @@ public class MaxWebhookController {
         return new MaxInboundPayload(
                 directText,
                 attachments,
-                forwarded ? resolveForwardedFrom(forwardedMessage) : null
+                forwarded ? resolveForwardedFrom(message, forwardedMessage, clientProfile) : null
         );
     }
 
@@ -964,16 +964,67 @@ public class MaxWebhookController {
         return type != null && ("forward".equalsIgnoreCase(type) || "forwarded".equalsIgnoreCase(type));
     }
 
-    private String resolveForwardedFrom(JsonNode forwardedMessage) {
-        JsonNode sender = forwardedMessage.path("sender");
-        Long senderId = asLong(sender.path("user_id"));
-        MaxClientProfile profile = resolveClientProfile(forwardedMessage, senderId);
-        String label = profile.displayLabel();
-        return label == null || label.isBlank() || label.startsWith("MAX user ") ? null : label;
+    private String resolveForwardedFrom(JsonNode message,
+                                        JsonNode forwardedMessage,
+                                        MaxClientProfile outerClient) {
+        List<JsonNode> authorCandidates = new ArrayList<>();
+        collectForwardedAuthorCandidates(authorCandidates, forwardedMessage);
+        JsonNode link = message != null ? message.path("link") : null;
+        if (link != forwardedMessage) {
+            collectForwardedAuthorCandidates(authorCandidates, link);
+        }
+        for (JsonNode candidate : authorCandidates) {
+            MaxClientProfile profile = resolveClientProfileFromSender(candidate);
+            if (isSameClient(profile, outerClient)) {
+                continue;
+            }
+            String label = profile.displayLabel();
+            if (label != null && !label.isBlank() && !label.startsWith("MAX user ")) {
+                return label;
+            }
+        }
+        return null;
+    }
+
+    private void collectForwardedAuthorCandidates(List<JsonNode> candidates, JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) {
+            return;
+        }
+        for (String field : List.of(
+                "author", "original_author", "original_sender", "forwarded_from", "from", "user", "sender", "owner"
+        )) {
+            JsonNode candidate = node.path(field);
+            if (candidate.isObject()) {
+                candidates.add(candidate);
+            }
+        }
+    }
+
+    private boolean isSameClient(MaxClientProfile candidate, MaxClientProfile outerClient) {
+        if (candidate == null || outerClient == null) {
+            return false;
+        }
+        if (candidate.userId() != null && outerClient.userId() != null) {
+            return candidate.userId().equals(outerClient.userId());
+        }
+        return candidate.identity() != null && candidate.identity().equalsIgnoreCase(outerClient.identity());
     }
 
     private MaxClientProfile resolveClientProfile(JsonNode message, Long userId) {
         JsonNode sender = message != null ? message.path("sender") : null;
+        MaxClientProfile profile = resolveClientProfileFromSender(sender);
+        String username = profile.username();
+        String clientName = profile.clientName();
+        if ((username == null || username.isBlank()) && userId != null) {
+            username = "max_" + userId;
+        }
+        if ((clientName == null || clientName.isBlank()) && userId != null) {
+            clientName = "MAX user " + userId;
+        }
+        return new MaxClientProfile(trimOrNull(username), trimOrNull(clientName), userId);
+    }
+
+    private MaxClientProfile resolveClientProfileFromSender(JsonNode sender) {
         String username = firstNonBlank(
                 text(sender, "username"),
                 text(sender, "user_name"),
@@ -987,13 +1038,7 @@ public class MaxWebhookController {
                 joinNames(text(sender, "firstName"), text(sender, "lastName")),
                 username
         );
-        if ((username == null || username.isBlank()) && userId != null) {
-            username = "max_" + userId;
-        }
-        if ((clientName == null || clientName.isBlank()) && userId != null) {
-            clientName = "MAX user " + userId;
-        }
-        return new MaxClientProfile(trimOrNull(username), trimOrNull(clientName), userId);
+        return new MaxClientProfile(trimOrNull(username), trimOrNull(clientName), asLong(sender != null ? sender.path("user_id") : null));
     }
 
     private List<MaxIncomingAttachment> extractIncomingAttachments(JsonNode message) {
