@@ -198,7 +198,7 @@ GET /api/bots/{channelId}/runtime-contract
 
 - `spring-panel/mvnw.cmd` и `java-bot/mvnw.cmd` переключают console code page на UTF-8 (`65001`);
 - Maven JVM и Surefire test JVM получают UTF-8 `file/stdout/stderr` runtime options;
-- `run-windows.bat` по-прежнему остаётся штатным launcher и также использует code page `65001`;
+- `run-windows.bat` остаётся local/dev launcher и также использует code page `65001`; рядом с Docker production roles он блокирует старт, чтобы не создать второй monolith worker;
 - появление последовательностей вида `╨С╨╛╤В` в runtime/test output считается encoding regression, а не допустимым cosmetic warning.
 
 Для чтения файловых логов из Windows PowerShell 5.1 кодировку лучше указывать явно:

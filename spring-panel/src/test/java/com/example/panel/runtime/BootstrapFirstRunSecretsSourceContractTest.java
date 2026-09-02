@@ -83,6 +83,19 @@ class BootstrapFirstRunSecretsSourceContractTest {
         assertThat(runLinux).contains("ensure-local-bootstrap-secrets.sh");
     }
 
+    @Test
+    void windowsLauncherBlocksMonolithicLocalRuntimeBesideDockerProductionRoles() throws IOException {
+        String runWindows = read("spring-panel/run-windows.bat");
+
+        assertThat(runWindows)
+            .contains("IGUANA_ALLOW_LOCAL_PANEL_RUN")
+            .contains("label=com.docker.compose.service=%%S")
+            .contains("panel-web")
+            .contains("ops-worker")
+            .contains("bot-runner")
+            .contains("Local spring-boot:run is blocked to prevent duplicate workers and bot polling.");
+    }
+
     private String read(String relativePath) throws IOException {
         return Files.readString(REPO_ROOT.resolve(relativePath), StandardCharsets.UTF_8);
     }

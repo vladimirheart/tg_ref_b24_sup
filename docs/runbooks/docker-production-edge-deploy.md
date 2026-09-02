@@ -21,6 +21,10 @@ Internet -> nginx -> panel-web x N
 - при TLS существуют:
   - `deploy/nginx/certs/fullchain.pem`
   - `deploy/nginx/certs/privkey.pem`
+- `spring-panel/run-windows.bat` не запущен: это local/dev launcher, а не production entrypoint.
+
+При работающем Docker production-контуре launcher блокирует старт автоматически.
+`IGUANA_ALLOW_LOCAL_PANEL_RUN=true` допустим только для намеренной изолированной диагностики вне production-контуров.
 
 ## Запуск
 

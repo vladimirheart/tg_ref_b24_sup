@@ -10,6 +10,33 @@ pushd "%SCRIPT_DIR%" >nul
 
 set "EXIT_CODE=0"
 
+rem ---------------------------------------------------------------------------
+rem Production Docker guard.
+rem
+rem This launcher starts the monolithic local role (`all`).  It must never run
+rem beside the split Docker production roles because both contours share the
+rem same PostgreSQL, RabbitMQ and bot provider credentials.
+rem ---------------------------------------------------------------------------
+
+if /I not "%IGUANA_ALLOW_LOCAL_PANEL_RUN%"=="true" if exist "%WORKSPACE_ROOT%\docker-compose.production-contour.yml" (
+    set "RUNNING_PRODUCTION_ROLE="
+    for %%S in (panel-web ops-worker bot-runner) do (
+        if not defined RUNNING_PRODUCTION_ROLE (
+            for /f "usebackq delims=" %%C in (`docker ps --filter "label=com.docker.compose.service=%%S" --format "{{.Names}}" 2^>nul`) do (
+                set "RUNNING_PRODUCTION_ROLE=%%S"
+            )
+        )
+    )
+    if defined RUNNING_PRODUCTION_ROLE (
+        call echo [ERROR] Docker production role %%RUNNING_PRODUCTION_ROLE%% is already running.
+        echo [ERROR] Local spring-boot:run is blocked to prevent duplicate workers and bot polling.
+        echo [ERROR] Use docker compose for production. For an intentional isolated local debug session,
+        echo [ERROR] set IGUANA_ALLOW_LOCAL_PANEL_RUN=true explicitly before starting this launcher.
+        set "EXIT_CODE=1"
+        goto :Exit
+    )
+)
+
 echo.
 echo ============================================================
 echo  Iguana - environment preflight

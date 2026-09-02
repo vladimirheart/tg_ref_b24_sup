@@ -265,3 +265,4 @@
 🟡 [01-243] Разделить traffic readiness Docker-ролей и operational degradation Production readiness
 🟣 [01-244] Устранить задержки, повторную обработку worker-событий и разрывы двустороннего MAX/Telegram media-контура
 🟠 [01-245] Восстановить отсутствующие исторические вложения из внешней резервной копии
+🟣 [01-246] Запретить локальный monolith launcher рядом с Docker production ролями
