@@ -173,8 +173,8 @@ public class DialogAutoCloseSchedulerService {
 
     private void ensurePendingFeedbackRequest(String ticketId, String resolvedBy, OffsetDateTime now) {
         String source = isAutoCloseResolvedBy(resolvedBy) ? "auto_close" : "operator_close";
-        String createdAt = now.toString();
-        String expiresAt = now.plusDays(1).toString();
+        OffsetDateTime createdAt = now;
+        OffsetDateTime expiresAt = now.plusDays(1);
         int updated = jdbcTemplate.update("""
                 UPDATE pending_feedback_requests
                    SET expires_at = ?, source = ?

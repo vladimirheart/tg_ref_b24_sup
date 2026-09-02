@@ -259,5 +259,5 @@
 🟣 [01-237] Выделить единый dynamic bot-runner для неограниченного числа активных каналов
 🟣 [01-238] Устранить стартовые timeout внутреннего channel API для MAX и включить фактические retry
 🟣 [01-239] Актуализировать README и production-документацию под dynamic bot-runner и PostgreSQL contour
-🟡 [01-240] Восстановить realtime inbox, feedback и media после исчерпания PostgreSQL connections и duplicate bot runtime
+🟣 [01-240] Восстановить realtime inbox, feedback и media после исчерпания PostgreSQL connections и duplicate bot runtime
 🔴 [01-241] Перевести ручной lifecycle bot runtime из web API в подтверждаемые команды dynamic bot-runner
