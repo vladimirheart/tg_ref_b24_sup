@@ -510,28 +510,39 @@ public class RmsLicenseMonitoringService {
                 durableQueueState(BackendOpsCommandTypes.RMS_NETWORK_REFRESH)
             );
         }
+
+        Long currentLicenseMonitorId = licenseQueueTracker.currentMonitorId();
+        Long currentNetworkMonitorId = networkQueueTracker.currentMonitorId();
+
         return new RefreshState(
             new QueueState(
                 licenseRefreshRunning.get(),
                 licenseRefreshPending.get(),
                 lastLicenseRefreshRequestedAt.get(),
                 lastLicenseRefreshCompletedAt.get(),
-                licenseQueueTracker.currentMonitorId(),
+                currentLicenseMonitorId,
+                null,
                 licenseQueueTracker.totalCount(),
-                licenseQueueTracker.completedCount()
+                licenseQueueTracker.completedCount(),
+                licenseRefreshRunning.get()
+                    ? (currentLicenseMonitorId != null ? "checking" : "running")
+                    : (licenseRefreshPending.get() ? "queued" : "scheduled_wait")
             ),
             new QueueState(
                 networkRefreshRunning.get(),
                 networkRefreshPending.get(),
                 lastNetworkRefreshRequestedAt.get(),
                 lastNetworkRefreshCompletedAt.get(),
-                networkQueueTracker.currentMonitorId(),
+                currentNetworkMonitorId,
+                null,
                 networkQueueTracker.totalCount(),
-                networkQueueTracker.completedCount()
+                networkQueueTracker.completedCount(),
+                networkRefreshRunning.get()
+                    ? (currentNetworkMonitorId != null ? "checking" : "running")
+                    : (networkRefreshPending.get() ? "queued" : "scheduled_wait")
             )
         );
     }
-
     private void schedulePersistedLicenseRefreshIfNeeded() {
         if (licenseRefreshRunning.get()) {
             return;
@@ -782,17 +793,30 @@ public class RmsLicenseMonitoringService {
             payload == null ? null : payload.get("with_notifications"),
             false
         );
-        reportBackendOpsProgress(5, "Запускаем обновление RMS-лицензий");
+        reportBackendOpsProgress(5, "starting");
         if (monitorId == null) {
             refreshAllLicensesInternal(withNotifications);
         } else {
             RmsLicenseMonitor monitor = requireMonitor(monitorId);
             licenseQueueTracker.start(List.of(monitor.getId()));
             licenseQueueTracker.markRunning(monitor.getId());
+            reportBackendOpsQueueProgress(
+                "checking",
+                monitor.getId(),
+                null,
+                licenseQueueTracker.completedCount(),
+                licenseQueueTracker.totalCount()
+            );
             refreshLicenseState(monitor, withNotifications);
             licenseQueueTracker.markCompleted(monitor.getId());
+            reportBackendOpsQueueProgress(
+                "finishing",
+                null,
+                null,
+                licenseQueueTracker.completedCount(),
+                licenseQueueTracker.totalCount()
+            );
         }
-        reportBackendOpsProgress(99, "Обновление RMS-лицензий завершено");
         return Map.of(
             "state", "success",
             "scope", monitorId == null ? "all" : "monitor:" + monitorId
@@ -801,17 +825,30 @@ public class RmsLicenseMonitoringService {
 
     public Map<String, Object> executeBackendOpsNetworkRefresh(Map<String, Object> payload) {
         Long monitorId = longValue(payload == null ? null : payload.get("monitor_id"));
-        reportBackendOpsProgress(5, "Запускаем сетевую диагностику RMS");
+        reportBackendOpsProgress(5, "starting");
         if (monitorId == null) {
             refreshAllNetworkStatesInternal();
         } else {
             RmsLicenseMonitor monitor = requireMonitor(monitorId);
             networkQueueTracker.start(List.of(monitor.getId()));
             networkQueueTracker.markRunning(monitor.getId());
+            reportBackendOpsQueueProgress(
+                "checking",
+                monitor.getId(),
+                null,
+                networkQueueTracker.completedCount(),
+                networkQueueTracker.totalCount()
+            );
             refreshNetworkState(monitor);
             networkQueueTracker.markCompleted(monitor.getId());
+            reportBackendOpsQueueProgress(
+                "finishing",
+                null,
+                null,
+                networkQueueTracker.completedCount(),
+                networkQueueTracker.totalCount()
+            );
         }
-        reportBackendOpsProgress(99, "Сетевая диагностика RMS завершена");
         return Map.of(
             "state", "success",
             "scope", monitorId == null ? "all" : "monitor:" + monitorId
@@ -828,27 +865,69 @@ public class RmsLicenseMonitoringService {
 
         BackendOpsCommandService.CommandSnapshot source =
             active != null ? active : latest;
-        Long monitorId = longValue(
+        Long requestedMonitorId = longValue(
             source == null ? null : source.payload().get("monitor_id")
         );
+
         int totalCount = 0;
         if (source != null) {
-            totalCount = monitorId != null
+            totalCount = requestedMonitorId != null
                 ? 1
                 : repository.findAllByOrderByRmsAddressAscIdAsc().size();
         }
+
         int completedCount = source != null && source.succeeded()
             ? totalCount
             : 0;
+        Long currentMonitorId = null;
+        Long nextMonitorId = null;
+        String phase = "scheduled_wait";
+
+        DurableQueueProgress durableProgress = active == null
+            ? null
+            : parseDurableQueueProgress(active.progressMessage());
+
+        if (active != null && active.queued()) {
+            phase = "queued";
+            if (durableProgress != null) {
+                if (durableProgress.totalCount() > 0) {
+                    totalCount = durableProgress.totalCount();
+                }
+                completedCount = clampCompletedCount(
+                    durableProgress.completedCount(),
+                    totalCount
+                );
+            }
+        } else if (active != null && active.running()) {
+            phase = "running";
+            currentMonitorId = requestedMonitorId;
+
+            if (durableProgress != null) {
+                phase = durableProgress.phase();
+                currentMonitorId = durableProgress.currentMonitorId();
+                nextMonitorId = durableProgress.nextMonitorId();
+
+                if (durableProgress.totalCount() > 0) {
+                    totalCount = durableProgress.totalCount();
+                }
+
+                completedCount = clampCompletedCount(
+                    durableProgress.completedCount(),
+                    totalCount
+                );
+            }
+        }
 
         return new QueueState(
             active != null && active.running(),
             active != null && active.queued(),
             latest == null ? null : latest.requestedAt(),
             lastSucceeded == null ? null : lastSucceeded.completedAt(),
-            active == null ? null : monitorId,
+            currentMonitorId,
+            nextMonitorId,
             totalCount,
-            completedCount
+            completedCount,
+            phase
         );
     }
 
@@ -866,6 +945,98 @@ public class RmsLicenseMonitoringService {
         }
     }
 
+    private void reportBackendOpsQueueProgress(String phase,
+                                               Long currentMonitorId,
+                                               Long nextMonitorId,
+                                               int completedCount,
+                                               int totalCount) {
+        if (backendOpsExecutionContext == null || !backendOpsExecutionContext.active()) {
+            return;
+        }
+
+        int safeTotal = Math.max(0, totalCount);
+        int safeCompleted = clampCompletedCount(completedCount, safeTotal);
+        int progressPercent = safeTotal <= 0
+            ? 5
+            : Math.min(98, 5 + (int) Math.floor((safeCompleted * 93.0d) / safeTotal));
+
+        Map<String, Object> progress = new LinkedHashMap<>();
+        progress.put("kind", "rms_queue_progress");
+        progress.put("phase", StringUtils.hasText(phase) ? phase.trim() : "running");
+        progress.put("current_monitor_id", currentMonitorId);
+        progress.put("next_monitor_id", nextMonitorId);
+        progress.put("completed_count", safeCompleted);
+        progress.put("total_count", safeTotal);
+
+        try {
+            reportBackendOpsProgress(
+                progressPercent,
+                objectMapper.writeValueAsString(progress)
+            );
+        } catch (Exception ex) {
+            reportBackendOpsProgress(progressPercent, String.valueOf(progress.get("phase")));
+        }
+    }
+
+    private DurableQueueProgress parseDurableQueueProgress(String rawValue) {
+        if (!StringUtils.hasText(rawValue)) {
+            return null;
+        }
+
+        String trimmed = rawValue.trim();
+        if (!trimmed.startsWith("{")) {
+            return null;
+        }
+
+        try {
+            Map<String, Object> progress = objectMapper.readValue(
+                trimmed,
+                new TypeReference<LinkedHashMap<String, Object>>() {
+                }
+            );
+
+            if (!"rms_queue_progress".equals(String.valueOf(progress.get("kind")))) {
+                return null;
+            }
+
+            String phase = progress.get("phase") == null
+                ? "running"
+                : String.valueOf(progress.get("phase")).trim();
+
+            if (!StringUtils.hasText(phase)) {
+                phase = "running";
+            }
+
+            return new DurableQueueProgress(
+                phase,
+                longValue(progress.get("current_monitor_id")),
+                longValue(progress.get("next_monitor_id")),
+                intValue(progress.get("completed_count"), 0),
+                intValue(progress.get("total_count"), 0)
+            );
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private int clampCompletedCount(int completedCount, int totalCount) {
+        int safeTotal = Math.max(0, totalCount);
+        return Math.max(0, Math.min(completedCount, safeTotal));
+    }
+
+    private int intValue(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
     private Long longValue(Object value) {
         if (value == null) {
             return null;
@@ -959,27 +1130,90 @@ public class RmsLicenseMonitoringService {
     private void refreshAllLicensesInternal(boolean withNotifications) {
         List<RmsLicenseMonitor> monitors = repository.findAllByOrderByRmsAddressAscIdAsc();
         licenseQueueTracker.start(monitors.stream().map(RmsLicenseMonitor::getId).toList());
+
         for (int index = 0; index < monitors.size(); index++) {
             RmsLicenseMonitor monitor = monitors.get(index);
             licenseQueueTracker.markRunning(monitor.getId());
+
+            reportBackendOpsQueueProgress(
+                "checking",
+                monitor.getId(),
+                null,
+                licenseQueueTracker.completedCount(),
+                licenseQueueTracker.totalCount()
+            );
+
             refreshLicenseState(monitor, withNotifications);
             licenseQueueTracker.markCompleted(monitor.getId());
-            sleepBetweenQueueItems(index, monitors.size());
+
+            Long nextMonitorId = index < monitors.size() - 1
+                ? monitors.get(index + 1).getId()
+                : null;
+
+            if (nextMonitorId != null) {
+                reportBackendOpsQueueProgress(
+                    "waiting_gap",
+                    null,
+                    nextMonitorId,
+                    licenseQueueTracker.completedCount(),
+                    licenseQueueTracker.totalCount()
+                );
+                sleepBetweenQueueItems(index, monitors.size());
+            } else {
+                reportBackendOpsQueueProgress(
+                    "finishing",
+                    null,
+                    null,
+                    licenseQueueTracker.completedCount(),
+                    licenseQueueTracker.totalCount()
+                );
+            }
         }
     }
 
     private void refreshAllNetworkStatesInternal() {
         List<RmsLicenseMonitor> monitors = repository.findAllByOrderByRmsAddressAscIdAsc();
         networkQueueTracker.start(monitors.stream().map(RmsLicenseMonitor::getId).toList());
+
         for (int index = 0; index < monitors.size(); index++) {
             RmsLicenseMonitor monitor = monitors.get(index);
             networkQueueTracker.markRunning(monitor.getId());
+
+            reportBackendOpsQueueProgress(
+                "checking",
+                monitor.getId(),
+                null,
+                networkQueueTracker.completedCount(),
+                networkQueueTracker.totalCount()
+            );
+
             refreshNetworkState(monitor);
             networkQueueTracker.markCompleted(monitor.getId());
-            sleepBetweenQueueItems(index, monitors.size());
+
+            Long nextMonitorId = index < monitors.size() - 1
+                ? monitors.get(index + 1).getId()
+                : null;
+
+            if (nextMonitorId != null) {
+                reportBackendOpsQueueProgress(
+                    "waiting_gap",
+                    null,
+                    nextMonitorId,
+                    networkQueueTracker.completedCount(),
+                    networkQueueTracker.totalCount()
+                );
+                sleepBetweenQueueItems(index, monitors.size());
+            } else {
+                reportBackendOpsQueueProgress(
+                    "finishing",
+                    null,
+                    null,
+                    networkQueueTracker.completedCount(),
+                    networkQueueTracker.totalCount()
+                );
+            }
         }
     }
-
     private void refreshLicenseState(RmsLicenseMonitor monitor, boolean withNotifications) {
         if (monitor == null) {
             return;
@@ -2579,8 +2813,17 @@ public class RmsLicenseMonitoringService {
                              OffsetDateTime lastRequestedAt,
                              OffsetDateTime lastCompletedAt,
                              Long currentMonitorId,
+                             Long nextMonitorId,
                              int totalCount,
-                             int completedCount) {
+                             int completedCount,
+                             String phase) {
+    }
+
+    private record DurableQueueProgress(String phase,
+                                        Long currentMonitorId,
+                                        Long nextMonitorId,
+                                        int completedCount,
+                                        int totalCount) {
     }
 
     public record RefreshState(QueueState licenses, QueueState network) {

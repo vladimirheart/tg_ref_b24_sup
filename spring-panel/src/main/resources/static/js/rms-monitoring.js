@@ -515,12 +515,30 @@
     });
   }
 
-  function queueBadge(running, queued) {
-    if (running) return '<span class="badge text-bg-primary">В работе</span>';
-    if (queued) return '<span class="badge text-bg-warning">В очереди</span>';
-    return '<span class="badge text-bg-secondary">Свободно</span>';
-  }
+  function queueBadge(queue) {
+    const phase = normalizeStatus(queue?.phase);
 
+    if (phase === 'checking') {
+      return '<span class="badge text-bg-primary">\u0412 \u0440\u0430\u0431\u043e\u0442\u0435</span>';
+    }
+    if (phase === 'waiting_gap') {
+      return '<span class="badge text-bg-secondary">\u041f\u0430\u0443\u0437\u0430</span>';
+    }
+    if (phase === 'queued' || queue?.queued) {
+      return '<span class="badge text-bg-warning">\u0412 \u043e\u0447\u0435\u0440\u0435\u0434\u0438</span>';
+    }
+    if (phase === 'starting') {
+      return '<span class="badge text-bg-info">\u0417\u0430\u043f\u0443\u0441\u043a</span>';
+    }
+    if (phase === 'finishing') {
+      return '<span class="badge text-bg-info">\u0417\u0430\u0432\u0435\u0440\u0448\u0430\u0435\u043c</span>';
+    }
+    if (queue?.running) {
+      return '<span class="badge text-bg-primary">\u0412 \u0440\u0430\u0431\u043e\u0442\u0435</span>';
+    }
+
+    return '<span class="badge text-bg-secondary">\u041e\u0436\u0438\u0434\u0430\u043d\u0438\u0435</span>';
+  }
   function getCookieValue(name) {
     const cookies = document.cookie ? document.cookie.split(';') : [];
     const encodedName = `${encodeURIComponent(name)}=`;
@@ -600,33 +618,64 @@
     ].map(escapeHtml).join('&#10;');
 
     return `
-      <span
-        class="text-secondary ms-1"
-        role="img"
-        tabindex="0"
+      <button
+        type="button"
+        class="page-header-info__toggle ms-1"
         title="${tooltip}"
         aria-label="${escapeHtml(label)} info"
-      >&#9432;</span>
+      >i</button>
     `;
+  }
+
+  function queueActivityText(queue) {
+    const phase = normalizeStatus(queue?.phase);
+    const currentMonitorId = queue?.current_monitor_id;
+    const nextMonitorId = queue?.next_monitor_id;
+
+    if (phase === 'checking') {
+      return currentMonitorId
+        ? `\u0441\u0435\u0439\u0447\u0430\u0441: ${findSiteName(currentMonitorId)}`
+        : '\u0432\u044b\u043f\u043e\u043b\u043d\u044f\u0435\u043c \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443';
+    }
+    if (phase === 'waiting_gap') {
+      return nextMonitorId
+        ? `\u043f\u0430\u0443\u0437\u0430 \u043f\u0435\u0440\u0435\u0434: ${findSiteName(nextMonitorId)}`
+        : '\u043f\u0430\u0443\u0437\u0430 \u043c\u0435\u0436\u0434\u0443 \u0437\u0430\u043f\u0440\u043e\u0441\u0430\u043c\u0438';
+    }
+    if (phase === 'queued' || queue?.queued) {
+      return '\u0436\u0434\u0451\u043c \u0437\u0430\u043f\u0443\u0441\u043a\u0430 worker';
+    }
+    if (phase === 'starting') {
+      return '\u043f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u043a \u0437\u0430\u043f\u0443\u0441\u043a\u0443';
+    }
+    if (phase === 'finishing') {
+      return '\u0437\u0430\u0432\u0435\u0440\u0448\u0430\u0435\u043c \u0446\u0438\u043a\u043b \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438';
+    }
+    if (queue?.running) {
+      return '\u0432\u044b\u043f\u043e\u043b\u043d\u044f\u0435\u043c \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0443';
+    }
+
+    return '\u0436\u0434\u0451\u043c \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0437\u0430\u043f\u0443\u0441\u043a \u043f\u043e \u0440\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u044e';
   }
 
   function renderQueueLine(label, queue) {
     const running = Boolean(queue?.running);
     const queued = Boolean(queue?.queued);
+    const active = running || queued;
     const total = Number(queue?.total_count || 0);
     const completed = Number(queue?.completed_count || 0);
-    const currentMonitorId = queue?.current_monitor_id;
     const progressText = total > 0 ? `${completed}/${total}` : '\u2014';
-    const currentText = currentMonitorId
-      ? `\u0441\u0435\u0439\u0447\u0430\u0441: ${findSiteName(currentMonitorId)}`
-      : '\u0441\u0435\u0439\u0447\u0430\u0441: \u2014';
+    const progressHtml = active && total > 0
+      ? `<span>\u043f\u0440\u043e\u0433\u0440\u0435\u0441\u0441: ${escapeHtml(progressText)}</span>`
+      : '';
+    const activityText = queueActivityText(queue);
 
     return `
       <div class="d-flex flex-wrap align-items-center gap-2">
         <strong>${escapeHtml(label)}:</strong>
-        ${queueBadge(running, queued)}
-        <span>\u043f\u0440\u043e\u0433\u0440\u0435\u0441\u0441: ${escapeHtml(progressText)}</span>
-        <span>${escapeHtml(currentText)}</span>
+        ${queueBadge(queue)}
+        ${progressHtml}
+        <span>${escapeHtml(activityText)}</span>
         ${renderQueueInfoButton(label, queue)}
       </div>
     `;

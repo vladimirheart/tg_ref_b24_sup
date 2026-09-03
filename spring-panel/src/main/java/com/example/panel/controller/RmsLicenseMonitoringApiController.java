@@ -296,8 +296,10 @@ public class RmsLicenseMonitoringApiController {
         payload.put("last_requested_at", state.lastRequestedAt());
         payload.put("last_completed_at", state.lastCompletedAt());
         payload.put("current_monitor_id", state.currentMonitorId());
+        payload.put("next_monitor_id", state.nextMonitorId());
         payload.put("total_count", state.totalCount());
         payload.put("completed_count", state.completedCount());
+        payload.put("phase", state.phase());
         return payload;
     }
 
