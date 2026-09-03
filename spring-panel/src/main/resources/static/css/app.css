@@ -525,7 +525,8 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
   background: color-mix(in srgb, var(--color-text-muted) 18%, transparent);
 }
 
-.chat-message-menu-list {
+.chat-message-menu-list,
+.chat-message-menu-portal {
   position: absolute;
   top: calc(100% + 0.35rem);
   left: 0;
@@ -545,14 +546,28 @@ body[data-ui-page=dialogs][data-ui-density=comfortable] .workspace-shell-card .c
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.chat-message-menu.is-open .chat-message-menu-list {
+.chat-message-menu-portal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1085;
+  max-width: min(18rem, calc(100vw - 1.5rem));
+}
+
+.chat-message-menu.is-portaled-open .chat-message-menu-list {
+  display: none;
+}
+
+.chat-message-menu.is-open .chat-message-menu-list,
+.chat-message-menu-portal.is-open {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
   visibility: visible;
 }
 
-.chat-message-menu-list .btn {
+.chat-message-menu-list .btn,
+.chat-message-menu-portal .btn {
   text-align: left;
   white-space: nowrap;
 }
@@ -574,12 +589,34 @@ button.chat-message-reply-source:focus-visible {
 }
 
 .chat-message-row.is-reply-target-highlight .chat-message {
-  animation: chat-message-reply-target-pulse 1.8s ease;
+  animation: chat-message-reply-target-pulse 2.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes chat-message-reply-target-pulse {
-  0%, 100% { box-shadow: none; }
-  30%, 70% { box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary) 35%, transparent); }
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 0%, transparent);
+    transform: scale(1);
+  }
+  18% {
+    box-shadow:
+      0 0 0 0.24rem color-mix(in srgb, var(--primary) 26%, transparent),
+      0 0.9rem 2rem color-mix(in srgb, var(--primary) 10%, transparent);
+    transform: scale(1.012);
+  }
+  38% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 0%, transparent);
+    transform: scale(1);
+  }
+  58% {
+    box-shadow:
+      0 0 0 0.16rem color-mix(in srgb, var(--primary) 18%, transparent),
+      0 0.45rem 1rem color-mix(in srgb, var(--primary) 8%, transparent);
+    transform: scale(1.006);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 0%, transparent);
+    transform: scale(1);
+  }
 }
 
 .chat-history {

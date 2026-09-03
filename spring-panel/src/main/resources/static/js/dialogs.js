@@ -220,6 +220,7 @@
   const detailsRating = document.getElementById('dialogDetailsRating');
   const detailsSummary = document.getElementById('dialogDetailsSummary');
   const detailsHistory = document.getElementById('dialogDetailsHistory');
+  const detailsHistoryActionMenuPortal = document.getElementById('dialogHistoryActionMenuPortal');
   const detailsCreateTask = document.getElementById('dialogDetailsCreateTask');
   const detailsResolve = document.getElementById('dialogDetailsResolve');
   const detailsReopen = document.getElementById('dialogDetailsReopen');
@@ -1771,6 +1772,7 @@
   const dialogsDetailsHistoryRuntime = window.DialogsDetailsHistoryRuntime?.createRuntime({
     elements: {
       detailsHistory,
+      detailsHistoryActionMenuPortal,
       detailsReplyText,
       detailsReplySend,
       detailsReplyMediaTrigger,

@@ -22,6 +22,8 @@
       historyPinnedIntent: false,
       historyScrollTimeouts: [],
       historyInteractionsBound: false,
+      historyActionMenuRepositionFrame: null,
+      replyTargetHighlightRequestId: 0,
       replyTargetHighlightTimeout: null,
     };
     const PENDING_MEDIA_CHANGED_EVENT = 'dialogs:pending-media-files-changed';
@@ -83,6 +85,74 @@
       }
       state.historyScrollTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
       state.historyScrollTimeouts = [];
+    }
+
+    function getHistoryActionMenuPortal() {
+      return elements.detailsHistoryActionMenuPortal instanceof HTMLElement
+        ? elements.detailsHistoryActionMenuPortal
+        : null;
+    }
+
+    function clearReplyTargetHighlight() {
+      elements.detailsHistory
+        ?.querySelectorAll('.chat-message-row.is-reply-target-highlight')
+        .forEach((node) => node.classList.remove('is-reply-target-highlight'));
+    }
+
+    function clearReplyTargetHighlightTimers() {
+      state.replyTargetHighlightRequestId += 1;
+      if (state.replyTargetHighlightTimeout) {
+        window.clearTimeout(state.replyTargetHighlightTimeout);
+        state.replyTargetHighlightTimeout = null;
+      }
+    }
+
+    function waitForHistoryScrollSettled(onSettled, waitOptions = {}) {
+      const container = elements.detailsHistory;
+      if (!container || typeof onSettled !== 'function') {
+        onSettled?.();
+        return;
+      }
+      const settleDelay = Number(waitOptions.settleDelay) > 0
+        ? Number(waitOptions.settleDelay)
+        : 160;
+      const maxDelay = Number(waitOptions.maxDelay) > 0
+        ? Number(waitOptions.maxDelay)
+        : 1400;
+      let finished = false;
+      let settleTimeoutId = null;
+      let maxTimeoutId = null;
+      const cleanup = () => {
+        container.removeEventListener('scroll', handleScroll);
+        if (settleTimeoutId) {
+          window.clearTimeout(settleTimeoutId);
+          settleTimeoutId = null;
+        }
+        if (maxTimeoutId) {
+          window.clearTimeout(maxTimeoutId);
+          maxTimeoutId = null;
+        }
+      };
+      const finish = () => {
+        if (finished) {
+          return;
+        }
+        finished = true;
+        cleanup();
+        onSettled();
+      };
+      const scheduleSettle = () => {
+        if (settleTimeoutId) {
+          window.clearTimeout(settleTimeoutId);
+        }
+        settleTimeoutId = window.setTimeout(finish, settleDelay);
+      };
+      const handleScroll = () => {
+        scheduleSettle();
+      };
+      container.addEventListener('scroll', handleScroll, { passive: true });
+      scheduleSettle();
+      maxTimeoutId = window.setTimeout(finish, maxDelay);
     }
 
     function isHistoryPinnedToBottom(threshold = 48) {
@@ -741,7 +811,7 @@
 					class="chat-message-menu-list"
 					id="${actionMenuId}"
 				>
-              <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}" data-message-preview="${escapeAttribute(messagePreviewText)}">Ответить</button>
               ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Изменить</button>` : ''}
               ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
             </div>
@@ -967,6 +1037,7 @@
       const currentMarkup = currentMessages.length
         ? currentMessages.map((message) => messageToHtml(message)).join('')
         : '<div class="text-muted">Сообщения не найдены.</div>';
+      closeHistoryActionMenus();
       elements.detailsHistory.innerHTML = `${controlsMarkup}${archivedMarkup}${currentMarkup}`;
       hydrateMediaRoot(elements.detailsHistory, {
         onLayoutChange: () => {
@@ -1554,55 +1625,135 @@
       return false;
     }
 
+    function clearHistoryActionMenuPortal() {
+      const portal = getHistoryActionMenuPortal();
+      if (!portal) {
+        return;
+      }
+      portal.classList.remove('is-open');
+      portal.setAttribute('aria-hidden', 'true');
+      portal.innerHTML = '';
+      portal.removeAttribute('data-source-message-id');
+      portal.style.removeProperty('top');
+      portal.style.removeProperty('left');
+      portal.style.removeProperty('visibility');
+    }
+
+    function positionHistoryActionMenuPortal(menu) {
+      const portal = getHistoryActionMenuPortal();
+      const toggle = menu?.querySelector?.('[data-action-menu]');
+      if (!portal || !toggle) {
+        return false;
+      }
+      portal.style.visibility = 'hidden';
+      portal.classList.add('is-open');
+      portal.setAttribute('aria-hidden', 'false');
+      const toggleRect = toggle.getBoundingClientRect();
+      const portalRect = portal.getBoundingClientRect();
+      const viewportPadding = 12;
+      const gap = 6;
+      const maxLeft = Math.max(viewportPadding, window.innerWidth - portalRect.width - viewportPadding);
+      let left = Math.min(Math.max(viewportPadding, toggleRect.left), maxLeft);
+      let top = toggleRect.bottom + gap;
+      const maxTop = window.innerHeight - portalRect.height - viewportPadding;
+      if (top > maxTop) {
+        top = Math.max(viewportPadding, toggleRect.top - portalRect.height - gap);
+      }
+      portal.style.left = `${Math.round(left)}px`;
+      portal.style.top = `${Math.round(top)}px`;
+      portal.style.visibility = 'visible';
+      return true;
+    }
+
+    function requestHistoryActionMenuPortalReposition() {
+      const portal = getHistoryActionMenuPortal();
+      if (!portal?.classList.contains('is-open')) {
+        return;
+      }
+      if (state.historyActionMenuRepositionFrame) {
+        return;
+      }
+      const schedule = typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame.bind(window)
+        : (callback) => window.setTimeout(callback, 16);
+      state.historyActionMenuRepositionFrame = schedule(() => {
+        state.historyActionMenuRepositionFrame = null;
+        const menu = elements.detailsHistory?.querySelector('.chat-message-menu.is-open');
+        if (!menu || !positionHistoryActionMenuPortal(menu)) {
+          closeHistoryActionMenus();
+        }
+      });
+    }
+
     function setHistoryActionMenuOpen(
-			menu,
-			open,
-			restoreFocus = false
-		) {
-			if (!menu) return;
+      menu,
+      open,
+      restoreFocus = false
+    ) {
+      if (!menu) return;
 
-			const shouldOpen = Boolean(open);
-			const toggle = menu.querySelector('[data-action-menu]');
+      const shouldOpen = Boolean(open);
+      const toggle = menu.querySelector('[data-action-menu]');
+      const inlineList = menu.querySelector('.chat-message-menu-list');
+      const portal = getHistoryActionMenuPortal();
 
-			menu.classList.toggle('is-open', shouldOpen);
+      menu.classList.toggle('is-open', shouldOpen);
+      menu.classList.remove('is-portaled-open');
 
-			if (toggle) {
-				toggle.setAttribute(
-					'aria-expanded',
-					shouldOpen ? 'true' : 'false'
-				);
-			}
+      if (portal && shouldOpen && inlineList) {
+        portal.innerHTML = inlineList.innerHTML;
+        const sourceMessageId = String(menu.closest('.chat-message-row')?.dataset.telegramMessageId || '').trim();
+        if (sourceMessageId) {
+          portal.dataset.sourceMessageId = sourceMessageId;
+        } else {
+          portal.removeAttribute('data-source-message-id');
+        }
+        if (positionHistoryActionMenuPortal(menu)) {
+          menu.classList.add('is-portaled-open');
+        } else {
+          clearHistoryActionMenuPortal();
+        }
+      } else if (!shouldOpen) {
+        clearHistoryActionMenuPortal();
+      }
 
-			if (!shouldOpen && restoreFocus && toggle) {
-				window.requestAnimationFrame(() => {
-					toggle.focus({ preventScroll: true });
-				});
-			}
+      if (toggle) {
+        toggle.setAttribute(
+          'aria-expanded',
+          shouldOpen ? 'true' : 'false'
+        );
+      }
+
+      if (!shouldOpen && restoreFocus && toggle) {
+        window.requestAnimationFrame(() => {
+          toggle.focus({ preventScroll: true });
+        });
+      }
 
       elements.detailsHistory?.classList.toggle(
         'has-open-message-menu',
         Boolean(elements.detailsHistory.querySelector('.chat-message-menu.is-open'))
       );
-		}
+    }
 
-		function closeHistoryActionMenus(
-			exceptMenu = null,
-			restoreFocus = false
-		) {
-			if (!elements.detailsHistory) return;
+    function closeHistoryActionMenus(
+      exceptMenu = null,
+      restoreFocus = false
+    ) {
+      if (!elements.detailsHistory) return;
 
-			elements.detailsHistory
-				.querySelectorAll('.chat-message-menu.is-open')
-				.forEach((menu) => {
-					if (menu !== exceptMenu) {
-						setHistoryActionMenuOpen(
-							menu,
-							false,
-							restoreFocus
-						);
-					}
-				});
-		}
+      elements.detailsHistory
+        .querySelectorAll('.chat-message-menu.is-open')
+        .forEach((menu) => {
+          if (menu !== exceptMenu) {
+            setHistoryActionMenuOpen(
+              menu,
+              false,
+              restoreFocus
+            );
+          }
+        });
+    }
 
     function setHistoryActionHover(messageNode) {
       if (!elements.detailsHistory) return;
@@ -1610,6 +1761,19 @@
         node.classList.toggle('is-actions-hovered', node === messageNode);
       });
       messageNode?.classList.add('is-actions-hovered');
+    }
+
+    function resolveHistoryMessageNode(rawMessageId) {
+      if (!elements.detailsHistory) {
+        return null;
+      }
+      const messageId = Number.parseInt(rawMessageId, 10);
+      if (!Number.isSafeInteger(messageId)) {
+        return null;
+      }
+      return elements.detailsHistory.querySelector(
+        `.chat-message-row[data-telegram-message-id="${messageId}"] .chat-message`
+      );
     }
 
     function focusHistoryReplyTarget(rawMessageId) {
@@ -1623,17 +1787,76 @@
         notify('Исходное сообщение ещё не загружено в историю.', 'info');
         return;
       }
+      clearReplyTargetHighlightTimers();
+      clearReplyTargetHighlight();
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      target.classList.remove('is-reply-target-highlight');
-      void target.offsetWidth;
-      target.classList.add('is-reply-target-highlight');
-      if (state.replyTargetHighlightTimeout) {
-        window.clearTimeout(state.replyTargetHighlightTimeout);
-      }
-      state.replyTargetHighlightTimeout = window.setTimeout(() => {
+      const requestId = state.replyTargetHighlightRequestId;
+      waitForHistoryScrollSettled(() => {
+        if (requestId !== state.replyTargetHighlightRequestId || !target.isConnected) {
+          return;
+        }
         target.classList.remove('is-reply-target-highlight');
-        state.replyTargetHighlightTimeout = null;
-      }, 1800);
+        void target.offsetWidth;
+        target.classList.add('is-reply-target-highlight');
+        state.replyTargetHighlightTimeout = window.setTimeout(() => {
+          if (requestId !== state.replyTargetHighlightRequestId || !target.isConnected) {
+            return;
+          }
+          target.classList.remove('is-reply-target-highlight');
+          state.replyTargetHighlightTimeout = null;
+        }, 2200);
+      });
+    }
+
+    async function handleHistoryAction(button) {
+      const ticketId = String(getActiveDialogState().ticketId || '').trim();
+      if (!(button instanceof HTMLElement) || !ticketId) {
+        return;
+      }
+      closeHistoryActionMenus();
+      const messageId = Number.parseInt(button.dataset.messageId, 10);
+      if (!Number.isFinite(messageId)) return;
+      const action = button.dataset.action;
+      if (action === 'reply') {
+        const previewText = String(button.dataset.messagePreview || '').trim()
+          || resolveHistoryMessageNode(messageId)?.dataset.messagePreview
+          || resolveHistoryMessageNode(messageId)?.querySelector('.chat-message-body')?.textContent
+          || '';
+        setReplyTarget(messageId, previewText);
+        if (elements.detailsReplyText) {
+          elements.detailsReplyText.focus();
+        }
+        return;
+      }
+      if (action === 'edit') {
+        const current = resolveHistoryMessageNode(messageId)?.querySelector('.chat-message-body')?.textContent || '';
+        const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
+        if (!nextText || !nextText.trim()) return;
+        const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/edit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegramMessageId: messageId, message: nextText.trim() }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || `Ошибка ${response.status}`);
+        }
+        await refreshHistory();
+        return;
+      }
+      if (action === 'delete') {
+        if (!window.confirm('Удалить сообщение у клиента?')) return;
+        const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegramMessageId: messageId }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || `Ошибка ${response.status}`);
+        }
+        await refreshHistory();
+      }
     }
 
     function bindHistoryInteractionEvents() {
@@ -1644,6 +1867,7 @@
       if (elements.detailsHistory) {
         elements.detailsHistory.addEventListener('scroll', () => {
           syncHistoryPinnedIntent();
+          requestHistoryActionMenuPortalReposition();
         }, { passive: true });
         elements.detailsHistory.addEventListener('pointerover', (event) => {
           const messageNode = event.target.closest('.chat-message');
@@ -1676,68 +1900,14 @@
           if (menuToggle) {
             const menu = menuToggle.closest('.chat-message-menu');
             if (!menu) return;
-            const shouldOpen =
-				!menu.classList.contains('is-open');
-
-			closeHistoryActionMenus(menu);
-
-			setHistoryActionMenuOpen(
-				menu,
-				shouldOpen
-			);
-
-			return;
+            const shouldOpen = !menu.classList.contains('is-open');
+            closeHistoryActionMenus(menu);
+            setHistoryActionMenuOpen(menu, shouldOpen);
+            return;
           }
           const button = event.target.closest('button[data-action]');
-          const ticketId = String(getActiveDialogState().ticketId || '').trim();
-          if (!button || !ticketId) return;
-          const menu = button.closest('.chat-message-menu');
-          if (menu) {
-    setHistoryActionMenuOpen(menu, false);
-}
-          const messageId = Number.parseInt(button.dataset.messageId, 10);
-          if (!Number.isFinite(messageId)) return;
-          const action = button.dataset.action;
-          if (action === 'reply') {
-            const messageNode = button.closest('.chat-message');
-            const previewText = messageNode?.dataset.messagePreview
-              || messageNode?.querySelector('.chat-message-reply-source')?.textContent
-              || messageNode?.querySelector('.chat-message-body')?.textContent
-              || '';
-            setReplyTarget(messageId, previewText);
-            if (elements.detailsReplyText) {
-              elements.detailsReplyText.focus();
-            }
-            return;
-          }
-          if (action === 'edit') {
-            const current = button.closest('.chat-message')?.querySelector('.chat-message-body')?.textContent || '';
-            const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
-            if (!nextText || !nextText.trim()) return;
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/edit`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ telegramMessageId: messageId, message: nextText.trim() }),
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload?.success) {
-              throw new Error(payload?.error || `Ошибка ${response.status}`);
-            }
-            await refreshHistory();
-            return;
-          }
-          if (action === 'delete') {
-            if (!window.confirm('Удалить сообщение у клиента?')) return;
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/delete`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ telegramMessageId: messageId }),
-            });
-            const payload = await response.json();
-            if (!response.ok || !payload?.success) {
-              throw new Error(payload?.error || `Ошибка ${response.status}`);
-            }
-            await refreshHistory();
+          if (button) {
+            await handleHistoryAction(button);
           }
         });
         elements.detailsReplyMedia.addEventListener(PENDING_MEDIA_CHANGED_EVENT, (event) => {
@@ -1748,11 +1918,24 @@
         updateDetailsPendingMediaPreview();
       }
 
+      if (elements.detailsHistoryActionMenuPortal) {
+        elements.detailsHistoryActionMenuPortal.addEventListener('click', async (event) => {
+          const button = event.target.closest('button[data-action]');
+          if (!button) {
+            return;
+          }
+          await handleHistoryAction(button);
+        });
+      }
+
       document.addEventListener('click', (event) => {
         if (!elements.detailsHistory) return;
         if (event.target.closest('.chat-message-menu')) return;
+        if (event.target.closest('.chat-message-menu-portal')) return;
         closeHistoryActionMenus();
       });
+
+      window.addEventListener('resize', requestHistoryActionMenuPortalReposition, { passive: true });
 
 		document.addEventListener('keydown', (event) => {
 			if (event.key !== 'Escape' || !elements.detailsHistory) {
