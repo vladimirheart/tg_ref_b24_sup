@@ -27,7 +27,13 @@ FROM eclipse-temurin:17-jre-jammy
 WORKDIR /opt/iguana/panel
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        iputils-ping \
+        traceroute \
+    && command -v ping >/dev/null \
+    && command -v traceroute >/dev/null \
     && curl -fsSL http://nuc-cdp.digital.gov.ru/cdp/rootca_ssl_rsa2022.crt -o /tmp/russian-trusted-root-ca.crt \
     && echo "936a43fea6e8e525bcc0f81acd9c3d21b4fc4b9b68acea7906d698005afc6504  /tmp/russian-trusted-root-ca.crt" | sha256sum -c - \
     && keytool -importcert -noprompt -trustcacerts \
