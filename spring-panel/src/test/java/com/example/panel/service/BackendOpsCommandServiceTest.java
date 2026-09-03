@@ -33,6 +33,7 @@ class BackendOpsCommandServiceTest {
                 command_type TEXT NOT NULL,
                 scope_key TEXT NOT NULL,
                 active_key TEXT UNIQUE,
+                running_lane_key TEXT,
                 payload_json TEXT NOT NULL DEFAULT '{}',
                 status TEXT NOT NULL,
                 requested_by TEXT,
@@ -49,6 +50,12 @@ class BackendOpsCommandServiceTest {
                 attempt_count INTEGER NOT NULL DEFAULT 0,
                 updated_at TIMESTAMP NOT NULL
             )
+            """);
+        jdbcTemplate.execute("""
+            CREATE UNIQUE INDEX uq_backend_ops_command_running_lane
+                ON backend_ops_command(running_lane_key)
+             WHERE status = 'running'
+               AND running_lane_key IS NOT NULL
             """);
         service = new BackendOpsCommandService(
             jdbcTemplate,
@@ -90,55 +97,99 @@ class BackendOpsCommandServiceTest {
     }
 
     @Test
-    void databaseClaimAllowsOnlyOneWorkerAndTerminalStateUnlocksNextCommand() {
-        BackendOpsCommandService.EnqueueResult queued =
+    void unrelatedExecutionLanesCanRunAtTheSameTime() {
+        BackendOpsCommandService.EnqueueResult rms =
             service.enqueueExclusive(
-                BackendOpsCommandTypes.NETBOX_PASSPORTS_SYNC,
+                BackendOpsCommandTypes.RMS_NETWORK_REFRESH,
+                "all",
+                Map.of(),
+                "scheduler"
+            );
+        BackendOpsCommandService.EnqueueResult locations =
+            service.enqueueExclusive(
+                BackendOpsCommandTypes.IIKO_LOCATIONS_SYNC,
                 "global",
                 Map.of("trigger", "manual"),
                 "operator"
             );
 
-        BackendOpsCommandService.CommandSnapshot claimed =
-            service.claimNext("worker-a", Duration.ofHours(2))
-                .orElseThrow();
+        BackendOpsCommandService.CommandSnapshot rmsClaim =
+            service.claimNextForLane(
+                "worker-a",
+                BackendOpsCommandTypes.executionLane(
+                    BackendOpsCommandTypes.RMS_NETWORK_REFRESH
+                )
+            ).orElseThrow();
 
-        assertThat(claimed.commandId())
-            .isEqualTo(queued.command().commandId());
-        assertThat(claimed.running()).isTrue();
-        assertThat(claimed.claimedBy()).isEqualTo("worker-a");
-        assertThat(service.claimNext("worker-b", Duration.ofHours(2)))
-            .isEmpty();
+        BackendOpsCommandService.CommandSnapshot locationsClaim =
+            service.claimNextForLane(
+                "worker-b",
+                BackendOpsCommandTypes.executionLane(
+                    BackendOpsCommandTypes.IIKO_LOCATIONS_SYNC
+                )
+            ).orElseThrow();
 
-        service.updateProgress(
-            claimed.commandId(),
-            45,
-            "half-way"
-        );
-        service.markSucceeded(
-            claimed.commandId(),
-            Map.of("state", "success")
-        );
-
-        BackendOpsCommandService.CommandSnapshot completed =
-            service.findById(claimed.commandId()).orElseThrow();
-        assertThat(completed.succeeded()).isTrue();
-        assertThat(completed.progressPercent()).isEqualTo(100);
-
-        BackendOpsCommandService.EnqueueResult next =
-            service.enqueueExclusive(
-                BackendOpsCommandTypes.NETBOX_PASSPORTS_SYNC,
-                "global",
-                Map.of("trigger", "schedule"),
-                "scheduler"
-            );
-        assertThat(next.created()).isTrue();
-        assertThat(next.command().commandId())
-            .isNotEqualTo(claimed.commandId());
+        assertThat(rmsClaim.commandId())
+            .isEqualTo(rms.command().commandId());
+        assertThat(locationsClaim.commandId())
+            .isEqualTo(locations.command().commandId());
+        assertThat(rmsClaim.runningLaneKey())
+            .isEqualTo("rms-monitoring");
+        assertThat(locationsClaim.runningLaneKey())
+            .isEqualTo("iiko-locations");
     }
 
     @Test
-    void staleRunningClaimReturnsToQueueForWorkerFailover() {
+    void conflictingRmsCommandsShareOneExecutionLane() {
+        service.enqueueExclusive(
+            BackendOpsCommandTypes.RMS_NETWORK_REFRESH,
+            "all",
+            Map.of(),
+            "scheduler"
+        );
+        service.enqueueExclusive(
+            BackendOpsCommandTypes.RMS_LICENSE_REFRESH,
+            "all",
+            Map.of(),
+            "scheduler"
+        );
+
+        BackendOpsCommandTypes.ExecutionLane rmsLane =
+            BackendOpsCommandTypes.executionLane(
+                BackendOpsCommandTypes.RMS_NETWORK_REFRESH
+            );
+
+        BackendOpsCommandService.CommandSnapshot first =
+            service.claimNextForLane(
+                "worker-a",
+                rmsLane
+            ).orElseThrow();
+
+        assertThat(
+            service.claimNextForLane("worker-b", rmsLane)
+        ).isEmpty();
+
+        assertThat(
+            service.markSucceeded(
+                first,
+                Map.of("state", "success")
+            )
+        ).isTrue();
+
+        BackendOpsCommandService.CommandSnapshot second =
+            service.claimNextForLane(
+                "worker-b",
+                rmsLane
+            ).orElseThrow();
+
+        assertThat(second.commandId())
+            .isNotEqualTo(first.commandId());
+        assertThat(second.runningLaneKey())
+            .isEqualTo("rms-monitoring");
+    }
+
+    @Test
+    void staleAttemptCannotOverwriteReclaimedCommand() {
         BackendOpsCommandService.EnqueueResult queued =
             service.enqueueExclusive(
                 BackendOpsCommandTypes.IIKO_LOCATIONS_SYNC,
@@ -146,9 +197,17 @@ class BackendOpsCommandServiceTest {
                 Map.of("trigger", "manual"),
                 "operator"
             );
-        BackendOpsCommandService.CommandSnapshot claimed =
-            service.claimNext("worker-old", Duration.ofHours(2))
-                .orElseThrow();
+
+        BackendOpsCommandTypes.ExecutionLane lane =
+            BackendOpsCommandTypes.executionLane(
+                BackendOpsCommandTypes.IIKO_LOCATIONS_SYNC
+            );
+
+        BackendOpsCommandService.CommandSnapshot oldClaim =
+            service.claimNextForLane(
+                "worker-old",
+                lane
+            ).orElseThrow();
 
         OffsetDateTime stale =
             OffsetDateTime.now(ZoneOffset.UTC).minusHours(4);
@@ -160,19 +219,72 @@ class BackendOpsCommandServiceTest {
                 """,
             Timestamp.from(stale.toInstant()),
             Timestamp.from(stale.toInstant()),
-            claimed.commandId()
+            oldClaim.commandId()
         );
 
-        assertThat(service.recoverStaleClaims(Duration.ofMinutes(30)))
-            .isEqualTo(1);
+        assertThat(
+            service.recoverStaleClaims(
+                Duration.ofMinutes(30)
+            )
+        ).isEqualTo(1);
 
-        BackendOpsCommandService.CommandSnapshot reclaimed =
-            service.claimNext("worker-new", Duration.ofHours(2))
-                .orElseThrow();
+        BackendOpsCommandService.CommandSnapshot newClaim =
+            service.claimNextForLane(
+                "worker-new",
+                lane
+            ).orElseThrow();
 
-        assertThat(reclaimed.commandId())
+        assertThat(newClaim.commandId())
             .isEqualTo(queued.command().commandId());
-        assertThat(reclaimed.claimedBy()).isEqualTo("worker-new");
-        assertThat(reclaimed.attemptCount()).isEqualTo(2);
+        assertThat(newClaim.claimedBy())
+            .isEqualTo("worker-new");
+        assertThat(newClaim.attemptCount()).isEqualTo(2);
+
+        assertThat(
+            service.updateProgress(
+                oldClaim,
+                55,
+                "stale progress"
+            )
+        ).isFalse();
+        assertThat(
+            service.markSucceeded(
+                oldClaim,
+                Map.of("state", "stale")
+            )
+        ).isFalse();
+
+        BackendOpsCommandService.CommandSnapshot stillRunning =
+            service.findById(
+                newClaim.commandId()
+            ).orElseThrow();
+
+        assertThat(stillRunning.running()).isTrue();
+        assertThat(stillRunning.claimedBy())
+            .isEqualTo("worker-new");
+        assertThat(stillRunning.attemptCount()).isEqualTo(2);
+
+        assertThat(
+            service.updateProgress(
+                newClaim,
+                45,
+                "half-way"
+            )
+        ).isTrue();
+        assertThat(
+            service.markSucceeded(
+                newClaim,
+                Map.of("state", "success")
+            )
+        ).isTrue();
+
+        BackendOpsCommandService.CommandSnapshot completed =
+            service.findById(
+                newClaim.commandId()
+            ).orElseThrow();
+
+        assertThat(completed.succeeded()).isTrue();
+        assertThat(completed.progressPercent()).isEqualTo(100);
+        assertThat(completed.runningLaneKey()).isNull();
     }
 }

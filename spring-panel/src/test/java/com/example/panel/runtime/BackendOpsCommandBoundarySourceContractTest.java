@@ -52,7 +52,7 @@ class BackendOpsCommandBoundarySourceContractTest {
             "RuntimeRole.WORKER",
             "RuntimeReplicaPolicy.DATABASE_CLAIMED",
             "@Scheduled(",
-            "claimNext(",
+            "claimNextForLane(",
             "executeBackendOpsLicenseRefresh",
             "executeBackendOpsRefresh",
             "executeBackendOpsSync"

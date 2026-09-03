@@ -301,8 +301,17 @@
     }
 
     function formatLocationsSyncTimestamp(value) {
-      if (!value || value === 'after_startup_tick') {
-        return value === 'after_startup_tick' ? 'после ближайшего тика scheduler' : '—';
+      if (!value) {
+        return '—';
+      }
+      if (value === 'after_startup_tick') {
+        return 'после ближайшего тика scheduler';
+      }
+      if (value === 'after_current') {
+        return 'после завершения текущей синхронизации';
+      }
+      if (value === 'due_now') {
+        return 'к запуску сейчас';
       }
       const parsed = new Date(value);
       if (Number.isNaN(parsed.getTime())) {
@@ -317,6 +326,8 @@
       const progressPercent = Math.min(100, Math.max(0, Number.parseInt(String(normalized.progressPercent ?? normalized.progress_percent ?? 0), 10) || 0));
       const message = String(normalized.message || 'Синхронизация ещё не запускалась.').trim();
       const running = Boolean(normalized.running || syncState === 'running');
+      const queued = syncState === 'queued';
+      const active = running || queued;
       const warnings = Array.isArray(normalized.warnings) ? normalized.warnings.filter(Boolean) : [];
       const result = normalized.result && typeof normalized.result === 'object' ? normalized.result : null;
 
@@ -330,8 +341,8 @@
       if (progressBar instanceof HTMLElement) {
         progressBar.style.width = `${progressPercent}%`;
         progressBar.textContent = `${progressPercent}%`;
-        progressBar.classList.toggle('progress-bar-striped', running);
-        progressBar.classList.toggle('progress-bar-animated', running);
+        progressBar.classList.toggle('progress-bar-striped', active);
+        progressBar.classList.toggle('progress-bar-animated', active);
         progressBar.classList.remove('bg-success', 'bg-danger', 'bg-warning');
         if (syncState === 'success') {
           progressBar.classList.add('bg-success');
@@ -348,7 +359,11 @@
         const parts = [];
         parts.push(`Триггер: ${normalized.trigger ? String(normalized.trigger) : '—'}`);
         parts.push(`Автосинхронизация: ${normalized.intervalMinutes ? `каждые ${normalized.intervalMinutes} мин` : '—'}`);
-        parts.push(`Старт: ${formatLocationsSyncTimestamp(normalized.startedAtUtc || normalized.started_at_utc)}`);
+        if (queued) {
+          parts.push(`Поставлено в очередь: ${formatLocationsSyncTimestamp(normalized.startedAtUtc || normalized.started_at_utc)}`);
+        } else {
+          parts.push(`Старт: ${formatLocationsSyncTimestamp(normalized.startedAtUtc || normalized.started_at_utc)}`);
+        }
         parts.push(`Финиш: ${formatLocationsSyncTimestamp(normalized.finishedAtUtc || normalized.finished_at_utc)}`);
         parts.push(`Следующий запуск: ${formatLocationsSyncTimestamp(normalized.nextRunAtUtc || normalized.next_run_at_utc)}`);
         parts.push(`Изменения: ${normalized.changed ? 'да' : 'нет'}`);
@@ -401,10 +416,12 @@
         }
       }
       if (runButton instanceof HTMLButtonElement) {
-        runButton.disabled = running;
-        runButton.innerHTML = running
-          ? '<i class="bi bi-arrow-repeat me-1"></i>Синхронизация идёт'
-          : '<i class="bi bi-play-fill me-1"></i>Синхронизировать сейчас';
+        runButton.disabled = active;
+        runButton.innerHTML = queued
+          ? '<i class="bi bi-hourglass-split me-1"></i>В очереди'
+          : running
+            ? '<i class="bi bi-arrow-repeat me-1"></i>Синхронизация идёт'
+            : '<i class="bi bi-play-fill me-1"></i>Синхронизировать сейчас';
       }
     }
 
@@ -424,8 +441,9 @@
         }
         const status = await response.json();
         renderLocationsSyncStatus(status);
-        const running = Boolean(status && (status.running || String(status.state || '').toLowerCase() === 'running'));
-        if (!running) {
+        const state = String(status?.state || '').toLowerCase();
+        const active = Boolean(status && (status.running || state === 'running' || state === 'queued'));
+        if (!active) {
           stopLocationsSyncStatusPolling();
           await refreshLocationsTree(true);
         }
@@ -519,7 +537,14 @@
           renderLocationsSyncStatus(data.status);
         }
         if (!data.started) {
-          notify('Синхронизация уже выполняется.');
+          const state = String(data.status?.state || '').toLowerCase();
+          if (state === 'queued') {
+            notify('Синхронизация уже стоит в очереди.');
+          } else if (state === 'running') {
+            notify('Синхронизация уже выполняется.');
+          } else {
+            notify('Новый запуск не создан. Обновите статус синхронизации.');
+          }
         }
         startLocationsSyncStatusPolling();
         await loadLocationsSyncStatus();

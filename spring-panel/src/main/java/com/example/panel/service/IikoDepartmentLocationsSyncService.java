@@ -114,18 +114,36 @@ public class IikoDepartmentLocationsSyncService {
     }
 
     public SyncStatusSnapshot getStatus() {
-        LocationIikoSyncSettings settings = locationsIikoSyncSettingsService.load(sharedConfigService.loadSettings());
+        LocationIikoSyncSettings settings =
+            locationsIikoSyncSettingsService.load(
+                sharedConfigService.loadSettings()
+            );
+
         if (useDurableBackendOps()) {
             return durableStatus(settings);
         }
+
         String nextRunAtUtc = null;
-        if (settings.enabled() && lastFinishedAt != null) {
-            nextRunAtUtc = formatUtc(lastFinishedAt.plusSeconds(settings.intervalMinutes() * 60L));
+        if (settings.enabled()) {
+            if (running.get() || "running".equals(status.state())) {
+                nextRunAtUtc = "after_current";
+            } else if (lastFinishedAt != null) {
+                Instant dueAt = lastFinishedAt.plusSeconds(
+                    settings.intervalMinutes() * 60L
+                );
+                nextRunAtUtc = dueAt.isAfter(Instant.now())
+                    ? formatUtc(dueAt)
+                    : "due_now";
+            } else {
+                nextRunAtUtc = "after_startup_tick";
+            }
         }
-        if (settings.enabled() && lastFinishedAt == null && !"running".equals(status.state())) {
-            nextRunAtUtc = "after_startup_tick";
-        }
-        return status.withSchedule(settings.enabled(), settings.intervalMinutes(), nextRunAtUtc);
+
+        return status.withSchedule(
+            settings.enabled(),
+            settings.intervalMinutes(),
+            nextRunAtUtc
+        );
     }
 
     SyncStatusSnapshot syncNow(String trigger, boolean forceRefresh) {
@@ -239,7 +257,9 @@ public class IikoDepartmentLocationsSyncService {
         );
     }
 
-    private SyncStatusSnapshot durableStatus(LocationIikoSyncSettings settings) {
+    private SyncStatusSnapshot durableStatus(
+        LocationIikoSyncSettings settings
+    ) {
         BackendOpsCommandService.CommandSnapshot latest =
             backendOpsCommandService.findLatestByType(
                 BackendOpsCommandTypes.IIKO_LOCATIONS_SYNC
@@ -258,7 +278,9 @@ public class IikoDepartmentLocationsSyncService {
             return SyncStatusSnapshot.idle().withSchedule(
                 settings.enabled(),
                 settings.intervalMinutes(),
-                null
+                settings.enabled()
+                    ? "after_startup_tick"
+                    : null
             );
         }
 
@@ -272,57 +294,99 @@ public class IikoDepartmentLocationsSyncService {
                 return stored.withSchedule(
                     settings.enabled(),
                     settings.intervalMinutes(),
-                    nextLocationsRunAt(settings, latest.completedAt())
+                    nextLocationsRunAt(
+                        settings,
+                        latest.completedAt()
+                    )
                 );
             }
         }
 
-        String trigger = textValue(latest.payload().get("trigger"), "worker");
+        String trigger = textValue(
+            latest.payload().get("trigger"),
+            "worker"
+        );
         String message = latest.progressMessage();
         if (message == null || message.isBlank()) {
-            message = latest.failed()
-                ? "Синхронизация завершилась ошибкой"
-                : "Синхронизация ожидает выполнения";
+            if (latest.failed()) {
+                message = "Синхронизация завершилась ошибкой";
+            } else if (latest.queued()) {
+                message = "Синхронизация поставлена в очередь";
+            } else if (latest.running()) {
+                message = "Синхронизация выполняется";
+            } else {
+                message = "Синхронизация ожидает выполнения";
+            }
         }
+
         List<String> warnings = latest.failed()
-            ? List.of(textValue(latest.lastError(), "Ошибка выполнения команды"))
+            ? List.of(
+                textValue(
+                    latest.lastError(),
+                    "Ошибка выполнения команды"
+                )
+            )
             : List.of();
+
+        OffsetDateTime activityAt = latest.queued()
+            ? latest.requestedAt()
+            : latest.claimedAt() != null
+                ? latest.claimedAt()
+                : latest.requestedAt();
+
+        String nextRunAtUtc = latest.active()
+            ? (settings.enabled() ? "after_current" : null)
+            : nextLocationsRunAt(
+                settings,
+                lastSucceeded == null
+                    ? null
+                    : lastSucceeded.completedAt()
+            );
+
         return new SyncStatusSnapshot(
             latest.failed() ? "error" : latest.status(),
             latest.progressPercent(),
             message,
             trigger,
-            formatOffsetDateTime(latest.requestedAt()),
+            formatOffsetDateTime(activityAt),
             formatOffsetDateTime(latest.completedAt()),
             false,
             warnings,
-            previousSuccess == null ? null : previousSuccess.result(),
-            previousSuccess == null ? null : previousSuccess.lastSuccessAtUtc(),
+            previousSuccess == null
+                ? null
+                : previousSuccess.result(),
+            previousSuccess == null
+                ? null
+                : previousSuccess.lastSuccessAtUtc(),
             latest.running(),
             settings.intervalMinutes(),
-            nextLocationsRunAt(
-                settings,
-                lastSucceeded == null ? null : lastSucceeded.completedAt()
-            )
+            nextRunAtUtc
         ).withSchedule(
             settings.enabled(),
             settings.intervalMinutes(),
-            nextLocationsRunAt(
-                settings,
-                lastSucceeded == null ? null : lastSucceeded.completedAt()
-            )
+            nextRunAtUtc
         );
     }
 
-    private String nextLocationsRunAt(LocationIikoSyncSettings settings,
-                                      OffsetDateTime completedAt) {
-        if (!settings.enabled() || completedAt == null) {
+    private String nextLocationsRunAt(
+        LocationIikoSyncSettings settings,
+        OffsetDateTime completedAt
+    ) {
+        if (!settings.enabled()) {
             return null;
         }
-        return formatUtc(
-            completedAt.toInstant()
-                .plusSeconds(settings.intervalMinutes() * 60L)
-        );
+        if (completedAt == null) {
+            return "after_startup_tick";
+        }
+
+        Instant dueAt = completedAt.toInstant()
+            .plusSeconds(settings.intervalMinutes() * 60L);
+
+        if (!dueAt.isAfter(Instant.now())) {
+            return "due_now";
+        }
+
+        return formatUtc(dueAt);
     }
 
     private String formatOffsetDateTime(OffsetDateTime value) {

@@ -104,6 +104,7 @@ public class BackendOpsCommandService {
                 SELECT command_id,
                        command_type,
                        scope_key,
+                       running_lane_key,
                        payload_json,
                        status,
                        requested_by,
@@ -133,6 +134,7 @@ public class BackendOpsCommandService {
                 SELECT command_id,
                        command_type,
                        scope_key,
+                       running_lane_key,
                        payload_json,
                        status,
                        requested_by,
@@ -164,6 +166,7 @@ public class BackendOpsCommandService {
                 SELECT command_id,
                        command_type,
                        scope_key,
+                       running_lane_key,
                        payload_json,
                        status,
                        requested_by,
@@ -193,6 +196,7 @@ public class BackendOpsCommandService {
                 SELECT command_id,
                        command_type,
                        scope_key,
+                       running_lane_key,
                        payload_json,
                        status,
                        requested_by,
@@ -223,53 +227,131 @@ public class BackendOpsCommandService {
      * Different worker replicas may query the same candidate, but only one can
      * move it from queued to running.
      */
-    public Optional<CommandSnapshot> claimNext(String instanceId,
-                                               Duration staleClaimTimeout) {
-        recoverStaleClaims(staleClaimTimeout);
+    public Optional<CommandSnapshot> claimNextForLane(
+        String instanceId,
+        BackendOpsCommandTypes.ExecutionLane lane
+    ) {
+        if (lane == null) {
+            throw new IllegalArgumentException(
+                "Backend ops execution lane is required."
+            );
+        }
+
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        List<String> candidates = jdbcTemplate.query("""
-                SELECT command_id
+        List<ClaimCandidate> candidates = jdbcTemplate.query("""
+                SELECT command_id,
+                       command_type
                   FROM backend_ops_command
                  WHERE status = 'queued'
                    AND available_at <= ?
                  ORDER BY requested_at ASC, command_id ASC
-                 LIMIT 20
                 """,
-            (rs, rowNum) -> rs.getString("command_id"),
+            (rs, rowNum) -> new ClaimCandidate(
+                rs.getString("command_id"),
+                rs.getString("command_type")
+            ),
             timestamp(now)
         );
 
         String owner = normalize(instanceId, "worker");
-        for (String commandId : candidates) {
-            int claimed = jdbcTemplate.update("""
-                    UPDATE backend_ops_command
-                       SET status = 'running',
-                           claimed_by = ?,
-                           claimed_at = ?,
-                           heartbeat_at = ?,
-                           attempt_count = attempt_count + 1,
-                           progress_percent = CASE WHEN progress_percent < 1 THEN 1 ELSE progress_percent END,
-                           progress_message = CASE
-                               WHEN progress_message IS NULL OR trim(progress_message) = ''
-                               THEN 'Команда принята worker'
-                               ELSE progress_message
-                           END,
-                           updated_at = ?
-                     WHERE command_id = ?
-                       AND status = 'queued'
-                       AND available_at <= ?
+        for (ClaimCandidate candidate : candidates) {
+            if (!lane.commandTypes().contains(candidate.commandType())) {
+                continue;
+            }
+
+            Integer laneOwnerBeforeClaim = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*)
+                      FROM backend_ops_command
+                     WHERE status = 'running'
+                       AND running_lane_key = ?
                     """,
-                owner,
-                timestamp(now),
-                timestamp(now),
-                timestamp(now),
-                commandId,
-                timestamp(now)
+                Integer.class,
+                lane.key()
             );
-            if (claimed == 1) {
-                return findById(commandId);
+
+            if (laneOwnerBeforeClaim != null
+                && laneOwnerBeforeClaim > 0) {
+                return Optional.empty();
+            }
+
+            try {
+                int claimed = jdbcTemplate.update("""
+                        UPDATE backend_ops_command
+                           SET status = 'running',
+                               running_lane_key = ?,
+                               claimed_by = ?,
+                               claimed_at = ?,
+                               heartbeat_at = ?,
+                               attempt_count = attempt_count + 1,
+                               progress_percent = CASE
+                                   WHEN progress_percent < 1 THEN 1
+                                   ELSE progress_percent
+                               END,
+                               progress_message = CASE
+                                   WHEN progress_message IS NULL
+                                     OR trim(progress_message) = ''
+                                   THEN 'Команда принята worker'
+                                   ELSE progress_message
+                               END,
+                               updated_at = ?
+                         WHERE command_id = ?
+                           AND status = 'queued'
+                           AND available_at <= ?
+                        """,
+                    lane.key(),
+                    owner,
+                    timestamp(now),
+                    timestamp(now),
+                    timestamp(now),
+                    candidate.commandId(),
+                    timestamp(now)
+                );
+
+                if (claimed == 1) {
+                    return findById(candidate.commandId());
+                }
+            } catch (org.springframework.dao.DataAccessException laneRace) {
+                boolean runningLaneConflict = false;
+                Throwable cause = laneRace;
+
+                while (cause != null) {
+                    if (cause instanceof java.sql.SQLException) {
+                        java.sql.SQLException sqlException =
+                            (java.sql.SQLException) cause;
+
+                        String sqlState = sqlException.getSQLState();
+                        int errorCode = sqlException.getErrorCode();
+                        String sqlMessage = String.valueOf(
+                            sqlException.getMessage()
+                        );
+
+                        boolean uniqueViolation =
+                            "23505".equals(sqlState)
+                                || errorCode == 19;
+
+                        boolean runningLaneNamed =
+                            sqlMessage.contains("running_lane_key")
+                                || sqlMessage.contains(
+                                    "uq_backend_ops_command_running_lane"
+                                );
+
+                        if (uniqueViolation && runningLaneNamed) {
+                            runningLaneConflict = true;
+                            break;
+                        }
+                    }
+
+                    cause = cause.getCause();
+                }
+
+                if (runningLaneConflict) {
+                    return Optional.empty();
+                }
+
+                throw laneRace;
             }
         }
+
         return Optional.empty();
     }
 
@@ -277,24 +359,31 @@ public class BackendOpsCommandService {
         Duration timeout = staleClaimTimeout == null
             || staleClaimTimeout.isZero()
             || staleClaimTimeout.isNegative()
-            ? Duration.ofHours(2)
+            ? Duration.ofMinutes(5)
             : staleClaimTimeout;
-        OffsetDateTime threshold = OffsetDateTime.now(ZoneOffset.UTC).minus(timeout);
+        OffsetDateTime threshold =
+            OffsetDateTime.now(ZoneOffset.UTC).minus(timeout);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+
         return jdbcTemplate.update("""
                 UPDATE backend_ops_command
                    SET status = 'queued',
+                       running_lane_key = NULL,
                        claimed_by = NULL,
                        claimed_at = NULL,
                        heartbeat_at = NULL,
-                       progress_message = 'Команда возвращена в очередь после stale claim',
+                       progress_message =
+                           'Команда возвращена в очередь после stale claim',
                        available_at = ?,
                        updated_at = ?
                  WHERE status = 'running'
                    AND (
-                        (heartbeat_at IS NOT NULL AND heartbeat_at < ?)
+                        (heartbeat_at IS NOT NULL
+                         AND heartbeat_at < ?)
                         OR
-                        (heartbeat_at IS NULL AND claimed_at IS NOT NULL AND claimed_at < ?)
+                        (heartbeat_at IS NULL
+                         AND claimed_at IS NOT NULL
+                         AND claimed_at < ?)
                    )
                 """,
             timestamp(now),
@@ -304,33 +393,43 @@ public class BackendOpsCommandService {
         );
     }
 
-    public void heartbeat(String commandId) {
-        if (!StringUtils.hasText(commandId)) {
-            return;
+    public boolean heartbeat(CommandSnapshot claim) {
+        if (!validClaim(claim)) {
+            return false;
         }
+
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        jdbcTemplate.update("""
+        return jdbcTemplate.update("""
                 UPDATE backend_ops_command
                    SET heartbeat_at = ?,
                        updated_at = ?
                  WHERE command_id = ?
                    AND status = 'running'
+                   AND claimed_by = ?
+                   AND attempt_count = ?
+                   AND running_lane_key = ?
                 """,
             timestamp(now),
             timestamp(now),
-            commandId.trim()
-        );
+            claim.commandId(),
+            claim.claimedBy(),
+            claim.attemptCount(),
+            claim.runningLaneKey()
+        ) == 1;
     }
 
-    public void updateProgress(String commandId,
-                               int progressPercent,
-                               String progressMessage) {
-        if (!StringUtils.hasText(commandId)) {
-            return;
+    public boolean updateProgress(CommandSnapshot claim,
+                                  int progressPercent,
+                                  String progressMessage) {
+        if (!validClaim(claim)) {
+            return false;
         }
-        int safeProgress = Math.max(0, Math.min(99, progressPercent));
+
+        int safeProgress =
+            Math.max(0, Math.min(99, progressPercent));
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        jdbcTemplate.update("""
+
+        return jdbcTemplate.update("""
                 UPDATE backend_ops_command
                    SET progress_percent = ?,
                        progress_message = ?,
@@ -338,31 +437,90 @@ public class BackendOpsCommandService {
                        updated_at = ?
                  WHERE command_id = ?
                    AND status = 'running'
+                   AND claimed_by = ?
+                   AND attempt_count = ?
+                   AND running_lane_key = ?
                 """,
             safeProgress,
             normalize(progressMessage, null),
             timestamp(now),
             timestamp(now),
-            commandId.trim()
-        );
+            claim.commandId(),
+            claim.claimedBy(),
+            claim.attemptCount(),
+            claim.runningLaneKey()
+        ) == 1;
     }
 
-    public void markSucceeded(String commandId,
-                              Object result) {
-        finish(
-            commandId,
+    public boolean markSucceeded(CommandSnapshot claim,
+                                 Object result) {
+        return finish(
+            claim,
             STATUS_SUCCEEDED,
             toJson(result == null ? Map.of() : result),
             null
         );
     }
 
-    public void markFailed(String commandId,
-                           Throwable error) {
+    public boolean markFailed(CommandSnapshot claim,
+                              Throwable error) {
         String message = error == null
             ? "Backend ops command failed"
-            : normalize(error.getMessage(), error.getClass().getSimpleName());
-        finish(commandId, STATUS_FAILED, null, truncate(message, 4000));
+            : normalize(
+                error.getMessage(),
+                error.getClass().getSimpleName()
+            );
+
+        return finish(
+            claim,
+            STATUS_FAILED,
+            null,
+            truncate(message, 4000)
+        );
+    }
+
+    public boolean releaseClaim(CommandSnapshot claim,
+                                String message) {
+        if (!validClaim(claim)) {
+            return false;
+        }
+
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        return jdbcTemplate.update("""
+                UPDATE backend_ops_command
+                   SET status = 'queued',
+                       running_lane_key = NULL,
+                       claimed_by = NULL,
+                       claimed_at = NULL,
+                       heartbeat_at = NULL,
+                       available_at = ?,
+                       progress_message = ?,
+                       updated_at = ?
+                 WHERE command_id = ?
+                   AND status = 'running'
+                   AND claimed_by = ?
+                   AND attempt_count = ?
+                   AND running_lane_key = ?
+                """,
+            timestamp(now),
+            normalize(
+                message,
+                "Команда возвращена в очередь"
+            ),
+            timestamp(now),
+            claim.commandId(),
+            claim.claimedBy(),
+            claim.attemptCount(),
+            claim.runningLaneKey()
+        ) == 1;
+    }
+
+    private boolean validClaim(CommandSnapshot claim) {
+        return claim != null
+            && StringUtils.hasText(claim.commandId())
+            && StringUtils.hasText(claim.claimedBy())
+            && StringUtils.hasText(claim.runningLaneKey())
+            && claim.attemptCount() > 0;
     }
 
     public <T> T readResult(CommandSnapshot command,
@@ -379,18 +537,20 @@ public class BackendOpsCommandService {
         }
     }
 
-    private void finish(String commandId,
-                        String status,
-                        String resultJson,
-                        String lastError) {
-        if (!StringUtils.hasText(commandId)) {
-            return;
+    private boolean finish(CommandSnapshot claim,
+                           String status,
+                           String resultJson,
+                           String lastError) {
+        if (!validClaim(claim)) {
+            return false;
         }
+
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        jdbcTemplate.update("""
+        return jdbcTemplate.update("""
                 UPDATE backend_ops_command
                    SET status = ?,
                        active_key = NULL,
+                       running_lane_key = NULL,
                        completed_at = ?,
                        heartbeat_at = ?,
                        progress_percent = ?,
@@ -400,6 +560,9 @@ public class BackendOpsCommandService {
                        updated_at = ?
                  WHERE command_id = ?
                    AND status = 'running'
+                   AND claimed_by = ?
+                   AND attempt_count = ?
+                   AND running_lane_key = ?
                 """,
             status,
             timestamp(now),
@@ -411,8 +574,11 @@ public class BackendOpsCommandService {
             resultJson,
             lastError,
             timestamp(now),
-            commandId.trim()
-        );
+            claim.commandId(),
+            claim.claimedBy(),
+            claim.attemptCount(),
+            claim.runningLaneKey()
+        ) == 1;
     }
 
     private Optional<CommandSnapshot> findFirst(String sql,
@@ -431,6 +597,7 @@ public class BackendOpsCommandService {
             rs.getString("command_id"),
             rs.getString("command_type"),
             rs.getString("scope_key"),
+            rs.getString("running_lane_key"),
             readJsonMap(rs.getString("payload_json")),
             rs.getString("status"),
             rs.getString("requested_by"),
@@ -525,6 +692,10 @@ public class BackendOpsCommandService {
         return value.substring(0, maxLength);
     }
 
+    private record ClaimCandidate(String commandId,
+                                  String commandType) {
+    }
+
     public record EnqueueResult(boolean created,
                                 CommandSnapshot command) {
     }
@@ -533,6 +704,7 @@ public class BackendOpsCommandService {
         String commandId,
         String commandType,
         String scopeKey,
+        String runningLaneKey,
         Map<String, Object> payload,
         String status,
         String requestedBy,
