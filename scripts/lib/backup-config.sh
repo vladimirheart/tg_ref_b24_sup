@@ -20,7 +20,7 @@ iguana_resolve_shared_config_dir() {
   if [[ -z "${configured}" ]]; then
     configured="$(iguana_read_dotenv_value "${repo_root}" "IGUANA_SHARED_CONFIG_DIR")"
   fi
-  [[ -n "${configured}" ]] || configured="config/shared"
+  [[ -n "${configured}" ]] || configured="../iguana-runtime/tg_ref_b24_sup/shared-config"
   if [[ "${configured}" = /* ]]; then
     printf '%s' "${configured}"
   else

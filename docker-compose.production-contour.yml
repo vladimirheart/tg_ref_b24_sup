@@ -59,7 +59,7 @@ x-panel-environment: &panel-environment
   MONITORING_CREDENTIALS_MASTER_KEY: ${MONITORING_CREDENTIALS_MASTER_KEY:-}
 
 x-panel-volumes: &panel-volumes
-  - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
+  - ${IGUANA_SHARED_CONFIG_DIR:-../iguana-runtime/tg_ref_b24_sup/shared-config}:/opt/iguana/config/shared
   - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
   - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
 
@@ -67,7 +67,7 @@ x-panel-volumes: &panel-volumes
 # is deliberately absent from the production contour; use the explicit archive
 # override when an approved recovery operation is required.
 x-db-migrate-volumes: &db-migrate-volumes
-  - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared:ro
+  - ${IGUANA_SHARED_CONFIG_DIR:-../iguana-runtime/tg_ref_b24_sup/shared-config}:/opt/iguana/config/shared:ro
   - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
 
 x-panel-infra-depends: &panel-infra-depends
@@ -78,6 +78,8 @@ x-panel-infra-depends: &panel-infra-depends
   redis:
     condition: service_healthy
   minio-init:
+    condition: service_completed_successfully
+  shared-config-check:
     condition: service_completed_successfully
 
 x-panel-healthcheck: &panel-healthcheck
@@ -169,6 +171,18 @@ services:
         mc mb --ignore-existing local/${APP_STORAGE_OBJECT_BUCKET:-iguana};
         mc anonymous set none local/${APP_STORAGE_OBJECT_BUCKET:-iguana} || true
 
+  shared-config-check:
+    image: busybox:1.36.1
+    restart: "no"
+    volumes:
+      - ${IGUANA_SHARED_CONFIG_DIR:-../iguana-runtime/tg_ref_b24_sup/shared-config}:/target:ro
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - >-
+        test -s /target/settings.json;
+        test -s /target/locations.json;
+        test -s /target/org_structure.json
   db-migrate:
     <<: *panel-build
     restart: "no"
@@ -303,7 +317,7 @@ services:
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       GROUP_CHAT_ID: ${GROUP_CHAT_ID:-0}
     volumes:
-      - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
+      - ${IGUANA_SHARED_CONFIG_DIR:-../iguana-runtime/tg_ref_b24_sup/shared-config}:/opt/iguana/config/shared
       - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
       - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
 
@@ -364,7 +378,7 @@ services:
     ports:
       - "${VK_BOT_BIND_HOST:-127.0.0.1}:${VK_BOT_HTTP_PORT:-18082}:8080"
     volumes:
-      - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
+      - ${IGUANA_SHARED_CONFIG_DIR:-../iguana-runtime/tg_ref_b24_sup/shared-config}:/opt/iguana/config/shared
       - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
       - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
 
@@ -424,7 +438,7 @@ services:
     ports:
       - "${MAX_BOT_BIND_HOST:-127.0.0.1}:${MAX_BOT_HTTP_PORT:-18083}:8080"
     volumes:
-      - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared
+      - ${IGUANA_SHARED_CONFIG_DIR:-../iguana-runtime/tg_ref_b24_sup/shared-config}:/opt/iguana/config/shared
       - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
       - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
 

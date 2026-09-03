@@ -14,7 +14,7 @@ services:
       APP_DB_OBJECTS: /opt/iguana/legacy-sqlite/objects.db
       APP_BOT_DATABASE_DIR: /opt/iguana/bot_databases
     volumes:
-      - ${IGUANA_SHARED_CONFIG_DIR:-./config/shared}:/opt/iguana/config/shared:ro
+      - ${IGUANA_SHARED_CONFIG_DIR:-../iguana-runtime/tg_ref_b24_sup/shared-config}:/opt/iguana/config/shared:ro
       - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
       - ${IGUANA_LEGACY_SQLITE_STAGING_DIR:-./.tmp/legacy-sqlite-import}:/opt/iguana/legacy-sqlite:ro
       - ${IGUANA_LEGACY_SQLITE_STAGING_DIR:-./.tmp/legacy-sqlite-import}/bot_databases:/opt/iguana/bot_databases:ro

@@ -25,7 +25,7 @@ function Resolve-IguanaSharedConfigDirectory {
         $configured = Get-IguanaDotEnvValue -Path (Join-Path $RepoRoot ".env") -Name "IGUANA_SHARED_CONFIG_DIR"
     }
     if ([string]::IsNullOrWhiteSpace($configured)) {
-        $configured = "config/shared"
+        $configured = "../iguana-runtime/tg_ref_b24_sup/shared-config"
     }
     if ([System.IO.Path]::IsPathRooted($configured)) {
         return [System.IO.Path]::GetFullPath($configured)

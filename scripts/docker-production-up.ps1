@@ -150,6 +150,65 @@ function Resolve-RepoPathFromSetting {
     return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $value))
 }
 
+function Resolve-SharedConfigRuntimeDirectory {
+    param(
+        [string]$RepoRoot,
+        [hashtable]$DotEnv
+    )
+
+    $configured = Get-SettingValue -DotEnv $DotEnv -Name "IGUANA_SHARED_CONFIG_DIR"
+    if ([string]::IsNullOrWhiteSpace($configured)) {
+        $configured = "../iguana-runtime/tg_ref_b24_sup/shared-config"
+    }
+    if ([System.IO.Path]::IsPathRooted($configured)) {
+        return [System.IO.Path]::GetFullPath($configured)
+    }
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $configured))
+}
+
+function Initialize-SharedConfigRuntimeDirectory {
+    param(
+        [string]$RepoRoot,
+        [hashtable]$DotEnv,
+        [bool]$ValidateOnly
+    )
+
+    $runtime = Resolve-SharedConfigRuntimeDirectory -RepoRoot $RepoRoot -DotEnv $DotEnv
+    $seed = Join-Path $RepoRoot "config/shared"
+    $required = @("settings.json", "locations.json", "org_structure.json")
+
+    foreach ($name in $required) {
+        Assert-RequiredFile -Path (Join-Path $seed $name) -Label "Shared config seed $name"
+    }
+
+    $repoFull = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $runtimeFull = [System.IO.Path]::GetFullPath($runtime).TrimEnd('\', '/')
+    $repoPrefix = $repoFull + [System.IO.Path]::DirectorySeparatorChar
+    if ($runtimeFull.Equals($repoFull, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $runtimeFull.StartsWith($repoPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Write-Warning "IGUANA_SHARED_CONFIG_DIR is inside the Git checkout. This explicit override is not protected from repository cleanup."
+    }
+
+    $hasContent = (Test-Path -LiteralPath $runtime -PathType Container) -and
+        (@(Get-ChildItem -LiteralPath $runtime -Force).Count -gt 0)
+
+    if (-not $hasContent) {
+        if ($ValidateOnly) {
+            Write-Host "[INFO] Shared config runtime is empty/missing and would be initialized from seed: $runtime"
+            return $runtime
+        }
+        New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+        foreach ($child in @(Get-ChildItem -LiteralPath $seed -Force)) {
+            Copy-Item -LiteralPath $child.FullName -Destination $runtime -Recurse -Force
+        }
+        Write-Host "[INFO] Initialized shared config runtime from repository seed: $runtime"
+    }
+
+    foreach ($name in $required) {
+        Assert-RequiredFile -Path (Join-Path $runtime $name) -Label "Shared config runtime $name"
+    }
+    return $runtime
+}
 function Assert-RequiredFile {
     param(
         [string]$Path,
@@ -437,6 +496,9 @@ if ($AllowInsecureDefaults) {
         -ObservabilityEnabled:$Observability `
         -EdgeEnabled:$Edge
 }
+
+$sharedConfigRuntimeDirectory = Initialize-SharedConfigRuntimeDirectory -RepoRoot $repoRoot -DotEnv $dotEnv -ValidateOnly:$ValidateOnly
+Write-Host "[INFO] Shared config runtime: $sharedConfigRuntimeDirectory"
 
 Invoke-PreflightChecks -RepoRoot $repoRoot -DotEnv $dotEnv -Profiles $profiles -EdgeEnabled:$Edge -ObservabilityEnabled:$Observability -BackupEnabled:$Backup -AllowInsecure:$AllowInsecureDefaults
 

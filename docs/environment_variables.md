@@ -78,7 +78,7 @@
 | `IGUANA_EDGE_HTTPS_PORT` | publish-порт HTTPS ingress для `nginx` edge contour | compose/infrastructure |
 | `IGUANA_EDGE_TLS_ENABLED` | включает TLS-ready конфигурацию `nginx`; требует `fullchain.pem` и `privkey.pem` в каталоге сертификатов | compose/infrastructure |
 | `IGUANA_EDGE_CERTS_DIR` | host-side каталог с `fullchain.pem` и `privkey.pem` для TLS edge contour | compose/infrastructure |
-| `IGUANA_SHARED_CONFIG_DIR` | bind-mount override для `config/shared` в docker-compose contour | compose/infrastructure |
+| `IGUANA_SHARED_CONFIG_DIR` | persistent shared-config runtime directory; production default is `../iguana-runtime/tg_ref_b24_sup/shared-config`, outside the Git checkout | compose/infrastructure |
 | `IGUANA_ATTACHMENTS_DIR` | bind-mount override для `attachments` в docker-compose contour | compose/infrastructure |
 | `IGUANA_LOGS_DIR` | bind-mount override для `logs` в docker-compose contour | compose/infrastructure |
 | `IGUANA_BOT_DATABASES_DIR` | bind-mount override для `bot_databases` в docker-compose contour | compose/infrastructure |

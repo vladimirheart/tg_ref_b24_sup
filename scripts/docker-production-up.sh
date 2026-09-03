@@ -100,6 +100,44 @@ is_truthy() {
   esac
 }
 
+resolve_shared_config_runtime_dir() {
+  local configured
+  configured="$(get_setting_value "IGUANA_SHARED_CONFIG_DIR")"
+  [[ -n "${configured}" ]] || configured="../iguana-runtime/tg_ref_b24_sup/shared-config"
+  if [[ "${configured}" = /* ]]; then
+    printf '%s' "${configured}"
+  else
+    configured="${configured#./}"
+    printf '%s/%s' "${REPO_ROOT}" "${configured}"
+  fi
+}
+
+initialize_shared_config_runtime_dir() {
+  local runtime seed
+  runtime="$(resolve_shared_config_runtime_dir)"
+  seed="${REPO_ROOT}/config/shared"
+
+  local required
+  for required in settings.json locations.json org_structure.json; do
+    [[ -s "${seed}/${required}" ]] || { echo "[ERROR] Shared config seed is missing or empty: ${seed}/${required}" >&2; exit 1; }
+  done
+
+  if [[ ! -d "${runtime}" || -z "$(ls -A "${runtime}" 2>/dev/null)" ]]; then
+    if [[ "${VALIDATE_ONLY}" == "1" ]]; then
+      echo "[INFO] Shared config runtime is empty/missing and would be initialized from seed: ${runtime}" >&2
+      printf '%s' "${runtime}"
+      return 0
+    fi
+    mkdir -p "${runtime}"
+    cp -Rp "${seed}/." "${runtime}/"
+    echo "[INFO] Initialized shared config runtime from repository seed: ${runtime}" >&2
+  fi
+
+  for required in settings.json locations.json org_structure.json; do
+    [[ -s "${runtime}/${required}" ]] || { echo "[ERROR] Shared config runtime is missing or empty: ${runtime}/${required}" >&2; exit 1; }
+  done
+  printf '%s' "${runtime}"
+}
 assert_required_file() {
   local path="$1"
   local label="$2"
@@ -315,6 +353,9 @@ mkdir -p \
 if [[ "${ALLOW_INSECURE_DEFAULTS}" == "1" ]]; then
   apply_insecure_defaults
 fi
+
+SHARED_CONFIG_RUNTIME="$(initialize_shared_config_runtime_dir)"
+echo "[INFO] Shared config runtime: ${SHARED_CONFIG_RUNTIME}"
 
 invoke_preflight_checks
 
