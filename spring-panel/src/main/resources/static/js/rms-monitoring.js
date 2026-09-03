@@ -18,7 +18,6 @@
   const refreshLicensesBtn = document.getElementById('refreshRmsLicensesBtn');
   const refreshNetworkBtn = document.getElementById('refreshRmsNetworkBtn');
   const scheduleButton = document.getElementById('openRmsScheduleSettingsBtn');
-  const scheduleSummary = document.getElementById('rmsScheduleSummary');
   const scheduleModalEl = document.getElementById('rmsScheduleSettingsModal');
   const scheduleModal = scheduleModalEl && window.bootstrap ? new bootstrap.Modal(scheduleModalEl) : null;
   const scheduleForm = document.getElementById('rmsScheduleSettingsForm');
@@ -108,11 +107,6 @@
     { key: 'resolved_ip', label: 'IP-адрес', selected: true },
     { key: 'rms_status_message', label: 'Комментарий по доступности', selected: true },
   ];
-
-  function renderScheduleSettings() {
-    if (!scheduleSummary || !scheduleSettings) return;
-    scheduleSummary.textContent = `Лицензии: раз в ${scheduleSettings.license_interval_minutes} мин.; доступность RMS: раз в ${scheduleSettings.network_interval_minutes} мин.; пауза очереди: ${scheduleSettings.queue_gap_seconds} с.`;
-  }
 
   function escapeHtml(value) {
     if (value === null || value === undefined) return '';
@@ -584,25 +578,59 @@
     return site.server_name_display || site.server_name || site.rms_address_display || site.rms_address || `#${siteId}`;
   }
 
+  function renderQueueInfoButton(label, queue) {
+    const isLicenseQueue = queue === refreshState?.licenses;
+    const intervalValue = isLicenseQueue
+      ? scheduleSettings?.license_interval_minutes
+      : scheduleSettings?.network_interval_minutes;
+    const interval = Number(intervalValue);
+    const gap = Number(scheduleSettings?.queue_gap_seconds);
+    const intervalText = Number.isFinite(interval) && interval > 0
+      ? `${interval} \u043c\u0438\u043d.`
+      : '\u2014';
+    const gapText = Number.isFinite(gap) && gap >= 0
+      ? `${gap} \u0441.`
+      : '\u2014';
+    const tooltip = [
+      label,
+      `\u0418\u043d\u0442\u0435\u0440\u0432\u0430\u043b: ${intervalText}`,
+      `\u041f\u0430\u0443\u0437\u0430 \u043e\u0447\u0435\u0440\u0435\u0434\u0438: ${gapText}`,
+      `\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u0437\u0430\u043f\u0443\u0441\u043a: ${formatDateTime(queue?.last_requested_at)}`,
+      `\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435: ${formatDateTime(queue?.last_completed_at)}`,
+    ].map(escapeHtml).join('&#10;');
+
+    return `
+      <span
+        class="text-secondary ms-1"
+        role="img"
+        tabindex="0"
+        title="${tooltip}"
+        aria-label="${escapeHtml(label)} info"
+      >&#9432;</span>
+    `;
+  }
+
   function renderQueueLine(label, queue) {
     const running = Boolean(queue?.running);
     const queued = Boolean(queue?.queued);
     const total = Number(queue?.total_count || 0);
     const completed = Number(queue?.completed_count || 0);
     const currentMonitorId = queue?.current_monitor_id;
-    const progressText = total > 0 ? `${completed}/${total}` : '—';
-    const currentText = currentMonitorId ? `сейчас: ${findSiteName(currentMonitorId)}` : 'сейчас: —';
+    const progressText = total > 0 ? `${completed}/${total}` : '\u2014';
+    const currentText = currentMonitorId
+      ? `\u0441\u0435\u0439\u0447\u0430\u0441: ${findSiteName(currentMonitorId)}`
+      : '\u0441\u0435\u0439\u0447\u0430\u0441: \u2014';
+
     return `
-      <div>
-        <strong>${escapeHtml(label)}:</strong> ${queueBadge(running, queued)}
-        <span class="ms-2">прогресс: ${escapeHtml(progressText)}</span>
-        <span class="ms-2">${escapeHtml(currentText)}</span>
-        <span class="ms-2">последний запуск: ${escapeHtml(formatDateTime(queue?.last_requested_at))}</span>
-        <span class="ms-2">последнее завершение: ${escapeHtml(formatDateTime(queue?.last_completed_at))}</span>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <strong>${escapeHtml(label)}:</strong>
+        ${queueBadge(running, queued)}
+        <span>\u043f\u0440\u043e\u0433\u0440\u0435\u0441\u0441: ${escapeHtml(progressText)}</span>
+        <span>${escapeHtml(currentText)}</span>
+        ${renderQueueInfoButton(label, queue)}
       </div>
     `;
   }
-
   function renderQueueState() {
     if (!queueStateEl) return;
     if (!refreshState) {
@@ -801,7 +829,6 @@
       refreshState = data.refresh_state || null;
       availabilityOverview = data.availability_overview || null;
       scheduleSettings = data.schedule_settings || scheduleSettings;
-      renderScheduleSettings();
       renderAvailabilityOverview();
       renderQueueState();
       renderSites();
