@@ -778,6 +778,18 @@
       border-left-width: 1px;
     }
 
+    #locationsModal .location-level-location {
+      padding-left: 3rem;
+    }
+
+    #locationsModal .location-node-meta__badge,
+    #locationsModal .locations-iiko-source-secret-badge {
+      border: 1px solid var(--color-border);
+      background: var(--surface-selected);
+      color: var(--color-text-muted);
+      font-weight: 600;
+    }
+
     #locationsModal .location-actions .btn-icon {
       width: 2.1rem;
       height: 2.1rem;
@@ -818,6 +830,10 @@
 
       #locationsModal .location-tree__children {
         margin-left: 0.55rem;
+      }
+
+      #locationsModal .location-level-location {
+        padding-left: 0;
       }
     }
 /* Production readiness v34 */

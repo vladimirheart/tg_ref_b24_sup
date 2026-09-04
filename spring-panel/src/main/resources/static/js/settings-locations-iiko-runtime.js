@@ -215,7 +215,7 @@
           ? '<span class="badge text-bg-success-subtle border border-success-subtle text-success-emphasis">Активен</span>'
           : '<span class="badge text-bg-secondary-subtle border">Выключен</span>';
         const secretBadge = source.api_secret_saved
-          ? '<span class="badge text-bg-light border text-body-secondary"><i class="bi bi-key-fill me-1"></i>Секрет сохранён</span>'
+          ? '<span class="badge locations-iiko-source-secret-badge"><i class="bi bi-key-fill me-1"></i>Секрет сохранён</span>'
           : '<span class="badge text-bg-warning-subtle border border-warning-subtle text-warning-emphasis"><i class="bi bi-key me-1"></i>Нужен секрет</span>';
         const secretHint = source.api_secret_saved
           ? 'SHA-1 пароль уже сохранён. Оставьте поле пустым, чтобы не менять его.'

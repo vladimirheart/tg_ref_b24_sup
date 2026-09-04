@@ -645,7 +645,7 @@
       meta.className = 'location-node-meta';
       normalized.forEach(({ label, value }) => {
         const badge = document.createElement('span');
-        badge.className = 'badge rounded-pill text-bg-light';
+        badge.className = 'badge rounded-pill location-node-meta__badge';
         badge.textContent = `${label}: ${value}`;
         meta.appendChild(badge);
       });
@@ -968,9 +968,27 @@
       }
 
       Object.entries(tree || {}).forEach(([business, types]) => {
-        if (types && typeof types === 'object' && Object.keys(types).length > 0) {
+        if (!types || typeof types !== 'object') {
+          return;
+        }
+        const typeEntries = Object.entries(types);
+        if (typeEntries.length > 0) {
           collapsedLocationNodes.add(makeCollapseKey('business', business));
         }
+        typeEntries.forEach(([type, cities]) => {
+          if (!cities || typeof cities !== 'object' || Array.isArray(cities)) {
+            return;
+          }
+          const cityEntries = Object.entries(cities);
+          if (cityEntries.length > 0) {
+            collapsedLocationNodes.add(makeCollapseKey('type', business, type));
+          }
+          cityEntries.forEach(([city, locations]) => {
+            if (Array.isArray(locations) && locations.length > 0) {
+              collapsedLocationNodes.add(makeCollapseKey('city', business, type, city));
+            }
+          });
+        });
       });
 
       defaultCollapseSeeded = true;
