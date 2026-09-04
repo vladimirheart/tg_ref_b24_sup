@@ -12,6 +12,17 @@
         : String(value ?? '');
     }
 
+    const PROBLEM_FOLLOW_UP_PREFIX = 'Уточнение после ответов на вопросы:';
+
+    function formatDetailsProblemLabel(raw) {
+      const text = String(raw || '').trim();
+      if (!text || text === '—') return '—';
+      const prefixIndex = text.lastIndexOf(PROBLEM_FOLLOW_UP_PREFIX);
+      if (prefixIndex < 0) return text;
+      const description = text.slice(prefixIndex + PROBLEM_FOLLOW_UP_PREFIX.length).trim();
+      return description || '—';
+    }
+
     function getActiveDialogState() {
       const state = options.getActiveDialogState?.();
       return state && typeof state === 'object'
@@ -322,7 +333,9 @@
         const statusKey = summary.statusKey || fallbackRow?.dataset?.statusKey || '';
         const statusLabel = formatStatusLabel(statusRaw, summary.statusLabel || fallbackRow?.dataset?.status, statusKey);
         const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset?.location || '—';
-        const problemLabel = summary.problem || fallbackRow?.dataset?.problem || '—';
+        const problemLabel = formatDetailsProblemLabel(
+          summary.problem || fallbackRow?.dataset?.problem || '—'
+        );
         const selectedCategoriesLabel = options.formatCategoriesLabel?.(Array.from(selectedCategories)) || '—';
         const categoriesLabel = selectedCategoriesLabel !== '—'
           ? selectedCategoriesLabel

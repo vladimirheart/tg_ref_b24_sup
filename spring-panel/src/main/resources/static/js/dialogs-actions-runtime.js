@@ -37,15 +37,36 @@
       }
     }
 
+    function setDetailsIconButtonVisual(button, iconClass, label, visualOptions = {}) {
+      if (!(button instanceof HTMLElement)) {
+        return;
+      }
+
+      const safeLabel = String(label || '').trim() || 'Действие';
+      const safeIconClass = String(iconClass || '').trim() || 'bi-circle';
+
+      button.innerHTML = visualOptions.spinning === true
+        ? '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>'
+        : `<i class="bi ${safeIconClass}" aria-hidden="true"></i>`;
+      button.setAttribute('aria-label', safeLabel);
+      button.setAttribute('title', safeLabel);
+      button.dataset.dialogTooltip = safeLabel;
+    }
+
     function updateDetailsReplySendLabel() {
       if (!elements.detailsReplySend) {
         return;
       }
+
       const message = String(elements.detailsReplyText?.value || '').trim();
       const pendingCount = options.getPendingMediaFiles?.(elements.detailsReplyMedia)?.length || 0;
-      elements.detailsReplySend.textContent = pendingCount > 0
-        ? (message ? `Отправить сообщение и вложения (${pendingCount})` : `Отправить вложения (${pendingCount})`)
+      const label = pendingCount > 0
+        ? (message
+          ? `Отправить сообщение и вложения (${pendingCount})`
+          : `Отправить вложения (${pendingCount})`)
         : 'Отправить';
+
+      setDetailsIconButtonVisual(elements.detailsReplySend, 'bi-send-fill', label);
     }
 
     function resolveSnoozeLabel(minutes) {
@@ -299,7 +320,11 @@
         ticketId
       ) === true;
       elements.detailsResolve.disabled = !canResolve;
-      elements.detailsResolve.textContent = resolved ? 'Обращение закрыто' : 'Закрыть обращение';
+      setDetailsIconButtonVisual(
+        elements.detailsResolve,
+        resolved ? 'bi-check-circle-fill' : 'bi-check-circle',
+        resolved ? 'Обращение закрыто' : 'Закрыть обращение'
+      );
       if (elements.detailsSpam) {
         const clientUserId = String(elements.detailsSpam.dataset.userId || '').trim();
         const canMarkSpam = options.isWorkspaceActionEnabled?.(
@@ -736,7 +761,12 @@
         if (elements.detailsReplySend.dataset.replyInFlight === '1') return;
         elements.detailsReplySend.dataset.replyInFlight = '1';
         elements.detailsReplySend.disabled = true;
-        elements.detailsReplySend.textContent = '\u041e\u0442\u043f\u0440\u0430\u0432\u043a\u0430...';
+        setDetailsIconButtonVisual(
+          elements.detailsReplySend,
+          'bi-send-fill',
+          'Отправка...',
+          { spinning: true }
+        );
         if (pendingMediaFiles.length) {
           try {
             await options.sendMediaFiles?.(pendingMediaFiles, {

@@ -17,6 +17,8 @@ class DialogDetailsCompactHeaderComposerSlaUiSourceContractTest {
         String template = read("spring-panel/src/main/resources/templates/dialogs/index.html");
         String dialogsJs = read("spring-panel/src/main/resources/static/js/dialogs.js");
         String dialogsScss = read("spring-panel/src/main/resources/scss/app/_dialogs.scss");
+        String dialogsActionsRuntime = read("spring-panel/src/main/resources/static/js/dialogs-actions-runtime.js");
+        String dialogsDetailsRuntime = read("spring-panel/src/main/resources/static/js/dialogs-details-runtime.js");
         String taskList = read("ai-context/tasks/task-list.md");
 
         assertThat(template)
@@ -42,7 +44,7 @@ class DialogDetailsCompactHeaderComposerSlaUiSourceContractTest {
             .contains("id=\"dialogMediaDownloadLink\"")
             .contains("bi bi-download")
             .contains("@{/css/app.css(v='20260904-2')}")
-            .contains("dialogsAssetVersion='20260904-2'")
+            .contains("dialogsAssetVersion='20260904-3'")
             .doesNotContain(">Участники</button>")
             .doesNotContain(">Передать</button>")
             .doesNotContain(">Отправить</button>")
@@ -73,6 +75,19 @@ class DialogDetailsCompactHeaderComposerSlaUiSourceContractTest {
             .contains("#dialogMediaPreviewModal .dialog-media-preview-toolbar")
             .contains("@keyframes dialog-details-sla-pulse")
             .contains("@media (prefers-reduced-motion: reduce)");
+
+        assertThat(dialogsActionsRuntime)
+            .contains("function setDetailsIconButtonVisual(button, iconClass, label, visualOptions = {})")
+            .contains("resolved ? 'bi-check-circle-fill' : 'bi-check-circle'")
+            .contains("'bi-send-fill'")
+            .contains("'Отправка...'")
+            .doesNotContain("elements.detailsResolve.textContent = resolved ? 'Обращение закрыто' : 'Закрыть обращение';")
+            .doesNotContain("elements.detailsReplySend.textContent = pendingCount > 0");
+
+        assertThat(dialogsDetailsRuntime)
+            .contains("const PROBLEM_FOLLOW_UP_PREFIX = 'Уточнение после ответов на вопросы:';")
+            .contains("function formatDetailsProblemLabel(raw)")
+            .contains("const problemLabel = formatDetailsProblemLabel(");
 
         assertThat(taskList)
             .contains("🟢 [01-253] Сделать reply-target пульсацию заметной и вынести меню сообщения за bubble")
