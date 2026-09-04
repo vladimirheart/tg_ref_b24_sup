@@ -24,8 +24,9 @@
       th:href="@{/favicon-180x180.png?v=2}">
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
     <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css}">
-	<link rel="stylesheet" th:href="@{/css/app.css(v='20260904-1')}">
+	<link rel="stylesheet" th:href="@{/css/app.css(v='20260904-2')}">
 	<link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <script th:src="@{/js/common.js}"></script>
 
@@ -672,25 +673,58 @@
                     </div>
                 </div>
                 <div class="dialog-details-header-actions">
-                    <button type="button" class="btn btn-outline-success btn-sm d-none" id="dialogDetailsTakeBtn">Взять себе</button>
+                    <button type="button" class="btn btn-outline-success btn-sm d-none dialog-details-action-icon" id="dialogDetailsTakeBtn" aria-label="Взять себе" title="Взять диалог себе" data-dialog-tooltip="Взять диалог себе"><i class="bi bi-person-check" aria-hidden="true"></i></button>
                     <div class="dialog-details-header-participants d-none" id="dialogDetailsParticipantsSection">
                         <span class="visually-hidden" id="dialogDetailsParticipantsState">Дополнительные участники не подключены.</span>
                         <div class="dialog-details-participants-list" id="dialogDetailsParticipantsList"></div>
                     </div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="dialogDetailsParticipantsBtn">Участники</button>
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="dialogDetailsReassignBtn">Передать</button>
-                    <a class="btn btn-outline-secondary btn-sm" id="dialogDetailsCreateTask" th:href="@{/tasks(create=1)}">Задача</a>
+                    <button type="button" class="btn btn-outline-secondary btn-sm dialog-details-action-icon" id="dialogDetailsParticipantsBtn" aria-label="Участники" title="Участники диалога" data-dialog-tooltip="Участники диалога"><i class="bi bi-people" aria-hidden="true"></i></button>
+                    <button type="button" class="btn btn-outline-primary btn-sm dialog-details-action-icon" id="dialogDetailsReassignBtn" aria-label="Передать" title="Передать диалог" data-dialog-tooltip="Передать диалог"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></button>
+                    <a class="btn btn-outline-secondary btn-sm dialog-details-action-icon" id="dialogDetailsCreateTask" aria-label="Создать задачу" title="Создать задачу" data-dialog-tooltip="Создать задачу" th:href="@{/tasks(create=1)}"><i class="bi bi-check2-square" aria-hidden="true"></i></a>
                     <div class="dialog-details-resolution-stack">
                         <div class="dialog-details-resolution-actions">
-                            <button type="button" class="btn btn-outline-danger btn-sm" id="dialogDetailsSpam">Спам</button>
-                            <button class="btn btn-outline-secondary btn-sm" type="button" id="dialogDetailsCategoriesBtn">Категории</button>
-                            <button type="button" class="btn btn-outline-success btn-sm" id="dialogDetailsResolve">Закрыть</button>
-                            <button type="button" class="btn btn-outline-warning btn-sm d-none" id="dialogDetailsReopen">Переоткрыть</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm dialog-details-action-icon" id="dialogDetailsSpam" aria-label="Спам" title="Пометить как спам" data-dialog-tooltip="Пометить как спам"><i class="bi bi-shield-exclamation" aria-hidden="true"></i></button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm dialog-details-action-icon" id="dialogDetailsCategoriesBtn" aria-label="Категории" title="Категории диалога" data-dialog-tooltip="Категории диалога"><i class="bi bi-tags" aria-hidden="true"></i></button>
+                            <button type="button" class="btn btn-outline-success btn-sm dialog-details-action-icon" id="dialogDetailsResolve" aria-label="Закрыть" title="Закрыть диалог" data-dialog-tooltip="Закрыть диалог"><i class="bi bi-check-circle" aria-hidden="true"></i></button>
+                            <button type="button" class="btn btn-outline-warning btn-sm d-none dialog-details-action-icon" id="dialogDetailsReopen" aria-label="Переоткрыть" title="Переоткрыть диалог" data-dialog-tooltip="Переоткрыть диалог"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></button>
                         </div>
-                        <label class="dialog-font-control dialog-font-control--header small text-muted">
-                            Размер текста
-                            <input type="range" class="form-range" id="dialogFontSizeRange" min="12" max="18" step="1" value="14">
-                        </label>
+                        <div class="dialog-font-control-popover">
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary btn-sm dialog-font-toggle"
+                                id="dialogFontSizeToggle"
+                                aria-label="Размер текста"
+                                aria-controls="dialogFontSizePanel"
+                                aria-expanded="false"
+                                title="Размер текста"
+                                data-dialog-tooltip="Размер текста"
+                            >
+                                <i class="bi bi-fonts" aria-hidden="true"></i>
+                            </button>
+                            <div
+                                class="dialog-font-control-panel"
+                                id="dialogFontSizePanel"
+                                hidden
+                            >
+                                <span class="dialog-font-control-mark" aria-hidden="true">A−</span>
+                                <input
+                                    type="range"
+                                    class="form-range"
+                                    id="dialogFontSizeRange"
+                                    min="12"
+                                    max="18"
+                                    step="1"
+                                    value="14"
+                                    aria-label="Размер текста истории диалога"
+                                >
+                                <span class="dialog-font-control-mark" aria-hidden="true">A+</span>
+                                <output
+                                    class="dialog-font-control-value"
+                                    id="dialogFontSizeValue"
+                                    for="dialogFontSizeRange"
+                                >14 px</output>
+                            </div>
+                        </div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
@@ -710,7 +744,7 @@
                                     <div class="fw-semibold mb-2">Проблема</div>
                                     <div class="dialog-details-problem" id="dialogDetailsProblem">—</div>
                                 </div>
-                                <details class="dialog-details-section dialog-details-disclosure ui-disclosure-native">
+                                <details class="dialog-details-section dialog-details-disclosure ui-disclosure-native" id="dialogDetailsMetricsSection" data-sla-state="dialog-sla-closed">
                                     <summary class="dialog-details-disclosure-toggle">
                                         <span class="fw-semibold">Метрики</span>
                                         <span class="dialog-details-disclosure-caret" aria-hidden="true">▾</span>
@@ -755,9 +789,8 @@
                         <div class="card h-100 dialog-details-history-card">
                             <div class="card-body d-flex flex-column">
                                 <div class="d-flex flex-column chat-history flex-grow-1" id="dialogDetailsHistory"></div>
-                                <div class="dialog-details-composer mt-3">
-                                    <label class="form-label small text-muted" for="dialogReplyText">Ответ клиенту</label>
-                                    <div class="dialog-composer-panels">
+                                <div class="dialog-details-composer mt-2">
+                                                                        <div class="dialog-composer-panels">
                                         <div class="dialog-template-panel dialog-emoji-panel" id="dialogEmojiPanel">
                                             <div class="dialog-emoji-picker-head">
                                                 <div class="fw-semibold">Эмодзи</div>
@@ -796,7 +829,7 @@
                                     </div>
                                     <div class="dialog-composer-input mt-2">
     <div class="dialog-composer-textarea">
-        <textarea class="form-control" id="dialogReplyText" rows="2" placeholder="Введите ответ..."></textarea>
+        <textarea class="form-control" id="dialogReplyText" rows="2" placeholder="Введите ответ..." aria-label="Ответ клиенту"></textarea>
         <div class="dialog-composer-overlay">
             <button class="dialog-template-icon"
 					type="button"
@@ -832,7 +865,7 @@
             </button>
         </div>
     </div>
-    <button class="btn btn-primary" type="button" id="dialogReplySend">Отправить</button>
+    <button class="btn btn-primary dialog-reply-send-icon" type="button" id="dialogReplySend" aria-label="Отправить" title="Отправить ответ" data-dialog-tooltip="Отправить ответ"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
     <input class="d-none" type="file" id="dialogReplyMedia" multiple>
 </div>
 <div class="d-none mt-2" id="dialogReplyMediaPreview" aria-live="polite"></div>
@@ -1005,23 +1038,47 @@
         </div>
     </div>
 </div>
-<div class="modal fade" id="dialogMediaPreviewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Просмотр медиа</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-            </div>
-            <div class="modal-body">
+<div class="modal fade dialog-media-preview-modal" id="dialogMediaPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content dialog-media-preview-shell">
+            <button
+                type="button"
+                class="btn-close dialog-media-preview-close"
+                data-bs-dismiss="modal"
+                aria-label="Закрыть"
+                title="Закрыть"
+            ></button>
+            <div class="modal-body dialog-media-preview-stage">
                 <video class="w-100 d-none" id="dialogMediaPreviewVideo" controls></video>
                 <img class="w-100 d-none dialog-media-preview-image" id="dialogMediaPreviewImage" alt="Просмотр изображения">
             </div>
-            <div class="modal-footer">
-                <div class="btn-group d-none" id="dialogMediaImageControls" role="group" aria-label="Управление изображением">
-                    <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomOut">Уменьшить</button>
-                    <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomIn">Увеличить</button>
+            <div class="dialog-media-preview-toolbar" role="group" aria-label="Управление медиа">
+                <div class="btn-group d-none dialog-media-preview-zoom" id="dialogMediaImageControls" role="group" aria-label="Масштаб изображения">
+                    <button
+                        class="btn btn-outline-secondary"
+                        type="button"
+                        id="dialogMediaZoomOut"
+                        aria-label="Уменьшить"
+                        title="Уменьшить"
+                    ><i class="bi bi-zoom-out" aria-hidden="true"></i></button>
+                    <button
+                        class="btn btn-outline-secondary"
+                        type="button"
+                        id="dialogMediaZoomIn"
+                        aria-label="Увеличить"
+                        title="Увеличить"
+                    ><i class="bi bi-zoom-in" aria-hidden="true"></i></button>
                 </div>
-                <a class="btn btn-outline-primary d-none" href="#" id="dialogMediaDownloadLink" download target="_blank" rel="noopener">Скачать</a>
+                <a
+                    class="btn btn-outline-primary d-none"
+                    href="#"
+                    id="dialogMediaDownloadLink"
+                    download
+                    target="_blank"
+                    rel="noopener"
+                    aria-label="Скачать"
+                    title="Скачать"
+                ><i class="bi bi-download" aria-hidden="true"></i></a>
             </div>
         </div>
     </div>
@@ -1210,7 +1267,7 @@
     in_work: Array.isArray(RAW_MY_IN_WORK_DIALOGS) ? RAW_MY_IN_WORK_DIALOGS : [],
   };
 </script>
-<th:block th:with="dialogsAssetVersion='20260904-1'">
+<th:block th:with="dialogsAssetVersion='20260904-2'">
 <script th:src="@{/js/dialogs-list-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-avatar-runtime.js(v=${dialogsAssetVersion})}"></script>

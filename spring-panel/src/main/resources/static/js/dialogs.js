@@ -226,6 +226,7 @@
   const detailsReopen = document.getElementById('dialogDetailsReopen');
   const detailsProblem = document.getElementById('dialogDetailsProblem');
   const detailsMetrics = document.getElementById('dialogDetailsMetrics');
+  const detailsMetricsSection = document.getElementById('dialogDetailsMetricsSection');
   const detailsAiState = document.getElementById('dialogDetailsAiState');
   const detailsAiList = document.getElementById('dialogDetailsAiList');
   const detailsAiRefresh = document.getElementById('dialogDetailsAiRefresh');
@@ -251,7 +252,10 @@
   const detailsReplyMediaTrigger = document.getElementById('dialogReplyMediaTrigger');
   const detailsReplyMediaPreview = document.getElementById('dialogReplyMediaPreview');
   const detailsReplyEmojiTrigger = document.getElementById('dialogReplyEmojiTrigger');
+  const dialogFontSizeToggle = document.getElementById('dialogFontSizeToggle');
+  const dialogFontSizePanel = document.getElementById('dialogFontSizePanel');
   const dialogFontSizeRange = document.getElementById('dialogFontSizeRange');
+  const dialogFontSizeValue = document.getElementById('dialogFontSizeValue');
   const emojiPanel = document.getElementById('dialogEmojiPanel');
   const emojiList = document.getElementById('dialogEmojiList');
   const detailsSpam = document.getElementById('dialogDetailsSpam');
@@ -1168,7 +1172,24 @@
     if (dialogFontSizeRange) {
       dialogFontSizeRange.value = String(size);
     }
+    if (dialogFontSizeValue) {
+      dialogFontSizeValue.textContent = size + ' px';
+    }
     localStorage.setItem(STORAGE_DIALOG_FONT, String(size));
+  }
+
+  function setDialogFontControlOpen(open) {
+    if (!dialogFontSizeToggle || !dialogFontSizePanel) {
+      return;
+    }
+
+    const shouldOpen = Boolean(open);
+
+    dialogFontSizePanel.hidden = !shouldOpen;
+    dialogFontSizeToggle.setAttribute(
+      'aria-expanded',
+      shouldOpen ? 'true' : 'false'
+    );
   }
 
   function loadDialogFontSize() {
@@ -2174,8 +2195,52 @@
     dialogsSlaRuntime?.updateRowSlaBadge(row);
   }
 
+  const DETAILS_METRICS_SLA_CLASSES = [
+    'dialog-sla-safe',
+    'dialog-sla-risk',
+    'dialog-sla-overdue',
+    'dialog-sla-closed',
+  ];
+
+  function syncDetailsMetricsSlaState() {
+    if (!detailsMetricsSection) return;
+
+    detailsMetricsSection.classList.remove(
+      ...DETAILS_METRICS_SLA_CLASSES
+    );
+
+    const slaState =
+      dialogsSlaRuntime?.computeSlaState(activeDialogRow)
+      || {
+        className: 'dialog-sla-closed',
+        label: 'SLA недоступен',
+        title: 'SLA для обращения не определён',
+      };
+
+    const className = DETAILS_METRICS_SLA_CLASSES.includes(
+      String(slaState.className || '')
+    )
+      ? String(slaState.className)
+      : 'dialog-sla-closed';
+
+    detailsMetricsSection.classList.add(className);
+    detailsMetricsSection.dataset.slaState = className;
+    detailsMetricsSection.dataset.slaLabel =
+      String(slaState.label || '');
+
+    if (slaState.title) {
+      detailsMetricsSection.setAttribute(
+        'title',
+        String(slaState.title)
+      );
+    } else {
+      detailsMetricsSection.removeAttribute('title');
+    }
+  }
+
   function updateAllSlaBadges() {
     dialogsSlaRuntime?.updateAllSlaBadges();
+    syncDetailsMetricsSlaState();
   }
 
   function renderDialogRow(item) {
@@ -3641,6 +3706,7 @@
 
   async function openDialogDetails(ticketId, fallbackRow) {
     await dialogsDetailsRuntime?.openDialogDetails(ticketId, fallbackRow);
+    syncDetailsMetricsSlaState();
   }
 
   table.addEventListener('click', (event) => {
@@ -3801,6 +3867,57 @@
   if (dialogFontSizeRange) {
     dialogFontSizeRange.addEventListener('input', () => {
       applyDialogFontSize(dialogFontSizeRange.value);
+    });
+  }
+
+  if (dialogFontSizeToggle && dialogFontSizePanel) {
+    dialogFontSizeToggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const shouldOpen =
+        dialogFontSizePanel.hidden
+        || dialogFontSizeToggle.getAttribute('aria-expanded') !== 'true';
+
+      setDialogFontControlOpen(shouldOpen);
+
+      if (shouldOpen && dialogFontSizeRange) {
+        window.requestAnimationFrame(() => {
+          dialogFontSizeRange.focus();
+        });
+      }
+    });
+
+    dialogFontSizePanel.addEventListener('click', (event) => {
+      event.stopPropagation();
+    });
+
+    document.addEventListener('click', (event) => {
+      if (dialogFontSizePanel.hidden) {
+        return;
+      }
+
+      const shell = dialogFontSizeToggle.closest(
+        '.dialog-font-control-popover'
+      );
+
+      if (!shell || !shell.contains(event.target)) {
+        setDialogFontControlOpen(false);
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (
+        event.key === 'Escape'
+        && !dialogFontSizePanel.hidden
+      ) {
+        setDialogFontControlOpen(false);
+        dialogFontSizeToggle.focus();
+      }
+    });
+
+    detailsModalEl?.addEventListener('hidden.bs.modal', () => {
+      setDialogFontControlOpen(false);
     });
   }
 

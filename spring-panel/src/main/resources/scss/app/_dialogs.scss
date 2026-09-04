@@ -3687,3 +3687,418 @@ body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
       color-mix(in srgb, var(--primary) 28%, transparent);
   }
 }
+
+/* 01-254: compact dialog header, composer controls and SLA pulse */
+
+#dialogDetailsModal .dialog-details-header-actions {
+  align-items: center;
+  gap: 0.35rem;
+}
+
+#dialogDetailsModal .dialog-details-resolution-stack {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+#dialogDetailsModal .dialog-details-resolution-actions {
+  align-items: center;
+  gap: 0.35rem;
+}
+
+#dialogDetailsModal .dialog-details-action-icon,
+#dialogDetailsModal .dialog-font-toggle,
+#dialogDetailsModal .dialog-reply-send-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 2.2rem;
+  height: 2.2rem;
+  min-width: 2.2rem;
+  padding: 0;
+  border-radius: var(--radius-md);
+  line-height: 1;
+}
+
+#dialogDetailsModal .dialog-details-action-icon .bi,
+#dialogDetailsModal .dialog-font-toggle .bi,
+#dialogDetailsModal .dialog-reply-send-icon .bi {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+#dialogDetailsModal [data-dialog-tooltip]::after {
+  content: attr(data-dialog-tooltip);
+  position: absolute;
+  top: calc(100% + 0.42rem);
+  left: 50%;
+  z-index: 1120;
+  max-width: min(16rem, calc(100vw - 2rem));
+  padding: 0.32rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-ink-panel);
+  color: var(--color-on-ink);
+  box-shadow:
+    0 0.45rem 1.2rem
+    color-mix(
+      in srgb,
+      var(--shadow-color) 16%,
+      transparent
+    );
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, -0.18rem);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    visibility 0.15s ease;
+}
+
+#dialogDetailsModal [data-dialog-tooltip]:hover::after,
+#dialogDetailsModal [data-dialog-tooltip]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+#dialogDetailsModal .dialog-font-control-popover {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+#dialogDetailsModal .dialog-font-toggle[aria-expanded="true"] {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--primary) 46%,
+      var(--color-border)
+    );
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+#dialogDetailsModal .dialog-font-control-panel {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 1110;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 14.5rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--color-text);
+  box-shadow:
+    0 0.65rem 1.5rem
+    color-mix(
+      in srgb,
+      var(--shadow-color) 16%,
+      transparent
+    );
+}
+
+#dialogDetailsModal .dialog-font-control-panel[hidden] {
+  display: none;
+}
+
+#dialogDetailsModal .dialog-font-control-panel .form-range {
+  flex: 1 1 auto;
+  min-width: 7rem;
+  margin: 0;
+}
+
+#dialogDetailsModal .dialog-font-control-mark {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+#dialogDetailsModal .dialog-font-control-value {
+  flex: 0 0 auto;
+  min-width: 2.8rem;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+#dialogDetailsModal .dialog-details-composer {
+  padding-top: 0.5rem;
+}
+
+#dialogDetailsModal .dialog-composer-panels {
+  margin-top: 0;
+}
+
+#dialogDetailsModal .dialog-composer-input {
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.35rem !important;
+}
+
+#dialogDetailsModal .dialog-composer-input > .dialog-reply-send-icon {
+  flex: 0 0 2.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  align-self: flex-end;
+  padding: 0;
+  box-shadow: none;
+}
+
+#dialogDetailsMetricsSection {
+  --dialog-details-sla-accent: var(--color-border);
+  --dialog-details-sla-duration: 3.4s;
+  position: relative;
+}
+
+#dialogDetailsMetricsSection.dialog-sla-safe {
+  --dialog-details-sla-accent: var(--state-success-text);
+  --dialog-details-sla-duration: 4s;
+}
+
+#dialogDetailsMetricsSection.dialog-sla-risk {
+  --dialog-details-sla-accent: var(--state-warning-text);
+  --dialog-details-sla-duration: 2.7s;
+}
+
+#dialogDetailsMetricsSection.dialog-sla-overdue {
+  --dialog-details-sla-accent: var(--state-danger-text);
+  --dialog-details-sla-duration: 1.65s;
+}
+
+#dialogDetailsMetricsSection.dialog-sla-safe,
+#dialogDetailsMetricsSection.dialog-sla-risk,
+#dialogDetailsMetricsSection.dialog-sla-overdue {
+  animation:
+    dialog-details-sla-pulse
+    var(--dialog-details-sla-duration)
+    ease-in-out
+    infinite;
+}
+
+#dialogDetailsMetricsSection.dialog-sla-closed {
+  animation: none;
+}
+
+@keyframes dialog-details-sla-pulse {
+  0%,
+  100% {
+    border-color:
+      color-mix(
+        in srgb,
+        var(--dialog-details-sla-accent) 36%,
+        var(--color-border)
+      );
+    background:
+      color-mix(
+        in srgb,
+        var(--dialog-details-sla-accent) 2%,
+        var(--surface-card)
+      );
+    box-shadow:
+      0 0 0 0
+      color-mix(
+        in srgb,
+        var(--dialog-details-sla-accent) 0%,
+        transparent
+      );
+  }
+
+  50% {
+    border-color:
+      color-mix(
+        in srgb,
+        var(--dialog-details-sla-accent) 82%,
+        var(--color-border)
+      );
+    background:
+      color-mix(
+        in srgb,
+        var(--dialog-details-sla-accent) 7%,
+        var(--surface-card)
+      );
+    box-shadow:
+      0 0 0 0.2rem
+      color-mix(
+        in srgb,
+        var(--dialog-details-sla-accent) 17%,
+        transparent
+      );
+  }
+}
+
+
+#dialogMediaPreviewModal .modal-dialog {
+  width: min(94vw, 100rem);
+  max-width: min(94vw, 100rem);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#dialogMediaPreviewModal .dialog-media-preview-shell {
+  position: relative;
+  overflow: hidden;
+  max-height: 92vh;
+  background: var(--surface-card);
+}
+
+#dialogMediaPreviewModal .dialog-media-preview-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: min(76vh, 54rem);
+  max-height: 92vh;
+  padding: 0.45rem;
+  overflow: auto;
+  background:
+    color-mix(
+      in srgb,
+      var(--color-bg-muted) 68%,
+      var(--surface-card)
+    );
+}
+
+#dialogMediaPreviewModal .dialog-media-preview-stage > video,
+#dialogMediaPreviewModal .dialog-media-preview-stage > img {
+  max-height: calc(92vh - 0.9rem);
+  object-fit: contain;
+}
+
+#dialogMediaPreviewModal .dialog-media-preview-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 4;
+  width: 2.2rem;
+  height: 2.2rem;
+  padding: 0.58rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color:
+    color-mix(
+      in srgb,
+      var(--surface-card) 90%,
+      transparent
+    );
+  box-shadow:
+    0 0.4rem 1rem
+    color-mix(
+      in srgb,
+      var(--shadow-color) 14%,
+      transparent
+    );
+}
+
+#dialogMediaPreviewModal .dialog-media-preview-toolbar {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+#dialogMediaPreviewModal .dialog-media-preview-toolbar .btn,
+#dialogMediaPreviewModal .dialog-media-preview-toolbar .btn-group > .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 2.2rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  min-width: 2.2rem;
+  padding: 0;
+  border-color:
+    color-mix(
+      in srgb,
+      var(--color-border) 82%,
+      transparent
+    );
+  background:
+    color-mix(
+      in srgb,
+      var(--surface-card) 92%,
+      transparent
+    );
+  color: var(--color-text);
+  line-height: 1;
+  box-shadow:
+    0 0.35rem 0.9rem
+    color-mix(
+      in srgb,
+      var(--shadow-color) 12%,
+      transparent
+    );
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+}
+
+#dialogMediaPreviewModal .dialog-media-preview-toolbar .btn:hover,
+#dialogMediaPreviewModal .dialog-media-preview-toolbar .btn:focus-visible {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--primary) 42%,
+      var(--color-border)
+    );
+  background: var(--surface-interactive);
+  color: var(--primary);
+}
+
+#dialogMediaPreviewModal .dialog-media-preview-toolbar .btn:focus-visible,
+#dialogMediaPreviewModal .dialog-media-preview-close:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+#dialogMediaPreviewModal .dialog-media-preview-toolbar .bi {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+@media (hover: none) {
+  #dialogDetailsModal [data-dialog-tooltip]::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #dialogDetailsMetricsSection.dialog-sla-safe,
+  #dialogDetailsMetricsSection.dialog-sla-risk,
+  #dialogDetailsMetricsSection.dialog-sla-overdue {
+    animation: none;
+    border-color:
+      color-mix(
+        in srgb,
+        var(--dialog-details-sla-accent) 72%,
+        var(--color-border)
+      );
+    background:
+      color-mix(
+        in srgb,
+        var(--dialog-details-sla-accent) 5%,
+        var(--surface-card)
+      );
+  }
+
+  #dialogDetailsModal [data-dialog-tooltip]::after {
+    transition: none;
+  }
+}
