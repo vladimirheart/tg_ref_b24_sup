@@ -790,6 +790,86 @@
       font-weight: 600;
     }
 
+    #locationsModal .locations-iiko-sources-empty {
+      padding: 0.75rem 0.85rem;
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+      color: var(--color-text-muted);
+    }
+
+    #locationsModal .locations-iiko-source-card {
+      overflow: hidden;
+      border-color: var(--color-border) !important;
+      border-radius: var(--radius-md) !important;
+      background: var(--surface-raised) !important;
+    }
+
+    #locationsModal .locations-iiko-source-card__header {
+      border: 0;
+      background: var(--surface-raised);
+      color: var(--color-text);
+    }
+
+    #locationsModal .locations-iiko-source-card__toggle {
+      border: 0;
+      background: transparent;
+      color: var(--color-text);
+      box-shadow: none;
+    }
+
+    #locationsModal .locations-iiko-source-card__toggle:hover,
+    #locationsModal .locations-iiko-source-card__toggle:focus-visible {
+      background: var(--surface-interactive);
+      color: var(--color-text);
+      box-shadow: none;
+    }
+
+    #locationsModal .locations-iiko-source-card__toggle:not(.collapsed) {
+      background: var(--surface-selected);
+    }
+
+    #locationsModal .locations-iiko-source-card__meta,
+    #locationsModal .locations-iiko-source-card__chevron {
+      color: var(--color-text-muted);
+    }
+
+    #locationsModal .locations-iiko-source-card__actions {
+      border-left: 1px solid var(--color-border);
+      background: var(--surface-raised);
+    }
+
+    #locationsModal .locations-iiko-source-card__body {
+      border-color: var(--color-border) !important;
+      background: var(--surface-card);
+      color: var(--color-text);
+    }
+
+    #locationsModal .locations-iiko-source-state {
+      border: 1px solid var(--color-border);
+      background: var(--surface-selected);
+      color: var(--color-text-muted);
+      font-weight: 600;
+    }
+
+    #locationsModal .locations-iiko-source-state--enabled {
+      border-color: var(--state-success-border);
+      background: var(--state-success-bg);
+      color: var(--state-success-text);
+    }
+
+    #locationsModal .locations-iiko-source-state--disabled {
+      border-color: var(--color-border);
+      background: var(--surface-selected);
+      color: var(--color-text-muted);
+    }
+
+    #locationsModal .locations-iiko-source-state--warning {
+      border-color: var(--state-warning-border);
+      background: var(--state-warning-bg);
+      color: var(--state-warning-text);
+    }
+
     #locationsModal .location-actions .btn-icon {
       width: 2.1rem;
       height: 2.1rem;

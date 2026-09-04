@@ -204,7 +204,7 @@
       if (!locationsIikoServerSourcesState.length) {
         expandedLocationsIikoServerSourceIds.clear();
         container.innerHTML = `
-          <div class="border rounded-3 p-3 bg-light small text-muted">
+          <div class="locations-iiko-sources-empty small">
             Источники ещё не добавлены. Укажите хотя бы один <code>iikoServer</code>-адрес, если хотите подтягивать департаменты автоматически.
           </div>
         `;
@@ -212,11 +212,11 @@
       }
       container.innerHTML = locationsIikoServerSourcesState.map((source, index) => {
         const enabledBadge = source.enabled
-          ? '<span class="badge text-bg-success-subtle border border-success-subtle text-success-emphasis">Активен</span>'
-          : '<span class="badge text-bg-secondary-subtle border">Выключен</span>';
+          ? '<span class="badge locations-iiko-source-state locations-iiko-source-state--enabled">Активен</span>'
+          : '<span class="badge locations-iiko-source-state locations-iiko-source-state--disabled">Выключен</span>';
         const secretBadge = source.api_secret_saved
           ? '<span class="badge locations-iiko-source-secret-badge"><i class="bi bi-key-fill me-1"></i>Секрет сохранён</span>'
-          : '<span class="badge text-bg-warning-subtle border border-warning-subtle text-warning-emphasis"><i class="bi bi-key me-1"></i>Нужен секрет</span>';
+          : '<span class="badge locations-iiko-source-state locations-iiko-source-state--warning"><i class="bi bi-key me-1"></i>Нужен секрет</span>';
         const secretHint = source.api_secret_saved
           ? 'SHA-1 пароль уже сохранён. Оставьте поле пустым, чтобы не менять его.'
           : 'Укажите SHA-1 пароль пользователя iikoServer. Без него источник не будет участвовать в синхронизации.';
@@ -226,11 +226,11 @@
         const collapseId = `locations-iiko-source-collapse-${index}`;
         const expanded = expandedLocationsIikoServerSourceIds.has(source.id);
         return `
-          <div class="card mb-2">
-            <div class="card-header bg-body p-0">
+          <div class="card mb-2 locations-iiko-source-card">
+            <div class="card-header p-0 locations-iiko-source-card__header">
               <div class="d-flex align-items-stretch">
                 <button
-                  class="btn btn-link text-decoration-none text-body text-start flex-grow-1 px-3 py-3 rounded-0 ${expanded ? '' : 'collapsed'}"
+                  class="btn btn-link text-decoration-none text-start flex-grow-1 px-3 py-3 rounded-0 locations-iiko-source-card__toggle ${expanded ? '' : 'collapsed'}"
                   type="button"
                   data-bs-toggle="collapse"
                   data-bs-target="#${collapseId}"
@@ -244,16 +244,16 @@
                         ${enabledBadge}
                         ${secretBadge}
                       </span>
-                      <span class="d-block small text-muted text-truncate mt-1" title="${escapeHtml(sourceUrl)}">
+                      <span class="d-block small text-truncate mt-1 locations-iiko-source-card__meta" title="${escapeHtml(sourceUrl)}">
                         ${escapeHtml(sourceUrl)}
                         <span class="mx-1">·</span>
                         ${escapeHtml(sourceLogin)}
                       </span>
                     </span>
-                    <i class="bi bi-chevron-down text-muted mt-1" aria-hidden="true"></i>
+                    <i class="bi bi-chevron-down mt-1 locations-iiko-source-card__chevron" aria-hidden="true"></i>
                   </span>
                 </button>
-                <div class="d-flex align-items-center pe-2">
+                <div class="d-flex align-items-center pe-2 locations-iiko-source-card__actions">
                   <button
                     class="btn btn-sm btn-outline-danger"
                     type="button"
@@ -273,7 +273,7 @@
               data-locations-source-collapse
               data-locations-source-id="${escapeHtml(source.id)}"
             >
-              <div class="card-body border-top">
+              <div class="card-body border-top locations-iiko-source-card__body">
                 <div class="row g-3">
                   <div class="col-md-4">
                     <label class="form-label">Название чейна</label>
