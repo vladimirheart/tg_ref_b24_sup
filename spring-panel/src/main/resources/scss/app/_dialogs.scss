@@ -3490,3 +3490,200 @@ body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
     min-width: 11rem;
     max-width: min(15rem, calc(100vw - 3rem));
 }
+
+/* 01-253: reply target pulse and external message action rail */
+
+#dialogDetailsHistory .chat-message-bubble-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.32rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
+#dialogDetailsHistory .chat-message-bubble-line.has-actions > .chat-message {
+  flex: 0 1 auto;
+  max-width: calc(100% - 2.1rem);
+}
+
+#dialogDetailsHistory .chat-message-bubble-line > .chat-message-menu {
+  position: relative;
+  inset: auto;
+  top: auto;
+  right: auto;
+  flex: 0 0 1.78rem;
+  width: 1.78rem;
+  margin-top: 0.08rem;
+  align-items: center;
+  z-index: 4;
+}
+
+#dialogDetailsHistory .chat-message-menu-toggle {
+  width: 1.78rem;
+  height: 1.78rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+#dialogDetailsHistory .chat-message-row:hover .chat-message-menu-toggle,
+#dialogDetailsHistory .chat-message-row:focus-within .chat-message-menu-toggle,
+#dialogDetailsHistory .chat-message-menu.is-open .chat-message-menu-toggle,
+#dialogDetailsHistory .chat-message-menu:hover .chat-message-menu-toggle {
+  opacity: 0.82;
+}
+
+#dialogDetailsHistory.has-open-message-menu .chat-message-menu:not(.is-open) .chat-message-menu-toggle {
+  opacity: 0;
+}
+
+#dialogDetailsHistory .chat-message-menu-toggle:hover,
+#dialogDetailsHistory .chat-message-menu-toggle:focus-visible,
+#dialogDetailsHistory .chat-message-menu.is-open .chat-message-menu-toggle {
+  border-color: var(--color-border);
+  background: var(--surface-interactive);
+  color: var(--color-text);
+  opacity: 1;
+}
+
+#dialogDetailsHistory .chat-message-menu-toggle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+#dialogDetailsHistory .chat-message-menu.is-portaled-open .chat-message-menu-list {
+  display: none;
+}
+
+#dialogHistoryActionMenuPortal.chat-message-menu-portal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1085;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.28rem;
+  min-width: 8.75rem;
+  max-width: min(18rem, calc(100vw - 1.5rem));
+  padding: 0.36rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--color-text);
+  box-shadow:
+    0 0.7rem 1.7rem
+    color-mix(in srgb, var(--shadow-color) 16%, transparent);
+  opacity: 0;
+  transform: translateY(-0.2rem);
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+#dialogHistoryActionMenuPortal.chat-message-menu-portal.is-open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  visibility: visible;
+}
+
+#dialogHistoryActionMenuPortal.chat-message-menu-portal .btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: nowrap;
+}
+
+#dialogDetailsHistory .chat-message-row.is-reply-target-highlight .chat-message {
+  z-index: 1;
+}
+
+#dialogDetailsHistory .chat-message-row.is-reply-target-highlight .chat-message::after {
+  content: "";
+  position: absolute;
+  inset: -0.2rem;
+  border:
+    2px solid
+    color-mix(in srgb, var(--primary) 78%, var(--color-border));
+  border-radius: calc(var(--radius-md) + 0.2rem);
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    0 0 0 0
+    color-mix(in srgb, var(--primary) 0%, transparent);
+  animation:
+    dialog-reply-target-ring
+    2.2s
+    cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dialog-reply-target-ring {
+  0% {
+    opacity: 0;
+    box-shadow:
+      0 0 0 0
+      color-mix(in srgb, var(--primary) 0%, transparent);
+  }
+
+  12% {
+    opacity: 1;
+    box-shadow:
+      0 0 0 0.24rem
+      color-mix(in srgb, var(--primary) 34%, transparent);
+  }
+
+  32% {
+    opacity: 0.22;
+    box-shadow:
+      0 0 0 0.48rem
+      color-mix(in srgb, var(--primary) 5%, transparent);
+  }
+
+  48% {
+    opacity: 1;
+    box-shadow:
+      0 0 0 0.22rem
+      color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+
+  72% {
+    opacity: 0.32;
+    box-shadow:
+      0 0 0 0.5rem
+      color-mix(in srgb, var(--primary) 4%, transparent);
+  }
+
+  100% {
+    opacity: 0;
+    box-shadow:
+      0 0 0 0.62rem
+      color-mix(in srgb, var(--primary) 0%, transparent);
+  }
+}
+
+@media (hover: none) {
+  #dialogDetailsHistory .chat-message-menu-toggle {
+    opacity: 0.72;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #dialogDetailsHistory .chat-message-row.is-reply-target-highlight .chat-message::after {
+    animation: none;
+    opacity: 1;
+    box-shadow:
+      0 0 0 0.22rem
+      color-mix(in srgb, var(--primary) 28%, transparent);
+  }
+}

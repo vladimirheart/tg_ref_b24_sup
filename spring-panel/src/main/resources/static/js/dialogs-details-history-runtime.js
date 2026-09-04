@@ -832,10 +832,12 @@
               ${statusBadges}
             </div>
             ${forwardedBadge}
-            <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''} ${archivedHistory ? 'is-archived-history' : ''}" data-message-preview="${escapeAttribute(messagePreviewText)}">
+            <div class="chat-message-bubble-line ${canReply ? 'has-actions' : ''}">
+              <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''} ${archivedHistory ? 'is-archived-history' : ''}" data-message-preview="${escapeAttribute(messagePreviewText)}">
               ${replyPreview}
               ${body ? `<div class="chat-message-body">${body}</div>` : ''}
               ${media}
+              </div>
               ${actionButtons}
             </div>
             ${originalBlock}
