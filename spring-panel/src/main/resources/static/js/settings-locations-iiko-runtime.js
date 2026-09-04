@@ -122,6 +122,7 @@
       initialSyncSettings,
     );
     let locationsSettingsLoadingPromise = null;
+    const expandedLocationsIikoServerSourceIds = new Set();
 
     function applyPageData(section) {
       locationsIikoServerSourcesState = sanitizeLocationsIikoServerSources(section?.iikoServerSources);
@@ -176,6 +177,24 @@
       return sanitizeLocationsIikoSyncSettings(locationsIikoSyncSettingsState);
     }
 
+    function bindLocationsIikoServerSourceCollapseState(container) {
+      container.querySelectorAll('[data-locations-source-collapse]').forEach((collapseNode) => {
+        if (!(collapseNode instanceof HTMLElement)) {
+          return;
+        }
+        const sourceId = String(collapseNode.dataset.locationsSourceId || '').trim();
+        if (!sourceId) {
+          return;
+        }
+        collapseNode.addEventListener('shown.bs.collapse', () => {
+          expandedLocationsIikoServerSourceIds.add(sourceId);
+        });
+        collapseNode.addEventListener('hidden.bs.collapse', () => {
+          expandedLocationsIikoServerSourceIds.delete(sourceId);
+        });
+      });
+    }
+
     async function renderLocationsIikoServerSourcesEditor() {
       await ensureLocationsSettingsLoaded();
       const container = document.getElementById('locationsIikoServerSourcesEditor');
@@ -183,6 +202,7 @@
         return;
       }
       if (!locationsIikoServerSourcesState.length) {
+        expandedLocationsIikoServerSourceIds.clear();
         container.innerHTML = `
           <div class="border rounded-3 p-3 bg-light small text-muted">
             Источники ещё не добавлены. Укажите хотя бы один <code>iikoServer</code>-адрес, если хотите подтягивать департаменты автоматически.
@@ -194,78 +214,124 @@
         const enabledBadge = source.enabled
           ? '<span class="badge text-bg-success-subtle border border-success-subtle text-success-emphasis">Активен</span>'
           : '<span class="badge text-bg-secondary-subtle border">Выключен</span>';
+        const secretBadge = source.api_secret_saved
+          ? '<span class="badge text-bg-light border text-body-secondary"><i class="bi bi-key-fill me-1"></i>Секрет сохранён</span>'
+          : '<span class="badge text-bg-warning-subtle border border-warning-subtle text-warning-emphasis"><i class="bi bi-key me-1"></i>Нужен секрет</span>';
         const secretHint = source.api_secret_saved
           ? 'SHA-1 пароль уже сохранён. Оставьте поле пустым, чтобы не менять его.'
           : 'Укажите SHA-1 пароль пользователя iikoServer. Без него источник не будет участвовать в синхронизации.';
+        const sourceTitle = source.name || `Источник ${index + 1}`;
+        const sourceUrl = source.base_url || 'URL не указан';
+        const sourceLogin = source.api_login ? `Логин: ${source.api_login}` : 'Логин не указан';
+        const collapseId = `locations-iiko-source-collapse-${index}`;
+        const expanded = expandedLocationsIikoServerSourceIds.has(source.id);
         return `
-          <div class="card mb-3">
-            <div class="card-body">
-              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-                <div class="d-flex align-items-center gap-2">
-                  <div class="fw-semibold">Источник ${index + 1}</div>
-                  ${enabledBadge}
-                </div>
-                <button class="btn btn-sm btn-outline-danger" type="button" data-locations-source-remove data-locations-source-index="${index}">
-                  <i class="bi bi-trash me-1"></i>Удалить
+          <div class="card mb-2">
+            <div class="card-header bg-body p-0">
+              <div class="d-flex align-items-stretch">
+                <button
+                  class="btn btn-link text-decoration-none text-body text-start flex-grow-1 px-3 py-3 rounded-0 ${expanded ? '' : 'collapsed'}"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#${collapseId}"
+                  aria-expanded="${expanded ? 'true' : 'false'}"
+                  aria-controls="${collapseId}"
+                >
+                  <span class="d-flex align-items-start gap-3">
+                    <span class="flex-grow-1 overflow-hidden">
+                      <span class="d-flex flex-wrap align-items-center gap-2">
+                        <span class="fw-semibold">${escapeHtml(sourceTitle)}</span>
+                        ${enabledBadge}
+                        ${secretBadge}
+                      </span>
+                      <span class="d-block small text-muted text-truncate mt-1" title="${escapeHtml(sourceUrl)}">
+                        ${escapeHtml(sourceUrl)}
+                        <span class="mx-1">·</span>
+                        ${escapeHtml(sourceLogin)}
+                      </span>
+                    </span>
+                    <i class="bi bi-chevron-down text-muted mt-1" aria-hidden="true"></i>
+                  </span>
                 </button>
+                <div class="d-flex align-items-center pe-2">
+                  <button
+                    class="btn btn-sm btn-outline-danger"
+                    type="button"
+                    data-locations-source-remove
+                    data-locations-source-index="${index}"
+                    title="Удалить источник"
+                    aria-label="Удалить источник ${escapeHtml(sourceTitle)}"
+                  >
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                  </button>
+                </div>
               </div>
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <label class="form-label">Название чейна</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    placeholder="Например, СушиВёсла"
-                    value="${escapeHtml(source.name || '')}"
-                    data-locations-source-field="name"
-                    data-locations-source-index="${index}"
-                  >
-                </div>
-                <div class="col-md-5">
-                  <label class="form-label">iikoServer URL</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    placeholder="https://host:port"
-                    value="${escapeHtml(source.base_url || '')}"
-                    data-locations-source-field="base_url"
-                    data-locations-source-index="${index}"
-                  >
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">Логин iikoServer</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    placeholder="login"
-                    value="${escapeHtml(source.api_login || '')}"
-                    data-locations-source-field="api_login"
-                    data-locations-source-index="${index}"
-                  >
-                </div>
-                <div class="col-md-8">
-                  <label class="form-label">SHA-1 пароль</label>
-                  <input
-                    type="password"
-                    class="form-control"
-                    placeholder="${source.api_secret_saved ? 'Пароль сохранён, введите новый SHA-1 только для замены' : '40-символьный SHA-1 hex'}"
-                    value=""
-                    data-locations-source-field="api_secret"
-                    data-locations-source-index="${index}"
-                  >
-                  <div class="form-text">${escapeHtml(secretHint)} Формат: 40 символов <code>0-9</code> / <code>a-f</code>.</div>
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                  <div class="form-check form-switch mb-2">
+            </div>
+            <div
+              class="collapse${expanded ? ' show' : ''}"
+              id="${collapseId}"
+              data-locations-source-collapse
+              data-locations-source-id="${escapeHtml(source.id)}"
+            >
+              <div class="card-body border-top">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Название чейна</label>
                     <input
-                      class="form-check-input"
-                      type="checkbox"
-                      id="location-iiko-source-enabled-${escapeHtml(source.id)}"
-                      ${source.enabled ? 'checked' : ''}
-                      data-locations-source-enabled
+                      type="text"
+                      class="form-control"
+                      placeholder="Например, СушиВёсла"
+                      value="${escapeHtml(source.name || '')}"
+                      data-locations-source-field="name"
                       data-locations-source-index="${index}"
                     >
-                    <label class="form-check-label" for="location-iiko-source-enabled-${escapeHtml(source.id)}">Использовать в live-синхронизации</label>
+                  </div>
+                  <div class="col-md-5">
+                    <label class="form-label">iikoServer URL</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="https://host:port"
+                      value="${escapeHtml(source.base_url || '')}"
+                      data-locations-source-field="base_url"
+                      data-locations-source-index="${index}"
+                    >
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Логин iikoServer</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="login"
+                      value="${escapeHtml(source.api_login || '')}"
+                      data-locations-source-field="api_login"
+                      data-locations-source-index="${index}"
+                    >
+                  </div>
+                  <div class="col-md-8">
+                    <label class="form-label">SHA-1 пароль</label>
+                    <input
+                      type="password"
+                      class="form-control"
+                      placeholder="${source.api_secret_saved ? 'Пароль сохранён, введите новый SHA-1 только для замены' : '40-символьный SHA-1 hex'}"
+                      value=""
+                      data-locations-source-field="api_secret"
+                      data-locations-source-index="${index}"
+                    >
+                    <div class="form-text">${escapeHtml(secretHint)} Формат: 40 символов <code>0-9</code> / <code>a-f</code>.</div>
+                  </div>
+                  <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="location-iiko-source-enabled-${escapeHtml(source.id)}"
+                        ${source.enabled ? 'checked' : ''}
+                        data-locations-source-enabled
+                        data-locations-source-index="${index}"
+                      >
+                      <label class="form-check-label" for="location-iiko-source-enabled-${escapeHtml(source.id)}">Использовать в live-синхронизации</label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -273,6 +339,7 @@
           </div>
         `;
       }).join('');
+      bindLocationsIikoServerSourceCollapseState(container);
     }
 
     async function renderLocationsIikoSyncSettings() {
@@ -493,6 +560,7 @@
 
     function resetLocationsSettingsModal() {
       stopLocationsSyncStatusPolling();
+      expandedLocationsIikoServerSourceIds.clear();
     }
 
     function markLocationsIikoServerSourcesSaved() {
@@ -554,8 +622,10 @@
     }
 
     function addLocationsIikoServerSource() {
+      const sourceId = createLocationsIikoServerSourceId();
+      expandedLocationsIikoServerSourceIds.add(sourceId);
       locationsIikoServerSourcesState = locationsIikoServerSourcesState.concat({
-        id: createLocationsIikoServerSourceId(),
+        id: sourceId,
         name: '',
         base_url: '',
         api_login: '',
@@ -592,6 +662,10 @@
     }
 
     function removeLocationsIikoServerSource(index) {
+      const sourceId = locationsIikoServerSourcesState[index]?.id;
+      if (sourceId) {
+        expandedLocationsIikoServerSourceIds.delete(sourceId);
+      }
       locationsIikoServerSourcesState = locationsIikoServerSourcesState.filter((_, itemIndex) => itemIndex !== index);
       renderLocationsIikoServerSourcesEditor();
     }
