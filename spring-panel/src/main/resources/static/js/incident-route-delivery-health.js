@@ -173,7 +173,7 @@
         <div class="incident-route-health__routes mb-3">
           ${routes.map(routeRow).join('') || '<div class="text-muted">Маршруты доставки ещё не заданы.</div>'}
         </div>
-        <details>
+        <details class="ui-disclosure-native">
           <summary>Последние delivery events · ${escapeHtml(history.length)}</summary>
           <div class="incident-route-health__history-list mt-2">
             ${history.map(historyRow).join('') || '<div class="text-muted">История доставки пока пуста.</div>'}

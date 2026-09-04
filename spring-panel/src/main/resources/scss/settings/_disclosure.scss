@@ -1,0 +1,60 @@
+/* Settings last-cascade compatibility for the canonical disclosure language.
+ * Do not edit generated static/css/settings.css directly.
+ */
+#itConnectionsModal #itSettingsAccordion,
+#itConnectionsModal .it-section-accordion--nested,
+#channelsModal .channels-manage-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+#itConnectionsModal #itSettingsAccordion > .accordion-item,
+#itConnectionsModal .it-section-accordion--nested > .accordion-item,
+#channelsModal .channels-manage-accordion > .accordion-item {
+  overflow: hidden;
+  margin: 0 !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface-raised) !important;
+  box-shadow: none !important;
+}
+
+#itConnectionsModal #itSettingsAccordion .accordion-button,
+#itConnectionsModal .it-section-accordion--nested .accordion-button,
+#channelsModal .channels-manage-accordion .accordion-button {
+  min-height: 3rem;
+  padding: 0.78rem 0.9rem !important;
+  border: 0 !important;
+  background: var(--surface-raised) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+  font-weight: 600;
+}
+
+#itConnectionsModal #itSettingsAccordion .accordion-button:hover,
+#itConnectionsModal #itSettingsAccordion .accordion-button:focus-visible,
+#itConnectionsModal .it-section-accordion--nested .accordion-button:hover,
+#itConnectionsModal .it-section-accordion--nested .accordion-button:focus-visible,
+#channelsModal .channels-manage-accordion .accordion-button:hover,
+#channelsModal .channels-manage-accordion .accordion-button:focus-visible {
+  background: var(--surface-interactive) !important;
+  color: var(--color-text) !important;
+}
+
+#itConnectionsModal #itSettingsAccordion .accordion-button:not(.collapsed),
+#itConnectionsModal .it-section-accordion--nested .accordion-button:not(.collapsed),
+#channelsModal .channels-manage-accordion .accordion-button:not(.collapsed) {
+  background: var(--surface-selected) !important;
+  color: var(--color-text) !important;
+}
+
+#itConnectionsModal #itSettingsAccordion .accordion-body,
+#itConnectionsModal .it-section-accordion--nested .accordion-body,
+#channelsModal .channels-manage-accordion .accordion-body {
+  border-top: 1px solid var(--color-border) !important;
+  background: var(--surface-card) !important;
+  color: var(--color-text) !important;
+}

@@ -1,0 +1,172 @@
+/* Canonical project disclosure language.
+ * Visual reference: compact iikoServer source cards in Settings.
+ * Do not edit generated static/css/app.css directly.
+ */
+body .accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+body .accordion > .accordion-item,
+body #managerAccordion > .accordion-item {
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface-raised) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+body .accordion .accordion-button,
+body #managerAccordion .accordion-button {
+  min-height: 3rem;
+  padding: 0.78rem 0.9rem;
+  border: 0 !important;
+  background: var(--surface-raised) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+  font-weight: 600;
+}
+
+body .accordion .accordion-button:hover,
+body .accordion .accordion-button:focus-visible,
+body #managerAccordion .accordion-button:hover,
+body #managerAccordion .accordion-button:focus-visible {
+  background: var(--surface-interactive) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+}
+
+body .accordion .accordion-button:not(.collapsed),
+body #managerAccordion .accordion-button:not(.collapsed) {
+  background: var(--surface-selected) !important;
+  color: var(--color-text) !important;
+}
+
+body .accordion .accordion-button::after,
+body #managerAccordion .accordion-button::after,
+body .card > .card-header > button[data-bs-toggle="collapse"]::after,
+details.ui-disclosure-native > summary::after {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-left: auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  background: none !important;
+  background-image: none !important;
+  content: "";
+  transform: rotate(45deg);
+  transform-origin: center;
+  transition: transform 0.2s ease;
+}
+
+body .accordion .accordion-button:not(.collapsed)::after,
+body #managerAccordion .accordion-button:not(.collapsed)::after,
+body .card > .card-header > button[data-bs-toggle="collapse"][aria-expanded="true"]::after,
+details.ui-disclosure-native[open] > summary::after {
+  transform: rotate(225deg);
+}
+
+body .accordion .accordion-body,
+body #managerAccordion .accordion-body {
+  border-top: 1px solid var(--color-border);
+  background: var(--surface-card) !important;
+  color: var(--color-text) !important;
+}
+
+body .card:has(> .card-header > button[data-bs-toggle="collapse"]) {
+  overflow: hidden;
+  border-color: var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface-raised) !important;
+  box-shadow: none !important;
+}
+
+body .card > .card-header:has(> button[data-bs-toggle="collapse"]) {
+  padding: 0 !important;
+  border-color: var(--color-border) !important;
+  background: var(--surface-raised) !important;
+  color: var(--color-text) !important;
+}
+
+body .card > .card-header > button[data-bs-toggle="collapse"] {
+  width: 100%;
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.78rem 0.9rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+  font-weight: 600;
+  text-align: left;
+}
+
+body .card > .card-header > button[data-bs-toggle="collapse"]:hover,
+body .card > .card-header > button[data-bs-toggle="collapse"]:focus-visible {
+  background: var(--surface-interactive) !important;
+  color: var(--color-text) !important;
+}
+
+body .card > .card-header > button[data-bs-toggle="collapse"][aria-expanded="true"] {
+  background: var(--surface-selected) !important;
+}
+
+details.ui-disclosure-native {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+details.ui-disclosure-native > summary {
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.72rem 0.85rem;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  background: var(--surface-raised);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+details.ui-disclosure-native > summary::-webkit-details-marker { display: none; }
+
+details.ui-disclosure-native > summary:hover,
+details.ui-disclosure-native > summary:focus-visible {
+  background: var(--surface-interactive);
+  color: var(--color-text);
+  outline: none;
+}
+
+details.ui-disclosure-native[open] > summary {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--surface-selected);
+}
+
+details.ui-disclosure-native > summary ~ * {
+  margin-right: 0.85rem;
+  margin-left: 0.85rem;
+}
+
+details.ui-disclosure-native[open] > summary + * { margin-top: 0.75rem; }
+details.ui-disclosure-native[open] > :last-child { margin-bottom: 0.75rem; }
+details.ui-disclosure-native .dialog-details-disclosure-caret { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  body .accordion .accordion-button::after,
+  body #managerAccordion .accordion-button::after,
+  body .card > .card-header > button[data-bs-toggle="collapse"]::after,
+  details.ui-disclosure-native > summary::after { transition: none; }
+}
