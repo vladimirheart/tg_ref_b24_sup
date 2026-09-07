@@ -563,7 +563,7 @@ body[data-ui-page='clients'] .client-profile-page-header { padding-block: 0.55re
 .client-profile-inline-action { min-height:0 !important; padding:0 0.2rem !important; border:0 !important; font-size:0.78rem; line-height:1.2; text-decoration:none; }
 .client-profile-info-button { width:1.35rem; height:1.35rem; display:inline-flex; align-items:center; justify-content:center; padding:0; border:1px solid var(--color-border); border-radius:50%; background:var(--surface-interactive); color:var(--color-text-muted); font-size:0.75rem; font-weight:800; line-height:1; }
 .client-profile-info-button:hover, .client-profile-info-button:focus-visible { border-color:var(--primary); color:var(--primary); }
-.client-profile-stats-grid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:0.55rem; margin-top:0.7rem; }
+.client-profile-stats-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap:0.55rem; margin-top:0.7rem; }
 .client-profile-stat { padding:0.65rem 0.7rem; }
 .client-profile-stat__value small { font-size:0.72rem; font-weight:600; }
 .client-profile-phone-chips { display:flex; flex-wrap:wrap; gap:0.45rem; }

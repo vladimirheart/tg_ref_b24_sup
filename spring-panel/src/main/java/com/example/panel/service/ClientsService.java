@@ -27,6 +27,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -249,6 +250,7 @@ public class ClientsService {
             userId
         );
 
+        int totalMinutes = loadTotalMinutes(userId);
         ClientProfileStats stats = jdbcTemplate.query(
             """
                 SELECT
@@ -261,12 +263,20 @@ public class ClientsService {
                 """,
             rs -> {
                 if (!rs.next()) {
-                    return new ClientProfileStats(0, 0, 0);
+                    return new ClientProfileStats(
+                        0,
+                        0,
+                        0,
+                        totalMinutes,
+                        formatTimeDuration(totalMinutes)
+                    );
                 }
                 return new ClientProfileStats(
                     rs.getInt("total"),
                     rs.getInt("resolved"),
-                    rs.getInt("pending")
+                    rs.getInt("pending"),
+                    totalMinutes,
+                    formatTimeDuration(totalMinutes)
                 );
             },
             userId
@@ -433,6 +443,44 @@ public class ClientsService {
             total += Math.toIntExact(Duration.between(firstResponseAt, resolvedAt).toMinutes());
         }
         return Math.max(0, total);
+    }
+
+    public List<String> loadKnownClientStatuses() {
+        LinkedHashSet<String> statuses = new LinkedHashSet<>();
+
+        jdbcTemplate.query(
+            """
+                SELECT status
+                FROM client_statuses
+                WHERE status IS NOT NULL
+                  AND TRIM(status) <> ''
+                ORDER BY status
+                """,
+            rs -> {
+                String value = rs.getString("status");
+                if (StringUtils.hasText(value)) {
+                    statuses.add(value.trim());
+                }
+            }
+        );
+
+        jdbcTemplate.query(
+            """
+                SELECT DISTINCT client_status
+                FROM messages
+                WHERE client_status IS NOT NULL
+                  AND TRIM(client_status) <> ''
+                ORDER BY client_status
+                """,
+            rs -> {
+                String value = rs.getString("client_status");
+                if (StringUtils.hasText(value)) {
+                    statuses.add(value.trim());
+                }
+            }
+        );
+
+        return List.copyOf(statuses);
     }
 
     private ClientBlacklistInfo loadClientBlacklist(long userId) {

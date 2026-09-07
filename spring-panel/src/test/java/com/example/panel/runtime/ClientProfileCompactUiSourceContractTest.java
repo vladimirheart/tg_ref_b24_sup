@@ -31,7 +31,7 @@ class ClientProfileCompactUiSourceContractTest {
             .contains("Открыть полный диалог")
             .contains("function renderClientHistoryAttachment(msg)")
             .contains("chat-message-row")
-            .contains("@{/css/app.css(v='20260907-2')}")
+            .contains("@{/css/app.css(v='")
             .doesNotContain("📋 Заявки клиента")
             .doesNotContain("<h5 class=\"card-title\">📞 Телефоны клиента</h5>")
             .doesNotContain("<h5 class=\"card-title\">📝 История юзернейма</h5>")

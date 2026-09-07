@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/style.css}">
-	<link rel="stylesheet" th:href="@{/css/app.css(v='20260907-2')}">
+	<link rel="stylesheet" th:href="@{/css/app.css(v='20260907-3')}">
 	<link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <script src="/js/common.js"></script>
 </head>
@@ -61,6 +61,7 @@
                     <div class="client-profile-stat"><div class="client-profile-stat__label">Решено</div><div class="client-profile-stat__value" th:text="${profile.stats.resolved}">0</div></div>
                     <div class="client-profile-stat"><div class="client-profile-stat__label">Ожидают</div><div class="client-profile-stat__value" th:text="${profile.stats.pending}">0</div></div>
                     <div class="client-profile-stat client-profile-stat--rating"><div class="client-profile-stat__label">Средняя оценка диалогов</div><div class="client-profile-stat__value"><span th:text="${profile.averageRating != null ? #numbers.formatDecimal(profile.averageRating, 1, 2) : '—'}">—</span><small class="text-muted"> / 5</small></div></div>
+                    <div class="client-profile-stat client-profile-stat--time"><div class="client-profile-stat__label">Затрачено времени</div><div class="client-profile-stat__value" th:text="${profile.stats.formattedTime}">0 мин</div></div>
                 </div>
                 <div class="mt-3"><div class="text-muted small text-uppercase fw-semibold">Оценки диалогов</div><div class="rating-chart mt-2"><div class="rating-chart-row" th:each="stat : ${profile.ratingStats}"><div class="rating-chart-label" th:text="${stat.label}">5★</div><div class="rating-chart-bar"><div class="rating-chart-fill" th:style="'width:' + (${profile.ratingTotal} > 0 ? (${stat.count} * 100.0 / ${profile.ratingTotal}) : 0) + '%'"></div></div><div class="rating-chart-value" th:text="${stat.count}">0</div></div></div><div class="text-muted small mt-2" th:text="'Всего оценок: ' + ${profile.ratingTotal}">Всего оценок: 0</div></div>
             </div></div>
@@ -162,6 +163,7 @@
                 <label for="clientStatusSelect" class="form-label">Статус</label>
                 <select class="form-select" id="clientStatusSelect">
                     <option value="">Без статуса</option>
+                    <option value="" disabled th:if="${#lists.isEmpty(clientStatuses)}">Статусы не настроены</option>
                     <option th:each="status : ${clientStatuses}"
                             th:value="${status}"
                             th:selected="${status} == ${profile.clientStatus}"

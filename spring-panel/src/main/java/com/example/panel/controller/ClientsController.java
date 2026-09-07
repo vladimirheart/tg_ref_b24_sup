@@ -15,9 +15,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Controller
 public class ClientsController {
@@ -71,8 +73,49 @@ public class ClientsController {
         }
         model.addAttribute("profile", profile.get());
         Map<String, Object> settings = sharedConfigService.loadSettings();
-        model.addAttribute("clientStatuses", settings.getOrDefault("client_statuses", List.of()));
+        model.addAttribute("clientStatuses", resolveClientStatusOptions(settings, profile.get()));
         model.addAttribute("clientStatusColors", settings.getOrDefault("client_status_colors", Map.of()));
         return "clients/profile";
+    }
+
+    private List<String> resolveClientStatusOptions(Map<String, Object> settings, ClientProfile profile) {
+        LinkedHashSet<String> statuses = new LinkedHashSet<>();
+        addStatusValues(statuses, settings.get("client_statuses"));
+
+        Object rawColors = settings.get("client_status_colors");
+        if (rawColors instanceof Map<?, ?> colors) {
+            for (Object rawStatus : colors.keySet()) {
+                addStatusValue(statuses, rawStatus);
+            }
+        }
+
+        for (String status : clientsService.loadKnownClientStatuses()) {
+            addStatusValue(statuses, status);
+        }
+
+        if (profile != null) {
+            addStatusValue(statuses, profile.clientStatus());
+        }
+
+        return List.copyOf(statuses);
+    }
+
+    private void addStatusValues(Set<String> statuses, Object raw) {
+        if (!(raw instanceof Iterable<?> values)) {
+            return;
+        }
+        for (Object value : values) {
+            addStatusValue(statuses, value);
+        }
+    }
+
+    private void addStatusValue(Set<String> statuses, Object raw) {
+        if (raw == null) {
+            return;
+        }
+        String value = String.valueOf(raw).trim();
+        if (!value.isEmpty()) {
+            statuses.add(value);
+        }
     }
 }
