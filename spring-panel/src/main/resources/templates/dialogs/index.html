@@ -26,7 +26,7 @@
     <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/style.css}">
-	<link rel="stylesheet" th:href="@{/css/app.css(v='20260904-2')}">
+	<link rel="stylesheet" th:href="@{/css/app.css(v='20260907-1')}">
 	<link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <script th:src="@{/js/common.js}"></script>
 
@@ -657,8 +657,14 @@
                     </div>
                     <div class="dialog-details-header-copy">
                         <div class="text-muted small d-flex flex-wrap gap-2 dialog-details-title-row">
-                            <h5 class="modal-title mb-0">Диалог</h5>
-                            <span id="dialogDetailsMeta"></span>
+                            <span class="dialog-details-meta-pair">
+                                <strong class="dialog-details-meta-label">Диалог</strong>
+                                <span id="dialogDetailsMeta">—</span>
+                            </span>
+                            <span class="dialog-details-meta-pair dialog-details-location">
+                                <strong class="dialog-details-meta-label">Локация</strong>
+                                <span id="dialogDetailsLocation">—</span>
+                            </span>
                             <span class="text-warning d-none" id="dialogDetailsRating"></span>
                             <span class="badge dialog-unread-count d-none" id="dialogDetailsUnreadCount"></span>
                         </div>
@@ -669,9 +675,9 @@
                             <span class="text-muted" id="dialogDetailsClientStatus">—</span>
                             <div class="small text-muted dialog-details-categories" id="dialogDetailsCategories">Категории: —</div>
                         </div>
-                        <div class="small text-muted dialog-details-location" id="dialogDetailsLocation">Локация: —</div>
                     </div>
                 </div>
+                <div class="dialog-details-header-business" id="dialogDetailsBusiness" aria-label="Бизнес">—</div>
                 <div class="dialog-details-header-actions">
                     <button type="button" class="btn btn-outline-success btn-sm d-none dialog-details-action-icon" id="dialogDetailsTakeBtn" aria-label="Взять себе" title="Взять диалог себе" data-dialog-tooltip="Взять диалог себе"><i class="bi bi-person-check" aria-hidden="true"></i></button>
                     <div class="dialog-details-header-participants d-none" id="dialogDetailsParticipantsSection">
@@ -1267,7 +1273,7 @@
     in_work: Array.isArray(RAW_MY_IN_WORK_DIALOGS) ? RAW_MY_IN_WORK_DIALOGS : [],
   };
 </script>
-<th:block th:with="dialogsAssetVersion='20260904-3'">
+<th:block th:with="dialogsAssetVersion='20260907-1'">
 <script th:src="@{/js/dialogs-list-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-avatar-runtime.js(v=${dialogsAssetVersion})}"></script>

@@ -4102,3 +4102,117 @@ body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
     transition: none;
   }
 }
+
+/* 01-255: dialog header identity density and centered business */
+#dialogDetailsModal .dialog-details-modal-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0.75rem;
+  row-gap: 0.35rem;
+  padding-top: 0.55rem;
+  padding-bottom: 0.5rem;
+}
+
+#dialogDetailsModal .dialog-details-header {
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+#dialogDetailsModal .dialog-details-avatar {
+  margin-top: 0;
+}
+
+#dialogDetailsModal .dialog-details-header-copy {
+  min-width: 0;
+  padding-top: 0;
+}
+
+#dialogDetailsModal .dialog-details-title-row {
+  align-items: baseline;
+  gap: 0.3rem 0.7rem !important;
+  margin-bottom: 0.1rem;
+  line-height: 1.2;
+}
+
+#dialogDetailsModal .dialog-details-meta-pair {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+#dialogDetailsModal .dialog-details-meta-label {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+#dialogDetailsModal .dialog-details-location {
+  margin-top: 0;
+}
+
+#dialogDetailsModal .dialog-details-client-row {
+  gap: 0.25rem 0.65rem;
+  line-height: 1.2;
+}
+
+#dialogDetailsModal .dialog-details-header-business {
+  justify-self: center;
+  align-self: start;
+  max-width: min(18rem, 30vw);
+  overflow: hidden;
+  padding: 0.28rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-interactive);
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#dialogDetailsModal .dialog-details-header-actions {
+  justify-self: end;
+  align-self: start;
+  margin: 0;
+}
+
+@media (max-width: 991.98px) {
+  #dialogDetailsModal .dialog-details-modal-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  #dialogDetailsModal .dialog-details-header-business {
+    grid-column: 1 / -1;
+    justify-self: start;
+    max-width: calc(100% - 3rem);
+    margin-left: 3rem;
+  }
+}
+
+@media (max-width: 767.98px) {
+  #dialogDetailsModal .dialog-details-modal-header {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  #dialogDetailsModal .dialog-details-header,
+  #dialogDetailsModal .dialog-details-header-actions {
+    flex: 1 1 100%;
+  }
+
+  #dialogDetailsModal .dialog-details-header-business {
+    order: 2;
+    max-width: 100%;
+    margin-left: 0;
+  }
+
+  #dialogDetailsModal .dialog-details-header-actions {
+    order: 3;
+    justify-content: flex-start;
+  }
+}

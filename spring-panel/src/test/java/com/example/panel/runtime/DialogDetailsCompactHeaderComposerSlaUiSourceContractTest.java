@@ -43,8 +43,8 @@ class DialogDetailsCompactHeaderComposerSlaUiSourceContractTest {
             .contains("bi bi-zoom-in")
             .contains("id=\"dialogMediaDownloadLink\"")
             .contains("bi bi-download")
-            .contains("@{/css/app.css(v='20260904-2')}")
-            .contains("dialogsAssetVersion='20260904-3'")
+            .contains("@{/css/app.css(v='20260907-1')}")
+            .contains("dialogsAssetVersion='20260907-1'")
             .doesNotContain(">Участники</button>")
             .doesNotContain(">Передать</button>")
             .doesNotContain(">Отправить</button>")
@@ -91,7 +91,7 @@ class DialogDetailsCompactHeaderComposerSlaUiSourceContractTest {
 
         assertThat(taskList)
             .contains("🟢 [01-253] Сделать reply-target пульсацию заметной и вынести меню сообщения за bubble")
-            .contains("🟣 [01-254] Уплотнить шапку диалога, composer и добавить SLA-пульсацию метрик");
+            .contains("🟢 [01-254] Уплотнить шапку диалога, composer и добавить SLA-пульсацию метрик");
 
         assertThat(Files.exists(REPO_ROOT.resolve("apply-dialog-reply-pulse-menu-ui-v1.js"))).isFalse();
         assertThat(Files.exists(REPO_ROOT.resolve("apply-dialog-reply-pulse-menu-ui-v2.js"))).isFalse();

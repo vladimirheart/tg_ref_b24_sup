@@ -210,6 +210,7 @@
   const detailsClientName = document.getElementById('dialogDetailsClientName');
   const detailsClientStatus = document.getElementById('dialogDetailsClientStatus');
   const detailsLocation = document.getElementById('dialogDetailsLocation');
+  const detailsBusiness = document.getElementById('dialogDetailsBusiness');
   const detailsOpenClientCard = document.getElementById('dialogDetailsOpenClientCard');
   const detailsTakeBtn = document.getElementById('dialogDetailsTakeBtn');
   const detailsParticipantsBtn = document.getElementById('dialogDetailsParticipantsBtn');
@@ -1221,7 +1222,7 @@
   function updateDetailsLocationLabel(value) {
     if (!detailsLocation) return;
     const safeValue = String(value || '—').trim() || '—';
-    detailsLocation.textContent = `Локация: ${safeValue}`;
+    detailsLocation.textContent = safeValue;
   }
 
   function scheduleCategorySave() {
@@ -3265,6 +3266,7 @@
       detailsAvatar,
       detailsClientName,
       detailsClientStatus,
+      detailsBusiness,
       detailsProblem,
       detailsTakeBtn,
     },

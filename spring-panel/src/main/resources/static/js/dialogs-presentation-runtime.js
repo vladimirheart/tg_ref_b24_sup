@@ -38,16 +38,9 @@
       return '★'.repeat(capped);
     }
 
-    function formatDialogMeta(ticketId, requestNumber) {
-      const normalizedTicketId = ticketId ? String(ticketId) : '';
-      const normalizedRequest = requestNumber ? String(requestNumber) : '';
-      if (normalizedRequest) {
-        if (normalizedTicketId && normalizedRequest !== normalizedTicketId) {
-          return `№ обращения: ${normalizedRequest} · ID: ${normalizedTicketId}`;
-        }
-        return `№ обращения: ${normalizedRequest}`;
-      }
-      return normalizedTicketId ? `ID диалога: ${normalizedTicketId}` : '';
+    function formatDialogMeta(_ticketId, requestNumber) {
+      const normalizedRequest = requestNumber ? String(requestNumber).trim() : '';
+      return normalizedRequest ? `№ ${normalizedRequest}` : '—';
     }
 
     function normalizeMessageSender(sender) {

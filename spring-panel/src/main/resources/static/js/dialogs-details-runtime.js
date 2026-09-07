@@ -23,6 +23,17 @@
       return description || '—';
     }
 
+    function updateDetailsBusinessLabel(raw) {
+      if (!elements.detailsBusiness) return;
+      const value = String(raw || '—').trim() || '—';
+      const businessStyle = options.businessStyleMap?.[value] || {};
+      elements.detailsBusiness.textContent = value;
+      elements.detailsBusiness.style.backgroundColor = businessStyle.background || '';
+      elements.detailsBusiness.style.color = businessStyle.text || '';
+      elements.detailsBusiness.setAttribute('title', `Бизнес: ${value}`);
+      elements.detailsBusiness.setAttribute('aria-label', `Бизнес: ${value}`);
+    }
+
     function getActiveDialogState() {
       const state = options.getActiveDialogState?.();
       return state && typeof state === 'object'
@@ -237,8 +248,9 @@
       options.updateDialogUnreadCount?.(Number(fallbackRow?.dataset?.unread) || 0);
       if (elements.detailsMeta) {
         const fallbackRequestNumber = fallbackRow?.dataset?.requestNumber || '';
-        elements.detailsMeta.textContent = options.formatDialogMeta?.(ticketId, fallbackRequestNumber) || '';
+        elements.detailsMeta.textContent = options.formatDialogMeta?.(ticketId, fallbackRequestNumber) || '—';
       }
+      updateDetailsBusinessLabel(fallbackRow?.dataset?.business || '—');
       if (elements.detailsRating) {
         elements.detailsRating.textContent = '';
         elements.detailsRating.classList.add('d-none');
@@ -329,6 +341,7 @@
         const clientStatus = summary.clientStatus || fallbackRow?.dataset?.clientStatus || '—';
         const channelLabel = summary.channelName || fallbackRow?.dataset?.channel || '—';
         const businessLabel = summary.business || fallbackRow?.dataset?.business || '—';
+        updateDetailsBusinessLabel(businessLabel);
         const statusRaw = summary.status || fallbackRow?.dataset?.statusRaw || '';
         const statusKey = summary.statusKey || fallbackRow?.dataset?.statusKey || '';
         const statusLabel = formatStatusLabel(statusRaw, summary.statusLabel || fallbackRow?.dataset?.status, statusKey);
@@ -372,7 +385,7 @@
         });
         options.updateSummaryCategories?.(categoriesLabel || '—');
         if (elements.detailsProblem) elements.detailsProblem.textContent = problemLabel;
-        if (elements.detailsMeta) elements.detailsMeta.textContent = options.formatDialogMeta?.(ticketId, requestNumber) || '';
+        if (elements.detailsMeta) elements.detailsMeta.textContent = options.formatDialogMeta?.(ticketId, requestNumber) || '—';
         if (elements.detailsRating) {
           if (ratingStars) {
             elements.detailsRating.textContent = ratingStars;
