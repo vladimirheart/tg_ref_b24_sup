@@ -210,6 +210,7 @@ public class ClientsService {
             """
                 SELECT
                     m.ticket_id,
+                    m.group_msg_id AS request_number,
                     m.business,
                     m.city,
                     m.location_type,
@@ -231,6 +232,7 @@ public class ClientsService {
                 """,
             (rs, rowNum) -> new ClientProfileTicket(
                 rs.getString("ticket_id"),
+                rs.getString("request_number"),
                 rs.getString("business"),
                 rs.getString("city"),
                 rs.getString("location_type"),

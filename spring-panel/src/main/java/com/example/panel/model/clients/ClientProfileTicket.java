@@ -2,6 +2,7 @@ package com.example.panel.model.clients;
 
 public record ClientProfileTicket(
         String ticketId,
+        String requestNumber,
         String business,
         String city,
         String locationType,

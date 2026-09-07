@@ -60,7 +60,7 @@ class DialogDetailsHeaderIdentityUiSourceContractTest {
 
         assertThat(taskList)
             .contains("🟢 [01-254] Уплотнить шапку диалога, composer и добавить SLA-пульсацию метрик")
-            .contains("🟣 [01-255] Уплотнить идентификационную шапку диалога и вынести бизнес в центр");
+            .contains("🟢 [01-255] Уплотнить идентификационную шапку диалога и вынести бизнес в центр");
     }
 
     private String read(String relativePath) throws IOException {
