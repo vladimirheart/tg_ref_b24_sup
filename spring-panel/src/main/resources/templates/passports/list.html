@@ -13,7 +13,7 @@
 <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
 
 <link rel="stylesheet" th:href="@{/css/style.css}">
-<link rel="stylesheet" th:href="@{/css/app.css(v='20260907-01-258')}">
+<link rel="stylesheet" th:href="@{/css/app.css(v='20260907-01-258-r2')}">
 <link rel="stylesheet" th:href="@{/css/sidebar.css}">
 </head>
 <body class="with-sidebar sidebar-pinned passports-list-page" data-ui-page="passports">
@@ -272,6 +272,7 @@
         const photoPreview = document.getElementById('passportPhotoPreview');
         const photoPreviewImage = document.getElementById('passportPhotoPreviewImage');
         let photoPreviewTimer = null;
+        let photoPreviewHideTimer = null;
 
         const state = {
             sortKey: 'department',
@@ -456,13 +457,29 @@
             updateSortIndicators();
         }
 
+        function cancelPhotoPreviewHide() {
+            if (photoPreviewHideTimer != null) {
+                window.clearTimeout(photoPreviewHideTimer);
+                photoPreviewHideTimer = null;
+            }
+        }
+
         function hidePhotoPreview() {
             if (photoPreviewTimer != null) {
                 window.clearTimeout(photoPreviewTimer);
                 photoPreviewTimer = null;
             }
+            cancelPhotoPreviewHide();
             if (photoPreview) photoPreview.hidden = true;
             if (photoPreviewImage) photoPreviewImage.removeAttribute('src');
+        }
+
+        function schedulePhotoPreviewHide() {
+            cancelPhotoPreviewHide();
+            photoPreviewHideTimer = window.setTimeout(() => {
+                photoPreviewHideTimer = null;
+                hidePhotoPreview();
+            }, 300);
         }
 
         function showPhotoPreview(thumb) {
@@ -489,11 +506,18 @@
 
         function bindPhotoPreview() {
             titlePhotoThumbs.forEach((thumb) => {
-                thumb.addEventListener('mouseenter', () => showPhotoPreview(thumb));
-                thumb.addEventListener('mouseleave', hidePhotoPreview);
+                thumb.addEventListener('mouseenter', () => {
+                    cancelPhotoPreviewHide();
+                    showPhotoPreview(thumb);
+                });
+                thumb.addEventListener('mouseleave', schedulePhotoPreviewHide);
                 thumb.addEventListener('focus', () => showPhotoPreview(thumb));
                 thumb.addEventListener('blur', hidePhotoPreview);
             });
+            if (photoPreview) {
+                photoPreview.addEventListener('mouseenter', cancelPhotoPreviewHide);
+                photoPreview.addEventListener('mouseleave', hidePhotoPreview);
+            }
             window.addEventListener('scroll', hidePhotoPreview, true);
             window.addEventListener('resize', hidePhotoPreview);
         }

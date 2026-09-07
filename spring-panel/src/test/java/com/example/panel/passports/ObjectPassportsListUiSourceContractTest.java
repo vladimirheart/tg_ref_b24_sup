@@ -23,7 +23,10 @@ class ObjectPassportsListUiSourceContractTest {
         assertTrue(html.contains("data-passport-title-photo"));
         assertTrue(html.contains("passportPhotoPreview"));
         assertTrue(html.contains("}, 500);"));
-        assertTrue(html.contains("thumb.addEventListener('mouseleave', hidePhotoPreview)"));
+        assertTrue(html.contains("thumb.addEventListener('mouseleave', schedulePhotoPreviewHide)"));
+        assertTrue(html.contains("photoPreview.addEventListener('mouseenter', cancelPhotoPreviewHide)"));
+        assertTrue(html.contains("photoPreview.addEventListener('mouseleave', hidePhotoPreview)"));
+        assertTrue(html.contains("}, 300);"));
         assertTrue(html.contains("showDeletedFilter"));
         assertTrue(html.contains("data-deleted"));
         assertTrue(html.contains("visibilityRows.length"));
@@ -34,7 +37,8 @@ class ObjectPassportsListUiSourceContractTest {
         String scss = read("src/main/resources/scss/app/_passports.scss");
         assertTrue(scss.contains("passport-title-thumb"));
         assertTrue(scss.contains("passport-photo-preview"));
-        assertTrue(scss.contains("pointer-events: none"));
+        assertTrue(scss.contains("pointer-events: auto"));
+        assertTrue(scss.contains("font-size: 0.8125rem"));
         assertTrue(scss.contains("font-weight: 800"));
         assertTrue(scss.contains("font-variant-numeric: tabular-nums"));
         assertTrue(scss.contains("passport-row--deleted"));
