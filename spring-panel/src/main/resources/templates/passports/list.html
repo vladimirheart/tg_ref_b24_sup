@@ -13,42 +13,45 @@
 <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
 
 <link rel="stylesheet" th:href="@{/css/style.css}">
-<link rel="stylesheet" th:href="@{/css/app.css}">
+<link rel="stylesheet" th:href="@{/css/app.css(v='20260907-01-258')}">
 <link rel="stylesheet" th:href="@{/css/sidebar.css}">
 </head>
 <body class="with-sidebar sidebar-pinned passports-list-page" data-ui-page="passports">
 <div th:replace="~{fragments/navbar :: navbar('passports')}"></div>
 <main class="main-content container-fluid py-4 page-shell passports-page-shell ops-page-shell">
 
-    <div class="page-header-card passports-page-header mb-4 ops-page-header">
-        <div>
-            <span class="page-kicker">Инфраструктура объектов</span>
-
-            <h1 class="page-title">Паспорта объектов</h1>
-
-            <p class="page-subtitle mb-0">
-                Каталог объектов, инфраструктуры и связанных операционных данных.
-            </p>
+    <div class="page-header-card passports-page-header mb-3 ops-page-header">
+        <div class="passports-page-heading">
+            <h1 class="page-title mb-0">Паспорта объектов</h1>
         </div>
 
         <div class="passports-page-actions ops-page-actions">
             <input id="passportsSearchInput"
                    type="search"
                    class="form-control passport-quick-search"
-                   placeholder="Поиск по всем полям">
+                   placeholder="Поиск по всем полям"
+                   aria-label="Поиск по паспортам объектов">
 
-            <button class="btn btn-outline-secondary"
+            <button class="btn btn-outline-secondary passport-icon-action"
                     id="passportsFiltersBtn"
                     type="button"
+                    title="Фильтры"
+                    aria-label="Фильтры"
                     data-bs-toggle="modal"
                     data-bs-target="#passportsFiltersModal">
-                Фильтры
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M4 6h16M7 12h10M10 18h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
             </button>
 
-            <a class="btn btn-primary"
+            <a class="btn btn-primary passport-icon-action"
                th:if="${canViewSettings}"
-               th:href="@{/object-passports/new}">
-                Создать паспорт
+               th:href="@{/object-passports/new}"
+               title="Создать паспорт"
+               aria-label="Создать паспорт">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
             </a>
         </div>
     </div>
@@ -134,13 +137,34 @@
                 </tr>
                 <tr th:each="item : ${items}"
                     data-passport-row
+                    th:classappend="${item.deleted == true} ? ' passport-row--deleted' : ''"
                     th:attr="data-department=${item.department != null ? item.department : ''},
                              data-city=${item.city != null ? item.city : ''},
                              data-business=${item.business != null ? item.business : ''},
                              data-status=${item.status != null ? item.status : ''},
                              data-location-address=${item.location_address != null ? item.location_address : ''},
-                             data-appeals-count=${item.appeals_count != null ? item.appeals_count : 0}">
-                    <td th:text="${item.department} ?: '—'"></td>
+                             data-appeals-count=${item.appeals_count != null ? item.appeals_count : 0},
+                             data-deleted=${item.deleted == true ? 'true' : 'false'}">
+                    <td>
+                        <div class="passport-department-cell">
+                            <button th:if="${item.title_photo_url != null and !#strings.isEmpty(item.title_photo_url)}"
+                                    type="button"
+                                    class="passport-title-thumb"
+                                    data-passport-title-photo
+                                    th:attr="data-photo-url=${item.title_photo_url},aria-label=${'Показать титульное фото: ' + (item.department != null ? item.department : 'паспорт')}"
+                                    title="Титульное фото">
+                                <img th:src="${item.title_photo_url}" alt="" loading="lazy">
+                            </button>
+                            <span th:unless="${item.title_photo_url != null and !#strings.isEmpty(item.title_photo_url)}"
+                                  class="passport-title-thumb passport-title-thumb--empty"
+                                  aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M4 5h16v14H4zM7 15l3-3 2 2 2-2 3 3M9 9h.01" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                            <span class="passport-department-name" th:text="${item.department} ?: '—'"></span>
+                        </div>
+                    </td>
                     <td th:text="${item.city} ?: '—'"></td>
                     <td th:text="${item.business} ?: '—'"></td>
                     <td>
@@ -157,6 +181,10 @@
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <div id="passportPhotoPreview" class="passport-photo-preview" hidden aria-hidden="true">
+        <img id="passportPhotoPreviewImage" alt="Увеличенное титульное фото">
     </div>
 
     <div class="modal fade ops-task-modal" id="passportsFiltersModal" tabindex="-1" aria-hidden="true">
@@ -200,6 +228,12 @@
                             <label class="form-label" for="appealsMinFilter">Обращений не меньше</label>
                             <input id="appealsMinFilter" type="number" min="0" step="1" class="form-control" placeholder="0">
                         </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch passport-show-deleted-filter">
+                                <input class="form-check-input" type="checkbox" role="switch" id="showDeletedFilter">
+                                <label class="form-check-label" for="showDeletedFilter">Показывать удалённые</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -226,12 +260,18 @@
         const statusFilter = document.getElementById('statusFilter');
         const addressFilter = document.getElementById('addressFilter');
         const appealsMinFilter = document.getElementById('appealsMinFilter');
+        const showDeletedFilter = document.getElementById('showDeletedFilter');
         const resetFiltersBtn = document.getElementById('passportsResetFiltersBtn');
         const applyFiltersBtn = document.getElementById('passportsApplyFiltersBtn');
+        const totalCount = document.getElementById('passportsTotalCount');
         const shownCount = document.getElementById('passportsShownCount');
         const summaryText = document.getElementById('passportsSummaryText');
         const noResultsRow = document.getElementById('passportsNoResultsRow');
         const sortHeaders = Array.from(document.querySelectorAll('[data-sort-key]'));
+        const titlePhotoThumbs = Array.from(document.querySelectorAll('[data-passport-title-photo]'));
+        const photoPreview = document.getElementById('passportPhotoPreview');
+        const photoPreviewImage = document.getElementById('passportPhotoPreviewImage');
+        let photoPreviewTimer = null;
 
         const state = {
             sortKey: 'department',
@@ -303,6 +343,11 @@
             const statusValue = normalize(statusFilter ? statusFilter.value : '');
             const minAppealsRaw = appealsMinFilter ? appealsMinFilter.value : '';
             const minAppeals = minAppealsRaw === '' ? null : Number(minAppealsRaw);
+            const deletedExplicit = statusValue === 'удален';
+            const showDeleted = Boolean(showDeletedFilter && showDeletedFilter.checked);
+            const deleted = row.dataset.deleted === 'true';
+
+            if (deleted && !showDeleted && !deletedExplicit) return false;
 
             const searchable = buildSearchableText(row);
             const department = normalize(readRowValue(row, 'department'));
@@ -381,7 +426,11 @@
 		}
 
         function applyState() {
-            const filteredRows = rows.filter(matchesFilters).sort(compareRows);
+            const statusValue = normalize(statusFilter ? statusFilter.value : '');
+            const deletedExplicit = statusValue === 'удален';
+            const showDeleted = Boolean(showDeletedFilter && showDeletedFilter.checked);
+            const visibilityRows = rows.filter((row) => row.dataset.deleted !== 'true' || showDeleted || deletedExplicit);
+            const filteredRows = visibilityRows.filter(matchesFilters).sort(compareRows);
             rows.forEach((row) => {
                 row.classList.add('d-none');
                 tableBody.appendChild(row);
@@ -391,12 +440,15 @@
                 tableBody.appendChild(row);
             });
 
+            if (totalCount) {
+                totalCount.textContent = String(visibilityRows.length);
+            }
             if (shownCount) {
                 shownCount.textContent = String(filteredRows.length);
             }
             if (summaryText) {
                 const sortLabel = sortHeaders.find((header) => header.dataset.sortKey === state.sortKey)?.textContent?.replace(/[↕↑↓]/g, '').trim() || 'Департамент';
-                summaryText.textContent = `Показано ${filteredRows.length} из ${rows.length} · Сортировка: ${sortLabel} (${state.sortDirection === 'asc' ? 'по возрастанию' : 'по убыванию'})`;
+                summaryText.textContent = `Показано ${filteredRows.length} из ${visibilityRows.length} · Сортировка: ${sortLabel} (${state.sortDirection === 'asc' ? 'по возрастанию' : 'по убыванию'})`;
             }
             if (noResultsRow) {
                 noResultsRow.classList.toggle('d-none', filteredRows.length > 0);
@@ -404,8 +456,50 @@
             updateSortIndicators();
         }
 
+        function hidePhotoPreview() {
+            if (photoPreviewTimer != null) {
+                window.clearTimeout(photoPreviewTimer);
+                photoPreviewTimer = null;
+            }
+            if (photoPreview) photoPreview.hidden = true;
+            if (photoPreviewImage) photoPreviewImage.removeAttribute('src');
+        }
+
+        function showPhotoPreview(thumb) {
+            hidePhotoPreview();
+            if (!photoPreview || !photoPreviewImage || !thumb) return;
+            const url = thumb.dataset.photoUrl || '';
+            if (!url) return;
+            photoPreviewTimer = window.setTimeout(() => {
+                photoPreviewTimer = null;
+                const rect = thumb.getBoundingClientRect();
+                photoPreviewImage.src = url;
+                photoPreview.hidden = false;
+                const width = photoPreview.offsetWidth || 320;
+                const height = photoPreview.offsetHeight || 220;
+                const gap = 12;
+                let left = rect.right + gap;
+                if (left + width > window.innerWidth - gap) left = Math.max(gap, rect.left - width - gap);
+                let top = rect.top + (rect.height - height) / 2;
+                top = Math.max(gap, Math.min(top, window.innerHeight - height - gap));
+                photoPreview.style.left = `${Math.round(left)}px`;
+                photoPreview.style.top = `${Math.round(top)}px`;
+            }, 500);
+        }
+
+        function bindPhotoPreview() {
+            titlePhotoThumbs.forEach((thumb) => {
+                thumb.addEventListener('mouseenter', () => showPhotoPreview(thumb));
+                thumb.addEventListener('mouseleave', hidePhotoPreview);
+                thumb.addEventListener('focus', () => showPhotoPreview(thumb));
+                thumb.addEventListener('blur', hidePhotoPreview);
+            });
+            window.addEventListener('scroll', hidePhotoPreview, true);
+            window.addEventListener('resize', hidePhotoPreview);
+        }
+
         function bindFilterEvents() {
-            [searchInput, departmentFilter, cityFilter, businessFilter, statusFilter, addressFilter, appealsMinFilter]
+            [searchInput, departmentFilter, cityFilter, businessFilter, statusFilter, addressFilter, appealsMinFilter, showDeletedFilter]
                 .filter(Boolean)
                 .forEach((element) => {
                     element.addEventListener('input', applyState);
@@ -425,6 +519,7 @@
                     if (statusFilter) statusFilter.value = '';
                     if (addressFilter) addressFilter.value = '';
                     if (appealsMinFilter) appealsMinFilter.value = '';
+                    if (showDeletedFilter) showDeletedFilter.checked = false;
                     applyState();
                 });
             }
@@ -456,6 +551,7 @@
 
         populateFilters();
         bindFilterEvents();
+        bindPhotoPreview();
         applyState();
     })();
 </script>

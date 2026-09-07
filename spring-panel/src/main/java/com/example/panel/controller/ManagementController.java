@@ -48,7 +48,8 @@ public class ManagementController {
             "Стройка",
             "Закрыт",
             "Заморожен",
-            "Форс-мажор"
+            "Форс-мажор",
+            "Удалён"
     );
 
     private final NavigationService navigationService;

@@ -199,12 +199,16 @@ public class ObjectPassportService {
                 item.put("department", stringValue(normalized.get("department")));
                 item.put("city", stringValue(normalized.get("city")));
                 item.put("business", stringValue(normalized.get("business")));
-                item.put("status", stringValue(normalized.get("status")));
+                String status = stringValue(normalized.get("status"));
+                List<Map<String, Object>> photos = normalizePhotos(normalized.get("photos"));
+                item.put("status", status);
+                item.put("deleted", isDeletedStatus(status));
+                item.put("title_photo_url", findTitlePhotoUrl(photos));
                 item.put("location_address", firstNonBlank(normalized.get("location_address"), rs.getString("object_address")));
                 item.put("passport_number", firstNonBlank(normalized.get("department"), rs.getString("passport_number")));
                 item.put("object_name", firstNonBlank(rs.getString("object_name"), normalized.get("department")));
                 item.put("appeals_count", appealsCountByLocation.getOrDefault(buildLocationKey(normalized), 0L));
-                item.put("photos", normalized.get("photos"));
+                item.put("photos", photos);
                 items.add(item);
             }
             return items;
@@ -689,6 +693,27 @@ public class ObjectPassportService {
             }
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
+    }
+
+    private String findTitlePhotoUrl(List<Map<String, Object>> photos) {
+        if (photos == null) {
+            return "";
+        }
+        for (Map<String, Object> photo : photos) {
+            if (!"title".equals(normalizePhotoCategory(photo.get("category")))) {
+                continue;
+            }
+            String url = stringValue(photo.get("url"));
+            if (StringUtils.hasText(url)) {
+                return url;
+            }
+        }
+        return "";
+    }
+
+    private boolean isDeletedStatus(Object raw) {
+        String status = normalizeLookupValue(raw);
+        return "удален".equals(status) || "deleted".equals(status);
     }
 
     private String firstNonBlank(Object... values) {
