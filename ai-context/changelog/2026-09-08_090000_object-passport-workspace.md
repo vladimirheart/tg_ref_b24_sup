@@ -33,3 +33,12 @@
 - bumped the passports-list CSS and Settings equipment-runtime asset versions to avoid stale browser cache;
 - added source contracts that explicitly pin 42×32 thumbnails, 320×220 hover preview and the equipment edit lifecycle guard;
 - no backend/data/schema/NetBox mutation is part of this hotfix.
+
+## R4.2 UI runtime stabilization
+
+- changed per-page font scaling from an absolute html percentage to a multiplier of the stylesheet-defined root baseline, so displayed 100% preserves the project's original typography/geometry;
+- deferred baseline resolution until DOMContentLoaded and cache-busted ui-preferences.js;
+- protected SRI-sensitive vendored static assets from EOL conversion with .gitattributes and added Docker build-time SHA-384 checks for Bootstrap CSS/JS;
+- added source/runtime integrity tests for Bootstrap bytes, relative font scaling and the compact sidebar account footer;
+- removed the noisy «Аккаунт» kicker, suppressed duplicate username text, and reduced account/action/font-control dimensions without removing functionality;
+- retained the r4.1 passport thumbnail and equipment edit-mode corrections; no backend/data/schema/NetBox mutation is included.

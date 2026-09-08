@@ -185,7 +185,6 @@
         <div class="sidebar-footer">
             <div class="sidebar-footer-main">
                 <div class="sidebar-account-block">
-                    <div class="sidebar-footer-kicker">Аккаунт</div>
                     <div class="sidebar-user-card">
                         <div class="sidebar-user-avatar"
                              th:classappend="${sidebarUserHasAvatar} ? ' has-image is-loaded' : ''"
@@ -204,7 +203,7 @@
                         </div>
                         <div class="sidebar-user-meta">
                             <span class="sidebar-user-name" th:text="${sidebarUserDisplayName}">Пользователь</span>
-                            <span class="sidebar-user-username" th:text="${sidebarUserUsername}"></span>
+                            <span class="sidebar-user-username" th:if="${sidebarUserUsername != sidebarUserDisplayName}" th:text="${sidebarUserUsername}"></span>
                         </div>
                     </div>
                 </div>

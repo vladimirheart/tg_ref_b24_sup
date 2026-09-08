@@ -1,2 +1,4 @@
 scripts/internal/*.sh text eol=lf
 docker/*.sh text eol=lf
+
+spring-panel/src/main/resources/static/vendor/** -text

@@ -5,6 +5,11 @@ WORKDIR /workspace
 COPY spring-panel/pom.xml ./pom.xml
 COPY spring-panel/src/ ./src/
 
+# SRI-protected vendored assets must stay byte-identical across Windows/Linux checkouts.
+RUN command -v sha384sum >/dev/null \
+    && echo "4164ca6728e93c48c84afe5669153d385791a6893a61cb676260ebe69365c93d9b4635e1d093218d8ea15be00b130207  src/main/resources/static/vendor/bootstrap/5.3.3/bootstrap.min.css" | sha384sum -c - \
+    && echo "62fa5cad87f4b58de51c1eb434d9265dce6cf5f0d564b112680039e4d0f33b1872f4691c21db252b578decdea321e1f3  src/main/resources/static/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" | sha384sum -c -
+
 RUN mvn -DskipTests package \
     && mkdir -p /workspace/out \
     && cp target/panel-*.jar /workspace/out/app.jar

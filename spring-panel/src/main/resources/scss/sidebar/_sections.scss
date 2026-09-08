@@ -907,3 +907,125 @@
   color: var(--color-text);
   font-size: 0.8rem;
 }
+
+/* Sidebar account calm refinement — 01-259 r4.2 */
+.sidebar-footer {
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--radius-lg);
+}
+
+.sidebar-footer-main {
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-account-block {
+  gap: 0;
+}
+
+.sidebar-user-card {
+  gap: 8px;
+  min-height: 44px;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sidebar-user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.sidebar-user-avatar-fallback svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-user-meta {
+  gap: 1px;
+}
+
+.sidebar-user-name {
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.sidebar-user-username {
+  font-size: 0.7rem;
+  line-height: 1.15;
+  opacity: 0.78;
+}
+
+.sidebar-action-menu-shell {
+  gap: 6px;
+}
+
+.sidebar-action-menu-list {
+  min-width: 132px;
+  gap: 6px;
+  inset-block-end: calc(100% + 8px);
+}
+
+.sidebar-action-item {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  box-shadow: none;
+}
+
+.sidebar-action-item:hover,
+.sidebar-action-item:focus-visible {
+  transform: none;
+  box-shadow: none;
+}
+
+.sidebar-action-item .icon {
+  font-size: 0.88rem;
+}
+
+.sidebar-action-menu-trigger {
+  width: 38px;
+  height: 38px;
+  box-shadow: none;
+}
+
+.sidebar-action-menu-trigger:hover,
+.sidebar-action-menu-trigger:focus-visible {
+  transform: none;
+  box-shadow: none;
+}
+
+.sidebar-action-menu-trigger .icon {
+  font-size: 0.88rem;
+}
+
+.sidebar-font-scale-control {
+  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 10px;
+}
+
+.sidebar-font-scale-control__button {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+}
+
+.sidebar-font-scale-control__value {
+  font-size: 0.62rem;
+  line-height: 1.1;
+}
+
+.sidebar-font-scale-control__value strong {
+  font-size: 0.72rem;
+}

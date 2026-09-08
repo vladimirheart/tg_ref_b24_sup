@@ -297,6 +297,25 @@
   }
 
   const PAGE_FONT_SCALE_STEPS = Object.freeze([90, 100, 110, 120, 130]);
+  let baseRootFontPx = null;
+
+  function resolveBaseRootFontPx() {
+    if (Number.isFinite(baseRootFontPx) && baseRootFontPx > 0) {
+      return baseRootFontPx;
+    }
+
+    const rootElement = document.documentElement;
+    const previousInline = rootElement.style.fontSize;
+    rootElement.style.removeProperty('font-size');
+    const computed = Number.parseFloat(root.getComputedStyle(rootElement).fontSize);
+
+    if (previousInline) rootElement.style.fontSize = previousInline;
+    else rootElement.style.removeProperty('font-size');
+
+    // 12.8px is only a fail-safe for the project's 80% root baseline.
+    baseRootFontPx = Number.isFinite(computed) && computed > 0 ? computed : 12.8;
+    return baseRootFontPx;
+  }
 
   function currentPageFontKey() {
     let pathname = String(root.location && root.location.pathname ? root.location.pathname : '/').replace(/\/+$/, '') || '/';
@@ -317,8 +336,11 @@
 
   function applyCurrentPageFontScale() {
     const scale = currentPageFontScale();
-    document.documentElement.style.fontSize = `${scale}%`;
+    const basePx = resolveBaseRootFontPx();
+    const effectivePx = basePx * scale / 100;
+    document.documentElement.style.fontSize = `${effectivePx}px`;
     document.documentElement.dataset.pageFontScale = String(scale);
+    document.documentElement.dataset.pageFontScaleBasePx = String(basePx);
     const value = document.querySelector('[data-page-font-scale-value]');
     if (value) value.textContent = `${scale}%`;
     document.querySelectorAll('[data-page-font-scale-delta]').forEach((button) => {
@@ -357,7 +379,6 @@
       if (!button) return;
       changeCurrentPageFontScale(Number.parseInt(button.dataset.pageFontScaleDelta, 10) || 0);
     });
-    applyCurrentPageFontScale();
   }
 
   root.iguanaUiPreferences = Object.freeze({
@@ -376,12 +397,19 @@
     set(name, value, 'bootstrap');
   });
 
-  applyCurrentPageFontScale();
   document.addEventListener('ui-preference:change', (event) => {
     if (event && event.detail && event.detail.name === 'pageFontScales') applyCurrentPageFontScale();
   });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installPageFontScaleControl, { once: true });
-  else installPageFontScaleControl();
+
+  function initializePageFontScale() {
+    // Resolve the stylesheet-defined baseline only after CSS has loaded.
+    resolveBaseRootFontPx();
+    installPageFontScaleControl();
+    applyCurrentPageFontScale();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializePageFontScale, { once: true });
+  else initializePageFontScale();
 
   root.addEventListener('storage', (event) => {
     if (!event.key) return;
