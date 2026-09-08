@@ -24,3 +24,12 @@
 - settings equipment catalogue surfaces read-only discovered models from existing passport JSON and lets the user explicitly promote them;
 - NetBox catalogue discovery no longer requires a non-empty vendor;
 - no schema/data migration or automatic catalogue backfill is performed.
+
+## R4.1 production visual-regression hotfix
+
+- restored the 01-258 catalogue/legacy-editor SCSS that was accidentally dropped when r4 replaced `_passports.scss` with workspace-only rules;
+- retained the r4 workspace/photo-viewer/edit-drawer refinements on top of the restored stylesheet;
+- protected equipment edit mode from the shared Bootstrap modal `show` lifecycle reset, so «Изменить» keeps the persisted card and pre-fills its fields;
+- bumped the passports-list CSS and Settings equipment-runtime asset versions to avoid stale browser cache;
+- added source contracts that explicitly pin 42×32 thumbnails, 320×220 hover preview and the equipment edit lifecycle guard;
+- no backend/data/schema/NetBox mutation is part of this hotfix.

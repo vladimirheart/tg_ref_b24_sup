@@ -57,6 +57,8 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("data-it-equipment-action=\"promote\""));
         assertTrue(runtime.contains("Из паспортов"));
         assertTrue(runtime.contains("/api/settings/it-equipment/${editId}"));
+        assertTrue(runtime.contains("if (state.editingId !== null)"));
+        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-1"));
         assertTrue(settingsScss.contains("it-equipment-catalog-card"));
     }
 
@@ -68,6 +70,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(scss.contains("passport-property-grid"));
         assertTrue(scss.contains("passport-asset-card"));
         assertTrue(scss.contains("grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))"));
+        assertTrue(scss.contains("Catalogue polish — 01-258"));
         assertTrue(scss.contains("Workspace refinements — 01-259 r4"));
         assertTrue(scss.contains("passport-photo-viewer"));
         assertTrue(scss.contains("passport-edit-drawer"));

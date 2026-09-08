@@ -32,6 +32,7 @@ class ObjectPassportsListUiSourceContractTest {
         assertTrue(html.contains("visibilityRows.length"));
         assertTrue(html.contains("passportsTableTopScroll"));
         assertTrue(html.contains("bindTableHorizontalScroll"));
+        assertTrue(html.contains("@{/css/app.css(v='20260908-01-259-r4-1')}"));
         assertTrue(html.contains("new ResizeObserver(updateTableHorizontalScroll)"));
         assertTrue(html.contains("tableShell.scrollLeft = tableTopScroll.scrollLeft"));
     }
@@ -41,6 +42,9 @@ class ObjectPassportsListUiSourceContractTest {
         String scss = read("src/main/resources/scss/app/_passports.scss");
         assertTrue(scss.contains("passport-title-thumb"));
         assertTrue(scss.contains("passport-photo-preview"));
+        assertTrue(scss.contains("/* Catalogue polish — 01-258 */"));
+        assertTrue(scss.matches("(?s).*passport-title-thumb\\s*\\{.*?width:\\s*42px;.*?height:\\s*32px;.*?\\}.*"));
+        assertTrue(scss.matches("(?s).*passport-photo-preview\\s*\\{.*?width:\\s*320px;.*?height:\\s*220px;.*?\\}.*"));
         assertTrue(scss.contains("pointer-events: auto"));
         assertTrue(scss.matches("(?s).*passport-count-badge.*?font-size:\\s*[^;]+;.*"));
         assertTrue(scss.contains("max-width: none"));

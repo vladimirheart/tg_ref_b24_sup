@@ -388,6 +388,11 @@
     }
 
     function prepareItEquipmentAddSettingsModal() {
+      // The shared settings modal lifecycle fires for both create and edit opens.
+      // Keep an already selected persisted card intact when Bootstrap emits "show".
+      if (state.editingId !== null) {
+        return;
+      }
       setModalMode(null);
     }
 
