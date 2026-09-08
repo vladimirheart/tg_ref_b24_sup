@@ -11,7 +11,7 @@
   <link href="/css/style.css" rel="stylesheet" />
   <link href="/css/app.css" rel="stylesheet" />
   <link href="/css/sidebar.css" rel="stylesheet" />
-  <link href="/css/settings.css?v=20260908-01-259-r4-3" rel="stylesheet" />
+  <link href="/css/settings.css?v=20260908-01-259-r4-4" rel="stylesheet" />
   <script src="/js/common.js"></script>
 
   
@@ -3612,7 +3612,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--compact" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--medium" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -3658,6 +3658,36 @@
                   placeholder="Кронштейн, блок питания, патч-корд и т.д."
                 ></textarea>
                 <div class="form-text">Поле сохраняется как canonical `accessories`; старый API-алиас `additional_equipment` остаётся совместимым.</div>
+              </div>
+              <div class="mb-3 it-equipment-photo-manager" data-it-equipment-photo-section>
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                  <label class="form-label mb-0">Фотографии модели</label>
+                  <span class="small text-muted">Титульное / общее</span>
+                </div>
+                <div class="it-equipment-photo-strip" data-it-equipment-photo-list></div>
+                <div class="row g-2 align-items-end mt-1">
+                  <div class="col-12 col-md-5">
+                    <label class="form-label small mb-1" for="itEquipmentPhotoFile">Фото</label>
+                    <input class="form-control form-control-sm" id="itEquipmentPhotoFile" type="file" accept="image/*" data-it-equipment-photo-file>
+                  </div>
+                  <div class="col-12 col-md-3">
+                    <label class="form-label small mb-1" for="itEquipmentPhotoCategory">Тип фото</label>
+                    <select class="form-select form-select-sm" id="itEquipmentPhotoCategory" data-it-equipment-photo-category required>
+                      <option value="general" selected>Общее</option>
+                      <option value="title">Титульное</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label small mb-1" for="itEquipmentPhotoComment">Комментарий</label>
+                    <input class="form-control form-control-sm" id="itEquipmentPhotoComment" type="text" placeholder="Что изображено" data-it-equipment-photo-comment required>
+                  </div>
+                  <div class="col-12 d-flex justify-content-end">
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-it-equipment-photo-upload>
+                      <i class="bi bi-image me-1" aria-hidden="true"></i>Добавить фото
+                    </button>
+                  </div>
+                </div>
+                <div class="form-text" data-it-equipment-photo-hint>Сначала сохраните модель оборудования, затем добавьте фотографии.</div>
               </div>
               <div class="mb-3">
                 <label class="form-label">Ссылки <span class="text-muted">(необязательно)</span></label>
@@ -5286,7 +5316,7 @@
     <script src="/js/settings-partner-contacts-runtime.js"></script>
     <script src="/js/settings-legal-entities-runtime.js"></script>
     <script src="/js/settings-network-profiles-runtime.js"></script>
-    <script src="/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-3"></script>
+    <script src="/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-4"></script>
     <script src="/js/settings-it-connections-runtime.js"></script>
     <script src="/js/settings-parameters-shell-runtime.js"></script>
     <script src="/js/settings-channels-bot-runtime.js"></script>

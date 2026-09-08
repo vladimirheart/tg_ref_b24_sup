@@ -18,13 +18,16 @@ public class SettingsItEquipmentService {
     private final JdbcTemplate jdbcTemplate;
     private final NotificationRoutingService notificationRoutingService;
     private final ObjectPassportService objectPassportService;
+    private final SettingsItEquipmentPhotoService photoService;
 
     public SettingsItEquipmentService(JdbcTemplate jdbcTemplate,
                                       NotificationRoutingService notificationRoutingService,
-                                      ObjectPassportService objectPassportService) {
+                                      ObjectPassportService objectPassportService,
+                                      SettingsItEquipmentPhotoService photoService) {
         this.jdbcTemplate = jdbcTemplate;
         this.notificationRoutingService = notificationRoutingService;
         this.objectPassportService = objectPassportService;
+        this.photoService = photoService;
     }
 
     public Map<String, Object> listItEquipment() {
@@ -41,7 +44,10 @@ public class SettingsItEquipmentService {
         if (!StringUtils.hasText(model)) {
             return Map.of("success", false, "error", "Поле «Модель оборудования» обязательно");
         }
-        String photoUrl = stringValue(payload.getOrDefault("photo_url", payload.get("photo")));
+        String photoUrl = photoService.mergeLinksPreservingPhotos(
+                "",
+                stringValue(payload.getOrDefault("photo_url", payload.get("photo")))
+        );
         String serialNumber = stringValue(payload.get("serial_number"));
         String accessories = stringValue(payload.getOrDefault("accessories", payload.get("additional_equipment")));
 
@@ -93,8 +99,11 @@ public class SettingsItEquipmentService {
             params.add(value);
         }
         if (payload.containsKey("photo_url") || payload.containsKey("photo")) {
+            Map<String, Object> existing = loadItem(itemId);
+            String existingMedia = existing == null ? "" : stringValue(existing.get("photo_url"));
+            String incoming = stringValue(payload.getOrDefault("photo_url", payload.get("photo")));
             updates.append("photo_url = ?,");
-            params.add(stringValue(payload.getOrDefault("photo_url", payload.get("photo"))));
+            params.add(photoService.mergeLinksPreservingPhotos(existingMedia, incoming));
         }
         if (payload.containsKey("serial_number")) {
             updates.append("serial_number = ?,");
@@ -110,7 +119,10 @@ public class SettingsItEquipmentService {
         }
         updates.append("updated_at = CURRENT_TIMESTAMP");
         params.add(itemId);
-        jdbcTemplate.update("UPDATE it_equipment_catalog SET " + updates + " WHERE id = ?", params.toArray());
+        int updated = jdbcTemplate.update("UPDATE it_equipment_catalog SET " + updates + " WHERE id = ?", params.toArray());
+        if (updated == 0) {
+            return Map.of("success", false, "error", "Оборудование не найдено");
+        }
         notificationRoutingService.notify(
                 "passports",
                 "equipment_catalog_changed",
@@ -123,10 +135,24 @@ public class SettingsItEquipmentService {
     }
 
     public Map<String, Object> deleteItEquipment(long itemId, String actor) {
+        Map<String, Object> existing = loadItem(itemId);
+        if (existing == null) {
+            return Map.of("success", false, "error", "Оборудование не найдено");
+        }
+        int objectCount = activeObjectCount(existing);
+        if (objectCount > 0) {
+            return Map.of(
+                    "success", false,
+                    "error", "Нельзя удалить модель: используется у объектов — " + objectCount,
+                    "object_count", objectCount
+            );
+        }
+
         int removed = jdbcTemplate.update("DELETE FROM it_equipment_catalog WHERE id = ?", itemId);
         if (removed == 0) {
             return Map.of("success", false, "error", "Оборудование не найдено");
         }
+        photoService.deleteStoredPhotos(stringValue(existing.get("photo_url")));
         notificationRoutingService.notify(
                 "passports",
                 "equipment_catalog_changed",
@@ -138,33 +164,61 @@ public class SettingsItEquipmentService {
         return Map.of("success", true, "items", loadItemsWithDiscovered());
     }
 
+    private int activeObjectCount(Map<String, Object> row) {
+        Long persistedId = positiveLongValue(row.get("id"));
+        String key = catalogKey(row.get("equipment_type"), row.get("equipment_vendor"), row.get("equipment_model"));
+        for (Map<String, Object> candidate : objectPassportService.listEquipmentCatalogCandidates()) {
+            if (persistedId != null && catalogIds(candidate.get("catalog_ids")).contains(persistedId)) {
+                return intValue(candidate.get("object_count"));
+            }
+            if (StringUtils.hasText(key)
+                    && key.equals(catalogKey(candidate.get("equipment_type"), candidate.get("equipment_vendor"), candidate.get("equipment_model")))) {
+                return intValue(candidate.get("object_count"));
+            }
+        }
+        return 0;
+    }
+
     private List<Map<String, Object>> loadItemsWithDiscovered() {
         List<Map<String, Object>> persisted = loadItems();
         List<Map<String, Object>> discovered = objectPassportService.listEquipmentCatalogCandidates();
         Map<String, Map<String, Object>> discoveredByKey = new LinkedHashMap<>();
+        Map<Long, Map<String, Object>> discoveredByCatalogId = new LinkedHashMap<>();
         for (Map<String, Object> candidate : discovered) {
             String key = catalogKey(candidate.get("equipment_type"), candidate.get("equipment_vendor"), candidate.get("equipment_model"));
             if (StringUtils.hasText(key)) {
                 discoveredByKey.putIfAbsent(key, candidate);
             }
+            for (Long catalogId : catalogIds(candidate.get("catalog_ids"))) {
+                discoveredByCatalogId.putIfAbsent(catalogId, candidate);
+            }
         }
 
         List<Map<String, Object>> merged = new ArrayList<>();
         Set<String> persistedKeys = new LinkedHashSet<>();
+        Set<Long> persistedIds = new LinkedHashSet<>();
         for (Map<String, Object> row : persisted) {
             LinkedHashMap<String, Object> item = new LinkedHashMap<>(row);
+            Long persistedId = positiveLongValue(row.get("id"));
             String key = catalogKey(row.get("equipment_type"), row.get("equipment_vendor"), row.get("equipment_model"));
-            Map<String, Object> usage = discoveredByKey.get(key);
+            Map<String, Object> usage = persistedId == null ? null : discoveredByCatalogId.get(persistedId);
+            if (usage == null) {
+                usage = discoveredByKey.get(key);
+            }
             item.put("usage_count", usage == null ? 0 : intValue(usage.get("usage_count")));
             item.put("object_count", usage == null ? 0 : intValue(usage.get("object_count")));
             item.put("discovered", false);
             item.put("source", "catalog");
             merged.add(item);
             persistedKeys.add(key);
+            if (persistedId != null) {
+                persistedIds.add(persistedId);
+            }
         }
         for (Map<String, Object> candidate : discovered) {
             String key = catalogKey(candidate.get("equipment_type"), candidate.get("equipment_vendor"), candidate.get("equipment_model"));
-            if (!StringUtils.hasText(key) || persistedKeys.contains(key)) {
+            boolean linkedToPersisted = catalogIds(candidate.get("catalog_ids")).stream().anyMatch(persistedIds::contains);
+            if (linkedToPersisted || !StringUtils.hasText(key) || persistedKeys.contains(key)) {
                 continue;
             }
             LinkedHashMap<String, Object> virtual = new LinkedHashMap<>(candidate);
@@ -176,6 +230,37 @@ public class SettingsItEquipmentService {
         return merged;
     }
 
+    private Set<Long> catalogIds(Object raw) {
+        LinkedHashSet<Long> ids = new LinkedHashSet<>();
+        if (raw instanceof Iterable<?> values) {
+            for (Object value : values) {
+                Long parsed = positiveLongValue(value);
+                if (parsed != null) {
+                    ids.add(parsed);
+                }
+            }
+        } else {
+            Long parsed = positiveLongValue(raw);
+            if (parsed != null) {
+                ids.add(parsed);
+            }
+        }
+        return ids;
+    }
+
+    private Long positiveLongValue(Object raw) {
+        if (raw instanceof Number number) {
+            long value = number.longValue();
+            return value > 0 ? value : null;
+        }
+        try {
+            long value = Long.parseLong(stringValue(raw));
+            return value > 0 ? value : null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
     private int intValue(Object raw) {
         if (raw instanceof Number number) {
             return number.intValue();
@@ -185,6 +270,15 @@ public class SettingsItEquipmentService {
         } catch (NumberFormatException ignored) {
             return 0;
         }
+    }
+
+    private Map<String, Object> loadItem(long itemId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories " +
+                        "FROM it_equipment_catalog WHERE id = ?",
+                itemId
+        );
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     private List<Map<String, Object>> loadItems() {

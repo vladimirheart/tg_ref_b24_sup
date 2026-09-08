@@ -401,3 +401,136 @@
     margin-left: 0;
   }
 }
+
+/* Equipment catalogue media and lifecycle — 01-259 r4.4 */
+#itEquipmentSection .it-equipment-catalog-card {
+  min-height: 126px;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__visual {
+  min-height: 126px;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__type-badge {
+  display: none;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__type-center {
+  position: absolute;
+  z-index: 3;
+  top: 0.48rem;
+  left: 50%;
+  max-width: 42%;
+  padding: 0.18rem 0.46rem;
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--color-border));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-card) 94%, transparent);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.05;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__body {
+  padding: 2rem 2.55rem 0.55rem 0.62rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__quick-actions {
+  position: absolute;
+  z-index: 4;
+  top: 0.38rem;
+  right: 0.4rem;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__id {
+  position: absolute;
+  right: 0.48rem;
+  bottom: 0.42rem;
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__source {
+  margin-top: 0.22rem;
+}
+
+#itEquipmentSection .it-equipment-photo-manager {
+  padding: 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+#itEquipmentSection .it-equipment-photo-strip {
+  display: flex;
+  min-height: 58px;
+  gap: 0.42rem;
+  overflow-x: auto;
+  padding: 0.16rem 0 0.3rem;
+}
+
+#itEquipmentSection .it-equipment-photo-thumb {
+  position: relative;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 58px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--surface-card);
+}
+
+#itEquipmentSection .it-equipment-photo-thumb a,
+#itEquipmentSection .it-equipment-photo-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+#itEquipmentSection .it-equipment-photo-thumb img {
+  object-fit: cover;
+}
+
+#itEquipmentSection .it-equipment-photo-thumb__type {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  max-width: calc(100% - 6px);
+  padding: 0.08rem 0.24rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-card) 90%, transparent);
+  color: var(--color-text);
+  font-size: 0.52rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#itEquipmentSection .it-equipment-photo-thumb__delete {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--state-danger-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-card) 92%, transparent);
+  color: var(--state-danger-text);
+  font-size: 0.64rem;
+}
+
+#itEquipmentSection .it-equipment-photo-empty {
+  align-self: center;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}

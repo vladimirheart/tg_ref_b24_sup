@@ -51,3 +51,13 @@
 - replaced the misleading links counter with «Используется у объектов» based on a unique object/passport count, while retaining instance usage_count internally;
 - persisted catalogue rows now receive usage/object counts from passport-discovered aggregates;
 - no schema/data migration, automatic backfill, NetBox mutation or ownership-contract change is included.
+
+## R4.4 equipment photos, card alignment and archive history
+
+- moved the equipment type badge from the left media rail to the center of the whole catalogue card, placed catalog id in the bottom-right corner and stacked edit/delete icons vertically;
+- added persisted equipment photo upload with mandatory category/comment and compact thumbnail management in the equipment modal;
+- stores versioned equipment media metadata in the existing photo_url CLOB, retaining legacy documentation links and avoiding schema migration;
+- title/general photo semantics now drive the card cover instead of treating arbitrary links as images;
+- catalog deletion is blocked server-side while the model is actively used by object passports, resolving catalog_id before the legacy type/vendor/model fallback;
+- removing passport equipment now archives the instance with timestamp/history styling instead of physically dropping it; archived instances are excluded from active catalogue usage/discovery and can be restored;
+- no NetBox write/sync behavior, ownership contract, schema or automatic backfill changes are included.

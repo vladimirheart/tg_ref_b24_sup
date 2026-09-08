@@ -1,7 +1,9 @@
 package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -37,11 +39,15 @@ class SettingsItEquipmentServiceTest {
                 "equipment_model", "MiniPC",
                 "usage_count", 7,
                 "object_count", 3,
+                "catalog_ids", List.of(1L),
                 "discovered", true,
                 "source", "passports"
         )));
+        SettingsItEquipmentPhotoService photoService = mock(SettingsItEquipmentPhotoService.class);
+        when(photoService.mergeLinksPreservingPhotos(anyString(), anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
         SettingsItEquipmentService service = new SettingsItEquipmentService(
-                jdbc, mock(NotificationRoutingService.class), passportService);
+                jdbc, mock(NotificationRoutingService.class), passportService, photoService);
 
         Map<String, Object> before = service.listItEquipment();
         List<?> itemsBefore = (List<?>) before.get("items");
@@ -61,5 +67,31 @@ class SettingsItEquipmentServiceTest {
         assertThat(((Map<?, ?>) itemsAfter.get(0)).get("discovered")).isEqualTo(false);
         assertThat(((Map<?, ?>) itemsAfter.get(0)).get("usage_count")).isEqualTo(7);
         assertThat(((Map<?, ?>) itemsAfter.get(0)).get("object_count")).isEqualTo(3);
+
+        when(passportService.listEquipmentCatalogCandidates()).thenReturn(List.of(Map.of(
+                "equipment_type", "Legacy POS",
+                "equipment_vendor", "",
+                "equipment_model", "Old MiniPC",
+                "usage_count", 7,
+                "object_count", 3,
+                "catalog_ids", List.of(1L),
+                "discovered", true,
+                "source", "passports"
+        )));
+        Map<String, Object> associated = service.listItEquipment();
+        List<?> associatedItems = (List<?>) associated.get("items");
+        assertThat(associatedItems).hasSize(1);
+        assertThat(((Map<?, ?>) associatedItems.get(0)).get("object_count")).isEqualTo(3);
+
+        Map<String, Object> blocked = service.deleteItEquipment(1L, "operator");
+        assertThat(blocked.get("success")).isEqualTo(false);
+        assertThat(blocked.get("object_count")).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM it_equipment_catalog", Integer.class)).isEqualTo(1);
+
+        when(passportService.listEquipmentCatalogCandidates()).thenReturn(List.of());
+        Map<String, Object> deleted = service.deleteItEquipment(1L, "operator");
+        assertThat(deleted.get("success")).isEqualTo(true);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM it_equipment_catalog", Integer.class)).isZero();
+        verify(photoService).deleteStoredPhotos(anyString());
     }
 }

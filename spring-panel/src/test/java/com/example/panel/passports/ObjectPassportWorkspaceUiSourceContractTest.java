@@ -31,6 +31,9 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(html.contains("findCatalogItem"));
         assertTrue(html.contains("item && item.catalog_id"));
         assertTrue(html.contains("catalogKey("));
+        assertTrue(html.contains("data-equipment-restore"));
+        assertTrue(html.contains("archived_at"));
+        assertTrue(html.contains("перестанет блокировать удаление модели из каталога"));
     }
 
     @Test
@@ -55,7 +58,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(settings.contains("itEquipmentCountBadge"));
         assertTrue(settings.contains("it-equipment-catalog-grid"));
         assertTrue(runtime.contains("it-equipment-catalog-card"));
-        assertTrue(runtime.contains("it-equipment-catalog-card__type-badge"));
+        assertTrue(runtime.contains("it-equipment-catalog-card__type-center"));
         assertTrue(runtime.contains("Используется у объектов"));
         assertTrue(runtime.contains("item.object_count ?? item.usage_count"));
         assertTrue(runtime.contains("bi bi-pencil"));
@@ -65,9 +68,14 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("Из паспортов"));
         assertTrue(runtime.contains("/api/settings/it-equipment/${editId}"));
         assertTrue(runtime.contains("if (state.editingId !== null)"));
-        assertTrue(settings.contains("/css/settings.css?v=20260908-01-259-r4-3"));
-        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-3"));
-        assertTrue(settingsScss.contains("Equipment catalogue visual polish — 01-259 r4.3"));
+        assertTrue(settings.contains("data-it-equipment-photo-list"));
+        assertTrue(settings.contains("data-it-equipment-photo-comment"));
+        assertTrue(runtime.contains("/api/settings/it-equipment/${id}/photos"));
+        assertTrue(runtime.contains("data-it-equipment-photo-delete"));
+        assertTrue(runtime.contains("firstPhoto(item)"));
+        assertTrue(settings.contains("/css/settings.css?v=20260908-01-259-r4-4"));
+        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-4"));
+        assertTrue(settingsScss.contains("Equipment catalogue media and lifecycle — 01-259 r4.4"));
     }
 
     @Test
@@ -82,6 +90,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(scss.contains("Workspace refinements — 01-259 r4"));
         assertTrue(scss.contains("passport-photo-viewer"));
         assertTrue(scss.contains("passport-edit-drawer"));
+        assertTrue(scss.contains("Equipment archive history — 01-259 r4.4"));
     }
 
     @Test

@@ -45,6 +45,24 @@
       linksContainer: elements.itEquipmentAddModalEl
         ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-add-links]')
         : null,
+      photosContainer: elements.itEquipmentAddModalEl
+        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-list]')
+        : null,
+      photoFileInput: elements.itEquipmentAddModalEl
+        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-file]')
+        : null,
+      photoCategorySelect: elements.itEquipmentAddModalEl
+        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-category]')
+        : null,
+      photoCommentInput: elements.itEquipmentAddModalEl
+        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-comment]')
+        : null,
+      photoUploadButton: elements.itEquipmentAddModalEl
+        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-upload]')
+        : null,
+      photoHint: elements.itEquipmentAddModalEl
+        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-hint]')
+        : null,
       submitButton: null,
     };
 
@@ -107,26 +125,35 @@
       populateCatalogFilters();
     }
 
-    function parseEquipmentLinks(raw) {
+    function parseEquipmentMedia(raw) {
+      const empty = { links: [], photos: [] };
       if (Array.isArray(raw)) {
-        return raw.map((item) => (item || '').toString().trim()).filter(Boolean);
+        return { links: raw.map((item) => String(item || '').trim()).filter(Boolean), photos: [] };
       }
-      if (typeof raw === 'string') {
-        const trimmed = raw.trim();
-        if (!trimmed) return [];
-        if (trimmed.startsWith('[')) {
-          try {
-            const parsed = JSON.parse(trimmed);
-            if (Array.isArray(parsed)) {
-              return parsed.map((item) => (item || '').toString().trim()).filter(Boolean);
-            }
-          } catch (error) {
-            // fallback below
-          }
+      if (raw && typeof raw === 'object') {
+        const links = Array.isArray(raw.links) ? raw.links.map((item) => String(item || '').trim()).filter(Boolean) : [];
+        const photos = Array.isArray(raw.photos) ? raw.photos.filter((item) => item && typeof item === 'object') : [];
+        return { links, photos };
+      }
+      if (typeof raw !== 'string') return empty;
+      const trimmed = raw.trim();
+      if (!trimmed) return empty;
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        try {
+          return parseEquipmentMedia(JSON.parse(trimmed));
+        } catch (error) {
+          // fallback below
         }
-        return trimmed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
       }
-      return [];
+      return { links: trimmed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), photos: [] };
+    }
+
+    function parseEquipmentLinks(raw) {
+      return parseEquipmentMedia(raw).links;
+    }
+
+    function parseEquipmentPhotos(raw) {
+      return parseEquipmentMedia(raw).photos;
     }
 
     function formatEquipmentLinksPayload(links) {
@@ -251,8 +278,11 @@
       return optionsHtml.join('');
     }
 
-    function firstLink(item) {
-      return parseEquipmentLinks(item && item.photo_url)[0] || '';
+    function firstPhoto(item) {
+      const photos = parseEquipmentPhotos(item && item.photo_url);
+      const title = photos.find((photo) => normalize(photo && photo.category) === 'title');
+      const selected = title || photos[0] || null;
+      return selected && selected.url ? String(selected.url).trim() : '';
     }
 
     function collectCatalogFilterValues(field) {
@@ -318,7 +348,7 @@
       const serial = (item && item.serial_number) || '';
       const accessories = (item && (item.accessories || item.additional_equipment)) || '';
       const links = parseEquipmentLinks(item && item.photo_url);
-      const cover = firstLink(item);
+      const cover = firstPhoto(item);
       const title = [vendor, model].filter(Boolean).join(' ') || model || vendor || type;
       const discovered = item && item.discovered === true;
       const itemIndex = getItems().indexOf(item);
@@ -329,16 +359,16 @@
           <div class="it-equipment-catalog-card__visual ${cover ? 'has-image' : ''}">
             <span class="it-equipment-catalog-card__visual-placeholder" aria-hidden="true"><i class="bi bi-image"></i></span>
             ${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
-            <span class="it-equipment-catalog-card__type-badge">${escapeHtml(type)}</span>
           </div>
+          <span class="it-equipment-catalog-card__type-center">${escapeHtml(type)}</span>
           <div class="it-equipment-catalog-card__body">
             <div class="it-equipment-catalog-card__top">
               <div class="it-equipment-catalog-card__identity">
                 <h6>${escapeHtml(title)}</h6>
-                ${Number.isFinite(id) ? `<span class="it-equipment-catalog-card__id">#${id}</span>` : ''}
+                ${discovered ? '<span class="it-equipment-catalog-card__source">Из паспортов</span>' : ''}
               </div>
               ${discovered
-                ? '<span class="it-equipment-catalog-card__source">Из паспортов</span>'
+                ? ''
                 : '<div class="it-equipment-catalog-card__quick-actions"><button class="it-equipment-catalog-card__icon-action" type="button" data-it-equipment-action="edit" aria-label="Изменить модель" title="Изменить"><i class="bi bi-pencil" aria-hidden="true"></i></button><button class="it-equipment-catalog-card__icon-action is-danger" type="button" data-it-equipment-action="delete" aria-label="Удалить модель" title="Удалить"><i class="bi bi-trash" aria-hidden="true"></i></button></div>'}
             </div>
             <div class="it-equipment-catalog-card__meta">
@@ -348,6 +378,7 @@
             ${accessories ? `<p class="it-equipment-catalog-card__accessories">${escapeHtml(accessories)}</p>` : '<p class="it-equipment-catalog-card__accessories text-muted">Комплектация не указана</p>'}
             ${(links[0] || discovered) ? `<div class="it-equipment-catalog-card__actions">${links[0] ? `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(links[0])}" target="_blank" rel="noopener">Открыть</a>` : ''}${discovered ? '<button class="btn btn-sm btn-primary" type="button" data-it-equipment-action="promote">Добавить в каталог</button>' : ''}</div>` : ''}
           </div>
+          ${Number.isFinite(id) ? `<span class="it-equipment-catalog-card__id">#${id}</span>` : ''}
         </article>
       `;
     }
@@ -388,6 +419,91 @@
       }
     }
 
+    function currentEditingItem() {
+      const id = Number.parseInt(state.editingId, 10);
+      if (!Number.isFinite(id)) return null;
+      return getItems().find((item) => Number.parseInt(item && item.id, 10) === id) || null;
+    }
+
+    function renderEquipmentPhotoManager(item) {
+      const editing = item && Number.isFinite(Number.parseInt(item.id, 10));
+      const photos = editing ? parseEquipmentPhotos(item.photo_url) : [];
+      if (addModal.photosContainer) {
+        addModal.photosContainer.innerHTML = photos.length
+          ? photos.map((photo) => {
+              const id = String(photo && photo.id || '').trim();
+              const url = String(photo && photo.url || '').trim();
+              const category = normalize(photo && photo.category) === 'title' ? 'Титульное' : 'Общее';
+              const comment = String((photo && (photo.comment || photo.caption)) || '').trim();
+              return `<div class="it-equipment-photo-thumb" data-it-equipment-photo-id="${escapeHtml(id)}" title="${escapeHtml(comment)}">
+                <a href="${escapeHtml(url)}" target="_blank" rel="noopener" aria-label="Открыть фото"><img src="${escapeHtml(url)}" alt="${escapeHtml(comment || category)}" loading="lazy"></a>
+                <span class="it-equipment-photo-thumb__type">${escapeHtml(category)}</span>
+                <button type="button" class="it-equipment-photo-thumb__delete" data-it-equipment-photo-delete="${escapeHtml(id)}" aria-label="Удалить фото" title="Удалить фото"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+              </div>`;
+            }).join('')
+          : '<div class="it-equipment-photo-empty">Фото пока нет.</div>';
+      }
+      [addModal.photoFileInput, addModal.photoCategorySelect, addModal.photoCommentInput, addModal.photoUploadButton]
+        .forEach((element) => { if (element) element.disabled = !editing; });
+      if (addModal.photoHint) {
+        addModal.photoHint.textContent = editing
+          ? 'Каждое фото загружается отдельно: тип и комментарий обязательны. Титульное фото используется на карточке модели.'
+          : 'Сначала сохраните модель оборудования, затем откройте её снова и добавьте фотографии.';
+      }
+    }
+
+    function updateLocalEquipmentMedia(itemId, photoUrl) {
+      const item = getItems().find((entry) => Number.parseInt(entry && entry.id, 10) === Number.parseInt(itemId, 10));
+      if (item) item.photo_url = photoUrl || '';
+      renderEquipmentPhotoManager(item || currentEditingItem());
+      renderItEquipmentTable();
+    }
+
+    async function uploadEquipmentPhoto() {
+      const id = Number.parseInt(state.editingId, 10);
+      if (!Number.isFinite(id)) { popup('Сначала сохраните модель оборудования'); return; }
+      const file = addModal.photoFileInput && addModal.photoFileInput.files ? addModal.photoFileInput.files[0] : null;
+      const category = addModal.photoCategorySelect ? addModal.photoCategorySelect.value.trim() : '';
+      const comment = addModal.photoCommentInput ? addModal.photoCommentInput.value.trim() : '';
+      if (!file) { popup('Выберите фото'); return; }
+      if (!category) { popup('Укажите тип фото'); return; }
+      if (!comment) { popup('Комментарий к фото обязателен'); return; }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', category);
+      formData.append('comment', comment);
+      const button = addModal.photoUploadButton;
+      if (button) button.disabled = true;
+      try {
+        const response = await fetch(`/api/settings/it-equipment/${id}/photos`, { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Ошибка загрузки фото');
+        updateLocalEquipmentMedia(id, data.photo_url || '');
+        if (addModal.photoFileInput) addModal.photoFileInput.value = '';
+        if (addModal.photoCommentInput) addModal.photoCommentInput.value = '';
+        if (addModal.photoCategorySelect) addModal.photoCategorySelect.value = 'general';
+      } catch (error) {
+        popup('❌ ' + (error && error.message ? error.message : error));
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    async function deleteEquipmentPhoto(photoId) {
+      const id = Number.parseInt(state.editingId, 10);
+      if (!Number.isFinite(id) || !photoId) return;
+      if (!confirmAction('Удалить это фото оборудования?')) return;
+      try {
+        const response = await fetch(`/api/settings/it-equipment/${id}/photos/${encodeURIComponent(photoId)}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Ошибка удаления фото');
+        updateLocalEquipmentMedia(id, data.photo_url || '');
+      } catch (error) {
+        popup('❌ ' + (error && error.message ? error.message : error));
+      }
+    }
+
     function populateItEquipmentAddOptions(selectedValues = {}) {
       const optionSets = collectEquipmentOptionSets();
       const ensureOptions = (select, values, emptyLabel, key) => {
@@ -425,6 +541,7 @@
       if (addModal.serialNumberInput) addModal.serialNumberInput.value = editing ? (item.serial_number || '') : '';
       if (addModal.accessoriesInput) addModal.accessoriesInput.value = editing ? (item.accessories || item.additional_equipment || '') : '';
       if (addModal.linksContainer) renderEquipmentLinks(addModal.linksContainer, editing ? parseEquipmentLinks(item.photo_url) : []);
+      renderEquipmentPhotoManager(editing ? item : null);
       if (addModal.title) addModal.title.textContent = editing ? 'Карточка модели оборудования' : 'Новое оборудование';
       if (addModal.submitButton) {
         addModal.submitButton.disabled = !hasOptions;
@@ -525,6 +642,11 @@
     }
 
     function handleAddModalClick(event) {
+      const photoDelete = event.target.closest('[data-it-equipment-photo-delete]');
+      if (photoDelete) {
+        deleteEquipmentPhoto(photoDelete.dataset.itEquipmentPhotoDelete).catch((error) => popup('❌ ' + error));
+        return;
+      }
       const addLinkButton = event.target.closest('[data-it-equipment-add-link]');
       if (addLinkButton) {
         if (addModal.linksContainer) {
@@ -621,6 +743,7 @@
         select.addEventListener('change', () => select.classList.remove('is-invalid'));
       });
       if (addModal.form) addModal.form.addEventListener('submit', handleAddFormSubmit);
+      if (addModal.photoUploadButton) addModal.photoUploadButton.addEventListener('click', () => uploadEquipmentPhoto());
       if (elements.itEquipmentAddModalEl) {
         elements.itEquipmentAddModalEl.addEventListener('hidden.bs.modal', () => {
           state.editingId = null;

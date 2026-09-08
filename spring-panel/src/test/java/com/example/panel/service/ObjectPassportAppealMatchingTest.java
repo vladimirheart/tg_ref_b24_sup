@@ -37,8 +37,9 @@ class ObjectPassportAppealMatchingTest {
                 "city", "Волгоград",
                 "department", "7 Гвардейская",
                 "equipment", List.of(
+                        Map.of("equipment_type", "Router", "vendor", "MikroTik", "model", "RB5009", "catalog_id", 77),
                         Map.of("equipment_type", "Router", "vendor", "MikroTik", "model", "RB5009"),
-                        Map.of("equipment_type", "Router", "vendor", "MikroTik", "model", "RB5009")
+                        Map.of("equipment_type", "Router", "vendor", "Legacy", "model", "Old-Router", "archived", true)
                 )
         );
         jdbc.update("INSERT INTO objects(id, name, address, created_at) VALUES (1, '7 Гвардейская', 'Ленина 43в', '')");
@@ -71,5 +72,7 @@ class ObjectPassportAppealMatchingTest {
         assertThat(candidates.get(0).get("equipment_model")).isEqualTo("RB5009");
         assertThat(candidates.get(0).get("usage_count")).isEqualTo(2);
         assertThat(candidates.get(0).get("object_count")).isEqualTo(1);
+        assertThat(candidates.get(0).get("catalog_ids")).isEqualTo(List.of(77L));
+        assertThat(candidates).noneMatch(item -> "Old-Router".equals(item.get("equipment_model")));
     }
 }
