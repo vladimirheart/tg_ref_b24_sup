@@ -242,6 +242,14 @@ public class ManagementController {
     public String passportDetails(@PathVariable Long id, Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         populatePassportEditor(model, false);
+        return "passports/detail";
+    }
+
+    @GetMapping("/object-passports/{id}/edit")
+    @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
+    public String passportEdit(@PathVariable Long id, Authentication authentication, Model model) {
+        navigationService.enrich(model, authentication);
+        populatePassportEditor(model, false);
         return "passports/new";
     }
 
@@ -282,14 +290,17 @@ public class ManagementController {
 
         List<ItEquipmentCatalog> equipmentItems = equipmentRepository.findAll();
         List<Map<String, Object>> equipmentCatalog = equipmentItems.stream()
-            .map(item -> Map.<String, Object>of(
-                "equipment_type", item.getEquipmentType(),
-                "equipment_vendor", item.getEquipmentVendor(),
-                "equipment_model", item.getEquipmentModel(),
-                "serial_number", item.getSerialNumber(),
-                "photo_url", item.getPhotoUrl(),
-                "accessories", item.getAccessories()
-            ))
+            .map(item -> {
+                Map<String, Object> catalogItem = new LinkedHashMap<>();
+                catalogItem.put("id", item.getId());
+                catalogItem.put("equipment_type", item.getEquipmentType());
+                catalogItem.put("equipment_vendor", item.getEquipmentVendor());
+                catalogItem.put("equipment_model", item.getEquipmentModel());
+                catalogItem.put("serial_number", item.getSerialNumber());
+                catalogItem.put("photo_url", item.getPhotoUrl());
+                catalogItem.put("accessories", item.getAccessories());
+                return catalogItem;
+            })
             .toList();
 
         Map<String, Object> itEquipmentOptions = new java.util.LinkedHashMap<>();

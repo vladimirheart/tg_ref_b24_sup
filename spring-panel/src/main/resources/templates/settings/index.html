@@ -11,7 +11,7 @@
   <link href="/css/style.css" rel="stylesheet" />
   <link href="/css/app.css" rel="stylesheet" />
   <link href="/css/sidebar.css" rel="stylesheet" />
-  <link href="/css/settings.css" rel="stylesheet" />
+  <link href="/css/settings.css?v=20260908-01-259-r1" rel="stylesheet" />
   <script src="/js/common.js"></script>
 
   
@@ -3250,31 +3250,28 @@
                   data-bs-parent="#itSettingsAccordion"
                 >
                   <div class="accordion-body">
-                    <div class="table-responsive">
-                      <table class="table table-sm align-middle" id="itEquipmentTable">
-                        <thead>
-                          <tr>
-                            <th>Тип оборудования</th>
-                            <th>Производитель</th>
-                            <th>Модель</th>
-                            <th data-field="serial_number">Серийный номер</th>
-                            <th data-field="accessories">Комплектация</th>
-                            <th>Ссылки</th>
-                            <th></th>
-                          </tr>
-                        </thead>
-                        <tbody id="itEquipmentBody"></tbody>
-                      </table>
+                    <div class="it-equipment-catalog-toolbar">
+                      <div class="input-group input-group-sm it-equipment-catalog-toolbar__search">
+                        <span class="input-group-text">Поиск</span>
+                        <input
+                          type="search"
+                          class="form-control"
+                          id="itEquipmentSearchInput"
+                          placeholder="Тип, производитель, модель, SN…"
+                          autocomplete="off"
+                        >
+                      </div>
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="it-equipment-catalog-count" id="itEquipmentCountBadge">0</span>
+                        <button class="btn btn-sm btn-primary" type="button" data-it-equipment-add-open>
+                          + Добавить модель
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      class="btn btn-sm btn-outline-primary mt-3"
-                      type="button"
-                      data-it-equipment-add-open
-                    >
-                      + Добавить оборудование
-                    </button>
+                    <div id="itEquipmentBody" class="it-equipment-catalog-grid"></div>
+                    <div id="itEquipmentEmptyState" class="it-equipment-catalog-empty d-none">Пока нет оборудования.</div>
                     <div class="form-text text-muted mt-2">
-                      Подготовьте справочник оборудования для быстрого заполнения паспортов объектов.
+                      Это мастер-каталог моделей. Паспорта объектов используют его для фото, типа, производителя, модели и базовой комплектации; SN/IP/status остаются данными конкретного экземпляра.
                     </div>
                   </div>
                 </div>

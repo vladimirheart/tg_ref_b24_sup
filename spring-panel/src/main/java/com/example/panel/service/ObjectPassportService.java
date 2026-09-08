@@ -83,11 +83,25 @@ public class ObjectPassportService {
     }
 
     public Map<String, Object> updatePassport(long passportId, Map<String, Object> payload) {
+        return updatePassportInternal(passportId, payload, true);
+    }
+
+    private Map<String, Object> updatePassportFromExternalSource(long passportId,
+                                                                 Map<String, Object> payload) {
+        return updatePassportInternal(passportId, payload, false);
+    }
+
+    private Map<String, Object> updatePassportInternal(long passportId,
+                                                       Map<String, Object> payload,
+                                                       boolean trackManualOverrides) {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
                 StoredPassportRecord existing = loadStoredPassport(connection, passportId);
-                Map<String, Object> normalized = normalizePayload(existing.payload(), payload, passportId);
+                Map<String, Object> incoming = trackManualOverrides
+                        ? markManualOverrides(existing.payload(), payload)
+                        : (payload == null ? Map.of() : payload);
+                Map<String, Object> normalized = normalizePayload(existing.payload(), incoming, passportId);
                 validatePayload(normalized);
                 long objectId = existing.objectId();
                 if (!updateObject(connection, objectId, normalized)) {
@@ -106,6 +120,38 @@ public class ObjectPassportService {
         } catch (SQLException ex) {
             throw new IllegalStateException("Не удалось обновить паспорт объекта", ex);
         }
+    }
+
+    static Map<String, Object> markManualOverrides(Map<String, Object> existing,
+                                                   Map<String, Object> incoming) {
+        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+        if (incoming != null) {
+            result.putAll(incoming);
+        }
+        java.util.LinkedHashSet<String> overrides = new java.util.LinkedHashSet<>();
+        Object storedOverrides = existing == null ? null : existing.get("_manual_overrides");
+        if (storedOverrides instanceof List<?> list) {
+            for (Object item : list) {
+                String key = item == null ? "" : String.valueOf(item).trim();
+                if (StringUtils.hasText(key)) {
+                    overrides.add(key);
+                }
+            }
+        }
+        if (incoming != null) {
+            for (Map.Entry<String, Object> entry : incoming.entrySet()) {
+                String key = entry.getKey() == null ? "" : String.valueOf(entry.getKey()).trim();
+                if (!StringUtils.hasText(key) || key.startsWith("_") || "id".equals(key) || "is_new".equals(key)) {
+                    continue;
+                }
+                Object previous = existing == null ? null : existing.get(key);
+                if (!java.util.Objects.deepEquals(previous, entry.getValue())) {
+                    overrides.add(key);
+                }
+            }
+        }
+        result.put("_manual_overrides", List.copyOf(overrides));
+        return result;
     }
 
     public Map<String, Object> getPassport(long passportId) {
@@ -140,7 +186,7 @@ public class ObjectPassportService {
                                                             Map<String, Object> payload) {
         Map<String, Object> existing = findPassportByNetBoxSiteId(siteId);
         if (existing != null && existing.get("id") instanceof Number id) {
-            return updatePassport(id.longValue(), payload);
+            return updatePassportFromExternalSource(id.longValue(), payload);
         }
         return createPassport(payload);
     }

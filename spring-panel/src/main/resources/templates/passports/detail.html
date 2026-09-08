@@ -5,96 +5,758 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Паспорт объекта — iguana</title>
 
-	<link rel="stylesheet"
-		  href="/vendor/bootstrap/5.3.3/bootstrap.min.css"
-		  integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-		  crossorigin="anonymous">
+    <link rel="stylesheet"
+          href="/vendor/bootstrap/5.3.3/bootstrap.min.css"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+          crossorigin="anonymous">
 
-	<th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
 
-	<link rel="stylesheet" th:href="@{/css/style.css}">
-	<link rel="stylesheet" th:href="@{/css/app.css}">
-	<link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css(v='20260908-01-259-r1')}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
 </head>
 <body class="with-sidebar sidebar-pinned passport-detail-page" data-ui-page="passports">
 <div th:replace="~{fragments/navbar :: navbar('passports')}"></div>
-<main class="main-content container-fluid py-4 page-shell passports-page-shell ops-page-shell"
-		  th:if="${item != null}">
 
-		<div class="page-header-card passports-page-header mb-4 ops-page-header">
-			<div>
-				<span class="page-kicker">Паспорт объекта</span>
+<main class="main-content container-fluid py-3 page-shell passports-page-shell ops-page-shell passport-workspace-shell">
+    <div class="passport-workspace-loading" id="passportWorkspaceLoading" role="status">
+        Загружаем паспорт объекта…
+    </div>
 
-				<h1 class="page-title"
-					th:text="${item.equipmentModel} ?: 'Паспорт объекта'">
-					Паспорт объекта
-				</h1>
+    <div class="passport-workspace d-none" id="passportWorkspace">
+        <header class="passport-workspace-header">
+            <div class="passport-workspace-header__identity">
+                <div class="passport-workspace-cover" id="passportWorkspaceCover" aria-hidden="true">
+                    <span>PO</span>
+                </div>
 
-				<p class="page-subtitle mb-0">
-					Технические данные и идентификация выбранного оборудования.
-				</p>
-			</div>
-
-			<div class="passports-page-actions ops-page-actions">
-				<a class="btn btn-outline-secondary"
-				   th:href="@{/object-passports}">
-					К каталогу
-				</a>
-			</div>
-		</div>
-
-    <div class="row g-4">
-        <div class="col-12 col-lg-8">
-            <div class="card passport-detail-card h-100 ops-section-card">
-				<div class="card-body">
-					<dl class="row mb-0 passport-detail-list">
-                        <dt class="col-sm-4">Тип</dt>
-                        <dd class="col-sm-8" th:text="${item.equipmentType} ?: '—'"></dd>
-
-                        <dt class="col-sm-4">Производитель</dt>
-                        <dd class="col-sm-8" th:text="${item.equipmentVendor} ?: '—'"></dd>
-
-                        <dt class="col-sm-4">Модель</dt>
-                        <dd class="col-sm-8" th:text="${item.equipmentModel} ?: '—'"></dd>
-
-                        <dt class="col-sm-4">Серийный номер</dt>
-                        <dd class="col-sm-8" th:text="${item.serialNumber} ?: '—'"></dd>
-
-                        <dt class="col-sm-4">Комплектация</dt>
-                        <dd class="col-sm-8" th:text="${item.accessories} ?: '—'"></dd>
-
-                        <dt class="col-sm-4">Создан</dt>
-                        <dd class="col-sm-8" th:text="${item.createdAt} ?: '—'"></dd>
-
-                        <dt class="col-sm-4">Обновлён</dt>
-                        <dd class="col-sm-8" th:text="${item.updatedAt} ?: '—'"></dd>
-                    </dl>
+                <div class="passport-workspace-header__copy">
+                    <div class="passport-workspace-eyebrow">
+                        <span>Паспорт объекта</span>
+                        <span class="passport-workspace-source d-none" id="passportWorkspaceSource"></span>
+                    </div>
+                    <div class="passport-workspace-title-row">
+                        <h1 class="passport-workspace-title" id="passportWorkspaceTitle">—</h1>
+                        <span class="passport-workspace-status" id="passportWorkspaceStatus">—</span>
+                    </div>
+                    <div class="passport-workspace-subtitle" id="passportWorkspaceSubtitle">—</div>
+                    <div class="passport-workspace-meta" id="passportWorkspaceMeta"></div>
                 </div>
             </div>
-        </div>
-        <div class="col-12 col-lg-4">
-            <div class="card passport-detail-card passport-photo-card h-100 ops-section-card">
-				<div class="card-body">
-					<div class="passport-detail-section-title">
-						Фото
-					</div>
 
-					<div class="passport-photo-frame"
-						 th:if="${item.photoUrl}">
-						<img th:src="${item.photoUrl}"
-							 alt="Фото оборудования"
-							 class="passport-detail-photo">
-					</div>
+            <div class="passport-workspace-header__actions">
+                <a class="btn btn-sm btn-outline-secondary" href="/object-passports">← К списку</a>
+                <a class="btn btn-sm btn-primary" id="passportEditLink" href="#">Изменить</a>
+            </div>
+        </header>
 
-					<div class="passport-photo-empty"
-						 th:if="${item.photoUrl == null || item.photoUrl.isBlank()}">
-						Фото не загружено
-					</div>
-				</div>
-			</div>
+        <div class="passport-kpi-strip" aria-label="Краткая статистика паспорта">
+            <button type="button" class="passport-kpi" data-passport-tab-target="equipment">
+                <span class="passport-kpi__label">Оборудование</span>
+                <strong class="passport-kpi__value" id="passportEquipmentCount">0</strong>
+            </button>
+            <button type="button" class="passport-kpi" data-passport-tab-target="cases">
+                <span class="passport-kpi__label">Обращения</span>
+                <strong class="passport-kpi__value" id="passportCasesCount">0</strong>
+            </button>
+            <button type="button" class="passport-kpi" data-passport-tab-target="tasks">
+                <span class="passport-kpi__label">Задачи</span>
+                <strong class="passport-kpi__value" id="passportTasksCount">0</strong>
+            </button>
+            <div class="passport-kpi">
+                <span class="passport-kpi__label">Фото</span>
+                <strong class="passport-kpi__value" id="passportPhotosCount">0</strong>
+            </div>
+            <div class="passport-kpi passport-kpi--quality">
+                <span class="passport-kpi__label">Заполненность</span>
+                <strong class="passport-kpi__value" id="passportCompletionValue">0%</strong>
+                <span class="passport-kpi__hint" id="passportCompletionHint"></span>
+            </div>
         </div>
+
+        <nav class="passport-workspace-tabs" aria-label="Разделы паспорта">
+            <button class="passport-workspace-tab is-active" type="button" data-passport-tab="overview">Обзор</button>
+            <button class="passport-workspace-tab" type="button" data-passport-tab="network">IT и сеть</button>
+            <button class="passport-workspace-tab" type="button" data-passport-tab="equipment">
+                Оборудование <span class="passport-tab-count" id="passportEquipmentTabCount">0</span>
+            </button>
+            <button class="passport-workspace-tab" type="button" data-passport-tab="cases">
+                Обращения <span class="passport-tab-count" id="passportCasesTabCount">0</span>
+            </button>
+            <button class="passport-workspace-tab" type="button" data-passport-tab="tasks">
+                Задачи <span class="passport-tab-count" id="passportTasksTabCount">0</span>
+            </button>
+            <button class="passport-workspace-tab" type="button" data-passport-tab="photos">
+                Фото <span class="passport-tab-count" id="passportPhotosTabCount">0</span>
+            </button>
+        </nav>
+
+        <section class="passport-workspace-panel is-active" data-passport-panel="overview">
+            <div class="passport-overview-grid">
+                <div class="passport-overview-main">
+                    <section class="passport-compact-section">
+                        <div class="passport-section-heading">
+                            <div>
+                                <span class="passport-section-kicker">Объект</span>
+                                <h2>Основная информация</h2>
+                            </div>
+                        </div>
+                        <div class="passport-property-grid" id="passportCoreProperties"></div>
+                    </section>
+
+                    <section class="passport-compact-section">
+                        <div class="passport-section-heading">
+                            <div>
+                                <span class="passport-section-kicker">Жизненный цикл</span>
+                                <h2>Статусы и даты</h2>
+                            </div>
+                        </div>
+                        <div class="passport-property-grid" id="passportLifecycleProperties"></div>
+                        <div class="passport-timeline d-none" id="passportStatusHistory"></div>
+                    </section>
+                </div>
+
+                <aside class="passport-overview-side">
+                    <section class="passport-compact-section">
+                        <div class="passport-section-heading">
+                            <div>
+                                <span class="passport-section-kicker">Контакты</span>
+                                <h2>Кого искать</h2>
+                            </div>
+                        </div>
+                        <div class="passport-stack" id="passportContacts"></div>
+                    </section>
+
+                    <section class="passport-compact-section">
+                        <div class="passport-section-heading">
+                            <div>
+                                <span class="passport-section-kicker">Режим работы</span>
+                                <h2>Расписание</h2>
+                            </div>
+                        </div>
+                        <div class="passport-schedule" id="passportSchedule"></div>
+                    </section>
+
+                    <section class="passport-compact-section">
+                        <div class="passport-section-heading">
+                            <div>
+                                <span class="passport-section-kicker">Данные</span>
+                                <h2>Качество паспорта</h2>
+                            </div>
+                        </div>
+                        <div class="passport-quality" id="passportQuality"></div>
+                    </section>
+                </aside>
+            </div>
+        </section>
+
+        <section class="passport-workspace-panel" data-passport-panel="network">
+            <div class="passport-network-grid">
+                <section class="passport-compact-section">
+                    <div class="passport-section-heading">
+                        <div>
+                            <span class="passport-section-kicker">Локальная инфраструктура</span>
+                            <h2>Внутренняя сеть</h2>
+                        </div>
+                    </div>
+                    <div class="passport-property-grid passport-property-grid--single" id="passportInternalNetwork"></div>
+                </section>
+
+                <section class="passport-compact-section">
+                    <div class="passport-section-heading">
+                        <div>
+                            <span class="passport-section-kicker">Интернет</span>
+                            <h2>Провайдер</h2>
+                        </div>
+                    </div>
+                    <div class="passport-property-grid passport-property-grid--single" id="passportProviderNetwork"></div>
+                </section>
+            </div>
+
+            <details class="passport-technical-details d-none" id="passportNetworkTechnicalDetails">
+                <summary>Технические параметры подключения</summary>
+                <pre id="passportNetworkParams"></pre>
+            </details>
+
+            <section class="passport-compact-section d-none" id="passportNetworkFilesSection">
+                <div class="passport-section-heading">
+                    <div>
+                        <span class="passport-section-kicker">Вложения</span>
+                        <h2>Файлы сети</h2>
+                    </div>
+                </div>
+                <div class="passport-file-list" id="passportNetworkFiles"></div>
+            </section>
+        </section>
+
+        <section class="passport-workspace-panel" data-passport-panel="equipment">
+            <div class="passport-section-toolbar">
+                <div>
+                    <span class="passport-section-kicker">Инфраструктура объекта</span>
+                    <h2 class="mb-0">Оборудование</h2>
+                </div>
+                <div class="passport-equipment-tools">
+                    <input class="form-control form-control-sm" id="passportEquipmentSearch" type="search" placeholder="Поиск по модели, IP, SN…" autocomplete="off">
+                    <a class="btn btn-sm btn-outline-primary" id="passportEquipmentEditLink" href="#">Редактировать</a>
+                </div>
+            </div>
+            <div class="passport-equipment-grid" id="passportEquipmentGrid"></div>
+            <div class="passport-empty-state d-none" id="passportEquipmentEmpty">Оборудование не добавлено.</div>
+        </section>
+
+        <section class="passport-workspace-panel" data-passport-panel="cases">
+            <div class="passport-section-heading">
+                <div>
+                    <span class="passport-section-kicker">Поддержка</span>
+                    <h2>Обращения по локации</h2>
+                </div>
+            </div>
+            <div class="passport-record-list" id="passportCasesList"></div>
+            <div class="passport-empty-state d-none" id="passportCasesEmpty">Обращений пока нет.</div>
+            <div class="passport-section-heading passport-section-heading--secondary d-none" id="passportIncidentsHeading">
+                <div>
+                    <span class="passport-section-kicker">Инциденты</span>
+                    <h2>Связанные инциденты</h2>
+                </div>
+            </div>
+            <div class="passport-record-list" id="passportIncidentsList"></div>
+        </section>
+
+        <section class="passport-workspace-panel" data-passport-panel="tasks">
+            <div class="passport-section-heading">
+                <div>
+                    <span class="passport-section-kicker">Работы</span>
+                    <h2>Задачи по локации</h2>
+                </div>
+            </div>
+            <div class="passport-record-list" id="passportTasksList"></div>
+            <div class="passport-empty-state d-none" id="passportTasksEmpty">Задач пока нет.</div>
+        </section>
+
+        <section class="passport-workspace-panel" data-passport-panel="photos">
+            <div class="passport-section-toolbar">
+                <div>
+                    <span class="passport-section-kicker">Визуальная история</span>
+                    <h2 class="mb-0">Фотографии объекта</h2>
+                </div>
+                <a class="btn btn-sm btn-outline-primary" id="passportPhotosEditLink" href="#">Управлять фото</a>
+            </div>
+            <div class="passport-photo-grid" id="passportPhotoGrid"></div>
+            <div class="passport-empty-state d-none" id="passportPhotosEmpty">Фотографии не загружены.</div>
+        </section>
     </div>
+
+    <div class="alert alert-danger d-none" id="passportWorkspaceError" role="alert"></div>
 </main>
-<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+<script th:inline="javascript">
+(() => {
+    const catalogRaw = /*[[${itEquipmentCatalog}]]*/ [];
+    const equipmentCatalog = Array.isArray(catalogRaw) ? catalogRaw : [];
+    const idMatch = window.location.pathname.match(/object-passports\/(\d+)/);
+    const passportId = idMatch ? Number(idMatch[1]) : null;
+
+    const loading = document.getElementById('passportWorkspaceLoading');
+    const workspace = document.getElementById('passportWorkspace');
+    const errorBox = document.getElementById('passportWorkspaceError');
+    const equipmentSearch = document.getElementById('passportEquipmentSearch');
+
+    let passport = {};
+    let cases = [];
+    let tasks = [];
+    let incidents = [];
+
+    const DAY_LABELS = {
+        mon: 'Пн', tue: 'Вт', wed: 'Ср', thu: 'Чт', fri: 'Пт', sat: 'Сб', sun: 'Вс'
+    };
+
+    function text(value) {
+        return value == null ? '' : String(value).trim();
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function normalizeKey(value) {
+        return text(value).toLocaleLowerCase('ru-RU').replace(/\s+/g, ' ');
+    }
+
+    function first(...values) {
+        for (const value of values) {
+            const normalized = text(value);
+            if (normalized) return normalized;
+        }
+        return '';
+    }
+
+    function statusTone(value) {
+        const normalized = normalizeKey(value);
+        if (!normalized) return 'neutral';
+        if (normalized.includes('актив') || normalized === 'active' || normalized.includes('online') || normalized.includes('работ')) return 'ok';
+        if (normalized.includes('удал') || normalized.includes('закры') || normalized.includes('retired')) return 'danger';
+        if (normalized.includes('заморож') || normalized.includes('приост') || normalized.includes('стро') || normalized.includes('repair') || normalized.includes('attention')) return 'warn';
+        return 'neutral';
+    }
+
+    function setStatus(element, value) {
+        if (!element) return;
+        element.textContent = text(value) || '—';
+        element.dataset.tone = statusTone(value);
+    }
+
+    function renderProperties(targetId, items) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const visible = items.filter((item) => text(item.value));
+        target.innerHTML = visible.length
+            ? visible.map((item) => `
+                <div class="passport-property">
+                    <span class="passport-property__label">${escapeHtml(item.label)}</span>
+                    <span class="passport-property__value">${escapeHtml(item.value)}</span>
+                </div>
+            `).join('')
+            : '<div class="passport-inline-empty">Нет заполненных данных.</div>';
+    }
+
+    function parseLinks(raw) {
+        if (Array.isArray(raw)) return raw.map(text).filter(Boolean);
+        const value = text(raw);
+        if (!value) return [];
+        if (value.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(value);
+                if (Array.isArray(parsed)) return parsed.map(text).filter(Boolean);
+            } catch (error) {
+                // fallback below
+            }
+        }
+        return value.split(/\r?\n/).map(text).filter(Boolean);
+    }
+
+    function catalogKey(type, vendor, model) {
+        return [type, vendor, model].map(normalizeKey).join('::');
+    }
+
+    function findCatalogItem(item) {
+        const catalogId = Number(item && item.catalog_id);
+        if (Number.isFinite(catalogId) && catalogId > 0) {
+            const byId = equipmentCatalog.find((entry) => Number(entry && entry.id) === catalogId);
+            if (byId) return byId;
+        }
+        const key = catalogKey(
+            item && item.equipment_type,
+            item && (item.vendor || item.equipment_vendor),
+            item && (item.model || item.equipment_model)
+        );
+        return equipmentCatalog.find((entry) => catalogKey(
+            entry && entry.equipment_type,
+            entry && entry.equipment_vendor,
+            entry && entry.equipment_model
+        ) === key) || null;
+    }
+
+    function renderCover() {
+        const cover = document.getElementById('passportWorkspaceCover');
+        if (!cover) return;
+        const photos = Array.isArray(passport.photos) ? passport.photos : [];
+        const titlePhoto = photos.find((photo) => normalizeKey(photo && photo.category) === 'title') || photos[0];
+        const url = titlePhoto ? text(titlePhoto.url) : '';
+        if (!url) return;
+        cover.innerHTML = `<img src="${escapeHtml(url)}" alt="Фото объекта">`;
+    }
+
+    function renderHeader() {
+        const title = first(passport.department, passport.object_name, `Паспорт #${passportId}`);
+        document.getElementById('passportWorkspaceTitle').textContent = title;
+        setStatus(document.getElementById('passportWorkspaceStatus'), passport.status);
+
+        const subtitle = [passport.business, passport.city, passport.location_address]
+            .map(text)
+            .filter(Boolean)
+            .join(' · ');
+        document.getElementById('passportWorkspaceSubtitle').textContent = subtitle || 'Адрес и бизнес не указаны';
+
+        const meta = [];
+        if (text(passport.partner_type)) meta.push(passport.partner_type);
+        if (text(passport.legal_entity)) meta.push(passport.legal_entity);
+        meta.push(`#${passportId}`);
+        document.getElementById('passportWorkspaceMeta').innerHTML = meta
+            .map((item) => `<span>${escapeHtml(item)}</span>`)
+            .join('');
+
+        const source = document.getElementById('passportWorkspaceSource');
+        if (source && text(passport.netbox_site_id)) {
+            source.textContent = `NetBox site #${passport.netbox_site_id}`;
+            source.classList.remove('d-none');
+        }
+
+        const editUrl = `/object-passports/${passportId}/edit`;
+        ['passportEditLink', 'passportEquipmentEditLink', 'passportPhotosEditLink'].forEach((id) => {
+            const link = document.getElementById(id);
+            if (link) link.href = editUrl;
+        });
+        renderCover();
+    }
+
+    function renderOverview() {
+        renderProperties('passportCoreProperties', [
+            { label: 'Бизнес', value: passport.business },
+            { label: 'Департамент', value: passport.department },
+            { label: 'Тип партнёра', value: passport.partner_type },
+            { label: 'Юридическое лицо', value: passport.legal_entity },
+            { label: 'Страна', value: passport.country },
+            { label: 'Город', value: passport.city },
+            { label: 'Адрес', value: passport.location_address },
+            { label: 'Статус', value: passport.status }
+        ]);
+
+        renderProperties('passportLifecycleProperties', [
+            { label: 'Дата запуска', value: passport.start_date },
+            { label: 'Дата закрытия', value: passport.end_date },
+            { label: 'Приостановлен', value: passport.suspension_date },
+            { label: 'Возобновлён', value: passport.resume_date },
+            { label: 'Общее время работы', value: passport.total_work_time },
+            { label: 'Время в приостановке', value: passport.status_history_total }
+        ]);
+
+        const history = Array.isArray(passport.status_history) ? passport.status_history : [];
+        const historyTarget = document.getElementById('passportStatusHistory');
+        if (historyTarget && history.length) {
+            historyTarget.classList.remove('d-none');
+            historyTarget.innerHTML = history.slice().reverse().slice(0, 8).map((entry) => {
+                const label = first(entry.status, entry.state, entry.name, 'Изменение статуса');
+                const when = first(entry.changed_at, entry.created_at, entry.date, entry.from, '');
+                const note = first(entry.note, entry.comment, entry.reason, '');
+                return `<div class="passport-timeline-item">
+                    <span class="passport-timeline-dot"></span>
+                    <div><strong>${escapeHtml(label)}</strong>${when ? `<span>${escapeHtml(when)}</span>` : ''}${note ? `<small>${escapeHtml(note)}</small>` : ''}</div>
+                </div>`;
+            }).join('');
+        }
+
+        const contacts = [
+            ['Управляющий', passport.it_manager_name, passport.it_manager_phone],
+            ['Телефон объекта', passport.it_object_phone, '']
+        ].filter((item) => text(item[1]) || text(item[2]));
+        const contactsTarget = document.getElementById('passportContacts');
+        contactsTarget.innerHTML = contacts.length ? contacts.map((item) => `
+            <div class="passport-contact">
+                <span>${escapeHtml(item[0])}</span>
+                <strong>${escapeHtml(first(item[1], item[2]))}</strong>
+                ${text(item[1]) && text(item[2]) ? `<a href="tel:${escapeHtml(item[2])}">${escapeHtml(item[2])}</a>` : ''}
+            </div>
+        `).join('') : '<div class="passport-inline-empty">Контакты не указаны.</div>';
+
+        renderSchedule();
+        renderQuality();
+    }
+
+    function renderSchedule() {
+        const target = document.getElementById('passportSchedule');
+        const schedule = Array.isArray(passport.schedule) ? passport.schedule : [];
+        const visible = schedule.filter((item) => item && (item.is_24 || text(item.from) || text(item.to)));
+        if (!visible.length) {
+            target.innerHTML = '<div class="passport-inline-empty">Расписание не заполнено.</div>';
+            return;
+        }
+        target.innerHTML = visible.map((item) => {
+            const day = DAY_LABELS[text(item.day).toLowerCase()] || text(item.day) || '—';
+            const value = item.is_24 ? '24 часа' : `${text(item.from) || '—'}–${text(item.to) || '—'}`;
+            return `<div class="passport-schedule-row"><span>${escapeHtml(day)}</span><strong>${escapeHtml(value)}</strong></div>`;
+        }).join('');
+    }
+
+    function completionInfo() {
+        const checks = [
+            ['бизнес', passport.business],
+            ['департамент', passport.department],
+            ['город', passport.city],
+            ['адрес', passport.location_address],
+            ['статус', passport.status],
+            ['телефон объекта', passport.it_object_phone],
+            ['управляющий', passport.it_manager_name],
+            ['телефон управляющего', passport.it_manager_phone],
+            ['провайдер', passport.network_provider],
+            ['договор провайдера', passport.network_contract_number],
+            ['расписание', Array.isArray(passport.schedule) && passport.schedule.length ? 'yes' : ''],
+            ['оборудование', Array.isArray(passport.equipment) && passport.equipment.length ? 'yes' : ''],
+            ['титульное фото', Array.isArray(passport.photos) && passport.photos.some((p) => normalizeKey(p && p.category) === 'title') ? 'yes' : '']
+        ];
+        const filled = checks.filter((item) => text(item[1])).length;
+        const pct = Math.round((filled / checks.length) * 100);
+        return { pct, missing: checks.filter((item) => !text(item[1])).map((item) => item[0]) };
+    }
+
+    function renderQuality() {
+        const info = completionInfo();
+        document.getElementById('passportCompletionValue').textContent = `${info.pct}%`;
+        document.getElementById('passportCompletionHint').textContent = info.missing.length ? `Нет: ${info.missing.slice(0, 2).join(', ')}` : 'Ключевые поля заполнены';
+        document.getElementById('passportQuality').innerHTML = `
+            <div class="passport-quality-score"><strong>${info.pct}%</strong><span>ключевых полей заполнено</span></div>
+            <div class="passport-quality-bar"><span style="width:${info.pct}%"></span></div>
+            ${info.missing.length ? `<div class="passport-quality-missing">Не хватает: ${escapeHtml(info.missing.slice(0, 5).join(', '))}${info.missing.length > 5 ? '…' : ''}</div>` : '<div class="passport-quality-ok">Ключевые данные заполнены.</div>'}
+        `;
+    }
+
+    function renderNetwork() {
+        renderProperties('passportInternalNetwork', [
+            { label: 'Внутренняя сеть', value: passport.network },
+            { label: 'Туннель', value: passport.network_tunnel },
+            { label: 'Сервер iiko', value: passport.it_iiko_server },
+            { label: 'Тип удалённого доступа', value: passport.it_connection_type },
+            { label: 'ID подключения', value: passport.it_connection_id }
+        ]);
+        renderProperties('passportProviderNetwork', [
+            { label: 'Провайдер', value: passport.network_provider },
+            { label: 'Номер договора', value: passport.network_contract_number },
+            { label: 'ID ресторана', value: passport.network_restaurant_id },
+            { label: 'ЮЛ провайдера', value: passport.network_legal_entity },
+            { label: 'Телефон ТП', value: passport.network_support_phone },
+            { label: 'Скорость', value: passport.network_speed }
+        ]);
+
+        const params = text(passport.network_connection_params);
+        const details = document.getElementById('passportNetworkTechnicalDetails');
+        if (params) {
+            details.classList.remove('d-none');
+            document.getElementById('passportNetworkParams').textContent = params;
+        }
+
+        const files = Array.isArray(passport.network_files) ? passport.network_files : [];
+        const fileSection = document.getElementById('passportNetworkFilesSection');
+        const fileList = document.getElementById('passportNetworkFiles');
+        if (files.length) {
+            fileSection.classList.remove('d-none');
+            fileList.innerHTML = files.map((file) => {
+                const name = first(file && file.name, file && file.original_name, file && file.filename, 'Файл');
+                const url = first(file && file.url, file && file.download_url, '');
+                return url
+                    ? `<a class="passport-file" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`
+                    : `<span class="passport-file">${escapeHtml(name)}</span>`;
+            }).join('');
+        }
+    }
+
+    function equipmentView(item) {
+        const catalogItem = findCatalogItem(item || {});
+        const type = first(item && item.equipment_type, catalogItem && catalogItem.equipment_type, 'Оборудование');
+        const vendor = first(item && item.vendor, item && item.equipment_vendor, catalogItem && catalogItem.equipment_vendor);
+        const model = first(item && item.model, item && item.equipment_model, catalogItem && catalogItem.equipment_model);
+        const name = first(item && item.name, [vendor, model].filter(Boolean).join(' '), type);
+        const status = first(item && item.status, '—');
+        const ip = first(item && item.ip_address, '');
+        const serial = first(item && item.serial_number, '');
+        const accessories = first(item && item.accessories, catalogItem && catalogItem.accessories, '');
+        const links = parseLinks(catalogItem && catalogItem.photo_url);
+        const cover = links[0] || '';
+        const catalogId = catalogItem && catalogItem.id ? Number(catalogItem.id) : null;
+        return { item, catalogItem, catalogId, type, vendor, model, name, status, ip, serial, accessories, links, cover };
+    }
+
+    function renderEquipment() {
+        const grid = document.getElementById('passportEquipmentGrid');
+        const items = Array.isArray(passport.equipment) ? passport.equipment : [];
+        const query = normalizeKey(equipmentSearch ? equipmentSearch.value : '');
+        const views = items.map(equipmentView).filter((view) => {
+            if (!query) return true;
+            return normalizeKey([
+                view.name, view.type, view.vendor, view.model, view.ip, view.serial, view.status
+            ].join(' ')).includes(query);
+        });
+
+        document.getElementById('passportEquipmentEmpty').classList.toggle('d-none', views.length > 0);
+        grid.innerHTML = views.map((view, index) => {
+            const description = text(view.item && view.item.description);
+            const connection = first(view.item && view.item.connection_type, view.item && view.item.it_connection_type, '');
+            const connectionId = first(view.item && view.item.connection_id, '');
+            const details = [
+                ['Тип', view.type],
+                ['Производитель', view.vendor],
+                ['Модель', view.model],
+                ['Серийный номер', view.serial],
+                ['IP-адрес', view.ip],
+                ['Подключение', connection],
+                ['ID подключения', connectionId],
+                ['Комплектация', view.accessories]
+            ].filter((pair) => text(pair[1]));
+            return `<article class="passport-asset-card" data-equipment-index="${index}">
+                <div class="passport-asset-card__visual ${view.cover ? 'has-image' : ''}">
+                    ${view.cover ? `<img src="${escapeHtml(view.cover)}" alt="${escapeHtml(view.name)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
+                    <span class="passport-asset-card__glyph">${escapeHtml((view.type || 'IT').slice(0, 2).toUpperCase())}</span>
+                </div>
+                <div class="passport-asset-card__body">
+                    <div class="passport-asset-card__head">
+                        <div>
+                            <span class="passport-asset-type">${escapeHtml(view.type)}</span>
+                            <h3>${escapeHtml(view.name)}</h3>
+                            ${view.vendor && view.model && normalizeKey(view.name) !== normalizeKey(`${view.vendor} ${view.model}`) ? `<div class="passport-asset-model">${escapeHtml(`${view.vendor} ${view.model}`)}</div>` : ''}
+                        </div>
+                        <span class="passport-asset-status" data-tone="${statusTone(view.status)}">${escapeHtml(view.status)}</span>
+                    </div>
+                    <div class="passport-asset-card__quick">
+                        ${view.ip ? `<span><small>IP</small>${escapeHtml(view.ip)}</span>` : ''}
+                        ${view.serial ? `<span><small>SN</small>${escapeHtml(view.serial)}</span>` : ''}
+                        ${view.catalogId ? `<span><small>CAT</small>#${view.catalogId}</span>` : ''}
+                    </div>
+                    ${(details.length || description || view.links.length) ? `<details class="passport-asset-details">
+                        <summary>Подробнее</summary>
+                        <div class="passport-asset-details__grid">
+                            ${details.map((pair) => `<div><span>${escapeHtml(pair[0])}</span><strong>${escapeHtml(pair[1])}</strong></div>`).join('')}
+                        </div>
+                        ${description ? `<pre>${escapeHtml(description)}</pre>` : ''}
+                        ${view.links.length ? `<div class="passport-asset-links">${view.links.map((url, linkIndex) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Ссылка ${linkIndex + 1}</a>`).join('')}</div>` : ''}
+                    </details>` : ''}
+                </div>
+            </article>`;
+        }).join('');
+    }
+
+    function recordCard(item, kind) {
+        const id = first(item && item.id, item && item.ticket_id, item && item.task_id, item && item.number, item && item.key, '');
+        const title = first(item && item.title, item && item.subject, item && item.name, item && item.category, kind === 'task' ? 'Задача' : 'Обращение');
+        const status = first(item && item.status, item && item.state, '');
+        const date = first(item && item.created_at, item && item.createdAt, item && item.updated_at, item && item.date, '');
+        const meta = [id ? `#${id}` : '', date].filter(Boolean).join(' · ');
+        return `<div class="passport-record-card">
+            <div><strong>${escapeHtml(title)}</strong>${meta ? `<span>${escapeHtml(meta)}</span>` : ''}</div>
+            ${status ? `<span class="passport-record-status" data-tone="${statusTone(status)}">${escapeHtml(status)}</span>` : ''}
+        </div>`;
+    }
+
+    function renderActivity() {
+        const casesList = document.getElementById('passportCasesList');
+        const tasksList = document.getElementById('passportTasksList');
+        const incidentsList = document.getElementById('passportIncidentsList');
+
+        casesList.innerHTML = cases.map((item) => recordCard(item, 'case')).join('');
+        tasksList.innerHTML = tasks.map((item) => recordCard(item, 'task')).join('');
+        document.getElementById('passportCasesEmpty').classList.toggle('d-none', cases.length > 0);
+        document.getElementById('passportTasksEmpty').classList.toggle('d-none', tasks.length > 0);
+
+        if (incidents.length) {
+            document.getElementById('passportIncidentsHeading').classList.remove('d-none');
+            incidentsList.innerHTML = incidents.map((item) => recordCard(item, 'incident')).join('');
+        }
+    }
+
+    function renderPhotos() {
+        const grid = document.getElementById('passportPhotoGrid');
+        const photos = Array.isArray(passport.photos) ? passport.photos : [];
+        document.getElementById('passportPhotosEmpty').classList.toggle('d-none', photos.length > 0);
+        grid.innerHTML = photos.map((photo) => {
+            const url = text(photo && photo.url);
+            const caption = first(photo && photo.caption, photo && photo.original_name, 'Фото объекта');
+            const category = normalizeKey(photo && photo.category) === 'title' ? 'Титульное' : 'Архивное';
+            return `<figure class="passport-photo-tile">
+                ${url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(caption)}" loading="lazy">` : '<div class="passport-photo-tile__empty">Нет файла</div>'}
+                <figcaption><span>${escapeHtml(category)}</span><strong>${escapeHtml(caption)}</strong></figcaption>
+            </figure>`;
+        }).join('');
+    }
+
+    function updateCounts() {
+        const equipmentCount = Array.isArray(passport.equipment) ? passport.equipment.length : 0;
+        const photosCount = Array.isArray(passport.photos) ? passport.photos.length : 0;
+        const values = {
+            passportEquipmentCount: equipmentCount,
+            passportEquipmentTabCount: equipmentCount,
+            passportCasesCount: cases.length,
+            passportCasesTabCount: cases.length,
+            passportTasksCount: tasks.length,
+            passportTasksTabCount: tasks.length,
+            passportPhotosCount: photosCount,
+            passportPhotosTabCount: photosCount
+        };
+        Object.entries(values).forEach(([id, value]) => {
+            const node = document.getElementById(id);
+            if (node) node.textContent = String(value);
+        });
+    }
+
+    function activateTab(name) {
+        document.querySelectorAll('[data-passport-tab]').forEach((button) => {
+            button.classList.toggle('is-active', button.dataset.passportTab === name);
+        });
+        document.querySelectorAll('[data-passport-panel]').forEach((panel) => {
+            panel.classList.toggle('is-active', panel.dataset.passportPanel === name);
+        });
+        if (name === 'equipment' && equipmentSearch) {
+            window.requestAnimationFrame(() => equipmentSearch.focus({ preventScroll: true }));
+        }
+    }
+
+    function bindTabs() {
+        document.addEventListener('click', (event) => {
+            const tab = event.target.closest('[data-passport-tab]');
+            if (tab) {
+                activateTab(tab.dataset.passportTab);
+                return;
+            }
+            const shortcut = event.target.closest('[data-passport-tab-target]');
+            if (shortcut) activateTab(shortcut.dataset.passportTabTarget);
+        });
+        if (equipmentSearch) equipmentSearch.addEventListener('input', renderEquipment);
+    }
+
+    async function loadJson(url, fallback) {
+        try {
+            const response = await fetch(url, { headers: { Accept: 'application/json' } });
+            if (!response.ok) return fallback;
+            return await response.json();
+        } catch (error) {
+            return fallback;
+        }
+    }
+
+    async function load() {
+        if (!Number.isFinite(passportId) || passportId <= 0) {
+            throw new Error('Не удалось определить ID паспорта объекта.');
+        }
+
+        const [passportResponse, casesResponse, tasksResponse, incidentsResponse] = await Promise.all([
+            loadJson(`/api/object_passports/${passportId}`, null),
+            loadJson(`/api/object_passports/${passportId}/cases`, { items: [] }),
+            loadJson(`/api/object_passports/${passportId}/tasks`, { items: [] }),
+            loadJson(`/api/object_passports/${passportId}/incidents`, { items: [] })
+        ]);
+
+        if (!passportResponse || passportResponse.success === false || !passportResponse.passport) {
+            throw new Error('Паспорт объекта не найден или недоступен.');
+        }
+
+        passport = passportResponse.passport || {};
+        cases = Array.isArray(casesResponse && casesResponse.items) ? casesResponse.items : (Array.isArray(passport.cases) ? passport.cases : []);
+        tasks = Array.isArray(tasksResponse && tasksResponse.items) ? tasksResponse.items : (Array.isArray(passport.tasks) ? passport.tasks : []);
+        incidents = Array.isArray(incidentsResponse && incidentsResponse.items) ? incidentsResponse.items : [];
+
+        renderHeader();
+        renderOverview();
+        renderNetwork();
+        renderEquipment();
+        renderActivity();
+        renderPhotos();
+        updateCounts();
+        loading.classList.add('d-none');
+        workspace.classList.remove('d-none');
+    }
+
+    bindTabs();
+    load().catch((error) => {
+        loading.classList.add('d-none');
+        errorBox.textContent = error && error.message ? error.message : String(error);
+        errorBox.classList.remove('d-none');
+    });
+})();
+</script>
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
 </body>
 </html>

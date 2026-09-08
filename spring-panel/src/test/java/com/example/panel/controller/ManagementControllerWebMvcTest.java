@@ -416,17 +416,30 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
-    void existingObjectPassportEditorIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+    void existingObjectPassportDetailIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         stubNavigationDefaults();
         stubPassportEditorDependencies();
 
         mockMvc.perform(get("/object-passports/42").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
             .andExpect(status().isOk())
-            .andExpect(view().name("passports/new"))
+            .andExpect(view().name("passports/detail"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("passport-workspace-tabs")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"passports\"")));
+    }
+
+    @Test
+    void existingObjectPassportEditRouteKeepsFullEditor() throws Exception {
+        stubNavigationDefaults();
+        stubPassportEditorDependencies();
+
+        mockMvc.perform(get("/object-passports/42/edit").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("passports/new"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"passports\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("savePassportBtn")));
     }
 
     private void stubPassportEditorDependencies() {

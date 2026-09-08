@@ -6,17 +6,23 @@
   function createRuntime(options = {}) {
     const state = {
       items: [],
+      query: '',
+      editingId: null,
     };
 
     const elements = {
       itEquipmentBody: document.getElementById('itEquipmentBody'),
       itEquipmentAddModalEl: document.getElementById('itEquipmentAddModal'),
+      searchInput: document.getElementById('itEquipmentSearchInput'),
+      countBadge: document.getElementById('itEquipmentCountBadge'),
+      emptyState: document.getElementById('itEquipmentEmptyState'),
     };
 
     const addModal = {
       form: elements.itEquipmentAddModalEl
         ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-add-form]')
         : null,
+      title: document.getElementById('itEquipmentAddModalLabel'),
       typeSelect: elements.itEquipmentAddModalEl
         ? elements.itEquipmentAddModalEl.querySelector('#itEquipmentTypeSelect')
         : null,
@@ -70,6 +76,10 @@
     function requestClose(source) {
       if (typeof options.requestSettingsModalClose === 'function') {
         options.requestSettingsModalClose(source);
+        return;
+      }
+      if (elements.itEquipmentAddModalEl && window.bootstrap && window.bootstrap.Modal) {
+        window.bootstrap.Modal.getOrCreateInstance(elements.itEquipmentAddModalEl).hide();
       }
     }
 
@@ -77,7 +87,11 @@
       if (typeof options.confirmDialog === 'function') {
         return Boolean(options.confirmDialog(message));
       }
-      return false;
+      return window.confirm(message);
+    }
+
+    function normalize(value) {
+      return String(value ?? '').trim().toLocaleLowerCase('ru-RU').replace(/\s+/g, ' ');
     }
 
     function getItems() {
@@ -94,9 +108,7 @@
       }
       if (typeof raw === 'string') {
         const trimmed = raw.trim();
-        if (!trimmed) {
-          return [];
-        }
+        if (!trimmed) return [];
         if (trimmed.startsWith('[')) {
           try {
             const parsed = JSON.parse(trimmed);
@@ -104,16 +116,10 @@
               return parsed.map((item) => (item || '').toString().trim()).filter(Boolean);
             }
           } catch (error) {
-            // ignore parsing errors and fallback to line-based parsing
+            // fallback below
           }
         }
-        if (trimmed.includes('\n')) {
-          return trimmed
-            .split('\n')
-            .map((item) => item.trim())
-            .filter(Boolean);
-        }
-        return [trimmed];
+        return trimmed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
       }
       return [];
     }
@@ -122,9 +128,7 @@
       const normalized = Array.isArray(links)
         ? links.map((item) => (item || '').toString().trim()).filter(Boolean)
         : [];
-      if (!normalized.length) {
-        return '';
-      }
+      if (!normalized.length) return '';
       try {
         return JSON.stringify(normalized);
       } catch (error) {
@@ -169,9 +173,7 @@
         ensureEquipmentLinksPlaceholder(container);
         return;
       }
-      list.forEach((link) => {
-        addEquipmentLinkInput(container, link);
-      });
+      list.forEach((link) => addEquipmentLinkInput(container, link));
       ensureEquipmentLinksPlaceholder(container);
     }
 
@@ -213,11 +215,16 @@
           if (values.value) result.models.add(values.value);
         }
       });
+      getItems().forEach((item) => {
+        if (item && item.equipment_type) result.types.add(String(item.equipment_type).trim());
+        if (item && item.equipment_vendor) result.vendors.add(String(item.equipment_vendor).trim());
+        if (item && item.equipment_model) result.models.add(String(item.equipment_model).trim());
+      });
       const sorter = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' });
       return {
-        types: Array.from(result.types).sort(sorter),
-        vendors: Array.from(result.vendors).sort(sorter),
-        models: Array.from(result.models).sort(sorter),
+        types: Array.from(result.types).filter(Boolean).sort(sorter),
+        vendors: Array.from(result.vendors).filter(Boolean).sort(sorter),
+        models: Array.from(result.models).filter(Boolean).sort(sorter),
       };
     }
 
@@ -234,164 +241,82 @@
         seen.add(value);
       });
       if (normalizedSelected && !seen.has(normalizedSelected)) {
-        optionsHtml.push(
-          `<option value="${escapeHtml(normalizedSelected)}" selected>${escapeHtml(normalizedSelected)}</option>`
-        );
+        optionsHtml.push(`<option value="${escapeHtml(normalizedSelected)}" selected>${escapeHtml(normalizedSelected)}</option>`);
       }
       return optionsHtml.join('');
     }
 
+    function firstLink(item) {
+      return parseEquipmentLinks(item && item.photo_url)[0] || '';
+    }
+
+    function cardMatches(item) {
+      const query = normalize(state.query);
+      if (!query) return true;
+      return normalize([
+        item && item.equipment_type,
+        item && item.equipment_vendor,
+        item && item.equipment_model,
+        item && item.serial_number,
+        item && item.accessories,
+      ].join(' ')).includes(query);
+    }
+
+    function renderCard(item) {
+      const id = Number.parseInt(item && item.id, 10);
+      const type = (item && item.equipment_type) || 'Оборудование';
+      const vendor = (item && item.equipment_vendor) || '';
+      const model = (item && item.equipment_model) || '';
+      const serial = (item && item.serial_number) || '';
+      const accessories = (item && (item.accessories || item.additional_equipment)) || '';
+      const links = parseEquipmentLinks(item && item.photo_url);
+      const cover = firstLink(item);
+      const title = [vendor, model].filter(Boolean).join(' ') || model || vendor || type;
+      const glyph = String(type || 'IT').trim().slice(0, 2).toUpperCase();
+
+      return `
+        <article class="it-equipment-catalog-card" data-id="${Number.isFinite(id) ? id : ''}">
+          <div class="it-equipment-catalog-card__visual ${cover ? 'has-image' : ''}">
+            ${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
+            <span>${escapeHtml(glyph)}</span>
+          </div>
+          <div class="it-equipment-catalog-card__body">
+            <div class="it-equipment-catalog-card__top">
+              <div>
+                <span class="it-equipment-catalog-card__type">${escapeHtml(type)}</span>
+                <h6>${escapeHtml(title)}</h6>
+              </div>
+              ${Number.isFinite(id) ? `<span class="it-equipment-catalog-card__id">#${id}</span>` : ''}
+            </div>
+            <div class="it-equipment-catalog-card__meta">
+              ${serial ? `<span><small>SN</small>${escapeHtml(serial)}</span>` : ''}
+              <span><small>Ссылки</small>${links.length}</span>
+            </div>
+            ${accessories ? `<p class="it-equipment-catalog-card__accessories">${escapeHtml(accessories)}</p>` : '<p class="it-equipment-catalog-card__accessories text-muted">Комплектация не указана</p>'}
+            <div class="it-equipment-catalog-card__actions">
+              ${links[0] ? `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(links[0])}" target="_blank" rel="noopener">Открыть</a>` : ''}
+              <button class="btn btn-sm btn-outline-primary" type="button" data-it-equipment-action="edit">Изменить</button>
+              <button class="btn btn-sm btn-outline-danger" type="button" data-it-equipment-action="delete" aria-label="Удалить ${escapeHtml(title)}">Удалить</button>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
     function renderItEquipmentTable() {
       if (!elements.itEquipmentBody) return;
-      const list = getItems();
-      elements.itEquipmentBody.innerHTML = '';
-      if (!list.length) {
-        const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = '<td colspan="7" class="text-muted text-center">Пока нет оборудования</td>';
-        elements.itEquipmentBody.appendChild(emptyRow);
-        return;
+      const list = getItems().filter(cardMatches);
+      elements.itEquipmentBody.innerHTML = list.map(renderCard).join('');
+      if (elements.countBadge) {
+        elements.countBadge.textContent = state.query
+          ? `${list.length} из ${getItems().length}`
+          : String(getItems().length);
       }
-      const optionSets = collectEquipmentOptionSets();
-      list.forEach((item) => {
-        const row = document.createElement('tr');
-        const idNumber = Number.parseInt(item && item.id, 10);
-        if (Number.isFinite(idNumber)) {
-          row.dataset.id = String(idNumber);
-        }
-        const equipmentType = typeof (item && item.equipment_type) === 'string' ? item.equipment_type : '';
-        const equipmentVendor = typeof (item && item.equipment_vendor) === 'string' ? item.equipment_vendor : '';
-        const equipmentModel = typeof (item && item.equipment_model) === 'string' ? item.equipment_model : '';
-        const serialNumber = typeof (item && item.serial_number) === 'string' ? item.serial_number : '';
-        const accessories = typeof (item && item.accessories) === 'string'
-          ? item.accessories
-          : typeof (item && item.additional_equipment) === 'string'
-            ? item.additional_equipment
-            : '';
-        const links = parseEquipmentLinks(item && item.photo_url);
-        row.innerHTML = `
-          <td><select class="form-select form-select-sm" data-field="equipment_type">${buildEquipmentSelectOptions(optionSets.types, equipmentType)}</select></td>
-          <td><select class="form-select form-select-sm" data-field="equipment_vendor">${buildEquipmentSelectOptions(optionSets.vendors, equipmentVendor)}</select></td>
-          <td><select class="form-select form-select-sm" data-field="equipment_model">${buildEquipmentSelectOptions(optionSets.models, equipmentModel)}</select></td>
-          <td><input type="text" class="form-control form-control-sm" data-field="serial_number" value="${escapeHtml(serialNumber)}" placeholder="Серийный номер"></td>
-          <td><textarea class="form-control form-control-sm" data-field="accessories" rows="2" placeholder="Комплектация / аксессуары">${escapeHtml(accessories)}</textarea></td>
-          <td>
-            <div class="d-flex flex-column gap-2" data-links-container></div>
-            <button class="btn btn-sm btn-outline-secondary align-self-start" type="button" data-it-equipment-link-action="add-link">+ Ссылка</button>
-          </td>
-          <td class="text-nowrap">
-            <button class="btn btn-sm btn-outline-success" type="button" data-it-equipment-action="save">Сохранить</button>
-            <button class="btn btn-sm btn-outline-danger" type="button" data-it-equipment-action="delete">Удалить</button>
-          </td>
-        `;
-        const linksContainer = row.querySelector('[data-links-container]');
-        renderEquipmentLinks(linksContainer, links);
-        elements.itEquipmentBody.appendChild(row);
-      });
-    }
-
-    function collectItEquipmentPayload(row) {
-      if (!row) return {};
-      const selectValue = (selector) => {
-        const element = row.querySelector(selector);
-        return element ? element.value.trim() : '';
-      };
-      return {
-        equipment_type: selectValue('[data-field="equipment_type"]'),
-        equipment_vendor: selectValue('[data-field="equipment_vendor"]'),
-        equipment_model: selectValue('[data-field="equipment_model"]'),
-        serial_number: selectValue('[data-field="serial_number"]'),
-        accessories: selectValue('[data-field="accessories"]'),
-        photo_url: formatEquipmentLinksPayload(collectEquipmentLinks(row.querySelector('[data-links-container]'))),
-      };
-    }
-
-    async function saveItEquipmentRow(row) {
-      if (!row) return;
-      const id = Number.parseInt(row.dataset.id, 10);
-      if (!Number.isFinite(id)) return;
-      const payload = collectItEquipmentPayload(row);
-      if (!payload.equipment_type) {
-        popup('Укажите тип оборудования');
-        const select = row.querySelector('[data-field="equipment_type"]');
-        if (select) select.focus();
-        return;
-      }
-      if (!payload.equipment_vendor) {
-        popup('Укажите производителя оборудования');
-        const select = row.querySelector('[data-field="equipment_vendor"]');
-        if (select) select.focus();
-        return;
-      }
-      if (!payload.equipment_model) {
-        popup('Укажите модель оборудования');
-        const select = row.querySelector('[data-field="equipment_model"]');
-        if (select) select.focus();
-        return;
-      }
-      const button = row.querySelector('[data-it-equipment-action="save"]');
-      const originalText = button ? button.textContent : '';
-      if (button) {
-        button.disabled = true;
-        button.textContent = '...';
-      }
-      try {
-        const response = await fetch(`/api/settings/it-equipment/${id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await response.json();
-        if (!response.ok || data.success === false) {
-          throw new Error((data && data.error) || 'Ошибка сохранения оборудования');
-        }
-        if (Array.isArray(data.items)) {
-          setItems(data.items);
-        } else if (data.item) {
-          const updatedId = Number.parseInt(data.item.id, 10);
-          const nextItems = getItems().slice();
-          const index = nextItems.findIndex((entry) => Number.parseInt(entry.id, 10) === updatedId);
-          if (index >= 0) {
-            nextItems[index] = data.item;
-            setItems(nextItems);
-          }
-        }
-        renderItEquipmentTable();
-      } catch (error) {
-        popup('❌ ' + (error && error.message ? error.message : error));
-      } finally {
-        if (button) {
-          button.disabled = false;
-          button.textContent = originalText || 'Сохранить';
-        }
-      }
-    }
-
-    async function deleteItEquipmentRow(row) {
-      if (!row) return;
-      const id = Number.parseInt(row.dataset.id, 10);
-      if (!Number.isFinite(id)) return;
-      if (!confirmAction('Удалить оборудование?')) return;
-      const button = row.querySelector('[data-it-equipment-action="delete"]');
-      const originalText = button ? button.textContent : '';
-      if (button) {
-        button.disabled = true;
-        button.textContent = '...';
-      }
-      try {
-        const response = await fetch(`/api/settings/it-equipment/${id}`, { method: 'DELETE' });
-        const data = await response.json();
-        if (!response.ok || data.success === false) {
-          throw new Error((data && data.error) || 'Ошибка удаления оборудования');
-        }
-        setItems(Array.isArray(data.items) ? data.items : []);
-        renderItEquipmentTable();
-      } catch (error) {
-        popup('❌ ' + (error && error.message ? error.message : error));
-      } finally {
-        if (button) {
-          button.disabled = false;
-          button.textContent = originalText || 'Удалить';
-        }
+      if (elements.emptyState) {
+        elements.emptyState.classList.toggle('d-none', list.length > 0);
+        elements.emptyState.textContent = state.query
+          ? 'По этому запросу ничего не найдено.'
+          : 'Пока нет оборудования.';
       }
     }
 
@@ -399,17 +324,17 @@
       if (!elements.itEquipmentBody) return;
       try {
         const response = await fetch('/api/settings/it-equipment');
-        if (!response.ok) {
-          throw new Error('Ошибка загрузки оборудования');
-        }
+        if (!response.ok) throw new Error('Ошибка загрузки оборудования');
         const data = await response.json();
-        if (data && data.success === false) {
-          throw new Error(data.error || 'Ошибка загрузки оборудования');
-        }
+        if (data && data.success === false) throw new Error(data.error || 'Ошибка загрузки оборудования');
         setItems(Array.isArray(data && data.items) ? data.items : []);
         renderItEquipmentTable();
       } catch (error) {
         console.error('Ошибка загрузки каталога оборудования:', error);
+        if (elements.emptyState) {
+          elements.emptyState.textContent = 'Не удалось загрузить каталог оборудования.';
+          elements.emptyState.classList.remove('d-none');
+        }
       }
     }
 
@@ -432,76 +357,84 @@
         select.classList.remove('is-invalid');
         return true;
       };
-      const hasType = ensureOptions(
-        addModal.typeSelect,
-        optionSets.types,
-        'Добавьте тип в разделе «Подключения»',
-        'equipment_type'
-      );
-      const hasVendor = ensureOptions(
-        addModal.vendorSelect,
-        optionSets.vendors,
-        'Добавьте производителя в разделе «Подключения»',
-        'equipment_vendor'
-      );
-      const hasModel = ensureOptions(
-        addModal.modelSelect,
-        optionSets.models,
-        'Добавьте модель в разделе «Подключения»',
-        'equipment_model'
-      );
+      const hasType = ensureOptions(addModal.typeSelect, optionSets.types, 'Добавьте тип в разделе «Оборудование»', 'equipment_type');
+      const hasVendor = ensureOptions(addModal.vendorSelect, optionSets.vendors, 'Добавьте производителя в разделе «Оборудование»', 'equipment_vendor');
+      const hasModel = ensureOptions(addModal.modelSelect, optionSets.models, 'Добавьте модель в разделе «Оборудование»', 'equipment_model');
       return hasType && hasVendor && hasModel;
     }
 
-    function prepareItEquipmentAddSettingsModal() {
-      const hasOptions = populateItEquipmentAddOptions();
-      if (addModal.serialNumberInput) {
-        addModal.serialNumberInput.value = '';
-      }
-      if (addModal.accessoriesInput) {
-        addModal.accessoriesInput.value = '';
-      }
-      if (addModal.linksContainer) {
-        renderEquipmentLinks(addModal.linksContainer, []);
-      }
+    function setModalMode(item) {
+      const editing = item && Number.isFinite(Number.parseInt(item.id, 10));
+      state.editingId = editing ? Number.parseInt(item.id, 10) : null;
+      const selected = editing ? {
+        equipment_type: item.equipment_type || '',
+        equipment_vendor: item.equipment_vendor || '',
+        equipment_model: item.equipment_model || '',
+      } : {};
+      const hasOptions = populateItEquipmentAddOptions(selected);
+      if (addModal.serialNumberInput) addModal.serialNumberInput.value = editing ? (item.serial_number || '') : '';
+      if (addModal.accessoriesInput) addModal.accessoriesInput.value = editing ? (item.accessories || item.additional_equipment || '') : '';
+      if (addModal.linksContainer) renderEquipmentLinks(addModal.linksContainer, editing ? parseEquipmentLinks(item.photo_url) : []);
+      if (addModal.title) addModal.title.textContent = editing ? 'Карточка модели оборудования' : 'Новое оборудование';
       if (addModal.submitButton) {
         addModal.submitButton.disabled = !hasOptions;
+        addModal.submitButton.textContent = editing ? 'Сохранить' : 'Добавить';
       }
     }
 
-    function handleTableClick(event) {
-      const linkButton = event.target.closest('[data-it-equipment-link-action]');
-      if (linkButton) {
-        const row = linkButton.closest('tr');
-        if (!row) return;
-        const action = linkButton.dataset.itEquipmentLinkAction;
-        const container = row.querySelector('[data-links-container]');
-        if (!container) return;
-        if (action === 'add-link') {
-          const item = addEquipmentLinkInput(container, '');
-          const input = item ? item.querySelector('[data-link-input]') : null;
-          if (input) {
-            input.focus();
-          }
-        } else if (action === 'remove-link') {
-          const item = linkButton.closest('[data-link-item]');
-          if (item) {
-            item.remove();
-            ensureEquipmentLinksPlaceholder(container);
-          }
-        }
-        return;
-      }
+    function prepareItEquipmentAddSettingsModal() {
+      setModalMode(null);
+    }
 
+    function showEditModal(item) {
+      if (!elements.itEquipmentAddModalEl) return;
+      setModalMode(item);
+      if (window.bootstrap && window.bootstrap.Modal) {
+        window.bootstrap.Modal.getOrCreateInstance(elements.itEquipmentAddModalEl).show();
+      } else {
+        popup('Не удалось открыть окно редактирования');
+      }
+    }
+
+    function collectModalPayload() {
+      return {
+        equipment_type: addModal.typeSelect && !addModal.typeSelect.disabled ? addModal.typeSelect.value.trim() : '',
+        equipment_vendor: addModal.vendorSelect && !addModal.vendorSelect.disabled ? addModal.vendorSelect.value.trim() : '',
+        equipment_model: addModal.modelSelect && !addModal.modelSelect.disabled ? addModal.modelSelect.value.trim() : '',
+        serial_number: addModal.serialNumberInput ? addModal.serialNumberInput.value.trim() : '',
+        accessories: addModal.accessoriesInput ? addModal.accessoriesInput.value.trim() : '',
+        photo_url: formatEquipmentLinksPayload(collectEquipmentLinks(addModal.linksContainer)),
+      };
+    }
+
+    async function deleteItem(item) {
+      const id = Number.parseInt(item && item.id, 10);
+      if (!Number.isFinite(id)) return;
+      const title = [(item && item.equipment_vendor) || '', (item && item.equipment_model) || ''].filter(Boolean).join(' ');
+      if (!confirmAction(`Удалить ${title || 'оборудование'} из каталога?`)) return;
+      try {
+        const response = await fetch(`/api/settings/it-equipment/${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Ошибка удаления оборудования');
+        setItems(Array.isArray(data.items) ? data.items : getItems().filter((entry) => Number.parseInt(entry.id, 10) !== id));
+        renderItEquipmentTable();
+      } catch (error) {
+        popup('❌ ' + (error && error.message ? error.message : error));
+      }
+    }
+
+    function handleCardClick(event) {
       const button = event.target.closest('[data-it-equipment-action]');
       if (!button) return;
-      const row = button.closest('tr');
-      if (!row) return;
-      const action = button.dataset.itEquipmentAction;
-      if (action === 'save') {
-        saveItEquipmentRow(row);
-      } else if (action === 'delete') {
-        deleteItEquipmentRow(row);
+      const card = button.closest('[data-id]');
+      if (!card) return;
+      const id = Number.parseInt(card.dataset.id, 10);
+      const item = getItems().find((entry) => Number.parseInt(entry && entry.id, 10) === id);
+      if (!item) return;
+      if (button.dataset.itEquipmentAction === 'edit') {
+        showEditModal(item);
+      } else if (button.dataset.itEquipmentAction === 'delete') {
+        deleteItem(item);
       }
     }
 
@@ -511,9 +444,7 @@
         if (addModal.linksContainer) {
           const item = addEquipmentLinkInput(addModal.linksContainer, '');
           const input = item ? item.querySelector('[data-link-input]') : null;
-          if (input) {
-            input.focus();
-          }
+          if (input) input.focus();
         }
         return;
       }
@@ -529,53 +460,22 @@
 
     async function handleAddFormSubmit(event) {
       event.preventDefault();
-      const payload = {
-        equipment_type:
-          addModal.typeSelect && !addModal.typeSelect.disabled
-            ? addModal.typeSelect.value.trim()
-            : '',
-        equipment_vendor:
-          addModal.vendorSelect && !addModal.vendorSelect.disabled
-            ? addModal.vendorSelect.value.trim()
-            : '',
-        equipment_model:
-          addModal.modelSelect && !addModal.modelSelect.disabled
-            ? addModal.modelSelect.value.trim()
-            : '',
-        serial_number: addModal.serialNumberInput ? addModal.serialNumberInput.value.trim() : '',
-        accessories: addModal.accessoriesInput ? addModal.accessoriesInput.value.trim() : '',
-        photo_url: formatEquipmentLinksPayload(collectEquipmentLinks(addModal.linksContainer)),
-      };
-
+      const payload = collectModalPayload();
       let hasError = false;
-      if (!payload.equipment_type) {
-        if (addModal.typeSelect) {
-          addModal.typeSelect.classList.add('is-invalid');
+      [
+        ['equipment_type', addModal.typeSelect],
+        ['equipment_vendor', addModal.vendorSelect],
+        ['equipment_model', addModal.modelSelect],
+      ].forEach(([key, element]) => {
+        if (!payload[key] && element) {
+          element.classList.add('is-invalid');
+          hasError = true;
         }
-        hasError = true;
-      }
-      if (!payload.equipment_vendor) {
-        if (addModal.vendorSelect) {
-          addModal.vendorSelect.classList.add('is-invalid');
-        }
-        hasError = true;
-      }
-      if (!payload.equipment_model) {
-        if (addModal.modelSelect) {
-          addModal.modelSelect.classList.add('is-invalid');
-        }
-        hasError = true;
-      }
-
+      });
       if (hasError) {
-        const firstInvalid = [
-          addModal.typeSelect,
-          addModal.vendorSelect,
-          addModal.modelSelect,
-        ].find((element) => element && element.classList.contains('is-invalid'));
-        if (firstInvalid) {
-          firstInvalid.focus();
-        }
+        const firstInvalid = [addModal.typeSelect, addModal.vendorSelect, addModal.modelSelect]
+          .find((element) => element && element.classList.contains('is-invalid'));
+        if (firstInvalid) firstInvalid.focus();
         return;
       }
 
@@ -585,51 +485,49 @@
         button.disabled = true;
         button.textContent = '...';
       }
-
       try {
-        const response = await fetch('/api/settings/it-equipment', {
+        const editId = state.editingId;
+        const response = await fetch(editId ? `/api/settings/it-equipment/${editId}` : '/api/settings/it-equipment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
         const data = await response.json();
         if (!response.ok || data.success === false) {
-          throw new Error((data && data.error) || 'Ошибка создания оборудования');
+          throw new Error((data && data.error) || (editId ? 'Ошибка сохранения оборудования' : 'Ошибка создания оборудования'));
         }
-        if (Array.isArray(data.items)) {
-          setItems(data.items);
-        } else if (data.item) {
-          setItems(getItems().concat([data.item]));
-        }
+        if (Array.isArray(data.items)) setItems(data.items);
         renderItEquipmentTable();
-        if (elements.itEquipmentAddModalEl) {
-          requestClose(addModal.form);
-        }
+        state.editingId = null;
+        requestClose(addModal.form);
       } catch (error) {
         popup('❌ ' + (error && error.message ? error.message : error));
       } finally {
         if (button) {
           button.disabled = false;
-          button.textContent = originalText || 'Добавить';
+          button.textContent = originalText || (state.editingId ? 'Сохранить' : 'Добавить');
         }
       }
     }
 
     function bindEvents() {
-      if (elements.itEquipmentBody) {
-        elements.itEquipmentBody.addEventListener('click', handleTableClick);
+      if (elements.itEquipmentBody) elements.itEquipmentBody.addEventListener('click', handleCardClick);
+      if (elements.searchInput) {
+        elements.searchInput.addEventListener('input', () => {
+          state.query = elements.searchInput.value || '';
+          renderItEquipmentTable();
+        });
       }
-      if (elements.itEquipmentAddModalEl) {
-        elements.itEquipmentAddModalEl.addEventListener('click', handleAddModalClick);
-      }
+      if (elements.itEquipmentAddModalEl) elements.itEquipmentAddModalEl.addEventListener('click', handleAddModalClick);
       [addModal.typeSelect, addModal.vendorSelect, addModal.modelSelect].forEach((select) => {
         if (!select) return;
-        select.addEventListener('change', () => {
-          select.classList.remove('is-invalid');
-        });
+        select.addEventListener('change', () => select.classList.remove('is-invalid'));
       });
-      if (addModal.form) {
-        addModal.form.addEventListener('submit', handleAddFormSubmit);
+      if (addModal.form) addModal.form.addEventListener('submit', handleAddFormSubmit);
+      if (elements.itEquipmentAddModalEl) {
+        elements.itEquipmentAddModalEl.addEventListener('hidden.bs.modal', () => {
+          state.editingId = null;
+        });
       }
     }
 

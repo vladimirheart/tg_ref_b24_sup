@@ -230,18 +230,12 @@ public class NetBoxObjectPassportSyncService {
 
             SyncAccumulator accumulator = new SyncAccumulator();
             if (settings.fullOverwritePending()) {
-                FullOverwritePayload overwritePayload = buildFullOverwritePayload(settings, sites, accumulator);
-                updateProgress(80, "Полностью переписываем тестовые паспорта объектов");
-                try {
-                    objectPassportService.replaceAllPassports(overwritePayload.passports());
-                    syncItConnectionParameters(accumulator.itParameters());
-                    syncItEquipmentCatalog(accumulator.equipmentCatalogItems());
-                    settingsService.markFullOverwriteComplete(sharedSettings);
-                    sharedConfigService.saveSettings(sharedSettings);
-                } catch (RuntimeException ex) {
-                    overwritePayload.newStoredFiles().forEach(photoStorageService::deleteQuietly);
-                    throw ex;
-                }
+                updateProgress(80, "Безопасно обновляем паспорта без удаления ручных данных");
+                upsertPassports(settings, sites, accumulator);
+                syncItConnectionParameters(accumulator.itParameters());
+                syncItEquipmentCatalog(accumulator.equipmentCatalogItems());
+                settingsService.markFullOverwriteComplete(sharedSettings);
+                sharedConfigService.saveSettings(sharedSettings);
             } else {
                 upsertPassports(settings, sites, accumulator);
                 syncItConnectionParameters(accumulator.itParameters());
@@ -334,9 +328,10 @@ public class NetBoxObjectPassportSyncService {
                 PassportBuildResult buildResult = buildPassportPayload(settings, site, existing, accumulator);
                 boolean created = existing == null || existing.isEmpty();
                 try {
-                    objectPassportService.upsertPassportByNetBoxSiteId(siteId, buildResult.payload());
+                    Map<String, Object> safePayload = mergeImportedPassportPreservingExisting(existing, buildResult.payload());
+                    objectPassportService.upsertPassportByNetBoxSiteId(siteId, safePayload);
                     buildResult.obsoleteStoredFiles().forEach(photoStorageService::deleteQuietly);
-                    accumulator.registerSite(buildResult.payload());
+                    accumulator.registerSite(safePayload);
                     if (created) {
                         accumulator.registerCreated();
                     } else {
@@ -358,6 +353,27 @@ public class NetBoxObjectPassportSyncService {
                         ex);
             }
         }
+    }
+
+    static Map<String, Object> mergeImportedPassportPreservingExisting(Map<String, Object> existing,
+                                                                      Map<String, Object> imported) {
+        if (existing == null || existing.isEmpty()) {
+            return imported == null ? Map.of() : new LinkedHashMap<>(imported);
+        }
+        LinkedHashMap<String, Object> merged = new LinkedHashMap<>();
+        if (imported != null) {
+            merged.putAll(imported);
+        }
+        for (Map.Entry<String, Object> entry : existing.entrySet()) {
+            String key = entry.getKey() == null ? "" : String.valueOf(entry.getKey()).trim();
+            if (!StringUtils.hasText(key) || "id".equals(key) || "photos".equals(key)) {
+                continue;
+            }
+            // Existing passport state is authoritative even when the value is intentionally blank.
+            // NetBox may add only keys that are genuinely absent from the existing passport.
+            merged.put(key, entry.getValue());
+        }
+        return merged;
     }
 
     private PassportBuildResult buildPassportPayload(NetBoxSyncSettings settings,
