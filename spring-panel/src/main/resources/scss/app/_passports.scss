@@ -10,6 +10,10 @@
     max-width: 1600px;
 }
 
+[data-ui-page='passports'].passports-list-page .passports-page-shell {
+    max-width: none;
+}
+
 /* Shared header */
 
 [data-ui-page='passports'] .passports-page-header {
@@ -117,6 +121,28 @@
 [data-ui-page='passports'].passports-list-page
 .passport-table-shell {
     overflow-x: auto;
+}
+
+[data-ui-page='passports'].passports-list-page
+.passport-table-scrollbar-top {
+    width: 100%;
+    height: 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--surface-card);
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+}
+
+[data-ui-page='passports'].passports-list-page
+.passport-table-scrollbar-top[hidden] {
+    display: none;
+}
+
+[data-ui-page='passports'].passports-list-page
+.passport-table-scrollbar-top-spacer {
+    height: 1px;
 }
 
 [data-ui-page='passports'].passports-list-page

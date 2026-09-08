@@ -13,7 +13,7 @@
 <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
 
 <link rel="stylesheet" th:href="@{/css/style.css}">
-<link rel="stylesheet" th:href="@{/css/app.css(v='20260907-01-258-r2')}">
+<link rel="stylesheet" th:href="@{/css/app.css(v='20260907-01-258-r3')}">
 <link rel="stylesheet" th:href="@{/css/sidebar.css}">
 </head>
 <body class="with-sidebar sidebar-pinned passports-list-page" data-ui-page="passports">
@@ -79,6 +79,15 @@
 	</div>
 
     <div class="card passport-table-card ops-table-card">
+        <div id="passportsTableTopScroll"
+             class="passport-table-scrollbar-top"
+             role="region"
+             aria-label="Горизонтальная прокрутка таблицы паспортов"
+             tabindex="0"
+             hidden>
+            <div id="passportsTableTopScrollSpacer"
+                 class="passport-table-scrollbar-top-spacer"></div>
+        </div>
 		<div class="table-responsive passport-table-shell ops-table-shell">
 			<table class="table align-middle mb-0 passport-table"
 				   id="passportsTable">
@@ -248,6 +257,9 @@
 <script>
     (() => {
         const tableBody = document.getElementById('passportsTableBody');
+        const tableShell = document.querySelector('.passport-table-shell');
+        const tableTopScroll = document.getElementById('passportsTableTopScroll');
+        const tableTopScrollSpacer = document.getElementById('passportsTableTopScrollSpacer');
         const rows = Array.from(document.querySelectorAll('[data-passport-row]'));
         if (!tableBody || !rows.length) {
             return;
@@ -273,6 +285,8 @@
         const photoPreviewImage = document.getElementById('passportPhotoPreviewImage');
         let photoPreviewTimer = null;
         let photoPreviewHideTimer = null;
+        let syncingTableScroll = false;
+        let tableScrollResizeObserver = null;
 
         const state = {
             sortKey: 'department',
@@ -426,6 +440,51 @@
 			});
 		}
 
+        function updateTableHorizontalScroll() {
+            if (!tableShell || !tableTopScroll || !tableTopScrollSpacer) return;
+
+            const hasOverflow = tableShell.scrollWidth > tableShell.clientWidth + 1;
+            tableTopScroll.hidden = !hasOverflow;
+            tableTopScrollSpacer.style.width = Math.ceil(tableShell.scrollWidth) + 'px';
+
+            if (!hasOverflow) {
+                tableTopScroll.scrollLeft = 0;
+                tableShell.scrollLeft = 0;
+                return;
+            }
+
+            if (!syncingTableScroll) {
+                tableTopScroll.scrollLeft = tableShell.scrollLeft;
+            }
+        }
+
+        function bindTableHorizontalScroll() {
+            if (!tableShell || !tableTopScroll || !tableTopScrollSpacer) return;
+
+            tableTopScroll.addEventListener('scroll', () => {
+                if (syncingTableScroll) return;
+                syncingTableScroll = true;
+                tableShell.scrollLeft = tableTopScroll.scrollLeft;
+                syncingTableScroll = false;
+            });
+
+            tableShell.addEventListener('scroll', () => {
+                if (syncingTableScroll) return;
+                syncingTableScroll = true;
+                tableTopScroll.scrollLeft = tableShell.scrollLeft;
+                syncingTableScroll = false;
+            });
+
+            window.addEventListener('resize', updateTableHorizontalScroll);
+
+            if (typeof ResizeObserver === 'function') {
+                tableScrollResizeObserver = new ResizeObserver(updateTableHorizontalScroll);
+                tableScrollResizeObserver.observe(tableShell);
+                const table = document.getElementById('passportsTable');
+                if (table) tableScrollResizeObserver.observe(table);
+            }
+        }
+
         function applyState() {
             const statusValue = normalize(statusFilter ? statusFilter.value : '');
             const deletedExplicit = statusValue === 'удален';
@@ -455,6 +514,7 @@
                 noResultsRow.classList.toggle('d-none', filteredRows.length > 0);
             }
             updateSortIndicators();
+            window.requestAnimationFrame(updateTableHorizontalScroll);
         }
 
         function cancelPhotoPreviewHide() {
@@ -576,6 +636,7 @@
         populateFilters();
         bindFilterEvents();
         bindPhotoPreview();
+        bindTableHorizontalScroll();
         applyState();
     })();
 </script>

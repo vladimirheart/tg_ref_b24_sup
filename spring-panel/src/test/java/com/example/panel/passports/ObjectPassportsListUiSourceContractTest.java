@@ -30,6 +30,10 @@ class ObjectPassportsListUiSourceContractTest {
         assertTrue(html.contains("showDeletedFilter"));
         assertTrue(html.contains("data-deleted"));
         assertTrue(html.contains("visibilityRows.length"));
+        assertTrue(html.contains("passportsTableTopScroll"));
+        assertTrue(html.contains("bindTableHorizontalScroll"));
+        assertTrue(html.contains("new ResizeObserver(updateTableHorizontalScroll)"));
+        assertTrue(html.contains("tableShell.scrollLeft = tableTopScroll.scrollLeft"));
     }
 
     @Test
@@ -38,7 +42,9 @@ class ObjectPassportsListUiSourceContractTest {
         assertTrue(scss.contains("passport-title-thumb"));
         assertTrue(scss.contains("passport-photo-preview"));
         assertTrue(scss.contains("pointer-events: auto"));
-        assertTrue(scss.contains("font-size: 0.8125rem"));
+        assertTrue(scss.matches("(?s).*passport-count-badge.*?font-size:\\s*[^;]+;.*"));
+        assertTrue(scss.contains("max-width: none"));
+        assertTrue(scss.contains("passport-table-scrollbar-top"));
         assertTrue(scss.contains("font-weight: 800"));
         assertTrue(scss.contains("font-variant-numeric: tabular-nums"));
         assertTrue(scss.contains("passport-row--deleted"));
