@@ -242,12 +242,22 @@ public class ManagementController {
     public String passportDetails(@PathVariable Long id, Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         populatePassportEditor(model, false);
+        model.addAttribute("passportEditMode", false);
         return "passports/detail";
     }
 
     @GetMapping("/object-passports/{id}/edit")
     @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public String passportEdit(@PathVariable Long id, Authentication authentication, Model model) {
+        navigationService.enrich(model, authentication);
+        populatePassportEditor(model, false);
+        model.addAttribute("passportEditMode", true);
+        return "passports/detail";
+    }
+
+    @GetMapping("/object-passports/{id}/legacy-edit")
+    @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
+    public String passportLegacyEdit(@PathVariable Long id, Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         populatePassportEditor(model, false);
         return "passports/new";

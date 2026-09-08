@@ -139,6 +139,7 @@ public class UiPreferenceService {
         mergeField(target, normalized, requestPayload, "uiDensityMode");
         mergeField(target, normalized, requestPayload, "sidebarNavOrder");
         mergeField(target, normalized, requestPayload, "dashboardPanelLayout");
+        mergeField(target, normalized, requestPayload, "pageFontScales");
     }
 
     private void mergeField(Map<String, Object> target,
@@ -191,9 +192,40 @@ public class UiPreferenceService {
         if (dashboardPanelLayout != null && !dashboardPanelLayout.isEmpty()) {
             normalized.put("dashboardPanelLayout", dashboardPanelLayout);
         }
+        Map<String, Integer> pageFontScales = normalizePageFontScales(payload.get("pageFontScales"));
+        if (!pageFontScales.isEmpty()) {
+            normalized.put("pageFontScales", pageFontScales);
+        }
         Map<String, Object> dialogsTriage = normalizeDialogsTriage(payload.get("dialogsTriage"));
         if (!dialogsTriage.isEmpty()) {
             normalized.put("dialogsTriage", dialogsTriage);
+        }
+        return normalized;
+    }
+
+    private Map<String, Integer> normalizePageFontScales(Object rawValue) {
+        if (!(rawValue instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Integer> normalized = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (normalized.size() >= 64) {
+                break;
+            }
+            String key = entry.getKey() == null ? "" : String.valueOf(entry.getKey()).trim();
+            if (!StringUtils.hasText(key) || key.length() > 160) {
+                continue;
+            }
+            Integer scale = null;
+            Object rawScale = entry.getValue();
+            if (rawScale instanceof Number number) {
+                scale = number.intValue();
+            } else if (rawScale != null) {
+                try { scale = Integer.parseInt(String.valueOf(rawScale).trim()); } catch (NumberFormatException ignored) { }
+            }
+            if (scale != null && List.of(90, 100, 110, 120, 130).contains(scale)) {
+                normalized.put(key, scale);
+            }
         }
         return normalized;
     }

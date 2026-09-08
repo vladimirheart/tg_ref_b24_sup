@@ -92,6 +92,24 @@
     return JSON.stringify(normalized.slice(0, 64));
   }
 
+  function normalizePageFontScales(value) {
+    let source = value;
+    if (typeof source === 'string') {
+      try { source = JSON.parse(source); }
+      catch (_error) { source = {}; }
+    }
+    if (!source || typeof source !== 'object' || Array.isArray(source)) source = {};
+    const result = {};
+    Object.entries(source).slice(0, 64).forEach(([rawKey, rawScale]) => {
+      const key = String(rawKey || '').trim();
+      const scale = Number.parseInt(rawScale, 10);
+      if (!key || key.length > 160) return;
+      if (![90, 100, 110, 120, 130].includes(scale)) return;
+      result[key] = scale;
+    });
+    return JSON.stringify(result);
+  }
+
   const REGISTRY = Object.freeze({
     theme: Object.freeze({
       storageKey: 'iguana:theme',
@@ -138,6 +156,21 @@
           return Array.isArray(parsed) ? parsed : null;
         } catch (_error) {
           return null;
+        }
+      },
+    }),
+    pageFontScales: Object.freeze({
+      storageKey: 'iguana:page-font-scales-v1',
+      fallback: '{}',
+      normalize: normalizePageFontScales,
+      parse(value) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+        if (typeof value !== 'string' || !value.trim()) return {};
+        try {
+          const parsed = JSON.parse(value);
+          return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        } catch (_error) {
+          return {};
         }
       },
     }),
@@ -263,6 +296,70 @@
     return REGISTRY[name]?.storageKey || null;
   }
 
+  const PAGE_FONT_SCALE_STEPS = Object.freeze([90, 100, 110, 120, 130]);
+
+  function currentPageFontKey() {
+    let pathname = String(root.location && root.location.pathname ? root.location.pathname : '/').replace(/\/+$/, '') || '/';
+    pathname = pathname.replace(/^\/object-passports\/\d+\/(?:edit|legacy-edit)$/i, '/object-passports/:id');
+    pathname = pathname.split('/').map((segment) => /^\d+$/.test(segment) ? ':id' : segment).join('/') || '/';
+    return pathname;
+  }
+
+  function pageFontScaleMap() {
+    const value = get('pageFontScales');
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  }
+
+  function currentPageFontScale() {
+    const raw = Number.parseInt(pageFontScaleMap()[currentPageFontKey()], 10);
+    return PAGE_FONT_SCALE_STEPS.includes(raw) ? raw : 100;
+  }
+
+  function applyCurrentPageFontScale() {
+    const scale = currentPageFontScale();
+    document.documentElement.style.fontSize = `${scale}%`;
+    document.documentElement.dataset.pageFontScale = String(scale);
+    const value = document.querySelector('[data-page-font-scale-value]');
+    if (value) value.textContent = `${scale}%`;
+    document.querySelectorAll('[data-page-font-scale-delta]').forEach((button) => {
+      const delta = Number.parseInt(button.dataset.pageFontScaleDelta, 10) || 0;
+      const index = PAGE_FONT_SCALE_STEPS.indexOf(scale);
+      button.disabled = (delta < 0 && index <= 0) || (delta > 0 && index >= PAGE_FONT_SCALE_STEPS.length - 1);
+    });
+    return scale;
+  }
+
+  function changeCurrentPageFontScale(delta) {
+    const current = currentPageFontScale();
+    const index = Math.max(0, PAGE_FONT_SCALE_STEPS.indexOf(current));
+    const nextIndex = Math.max(0, Math.min(PAGE_FONT_SCALE_STEPS.length - 1, index + (delta < 0 ? -1 : 1)));
+    const next = PAGE_FONT_SCALE_STEPS[nextIndex];
+    const map = { ...pageFontScaleMap(), [currentPageFontKey()]: next };
+    set('pageFontScales', map, 'page-font-scale');
+    applyCurrentPageFontScale();
+  }
+
+  function installPageFontScaleControl() {
+    const menu = document.getElementById('sidebarActionMenu');
+    if (!menu || menu.querySelector('[data-page-font-scale-control]')) return;
+    const control = document.createElement('div');
+    control.className = 'sidebar-font-scale-control';
+    control.dataset.pageFontScaleControl = 'true';
+    control.setAttribute('aria-label', 'Размер текста на этой странице');
+    control.innerHTML = `
+      <button type="button" class="sidebar-font-scale-control__button" data-page-font-scale-delta="-1" aria-label="Уменьшить текст">A−</button>
+      <span class="sidebar-font-scale-control__value"><span>Текст страницы</span><strong data-page-font-scale-value>100%</strong></span>
+      <button type="button" class="sidebar-font-scale-control__button" data-page-font-scale-delta="1" aria-label="Увеличить текст">A+</button>
+    `;
+    menu.appendChild(control);
+    control.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-page-font-scale-delta]');
+      if (!button) return;
+      changeCurrentPageFontScale(Number.parseInt(button.dataset.pageFontScaleDelta, 10) || 0);
+    });
+    applyCurrentPageFontScale();
+  }
+
   root.iguanaUiPreferences = Object.freeze({
     get,
     set,
@@ -278,6 +375,13 @@
     }
     set(name, value, 'bootstrap');
   });
+
+  applyCurrentPageFontScale();
+  document.addEventListener('ui-preference:change', (event) => {
+    if (event && event.detail && event.detail.name === 'pageFontScales') applyCurrentPageFontScale();
+  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installPageFontScaleControl, { once: true });
+  else installPageFontScaleControl();
 
   root.addEventListener('storage', (event) => {
     if (!event.key) return;

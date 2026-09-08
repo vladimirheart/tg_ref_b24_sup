@@ -431,14 +431,25 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
-    void existingObjectPassportEditRouteKeepsFullEditor() throws Exception {
+    void existingObjectPassportEditRouteUsesModernWorkspace() throws Exception {
         stubNavigationDefaults();
         stubPassportEditorDependencies();
 
         mockMvc.perform(get("/object-passports/42/edit").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
             .andExpect(status().isOk())
+            .andExpect(view().name("passports/detail"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("passport-edit-layer")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("initialEditMode")));
+    }
+
+    @Test
+    void existingObjectPassportLegacyEditRouteKeepsFallbackEditor() throws Exception {
+        stubNavigationDefaults();
+        stubPassportEditorDependencies();
+
+        mockMvc.perform(get("/object-passports/42/legacy-edit").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
+            .andExpect(status().isOk())
             .andExpect(view().name("passports/new"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"passports\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("savePassportBtn")));
     }
 

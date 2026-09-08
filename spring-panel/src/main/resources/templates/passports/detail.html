@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}">
     <title>Паспорт объекта — iguana</title>
 
     <link rel="stylesheet"
@@ -13,7 +14,7 @@
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
 
     <link rel="stylesheet" th:href="@{/css/style.css}">
-    <link rel="stylesheet" th:href="@{/css/app.css(v='20260908-01-259-r1')}">
+    <link rel="stylesheet" th:href="@{/css/app.css(v='20260908-01-259-r4')}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
 </head>
 <body class="with-sidebar sidebar-pinned passport-detail-page" data-ui-page="passports">
@@ -47,7 +48,7 @@
 
             <div class="passport-workspace-header__actions">
                 <a class="btn btn-sm btn-outline-secondary" href="/object-passports">← К списку</a>
-                <a class="btn btn-sm btn-primary" id="passportEditLink" href="#">Изменить</a>
+                <button class="btn btn-sm btn-primary" id="passportEditLink" type="button">Изменить</button>
             </div>
         </header>
 
@@ -64,10 +65,10 @@
                 <span class="passport-kpi__label">Задачи</span>
                 <strong class="passport-kpi__value" id="passportTasksCount">0</strong>
             </button>
-            <div class="passport-kpi">
+            <button type="button" class="passport-kpi" data-passport-tab-target="photos">
                 <span class="passport-kpi__label">Фото</span>
                 <strong class="passport-kpi__value" id="passportPhotosCount">0</strong>
-            </div>
+            </button>
             <div class="passport-kpi passport-kpi--quality">
                 <span class="passport-kpi__label">Заполненность</span>
                 <strong class="passport-kpi__value" id="passportCompletionValue">0%</strong>
@@ -198,7 +199,7 @@
                 </div>
                 <div class="passport-equipment-tools">
                     <input class="form-control form-control-sm" id="passportEquipmentSearch" type="search" placeholder="Поиск по модели, IP, SN…" autocomplete="off">
-                    <a class="btn btn-sm btn-outline-primary" id="passportEquipmentEditLink" href="#">Редактировать</a>
+                    <button class="btn btn-sm btn-outline-primary" id="passportEquipmentEditLink" type="button">Редактировать</button>
                 </div>
             </div>
             <div class="passport-equipment-grid" id="passportEquipmentGrid"></div>
@@ -240,11 +241,98 @@
                     <span class="passport-section-kicker">Визуальная история</span>
                     <h2 class="mb-0">Фотографии объекта</h2>
                 </div>
-                <a class="btn btn-sm btn-outline-primary" id="passportPhotosEditLink" href="#">Управлять фото</a>
+                <button class="btn btn-sm btn-outline-primary" id="passportPhotosEditLink" type="button">Управлять фото</button>
             </div>
             <div class="passport-photo-grid" id="passportPhotoGrid"></div>
             <div class="passport-empty-state d-none" id="passportPhotosEmpty">Фотографии не загружены.</div>
         </section>
+    </div>
+
+
+    <div class="passport-photo-viewer" id="passportPhotoViewer" hidden aria-hidden="true">
+        <button type="button" class="passport-photo-viewer__backdrop" data-passport-photo-close aria-label="Закрыть просмотр"></button>
+        <div class="passport-photo-viewer__dialog" role="dialog" aria-modal="true" aria-labelledby="passportPhotoViewerCaption">
+            <button type="button" class="passport-photo-viewer__close" data-passport-photo-close aria-label="Закрыть">&times;</button>
+            <button type="button" class="passport-photo-viewer__nav passport-photo-viewer__nav--prev" data-passport-photo-prev aria-label="Предыдущее фото">&#8249;</button>
+            <img id="passportPhotoViewerImage" alt="Фото объекта">
+            <button type="button" class="passport-photo-viewer__nav passport-photo-viewer__nav--next" data-passport-photo-next aria-label="Следующее фото">&#8250;</button>
+            <div class="passport-photo-viewer__meta">
+                <div>
+                    <span id="passportPhotoViewerCategory"></span>
+                    <strong id="passportPhotoViewerCaption">Фото объекта</strong>
+                </div>
+                <span id="passportPhotoViewerCounter"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="passport-edit-layer" id="passportEditLayer" hidden aria-hidden="true">
+        <button type="button" class="passport-edit-layer__backdrop" data-passport-edit-close aria-label="Закрыть редактор"></button>
+        <aside class="passport-edit-drawer" role="dialog" aria-modal="true" aria-labelledby="passportEditTitle">
+            <header class="passport-edit-drawer__header">
+                <div>
+                    <span class="passport-section-kicker">Редактирование паспорта</span>
+                    <h2 id="passportEditTitle">Изменить объект</h2>
+                    <p>Изменения сохраняются как ручные и не будут перезаписаны NetBox.</p>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-passport-edit-close>Закрыть</button>
+            </header>
+
+            <nav class="passport-edit-tabs" id="passportEditTabs" aria-label="Разделы редактора">
+                <button type="button" class="is-active" data-passport-edit-tab="main">Объект</button>
+                <button type="button" data-passport-edit-tab="contacts">Контакты</button>
+                <button type="button" data-passport-edit-tab="lifecycle">Даты</button>
+                <button type="button" data-passport-edit-tab="network">IT и сеть</button>
+                <button type="button" data-passport-edit-tab="schedule">Расписание</button>
+                <button type="button" data-passport-edit-tab="equipment">Оборудование</button>
+                <button type="button" data-passport-edit-tab="photos">Фото</button>
+            </nav>
+
+            <div class="passport-edit-drawer__body">
+                <section class="passport-edit-panel is-active" data-passport-edit-panel="main"><div class="passport-edit-fields" id="passportEditMainFields"></div></section>
+                <section class="passport-edit-panel" data-passport-edit-panel="contacts"><div class="passport-edit-fields" id="passportEditContactFields"></div></section>
+                <section class="passport-edit-panel" data-passport-edit-panel="lifecycle"><div class="passport-edit-fields" id="passportEditLifecycleFields"></div></section>
+                <section class="passport-edit-panel" data-passport-edit-panel="network"><div class="passport-edit-fields" id="passportEditNetworkFields"></div></section>
+                <section class="passport-edit-panel" data-passport-edit-panel="schedule"><div id="passportEditSchedule"></div></section>
+                <section class="passport-edit-panel" data-passport-edit-panel="equipment">
+                    <div class="passport-edit-panel-toolbar">
+                        <div><strong>Экземпляры на объекте</strong><span>Модель можно связать с мастер-каталогом.</span></div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="passportEditEquipmentAdd">+ Добавить</button>
+                    </div>
+                    <div class="passport-edit-equipment" id="passportEditEquipment"></div>
+                </section>
+                <section class="passport-edit-panel" data-passport-edit-panel="photos">
+                    <form class="passport-edit-photo-upload" id="passportPhotoUploadForm">
+                        <div>
+                            <label class="form-label" for="passportPhotoUploadFile">Файл</label>
+                            <input class="form-control form-control-sm" id="passportPhotoUploadFile" type="file" accept="image/*" required>
+                        </div>
+                        <div>
+                            <label class="form-label" for="passportPhotoUploadCategory">Категория</label>
+                            <select class="form-select form-select-sm" id="passportPhotoUploadCategory">
+                                <option value="archive">Архивное</option>
+                                <option value="title">Титульное</option>
+                            </select>
+                        </div>
+                        <div class="passport-edit-photo-upload__caption">
+                            <label class="form-label" for="passportPhotoUploadCaption">Подпись</label>
+                            <input class="form-control form-control-sm" id="passportPhotoUploadCaption" placeholder="Например: серверный шкаф">
+                        </div>
+                        <button class="btn btn-sm btn-primary" type="submit">Добавить фото</button>
+                    </form>
+                    <div class="passport-edit-photo-list" id="passportEditPhotoList"></div>
+                </section>
+            </div>
+
+            <footer class="passport-edit-drawer__footer">
+                <div class="passport-edit-status" id="passportEditStatus"></div>
+                <div>
+                    <a class="btn btn-sm btn-link text-muted" href="#" id="passportLegacyEditLink">Legacy-редактор</a>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-passport-edit-close>Отмена</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="passportEditSave">Сохранить изменения</button>
+                </div>
+            </footer>
+        </aside>
     </div>
 
     <div class="alert alert-danger d-none" id="passportWorkspaceError" role="alert"></div>
@@ -254,6 +342,12 @@
 (() => {
     const catalogRaw = /*[[${itEquipmentCatalog}]]*/ [];
     const equipmentCatalog = Array.isArray(catalogRaw) ? catalogRaw : [];
+    const initialEditMode = /*[[${passportEditMode}]]*/ false;
+    const statusesRawValue = /*[[${statuses}]]*/ [];
+    const statusesRaw = Array.isArray(statusesRawValue) ? statusesRawValue : [];
+    const parameterValuesRawValue = /*[[${parameterValues}]]*/ {};
+    const parameterValuesRaw = parameterValuesRawValue && typeof parameterValuesRawValue === 'object' ? parameterValuesRawValue : {};
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
     const idMatch = window.location.pathname.match(/object-passports\/(\d+)/);
     const passportId = idMatch ? Number(idMatch[1]) : null;
 
@@ -266,6 +360,9 @@
     let cases = [];
     let tasks = [];
     let incidents = [];
+    let photoViewerPosition = 0;
+    let editEquipmentDraft = [];
+    let editScheduleDraft = [];
 
     const DAY_LABELS = {
         mon: 'Пн', tue: 'Вт', wed: 'Ср', thu: 'Чт', fri: 'Пт', sat: 'Сб', sun: 'Вс'
@@ -367,8 +464,14 @@
         if (!cover) return;
         const photos = Array.isArray(passport.photos) ? passport.photos : [];
         const titlePhoto = photos.find((photo) => normalizeKey(photo && photo.category) === 'title') || photos[0];
+        const photoIndex = titlePhoto ? photos.indexOf(titlePhoto) : -1;
         const url = titlePhoto ? text(titlePhoto.url) : '';
-        if (!url) return;
+        delete cover.dataset.passportPhotoIndex;
+        if (!url) {
+            cover.innerHTML = '<span>PO</span>';
+            return;
+        }
+        cover.dataset.passportPhotoIndex = String(photoIndex);
         cover.innerHTML = `<img src="${escapeHtml(url)}" alt="Фото объекта">`;
     }
 
@@ -397,11 +500,8 @@
             source.classList.remove('d-none');
         }
 
-        const editUrl = `/object-passports/${passportId}/edit`;
-        ['passportEditLink', 'passportEquipmentEditLink', 'passportPhotosEditLink'].forEach((id) => {
-            const link = document.getElementById(id);
-            if (link) link.href = editUrl;
-        });
+        const legacyLink = document.getElementById('passportLegacyEditLink');
+        if (legacyLink) legacyLink.href = `/object-passports/${passportId}/legacy-edit`;
         renderCover();
     }
 
@@ -650,15 +750,474 @@
         const grid = document.getElementById('passportPhotoGrid');
         const photos = Array.isArray(passport.photos) ? passport.photos : [];
         document.getElementById('passportPhotosEmpty').classList.toggle('d-none', photos.length > 0);
-        grid.innerHTML = photos.map((photo) => {
+        grid.innerHTML = photos.map((photo, index) => {
             const url = text(photo && photo.url);
             const caption = first(photo && photo.caption, photo && photo.original_name, 'Фото объекта');
             const category = normalizeKey(photo && photo.category) === 'title' ? 'Титульное' : 'Архивное';
-            return `<figure class="passport-photo-tile">
+            return `<figure class="passport-photo-tile" ${url ? `data-passport-photo-index="${index}" tabindex="0" role="button" aria-label="Открыть фото: ${escapeHtml(caption)}"` : ''}>
                 ${url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(caption)}" loading="lazy">` : '<div class="passport-photo-tile__empty">Нет файла</div>'}
                 <figcaption><span>${escapeHtml(category)}</span><strong>${escapeHtml(caption)}</strong></figcaption>
             </figure>`;
         }).join('');
+    }
+
+    const EDIT_FIELD_GROUPS = {
+        main: [
+            { key: 'business', label: 'Бизнес' },
+            { key: 'department', label: 'Департамент', required: true },
+            { key: 'partner_type', label: 'Тип партнёра' },
+            { key: 'country', label: 'Страна' },
+            { key: 'legal_entity', label: 'Юридическое лицо' },
+            { key: 'city', label: 'Город' },
+            { key: 'location_address', label: 'Адрес', span: 2 },
+            { key: 'status', label: 'Статус', options: () => statusesRaw }
+        ],
+        contacts: [
+            { key: 'it_manager_name', label: 'Управляющий' },
+            { key: 'it_manager_phone', label: 'Телефон управляющего', type: 'tel' },
+            { key: 'it_object_phone', label: 'Телефон объекта', type: 'tel' }
+        ],
+        lifecycle: [
+            { key: 'start_date', label: 'Дата запуска', type: 'date' },
+            { key: 'end_date', label: 'Дата закрытия', type: 'date' },
+            { key: 'suspension_date', label: 'Дата приостановки', type: 'date' },
+            { key: 'resume_date', label: 'Дата возобновления', type: 'date' }
+        ],
+        network: [
+            { key: 'network', label: 'Внутренняя сеть' },
+            { key: 'network_tunnel', label: 'Туннель' },
+            { key: 'it_iiko_server', label: 'Сервер iiko' },
+            { key: 'it_connection_type', label: 'Тип удалённого доступа' },
+            { key: 'it_connection_id', label: 'ID подключения' },
+            { key: 'network_provider', label: 'Провайдер' },
+            { key: 'network_contract_number', label: 'Номер договора' },
+            { key: 'network_restaurant_id', label: 'ID ресторана' },
+            { key: 'network_legal_entity', label: 'ЮЛ провайдера' },
+            { key: 'network_support_phone', label: 'Телефон ТП', type: 'tel' },
+            { key: 'network_speed', label: 'Скорость' },
+            { key: 'network_connection_params', label: 'Параметры подключения', textarea: true, span: 2 }
+        ]
+    };
+
+    function deepClone(value) {
+        try { return JSON.parse(JSON.stringify(value == null ? null : value)); }
+        catch (_error) { return value; }
+    }
+
+    function csrfHeaders(json = false) {
+        const headers = {};
+        if (json) headers['Content-Type'] = 'application/json';
+        if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
+        return headers;
+    }
+
+    function optionValuesFor(key) {
+        if (key === 'status') return statusesRaw;
+        const raw = parameterValuesRaw && parameterValuesRaw[key];
+        return Array.isArray(raw) ? raw.map(text).filter(Boolean) : [];
+    }
+
+    function editorControl(field) {
+        const value = text(passport[field.key]);
+        const id = `passportEditField-${field.key}`;
+        const options = typeof field.options === 'function' ? field.options() : optionValuesFor(field.key);
+        if (Array.isArray(options) && options.length) {
+            const unique = [...new Set(options.map(text).filter(Boolean))];
+            return `<label class="passport-edit-field ${field.span === 2 ? 'passport-edit-field--wide' : ''}" for="${id}">
+                <span>${escapeHtml(field.label)}${field.required ? ' *' : ''}</span>
+                <select class="form-select form-select-sm" id="${id}" data-passport-edit-field="${escapeHtml(field.key)}" ${field.required ? 'required' : ''}>
+                    <option value="">—</option>
+                    ${unique.map((option) => `<option value="${escapeHtml(option)}" ${option === value ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+                    ${value && !unique.includes(value) ? `<option value="${escapeHtml(value)}" selected>${escapeHtml(value)}</option>` : ''}
+                </select>
+            </label>`;
+        }
+        if (field.textarea) {
+            return `<label class="passport-edit-field passport-edit-field--wide" for="${id}">
+                <span>${escapeHtml(field.label)}</span>
+                <textarea class="form-control form-control-sm" id="${id}" rows="5" data-passport-edit-field="${escapeHtml(field.key)}">${escapeHtml(value)}</textarea>
+            </label>`;
+        }
+        return `<label class="passport-edit-field ${field.span === 2 ? 'passport-edit-field--wide' : ''}" for="${id}">
+            <span>${escapeHtml(field.label)}${field.required ? ' *' : ''}</span>
+            <input class="form-control form-control-sm" id="${id}" type="${field.type || 'text'}" value="${escapeHtml(value)}" data-passport-edit-field="${escapeHtml(field.key)}" ${field.required ? 'required' : ''}>
+        </label>`;
+    }
+
+    function renderEditorScalarFields() {
+        const targets = {
+            main: 'passportEditMainFields',
+            contacts: 'passportEditContactFields',
+            lifecycle: 'passportEditLifecycleFields',
+            network: 'passportEditNetworkFields'
+        };
+        Object.entries(targets).forEach(([group, targetId]) => {
+            const target = document.getElementById(targetId);
+            if (!target) return;
+            target.innerHTML = EDIT_FIELD_GROUPS[group].map(editorControl).join('');
+        });
+    }
+
+    function normalizedScheduleDraft() {
+        const source = Array.isArray(passport.schedule) ? deepClone(passport.schedule) : [];
+        const byDay = new Map(source.map((item) => [text(item && item.day).toLowerCase(), item]));
+        return Object.keys(DAY_LABELS).map((day) => ({
+            day,
+            from: text(byDay.get(day) && byDay.get(day).from),
+            to: text(byDay.get(day) && byDay.get(day).to),
+            is_24: Boolean(byDay.get(day) && byDay.get(day).is_24)
+        }));
+    }
+
+    function renderEditorSchedule() {
+        const target = document.getElementById('passportEditSchedule');
+        if (!target) return;
+        target.innerHTML = editScheduleDraft.map((item, index) => `<div class="passport-edit-schedule-row" data-edit-schedule-index="${index}">
+            <strong>${escapeHtml(DAY_LABELS[item.day] || item.day)}</strong>
+            <input class="form-control form-control-sm" type="time" data-schedule-field="from" value="${escapeHtml(item.from)}" ${item.is_24 ? 'disabled' : ''}>
+            <span>—</span>
+            <input class="form-control form-control-sm" type="time" data-schedule-field="to" value="${escapeHtml(item.to)}" ${item.is_24 ? 'disabled' : ''}>
+            <label class="form-check"><input class="form-check-input" type="checkbox" data-schedule-field="is_24" ${item.is_24 ? 'checked' : ''}><span class="form-check-label">24 часа</span></label>
+        </div>`).join('');
+    }
+
+    function catalogOptions(selectedId) {
+        const options = ['<option value="">Без связи с каталогом</option>'];
+        equipmentCatalog.forEach((item) => {
+            const id = Number(item && item.id);
+            if (!Number.isFinite(id)) return;
+            const label = [item.equipment_vendor, item.equipment_model].map(text).filter(Boolean).join(' ') || text(item.equipment_type) || `#${id}`;
+            options.push(`<option value="${id}" ${Number(selectedId) === id ? 'selected' : ''}>${escapeHtml(label)} · #${id}</option>`);
+        });
+        return options.join('');
+    }
+
+    function equipmentInput(index, key, label, value, options = {}) {
+        const id = `passportEditEquipment-${index}-${key}`;
+        if (options.textarea) {
+            return `<label class="passport-edit-equipment-field passport-edit-equipment-field--wide" for="${id}"><span>${escapeHtml(label)}</span><textarea class="form-control form-control-sm" id="${id}" rows="3" data-equipment-field="${key}">${escapeHtml(text(value))}</textarea></label>`;
+        }
+        return `<label class="passport-edit-equipment-field" for="${id}"><span>${escapeHtml(label)}</span><input class="form-control form-control-sm" id="${id}" type="${options.type || 'text'}" value="${escapeHtml(text(value))}" data-equipment-field="${key}"></label>`;
+    }
+
+    function renderEditorEquipment() {
+        const target = document.getElementById('passportEditEquipment');
+        if (!target) return;
+        if (!editEquipmentDraft.length) {
+            target.innerHTML = '<div class="passport-inline-empty">Оборудование не добавлено.</div>';
+            return;
+        }
+        target.innerHTML = editEquipmentDraft.map((item, index) => `<article class="passport-edit-equipment-card" data-edit-equipment-index="${index}">
+            <div class="passport-edit-equipment-card__head">
+                <label><span>Модель из каталога</span><select class="form-select form-select-sm" data-equipment-catalog>${catalogOptions(item && item.catalog_id)}</select></label>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-equipment-remove>Удалить</button>
+            </div>
+            <div class="passport-edit-equipment-fields">
+                ${equipmentInput(index, 'equipment_type', 'Тип', item && item.equipment_type)}
+                ${equipmentInput(index, 'vendor', 'Производитель', first(item && item.vendor, item && item.equipment_vendor))}
+                ${equipmentInput(index, 'model', 'Модель', first(item && item.model, item && item.equipment_model))}
+                ${equipmentInput(index, 'name', 'Имя устройства', item && item.name)}
+                ${equipmentInput(index, 'serial_number', 'Серийный номер', item && item.serial_number)}
+                ${equipmentInput(index, 'status', 'Статус', item && item.status)}
+                ${equipmentInput(index, 'ip_address', 'IP-адрес', item && item.ip_address)}
+                ${equipmentInput(index, 'connection_type', 'Тип подключения', item && item.connection_type)}
+                ${equipmentInput(index, 'connection_id', 'ID подключения', item && item.connection_id)}
+                ${equipmentInput(index, 'connection_password', 'Пароль подключения', item && item.connection_password, { type: 'password' })}
+                ${equipmentInput(index, 'description', 'Описание', item && item.description, { textarea: true })}
+            </div>
+        </article>`).join('');
+    }
+
+    function renderEditorPhotos() {
+        const target = document.getElementById('passportEditPhotoList');
+        if (!target) return;
+        const photos = Array.isArray(passport.photos) ? passport.photos : [];
+        target.innerHTML = photos.length ? photos.map((photo, index) => {
+            const url = text(photo && photo.url);
+            const id = text(photo && photo.id);
+            return `<article class="passport-edit-photo-row" data-edit-photo-index="${index}" data-photo-id="${escapeHtml(id)}">
+                <div class="passport-edit-photo-row__thumb">${url ? `<img src="${escapeHtml(url)}" alt="Фото">` : '<span>Нет файла</span>'}</div>
+                <div class="passport-edit-photo-row__fields">
+                    <select class="form-select form-select-sm" data-edit-photo-category>
+                        <option value="archive" ${normalizeKey(photo && photo.category) !== 'title' ? 'selected' : ''}>Архивное</option>
+                        <option value="title" ${normalizeKey(photo && photo.category) === 'title' ? 'selected' : ''}>Титульное</option>
+                    </select>
+                    <input class="form-control form-control-sm" data-edit-photo-caption value="${escapeHtml(first(photo && photo.caption, photo && photo.original_name, ''))}" placeholder="Подпись">
+                </div>
+                <div class="passport-edit-photo-row__actions">
+                    ${id ? '<button type="button" class="btn btn-sm btn-outline-primary" data-edit-photo-save>Сохранить</button><button type="button" class="btn btn-sm btn-outline-danger" data-edit-photo-delete>Удалить</button>' : '<span class="text-muted small">Внешнее фото</span>'}
+                </div>
+            </article>`;
+        }).join('') : '<div class="passport-inline-empty">Фотографий пока нет.</div>';
+    }
+
+    function setEditorTab(name) {
+        document.querySelectorAll('[data-passport-edit-tab]').forEach((button) => button.classList.toggle('is-active', button.dataset.passportEditTab === name));
+        document.querySelectorAll('[data-passport-edit-panel]').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.passportEditPanel === name));
+    }
+
+    function openEditor(tab = 'main') {
+        const layer = document.getElementById('passportEditLayer');
+        if (!layer) return;
+        editEquipmentDraft = deepClone(Array.isArray(passport.equipment) ? passport.equipment : []) || [];
+        editScheduleDraft = normalizedScheduleDraft();
+        renderEditorScalarFields();
+        renderEditorSchedule();
+        renderEditorEquipment();
+        renderEditorPhotos();
+        setEditorTab(tab);
+        document.getElementById('passportEditStatus').textContent = '';
+        layer.hidden = false;
+        layer.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('passport-edit-open');
+        window.requestAnimationFrame(() => layer.querySelector('[data-passport-edit-panel].is-active input, [data-passport-edit-panel].is-active select, [data-passport-edit-panel].is-active textarea')?.focus({ preventScroll: true }));
+    }
+
+    function closeEditor() {
+        const layer = document.getElementById('passportEditLayer');
+        if (!layer) return;
+        layer.hidden = true;
+        layer.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('passport-edit-open');
+    }
+
+    function collectEditorPayload() {
+        const payload = {};
+        document.querySelectorAll('[data-passport-edit-field]').forEach((control) => {
+            const key = control.dataset.passportEditField;
+            const value = control.value == null ? '' : String(control.value).trim();
+            if (value !== text(passport[key])) payload[key] = value;
+        });
+        if (JSON.stringify(editScheduleDraft) !== JSON.stringify(normalizedScheduleDraft())) payload.schedule = deepClone(editScheduleDraft);
+        const currentEquipment = Array.isArray(passport.equipment) ? passport.equipment : [];
+        if (JSON.stringify(editEquipmentDraft) !== JSON.stringify(currentEquipment)) payload.equipment = deepClone(editEquipmentDraft);
+        return payload;
+    }
+
+    async function saveEditor() {
+        const status = document.getElementById('passportEditStatus');
+        const button = document.getElementById('passportEditSave');
+        const departmentControl = document.querySelector('[data-passport-edit-field="department"]');
+        if (departmentControl && !String(departmentControl.value || '').trim()) {
+            status.textContent = 'Департамент обязателен.';
+            status.dataset.tone = 'danger';
+            departmentControl.focus();
+            return;
+        }
+        const payload = collectEditorPayload();
+        if (!Object.keys(payload).length) {
+            closeEditor();
+            return;
+        }
+        button.disabled = true;
+        status.textContent = 'Сохраняем…';
+        status.dataset.tone = 'neutral';
+        try {
+            const response = await fetch(`/api/object_passports/${passportId}`, {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: csrfHeaders(true),
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok || data.success === false || !data.passport) throw new Error((data && data.error) || 'Не удалось сохранить паспорт');
+            passport = data.passport;
+            renderHeader();
+            renderOverview();
+            renderNetwork();
+            renderEquipment();
+            renderActivity();
+            renderPhotos();
+            updateCounts();
+            closeEditor();
+        } catch (error) {
+            status.textContent = error && error.message ? error.message : String(error);
+            status.dataset.tone = 'danger';
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function viewablePhotos() {
+        const photos = Array.isArray(passport.photos) ? passport.photos : [];
+        return photos.map((photo, originalIndex) => ({ photo, originalIndex })).filter((entry) => text(entry.photo && entry.photo.url));
+    }
+
+    function renderPhotoViewer() {
+        const viewer = document.getElementById('passportPhotoViewer');
+        const items = viewablePhotos();
+        if (!viewer || !items.length) return;
+        photoViewerPosition = ((photoViewerPosition % items.length) + items.length) % items.length;
+        const entry = items[photoViewerPosition];
+        const photo = entry.photo || {};
+        const caption = first(photo.caption, photo.original_name, 'Фото объекта');
+        document.getElementById('passportPhotoViewerImage').src = text(photo.url);
+        document.getElementById('passportPhotoViewerImage').alt = caption;
+        document.getElementById('passportPhotoViewerCaption').textContent = caption;
+        document.getElementById('passportPhotoViewerCategory').textContent = normalizeKey(photo.category) === 'title' ? 'Титульное' : 'Архивное';
+        document.getElementById('passportPhotoViewerCounter').textContent = `${photoViewerPosition + 1} / ${items.length}`;
+        viewer.querySelectorAll('[data-passport-photo-prev], [data-passport-photo-next]').forEach((button) => button.hidden = items.length < 2);
+    }
+
+    function openPhotoViewer(originalIndex) {
+        const viewer = document.getElementById('passportPhotoViewer');
+        const items = viewablePhotos();
+        const position = items.findIndex((entry) => entry.originalIndex === Number(originalIndex));
+        if (!viewer || position < 0) return;
+        photoViewerPosition = position;
+        renderPhotoViewer();
+        viewer.hidden = false;
+        viewer.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('passport-photo-viewer-open');
+        viewer.querySelector('[data-passport-photo-close]')?.focus({ preventScroll: true });
+    }
+
+    function closePhotoViewer() {
+        const viewer = document.getElementById('passportPhotoViewer');
+        if (!viewer) return;
+        viewer.hidden = true;
+        viewer.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('passport-photo-viewer-open');
+    }
+
+    function movePhotoViewer(delta) {
+        const items = viewablePhotos();
+        if (items.length < 2) return;
+        photoViewerPosition = (photoViewerPosition + delta + items.length) % items.length;
+        renderPhotoViewer();
+    }
+
+    async function refreshPhotosFromResponse(data) {
+        if (data && Array.isArray(data.photos)) passport.photos = data.photos;
+        renderCover();
+        renderPhotos();
+        renderEditorPhotos();
+        updateCounts();
+    }
+
+    async function savePhotoRow(row) {
+        const id = text(row && row.dataset.photoId);
+        if (!id) return;
+        const response = await fetch(`/api/object_passports/photos/${encodeURIComponent(id)}`, {
+            method: 'PATCH', credentials: 'same-origin', headers: csrfHeaders(true),
+            body: JSON.stringify({ category: row.querySelector('[data-edit-photo-category]')?.value || 'archive', caption: row.querySelector('[data-edit-photo-caption]')?.value || '' })
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Не удалось сохранить фото');
+        await refreshPhotosFromResponse(data);
+    }
+
+    async function deletePhotoRow(row) {
+        const id = text(row && row.dataset.photoId);
+        if (!id || !window.confirm('Удалить это фото?')) return;
+        const response = await fetch(`/api/object_passports/photos/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'same-origin', headers: csrfHeaders(false) });
+        const data = await response.json();
+        if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Не удалось удалить фото');
+        await refreshPhotosFromResponse(data);
+    }
+
+    async function uploadPhoto(event) {
+        event.preventDefault();
+        const file = document.getElementById('passportPhotoUploadFile')?.files?.[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('category', document.getElementById('passportPhotoUploadCategory')?.value || 'archive');
+        formData.append('caption', document.getElementById('passportPhotoUploadCaption')?.value || '');
+        const response = await fetch(`/api/object_passports/${passportId}/photos`, { method: 'POST', credentials: 'same-origin', headers: csrfHeaders(false), body: formData });
+        const data = await response.json();
+        if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Не удалось загрузить фото');
+        event.currentTarget.reset();
+        await refreshPhotosFromResponse(data);
+    }
+
+    function bindR4Events() {
+        document.getElementById('passportEditLink')?.addEventListener('click', () => openEditor('main'));
+        document.getElementById('passportEquipmentEditLink')?.addEventListener('click', () => openEditor('equipment'));
+        document.getElementById('passportPhotosEditLink')?.addEventListener('click', () => openEditor('photos'));
+        document.getElementById('passportEditSave')?.addEventListener('click', saveEditor);
+        document.querySelectorAll('[data-passport-edit-close]').forEach((button) => button.addEventListener('click', closeEditor));
+        document.getElementById('passportEditTabs')?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-passport-edit-tab]');
+            if (button) setEditorTab(button.dataset.passportEditTab);
+        });
+        document.getElementById('passportEditSchedule')?.addEventListener('input', (event) => {
+            const row = event.target.closest('[data-edit-schedule-index]');
+            const field = event.target.dataset.scheduleField;
+            const index = Number(row && row.dataset.editScheduleIndex);
+            if (!Number.isFinite(index) || !field || !editScheduleDraft[index]) return;
+            editScheduleDraft[index][field] = field === 'is_24' ? Boolean(event.target.checked) : event.target.value;
+            if (field === 'is_24') renderEditorSchedule();
+        });
+        document.getElementById('passportEditEquipmentAdd')?.addEventListener('click', () => {
+            editEquipmentDraft.push({ equipment_type: '', vendor: '', name: '', model: '', serial_number: '', status: '', ip_address: '', connection_type: '', connection_id: '', connection_password: '', description: '' });
+            renderEditorEquipment();
+        });
+        document.getElementById('passportEditEquipment')?.addEventListener('input', (event) => {
+            const card = event.target.closest('[data-edit-equipment-index]');
+            const index = Number(card && card.dataset.editEquipmentIndex);
+            const field = event.target.dataset.equipmentField;
+            if (!Number.isFinite(index) || !field || !editEquipmentDraft[index]) return;
+            editEquipmentDraft[index][field] = event.target.value;
+        });
+        document.getElementById('passportEditEquipment')?.addEventListener('change', (event) => {
+            const card = event.target.closest('[data-edit-equipment-index]');
+            const index = Number(card && card.dataset.editEquipmentIndex);
+            if (!Number.isFinite(index) || !editEquipmentDraft[index]) return;
+            if (event.target.matches('[data-equipment-catalog]')) {
+                const id = Number(event.target.value);
+                if (Number.isFinite(id) && id > 0) {
+                    const catalogItem = equipmentCatalog.find((entry) => Number(entry && entry.id) === id);
+                    if (catalogItem) {
+                        editEquipmentDraft[index].catalog_id = id;
+                        editEquipmentDraft[index].equipment_type = text(catalogItem.equipment_type);
+                        editEquipmentDraft[index].vendor = text(catalogItem.equipment_vendor);
+                        editEquipmentDraft[index].model = text(catalogItem.equipment_model);
+                    }
+                } else {
+                    delete editEquipmentDraft[index].catalog_id;
+                }
+                renderEditorEquipment();
+            }
+        });
+        document.getElementById('passportEditEquipment')?.addEventListener('click', (event) => {
+            const remove = event.target.closest('[data-equipment-remove]');
+            if (!remove) return;
+            const card = remove.closest('[data-edit-equipment-index]');
+            const index = Number(card && card.dataset.editEquipmentIndex);
+            if (!Number.isFinite(index)) return;
+            editEquipmentDraft.splice(index, 1);
+            renderEditorEquipment();
+        });
+        document.getElementById('passportPhotoUploadForm')?.addEventListener('submit', (event) => uploadPhoto(event).catch((error) => { const status = document.getElementById('passportEditStatus'); status.textContent = error.message || String(error); status.dataset.tone = 'danger'; }));
+        document.getElementById('passportEditPhotoList')?.addEventListener('click', (event) => {
+            const row = event.target.closest('[data-photo-id]');
+            if (!row) return;
+            if (event.target.closest('[data-edit-photo-save]')) savePhotoRow(row).catch((error) => { const status = document.getElementById('passportEditStatus'); status.textContent = error.message || String(error); status.dataset.tone = 'danger'; });
+            if (event.target.closest('[data-edit-photo-delete]')) deletePhotoRow(row).catch((error) => { const status = document.getElementById('passportEditStatus'); status.textContent = error.message || String(error); status.dataset.tone = 'danger'; });
+        });
+        document.getElementById('passportPhotoGrid')?.addEventListener('click', (event) => {
+            const tile = event.target.closest('[data-passport-photo-index]');
+            if (tile) openPhotoViewer(tile.dataset.passportPhotoIndex);
+        });
+        document.getElementById('passportWorkspaceCover')?.addEventListener('click', () => {
+            const cover = document.getElementById('passportWorkspaceCover');
+            if (cover && cover.dataset.passportPhotoIndex != null) openPhotoViewer(cover.dataset.passportPhotoIndex);
+        });
+        document.querySelectorAll('[data-passport-photo-close]').forEach((button) => button.addEventListener('click', closePhotoViewer));
+        document.querySelector('[data-passport-photo-prev]')?.addEventListener('click', () => movePhotoViewer(-1));
+        document.querySelector('[data-passport-photo-next]')?.addEventListener('click', () => movePhotoViewer(1));
+        document.addEventListener('keydown', (event) => {
+            const viewer = document.getElementById('passportPhotoViewer');
+            if (viewer && !viewer.hidden) {
+                if (event.key === 'Escape') closePhotoViewer();
+                if (event.key === 'ArrowLeft') movePhotoViewer(-1);
+                if (event.key === 'ArrowRight') movePhotoViewer(1);
+                return;
+            }
+            const layer = document.getElementById('passportEditLayer');
+            if (layer && !layer.hidden && event.key === 'Escape') closeEditor();
+        });
     }
 
     function updateCounts() {
@@ -745,9 +1304,11 @@
         updateCounts();
         loading.classList.add('d-none');
         workspace.classList.remove('d-none');
+        if (initialEditMode) openEditor('main');
     }
 
     bindTabs();
+    bindR4Events();
     load().catch((error) => {
         loading.classList.add('d-none');
         errorBox.textContent = error && error.message ? error.message : String(error);

@@ -21,7 +21,10 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(html.contains("passport-kpi-strip"));
         assertTrue(html.contains("passport-equipment-grid"));
         assertTrue(html.contains("passport-asset-card"));
-        assertTrue(html.contains("/object-passports/${passportId}/edit"));
+        assertTrue(html.contains("passport-edit-layer"));
+        assertTrue(html.contains("initialEditMode"));
+        assertTrue(html.contains("passport-photo-viewer"));
+        assertTrue(html.contains("data-passport-tab-target=\"photos\""));
         assertTrue(html.contains("/api/object_passports/${passportId}/cases"));
         assertTrue(html.contains("/api/object_passports/${passportId}/tasks"));
         assertTrue(html.contains("/api/object_passports/${passportId}/incidents"));
@@ -35,6 +38,8 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         String controller = read("src/main/java/com/example/panel/controller/ManagementController.java");
         assertTrue(controller.contains("return \"passports/detail\";"));
         assertTrue(controller.contains("@GetMapping(\"/object-passports/{id}/edit\")"));
+        assertTrue(controller.contains("@GetMapping(\"/object-passports/{id}/legacy-edit\")"));
+        assertTrue(controller.contains("model.addAttribute(\"passportEditMode\", true)"));
         assertTrue(controller.contains("catalogItem.put(\"id\", item.getId())"));
         assertTrue(controller.contains("catalogItem.put(\"equipment_model\", item.getEquipmentModel())"));
     }
@@ -49,6 +54,8 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(settings.contains("it-equipment-catalog-grid"));
         assertTrue(runtime.contains("it-equipment-catalog-card"));
         assertTrue(runtime.contains("data-it-equipment-action=\"edit\""));
+        assertTrue(runtime.contains("data-it-equipment-action=\"promote\""));
+        assertTrue(runtime.contains("Из паспортов"));
         assertTrue(runtime.contains("/api/settings/it-equipment/${editId}"));
         assertTrue(settingsScss.contains("it-equipment-catalog-card"));
     }
@@ -61,5 +68,20 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(scss.contains("passport-property-grid"));
         assertTrue(scss.contains("passport-asset-card"));
         assertTrue(scss.contains("grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))"));
+        assertTrue(scss.contains("Workspace refinements — 01-259 r4"));
+        assertTrue(scss.contains("passport-photo-viewer"));
+        assertTrue(scss.contains("passport-edit-drawer"));
+    }
+
+    @Test
+    void uiPreferencesExposeServerBackedPerPageFontScale() throws IOException {
+        String runtime = read("src/main/resources/static/js/ui-preferences.js");
+        String service = read("src/main/java/com/example/panel/service/UiPreferenceService.java");
+        String sidebarScss = read("src/main/resources/scss/sidebar/_sections.scss");
+        assertTrue(runtime.contains("pageFontScales"));
+        assertTrue(runtime.contains("currentPageFontKey"));
+        assertTrue(runtime.contains("data-page-font-scale-control"));
+        assertTrue(service.contains("pageFontScales"));
+        assertTrue(sidebarScss.contains("sidebar-font-scale-control"));
     }
 }

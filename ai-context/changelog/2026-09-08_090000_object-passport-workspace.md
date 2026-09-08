@@ -14,7 +14,13 @@
 - каталог оборудования в Settings переводится с inline edit table на searchable asset-card grid, а существующая modal используется и для создания, и для редактирования;
 - schema/data migration намеренно не выполняется.
 
-## Sync safety
 
-- NetBox sync больше не меняет ни одно уже присутствующее поле существующего паспорта, даже если его значение пустое; он может добавить только реально отсутствующий ключ. Ручные изменения также фиксируются через `_manual_overrides`.
-- Pending full-overwrite переведён на non-destructive upsert; удаление существующих паспортов из NetBox sync исключено.
+## R4 visual acceptance follow-up
+
+- per-user/per-page font scale uses existing server-backed UI preferences;
+- photo KPI opens the photo tab and object photos open in a gallery viewer;
+- modern workspace becomes the primary edit surface, with legacy editor retained only as fallback;
+- appeal matching is location-first and deduplicates ticket IDs;
+- settings equipment catalogue surfaces read-only discovered models from existing passport JSON and lets the user explicitly promote them;
+- NetBox catalogue discovery no longer requires a non-empty vendor;
+- no schema/data migration or automatic catalogue backfill is performed.

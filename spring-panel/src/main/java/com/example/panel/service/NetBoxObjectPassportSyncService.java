@@ -1140,7 +1140,7 @@ public class NetBoxObjectPassportSyncService {
         String type = stringValue(equipmentType).toLowerCase(Locale.ROOT);
         String vendor = stringValue(equipmentVendor).toLowerCase(Locale.ROOT);
         String model = stringValue(equipmentModel).toLowerCase(Locale.ROOT);
-        if (type.isBlank() || vendor.isBlank() || model.isBlank()) {
+        if (type.isBlank() || model.isBlank()) {
             return "";
         }
         return type + "|" + vendor + "|" + model;
@@ -1354,7 +1354,6 @@ public class NetBoxObjectPassportSyncService {
                 registerItParameter("equipment_model", equipmentModel);
                 registerItParameter("equipment_status", localStringValue(map.get("status")));
                 if (StringUtils.hasText(equipmentType)
-                        && StringUtils.hasText(equipmentVendor)
                         && StringUtils.hasText(equipmentModel)) {
                     equipmentCatalogItems.add(new DesiredItEquipmentCatalogItem(
                             equipmentType,

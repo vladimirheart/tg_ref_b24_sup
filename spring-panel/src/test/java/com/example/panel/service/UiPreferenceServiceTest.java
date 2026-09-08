@@ -32,7 +32,7 @@ class UiPreferenceServiceTest {
                     param_type VARCHAR(255),
                     value VARCHAR(255),
                     state VARCHAR(255),
-                    is_deleted INTEGER,
+                    is_deleted BOOLEAN,
                     deleted_at TIMESTAMP NULL,
                     extra_json CLOB
                 )
@@ -59,6 +59,23 @@ class UiPreferenceServiceTest {
         Map<String, Object> reloaded = service.loadForUser("alice");
         assertEquals(saved, reloaded);
         assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM settings_parameters", Integer.class));
+    }
+
+    @Test
+    void saveForUserPersistsIndependentPageFontScales() {
+        Map<String, Object> saved = service.saveForUser("font-user", Map.of(
+                "pageFontScales", Map.of(
+                        "/object-passports/:id", 120,
+                        "/settings", 110,
+                        "/invalid", 999
+                )
+        ));
+
+        assertEquals(Map.of(
+                "/object-passports/:id", 120,
+                "/settings", 110
+        ), saved.get("pageFontScales"));
+        assertEquals(saved, service.loadForUser("font-user"));
     }
 
     @Test

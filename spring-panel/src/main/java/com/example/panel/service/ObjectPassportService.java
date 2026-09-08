@@ -18,6 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -253,13 +254,55 @@ public class ObjectPassportService {
                 item.put("location_address", firstNonBlank(normalized.get("location_address"), rs.getString("object_address")));
                 item.put("passport_number", firstNonBlank(normalized.get("department"), rs.getString("passport_number")));
                 item.put("object_name", firstNonBlank(rs.getString("object_name"), normalized.get("department")));
-                item.put("appeals_count", appealsCountByLocation.getOrDefault(buildLocationKey(normalized), 0L));
+                item.put("appeals_count", resolveAppealCount(appealsCountByLocation, normalized));
                 item.put("photos", photos);
                 items.add(item);
             }
             return items;
         } catch (SQLException ex) {
             throw new IllegalStateException("Не удалось загрузить список паспортов объектов", ex);
+        }
+    }
+
+    public List<Map<String, Object>> listEquipmentCatalogCandidates() {
+        try (Connection connection = openConnection()) {
+            LinkedHashMap<String, Map<String, Object>> candidates = new LinkedHashMap<>();
+            for (StoredPassportRecord record : loadAllStoredPassports(connection)) {
+                Object rawEquipment = record.payload().get("equipment");
+                if (!(rawEquipment instanceof List<?> equipmentItems)) {
+                    continue;
+                }
+                for (Object rawItem : equipmentItems) {
+                    if (!(rawItem instanceof Map<?, ?> item)) {
+                        continue;
+                    }
+                    String type = firstNonBlank(item.get("equipment_type"), item.get("type"));
+                    String vendor = firstNonBlank(item.get("vendor"), item.get("equipment_vendor"));
+                    String model = firstNonBlank(item.get("model"), item.get("equipment_model"));
+                    if (!StringUtils.hasText(type) || !StringUtils.hasText(model)) {
+                        continue;
+                    }
+                    String key = normalizeLookupValue(type) + "::" + normalizeLookupValue(vendor) + "::" + normalizeLookupValue(model);
+                    Map<String, Object> candidate = candidates.computeIfAbsent(key, ignored -> {
+                        LinkedHashMap<String, Object> value = new LinkedHashMap<>();
+                        value.put("equipment_type", type);
+                        value.put("equipment_vendor", vendor);
+                        value.put("equipment_model", model);
+                        value.put("photo_url", "");
+                        value.put("serial_number", "");
+                        value.put("accessories", firstNonBlank(item.get("accessories"), item.get("additional_equipment")));
+                        value.put("usage_count", 0);
+                        value.put("discovered", true);
+                        value.put("source", "passports");
+                        return value;
+                    });
+                    int usage = candidate.get("usage_count") instanceof Number number ? number.intValue() : 0;
+                    candidate.put("usage_count", usage + 1);
+                }
+            }
+            return new ArrayList<>(candidates.values());
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Не удалось собрать модели оборудования из паспортов", ex);
         }
     }
 
@@ -821,26 +864,75 @@ public class ObjectPassportService {
     private Map<String, Long> loadAppealCountsByLocation() {
         return jdbcTemplate.query(
                 """
-                        SELECT lower(trim(replace(replace(COALESCE(business, ''), 'Ё', 'Е'), 'ё', 'е'))) AS business_key,
+                        SELECT DISTINCT ticket_id,
+                               lower(trim(replace(replace(COALESCE(business, ''), 'Ё', 'Е'), 'ё', 'е'))) AS business_key,
                                lower(trim(replace(replace(COALESCE(city, ''), 'Ё', 'Е'), 'ё', 'е'))) AS city_key,
-                               lower(trim(replace(replace(COALESCE(location_name, ''), 'Ё', 'Е'), 'ё', 'е'))) AS department_key,
-                               COUNT(*) AS total
+                               lower(trim(replace(replace(COALESCE(location_name, ''), 'Ё', 'Е'), 'ё', 'е'))) AS department_key
                         FROM messages
                         WHERE trim(COALESCE(ticket_id, '')) <> ''
-                        GROUP BY business_key, city_key, department_key
                         """,
                 rs -> {
-                    Map<String, Long> result = new LinkedHashMap<>();
+                    Map<String, Set<String>> ticketsByKey = new LinkedHashMap<>();
                     while (rs.next()) {
-                        String key = buildLocationKey(
-                                rs.getString("business_key"),
-                                rs.getString("city_key"),
-                                rs.getString("department_key"));
-                        result.put(key, rs.getLong("total"));
+                        String ticketId = stringValue(rs.getString("ticket_id"));
+                        String business = normalizeLookupValue(rs.getString("business_key"));
+                        String city = normalizeLookupValue(rs.getString("city_key"));
+                        String department = normalizeLookupValue(rs.getString("department_key"));
+                        if (!StringUtils.hasText(ticketId)) {
+                            continue;
+                        }
+                        if (StringUtils.hasText(department)) {
+                            addAppealTicket(ticketsByKey, appealDepartmentKey(department), ticketId);
+                            if (StringUtils.hasText(business)) {
+                                addAppealTicket(ticketsByKey, appealDepartmentBusinessKey(business, department), ticketId);
+                            }
+                        } else if (StringUtils.hasText(city)) {
+                            addAppealTicket(ticketsByKey, appealCityBusinessKey(business, city), ticketId);
+                        }
                     }
+                    Map<String, Long> result = new LinkedHashMap<>();
+                    ticketsByKey.forEach((key, ids) -> result.put(key, (long) ids.size()));
                     return result;
                 }
         );
+    }
+
+    private void addAppealTicket(Map<String, Set<String>> ticketsByKey, String key, String ticketId) {
+        if (!StringUtils.hasText(key)) {
+            return;
+        }
+        ticketsByKey.computeIfAbsent(key, ignored -> new LinkedHashSet<>()).add(ticketId);
+    }
+
+    private long resolveAppealCount(Map<String, Long> index, Map<String, Object> payload) {
+        String business = normalizeLookupValue(payload.get("business"));
+        String city = normalizeLookupValue(payload.get("city"));
+        String department = normalizeLookupValue(payload.get("department"));
+        if (StringUtils.hasText(department)) {
+            if (StringUtils.hasText(business)) {
+                Long strict = index.get(appealDepartmentBusinessKey(business, department));
+                if (strict != null) {
+                    return strict;
+                }
+            }
+            return index.getOrDefault(appealDepartmentKey(department), 0L);
+        }
+        if (StringUtils.hasText(city)) {
+            return index.getOrDefault(appealCityBusinessKey(business, city), 0L);
+        }
+        return 0L;
+    }
+
+    private String appealDepartmentKey(String department) {
+        return "department::" + normalizeLookupValue(department);
+    }
+
+    private String appealDepartmentBusinessKey(String business, String department) {
+        return "department-business::" + normalizeLookupValue(business) + "::" + normalizeLookupValue(department);
+    }
+
+    private String appealCityBusinessKey(String business, String city) {
+        return "city-business::" + normalizeLookupValue(business) + "::" + normalizeLookupValue(city);
     }
 
     private List<Map<String, Object>> loadCases(Map<String, Object> payload) {
@@ -850,7 +942,17 @@ public class ObjectPassportService {
         if (!StringUtils.hasText(businessKey) && !StringUtils.hasText(cityKey) && !StringUtils.hasText(departmentKey)) {
             return List.of();
         }
+        if (StringUtils.hasText(departmentKey)) {
+            List<Map<String, Object>> strict = queryCases(businessKey, "", departmentKey);
+            if (!strict.isEmpty() || !StringUtils.hasText(businessKey)) {
+                return strict;
+            }
+            return queryCases("", "", departmentKey);
+        }
+        return queryCases(businessKey, cityKey, "");
+    }
 
+    private List<Map<String, Object>> queryCases(String businessKey, String cityKey, String departmentKey) {
         StringBuilder sql = new StringBuilder("""
                 SELECT ticket_id, business, city, problem, created_at
                 FROM messages
@@ -862,7 +964,7 @@ public class ObjectPassportService {
         appendNormalizedMatch(sql, params, "location_name", departmentKey);
         sql.append(" ORDER BY COALESCE(created_at, '') DESC, ticket_id DESC");
 
-        return jdbcTemplate.query(
+        List<Map<String, Object>> rows = jdbcTemplate.query(
                 sql.toString(),
                 (rs, rowNum) -> {
                     LinkedHashMap<String, Object> item = new LinkedHashMap<>();
@@ -875,6 +977,14 @@ public class ObjectPassportService {
                 },
                 params.toArray()
         );
+        LinkedHashMap<String, Map<String, Object>> byTicket = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            String ticketId = stringValue(row.get("ticket_id"));
+            if (StringUtils.hasText(ticketId)) {
+                byTicket.putIfAbsent(ticketId, row);
+            }
+        }
+        return new ArrayList<>(byTicket.values());
     }
 
     private void appendNormalizedMatch(StringBuilder sql, List<Object> params, String column, String value) {
@@ -885,18 +995,6 @@ public class ObjectPassportService {
                 .append(column)
                 .append(", ''), 'Ё', 'Е'), 'ё', 'е'))) = ?");
         params.add(value);
-    }
-
-    private String buildLocationKey(Map<String, Object> payload) {
-        return buildLocationKey(
-                normalizeLookupValue(payload.get("business")),
-                normalizeLookupValue(payload.get("city")),
-                normalizeLookupValue(payload.get("department"))
-        );
-    }
-
-    private String buildLocationKey(String business, String city, String department) {
-        return String.join("::", normalizeLookupValue(business), normalizeLookupValue(city), normalizeLookupValue(department));
     }
 
     private String normalizeLookupValue(Object raw) {

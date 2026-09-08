@@ -273,9 +273,12 @@
       const cover = firstLink(item);
       const title = [vendor, model].filter(Boolean).join(' ') || model || vendor || type;
       const glyph = String(type || 'IT').trim().slice(0, 2).toUpperCase();
+      const discovered = item && item.discovered === true;
+      const itemIndex = getItems().indexOf(item);
+      const usageCount = Number.parseInt(item && item.usage_count, 10) || 0;
 
       return `
-        <article class="it-equipment-catalog-card" data-id="${Number.isFinite(id) ? id : ''}">
+        <article class="it-equipment-catalog-card ${discovered ? 'is-discovered' : ''}" data-id="${Number.isFinite(id) ? id : ''}" data-item-index="${itemIndex}">
           <div class="it-equipment-catalog-card__visual ${cover ? 'has-image' : ''}">
             ${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
             <span>${escapeHtml(glyph)}</span>
@@ -286,17 +289,19 @@
                 <span class="it-equipment-catalog-card__type">${escapeHtml(type)}</span>
                 <h6>${escapeHtml(title)}</h6>
               </div>
-              ${Number.isFinite(id) ? `<span class="it-equipment-catalog-card__id">#${id}</span>` : ''}
+              ${discovered ? '<span class="it-equipment-catalog-card__source">Из паспортов</span>' : (Number.isFinite(id) ? `<span class="it-equipment-catalog-card__id">#${id}</span>` : '')}
             </div>
             <div class="it-equipment-catalog-card__meta">
               ${serial ? `<span><small>SN</small>${escapeHtml(serial)}</span>` : ''}
               <span><small>Ссылки</small>${links.length}</span>
+              ${usageCount ? `<span><small>Объектов/экз.</small>${usageCount}</span>` : ''}
             </div>
             ${accessories ? `<p class="it-equipment-catalog-card__accessories">${escapeHtml(accessories)}</p>` : '<p class="it-equipment-catalog-card__accessories text-muted">Комплектация не указана</p>'}
             <div class="it-equipment-catalog-card__actions">
               ${links[0] ? `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(links[0])}" target="_blank" rel="noopener">Открыть</a>` : ''}
-              <button class="btn btn-sm btn-outline-primary" type="button" data-it-equipment-action="edit">Изменить</button>
-              <button class="btn btn-sm btn-outline-danger" type="button" data-it-equipment-action="delete" aria-label="Удалить ${escapeHtml(title)}">Удалить</button>
+              ${discovered
+                ? '<button class="btn btn-sm btn-primary" type="button" data-it-equipment-action="promote">Добавить в каталог</button>'
+                : '<button class="btn btn-sm btn-outline-primary" type="button" data-it-equipment-action="edit">Изменить</button><button class="btn btn-sm btn-outline-danger" type="button" data-it-equipment-action="delete">Удалить</button>'}
             </div>
           </div>
         </article>
@@ -358,9 +363,9 @@
         return true;
       };
       const hasType = ensureOptions(addModal.typeSelect, optionSets.types, 'Добавьте тип в разделе «Оборудование»', 'equipment_type');
-      const hasVendor = ensureOptions(addModal.vendorSelect, optionSets.vendors, 'Добавьте производителя в разделе «Оборудование»', 'equipment_vendor');
+      ensureOptions(addModal.vendorSelect, optionSets.vendors, 'Производитель не обязателен', 'equipment_vendor');
       const hasModel = ensureOptions(addModal.modelSelect, optionSets.models, 'Добавьте модель в разделе «Оборудование»', 'equipment_model');
-      return hasType && hasVendor && hasModel;
+      return hasType && hasModel;
     }
 
     function setModalMode(item) {
@@ -423,18 +428,49 @@
       }
     }
 
+
+    async function promoteDiscoveredItem(item) {
+      if (!item || item.discovered !== true) return;
+      const payload = {
+        equipment_type: String(item.equipment_type || '').trim(),
+        equipment_vendor: String(item.equipment_vendor || '').trim(),
+        equipment_model: String(item.equipment_model || '').trim(),
+        serial_number: '',
+        accessories: String(item.accessories || '').trim(),
+        photo_url: item.photo_url || '',
+      };
+      try {
+        const response = await fetch('/api/settings/it-equipment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Ошибка добавления модели в каталог');
+        if (Array.isArray(data.items)) setItems(data.items);
+        renderItEquipmentTable();
+      } catch (error) {
+        popup('❌ ' + (error && error.message ? error.message : error));
+      }
+    }
+
     function handleCardClick(event) {
       const button = event.target.closest('[data-it-equipment-action]');
       if (!button) return;
       const card = button.closest('[data-id]');
       if (!card) return;
       const id = Number.parseInt(card.dataset.id, 10);
-      const item = getItems().find((entry) => Number.parseInt(entry && entry.id, 10) === id);
+      const itemIndex = Number.parseInt(card.dataset.itemIndex, 10);
+      const item = Number.isFinite(id)
+        ? getItems().find((entry) => Number.parseInt(entry && entry.id, 10) === id)
+        : getItems()[itemIndex];
       if (!item) return;
       if (button.dataset.itEquipmentAction === 'edit') {
         showEditModal(item);
       } else if (button.dataset.itEquipmentAction === 'delete') {
         deleteItem(item);
+      } else if (button.dataset.itEquipmentAction === 'promote') {
+        promoteDiscoveredItem(item);
       }
     }
 
@@ -464,7 +500,6 @@
       let hasError = false;
       [
         ['equipment_type', addModal.typeSelect],
-        ['equipment_vendor', addModal.vendorSelect],
         ['equipment_model', addModal.modelSelect],
       ].forEach(([key, element]) => {
         if (!payload[key] && element) {
@@ -473,7 +508,7 @@
         }
       });
       if (hasError) {
-        const firstInvalid = [addModal.typeSelect, addModal.vendorSelect, addModal.modelSelect]
+        const firstInvalid = [addModal.typeSelect, addModal.modelSelect]
           .find((element) => element && element.classList.contains('is-invalid'));
         if (firstInvalid) firstInvalid.focus();
         return;
