@@ -10,6 +10,9 @@
       typeFilter: '',
       vendorFilter: '',
       editingId: null,
+      photoViewerIndex: 0,
+      photoEditId: null,
+      photoConfirmResolver: null,
     };
 
     const elements = {
@@ -63,12 +66,39 @@
       photoHint: elements.itEquipmentAddModalEl
         ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-hint]')
         : null,
+      mainTabButton: elements.itEquipmentAddModalEl
+        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-main-tab]')
+        : null,
+      photoTabButton: elements.itEquipmentAddModalEl
+        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-tab]')
+        : null,
+      photoTabCount: elements.itEquipmentAddModalEl
+        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-count]')
+        : null,
       submitButton: null,
     };
 
     addModal.submitButton = addModal.form
       ? addModal.form.querySelector('button[type="submit"]')
       : null;
+
+    const photoUi = {
+      viewerModalEl: document.getElementById('itEquipmentPhotoViewerModal'),
+      viewerImage: document.querySelector('[data-it-equipment-photo-viewer-image]'),
+      viewerType: document.querySelector('[data-it-equipment-photo-viewer-type]'),
+      viewerComment: document.querySelector('[data-it-equipment-photo-viewer-comment]'),
+      viewerCounter: document.querySelector('[data-it-equipment-photo-viewer-counter]'),
+      viewerPrev: document.querySelector('[data-it-equipment-photo-viewer-prev]'),
+      viewerNext: document.querySelector('[data-it-equipment-photo-viewer-next]'),
+      editModalEl: document.getElementById('itEquipmentPhotoEditModal'),
+      editCategory: document.querySelector('[data-it-equipment-photo-edit-category]'),
+      editComment: document.querySelector('[data-it-equipment-photo-edit-comment]'),
+      editSave: document.querySelector('[data-it-equipment-photo-edit-save]'),
+      confirmModalEl: document.getElementById('itEquipmentPhotoConfirmModal'),
+      confirmTitle: document.querySelector('[data-it-equipment-photo-confirm-title]'),
+      confirmMessage: document.querySelector('[data-it-equipment-photo-confirm-message]'),
+      confirmButton: document.querySelector('[data-it-equipment-photo-confirm-accept]'),
+    };
 
     function getParameterData() {
       const data = typeof options.getParameterData === 'function' ? options.getParameterData() : null;
@@ -425,6 +455,20 @@
       return getItems().find((item) => Number.parseInt(item && item.id, 10) === id) || null;
     }
 
+    function equipmentPhotos() {
+      const item = currentEditingItem();
+      return item ? parseEquipmentPhotos(item.photo_url) : [];
+    }
+
+    function photoCategoryLabel(photo) {
+      return normalize(photo && photo.category) === 'title' ? 'Титульное' : 'Общее';
+    }
+
+    function photoById(photoId) {
+      const normalizedId = String(photoId || '').trim();
+      return equipmentPhotos().find((photo) => String(photo && photo.id || '').trim() === normalizedId) || null;
+    }
+
     function renderEquipmentPhotoManager(item) {
       const editing = item && Number.isFinite(Number.parseInt(item.id, 10));
       const photos = editing ? parseEquipmentPhotos(item.photo_url) : [];
@@ -433,21 +477,38 @@
           ? photos.map((photo) => {
               const id = String(photo && photo.id || '').trim();
               const url = String(photo && photo.url || '').trim();
-              const category = normalize(photo && photo.category) === 'title' ? 'Титульное' : 'Общее';
+              const category = photoCategoryLabel(photo);
               const comment = String((photo && (photo.comment || photo.caption)) || '').trim();
-              return `<div class="it-equipment-photo-thumb" data-it-equipment-photo-id="${escapeHtml(id)}" title="${escapeHtml(comment)}">
-                <a href="${escapeHtml(url)}" target="_blank" rel="noopener" aria-label="Открыть фото"><img src="${escapeHtml(url)}" alt="${escapeHtml(comment || category)}" loading="lazy"></a>
-                <span class="it-equipment-photo-thumb__type">${escapeHtml(category)}</span>
-                <button type="button" class="it-equipment-photo-thumb__delete" data-it-equipment-photo-delete="${escapeHtml(id)}" aria-label="Удалить фото" title="Удалить фото"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+              const originalName = String((photo && photo.original_name) || '').trim();
+              return `<div class="it-equipment-photo-thumb" data-it-equipment-photo-id="${escapeHtml(id)}">
+                <button class="it-equipment-photo-thumb__preview" type="button" data-it-equipment-photo-preview="${escapeHtml(id)}" aria-label="Открыть фото: ${escapeHtml(comment || category)}">
+                  <img src="${escapeHtml(url)}" alt="${escapeHtml(comment || category)}" loading="lazy">
+                </button>
+                <div class="it-equipment-photo-thumb__meta">
+                  <div class="it-equipment-photo-thumb__line">
+                    <span class="it-equipment-photo-thumb__type">${escapeHtml(category)}</span>
+                    ${originalName ? `<span class="it-equipment-photo-thumb__filename">${escapeHtml(originalName)}</span>` : ''}
+                  </div>
+                  <span class="it-equipment-photo-thumb__comment">${escapeHtml(comment || 'Описание не указано')}</span>
+                </div>
+                <div class="it-equipment-photo-thumb__actions">
+                  <button type="button" class="it-equipment-photo-thumb__action" data-it-equipment-photo-edit="${escapeHtml(id)}" aria-label="Редактировать фото" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i></button>
+                  <button type="button" class="it-equipment-photo-thumb__action is-danger" data-it-equipment-photo-delete="${escapeHtml(id)}" aria-label="Удалить фото" title="Удалить"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                </div>
               </div>`;
             }).join('')
           : '<div class="it-equipment-photo-empty">Фото пока нет.</div>';
       }
       [addModal.photoFileInput, addModal.photoCategorySelect, addModal.photoCommentInput, addModal.photoUploadButton]
         .forEach((element) => { if (element) element.disabled = !editing; });
+      if (addModal.photoTabButton) {
+        addModal.photoTabButton.disabled = !editing;
+        addModal.photoTabButton.setAttribute('aria-disabled', editing ? 'false' : 'true');
+      }
+      if (addModal.photoTabCount) addModal.photoTabCount.textContent = String(photos.length);
       if (addModal.photoHint) {
         addModal.photoHint.textContent = editing
-          ? 'Каждое фото загружается отдельно: тип и комментарий обязательны. Титульное фото используется на карточке модели.'
+          ? 'Фото сохраняются сразу. Для каждого фото обязательны тип и описание.'
           : 'Сначала сохраните модель оборудования, затем откройте её снова и добавьте фотографии.';
       }
     }
@@ -457,6 +518,82 @@
       if (item) item.photo_url = photoUrl || '';
       renderEquipmentPhotoManager(item || currentEditingItem());
       renderItEquipmentTable();
+      return item || null;
+    }
+
+    function resetEquipmentModalTab() {
+      if (!addModal.mainTabButton) return;
+      if (window.bootstrap && window.bootstrap.Tab) {
+        window.bootstrap.Tab.getOrCreateInstance(addModal.mainTabButton).show();
+        return;
+      }
+      addModal.mainTabButton.classList.add('active');
+      addModal.photoTabButton?.classList.remove('active');
+      elements.itEquipmentAddModalEl?.querySelector('[data-it-equipment-main-pane]')?.classList.add('show', 'active');
+      elements.itEquipmentAddModalEl?.querySelector('[data-it-equipment-photo-pane]')?.classList.remove('show', 'active');
+    }
+
+    function showPhotoConfirm({ title = 'Подтверждение', message = '', confirmLabel = 'Подтвердить', danger = false } = {}) {
+      if (!photoUi.confirmModalEl || !photoUi.confirmButton || !window.bootstrap || !window.bootstrap.Modal) {
+        popup(message || title);
+        return Promise.resolve(false);
+      }
+      if (state.photoConfirmResolver) {
+        state.photoConfirmResolver(false);
+        state.photoConfirmResolver = null;
+      }
+      if (photoUi.confirmTitle) photoUi.confirmTitle.textContent = title;
+      if (photoUi.confirmMessage) photoUi.confirmMessage.textContent = message;
+      photoUi.confirmButton.textContent = confirmLabel;
+      photoUi.confirmButton.classList.toggle('btn-danger', danger);
+      photoUi.confirmButton.classList.toggle('btn-primary', !danger);
+      return new Promise((resolve) => {
+        state.photoConfirmResolver = resolve;
+        window.bootstrap.Modal.getOrCreateInstance(photoUi.confirmModalEl).show();
+      });
+    }
+
+    function resolvePhotoConfirm(value) {
+      const resolver = state.photoConfirmResolver;
+      state.photoConfirmResolver = null;
+      if (resolver) resolver(Boolean(value));
+    }
+
+    function existingTitlePhoto(excludedPhotoId = '') {
+      const excluded = String(excludedPhotoId || '').trim();
+      return equipmentPhotos().find((photo) => {
+        const id = String(photo && photo.id || '').trim();
+        return normalize(photo && photo.category) === 'title' && (!excluded || id !== excluded);
+      }) || null;
+    }
+
+    async function confirmTitleReplacement(existingTitle) {
+      if (!existingTitle) return true;
+      const comment = String((existingTitle.comment || existingTitle.caption) || '').trim();
+      return showPhotoConfirm({
+        title: 'Заменить титульное фото?',
+        message: comment
+          ? `Сейчас титульным является фото «${comment}». Заменить его новым?`
+          : 'У этой модели уже есть титульное фото. Заменить его новым?',
+        confirmLabel: 'Заменить',
+      });
+    }
+
+    async function parsePhotoResponse(response, fallbackMessage) {
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (error) {
+        throw new Error(fallbackMessage);
+      }
+      if (!response.ok) throw new Error((data && data.error) || fallbackMessage);
+      return data || {};
+    }
+
+    async function sendPhotoUpload(id, formData, replaceTitle) {
+      formData.set('replace_title', replaceTitle ? 'true' : 'false');
+      const response = await fetch(`/api/settings/it-equipment/${id}/photos`, { method: 'POST', body: formData });
+      return parsePhotoResponse(response, 'Ошибка загрузки фото');
     }
 
     async function uploadEquipmentPhoto() {
@@ -467,7 +604,15 @@
       const comment = addModal.photoCommentInput ? addModal.photoCommentInput.value.trim() : '';
       if (!file) { popup('Выберите фото'); return; }
       if (!category) { popup('Укажите тип фото'); return; }
-      if (!comment) { popup('Комментарий к фото обязателен'); return; }
+      if (!comment) { popup('Описание фото обязательно'); return; }
+
+      let replaceTitle = false;
+      const localTitle = normalize(category) === 'title' ? existingTitlePhoto() : null;
+      if (localTitle) {
+        const confirmed = await confirmTitleReplacement(localTitle);
+        if (!confirmed) return;
+        replaceTitle = true;
+      }
 
       const formData = new FormData();
       formData.append('file', file);
@@ -476,9 +621,14 @@
       const button = addModal.photoUploadButton;
       if (button) button.disabled = true;
       try {
-        const response = await fetch(`/api/settings/it-equipment/${id}/photos`, { method: 'POST', body: formData });
-        const data = await response.json();
-        if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Ошибка загрузки фото');
+        let data = await sendPhotoUpload(id, formData, replaceTitle);
+        if (data.success === false && data.requires_confirmation === true && !replaceTitle) {
+          const confirmed = await confirmTitleReplacement({ comment: data.existing_title_comment || '' });
+          if (!confirmed) return;
+          replaceTitle = true;
+          data = await sendPhotoUpload(id, formData, true);
+        }
+        if (data.success === false) throw new Error(data.error || 'Ошибка загрузки фото');
         updateLocalEquipmentMedia(id, data.photo_url || '');
         if (addModal.photoFileInput) addModal.photoFileInput.value = '';
         if (addModal.photoCommentInput) addModal.photoCommentInput.value = '';
@@ -490,14 +640,113 @@
       }
     }
 
+    function renderPhotoViewer() {
+      const photos = equipmentPhotos();
+      if (!photos.length) return;
+      state.photoViewerIndex = ((state.photoViewerIndex % photos.length) + photos.length) % photos.length;
+      const photo = photos[state.photoViewerIndex] || {};
+      const comment = String((photo.comment || photo.caption) || '').trim();
+      if (photoUi.viewerImage) {
+        photoUi.viewerImage.src = String(photo.url || '').trim();
+        photoUi.viewerImage.alt = comment || photoCategoryLabel(photo);
+      }
+      if (photoUi.viewerType) photoUi.viewerType.textContent = photoCategoryLabel(photo);
+      if (photoUi.viewerComment) photoUi.viewerComment.textContent = comment || 'Описание не указано';
+      if (photoUi.viewerCounter) photoUi.viewerCounter.textContent = `${state.photoViewerIndex + 1} / ${photos.length}`;
+      [photoUi.viewerPrev, photoUi.viewerNext].forEach((button) => {
+        if (button) button.disabled = photos.length < 2;
+      });
+    }
+
+    function openPhotoViewer(photoId) {
+      const photos = equipmentPhotos();
+      const index = photos.findIndex((photo) => String(photo && photo.id || '').trim() === String(photoId || '').trim());
+      if (index < 0 || !photoUi.viewerModalEl || !window.bootstrap || !window.bootstrap.Modal) return;
+      state.photoViewerIndex = index;
+      renderPhotoViewer();
+      window.bootstrap.Modal.getOrCreateInstance(photoUi.viewerModalEl).show();
+    }
+
+    function movePhotoViewer(delta) {
+      const photos = equipmentPhotos();
+      if (photos.length < 2) return;
+      state.photoViewerIndex = (state.photoViewerIndex + delta + photos.length) % photos.length;
+      renderPhotoViewer();
+    }
+
+    function openPhotoEditor(photoId) {
+      const photo = photoById(photoId);
+      if (!photo || !photoUi.editModalEl || !window.bootstrap || !window.bootstrap.Modal) return;
+      state.photoEditId = String(photoId || '').trim();
+      if (photoUi.editCategory) photoUi.editCategory.value = normalize(photo.category) === 'title' ? 'title' : 'general';
+      if (photoUi.editComment) photoUi.editComment.value = String((photo.comment || photo.caption) || '').trim();
+      window.bootstrap.Modal.getOrCreateInstance(photoUi.editModalEl).show();
+    }
+
+    async function sendPhotoUpdate(id, photoId, payload) {
+      const response = await fetch(`/api/settings/it-equipment/${id}/photos/${encodeURIComponent(photoId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return parsePhotoResponse(response, 'Ошибка сохранения фото');
+    }
+
+    async function saveEquipmentPhotoEdit() {
+      const id = Number.parseInt(state.editingId, 10);
+      const photoId = String(state.photoEditId || '').trim();
+      if (!Number.isFinite(id) || !photoId) return;
+      const category = photoUi.editCategory ? photoUi.editCategory.value.trim() : '';
+      const comment = photoUi.editComment ? photoUi.editComment.value.trim() : '';
+      if (!category) { popup('Укажите тип фото'); return; }
+      if (!comment) { popup('Описание фото обязательно'); return; }
+
+      let replaceTitle = false;
+      const localTitle = normalize(category) === 'title' ? existingTitlePhoto(photoId) : null;
+      if (localTitle) {
+        const confirmed = await confirmTitleReplacement(localTitle);
+        if (!confirmed) return;
+        replaceTitle = true;
+      }
+
+      if (photoUi.editSave) photoUi.editSave.disabled = true;
+      try {
+        let data = await sendPhotoUpdate(id, photoId, { category, comment, replace_title: replaceTitle });
+        if (data.success === false && data.requires_confirmation === true && !replaceTitle) {
+          const confirmed = await confirmTitleReplacement({ comment: data.existing_title_comment || '' });
+          if (!confirmed) return;
+          replaceTitle = true;
+          data = await sendPhotoUpdate(id, photoId, { category, comment, replace_title: true });
+        }
+        if (data.success === false) throw new Error(data.error || 'Ошибка сохранения фото');
+        updateLocalEquipmentMedia(id, data.photo_url || '');
+        state.photoEditId = null;
+        window.bootstrap.Modal.getOrCreateInstance(photoUi.editModalEl).hide();
+      } catch (error) {
+        popup('❌ ' + (error && error.message ? error.message : error));
+      } finally {
+        if (photoUi.editSave) photoUi.editSave.disabled = false;
+      }
+    }
+
     async function deleteEquipmentPhoto(photoId) {
       const id = Number.parseInt(state.editingId, 10);
       if (!Number.isFinite(id) || !photoId) return;
-      if (!confirmAction('Удалить это фото оборудования?')) return;
+      const photo = photoById(photoId);
+      const comment = String((photo && (photo.comment || photo.caption)) || '').trim();
+      const confirmed = await showPhotoConfirm({
+        title: 'Удалить фото?',
+        message: comment
+          ? `Фото «${comment}» будет удалено без возможности восстановления.`
+          : 'Фото будет удалено без возможности восстановления.',
+        confirmLabel: 'Удалить',
+        danger: true,
+      });
+      if (!confirmed) return;
       try {
         const response = await fetch(`/api/settings/it-equipment/${id}/photos/${encodeURIComponent(photoId)}`, { method: 'DELETE' });
-        const data = await response.json();
-        if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Ошибка удаления фото');
+        const data = await parsePhotoResponse(response, 'Ошибка удаления фото');
+        if (data.success === false) throw new Error(data.error || 'Ошибка удаления фото');
         updateLocalEquipmentMedia(id, data.photo_url || '');
       } catch (error) {
         popup('❌ ' + (error && error.message ? error.message : error));
@@ -542,6 +791,7 @@
       if (addModal.accessoriesInput) addModal.accessoriesInput.value = editing ? (item.accessories || item.additional_equipment || '') : '';
       if (addModal.linksContainer) renderEquipmentLinks(addModal.linksContainer, editing ? parseEquipmentLinks(item.photo_url) : []);
       renderEquipmentPhotoManager(editing ? item : null);
+      resetEquipmentModalTab();
       if (addModal.title) addModal.title.textContent = editing ? 'Карточка модели оборудования' : 'Новое оборудование';
       if (addModal.submitButton) {
         addModal.submitButton.disabled = !hasOptions;
@@ -642,6 +892,16 @@
     }
 
     function handleAddModalClick(event) {
+      const photoPreview = event.target.closest('[data-it-equipment-photo-preview]');
+      if (photoPreview) {
+        openPhotoViewer(photoPreview.dataset.itEquipmentPhotoPreview);
+        return;
+      }
+      const photoEdit = event.target.closest('[data-it-equipment-photo-edit]');
+      if (photoEdit) {
+        openPhotoEditor(photoEdit.dataset.itEquipmentPhotoEdit);
+        return;
+      }
       const photoDelete = event.target.closest('[data-it-equipment-photo-delete]');
       if (photoDelete) {
         deleteEquipmentPhoto(photoDelete.dataset.itEquipmentPhotoDelete).catch((error) => popup('❌ ' + error));
@@ -743,7 +1003,24 @@
         select.addEventListener('change', () => select.classList.remove('is-invalid'));
       });
       if (addModal.form) addModal.form.addEventListener('submit', handleAddFormSubmit);
-      if (addModal.photoUploadButton) addModal.photoUploadButton.addEventListener('click', () => uploadEquipmentPhoto());
+      if (addModal.photoUploadButton) addModal.photoUploadButton.addEventListener('click', () => uploadEquipmentPhoto().catch((error) => popup('❌ ' + error)));
+      if (photoUi.viewerPrev) photoUi.viewerPrev.addEventListener('click', () => movePhotoViewer(-1));
+      if (photoUi.viewerNext) photoUi.viewerNext.addEventListener('click', () => movePhotoViewer(1));
+      if (photoUi.viewerModalEl) {
+        photoUi.viewerModalEl.addEventListener('keydown', (event) => {
+          if (event.key === 'ArrowLeft') movePhotoViewer(-1);
+          if (event.key === 'ArrowRight') movePhotoViewer(1);
+        });
+      }
+      if (photoUi.editSave) photoUi.editSave.addEventListener('click', () => saveEquipmentPhotoEdit().catch((error) => popup('❌ ' + error)));
+      if (photoUi.editModalEl) photoUi.editModalEl.addEventListener('hidden.bs.modal', () => { state.photoEditId = null; });
+      if (photoUi.confirmButton) {
+        photoUi.confirmButton.addEventListener('click', () => {
+          resolvePhotoConfirm(true);
+          window.bootstrap?.Modal.getOrCreateInstance(photoUi.confirmModalEl)?.hide();
+        });
+      }
+      if (photoUi.confirmModalEl) photoUi.confirmModalEl.addEventListener('hidden.bs.modal', () => resolvePhotoConfirm(false));
       if (elements.itEquipmentAddModalEl) {
         elements.itEquipmentAddModalEl.addEventListener('hidden.bs.modal', () => {
           state.editingId = null;

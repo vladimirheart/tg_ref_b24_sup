@@ -61,3 +61,13 @@
 - catalog deletion is blocked server-side while the model is actively used by object passports, resolving catalog_id before the legacy type/vendor/model fallback;
 - removing passport equipment now archives the instance with timestamp/history styling instead of physically dropping it; archived instances are excluded from active catalogue usage/discovery and can be restored;
 - no NetBox write/sync behavior, ownership contract, schema or automatic backfill changes are included.
+
+## R4.5 equipment photo workspace
+
+- moved equipment media management into a dedicated tab with 25x25 thumbnail rows, visible descriptions and edit/delete actions;
+- replaced external-window photo viewing with an in-app Bootstrap viewer modal with previous/next navigation and metadata;
+- added PATCH metadata editing for photo category/comment and explicit replace_title confirmation on both upload and edit;
+- title replacement and photo deletion now use managed UI confirmation modals instead of browser confirm dialogs;
+- deleting or demoting the current title photo promotes the first remaining photo to title, keeping card cover semantics consistent;
+- corrected the r4.4 thumbnail CSS scope from #itEquipmentSection to #itEquipmentAddModal, which is the actual modal DOM location;
+- no database schema migration, data backfill, NetBox mutation or ownership-contract change is included.

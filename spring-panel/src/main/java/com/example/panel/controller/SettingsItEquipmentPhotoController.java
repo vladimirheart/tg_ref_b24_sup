@@ -8,8 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,8 +32,21 @@ public class SettingsItEquipmentPhotoController {
     public Map<String, Object> uploadPhoto(@PathVariable long itemId,
                                            @RequestParam("file") MultipartFile file,
                                            @RequestParam("category") String category,
-                                           @RequestParam("comment") String comment) throws IOException {
-        return photoService.uploadPhoto(itemId, file, category, comment);
+                                           @RequestParam("comment") String comment,
+                                           @RequestParam(name = "replace_title", defaultValue = "false") boolean replaceTitle)
+            throws IOException {
+        return photoService.uploadPhoto(itemId, file, category, comment, replaceTitle);
+    }
+
+    @PatchMapping("/{itemId}/photos/{photoId}")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    public Map<String, Object> updatePhoto(@PathVariable long itemId,
+                                           @PathVariable String photoId,
+                                           @RequestBody Map<String, Object> payload) {
+        String category = payload.get("category") == null ? "" : String.valueOf(payload.get("category"));
+        String comment = payload.get("comment") == null ? "" : String.valueOf(payload.get("comment"));
+        boolean replaceTitle = Boolean.parseBoolean(String.valueOf(payload.getOrDefault("replace_title", false)));
+        return photoService.updatePhoto(itemId, photoId, category, comment, replaceTitle);
     }
 
     @DeleteMapping("/{itemId}/photos/{photoId}")

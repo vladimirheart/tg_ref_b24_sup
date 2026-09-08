@@ -39,13 +39,19 @@ public class SettingsItEquipmentPhotoService {
                                            MultipartFile file,
                                            String category,
                                            String comment) throws IOException {
+        return uploadPhoto(itemId, file, category, comment, false);
+    }
+
+    public Map<String, Object> uploadPhoto(long itemId,
+                                           MultipartFile file,
+                                           String category,
+                                           String comment,
+                                           boolean replaceTitle) throws IOException {
         String normalizedCategory = normalizeCategory(category);
         String normalizedComment = stringValue(comment);
-        if (!StringUtils.hasText(normalizedCategory)) {
-            return Map.of("success", false, "error", "Укажите тип фото: титульное или общее");
-        }
-        if (!StringUtils.hasText(normalizedComment)) {
-            return Map.of("success", false, "error", "Комментарий к фото обязателен");
+        Map<String, Object> validation = validateMetadata(normalizedCategory, normalizedComment);
+        if (validation != null) {
+            return validation;
         }
 
         Map<String, Object> row = loadRow(itemId);
@@ -53,18 +59,17 @@ public class SettingsItEquipmentPhotoService {
             return Map.of("success", false, "error", "Оборудование не найдено");
         }
 
+        EquipmentMedia media = parseMedia(stringValue(row.get("photo_url")));
+        List<Map<String, Object>> photos = mutablePhotos(media.photos());
+        Map<String, Object> existingTitle = findTitlePhoto(photos, null);
+        if ("title".equals(normalizedCategory) && existingTitle != null && !replaceTitle) {
+            return titleReplacementRequired(existingTitle);
+        }
+
         StoredPhoto stored = photoStorageService.store(file);
         try {
-            EquipmentMedia media = parseMedia(stringValue(row.get("photo_url")));
-            List<Map<String, Object>> photos = mutablePhotos(media.photos());
             if ("title".equals(normalizedCategory)) {
-                for (int index = 0; index < photos.size(); index++) {
-                    LinkedHashMap<String, Object> copy = new LinkedHashMap<>(photos.get(index));
-                    if ("title".equals(normalizeCategory(copy.get("category")))) {
-                        copy.put("category", "general");
-                    }
-                    photos.set(index, copy);
-                }
+                demoteOtherTitles(photos, null);
             }
 
             LinkedHashMap<String, Object> photo = new LinkedHashMap<>();
@@ -80,24 +85,72 @@ public class SettingsItEquipmentPhotoService {
             photos.add(photo);
 
             String encoded = serializeMedia(media.links(), photos);
-            int updated = jdbcTemplate.update(
-                    "UPDATE it_equipment_catalog SET photo_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    encoded,
-                    itemId
-            );
+            int updated = updateMedia(itemId, encoded);
             if (updated != 1) {
                 photoStorageService.deleteQuietly(stored.storedName());
                 return Map.of("success", false, "error", "Оборудование не найдено");
             }
-            return Map.of(
-                    "success", true,
-                    "photo_url", encoded,
-                    "photos", List.copyOf(photos)
-            );
+            return successPayload(encoded, photos, null);
         } catch (RuntimeException ex) {
             photoStorageService.deleteQuietly(stored.storedName());
             throw ex;
         }
+    }
+
+    public Map<String, Object> updatePhoto(long itemId,
+                                           String photoId,
+                                           String category,
+                                           String comment,
+                                           boolean replaceTitle) {
+        String normalizedId = stringValue(photoId);
+        String normalizedCategory = normalizeCategory(category);
+        String normalizedComment = stringValue(comment);
+        if (!StringUtils.hasText(normalizedId)) {
+            return Map.of("success", false, "error", "Фото не найдено");
+        }
+        Map<String, Object> validation = validateMetadata(normalizedCategory, normalizedComment);
+        if (validation != null) {
+            return validation;
+        }
+
+        Map<String, Object> row = loadRow(itemId);
+        if (row == null) {
+            return Map.of("success", false, "error", "Оборудование не найдено");
+        }
+
+        EquipmentMedia media = parseMedia(stringValue(row.get("photo_url")));
+        List<Map<String, Object>> photos = mutablePhotos(media.photos());
+        int targetIndex = findPhotoIndex(photos, normalizedId);
+        if (targetIndex < 0) {
+            return Map.of("success", false, "error", "Фото не найдено");
+        }
+
+        Map<String, Object> target = photos.get(targetIndex);
+        boolean targetWasTitle = "title".equals(normalizeCategory(target.get("category")));
+        Map<String, Object> anotherTitle = findTitlePhoto(photos, normalizedId);
+        if ("title".equals(normalizedCategory) && anotherTitle != null && !replaceTitle) {
+            return titleReplacementRequired(anotherTitle);
+        }
+
+        if ("title".equals(normalizedCategory)) {
+            demoteOtherTitles(photos, normalizedId);
+        }
+
+        LinkedHashMap<String, Object> updatedPhoto = new LinkedHashMap<>(photos.get(targetIndex));
+        updatedPhoto.put("category", normalizedCategory);
+        updatedPhoto.put("comment", normalizedComment);
+        photos.set(targetIndex, updatedPhoto);
+
+        String promotedId = null;
+        if (targetWasTitle && "general".equals(normalizedCategory)) {
+            promotedId = promoteFallbackTitle(photos, normalizedId);
+        }
+
+        String encoded = serializeMedia(media.links(), photos);
+        if (updateMedia(itemId, encoded) != 1) {
+            return Map.of("success", false, "error", "Оборудование не найдено");
+        }
+        return successPayload(encoded, photos, promotedId);
     }
 
     public Map<String, Object> deletePhoto(long itemId, String photoId) {
@@ -112,32 +165,21 @@ public class SettingsItEquipmentPhotoService {
 
         EquipmentMedia media = parseMedia(stringValue(row.get("photo_url")));
         List<Map<String, Object>> photos = mutablePhotos(media.photos());
-        Map<String, Object> removed = null;
-        for (int index = 0; index < photos.size(); index++) {
-            if (normalizedId.equals(stringValue(photos.get(index).get("id")))) {
-                removed = photos.remove(index);
-                break;
-            }
-        }
-        if (removed == null) {
+        int targetIndex = findPhotoIndex(photos, normalizedId);
+        if (targetIndex < 0) {
             return Map.of("success", false, "error", "Фото не найдено");
         }
 
+        Map<String, Object> removed = photos.remove(targetIndex);
+        boolean removedWasTitle = "title".equals(normalizeCategory(removed.get("category")));
+        String promotedId = removedWasTitle ? promoteFallbackTitle(photos, null) : null;
+
         String encoded = serializeMedia(media.links(), photos);
-        int updated = jdbcTemplate.update(
-                "UPDATE it_equipment_catalog SET photo_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                encoded,
-                itemId
-        );
-        if (updated != 1) {
+        if (updateMedia(itemId, encoded) != 1) {
             return Map.of("success", false, "error", "Оборудование не найдено");
         }
         photoStorageService.deleteQuietly(stringValue(removed.get("stored_name")));
-        return Map.of(
-                "success", true,
-                "photo_url", encoded,
-                "photos", List.copyOf(photos)
-        );
+        return successPayload(encoded, photos, promotedId);
     }
 
     public ResponseEntity<Resource> downloadPhoto(String storedName) throws IOException {
@@ -154,6 +196,109 @@ public class SettingsItEquipmentPhotoService {
         for (Map<String, Object> photo : parseMedia(raw).photos()) {
             photoStorageService.deleteQuietly(stringValue(photo.get("stored_name")));
         }
+    }
+
+    private Map<String, Object> validateMetadata(String category, String comment) {
+        if (!StringUtils.hasText(category)) {
+            return Map.of("success", false, "error", "Укажите тип фото: титульное или общее");
+        }
+        if (!StringUtils.hasText(comment)) {
+            return Map.of("success", false, "error", "Комментарий к фото обязателен");
+        }
+        return null;
+    }
+
+    private Map<String, Object> titleReplacementRequired(Map<String, Object> existingTitle) {
+        LinkedHashMap<String, Object> response = new LinkedHashMap<>();
+        response.put("success", false);
+        response.put("requires_confirmation", true);
+        response.put("error_code", "title_photo_exists");
+        response.put("error", "У модели уже есть титульное фото. Подтвердите его замену.");
+        String id = stringValue(existingTitle == null ? null : existingTitle.get("id"));
+        String comment = stringValue(existingTitle == null ? null : existingTitle.get("comment"));
+        if (StringUtils.hasText(id)) {
+            response.put("existing_title_id", id);
+        }
+        if (StringUtils.hasText(comment)) {
+            response.put("existing_title_comment", comment);
+        }
+        return response;
+    }
+
+    private Map<String, Object> successPayload(String encoded,
+                                               List<Map<String, Object>> photos,
+                                               String promotedPhotoId) {
+        LinkedHashMap<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("photo_url", encoded);
+        response.put("photos", List.copyOf(photos));
+        if (StringUtils.hasText(promotedPhotoId)) {
+            response.put("promoted_photo_id", promotedPhotoId);
+        }
+        return response;
+    }
+
+    private void demoteOtherTitles(List<Map<String, Object>> photos, String keepPhotoId) {
+        for (int index = 0; index < photos.size(); index++) {
+            Map<String, Object> current = photos.get(index);
+            if (StringUtils.hasText(keepPhotoId) && keepPhotoId.equals(stringValue(current.get("id")))) {
+                continue;
+            }
+            if (!"title".equals(normalizeCategory(current.get("category")))) {
+                continue;
+            }
+            LinkedHashMap<String, Object> copy = new LinkedHashMap<>(current);
+            copy.put("category", "general");
+            photos.set(index, copy);
+        }
+    }
+
+    private Map<String, Object> findTitlePhoto(List<Map<String, Object>> photos, String excludedPhotoId) {
+        for (Map<String, Object> photo : photos) {
+            if (StringUtils.hasText(excludedPhotoId)
+                    && excludedPhotoId.equals(stringValue(photo.get("id")))) {
+                continue;
+            }
+            if ("title".equals(normalizeCategory(photo.get("category")))) {
+                return photo;
+            }
+        }
+        return null;
+    }
+
+    private int findPhotoIndex(List<Map<String, Object>> photos, String photoId) {
+        for (int index = 0; index < photos.size(); index++) {
+            if (photoId.equals(stringValue(photos.get(index).get("id")))) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private String promoteFallbackTitle(List<Map<String, Object>> photos, String excludedPhotoId) {
+        if (photos.isEmpty() || findTitlePhoto(photos, null) != null) {
+            return null;
+        }
+        for (int index = 0; index < photos.size(); index++) {
+            Map<String, Object> current = photos.get(index);
+            if (StringUtils.hasText(excludedPhotoId)
+                    && excludedPhotoId.equals(stringValue(current.get("id")))) {
+                continue;
+            }
+            LinkedHashMap<String, Object> promoted = new LinkedHashMap<>(current);
+            promoted.put("category", "title");
+            photos.set(index, promoted);
+            return stringValue(promoted.get("id"));
+        }
+        return null;
+    }
+
+    private int updateMedia(long itemId, String encoded) {
+        return jdbcTemplate.update(
+                "UPDATE it_equipment_catalog SET photo_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                encoded,
+                itemId
+        );
     }
 
     private Map<String, Object> loadRow(long itemId) {

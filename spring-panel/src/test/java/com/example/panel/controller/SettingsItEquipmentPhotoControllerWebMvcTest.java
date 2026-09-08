@@ -9,6 +9,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -21,6 +22,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,8 +38,8 @@ class SettingsItEquipmentPhotoControllerWebMvcTest {
     private SettingsItEquipmentPhotoService photoService;
 
     @Test
-    void uploadPhotoRequiresSettingsAndPassesMandatoryMetadata() throws Exception {
-        when(photoService.uploadPhoto(eq(7L), any(), eq("title"), eq("Вид спереди")))
+    void uploadPhotoPassesExplicitTitleReplacementConfirmation() throws Exception {
+        when(photoService.uploadPhoto(eq(7L), any(), eq("title"), eq("Вид спереди"), eq(true)))
                 .thenReturn(Map.of("success", true, "photo_url", "{}"));
         MockMultipartFile file = new MockMultipartFile(
                 "file", "front.jpg", "image/jpeg", new byte[]{1, 2, 3});
@@ -46,12 +48,31 @@ class SettingsItEquipmentPhotoControllerWebMvcTest {
                 .file(file)
                 .param("category", "title")
                 .param("comment", "Вид спереди")
+                .param("replace_title", "true")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
 
-        verify(photoService).uploadPhoto(eq(7L), any(), eq("title"), eq("Вид спереди"));
+        verify(photoService).uploadPhoto(eq(7L), any(), eq("title"), eq("Вид спереди"), eq(true));
+    }
+
+    @Test
+    void patchPhotoUpdatesTypeAndDescription() throws Exception {
+        when(photoService.updatePhoto(7L, "photo-1", "general", "Боковой вид", false))
+                .thenReturn(Map.of("success", true, "photo_url", "{}"));
+
+        mockMvc.perform(patch("/api/settings/it-equipment/7/photos/photo-1")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"category":"general","comment":"Боковой вид","replace_title":false}
+                        """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(photoService).updatePhoto(7L, "photo-1", "general", "Боковой вид", false);
     }
 
     @Test

@@ -73,8 +73,8 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("/api/settings/it-equipment/${id}/photos"));
         assertTrue(runtime.contains("data-it-equipment-photo-delete"));
         assertTrue(runtime.contains("firstPhoto(item)"));
-        assertTrue(settings.contains("/css/settings.css?v=20260908-01-259-r4-4"));
-        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-4"));
+        assertTrue(settings.contains("/css/settings.css?v=20260908-01-259-r4-5"));
+        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-5"));
         assertTrue(settingsScss.contains("Equipment catalogue media and lifecycle — 01-259 r4.4"));
     }
 

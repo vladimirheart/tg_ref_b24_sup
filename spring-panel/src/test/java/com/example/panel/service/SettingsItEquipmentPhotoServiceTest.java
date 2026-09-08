@@ -3,6 +3,7 @@ package com.example.panel.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -19,7 +20,7 @@ import org.springframework.mock.web.MockMultipartFile;
 class SettingsItEquipmentPhotoServiceTest {
 
     @Test
-    void photosRequireCommentSupportMultipleItemsAndKeepSingleTitle() throws Exception {
+    void titleReplacementNeedsConfirmationMetadataCanBeEditedAndDeletePromotesFallbackTitle() throws Exception {
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 "jdbc:h2:mem:equipment_photos_" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", "");
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
@@ -45,16 +46,24 @@ class SettingsItEquipmentPhotoServiceTest {
         );
         ObjectMapper mapper = new ObjectMapper();
         SettingsItEquipmentPhotoService service = new SettingsItEquipmentPhotoService(jdbc, mapper, storage);
-        MockMultipartFile file = new MockMultipartFile("file", "front.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        MockMultipartFile firstFile = new MockMultipartFile("file", "front.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        MockMultipartFile secondFile = new MockMultipartFile("file", "rear.jpg", "image/jpeg", new byte[]{4, 5, 6});
 
-        Map<String, Object> invalid = service.uploadPhoto(1L, file, "title", "");
+        Map<String, Object> invalid = service.uploadPhoto(1L, firstFile, "title", "", false);
         assertThat(invalid.get("success")).isEqualTo(false);
 
-        Map<String, Object> first = service.uploadPhoto(1L, file, "title", "Вид спереди");
+        Map<String, Object> first = service.uploadPhoto(1L, firstFile, "title", "Вид спереди", false);
         assertThat(first.get("success")).isEqualTo(true);
-        MockMultipartFile secondFile = new MockMultipartFile("file", "rear.jpg", "image/jpeg", new byte[]{4, 5, 6});
-        Map<String, Object> second = service.uploadPhoto(1L, secondFile, "title", "Вид сзади");
+
+        Map<String, Object> blockedReplacement = service.uploadPhoto(1L, secondFile, "title", "Вид сзади", false);
+        assertThat(blockedReplacement.get("success")).isEqualTo(false);
+        assertThat(blockedReplacement.get("requires_confirmation")).isEqualTo(true);
+        assertThat(blockedReplacement.get("error_code")).isEqualTo("title_photo_exists");
+        verify(storage, times(1)).store(any());
+
+        Map<String, Object> second = service.uploadPhoto(1L, secondFile, "title", "Вид сзади", true);
         assertThat(second.get("success")).isEqualTo(true);
+        verify(storage, times(2)).store(any());
 
         String raw = jdbc.queryForObject("SELECT photo_url FROM it_equipment_catalog WHERE id = 1", String.class);
         JsonNode media = mapper.readTree(raw);
@@ -63,14 +72,31 @@ class SettingsItEquipmentPhotoServiceTest {
         assertThat(media.path("photos").findValuesAsText("category")).containsExactlyInAnyOrder("general", "title");
         assertThat(media.path("photos").findValuesAsText("comment")).contains("Вид спереди", "Вид сзади");
 
-        String withLink = service.mergeLinksPreservingPhotos(raw, "[\"https://docs.example/camera\"]");
-        JsonNode merged = mapper.readTree(withLink);
-        assertThat(merged.path("links").get(0).asText()).isEqualTo("https://docs.example/camera");
-        assertThat(merged.path("photos").size()).isEqualTo(2);
+        String firstPhotoId = media.path("photos").get(0).path("id").asText();
+        String secondPhotoId = media.path("photos").get(1).path("id").asText();
 
-        String firstPhotoId = merged.path("photos").get(0).path("id").asText();
+        Map<String, Object> blockedEdit = service.updatePhoto(1L, firstPhotoId, "title", "Новый фронт", false);
+        assertThat(blockedEdit.get("requires_confirmation")).isEqualTo(true);
+
+        Map<String, Object> edited = service.updatePhoto(1L, firstPhotoId, "title", "Новый фронт", true);
+        assertThat(edited.get("success")).isEqualTo(true);
+        JsonNode editedMedia = mapper.readTree((String) edited.get("photo_url"));
+        assertThat(editedMedia.path("photos").findValuesAsText("comment")).contains("Новый фронт", "Вид сзади");
+        assertThat(editedMedia.path("photos").get(0).path("category").asText()).isEqualTo("title");
+        assertThat(editedMedia.path("photos").get(1).path("category").asText()).isEqualTo("general");
+
         Map<String, Object> deleted = service.deletePhoto(1L, firstPhotoId);
         assertThat(deleted.get("success")).isEqualTo(true);
+        assertThat(deleted.get("promoted_photo_id")).isEqualTo(secondPhotoId);
+        JsonNode deletedMedia = mapper.readTree((String) deleted.get("photo_url"));
+        assertThat(deletedMedia.path("photos").size()).isEqualTo(1);
+        assertThat(deletedMedia.path("photos").get(0).path("id").asText()).isEqualTo(secondPhotoId);
+        assertThat(deletedMedia.path("photos").get(0).path("category").asText()).isEqualTo("title");
         verify(storage).deleteQuietly("front-1.jpg");
+
+        String withLink = service.mergeLinksPreservingPhotos((String) deleted.get("photo_url"), "[\"https://docs.example/camera\"]");
+        JsonNode merged = mapper.readTree(withLink);
+        assertThat(merged.path("links").get(0).asText()).isEqualTo("https://docs.example/camera");
+        assertThat(merged.path("photos").size()).isEqualTo(1);
     }
 }
