@@ -268,6 +268,7 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             LinkedHashMap<String, Map<String, Object>> candidates = new LinkedHashMap<>();
             for (StoredPassportRecord record : loadAllStoredPassports(connection)) {
+                Set<String> objectKeys = new LinkedHashSet<>();
                 Object rawEquipment = record.payload().get("equipment");
                 if (!(rawEquipment instanceof List<?> equipmentItems)) {
                     continue;
@@ -292,12 +293,17 @@ public class ObjectPassportService {
                         value.put("serial_number", "");
                         value.put("accessories", firstNonBlank(item.get("accessories"), item.get("additional_equipment")));
                         value.put("usage_count", 0);
+                        value.put("object_count", 0);
                         value.put("discovered", true);
                         value.put("source", "passports");
                         return value;
                     });
                     int usage = candidate.get("usage_count") instanceof Number number ? number.intValue() : 0;
                     candidate.put("usage_count", usage + 1);
+                    if (objectKeys.add(key)) {
+                        int objectCount = candidate.get("object_count") instanceof Number number ? number.intValue() : 0;
+                        candidate.put("object_count", objectCount + 1);
+                    }
                 }
             }
             return new ArrayList<>(candidates.values());

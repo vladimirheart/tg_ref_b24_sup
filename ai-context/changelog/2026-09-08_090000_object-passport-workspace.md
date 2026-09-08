@@ -42,3 +42,12 @@
 - added source/runtime integrity tests for Bootstrap bytes, relative font scaling and the compact sidebar account footer;
 - removed the noisy «Аккаунт» kicker, suppressed duplicate username text, and reduced account/action/font-control dimensions without removing functionality;
 - retained the r4.1 passport thumbnail and equipment edit-mode corrections; no backend/data/schema/NetBox mutation is included.
+
+## R4.3 equipment catalogue visual polish
+
+- added catalogue filters by equipment type and vendor in addition to free-text search;
+- catalogue cards now use the persisted model photo when present and a neutral placeholder otherwise, with the equipment type centered as the visual badge;
+- edit/delete actions became compact icon controls in the card header and card/meta spacing was tightened while increasing readability;
+- replaced the misleading links counter with «Используется у объектов» based on a unique object/passport count, while retaining instance usage_count internally;
+- persisted catalogue rows now receive usage/object counts from passport-discovered aggregates;
+- no schema/data migration, automatic backfill, NetBox mutation or ownership-contract change is included.

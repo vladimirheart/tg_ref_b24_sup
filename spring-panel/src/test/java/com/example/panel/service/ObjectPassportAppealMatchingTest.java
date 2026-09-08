@@ -70,5 +70,6 @@ class ObjectPassportAppealMatchingTest {
         assertThat(candidates).hasSize(1);
         assertThat(candidates.get(0).get("equipment_model")).isEqualTo("RB5009");
         assertThat(candidates.get(0).get("usage_count")).isEqualTo(2);
+        assertThat(candidates.get(0).get("object_count")).isEqualTo(1);
     }
 }

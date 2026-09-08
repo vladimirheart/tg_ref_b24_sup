@@ -11,7 +11,7 @@
   <link href="/css/style.css" rel="stylesheet" />
   <link href="/css/app.css" rel="stylesheet" />
   <link href="/css/sidebar.css" rel="stylesheet" />
-  <link href="/css/settings.css?v=20260908-01-259-r1" rel="stylesheet" />
+  <link href="/css/settings.css?v=20260908-01-259-r4-3" rel="stylesheet" />
   <script src="/js/common.js"></script>
 
   
@@ -3261,7 +3261,15 @@
                           autocomplete="off"
                         >
                       </div>
-                      <div class="d-flex align-items-center gap-2">
+                      <div class="it-equipment-catalog-toolbar__filters" aria-label="Фильтры каталога оборудования">
+                        <select class="form-select form-select-sm" id="itEquipmentTypeFilter" aria-label="Фильтр по типу оборудования">
+                          <option value="">Все типы</option>
+                        </select>
+                        <select class="form-select form-select-sm" id="itEquipmentVendorFilter" aria-label="Фильтр по производителю">
+                          <option value="">Все производители</option>
+                        </select>
+                      </div>
+                      <div class="d-flex align-items-center gap-2 it-equipment-catalog-toolbar__actions">
                         <span class="it-equipment-catalog-count" id="itEquipmentCountBadge">0</span>
                         <button class="btn btn-sm btn-primary" type="button" data-it-equipment-add-open>
                           + Добавить модель
@@ -5278,7 +5286,7 @@
     <script src="/js/settings-partner-contacts-runtime.js"></script>
     <script src="/js/settings-legal-entities-runtime.js"></script>
     <script src="/js/settings-network-profiles-runtime.js"></script>
-    <script src="/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-1"></script>
+    <script src="/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-3"></script>
     <script src="/js/settings-it-connections-runtime.js"></script>
     <script src="/js/settings-parameters-shell-runtime.js"></script>
     <script src="/js/settings-channels-bot-runtime.js"></script>

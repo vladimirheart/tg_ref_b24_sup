@@ -140,16 +140,29 @@ public class SettingsItEquipmentService {
 
     private List<Map<String, Object>> loadItemsWithDiscovered() {
         List<Map<String, Object>> persisted = loadItems();
+        List<Map<String, Object>> discovered = objectPassportService.listEquipmentCatalogCandidates();
+        Map<String, Map<String, Object>> discoveredByKey = new LinkedHashMap<>();
+        for (Map<String, Object> candidate : discovered) {
+            String key = catalogKey(candidate.get("equipment_type"), candidate.get("equipment_vendor"), candidate.get("equipment_model"));
+            if (StringUtils.hasText(key)) {
+                discoveredByKey.putIfAbsent(key, candidate);
+            }
+        }
+
         List<Map<String, Object>> merged = new ArrayList<>();
         Set<String> persistedKeys = new LinkedHashSet<>();
         for (Map<String, Object> row : persisted) {
             LinkedHashMap<String, Object> item = new LinkedHashMap<>(row);
+            String key = catalogKey(row.get("equipment_type"), row.get("equipment_vendor"), row.get("equipment_model"));
+            Map<String, Object> usage = discoveredByKey.get(key);
+            item.put("usage_count", usage == null ? 0 : intValue(usage.get("usage_count")));
+            item.put("object_count", usage == null ? 0 : intValue(usage.get("object_count")));
             item.put("discovered", false);
             item.put("source", "catalog");
             merged.add(item);
-            persistedKeys.add(catalogKey(row.get("equipment_type"), row.get("equipment_vendor"), row.get("equipment_model")));
+            persistedKeys.add(key);
         }
-        for (Map<String, Object> candidate : objectPassportService.listEquipmentCatalogCandidates()) {
+        for (Map<String, Object> candidate : discovered) {
             String key = catalogKey(candidate.get("equipment_type"), candidate.get("equipment_vendor"), candidate.get("equipment_model"));
             if (!StringUtils.hasText(key) || persistedKeys.contains(key)) {
                 continue;
@@ -161,6 +174,17 @@ public class SettingsItEquipmentService {
             merged.add(virtual);
         }
         return merged;
+    }
+
+    private int intValue(Object raw) {
+        if (raw instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(stringValue(raw));
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
     }
 
     private List<Map<String, Object>> loadItems() {

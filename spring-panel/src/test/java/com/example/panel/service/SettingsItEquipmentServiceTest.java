@@ -36,6 +36,7 @@ class SettingsItEquipmentServiceTest {
                 "equipment_vendor", "",
                 "equipment_model", "MiniPC",
                 "usage_count", 7,
+                "object_count", 3,
                 "discovered", true,
                 "source", "passports"
         )));
@@ -46,6 +47,7 @@ class SettingsItEquipmentServiceTest {
         List<?> itemsBefore = (List<?>) before.get("items");
         assertThat(itemsBefore).hasSize(1);
         assertThat(((Map<?, ?>) itemsBefore.get(0)).get("discovered")).isEqualTo(true);
+        assertThat(((Map<?, ?>) itemsBefore.get(0)).get("object_count")).isEqualTo(3);
 
         Map<String, Object> created = service.createItEquipment(Map.of(
                 "equipment_type", "POS",
@@ -57,5 +59,7 @@ class SettingsItEquipmentServiceTest {
         List<?> itemsAfter = (List<?>) created.get("items");
         assertThat(itemsAfter).hasSize(1);
         assertThat(((Map<?, ?>) itemsAfter.get(0)).get("discovered")).isEqualTo(false);
+        assertThat(((Map<?, ?>) itemsAfter.get(0)).get("usage_count")).isEqualTo(7);
+        assertThat(((Map<?, ?>) itemsAfter.get(0)).get("object_count")).isEqualTo(3);
     }
 }

@@ -7,6 +7,8 @@
     const state = {
       items: [],
       query: '',
+      typeFilter: '',
+      vendorFilter: '',
       editingId: null,
     };
 
@@ -14,6 +16,8 @@
       itEquipmentBody: document.getElementById('itEquipmentBody'),
       itEquipmentAddModalEl: document.getElementById('itEquipmentAddModal'),
       searchInput: document.getElementById('itEquipmentSearchInput'),
+      typeFilter: document.getElementById('itEquipmentTypeFilter'),
+      vendorFilter: document.getElementById('itEquipmentVendorFilter'),
       countBadge: document.getElementById('itEquipmentCountBadge'),
       emptyState: document.getElementById('itEquipmentEmptyState'),
     };
@@ -100,6 +104,7 @@
 
     function setItems(nextItems) {
       state.items = Array.isArray(nextItems) ? nextItems : [];
+      populateCatalogFilters();
     }
 
     function parseEquipmentLinks(raw) {
@@ -250,7 +255,50 @@
       return parseEquipmentLinks(item && item.photo_url)[0] || '';
     }
 
+    function collectCatalogFilterValues(field) {
+      const values = new Set();
+      getItems().forEach((item) => {
+        const value = item && item[field] != null ? String(item[field]).trim() : '';
+        if (value) values.add(value);
+      });
+      return Array.from(values).sort((a, b) => a.localeCompare(b, 'ru-RU', { sensitivity: 'base' }));
+    }
+
+    function populateCatalogFilter(select, values, selectedValue, allLabel) {
+      if (!select) return '';
+      const selected = String(selectedValue || '').trim();
+      const normalizedValues = Array.isArray(values) ? values : [];
+      const available = normalizedValues.some((value) => normalize(value) === normalize(selected));
+      const effectiveSelected = selected && available ? selected : '';
+      select.innerHTML = [
+        `<option value="">${escapeHtml(allLabel)}</option>`,
+        ...normalizedValues.map((value) => {
+          const selectedAttr = normalize(value) === normalize(effectiveSelected) ? ' selected' : '';
+          return `<option value="${escapeHtml(value)}"${selectedAttr}>${escapeHtml(value)}</option>`;
+        }),
+      ].join('');
+      select.value = effectiveSelected;
+      return effectiveSelected;
+    }
+
+    function populateCatalogFilters() {
+      state.typeFilter = populateCatalogFilter(
+        elements.typeFilter,
+        collectCatalogFilterValues('equipment_type'),
+        state.typeFilter,
+        'Все типы'
+      );
+      state.vendorFilter = populateCatalogFilter(
+        elements.vendorFilter,
+        collectCatalogFilterValues('equipment_vendor'),
+        state.vendorFilter,
+        'Все производители'
+      );
+    }
+
     function cardMatches(item) {
+      if (state.typeFilter && normalize(item && item.equipment_type) !== normalize(state.typeFilter)) return false;
+      if (state.vendorFilter && normalize(item && item.equipment_vendor) !== normalize(state.vendorFilter)) return false;
       const query = normalize(state.query);
       if (!query) return true;
       return normalize([
@@ -272,37 +320,33 @@
       const links = parseEquipmentLinks(item && item.photo_url);
       const cover = firstLink(item);
       const title = [vendor, model].filter(Boolean).join(' ') || model || vendor || type;
-      const glyph = String(type || 'IT').trim().slice(0, 2).toUpperCase();
       const discovered = item && item.discovered === true;
       const itemIndex = getItems().indexOf(item);
-      const usageCount = Number.parseInt(item && item.usage_count, 10) || 0;
+      const objectCount = Number.parseInt(item && (item.object_count ?? item.usage_count), 10) || 0;
 
       return `
         <article class="it-equipment-catalog-card ${discovered ? 'is-discovered' : ''}" data-id="${Number.isFinite(id) ? id : ''}" data-item-index="${itemIndex}">
           <div class="it-equipment-catalog-card__visual ${cover ? 'has-image' : ''}">
+            <span class="it-equipment-catalog-card__visual-placeholder" aria-hidden="true"><i class="bi bi-image"></i></span>
             ${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
-            <span>${escapeHtml(glyph)}</span>
+            <span class="it-equipment-catalog-card__type-badge">${escapeHtml(type)}</span>
           </div>
           <div class="it-equipment-catalog-card__body">
             <div class="it-equipment-catalog-card__top">
-              <div>
-                <span class="it-equipment-catalog-card__type">${escapeHtml(type)}</span>
+              <div class="it-equipment-catalog-card__identity">
                 <h6>${escapeHtml(title)}</h6>
+                ${Number.isFinite(id) ? `<span class="it-equipment-catalog-card__id">#${id}</span>` : ''}
               </div>
-              ${discovered ? '<span class="it-equipment-catalog-card__source">Из паспортов</span>' : (Number.isFinite(id) ? `<span class="it-equipment-catalog-card__id">#${id}</span>` : '')}
+              ${discovered
+                ? '<span class="it-equipment-catalog-card__source">Из паспортов</span>'
+                : '<div class="it-equipment-catalog-card__quick-actions"><button class="it-equipment-catalog-card__icon-action" type="button" data-it-equipment-action="edit" aria-label="Изменить модель" title="Изменить"><i class="bi bi-pencil" aria-hidden="true"></i></button><button class="it-equipment-catalog-card__icon-action is-danger" type="button" data-it-equipment-action="delete" aria-label="Удалить модель" title="Удалить"><i class="bi bi-trash" aria-hidden="true"></i></button></div>'}
             </div>
             <div class="it-equipment-catalog-card__meta">
+              <span class="it-equipment-catalog-card__usage"><small>Используется у объектов</small><strong>${objectCount}</strong></span>
               ${serial ? `<span><small>SN</small>${escapeHtml(serial)}</span>` : ''}
-              <span><small>Ссылки</small>${links.length}</span>
-              ${usageCount ? `<span><small>Объектов/экз.</small>${usageCount}</span>` : ''}
             </div>
             ${accessories ? `<p class="it-equipment-catalog-card__accessories">${escapeHtml(accessories)}</p>` : '<p class="it-equipment-catalog-card__accessories text-muted">Комплектация не указана</p>'}
-            <div class="it-equipment-catalog-card__actions">
-              ${links[0] ? `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(links[0])}" target="_blank" rel="noopener">Открыть</a>` : ''}
-              ${discovered
-                ? '<button class="btn btn-sm btn-primary" type="button" data-it-equipment-action="promote">Добавить в каталог</button>'
-                : '<button class="btn btn-sm btn-outline-primary" type="button" data-it-equipment-action="edit">Изменить</button><button class="btn btn-sm btn-outline-danger" type="button" data-it-equipment-action="delete">Удалить</button>'}
-            </div>
+            ${(links[0] || discovered) ? `<div class="it-equipment-catalog-card__actions">${links[0] ? `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(links[0])}" target="_blank" rel="noopener">Открыть</a>` : ''}${discovered ? '<button class="btn btn-sm btn-primary" type="button" data-it-equipment-action="promote">Добавить в каталог</button>' : ''}</div>` : ''}
           </div>
         </article>
       `;
@@ -312,15 +356,16 @@
       if (!elements.itEquipmentBody) return;
       const list = getItems().filter(cardMatches);
       elements.itEquipmentBody.innerHTML = list.map(renderCard).join('');
+      const hasActiveFilter = Boolean(normalize(state.query) || state.typeFilter || state.vendorFilter);
       if (elements.countBadge) {
-        elements.countBadge.textContent = state.query
+        elements.countBadge.textContent = hasActiveFilter
           ? `${list.length} из ${getItems().length}`
           : String(getItems().length);
       }
       if (elements.emptyState) {
         elements.emptyState.classList.toggle('d-none', list.length > 0);
-        elements.emptyState.textContent = state.query
-          ? 'По этому запросу ничего не найдено.'
+        elements.emptyState.textContent = hasActiveFilter
+          ? 'По выбранным фильтрам ничего не найдено.'
           : 'Пока нет оборудования.';
       }
     }
@@ -555,6 +600,18 @@
       if (elements.searchInput) {
         elements.searchInput.addEventListener('input', () => {
           state.query = elements.searchInput.value || '';
+          renderItEquipmentTable();
+        });
+      }
+      if (elements.typeFilter) {
+        elements.typeFilter.addEventListener('change', () => {
+          state.typeFilter = elements.typeFilter.value || '';
+          renderItEquipmentTable();
+        });
+      }
+      if (elements.vendorFilter) {
+        elements.vendorFilter.addEventListener('change', () => {
+          state.vendorFilter = elements.vendorFilter.value || '';
           renderItEquipmentTable();
         });
       }

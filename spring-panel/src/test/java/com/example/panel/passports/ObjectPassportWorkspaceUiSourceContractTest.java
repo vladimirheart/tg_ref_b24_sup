@@ -50,16 +50,24 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         String runtime = read("src/main/resources/static/js/settings-it-equipment-runtime.js");
         String settingsScss = read("src/main/resources/scss/settings/_foundation.scss");
         assertTrue(settings.contains("itEquipmentSearchInput"));
+        assertTrue(settings.contains("itEquipmentTypeFilter"));
+        assertTrue(settings.contains("itEquipmentVendorFilter"));
         assertTrue(settings.contains("itEquipmentCountBadge"));
         assertTrue(settings.contains("it-equipment-catalog-grid"));
         assertTrue(runtime.contains("it-equipment-catalog-card"));
+        assertTrue(runtime.contains("it-equipment-catalog-card__type-badge"));
+        assertTrue(runtime.contains("Используется у объектов"));
+        assertTrue(runtime.contains("item.object_count ?? item.usage_count"));
+        assertTrue(runtime.contains("bi bi-pencil"));
+        assertTrue(runtime.contains("bi bi-trash"));
         assertTrue(runtime.contains("data-it-equipment-action=\"edit\""));
         assertTrue(runtime.contains("data-it-equipment-action=\"promote\""));
         assertTrue(runtime.contains("Из паспортов"));
         assertTrue(runtime.contains("/api/settings/it-equipment/${editId}"));
         assertTrue(runtime.contains("if (state.editingId !== null)"));
-        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-1"));
-        assertTrue(settingsScss.contains("it-equipment-catalog-card"));
+        assertTrue(settings.contains("/css/settings.css?v=20260908-01-259-r4-3"));
+        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-3"));
+        assertTrue(settingsScss.contains("Equipment catalogue visual polish — 01-259 r4.3"));
     }
 
     @Test
