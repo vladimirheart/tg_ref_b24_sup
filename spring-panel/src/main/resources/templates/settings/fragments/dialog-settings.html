@@ -1,0 +1,1450 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="dialogSettings"><!-- Настройки диалогов -->
+    <div class="modal fade settings-primary-modal" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="categoriesModalLabel">Настройка диалогов</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-diagram-3-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Соберите устойчивый сценарий: категории, вопросы и правила завершения, чтобы агент одинаково обрабатывал обращения.</div>
+            </div>
+            <ul class="nav nav-tabs settings-menu-tabs" id="dialogSettingsTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link active"
+                  id="dialog-settings-categories-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-categories"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-categories"
+                  aria-selected="true"
+                >
+                  Категории
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="dialog-settings-questions-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-questions"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-questions"
+                  aria-selected="false"
+                >
+                  Вопросы
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="dialog-settings-completions-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-completions"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-completions"
+                  aria-selected="false"
+                >
+                  Действия
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="dialog-settings-macros-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-macros"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-macros"
+                  aria-selected="false"
+                >
+                  Макросы
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="dialog-settings-metrics-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-metrics"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-metrics"
+                  aria-selected="false"
+                >
+                  Время
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button
+                  class="nav-link"
+                  id="dialog-settings-badges-tab"
+                  data-bs-toggle="tab"
+                  data-bs-target="#dialog-settings-badges"
+                  type="button"
+                  role="tab"
+                  aria-controls="dialog-settings-badges"
+                  aria-selected="false"
+                >
+                  Бейджи
+                </button>
+              </li>
+            </ul>
+
+            <div class="tab-content pt-3 settings-tab-content" id="dialogSettingsTabsContent">
+              <div
+                class="tab-pane fade show active"
+                id="dialog-settings-categories"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-categories-tab"
+              >
+                <section class="mb-4">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Шаблоны категорий обращений</h6>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-category-template-add>+ Шаблон</button>
+                  </div>
+                  <p class="small text-muted">Сгруппируйте категории обращений в отдельные шаблоны и задайте имена, чтобы быстро переключаться между наборами категорий.</p>
+                  <div id="categoryTemplatesList" class="d-flex flex-column gap-3"></div>
+                </section>
+              </div>
+
+              <div
+                class="tab-pane fade"
+                id="dialog-settings-questions"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-questions-tab"
+              >
+                <section class="mb-4">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Шаблоны операторских вопросов</h6>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-question-template-add>+ Шаблон</button>
+                  </div>
+                  <div class="alert alert-warning small py-2 px-3 mb-3" role="alert">
+                    Это отдельный legacy-домен `dialog_config.question_templates` для операторского workspace.
+                    Бот-runtime его не читает: вопросы бота настраиваются отдельно в разделе «Каналы» → «Шаблоны» через `bot_settings.question_templates`.
+                  </div>
+                  <div class="alert alert-light border small py-2 px-3 mb-3" id="dialogQuestionTemplatesAudit" role="status">
+                    Schema-аудит legacy operator templates будет показан здесь после загрузки настроек.
+                  </div>
+                  <p class="small text-muted">Создайте наборы вопросов, которые можно использовать при общении с клиентом. Они будут доступны в окне диалога.</p>
+                  <div id="questionTemplatesList" class="d-flex flex-column gap-3"></div>
+                </section>
+              </div>
+
+              <div
+                class="tab-pane fade"
+                id="dialog-settings-completions"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-completions-tab"
+              >
+                <section>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Шаблоны действий после завершения</h6>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-completion-template-add>+ Шаблон</button>
+                  </div>
+                  <p class="small text-muted">Опишите список действий и контрольных вопросов, которые нужно выполнить после закрытия диалога. Эти шаблоны будут доступны при завершении обращения.</p>
+                  <div id="completionTemplatesList" class="d-flex flex-column gap-3"></div>
+                </section>
+              </div>
+
+              <div
+                class="tab-pane fade"
+                id="dialog-settings-macros"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-macros-tab"
+              >
+                <section>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Макросы ответов</h6>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-macro-template-add>+ Макрос</button>
+                  </div>
+                  <p class="small text-muted">Настройте библиотеку макросов для композера: текст, теги и стабильный ID. Макросы сразу доступны операторам в workspace.</p>
+                  <div class="row g-3 mb-3">
+                    <div class="col-12">
+                      <label class="form-label" for="dialogMacroPublishAllowedRoles">Роли, которым разрешена публикация макросов</label>
+                      <input type="text" class="form-control" id="dialogMacroPublishAllowedRoles" placeholder="ADMIN, SUPERVISOR">
+                      <div class="form-text">Необязательный список ролей через запятую. Если пусто — достаточно права <code>DIALOG_MACRO_PUBLISH</code>.</div>
+                    </div>
+                    <div class="col-12">
+                      <div class="form-check mt-1">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroRequireIndependentReview" checked>
+                        <label class="form-check-label" for="dialogMacroRequireIndependentReview">Требовать независимое ревью перед публикацией после изменения макроса</label>
+                      </div>
+                      <div class="form-text">Рекомендуется включённым: автор правок не может сам себя аппрувить, пока другой reviewer не подтвердит макрос.</div>
+                    </div>
+                  </div>
+                  <div id="macroTemplatesList" class="d-flex flex-column gap-3"></div>
+                </section>
+              </div>
+
+              <div
+                class="tab-pane fade"
+                id="dialog-settings-metrics"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-metrics-tab"
+              >
+                <section>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Цветовая индикация времени</h6>
+                  </div>
+                  <p class="small text-muted">Настройте пороги и цвета подсветки блока «Время обращения» в окне истории диалога.</p>
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                      <label for="timeMetricGoodLimit" class="form-label">Зелёная зона, мин</label>
+                      <input type="number" class="form-control" id="timeMetricGoodLimit" min="1" step="1">
+                      <div class="invalid-feedback">Укажите положительное число минут.</div>
+                      <div class="form-text">До этого значения блок подсвечивается зеленоватым цветом.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="timeMetricWarningLimit" class="form-label">Жёлтая зона, мин</label>
+                      <input type="number" class="form-control" id="timeMetricWarningLimit" min="1" step="1">
+                      <div class="invalid-feedback">Значение должно быть больше зелёной зоны.</div>
+                      <div class="form-text">После этого порога цвет станет красным.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Цветовые маркеры</label>
+                      <div class="d-flex flex-column gap-2">
+                        <label class="d-flex align-items-center gap-2">
+                          <span class="small text-muted flex-grow-1">Зелёный</span>
+                          <input type="color" class="form-control form-control-color" id="timeMetricColorGood" title="Цвет зелёной зоны">
+                        </label>
+                        <label class="d-flex align-items-center gap-2">
+                          <span class="small text-muted flex-grow-1">Жёлтый</span>
+                          <input type="color" class="form-control form-control-color" id="timeMetricColorWarning" title="Цвет жёлтой зоны">
+                        </label>
+                        <label class="d-flex align-items-center gap-2">
+                          <span class="small text-muted flex-grow-1">Красный</span>
+                          <input type="color" class="form-control form-control-color" id="timeMetricColorDanger" title="Цвет красной зоны">
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <label class="form-label">Предпросмотр</label>
+                    <div id="timeMetricPreview" class="dialog-time-metrics-preview"></div>
+                  </div>
+                </section>
+                <section class="mt-4">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">SLA и эскалация</h6>
+                  </div>
+                  <p class="small text-muted">Пороговые значения и флаги для SLA-first triage и серверной авто-эскалации критичных обращений.</p>
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                      <label for="dialogSlaTargetMinutes" class="form-label">SLA-цель, мин</label>
+                      <input type="number" class="form-control" id="dialogSlaTargetMinutes" min="5" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogSlaWarningMinutes" class="form-label">Порог предупреждения, мин</label>
+                      <input type="number" class="form-control" id="dialogSlaWarningMinutes" min="1" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogSlaCriticalMinutes" class="form-label">Критичный SLA, мин</label>
+                      <input type="number" class="form-control" id="dialogSlaCriticalMinutes" min="1" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogSlaCriticalOrchestrationMode" class="form-label">Режим SLA-orchestration</label>
+                      <select class="form-select" id="dialogSlaCriticalOrchestrationMode">
+                        <option value="monitor">Monitor (только сигнализация)</option>
+                        <option value="assist">Assist (сигналы + управляемые auto-actions)</option>
+                        <option value="autopilot">Autopilot (эскалация всех критичных очередей)</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogAiAgentEnabled">
+                        <label class="form-check-label" for="dialogAiAgentEnabled">AI-агент включён</label>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogAiAgentMode" class="form-label">Режим AI-агента</label>
+                      <select class="form-select" id="dialogAiAgentMode">
+                        <option value="auto_reply">Auto reply</option>
+                        <option value="assist_only">Assist only</option>
+                        <option value="escalate_only">Escalate only</option>
+                      </select>
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogAiAgentAutoReplyThreshold" class="form-label">Порог автоответа</label>
+                      <input type="number" class="form-control" id="dialogAiAgentAutoReplyThreshold" min="0.2" max="0.95" step="0.01">
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogAiAgentSuggestThreshold" class="form-label">Порог подсказки</label>
+                      <input type="number" class="form-control" id="dialogAiAgentSuggestThreshold" min="0.1" max="0.95" step="0.01">
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogAiAgentMaxAutoRepliesPerDialog" class="form-label">Лимит автоответов/диалог</label>
+                      <input type="number" class="form-control" id="dialogAiAgentMaxAutoRepliesPerDialog" min="1" max="20" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaEscalationEnabled">
+                        <label class="form-check-label" for="dialogSlaEscalationEnabled">Авто-эскалация критичных кейсов</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaAutoAssignEnabled">
+                        <label class="form-check-label" for="dialogSlaAutoAssignEnabled">Авто-назначение при эскалации</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogSlaAutoAssignTo" class="form-label">Fallback-исполнитель (логин)</label>
+                      <input type="text" class="form-control" id="dialogSlaAutoAssignTo" placeholder="Например, teamlead_support">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaAutoAssignMaxPerRun" class="form-label">Лимит авто-назначений за проход</label>
+                      <input type="number" class="form-control" id="dialogSlaAutoAssignMaxPerRun" min="1" max="100" step="1">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaAutoAssignActor" class="form-label">Audit actor</label>
+                      <input type="text" class="form-control" id="dialogSlaAutoAssignActor" placeholder="sla_orchestrator">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaAutoAssignMaxOpenPerOperator" class="form-label">Лимит open-диалогов на оператора</label>
+                      <input type="number" class="form-control" id="dialogSlaAutoAssignMaxOpenPerOperator" min="1" max="5000" step="1" placeholder="Без ограничения">
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-check mt-4 pt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaAutoAssignRequireCategories">
+                        <label class="form-check-label" for="dialogSlaAutoAssignRequireCategories">Только с заполненными категориями</label>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-check mt-4 pt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaAutoAssignIncludeAssigned">
+                        <label class="form-check-label" for="dialogSlaAutoAssignIncludeAssigned">Разрешить re-assign уже назначенных</label>
+                      </div>
+                      <div class="form-text">Используется для full autopilot: критичные assigned-кейсы можно перераспределять по SLA-routing правилам.</div>
+                    </div>
+                    <div class="col-12">
+                      <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                        <label for="dialogSlaAutoAssignRules" class="form-label mb-0">Правила auto-assign (JSON-массив)</label>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="dialogSlaAutoAssignInsertExampleBtn">Вставить пример SLA-routing</button>
+                      </div>
+                      <textarea class="form-control font-monospace" id="dialogSlaAutoAssignRules" rows="5" placeholder='[{"rule_id":"priority_vip","match_channels":["telegram","vk"],"match_categories":["billing"],"match_categories_mode":"all","assign_to_pool":["lead_a","lead_b"],"assign_to_pool_strategy":"least_loaded"}]'></textarea>
+                      <label for="dialogSlaAutoAssignOperatorSkills" class="form-label mt-2">Матрица навыков операторов (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogSlaAutoAssignOperatorSkills" rows="3" placeholder='{"lead_support":["billing","vip"],"senior_support":["delivery"]}'></textarea>
+                      <label for="dialogSlaAutoAssignOperatorQueues" class="form-label mt-2">Матрица очередей операторов (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogSlaAutoAssignOperatorQueues" rows="3" placeholder='{"lead_support":["queue_enterprise","queue_billing"],"senior_support":["queue_delivery"]}'></textarea>
+                      <div class="form-text">Используется правилами с <code>required_assignee_skills</code> и <code>required_assignee_queues</code> для маршрутизации по навыкам/очередям.</div>
+                      <div class="form-text">Поддерживаются фильтры: channel/business/location/category/request_prefix/client_status/rating/unread/minutes_left/sla_state + exclude_category/request_prefix. Для маршрутизации доступны assign_to, assign_to_pool и assign_to_pool_strategy (hash_by_ticket/round_robin/least_loaded).</div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-check mt-4 pt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaEscalationWebhookEnabled">
+                        <label class="form-check-label" for="dialogSlaEscalationWebhookEnabled">Webhook-уведомления инцидентов</label>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-check mt-4 pt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaEscalationIncludeAssigned">
+                        <label class="form-check-label" for="dialogSlaEscalationIncludeAssigned">Включать уже назначенные кейсы</label>
+                      </div>
+                      <div class="form-text">Нужно для e2e SLA-orchestration: webhook будет эскалировать critical тикеты даже при назначенном ответственном.</div>
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogSlaEscalationWebhookUrls" class="form-label">Webhook URL (через запятую или новую строку)</label>
+                      <textarea class="form-control" id="dialogSlaEscalationWebhookUrls" rows="2" placeholder="https://incident.example/hook"></textarea>
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogSlaEscalationWebhookCooldown" class="form-label">Cooldown, мин</label>
+                      <input type="number" class="form-control" id="dialogSlaEscalationWebhookCooldown" min="1" max="1440" step="1">
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogSlaEscalationWebhookTimeout" class="form-label">Timeout, мс</label>
+                      <input type="number" class="form-control" id="dialogSlaEscalationWebhookTimeout" min="500" max="30000" step="100">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaEscalationWebhookRetryAttempts" class="form-label">Retry попытки</label>
+                      <input type="number" class="form-control" id="dialogSlaEscalationWebhookRetryAttempts" min="1" max="5" step="1">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaEscalationWebhookRetryBackoff" class="form-label">Retry backoff, мс</label>
+                      <input type="number" class="form-control" id="dialogSlaEscalationWebhookRetryBackoff" min="50" max="5000" step="50">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaEscalationWebhookEventName" class="form-label">Event name</label>
+                      <input type="text" class="form-control" id="dialogSlaEscalationWebhookEventName" placeholder="sla_critical_escalation_required">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaEscalationWebhookSeverity" class="form-label">Severity</label>
+                      <select class="form-select" id="dialogSlaEscalationWebhookSeverity">
+                        <option value="critical">critical</option>
+                        <option value="high">high</option>
+                        <option value="medium">medium</option>
+                        <option value="low">low</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaEscalationWebhookMaxTicketsPerRun" class="form-label">Макс. тикетов в webhook payload</label>
+                      <input type="number" class="form-control" id="dialogSlaEscalationWebhookMaxTicketsPerRun" min="1" max="500" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogSlaWindowPresets" class="form-label">Пресеты фильтра «Требует реакции», мин</label>
+                      <input type="text" class="form-control" id="dialogSlaWindowPresets" placeholder="15,30,60,120">
+                      <div class="form-text">Список через запятую, от 1 до 12 значений, диапазон 5..1440 минут.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogSlaWindowDefault" class="form-label">Пресет по умолчанию</label>
+                      <input type="number" class="form-control" id="dialogSlaWindowDefault" min="5" max="1440" step="1" placeholder="например, 30">
+                      <div class="form-text">Пусто = SLA: все.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogDefaultView" class="form-label">Стартовый saved view</label>
+                      <select class="form-select" id="dialogDefaultView">
+                        <option value="all">Все</option>
+                        <option value="active">Активные</option>
+                        <option value="new">Новые</option>
+                        <option value="unassigned">Без ответственного</option>
+                        <option value="overdue">Просроченные</option>
+                        <option value="sla_critical">SLA критичные</option>
+                        <option value="escalation_required">Нужна эскалация</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogQuickSnoozeMinutes" class="form-label">Quick snooze, мин</label>
+                      <input type="number" class="form-control" id="dialogQuickSnoozeMinutes" min="5" max="1440" step="5">
+                      <div class="form-text">Длительность действия «Отложить» в triage и bulk.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogOverdueThresholdHours" class="form-label">Порог view «Просроченные», ч</label>
+                      <input type="number" class="form-control" id="dialogOverdueThresholdHours" min="1" max="168" step="1">
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">SLA policy governance baseline</h6>
+                  <p class="small text-muted">Базовые правила для SLA-routing policy layering и review-дисциплины. Если новые поля не заданы — поведение SLA-аудита остаётся прежним (дефолты).</p>
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaPolicyAuditRequireLayers">
+                        <label class="form-check-label" for="dialogSlaPolicyAuditRequireLayers">Требовать policy layers у SLA-routing правил</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaPolicyAuditRequireOwner">
+                        <label class="form-check-label" for="dialogSlaPolicyAuditRequireOwner">Требовать owner у SLA-routing правил</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaPolicyAuditRequireReview">
+                        <label class="form-check-label" for="dialogSlaPolicyAuditRequireReview">Требовать review timestamp у SLA-routing правил</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogSlaPolicyAuditReviewTtlHours" class="form-label">Review TTL, часов</label>
+                      <input type="number" class="form-control" id="dialogSlaPolicyAuditReviewTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogSlaPolicyAuditBroadRuleCoveragePct" class="form-label">Порог broad rule coverage, %</label>
+                      <input type="number" class="form-control" id="dialogSlaPolicyAuditBroadRuleCoveragePct" min="1" max="100" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-4">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaPolicyAuditBlockOnConflicts">
+                        <label class="form-check-label" for="dialogSlaPolicyAuditBlockOnConflicts">Блокировать rollout при policy conflicts</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaPolicyGovernanceReviewRequired">
+                        <label class="form-check-label" for="dialogSlaPolicyGovernanceReviewRequired">Требовать governance review checkpoint</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogSlaPolicyGovernanceReviewPath" class="form-label">Risk-based review path</label>
+                      <select class="form-select" id="dialogSlaPolicyGovernanceReviewPath">
+                        <option value="custom">Custom / backward-compatible</option>
+                        <option value="light">Light</option>
+                        <option value="standard">Standard</option>
+                        <option value="strict">Strict</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogSlaPolicyGovernanceReviewTtlHours" class="form-label">Governance review TTL, часов</label>
+                      <input type="number" class="form-control" id="dialogSlaPolicyGovernanceReviewTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-4">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaPolicyGovernanceDryRunTicketRequired">
+                        <label class="form-check-label" for="dialogSlaPolicyGovernanceDryRunTicketRequired">Требовать dry-run ticket для governance review</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaPolicyGovernanceDecisionRequired">
+                        <label class="form-check-label" for="dialogSlaPolicyGovernanceDecisionRequired">Требовать явный decision (go/hold) в governance review</label>
+                      </div>
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Workspace runtime-параметры</h6>
+                  <p class="small text-muted">Закрывает backlog по production-parity: параметры надёжности workspace теперь настраиваются без правок кода.</p>
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceEnabled">
+                        <label class="form-check-label" for="dialogWorkspaceEnabled">Workspace v1 включён</label>
+                      </div>
+                    </div>
+                    <div class="col-md-8">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceSingleMode">
+                        <label class="form-check-label" for="dialogWorkspaceSingleMode">Workspace-only режим (единственный интерфейс): выключить A/B и legacy modal/fallback</label>
+                      </div>
+                      <div class="form-text">Если включено, workspace становится единственным рабочим потоком. Пустое/отсутствующее значение сохраняет текущую rollout-модель.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaCriticalAutoSort">
+                        <label class="form-check-label" for="dialogSlaCriticalAutoSort">SLA critical view: auto Sla-first сортировка</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaCriticalPinUnassignedOnly">
+                        <label class="form-check-label" for="dialogSlaCriticalPinUnassignedOnly">SLA pin: только unassigned кейсы</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogSlaCriticalViewUnassignedOnly">
+                        <label class="form-check-label" for="dialogSlaCriticalViewUnassignedOnly">Saved view «SLA критичные»: только unassigned</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceAbEnabled">
+                        <label class="form-check-label" for="dialogWorkspaceAbEnabled">A/B rollout для workspace</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceForceWorkspace">
+                        <label class="form-check-label" for="dialogWorkspaceForceWorkspace">Принудительно открывать workspace для всех операторов (без A/B control)</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceDecommissionLegacyModal">
+                        <label class="form-check-label" for="dialogWorkspaceDecommissionLegacyModal">Decommission legacy modal: отключить legacy-flow и открывать только workspace</label>
+                      </div>
+                      <div class="form-text">Используйте только после подтверждённого функционального parity workspace. При ошибках auto-fallback в модалку недоступен.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceInlineNavigation">
+                        <label class="form-check-label" for="dialogWorkspaceInlineNavigation">Inline-навигация в workspace (без legacy modal)</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceContractTimeoutMs" class="form-label">Таймаут workspace-контракта, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceContractTimeoutMs" min="1000" max="30000" step="100">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceRetryAttempts" class="form-label">Retry попытки запроса workspace</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceRetryAttempts" min="0" max="5" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceContractInclude" class="form-label">Состав workspace-контракта (include)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceContractInclude" placeholder="messages,context,sla,permissions">
+                      <div class="form-text">Разрешённые блоки: messages, context, sla, permissions. Пусто = безопасный дефолт.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceMessagesPageLimit" class="form-label">Лимит сообщений на запрос workspace</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceMessagesPageLimit" min="10" max="200" step="5">
+                      <div class="form-text">Применяется к первичной загрузке и кнопке «Загрузить ещё».</div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceDisableLegacyFallback">
+                        <label class="form-check-label" for="dialogWorkspaceDisableLegacyFallback">Workspace strict mode: не переключаться автоматически в legacy modal</label>
+                      </div>
+                      <div class="form-text">Используйте для rollout-проверки паритета: при ошибках workspace остаётся в текущем экране и не выполняет auto-fallback.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceFailureStreakThreshold" class="form-label">Порог fallback подряд до cooldown</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceFailureStreakThreshold" min="1" max="10" step="1">
+                      <div class="form-text">После N ошибок workspace временно отключается для текущей сессии.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceFailureCooldownMs" class="form-label">Cooldown после серии fallback, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceFailureCooldownMs" min="1000" max="120000" step="500">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceDraftAutosaveDelayMs" class="form-label">Автосохранение черновика, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceDraftAutosaveDelayMs" min="300" max="5000" step="50">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceDraftTelemetryIntervalMs" class="form-label">Интервал telemetry черновиков, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceDraftTelemetryIntervalMs" min="5000" max="120000" step="1000">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceOpenSloMs" class="form-label">Open SLO p95, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceOpenSloMs" min="500" max="10000" step="100">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogListPollIntervalMs" class="form-label">Интервал автообновления списка, мс</label>
+                      <input type="number" class="form-control" id="dialogListPollIntervalMs" min="3000" max="60000" step="500">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogHistoryPollIntervalMs" class="form-label">Интервал обновления истории, мс</label>
+                      <input type="number" class="form-control" id="dialogHistoryPollIntervalMs" min="3000" max="60000" step="500">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceAbRolloutPercent" class="form-label">A/B rollout, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceAbRolloutPercent" min="0" max="100" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceAbExperimentName" class="form-label">A/B experiment name</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceAbExperimentName" placeholder="workspace_v1_rollout">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceAbOperatorSegment" class="form-label">A/B operator segment</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceAbOperatorSegment" placeholder="all_operators">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceAbPrimaryKpis" class="form-label">A/B primary KPI (через запятую)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceAbPrimaryKpis" placeholder="frt,ttr,sla_breach">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceAbSecondaryKpis" class="form-label">A/B secondary KPI (через запятую)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceAbSecondaryKpis" placeholder="dialogs_per_operator_shift,csat,ui_error_rate">
+                    </div>
+                    <div class="col-12">
+                      <label for="dialogWorkspaceAbOperatorOverrides" class="form-label">A/B operator overrides (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogWorkspaceAbOperatorOverrides" rows="4" placeholder='{"ivanov":"test","petrova":"control"}'></textarea>
+                      <div class="form-text">Формат: {"operator_identity":"test|control"}. Невалидные значения игнорируются.</div>
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Guardrails и decisioning</h6>
+                  <p class="small text-muted">Настраиваемые пороги для rollout telemetry и минимальные выборки для cohort/segment decision.</p>
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceGuardrailRenderErrorRate" class="form-label">Render error SLO, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGuardrailRenderErrorRate" min="0.01" max="100" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceGuardrailFallbackRate" class="form-label">Fallback SLO, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGuardrailFallbackRate" min="0.01" max="100" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceGuardrailAbandonRate" class="form-label">Abandon порог, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGuardrailAbandonRate" min="0.01" max="100" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceGuardrailSlowOpenRate" class="form-label">Slow open порог, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGuardrailSlowOpenRate" min="0.01" max="100" step="0.01">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceDimensionMinEvents" class="form-label">Мин. событий для сегментов (cohort/shift/team)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceDimensionMinEvents" min="5" max="1000" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceCohortMinEvents" class="form-label">Мин. событий на cohort для decision</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceCohortMinEvents" min="5" max="1000" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceKpiOutcomeMinSamples" class="form-label">Мин. KPI-сэмплов на cohort (outcome)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeMinSamples" min="1" max="1000" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceKpiOutcomeFrtRegressionPercent" class="form-label">FRT: макс. относительная деградация, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeFrtRegressionPercent" min="0.1" max="500" step="0.1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceKpiOutcomeTtrRegressionPercent" class="form-label">TTR: макс. относительная деградация, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeTtrRegressionPercent" min="0.1" max="500" step="0.1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceKpiOutcomeSlaAbsDeltaPercent" class="form-label">SLA breach: макс. абсолютная дельта, п.п.</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeSlaAbsDeltaPercent" min="0.1" max="100" step="0.1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceKpiOutcomeSlaRelativeMultiplier" class="form-label">SLA breach: макс. относительный множитель</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceKpiOutcomeSlaRelativeMultiplier" min="1" max="10" step="0.01">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceRolloutRequiredOutcomeKpis" class="form-label">Обязательные outcome KPI для rollout (CSV)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceRolloutRequiredOutcomeKpis" placeholder="frt,ttr,sla_breach">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceWinnerMinOpenImprovementPercent" class="form-label">Мин. улучшение open time для победы test, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceWinnerMinOpenImprovementPercent" min="0" max="50" step="0.1">
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Workspace rollout governance</h6>
+                  <p class="small text-muted">Формализует decision-loop для миграции с legacy modal: обязательный governance packet, owner sign-off, weekly parity review и exit criteria. Если настройки пустые — текущее поведение rollout не меняется.</p>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernancePacketRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernancePacketRequired">Governance packet обязателен для rollout decision</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernanceOwnerSignoffRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernanceOwnerSignoffRequired">Требовать owner sign-off перед scale-up / decommission legacy</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceOwnerSignoffBy" class="form-label">Owner sign-off by</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceGovernanceOwnerSignoffBy" maxlength="120" placeholder="ops-director / release-manager">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceOwnerSignoffAt" class="form-label">Owner sign-off at</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceGovernanceOwnerSignoffAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceGovernanceOwnerSignoffAtStatus"></div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceOwnerSignoffTtlHours" class="form-label">TTL sign-off, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGovernanceOwnerSignoffTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceReviewCadenceDays" class="form-label">Review cadence, дней</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGovernanceReviewCadenceDays" min="0" max="90" step="1">
+                      <div class="form-text">0 = weekly review cadence выключен.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceReviewedBy" class="form-label">Последний reviewer</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceGovernanceReviewedBy" maxlength="120" placeholder="ops-oncall / product-owner">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceReviewedAt" class="form-label">Последний review at</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceGovernanceReviewedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceGovernanceReviewedAtStatus"></div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernanceReviewDecisionRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernanceReviewDecisionRequired">Требовать явное decision action (go / hold / rollback) в weekly review</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernanceIncidentFollowupRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernanceIncidentFollowupRequired">Требовать incident follow-up link при weekly review</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernanceFollowupForNonGoRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernanceFollowupForNonGoRequired">Требовать incident follow-up при переходе hold/rollback → go</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceLegacyUsageMinWorkspaceOpens" class="form-label">Мин. workspace opens в окне</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceLegacyUsageMinWorkspaceOpens" min="0" max="100000" step="1">
+                      <div class="form-text">0/пусто = volume-gate выключен (обратная совместимость).</div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceGovernanceLegacyBlockedReasonsReviewRequired">
+                        <label class="form-check-label" for="dialogWorkspaceGovernanceLegacyBlockedReasonsReviewRequired">Требовать post-review top blocked reasons для `workspace_open_legacy_blocked`</label>
+                      </div>
+                      <div class="form-text">Если выключено, новый review-gate не участвует в readiness и поведение не меняется.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceLegacyBlockedReasonsTopN" class="form-label">Top blocked reasons для review</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGovernanceLegacyBlockedReasonsTopN" min="1" max="10" step="1">
+                      <div class="form-text">Используется только если включён post-review blocked reasons.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceReviewDecisionAction" class="form-label">Decision action weekly review</label>
+                      <select class="form-select" id="dialogWorkspaceGovernanceReviewDecisionAction">
+                        <option value="">(не задано)</option>
+                        <option value="go">go</option>
+                        <option value="hold">hold</option>
+                        <option value="rollback">rollback</option>
+                      </select>
+                      <div class="form-text">Пустое значение сохраняет текущее поведение (backward-compatible).</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceGovernanceReviewIncidentFollowup" class="form-label">Incident follow-up link / note</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceGovernanceReviewIncidentFollowup" maxlength="500" placeholder="INC-123 / https://tracker/...">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceGovernanceParityExitDays" class="form-label">Parity exit window, дней</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceGovernanceParityExitDays" min="0" max="90" step="1">
+                      <div class="form-text">0 = exit criteria по parity-gap выключен.</div>
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceGovernanceParityCriticalReasons" class="form-label">Critical parity-gap reasons (CSV)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceGovernanceParityCriticalReasons" placeholder="attachments,reply_threading,macros,permissions">
+                      <div class="form-text">Если список пустой, при включённом окне exit criteria критичными считаются все parity-gap события.</div>
+                    </div>
+                    <div class="col-12">
+                      <label for="dialogWorkspaceGovernanceLegacyOnlyScenarios" class="form-label">Legacy-only scenarios inventory (JSON-массив или CSV)</label>
+                      <textarea class="form-control font-monospace" id="dialogWorkspaceGovernanceLegacyOnlyScenarios" rows="4" placeholder='["attachments_edit", "inline_reopen"]'></textarea>
+                      <div class="form-text">Пустой список = legacy-only сценариев больше нет. Список попадает в analytics packet и помогает контролируемо завершить dual-run.</div>
+                    </div>
+                    <div class="col-12">
+                      <div class="alert alert-secondary py-2 px-3 mb-1" id="dialogWorkspaceGovernanceUtcSummary" role="status">
+                        Проверка UTC timestamps governance…
+                      </div>
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Default переменные макросов</h6>
+                  <p class="small text-muted">Резервные значения для переменных {{name}} в macro dry-run и при реальном применении.</p>
+                  <label for="dialogMacroVariableDefaults" class="form-label">JSON-объект defaults</label>
+                  <textarea class="form-control font-monospace" id="dialogMacroVariableDefaults" rows="5" placeholder='{"business":"Iguana", "location":"N/A"}'></textarea>
+                  <div class="form-text">Формат: {"ключ":"значение"}. Ключи нормализуются в lowercase. Пустые значения игнорируются.</div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Каталог macro-переменных</h6>
+                  <p class="small text-muted">Единый каталог для внешних систем: ключ, label и default-подстановка для предпросмотра.</p>
+                  <label for="dialogMacroVariableCatalog" class="form-label">JSON-массив каталога</label>
+                  <textarea class="form-control font-monospace" id="dialogMacroVariableCatalog" rows="6" placeholder='[{"key":"contract_tier","label":"Тариф клиента","default_value":"standard"}]'></textarea>
+                  <div class="form-text">Формат элемента: {"key":"variable_name","label":"Название","default_value":"опционально"}.</div>
+                  <div class="row g-3 mt-1">
+                    <div class="col-md-8">
+                      <label for="dialogMacroVariableCatalogExternalUrl" class="form-label">External catalog URL</label>
+                      <input type="text" class="form-control" id="dialogMacroVariableCatalogExternalUrl" placeholder="https://catalog.company.local/dialog-macro-variables">
+                      <div class="form-text">Опционально: API каталога переменных. Поддерживается ответ в формате <code>[...]</code> или <code>{"variables":[...]}</code>.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroVariableCatalogExternalTimeoutMs" class="form-label">Timeout, мс</label>
+                      <input type="number" class="form-control" id="dialogMacroVariableCatalogExternalTimeoutMs" min="200" max="10000" step="100">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroVariableCatalogExternalCacheTtlSeconds" class="form-label">Cache TTL, сек</label>
+                      <input type="number" class="form-control" id="dialogMacroVariableCatalogExternalCacheTtlSeconds" min="0" max="3600" step="10">
+                      <div class="form-text">0 = без кэша. При недоступности внешнего каталога используется stale cache (если есть).</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroVariableCatalogExternalAuthHeader" class="form-label">Auth header</label>
+                      <input type="text" class="form-control" id="dialogMacroVariableCatalogExternalAuthHeader" placeholder="Authorization">
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogMacroVariableCatalogExternalAuthToken" class="form-label">Auth token / value</label>
+                      <input type="password" class="form-control" id="dialogMacroVariableCatalogExternalAuthToken" placeholder="Bearer &lt;token&gt;">
+                      <div class="form-text">Опционально: заголовок авторизации для защищённого external catalog API.</div>
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Macro governance baseline</h6>
+                  <p class="small text-muted">Минимальные правила hygiene для macro library. Если поля не заданы — поведение остаётся прежним (дефолты).</p>
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceRequireOwner">
+                        <label class="form-check-label" for="dialogMacroGovernanceRequireOwner">Требовать owner у macro template</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceRequireNamespace">
+                        <label class="form-check-label" for="dialogMacroGovernanceRequireNamespace">Требовать namespace у macro template</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceRequireReview">
+                        <label class="form-check-label" for="dialogMacroGovernanceRequireReview">Требовать review timestamp у macro template</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceReviewTtlHours" class="form-label">Review TTL, часов</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceReviewTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-4">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceDeprecationRequiresReason">
+                        <label class="form-check-label" for="dialogMacroGovernanceDeprecationRequiresReason">Требовать reason для deprecated templates</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceUnusedDays" class="form-label">Unused window, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceUnusedDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceRedListEnabled">
+                        <label class="form-check-label" for="dialogMacroGovernanceRedListEnabled">Включить quality red-list для макросов</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceRedListUsageMax" class="form-label">Red-list usage max</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceRedListUsageMax" min="0" max="10000" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceOwnerActionRequired">
+                        <label class="form-check-label" for="dialogMacroGovernanceOwnerActionRequired">Требовать owner action для red-list templates</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceCleanupCadenceDays" class="form-label">Cleanup cadence, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceCleanupCadenceDays" min="0" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceAliasCleanupRequired">
+                        <label class="form-check-label" for="dialogMacroGovernanceAliasCleanupRequired">Проверять aliases/tags cleanup</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceVariableCleanupRequired">
+                        <label class="form-check-label" for="dialogMacroGovernanceVariableCleanupRequired">Проверять cleanup неизвестных переменных</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogMacroGovernanceUsageTierSlaRequired">
+                        <label class="form-check-label" for="dialogMacroGovernanceUsageTierSlaRequired">Включить usage-tier cleanup/deprecation SLA</label>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceUsageTierLowMax" class="form-label">Low tier: usage max</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceUsageTierLowMax" min="0" max="10000" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceUsageTierMediumMax" class="form-label">Medium tier: usage max</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceUsageTierMediumMax" min="0" max="10000" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceCleanupSlaLowDays" class="form-label">Cleanup SLA low, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceCleanupSlaLowDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceCleanupSlaMediumDays" class="form-label">Cleanup SLA medium, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceCleanupSlaMediumDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceCleanupSlaHighDays" class="form-label">Cleanup SLA high, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceCleanupSlaHighDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceDeprecationSlaLowDays" class="form-label">Deprecation SLA low, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceDeprecationSlaLowDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceDeprecationSlaMediumDays" class="form-label">Deprecation SLA medium, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceDeprecationSlaMediumDays" min="1" max="365" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogMacroGovernanceDeprecationSlaHighDays" class="form-label">Deprecation SLA high, дней</label>
+                      <input type="number" class="form-control" id="dialogMacroGovernanceDeprecationSlaHighDays" min="1" max="365" step="1">
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Внешние профили клиента (workspace)</h6>
+                  <p class="small text-muted">Позволяет подключить CRM/contract-системы и дополнительные enterprise-ссылки без code-deploy.</p>
+                  <div class="row g-3">
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceClientCrmProfileUrlTemplate" class="form-label">CRM URL-шаблон</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientCrmProfileUrlTemplate" placeholder="https://crm.company.local/client/{client_id}">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceClientCrmProfileLabel" class="form-label">CRM label</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientCrmProfileLabel" placeholder="CRM профиль">
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceClientContractProfileUrlTemplate" class="form-label">Contract URL-шаблон</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientContractProfileUrlTemplate" placeholder="https://contracts.company.local/{ticket_id}">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceClientContractProfileLabel" class="form-label">Contract label</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientContractProfileLabel" placeholder="Договор/контракт">
+                    </div>
+                  </div>
+                  <label for="dialogWorkspaceClientExternalLinks" class="form-label mt-3">Дополнительные external links (JSON-массив)</label>
+                  <textarea class="form-control font-monospace" id="dialogWorkspaceClientExternalLinks" rows="6" placeholder='[{"key":"billing","label":"Billing","url_template":"https://billing.company.local/{client_id}","enabled":true}]'></textarea>
+                  <div class="form-text">Поддерживаемые placeholder: {ticket_id}, {client_id}, {client_name}, {phone}, {channel_id}, {channel_name}, {business}, {location}.</div>
+                  <div class="row g-3 mt-1">
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceClientExternalProfileUrl" class="form-label">External profile API URL</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientExternalProfileUrl" placeholder="https://crm.company.local/api/client-profile/{client_id}">
+                      <div class="form-text">Опционально: JSON API для enrichment профиля. Поддерживаемые форматы: <code>{...}</code> или <code>{"profile": {...}}</code>.</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogWorkspaceClientExternalProfileTimeoutMs" class="form-label">Timeout, мс</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceClientExternalProfileTimeoutMs" min="300" max="10000" step="100">
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogWorkspaceClientExternalProfileCacheTtlSeconds" class="form-label">Cache TTL, сек</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceClientExternalProfileCacheTtlSeconds" min="0" max="3600" step="10">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceClientExternalProfileAuthHeader" class="form-label">Auth header</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientExternalProfileAuthHeader" placeholder="Authorization">
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceClientExternalProfileAuthToken" class="form-label">Auth token / value</label>
+                      <input type="password" class="form-control" id="dialogWorkspaceClientExternalProfileAuthToken" placeholder="Bearer &lt;token&gt;">
+                      <div class="form-text">Опционально: заголовок авторизации для внешнего API enrichment (например, <code>Authorization: Bearer ...</code>).</div>
+                    </div>
+                  </div>
+                  <div class="row g-3 mt-3">
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceClientContextRequiredSources" class="form-label">Обязательные источники контекста (CSV)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientContextRequiredSources" placeholder="crm,contract">
+                      <div class="form-text">Если пусто — поведение workspace не меняется. Поддерживаемые ключи: <code>crm</code>, <code>contract</code>, <code>external</code>, <code>local</code>.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceClientContextSourcePriority" class="form-label">Приоритет источников (CSV)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientContextSourcePriority" placeholder="local,crm,contract,external">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceClientContextSourceStaleAfterHours" class="form-label">TTL freshness, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceClientContextSourceStaleAfterHours" min="0" max="8760" step="1">
+                      <div class="form-text">0 = freshness-check выключен.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceClientContextSourceLabels" class="form-label">Подписи источников (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogWorkspaceClientContextSourceLabels" rows="4" placeholder='{"crm":"CRM profile","contract":"Contract profile"}'></textarea>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceClientContextSourceUpdatedAtAttributes" class="form-label">UTC timestamp-атрибуты по источникам (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogWorkspaceClientContextSourceUpdatedAtAttributes" rows="4" placeholder='{"crm":["crm_updated_at"],"contract":["contract_updated_at"]}'></textarea>
+                      <div class="form-text">Задаёт порядок поиска timestamp-полей. Невалидные значения безопасно попадают в <code>invalid_utc</code>.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceClientContextSourceStaleAfterHoursBySource" class="form-label">TTL freshness по источникам (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogWorkspaceClientContextSourceStaleAfterHoursBySource" rows="4" placeholder='{"crm":24,"contract":72}'></textarea>
+                      <div class="form-text">Опционально переопределяет общий TTL по конкретным источникам. Значения — часы в UTC, диапазон 0..8760.</div>
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Mandatory customer profile (workspace)</h6>
+                  <p class="small text-muted">Позволяет формализовать минимальный профиль клиента: общий baseline и дополнительные обязательные поля для конкретных сегментов кейсов. Если настройки пустые — поведение workspace не меняется.</p>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceRequiredClientAttributes" class="form-label">Обязательные атрибуты профиля (CSV)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceRequiredClientAttributes" placeholder="name,status,last_message_at">
+                      <div class="form-text">Применяются ко всем кейсам. Ключи нормализуются в lowercase, дубликаты игнорируются.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceRequiredClientAttributesBySegment" class="form-label">Обязательные атрибуты по сегментам (JSON-объект)</label>
+                      <textarea class="form-control font-monospace" id="dialogWorkspaceRequiredClientAttributesBySegment" rows="4" placeholder='{"reactivation_risk":["contract_tier","crm_owner"],"new_dialog":["first_seen_at"]}'></textarea>
+                      <div class="form-text">Ключ — сегмент из workspace, значение — список обязательных атрибутов для этого сценария.</div>
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Enterprise-атрибуты клиента (workspace)</h6>
+                  <p class="small text-muted">Управление enrichment-полями в правой панели: можно скрыть шумные атрибуты, задать человеко-понятные названия и порядок отображения.</p>
+                  <label for="dialogWorkspaceClientHiddenAttributes" class="form-label">Скрытые атрибуты (JSON-массив)</label>
+                  <textarea class="form-control font-monospace" id="dialogWorkspaceClientHiddenAttributes" rows="4" placeholder='["risk_score", "contract_internal_id"]'></textarea>
+                  <div class="form-text">Формат: ["attribute_key"]. Ключи нормализуются в lowercase, пустые значения игнорируются.</div>
+                  <label for="dialogWorkspaceClientAttributeLabels" class="form-label mt-3">Переименования атрибутов (JSON-объект)</label>
+                  <textarea class="form-control font-monospace" id="dialogWorkspaceClientAttributeLabels" rows="4" placeholder='{"contract_tier":"Тариф","risk_score":"Risk score"}'></textarea>
+                  <div class="form-text">Формат: {"attribute_key":"Название в UI"}. Помогает привести enterprise-ключи к бизнес-терминам.</div>
+                  <label for="dialogWorkspaceClientAttributeOrder" class="form-label mt-3">Порядок атрибутов (JSON-массив)</label>
+                  <textarea class="form-control font-monospace" id="dialogWorkspaceClientAttributeOrder" rows="4" placeholder='["contract_tier", "risk_score", "vip_level"]'></textarea>
+                  <div class="form-text">Формат: ["attribute_key"]. Указанные ключи будут показываться первыми в заданном порядке.</div>
+                  <div class="row g-3 mt-1">
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceClientExtraAttributesMax" class="form-label">Макс. кол-во доп. атрибутов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceClientExtraAttributesMax" min="1" max="100" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceClientExtraAttributesCollapseAfter" class="form-label">Кол-во атрибутов до сворачивания</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceClientExtraAttributesCollapseAfter" min="1" max="50" step="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label d-block">Фильтрация тех. ключей</label>
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceClientExtraAttributesHideTechnical">
+                        <label class="form-check-label" for="dialogWorkspaceClientExtraAttributesHideTechnical">Скрывать ключи `_` и `internal_*`</label>
+                      </div>
+                    </div>
+                    <div class="col-12">
+                      <label for="dialogWorkspaceClientExtraAttributesTechnicalPrefixes" class="form-label">Технические префиксы (через запятую)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceClientExtraAttributesTechnicalPrefixes" placeholder="_, internal_, debug_">
+                      <div class="form-text">Ключи с этими префиксами будут скрываться при включенном переключателе «Скрывать тех. ключи».</div>
+                    </div>
+                  </div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Контекст и risk-сегменты workspace</h6>
+                  <p class="small text-muted">Тонкая настройка объёма правой панели и порогов авто-сегментации клиента без code-deploy.</p>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceContextHistoryLimit" class="form-label">Лимит блока «История обращений»</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceContextHistoryLimit" min="1" max="20" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceContextRelatedEventsLimit" class="form-label">Лимит блока «Связанные события»</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceContextRelatedEventsLimit" min="1" max="20" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceSegmentHighLifetimeMinDialogs" class="form-label">Порог сегмента high_lifetime_volume (диалогов)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceSegmentHighLifetimeMinDialogs" min="1" max="500" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceSegmentMultiOpenMinDialogs" class="form-label">Порог сегмента multi_open_dialogs (open-диалогов)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceSegmentMultiOpenMinDialogs" min="1" max="50" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceSegmentReactivationMinDialogs" class="form-label">Порог reactivation_risk (минимум диалогов)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceSegmentReactivationMinDialogs" min="1" max="500" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceSegmentReactivationMaxResolved30d" class="form-label">Порог reactivation_risk (max resolved_30d)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceSegmentReactivationMaxResolved30d" min="0" max="100" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceSegmentOpenBacklogMinOpen" class="form-label">Порог open_backlog_pressure (open-диалогов)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceSegmentOpenBacklogMinOpen" min="1" max="100" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceSegmentOpenBacklogMinSharePercent" class="form-label">Порог open_backlog_pressure (доля open, %)</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceSegmentOpenBacklogMinSharePercent" min="1" max="100" step="1">
+                    </div>
+                  </div>
+                  <div class="form-text">Сегмент reactivation_risk активируется, если total_dialogs ≥ порога и resolved_30d ≤ max значения. Сегмент open_backlog_pressure — если open_dialogs ≥ порога и доля open-диалогов превышает заданный процент.</div>
+                  <hr class="my-4">
+                  <h6 class="mb-2">Кросс-продуктовые KPI-дашборды (BI bridge)</h6>
+                  <p class="small text-muted">Ссылки на внешние omni-channel/финансовые доски для закрытия пробела roadmap без отдельного релиза.</p>
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="dialogCrossProductOmnichannelDashboardUrl" class="form-label">Omni-channel dashboard URL</label>
+                      <input type="url" class="form-control" id="dialogCrossProductOmnichannelDashboardUrl" placeholder="https://bi.example.com/omnichannel">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogCrossProductOmnichannelDashboardLabel" class="form-label">Omni-channel dashboard label</label>
+                      <input type="text" class="form-control" id="dialogCrossProductOmnichannelDashboardLabel" placeholder="Omni-channel KPI dashboard">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogCrossProductFinanceDashboardUrl" class="form-label">Финансовый dashboard URL</label>
+                      <input type="url" class="form-control" id="dialogCrossProductFinanceDashboardUrl" placeholder="https://bi.example.com/finance">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogCrossProductFinanceDashboardLabel" class="form-label">Финансовый dashboard label</label>
+                      <input type="text" class="form-control" id="dialogCrossProductFinanceDashboardLabel" placeholder="Финансовый KPI dashboard">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check form-switch mt-1">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiGateEnabled">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiGateEnabled">Включить внешний KPI-gate для rollout decision</label>
+                      </div>
+                      <div class="form-text">Если включено, решение rollout будет на hold, пока оба чекпоинта внешних KPI не подтверждены.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiOmnichannelReady">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiOmnichannelReady">Omni-channel KPI checkpoint подтверждён</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiFinanceReady">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiFinanceReady">Финансовый KPI checkpoint подтверждён</label>
+                      </div>
+                    </div>
+                    <div class="col-12">
+                      <label for="dialogWorkspaceExternalKpiNote" class="form-label">Комментарий по внешним KPI (опционально)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiNote" maxlength="500" placeholder="Ссылка на отчёт / статус data-mart / дата валидации">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartOwner" class="form-label">Owner data-mart</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartOwner" maxlength="120" placeholder="sre-on-call / analytics-team">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartRunbookUrl" class="form-label">Runbook URL data-mart</label>
+                      <input type="url" class="form-control" id="dialogWorkspaceExternalKpiDatamartRunbookUrl" placeholder="https://wiki.example.com/runbooks/datamart">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartDependencyTicketRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartDependencyTicketRequired">Требовать ссылку на dependency-ticket внешнего data-mart для снятия hold</label>
+                      </div>
+                    </div>
+                    <div class="col-md-12">
+                      <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketUrl" class="form-label">Dependency-ticket URL (внешний поток data-mart)</label>
+                      <input type="url" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketUrl" placeholder="https://jira.example.com/browse/BI-1234">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerRequired">Требовать owner dependency-ticket для снятия hold</label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketOwner" class="form-label">Owner dependency-ticket (команда/ответственный)</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketOwner" maxlength="120" placeholder="BI Platform / @data-owner">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContactRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContactRequired">Требовать owner-contact dependency-ticket для снятия hold</label>
+                      </div>
+                      <div class="form-text">Контакт нужен для быстрого эскалационного пинга по внешнему BI blocker без поиска владельца вручную.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContact" class="form-label">Owner contact dependency-ticket</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContact" maxlength="160" placeholder="@bi-oncall / team@example.com / slack://channel">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContactActionableRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartDependencyTicketOwnerContactActionableRequired">Требовать action-ready owner-contact (mention/email/slack/url)</label>
+                      </div>
+                      <div class="form-text">Если включено, plain-текст без канала связи не снимает hold для внешнего dependency-ticket.</div>
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartDependencyTicketFreshnessRequired">Требовать актуальный апдейт dependency-ticket для внешнего data-mart</label>
+                      </div>
+                      <div class="form-text">Если ссылка на внешний тикет давно не обновлялась, rollout остаётся в hold до обновления статуса зависимости.</div>
+                    </div>
+                    <div class="col-12">
+                      <div class="alert alert-secondary py-2 px-3 mb-1" id="dialogWorkspaceExternalKpiUtcSummary" role="status">
+                        Проверка UTC timestamps…
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt" class="form-label">Dependency-ticket обновлён</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAtStatus"></div>
+                      <div class="form-text">UTC. Пустое значение оставляет freshness-gate выключенным, невалидное — будет безопасно проигнорировано и удержит hold только при включённом gate.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartDependencyTicketTtlHours" class="form-label">TTL dependency-ticket, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartDependencyTicketTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiReviewedBy" class="form-label">Кто подтвердил checkpoint</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiReviewedBy" maxlength="120" placeholder="on-call / owner / команда">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiReviewedAt" class="form-label">Дата review</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiReviewedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiReviewedAtStatus"></div>
+                      <div class="form-text">UTC timestamp review-checkpoint.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiReviewTtlHours" class="form-label">TTL review, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiReviewTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check form-switch mt-1">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDataFreshnessRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDataFreshnessRequired">Требовать freshness внешнего data-mart перед rollout</label>
+                      </div>
+                      <div class="form-text">Если включено, rollout decision будет hold, пока не указано свежее время обновления внешних KPI.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDataUpdatedAt" class="form-label">Внешний data-mart обновлён</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDataUpdatedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiDataUpdatedAtStatus"></div>
+                      <div class="form-text">UTC timestamp последнего обновления внешней витрины.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDataFreshnessTtlHours" class="form-label">Freshness TTL, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDataFreshnessTtlHours" min="1" max="720" step="1">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDashboardLinksRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDashboardLinksRequired">Требовать заполненные URL Omni-channel/Finance dashboard для снятия hold</label>
+                      </div>
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiOwnerRunbookRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiOwnerRunbookRequired">Требовать owner + runbook data-mart для снятия hold</label>
+                      </div>
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDashboardStatusRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDashboardStatusRequired">Требовать статус healthy для внешних KPI-дашбордов</label>
+                      </div>
+                      <div class="row g-2 mt-1">
+                        <div class="col-md-4">
+                          <label for="dialogWorkspaceExternalKpiDashboardStatus" class="form-label">Статус KPI-дашбордов</label>
+                          <select class="form-select" id="dialogWorkspaceExternalKpiDashboardStatus">
+                            <option value="unknown">unknown</option>
+                            <option value="healthy">healthy</option>
+                            <option value="degraded">degraded</option>
+                            <option value="down">down</option>
+                          </select>
+                        </div>
+                        <div class="col-md-8">
+                          <label for="dialogWorkspaceExternalKpiDashboardStatusNote" class="form-label">Комментарий по статусу дашбордов</label>
+                          <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDashboardStatusNote" maxlength="300" placeholder="Причина degraded/down, ссылка на инцидент BI, ETA">
+                        </div>
+                      </div>
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartHealthRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartHealthRequired">Требовать статус health=healthy для внешнего data-mart</label>
+                      </div>
+                      <div class="form-text">Позволяет не масштабировать rollout, пока BI-ссылки не заданы и операторы не имеют доступа к внешним витринам.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceExternalKpiDatamartHealthStatus" class="form-label">Статус внешнего data-mart</label>
+                      <select class="form-select" id="dialogWorkspaceExternalKpiDatamartHealthStatus">
+                        <option value="unknown">unknown</option>
+                        <option value="healthy">healthy</option>
+                        <option value="degraded">degraded</option>
+                        <option value="down">down</option>
+                      </select>
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceExternalKpiDatamartHealthNote" class="form-label">Комментарий по health-статусу</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartHealthNote" maxlength="300" placeholder="Причина degraded/down, ссылка на инцидент, ETA восстановления">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartHealthFreshnessRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartHealthFreshnessRequired">Требовать актуальность health-статуса data-mart</label>
+                      </div>
+                      <div class="form-text">Если статус health не обновлялся дольше TTL, rollout остаётся в hold даже при состоянии healthy.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartHealthUpdatedAt" class="form-label">Health-статус обновлён</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartHealthUpdatedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiDatamartHealthUpdatedAtStatus"></div>
+                      <div class="form-text">UTC timestamp обновления health-сигнала.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartHealthTtlHours" class="form-label">TTL health, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartHealthTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartProgramBlockerRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartProgramBlockerRequired">Удерживать rollout, если программный статус data-mart = blocked</label>
+                      </div>
+                      <div class="form-text">Помогает формально учитывать внешний платформенный backlog по data-mart в rollout decisioning.</div>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="dialogWorkspaceExternalKpiDatamartProgramStatus" class="form-label">Программный статус data-mart</label>
+                      <select class="form-select" id="dialogWorkspaceExternalKpiDatamartProgramStatus">
+                        <option value="unknown">unknown</option>
+                        <option value="in_progress">in_progress</option>
+                        <option value="blocked">blocked</option>
+                        <option value="ready">ready</option>
+                      </select>
+                    </div>
+                    <div class="col-md-8">
+                      <label for="dialogWorkspaceExternalKpiDatamartProgramNote" class="form-label">Комментарий по программному статусу</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartProgramNote" maxlength="300" placeholder="Что блокирует data-mart, ответственный поток, ETA по снятию блокера">
+                    </div>
+                    <div class="col-md-12">
+                      <label for="dialogWorkspaceExternalKpiDatamartProgramBlockerUrl" class="form-label">Ссылка на blocker-ticket/инцидент data-mart</label>
+                      <input type="url" class="form-control" id="dialogWorkspaceExternalKpiDatamartProgramBlockerUrl" placeholder="https://jira.example.com/browse/BI-1234">
+                      <div class="form-text">Рекомендуется указывать при статусе <code>blocked</code>; при включённом blocker-gate ссылка обязательна и должна быть корректной (http/https).</div>
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartProgramFreshnessRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartProgramFreshnessRequired">Требовать актуальный update по программному статусу data-mart</label>
+                      </div>
+                      <div class="form-text">При включении rollout удерживается в hold, если статус программы не обновлялся дольше TTL.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartProgramUpdatedAt" class="form-label">Программный статус обновлён</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartProgramUpdatedAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiDatamartProgramUpdatedAtStatus"></div>
+                      <div class="form-text">UTC timestamp обновления программного статуса.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartProgramTtlHours" class="form-label">TTL статуса, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartProgramTtlHours" min="1" max="2160" step="1">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartTimelineRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartTimelineRequired">Удерживать rollout, если сорван целевой срок готовности data-mart</label>
+                      </div>
+                      <div class="form-text">Если статус программы не `ready`, решение rollout перейдёт в hold после дедлайна + grace-период.</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="dialogWorkspaceExternalKpiDatamartTargetReadyAt" class="form-label">Целевой срок готовности data-mart</label>
+                      <input type="datetime-local" class="form-control" id="dialogWorkspaceExternalKpiDatamartTargetReadyAt">
+                      <div class="form-text utc-timestamp-status" id="dialogWorkspaceExternalKpiDatamartTargetReadyAtStatus"></div>
+                      <div class="form-text">UTC deadline готовности data-mart.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartTimelineGraceHours" class="form-label">Grace после дедлайна, часов</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartTimelineGraceHours" min="0" max="720" step="1">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartContractRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartContractRequired">Требовать data contract внешнего enterprise data-mart</label>
+                      </div>
+                      <div class="form-text">Фиксирует минимальный KPI-контракт (mandatory/optional/available) и удерживает rollout в hold при отсутствии обязательных метрик.</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartContractVersion" class="form-label">Версия data contract</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractVersion" maxlength="64" placeholder="v1">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartContractMandatoryFields" class="form-label">Mandatory KPI fields</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractMandatoryFields" maxlength="300" placeholder="frt,ttr,sla_breach,cost_per_contact">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartContractOptionalFields" class="form-label">Optional KPI fields</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractOptionalFields" maxlength="300" placeholder="dialogs_per_shift,csat">
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartContractAvailableFields" class="form-label">Available KPI fields</label>
+                      <input type="text" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractAvailableFields" maxlength="500" placeholder="frt,ttr,sla_breach,cost_per_contact">
+                    </div>
+                    <div class="col-md-12">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogWorkspaceExternalKpiDatamartContractOptionalCoverageRequired">
+                        <label class="form-check-label" for="dialogWorkspaceExternalKpiDatamartContractOptionalCoverageRequired">Включить optional coverage gate для data contract</label>
+                      </div>
+                      <div class="form-text">Позволяет удерживать rollout в <code>hold</code>, если покрытие optional-полей ниже заданного порога (без смешивания с mandatory-блокерами).</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct" class="form-label">Мин. optional coverage, %</label>
+                      <input type="number" class="form-control" id="dialogWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct" min="0" max="100" step="1">
+                    </div>
+                    <div class="col-12">
+                      <div class="alert alert-secondary small mb-0" id="dialogWorkspaceExternalKpiDatamartContractSummary" role="status" aria-live="polite">
+                        <div class="datamart-contract-preview">
+                          <div class="datamart-contract-preview__headline" id="dialogWorkspaceExternalKpiDatamartContractSummaryHeadline">
+                            Заполните mandatory/optional/available поля, чтобы увидеть покрытие data contract и влияние на rollout gate.
+                          </div>
+                          <div class="datamart-contract-preview__chips" id="dialogWorkspaceExternalKpiDatamartContractSummaryChips"></div>
+                          <div class="datamart-contract-preview__field-groups" id="dialogWorkspaceExternalKpiDatamartContractSummaryFieldGroups"></div>
+                          <div class="datamart-contract-preview__meta" id="dialogWorkspaceExternalKpiDatamartContractSummaryMeta"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <div
+                class="tab-pane fade"
+                id="dialog-settings-badges"
+                role="tabpanel"
+                aria-labelledby="dialog-settings-badges-tab"
+              >
+                <section>
+                  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                    <h6 class="mb-0">Цвета бейджа «Статус»</h6>
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-dialog-status-badge-add>+ Статус</button>
+                  </div>
+                  <p class="small text-muted">
+                    Настройте фон и цвет текста для статусов диалогов. Значения применяются в карточке обращения.
+                  </p>
+                  <div id="dialogStatusBadgesList" class="d-flex flex-column gap-2"></div>
+                </section>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <div class="small text-muted me-auto">Изменения вступят в силу после сохранения.</div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+            <button type="button" class="btn btn-primary" data-save-settings data-settings-save-scope="dialogs">Сохранить настройки</button>
+          </div>
+        </div>
+      </div>
+    </div></th:block>
