@@ -1,0 +1,33 @@
+/* Object passports — catalogue and read-only detail */
+
+[data-ui-page='passports'].passports-list-page .main-content,
+[data-ui-page='passports'].passport-detail-page .main-content {
+    background: var(--surface-page);
+    color: var(--color-text);
+}
+
+[data-ui-page='passports'] .passports-page-shell {
+    max-width: 1600px;
+}
+
+[data-ui-page='passports'].passports-list-page .passports-page-shell {
+    max-width: none;
+}
+
+/* Shared header */
+
+[data-ui-page='passports'] .passports-page-header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+[data-ui-page='passports'] .passports-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}

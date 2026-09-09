@@ -1,0 +1,35 @@
+/* Equipment archive history — 01-259 r4.4 */
+[data-ui-page='passports'].passport-detail-page .passport-asset-card.is-archived {
+    border-style: dashed;
+    opacity: 0.68;
+    background: color-mix(in srgb, var(--surface-card) 88%, var(--surface-raised));
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-asset-card.is-archived .passport-asset-card__body h3,
+[data-ui-page='passports'].passport-detail-page .passport-asset-card.is-archived .passport-asset-model,
+[data-ui-page='passports'].passport-detail-page .passport-asset-card.is-archived .passport-asset-card__quick,
+[data-ui-page='passports'].passport-detail-page .passport-asset-card.is-archived .passport-asset-details {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-edit-equipment-card.is-archived {
+    border-style: dashed;
+    opacity: 0.76;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-edit-equipment-card.is-archived input,
+[data-ui-page='passports'].passport-detail-page .passport-edit-equipment-card.is-archived textarea,
+[data-ui-page='passports'].passport-detail-page .passport-edit-equipment-card.is-archived select {
+    text-decoration: line-through;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-edit-equipment-card__history {
+    margin: 0.45rem 0 0;
+    padding: 0.24rem 0.45rem;
+    border-radius: var(--radius-md);
+    background: var(--surface-raised);
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
