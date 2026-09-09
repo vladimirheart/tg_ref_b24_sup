@@ -1,0 +1,386 @@
+/* Equipment photo workspace — 01-259 r4.5 */
+#itEquipmentAddModal .it-equipment-card-tabs .badge {
+  font-size: 0.64rem;
+  font-weight: 750;
+}
+
+#itEquipmentAddModal .it-equipment-photo-manager {
+  padding: 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+#itEquipmentAddModal .it-equipment-photo-uploader {
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#itEquipmentAddModal .it-equipment-photo-strip {
+  display: grid;
+  min-height: 42px;
+  gap: 0.32rem;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb {
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.48rem;
+  min-height: 38px;
+  padding: 0.34rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--surface-card);
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__preview {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  cursor: zoom-in;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__preview img {
+  display: block;
+  width: 25px;
+  height: 25px;
+  object-fit: cover;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__meta {
+  min-width: 0;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__line {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__type {
+  flex: 0 0 auto;
+  padding: 0.08rem 0.3rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__filename {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__comment {
+  display: block;
+  margin-top: 0.12rem;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.74rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__actions {
+  display: flex;
+  gap: 0.22rem;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__action {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__action:hover,
+#itEquipmentAddModal .it-equipment-photo-thumb__action:focus-visible {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--color-border));
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__action.is-danger:hover,
+#itEquipmentAddModal .it-equipment-photo-thumb__action.is-danger:focus-visible {
+  color: var(--state-danger-text);
+  border-color: var(--state-danger-border);
+  background: var(--state-danger-bg);
+}
+
+#itEquipmentAddModal .it-equipment-photo-empty {
+  align-self: center;
+  padding: 0.55rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 9px;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+#itEquipmentPhotoViewerModal .it-equipment-photo-viewer-stage {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+#itEquipmentPhotoViewerModal .it-equipment-photo-viewer-frame {
+  display: grid;
+  min-height: 320px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+#itEquipmentPhotoViewerModal .it-equipment-photo-viewer-frame img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+#itEquipmentPhotoViewerModal .it-equipment-photo-viewer-nav {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+}
+
+#itEquipmentPhotoViewerModal .it-equipment-photo-viewer-comment {
+  margin-top: 0.7rem;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 575.98px) {
+  #itEquipmentPhotoViewerModal .it-equipment-photo-viewer-stage {
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    gap: 0.35rem;
+  }
+
+  #itEquipmentPhotoViewerModal .it-equipment-photo-viewer-frame {
+    min-height: 220px;
+  }
+
+  #itEquipmentPhotoViewerModal .it-equipment-photo-viewer-nav {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* Equipment photo workspace — 01-259 r4.6 */
+#itEquipmentAddModal .it-equipment-photo-manager__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+#itEquipmentAddModal .it-equipment-photo-add-button {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--color-border));
+  border-radius: 9px;
+  background: var(--surface-card);
+  color: var(--primary);
+}
+
+#itEquipmentAddModal .it-equipment-photo-add-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb {
+  grid-template-columns: 120px minmax(0, 1fr) auto;
+  min-height: 82px;
+  gap: 0.65rem;
+  padding: 0.42rem 0.48rem;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__preview {
+  width: 120px;
+  height: 90px;
+  border-radius: 8px;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__preview img {
+  width: 120px;
+  height: 90px;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__comment {
+  margin-top: 0.24rem;
+  overflow: visible;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+#itEquipmentAddModal .it-equipment-photo-thumb__actions {
+  align-self: center;
+}
+
+#itEquipmentPhotoEditModal .it-equipment-photo-edit-preview {
+  display: grid;
+  min-height: 150px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+#itEquipmentPhotoEditModal .it-equipment-photo-edit-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+}
+
+@media (max-width: 575.98px) {
+  #itEquipmentAddModal .it-equipment-photo-thumb {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  #itEquipmentAddModal .it-equipment-photo-thumb__preview,
+  #itEquipmentAddModal .it-equipment-photo-thumb__preview img {
+    width: 96px;
+    height: 72px;
+  }
+
+  #itEquipmentAddModal .it-equipment-photo-thumb__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
+/* Equipment photo UX polish — 01-259 r4.7 */
+/* Equipment photo acceptance polish — 01-259 r4.8 */
+#itEquipmentAddModal .it-equipment-photo-heading {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+#itEquipmentAddModal .it-equipment-photo-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+#itEquipmentAddModal .it-equipment-photo-info:hover,
+#itEquipmentAddModal .it-equipment-photo-info:focus-visible {
+  border-color: var(--color-border);
+  background: var(--surface-selected);
+  color: var(--color-accent);
+  outline: none;
+}
+
+#itEquipmentAddModal .it-equipment-photo-info-popover {
+  position: absolute;
+  z-index: 1090;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(390px, calc(100vw - 4rem));
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 0.75rem);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 18%, transparent);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+#itEquipmentAddModal .it-equipment-photo-info-popover[hidden] {
+  display: none;
+}
+
+#itEquipmentPhotoAddModal .it-equipment-photo-file-picker,
+#itEquipmentPhotoEditModal .it-equipment-photo-file-picker {
+  display: grid;
+  grid-template-columns: 42px 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+#itEquipmentPhotoAddModal .it-equipment-photo-file-action,
+#itEquipmentPhotoEditModal .it-equipment-photo-file-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius, 0.65rem);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+#itEquipmentPhotoAddModal .it-equipment-photo-file-action:hover,
+#itEquipmentPhotoAddModal .it-equipment-photo-file-action:focus-visible,
+#itEquipmentPhotoEditModal .it-equipment-photo-file-action:hover,
+#itEquipmentPhotoEditModal .it-equipment-photo-file-action:focus-visible {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--color-accent);
+  outline: none;
+}
+
+#itEquipmentPhotoAddModal .it-equipment-photo-file-name,
+#itEquipmentPhotoEditModal .it-equipment-photo-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+@media (max-width: 575.98px) {
+  #itEquipmentPhotoAddModal .it-equipment-photo-file-picker,
+  #itEquipmentPhotoEditModal .it-equipment-photo-file-picker {
+    grid-template-columns: 42px 42px minmax(0, 1fr);
+  }
+
+  #itEquipmentAddModal .it-equipment-photo-info-popover {
+    width: min(320px, calc(100vw - 3rem));
+  }
+}

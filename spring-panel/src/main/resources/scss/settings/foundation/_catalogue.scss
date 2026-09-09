@@ -1,0 +1,461 @@
+
+/* Equipment catalogue cards — 01-259 */
+
+#itEquipmentSection .it-equipment-catalog-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-toolbar__search {
+  width: min(26rem, 100%);
+}
+
+#itEquipmentSection .it-equipment-catalog-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding-inline: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+#itEquipmentSection .it-equipment-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0.7rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  min-height: 150px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+#itEquipmentSection .it-equipment-catalog-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
+  box-shadow: var(--ui-panel-shadow);
+  transform: translateY(-1px);
+}
+
+#itEquipmentSection .it-equipment-catalog-card__visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+  overflow: hidden;
+  border-right: 1px solid var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__visual img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__visual.has-image > span {
+  opacity: 0;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__body {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  padding: 0.7rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__type {
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+#itEquipmentSection .it-equipment-catalog-card h6 {
+  margin: 0.08rem 0 0;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__id {
+  color: var(--color-text-muted);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__meta > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  font-size: 0.7rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__meta small {
+  color: var(--color-text-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__accessories {
+  display: -webkit-box;
+  margin: 0.5rem 0 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-empty {
+  padding: 1rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+@media (max-width: 767.98px) {
+  #itEquipmentSection .it-equipment-catalog-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  #itEquipmentSection .it-equipment-catalog-toolbar__search {
+    width: 100%;
+  }
+
+  #itEquipmentSection .it-equipment-catalog-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Equipment catalogue discovery — 01-259 r4 */
+#itEquipmentSection .it-equipment-catalog-card.is-discovered {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface-card) 90%, var(--surface-selected));
+}
+
+#itEquipmentSection .it-equipment-catalog-card__source {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--color-border));
+  border-radius: var(--radius-pill);
+  background: var(--surface-selected);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* Equipment catalogue visual polish — 01-259 r4.3 */
+#itEquipmentSection .it-equipment-catalog-toolbar {
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-toolbar__search {
+  flex: 1 1 22rem;
+  width: auto;
+  max-width: 30rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-toolbar__filters {
+  display: flex;
+  flex: 0 1 auto;
+  gap: 0.45rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-toolbar__filters .form-select {
+  min-width: 11rem;
+  font-size: 0.78rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-toolbar__actions {
+  margin-left: auto;
+}
+
+#itEquipmentSection .it-equipment-catalog-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.5rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card {
+  position: relative;
+  grid-template-columns: 82px minmax(0, 1fr);
+  min-height: 128px;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__visual {
+  min-height: 128px;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__visual img {
+  z-index: 1;
+  padding: 4px;
+  background: var(--surface-raised);
+  object-fit: contain;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__visual-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+  font-size: 2rem;
+  opacity: 0.16;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__visual.has-image .it-equipment-catalog-card__visual-placeholder {
+  opacity: 0;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__visual.has-image > .it-equipment-catalog-card__type-badge {
+  opacity: 1;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__type-badge {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  max-width: calc(100% - 10px);
+  padding: 0.24rem 0.42rem;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--color-border));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-card) 88%, transparent);
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.05;
+  text-align: center;
+  overflow-wrap: anywhere;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+}
+
+#itEquipmentSection .it-equipment-catalog-card__body {
+  padding: 0.55rem 0.6rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__top {
+  gap: 0.35rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__identity {
+  min-width: 0;
+}
+
+#itEquipmentSection .it-equipment-catalog-card h6 {
+  margin: 0;
+  padding-right: 0.2rem;
+  font-size: 0.96rem;
+  line-height: 1.18;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__id {
+  display: inline-block;
+  margin-top: 0.18rem;
+  font-size: 0.68rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__quick-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__icon-action {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__icon-action:hover,
+#itEquipmentSection .it-equipment-catalog-card__icon-action:focus-visible {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+#itEquipmentSection .it-equipment-catalog-card__icon-action.is-danger:hover,
+#itEquipmentSection .it-equipment-catalog-card__icon-action.is-danger:focus-visible {
+  border-color: var(--state-danger-border);
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
+}
+
+#itEquipmentSection .it-equipment-catalog-card__meta {
+  gap: 0.28rem;
+  margin-top: 0.42rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__meta > span {
+  gap: 0.32rem;
+  padding: 0.18rem 0.38rem;
+  border-radius: 9px;
+  font-size: 0.76rem;
+  line-height: 1.15;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__meta small {
+  font-size: 0.64rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__usage strong {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__accessories {
+  margin-top: 0.38rem;
+  font-size: 0.76rem;
+  line-height: 1.25;
+  -webkit-line-clamp: 1;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__actions {
+  gap: 0.3rem;
+  margin-top: 0.42rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__actions .btn {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+}
+
+@media (max-width: 767.98px) {
+  #itEquipmentSection .it-equipment-catalog-toolbar__search {
+    width: 100%;
+    max-width: none;
+  }
+
+  #itEquipmentSection .it-equipment-catalog-toolbar__filters {
+    width: 100%;
+  }
+
+  #itEquipmentSection .it-equipment-catalog-toolbar__filters .form-select {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  #itEquipmentSection .it-equipment-catalog-toolbar__actions {
+    margin-left: 0;
+  }
+}
+
+/* Equipment catalogue media and lifecycle — 01-259 r4.4 */
+#itEquipmentSection .it-equipment-catalog-card {
+  min-height: 126px;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__visual {
+  min-height: 126px;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__type-badge {
+  display: none;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__type-center {
+  position: absolute;
+  z-index: 3;
+  top: 0.48rem;
+  left: 50%;
+  max-width: 42%;
+  padding: 0.18rem 0.46rem;
+  transform: translateX(-50%);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--color-border));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-card) 94%, transparent);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.05;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__body {
+  padding: 2rem 2.55rem 0.55rem 0.62rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__quick-actions {
+  position: absolute;
+  z-index: 4;
+  top: 0.38rem;
+  right: 0.4rem;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__id {
+  position: absolute;
+  right: 0.48rem;
+  bottom: 0.42rem;
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+#itEquipmentSection .it-equipment-catalog-card__source {
+  margin-top: 0.22rem;
+}
