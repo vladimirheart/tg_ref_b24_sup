@@ -1,0 +1,29 @@
+/* ---- migrated inline block 4 ---- */
+/* Settings Calm UI workspace pass v4 */
+
+    /* ---------- shared modal rhythm ---------- */
+
+    .settings-primary-modal .settings-modal-lead {
+      max-width: 78rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .settings-primary-modal .card-header:not(.d-flex),
+    .settings-child-modal .card-header:not(.d-flex) {
+      text-align: left;
+    }
+
+    .settings-primary-modal .bg-light,
+    .settings-primary-modal .bg-light-subtle,
+    .settings-child-modal .bg-light,
+    .settings-child-modal .bg-light-subtle {
+      background-color: var(--surface-raised) !important;
+      color: var(--color-text) !important;
+    }
+
+    .settings-primary-modal .badge.bg-secondary,
+    .settings-primary-modal .badge.text-bg-secondary {
+      border: 1px solid var(--color-border);
+      background: var(--surface-selected) !important;
+      color: var(--color-text-muted) !important;
+    }

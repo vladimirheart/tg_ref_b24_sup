@@ -1,0 +1,42 @@
+/* ---- migrated inline block 2 ---- */
+.settings-page-hero {
+	  border-radius: var(--radius-xl) !important;
+
+	  background: var(--surface-card) !important;
+
+	  box-shadow: var(--ui-panel-shadow) !important;
+	}
+    .settings-page-hero::before,
+    .settings-page-hero::after,
+    .settings-tiles .settings-tile::after,
+    .settings-overview--chromed::before,
+    .settings-surface::before,
+    .settings-surface::after {
+      display: none !important;
+    }
+    .settings-overview {
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xl);
+
+		background: var(--surface-card);
+
+		box-shadow: var(--ui-panel-shadow);
+	}
+    .settings-overview__stat {
+		padding: 0.82rem 0.92rem;
+
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+
+		background: var(--surface-raised);
+	}
+    .settings-tiles .settings-tile {
+	  box-shadow: var(--ui-panel-shadow) !important;
+	  border-radius: var(--radius-xl) !important;
+	}
+    .settings-tiles .settings-tile:hover {
+      transform: none;
+    }
+    .settings-tiles .settings-tile .tile-icon {
+	  border-radius: var(--radius-lg);
+	}

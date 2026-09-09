@@ -1,0 +1,144 @@
+    /* ---------- channels: overview ---------- */
+
+    #channelsModal .channels-quick-grid {
+      gap: 0.65rem;
+    }
+
+    #channelsModal .channels-quick-card,
+    #channelsModal .channels-quick-card--accent {
+      gap: 0.6rem;
+      padding: 0.85rem 0.9rem;
+      border-color: var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+    }
+
+    #channelsModal .channels-quick-card__head {
+      gap: 0.65rem;
+    }
+
+    #channelsModal .channels-quick-card__title {
+      font-size: 0.92rem;
+    }
+
+    #channelsModal .channels-quick-card__icon {
+      width: 2rem;
+      height: 2rem;
+      border: 0;
+      border-radius: var(--radius-md);
+      background: transparent;
+      font-size: 1rem;
+    }
+
+    #channelsModal .channels-quick-card__pill {
+      padding: 0.18rem 0.48rem;
+      border: 0;
+      background: var(--surface-selected);
+      font-size: 0.72rem;
+    }
+
+    #channelsModal .channels-quick-card__note {
+      display: none;
+    }
+
+    #channelsModal .channels-manage-table-card {
+      border-radius: var(--radius-md);
+      box-shadow: none !important;
+    }
+
+    #channelsModal .channels-manage-table-card > .d-flex:first-child {
+      padding: 0.62rem 0.75rem !important;
+      border: 0 !important;
+      border-bottom: 1px solid var(--color-border) !important;
+      border-radius: 0 !important;
+      background: var(--surface-raised) !important;
+    }
+
+    #channelsModal .channels-manage-accordion {
+      gap: 0.55rem;
+    }
+
+    #channelsModal .channels-manage-accordion .accordion-item {
+      border-radius: var(--radius-md) !important;
+    }
+
+    #channelsModal .channels-manage-accordion .accordion-button {
+      padding: 0.72rem 0.8rem;
+    }
+
+    /* ---------- channel editor: sections, not cards ---------- */
+
+    #channelEditorModal .channel-editor-pane {
+      gap: 0;
+    }
+
+    #channelEditorModal .channel-editor-section,
+    #channelEditorModal .channel-editor-section--accent {
+      padding: 1rem 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    #channelEditorModal .channel-editor-shell > .channel-editor-section:first-child,
+    #channelEditorModal .channel-editor-pane > .channel-editor-section:first-child {
+      padding-top: 0.2rem;
+    }
+
+    #channelEditorModal .channel-editor-pane > .channel-editor-section + .channel-editor-section {
+      border-top: 1px solid var(--color-border);
+    }
+
+    #channelEditorModal .channel-editor-section__head {
+      margin-bottom: 0.7rem;
+    }
+
+    #channelEditorModal .channel-editor-section__title {
+      font-size: 0.94rem;
+    }
+
+    #channelEditorModal .channel-editor-section__hint {
+      max-width: 72rem;
+      font-size: 0.81rem;
+      line-height: 1.4;
+    }
+
+    #channelEditorModal .channel-editor-summary {
+      gap: 0.55rem;
+    }
+
+    #channelEditorModal .channel-editor-summary__item {
+      padding: 0.62rem 0.72rem;
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+    }
+
+    #channelEditorModal .channel-editor-switches {
+      gap: 0;
+    }
+
+    #channelEditorModal .channel-editor-switch {
+      padding: 0.72rem 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    #channelEditorModal .channel-editor-switch + .channel-editor-switch {
+      border-top: 1px solid var(--color-border);
+    }
+
+    #channelEditorModal .channel-editor-inline-note {
+      padding: 0.6rem 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--color-text-muted);
+    }
+
+    #channelEditorModal .channel-editor-status-strip {
+      padding: 0.45rem 0.62rem;
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+    }

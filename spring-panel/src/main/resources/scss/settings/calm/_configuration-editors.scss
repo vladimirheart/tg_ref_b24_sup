@@ -1,0 +1,79 @@
+    /* ---------- dialog templates ---------- */
+
+    #categoriesModal .template-card,
+    #categoriesModal .bot-question-card {
+      border-radius: var(--radius-md) !important;
+      box-shadow: none !important;
+    }
+
+    #categoriesModal .template-card-header {
+      padding: 0.75rem 0.8rem;
+      border-radius: 0;
+      background: var(--surface-raised);
+      text-align: left;
+    }
+
+    #categoriesModal .template-card-header h6,
+    #categoriesModal .template-card-header p,
+    #categoriesModal .template-card-header .small {
+      text-align: left;
+    }
+
+    #categoriesModal .dialog-template-editor {
+      padding: 0.8rem 0;
+      border: 0;
+      border-top: 1px solid var(--color-border);
+      border-radius: 0;
+      background: transparent;
+    }
+
+    #categoriesModal .dialog-template-editor .form-label {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    /* ---------- partner parameters ---------- */
+
+    #parametersModal .parameter-card {
+      border-radius: var(--radius-md) !important;
+      box-shadow: none !important;
+    }
+
+    #parametersModal .parameter-card .card-header {
+      min-height: 2.7rem;
+      padding: 0.62rem 0.72rem;
+      background: var(--surface-raised);
+    }
+
+    #parametersModal .parameter-card.is-expanded .card-header {
+      background: var(--surface-selected);
+    }
+
+    #parametersModal .parameter-card .card-header .btn-link {
+      color: var(--color-text);
+      text-decoration: none;
+    }
+
+    #parametersModal .parameter-card .card-body {
+      padding: 0.72rem;
+      border-top: 1px solid var(--color-border);
+    }
+
+    #parametersModal .parameter-card .badge {
+      border: 1px solid var(--color-border);
+      background: var(--surface-selected) !important;
+      color: var(--color-text-muted) !important;
+      font-weight: 600;
+    }
+
+    #parametersModal .parameter-card .list-group-item {
+      padding: 0.42rem 0.15rem !important;
+      border-right: 0;
+      border-left: 0;
+      background: transparent;
+    }
+
+    #parametersModal .parameter-card .param-items .empty-placeholder {
+      padding: 0.45rem 0;
+      font-size: 0.82rem;
+    }
