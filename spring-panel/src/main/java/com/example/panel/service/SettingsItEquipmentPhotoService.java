@@ -15,6 +15,9 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,6 +38,7 @@ public class SettingsItEquipmentPhotoService {
         this.photoStorageService = photoStorageService;
     }
 
+    @Transactional
     public Map<String, Object> uploadPhoto(long itemId,
                                            MultipartFile file,
                                            String category,
@@ -42,6 +46,7 @@ public class SettingsItEquipmentPhotoService {
         return uploadPhoto(itemId, file, category, comment, false);
     }
 
+    @Transactional
     public Map<String, Object> uploadPhoto(long itemId,
                                            MultipartFile file,
                                            String category,
@@ -54,7 +59,7 @@ public class SettingsItEquipmentPhotoService {
             return validation;
         }
 
-        Map<String, Object> row = loadRow(itemId);
+        Map<String, Object> row = loadRowForUpdate(itemId);
         if (row == null) {
             return Map.of("success", false, "error", "Оборудование не найдено");
         }
@@ -67,6 +72,7 @@ public class SettingsItEquipmentPhotoService {
         }
 
         StoredPhoto stored = photoStorageService.store(file);
+        deleteStoredOnRollback(stored.storedName());
         try {
             if ("title".equals(normalizedCategory)) {
                 demoteOtherTitles(photos, null);
@@ -85,18 +91,20 @@ public class SettingsItEquipmentPhotoService {
             photos.add(photo);
 
             String encoded = serializeMedia(media.links(), photos);
-            int updated = updateMedia(itemId, encoded);
-            if (updated != 1) {
+            if (updateMedia(itemId, encoded) != 1) {
                 photoStorageService.deleteQuietly(stored.storedName());
                 return Map.of("success", false, "error", "Оборудование не найдено");
             }
-            return successPayload(encoded, photos, null);
+            return successPayload(encoded, parseMedia(encoded).photos(), null);
         } catch (RuntimeException ex) {
-            photoStorageService.deleteQuietly(stored.storedName());
+            if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+                photoStorageService.deleteQuietly(stored.storedName());
+            }
             throw ex;
         }
     }
 
+    @Transactional
     public Map<String, Object> updatePhoto(long itemId,
                                            String photoId,
                                            String category,
@@ -113,7 +121,7 @@ public class SettingsItEquipmentPhotoService {
             return validation;
         }
 
-        Map<String, Object> row = loadRow(itemId);
+        Map<String, Object> row = loadRowForUpdate(itemId);
         if (row == null) {
             return Map.of("success", false, "error", "Оборудование не найдено");
         }
@@ -150,15 +158,92 @@ public class SettingsItEquipmentPhotoService {
         if (updateMedia(itemId, encoded) != 1) {
             return Map.of("success", false, "error", "Оборудование не найдено");
         }
-        return successPayload(encoded, photos, promotedId);
+        return successPayload(encoded, parseMedia(encoded).photos(), promotedId);
     }
 
+    @Transactional
+    public Map<String, Object> replacePhoto(long itemId,
+                                            String photoId,
+                                            MultipartFile file,
+                                            String category,
+                                            String comment,
+                                            boolean replaceTitle) throws IOException {
+        String normalizedId = stringValue(photoId);
+        String normalizedCategory = normalizeCategory(category);
+        String normalizedComment = stringValue(comment);
+        if (!StringUtils.hasText(normalizedId)) {
+            return Map.of("success", false, "error", "Фото не найдено");
+        }
+        Map<String, Object> validation = validateMetadata(normalizedCategory, normalizedComment);
+        if (validation != null) {
+            return validation;
+        }
+
+        Map<String, Object> row = loadRowForUpdate(itemId);
+        if (row == null) {
+            return Map.of("success", false, "error", "Оборудование не найдено");
+        }
+
+        EquipmentMedia media = parseMedia(stringValue(row.get("photo_url")));
+        List<Map<String, Object>> photos = mutablePhotos(media.photos());
+        int targetIndex = findPhotoIndex(photos, normalizedId);
+        if (targetIndex < 0) {
+            return Map.of("success", false, "error", "Фото не найдено");
+        }
+
+        Map<String, Object> target = photos.get(targetIndex);
+        boolean targetWasTitle = "title".equals(normalizeCategory(target.get("category")));
+        Map<String, Object> anotherTitle = findTitlePhoto(photos, normalizedId);
+        if ("title".equals(normalizedCategory) && anotherTitle != null && !replaceTitle) {
+            return titleReplacementRequired(anotherTitle);
+        }
+
+        StoredPhoto stored = photoStorageService.store(file);
+        deleteStoredOnRollback(stored.storedName());
+        try {
+            if ("title".equals(normalizedCategory)) {
+                demoteOtherTitles(photos, normalizedId);
+            }
+
+            LinkedHashMap<String, Object> updatedPhoto = new LinkedHashMap<>(target);
+            updatedPhoto.put("category", normalizedCategory);
+            updatedPhoto.put("comment", normalizedComment);
+            updatedPhoto.put("url", buildPhotoUrl(stored.storedName()));
+            updatedPhoto.put("stored_name", stored.storedName());
+            updatedPhoto.put("original_name", stored.originalName());
+            updatedPhoto.put("mime_type", stored.mimeType());
+            updatedPhoto.put("size", stored.size());
+            updatedPhoto.put("updated_at", stored.uploadedAt());
+            photos.set(targetIndex, updatedPhoto);
+
+            String promotedId = null;
+            if (targetWasTitle && "general".equals(normalizedCategory)) {
+                promotedId = promoteFallbackTitle(photos, normalizedId);
+            }
+
+            String encoded = serializeMedia(media.links(), photos);
+            if (updateMedia(itemId, encoded) != 1) {
+                photoStorageService.deleteQuietly(stored.storedName());
+                return Map.of("success", false, "error", "Оборудование не найдено");
+            }
+
+            deleteStoredAfterCommit(stringValue(target.get("stored_name")));
+            return successPayload(encoded, parseMedia(encoded).photos(), promotedId);
+        } catch (RuntimeException ex) {
+            if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+                photoStorageService.deleteQuietly(stored.storedName());
+            }
+            throw ex;
+        }
+    }
+
+    @Transactional
     public Map<String, Object> deletePhoto(long itemId, String photoId) {
         String normalizedId = stringValue(photoId);
         if (!StringUtils.hasText(normalizedId)) {
             return Map.of("success", false, "error", "Фото не найдено");
         }
-        Map<String, Object> row = loadRow(itemId);
+        Map<String, Object> row = loadRowForUpdate(itemId);
         if (row == null) {
             return Map.of("success", false, "error", "Оборудование не найдено");
         }
@@ -178,8 +263,23 @@ public class SettingsItEquipmentPhotoService {
         if (updateMedia(itemId, encoded) != 1) {
             return Map.of("success", false, "error", "Оборудование не найдено");
         }
-        photoStorageService.deleteQuietly(stringValue(removed.get("stored_name")));
-        return successPayload(encoded, photos, promotedId);
+        deleteStoredAfterCommit(stringValue(removed.get("stored_name")));
+        return successPayload(encoded, parseMedia(encoded).photos(), promotedId);
+    }
+
+    @Transactional
+    public Map<String, Object> updateLinksPreservingPhotos(long itemId, String incomingRaw) {
+        Map<String, Object> row = loadRowForUpdate(itemId);
+        if (row == null) {
+            return Map.of("success", false, "error", "Оборудование не найдено");
+        }
+        EquipmentMedia existing = parseMedia(stringValue(row.get("photo_url")));
+        EquipmentMedia incoming = parseMedia(incomingRaw);
+        String encoded = serializeMedia(incoming.links(), existing.photos());
+        if (updateMedia(itemId, encoded) != 1) {
+            return Map.of("success", false, "error", "Оборудование не найдено");
+        }
+        return successPayload(encoded, parseMedia(encoded).photos(), null);
     }
 
     public ResponseEntity<Resource> downloadPhoto(String storedName) throws IOException {
@@ -301,9 +401,9 @@ public class SettingsItEquipmentPhotoService {
         );
     }
 
-    private Map<String, Object> loadRow(long itemId) {
+    private Map<String, Object> loadRowForUpdate(long itemId) {
         List<Map<String, Object>> rows = jdbcTemplate.query(
-                "SELECT id, photo_url FROM it_equipment_catalog WHERE id = ?",
+                "SELECT id, photo_url FROM it_equipment_catalog WHERE id = ? FOR UPDATE",
                 (rs, rowNum) -> {
                     LinkedHashMap<String, Object> row = new LinkedHashMap<>();
                     row.put("id", rs.getLong("id"));
@@ -313,6 +413,36 @@ public class SettingsItEquipmentPhotoService {
                 itemId
         );
         return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private void deleteStoredAfterCommit(String storedName) {
+        if (!StringUtils.hasText(storedName)) {
+            return;
+        }
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    photoStorageService.deleteQuietly(storedName);
+                }
+            });
+            return;
+        }
+        photoStorageService.deleteQuietly(storedName);
+    }
+
+    private void deleteStoredOnRollback(String storedName) {
+        if (!StringUtils.hasText(storedName) || !TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status != TransactionSynchronization.STATUS_COMMITTED) {
+                    photoStorageService.deleteQuietly(storedName);
+                }
+            }
+        });
     }
 
     private EquipmentMedia parseMedia(String raw) {
@@ -386,14 +516,31 @@ public class SettingsItEquipmentPhotoService {
         return result;
     }
 
+    private List<Map<String, Object>> normalizeSingleTitle(List<Map<String, Object>> source) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        boolean titleSeen = false;
+        if (source != null) {
+            for (Map<String, Object> raw : source) {
+                LinkedHashMap<String, Object> photo = new LinkedHashMap<>(normalizePhoto(raw));
+                if ("title".equals(normalizeCategory(photo.get("category")))) {
+                    if (titleSeen) {
+                        photo.put("category", "general");
+                    } else {
+                        titleSeen = true;
+                    }
+                }
+                result.add(photo);
+            }
+        }
+        return result;
+    }
+
     private String serializeMedia(List<String> links, List<Map<String, Object>> photos) {
         List<String> safeLinks = links == null ? List.of() : links.stream()
                 .map(this::stringValue)
                 .filter(StringUtils::hasText)
                 .toList();
-        List<Map<String, Object>> safePhotos = photos == null ? List.of() : photos.stream()
-                .map(this::normalizePhoto)
-                .toList();
+        List<Map<String, Object>> safePhotos = normalizeSingleTitle(photos);
         if (safeLinks.isEmpty() && safePhotos.isEmpty()) {
             return "";
         }

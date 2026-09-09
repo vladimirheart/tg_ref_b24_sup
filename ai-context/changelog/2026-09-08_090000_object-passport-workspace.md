@@ -71,3 +71,14 @@
 - deleting or demoting the current title photo promotes the first remaining photo to title, keeping card cover semantics consistent;
 - corrected the r4.4 thumbnail CSS scope from #itEquipmentSection to #itEquipmentAddModal, which is the actual modal DOM location;
 - no database schema migration, data backfill, NetBox mutation or ownership-contract change is included.
+
+## R4.6 equipment photo integrity and modal stack
+
+- enlarged equipment-photo previews and moved photo creation into an icon-triggered compact modal;
+- made equipment media mutations row-locked and transactional so uploads append instead of losing sibling photos, while main-card link saves preserve the latest media envelope;
+- added full photo-object editing with optional binary replacement, category/comment editing, and commit-safe storage cleanup;
+- enforced a single title photo in serialized media and retained explicit replace_title confirmation for upload/edit/replace paths;
+- retained title fallback promotion after delete/demotion so card cover and photo type stay consistent;
+- added a settings-wide topmost Escape guard for nested Bootstrap modals so Esc closes only the highest visible modal;
+- cache-busted settings CSS, equipment runtime, and settings-page-shell for the r4.6 browser contract;
+- no database schema migration, data backfill, NetBox mutation or ownership-contract change is included.

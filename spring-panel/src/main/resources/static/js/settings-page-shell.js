@@ -1268,6 +1268,57 @@
       : '<i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>';
   }
 
+  function getSettingsTopVisibleModal() {
+    const openModals = Array.from(document.querySelectorAll('.modal.show'))
+      .filter((modal) => modal instanceof HTMLElement);
+    if (!openModals.length) {
+      return null;
+    }
+    return openModals.reduce((top, candidate) => {
+      if (!(top instanceof HTMLElement)) {
+        return candidate;
+      }
+      const topZIndex = Number.parseInt(window.getComputedStyle(top).zIndex || '', 10);
+      const candidateZIndex = Number.parseInt(window.getComputedStyle(candidate).zIndex || '', 10);
+      const topZ = Number.isFinite(topZIndex) ? topZIndex : 0;
+      const candidateZ = Number.isFinite(candidateZIndex) ? candidateZIndex : 0;
+      if (candidateZ > topZ) {
+        return candidate;
+      }
+      if (candidateZ < topZ) {
+        return top;
+      }
+      const relation = top.compareDocumentPosition(candidate);
+      return (relation & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 ? candidate : top;
+    }, null);
+  }
+
+  function initSettingsTopModalEscapeGuard() {
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      const openModals = Array.from(document.querySelectorAll('.modal.show'))
+        .filter((modal) => modal instanceof HTMLElement);
+      if (openModals.length < 2) {
+        return;
+      }
+      const topModal = getSettingsTopVisibleModal();
+      if (!(topModal instanceof HTMLElement)) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      if (topModal.getAttribute('data-bs-keyboard') === 'false') {
+        return;
+      }
+      hideSettingsModal(topModal);
+    }, true);
+  }
+
   function initSettingsPrimaryModals() {
     const primaryModals = Array.from(document.querySelectorAll('.modal'))
       .filter((modal) => modal instanceof HTMLElement && isSettingsPrimaryModal(modal));
@@ -1638,6 +1689,7 @@
     initSettingsTileDescriptions();
     initSettingsBodyPortals();
     initSettingsPrimaryModals();
+    initSettingsTopModalEscapeGuard();
     initSettingsModalActionTriggers();
     initSettingsDeclarativeCallbacks();
     initSettingsCollapseNavs();

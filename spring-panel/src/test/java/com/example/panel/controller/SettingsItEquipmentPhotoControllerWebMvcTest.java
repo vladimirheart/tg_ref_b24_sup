@@ -76,6 +76,26 @@ class SettingsItEquipmentPhotoControllerWebMvcTest {
     }
 
     @Test
+    void replacePhotoUpdatesBinaryAndMetadataAsOneObject() throws Exception {
+        when(photoService.replacePhoto(eq(7L), eq("photo-1"), any(), eq("title"), eq("Новый ракурс"), eq(true)))
+                .thenReturn(Map.of("success", true, "photo_url", "{}"));
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "replacement.webp", "image/webp", new byte[]{4, 5, 6});
+
+        mockMvc.perform(multipart("/api/settings/it-equipment/7/photos/photo-1/replace")
+                .file(file)
+                .param("category", "title")
+                .param("comment", "Новый ракурс")
+                .param("replace_title", "true")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(photoService).replacePhoto(eq(7L), eq("photo-1"), any(), eq("title"), eq("Новый ракурс"), eq(true));
+    }
+
+    @Test
     void deletePhotoRequiresSettings() throws Exception {
         when(photoService.deletePhoto(7L, "photo-1"))
                 .thenReturn(Map.of("success", true, "photo_url", ""));

@@ -69,12 +69,12 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("/api/settings/it-equipment/${editId}"));
         assertTrue(runtime.contains("if (state.editingId !== null)"));
         assertTrue(settings.contains("data-it-equipment-photo-list"));
-        assertTrue(settings.contains("data-it-equipment-photo-comment"));
+        assertTrue(settings.contains("data-it-equipment-photo-add-comment"));
         assertTrue(runtime.contains("/api/settings/it-equipment/${id}/photos"));
         assertTrue(runtime.contains("data-it-equipment-photo-delete"));
         assertTrue(runtime.contains("firstPhoto(item)"));
-        assertTrue(settings.contains("/css/settings.css?v=20260908-01-259-r4-5"));
-        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-5"));
+        assertTrue(settings.contains("/css/settings.css?v=20260909-01-259-r4-6"));
+        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260909-01-259-r4-6"));
         assertTrue(settingsScss.contains("Equipment catalogue media and lifecycle — 01-259 r4.4"));
     }
 

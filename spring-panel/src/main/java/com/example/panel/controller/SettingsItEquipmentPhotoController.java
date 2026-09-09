@@ -49,6 +49,18 @@ public class SettingsItEquipmentPhotoController {
         return photoService.updatePhoto(itemId, photoId, category, comment, replaceTitle);
     }
 
+    @PostMapping(value = "/{itemId}/photos/{photoId}/replace", consumes = "multipart/form-data")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    public Map<String, Object> replacePhoto(@PathVariable long itemId,
+                                            @PathVariable String photoId,
+                                            @RequestParam("file") MultipartFile file,
+                                            @RequestParam("category") String category,
+                                            @RequestParam("comment") String comment,
+                                            @RequestParam(name = "replace_title", defaultValue = "false") boolean replaceTitle)
+            throws IOException {
+        return photoService.replacePhoto(itemId, photoId, file, category, comment, replaceTitle);
+    }
+
     @DeleteMapping("/{itemId}/photos/{photoId}")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> deletePhoto(@PathVariable long itemId,

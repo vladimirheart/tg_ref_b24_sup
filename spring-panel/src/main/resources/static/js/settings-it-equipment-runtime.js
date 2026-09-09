@@ -51,17 +51,8 @@
       photosContainer: elements.itEquipmentAddModalEl
         ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-list]')
         : null,
-      photoFileInput: elements.itEquipmentAddModalEl
-        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-file]')
-        : null,
-      photoCategorySelect: elements.itEquipmentAddModalEl
-        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-category]')
-        : null,
-      photoCommentInput: elements.itEquipmentAddModalEl
-        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-comment]')
-        : null,
-      photoUploadButton: elements.itEquipmentAddModalEl
-        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-upload]')
+      photoAddOpen: elements.itEquipmentAddModalEl
+        ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-add-open]')
         : null,
       photoHint: elements.itEquipmentAddModalEl
         ? elements.itEquipmentAddModalEl.querySelector('[data-it-equipment-photo-hint]')
@@ -83,6 +74,11 @@
       : null;
 
     const photoUi = {
+      addModalEl: document.getElementById('itEquipmentPhotoAddModal'),
+      addFile: document.querySelector('[data-it-equipment-photo-add-file]'),
+      addCategory: document.querySelector('[data-it-equipment-photo-add-category]'),
+      addComment: document.querySelector('[data-it-equipment-photo-add-comment]'),
+      addSave: document.querySelector('[data-it-equipment-photo-add-save]'),
       viewerModalEl: document.getElementById('itEquipmentPhotoViewerModal'),
       viewerImage: document.querySelector('[data-it-equipment-photo-viewer-image]'),
       viewerType: document.querySelector('[data-it-equipment-photo-viewer-type]'),
@@ -91,6 +87,8 @@
       viewerPrev: document.querySelector('[data-it-equipment-photo-viewer-prev]'),
       viewerNext: document.querySelector('[data-it-equipment-photo-viewer-next]'),
       editModalEl: document.getElementById('itEquipmentPhotoEditModal'),
+      editPreview: document.querySelector('[data-it-equipment-photo-edit-preview]'),
+      editFile: document.querySelector('[data-it-equipment-photo-edit-file]'),
       editCategory: document.querySelector('[data-it-equipment-photo-edit-category]'),
       editComment: document.querySelector('[data-it-equipment-photo-edit-comment]'),
       editSave: document.querySelector('[data-it-equipment-photo-edit-save]'),
@@ -499,8 +497,7 @@
             }).join('')
           : '<div class="it-equipment-photo-empty">Фото пока нет.</div>';
       }
-      [addModal.photoFileInput, addModal.photoCategorySelect, addModal.photoCommentInput, addModal.photoUploadButton]
-        .forEach((element) => { if (element) element.disabled = !editing; });
+      if (addModal.photoAddOpen) addModal.photoAddOpen.disabled = !editing;
       if (addModal.photoTabButton) {
         addModal.photoTabButton.disabled = !editing;
         addModal.photoTabButton.setAttribute('aria-disabled', editing ? 'false' : 'true');
@@ -573,8 +570,8 @@
       return showPhotoConfirm({
         title: 'Заменить титульное фото?',
         message: comment
-          ? `Сейчас титульным является фото «${comment}». Заменить его новым?`
-          : 'У этой модели уже есть титульное фото. Заменить его новым?',
+          ? `Сейчас титульным является фото «${comment}». Заменить его?`
+          : 'У этой модели уже есть титульное фото. Заменить его?',
         confirmLabel: 'Заменить',
       });
     }
@@ -590,18 +587,45 @@
       return data || {};
     }
 
-    async function sendPhotoUpload(id, formData, replaceTitle) {
-      formData.set('replace_title', replaceTitle ? 'true' : 'false');
-      const response = await fetch(`/api/settings/it-equipment/${id}/photos`, { method: 'POST', body: formData });
+    function resetPhotoAddModal() {
+      if (photoUi.addFile) photoUi.addFile.value = '';
+      if (photoUi.addComment) photoUi.addComment.value = '';
+      if (photoUi.addCategory) photoUi.addCategory.value = existingTitlePhoto() ? 'general' : 'title';
+    }
+
+    function openPhotoAddModal() {
+      const id = Number.parseInt(state.editingId, 10);
+      if (!Number.isFinite(id)) {
+        popup('Сначала сохраните модель оборудования');
+        return;
+      }
+      if (!photoUi.addModalEl || !window.bootstrap || !window.bootstrap.Modal) {
+        popup('Не удалось открыть добавление фото');
+        return;
+      }
+      resetPhotoAddModal();
+      window.bootstrap.Modal.getOrCreateInstance(photoUi.addModalEl).show();
+    }
+
+    async function sendPhotoUpload(id, file, category, comment, replaceTitle) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', category);
+      formData.append('comment', comment);
+      formData.append('replace_title', replaceTitle ? 'true' : 'false');
+      const response = await fetch(`/api/settings/it-equipment/${id}/photos`, {
+        method: 'POST',
+        body: formData,
+      });
       return parsePhotoResponse(response, 'Ошибка загрузки фото');
     }
 
     async function uploadEquipmentPhoto() {
       const id = Number.parseInt(state.editingId, 10);
       if (!Number.isFinite(id)) { popup('Сначала сохраните модель оборудования'); return; }
-      const file = addModal.photoFileInput && addModal.photoFileInput.files ? addModal.photoFileInput.files[0] : null;
-      const category = addModal.photoCategorySelect ? addModal.photoCategorySelect.value.trim() : '';
-      const comment = addModal.photoCommentInput ? addModal.photoCommentInput.value.trim() : '';
+      const file = photoUi.addFile && photoUi.addFile.files ? photoUi.addFile.files[0] : null;
+      const category = photoUi.addCategory ? photoUi.addCategory.value.trim() : '';
+      const comment = photoUi.addComment ? photoUi.addComment.value.trim() : '';
       if (!file) { popup('Выберите фото'); return; }
       if (!category) { popup('Укажите тип фото'); return; }
       if (!comment) { popup('Описание фото обязательно'); return; }
@@ -614,29 +638,23 @@
         replaceTitle = true;
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('category', category);
-      formData.append('comment', comment);
-      const button = addModal.photoUploadButton;
-      if (button) button.disabled = true;
+      if (photoUi.addSave) photoUi.addSave.disabled = true;
       try {
-        let data = await sendPhotoUpload(id, formData, replaceTitle);
+        let data = await sendPhotoUpload(id, file, category, comment, replaceTitle);
         if (data.success === false && data.requires_confirmation === true && !replaceTitle) {
           const confirmed = await confirmTitleReplacement({ comment: data.existing_title_comment || '' });
           if (!confirmed) return;
           replaceTitle = true;
-          data = await sendPhotoUpload(id, formData, true);
+          data = await sendPhotoUpload(id, file, category, comment, true);
         }
         if (data.success === false) throw new Error(data.error || 'Ошибка загрузки фото');
         updateLocalEquipmentMedia(id, data.photo_url || '');
-        if (addModal.photoFileInput) addModal.photoFileInput.value = '';
-        if (addModal.photoCommentInput) addModal.photoCommentInput.value = '';
-        if (addModal.photoCategorySelect) addModal.photoCategorySelect.value = 'general';
+        resetPhotoAddModal();
+        window.bootstrap.Modal.getOrCreateInstance(photoUi.addModalEl).hide();
       } catch (error) {
         popup('❌ ' + (error && error.message ? error.message : error));
       } finally {
-        if (button) button.disabled = false;
+        if (photoUi.addSave) photoUi.addSave.disabled = false;
       }
     }
 
@@ -678,6 +696,11 @@
       const photo = photoById(photoId);
       if (!photo || !photoUi.editModalEl || !window.bootstrap || !window.bootstrap.Modal) return;
       state.photoEditId = String(photoId || '').trim();
+      if (photoUi.editPreview) {
+        photoUi.editPreview.src = String(photo.url || '').trim();
+        photoUi.editPreview.alt = String((photo.comment || photo.caption) || '').trim() || photoCategoryLabel(photo);
+      }
+      if (photoUi.editFile) photoUi.editFile.value = '';
       if (photoUi.editCategory) photoUi.editCategory.value = normalize(photo.category) === 'title' ? 'title' : 'general';
       if (photoUi.editComment) photoUi.editComment.value = String((photo.comment || photo.caption) || '').trim();
       window.bootstrap.Modal.getOrCreateInstance(photoUi.editModalEl).show();
@@ -692,10 +715,31 @@
       return parsePhotoResponse(response, 'Ошибка сохранения фото');
     }
 
+    async function replaceEquipmentPhoto(id, photoId, file, category, comment, replaceTitle) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', category);
+      formData.append('comment', comment);
+      formData.append('replace_title', replaceTitle ? 'true' : 'false');
+      const response = await fetch(`/api/settings/it-equipment/${id}/photos/${encodeURIComponent(photoId)}/replace`, {
+        method: 'POST',
+        body: formData,
+      });
+      return parsePhotoResponse(response, 'Ошибка замены фото');
+    }
+
+    async function mutateEquipmentPhotoEdit(id, photoId, file, category, comment, replaceTitle) {
+      if (file) {
+        return replaceEquipmentPhoto(id, photoId, file, category, comment, replaceTitle);
+      }
+      return sendPhotoUpdate(id, photoId, { category, comment, replace_title: replaceTitle });
+    }
+
     async function saveEquipmentPhotoEdit() {
       const id = Number.parseInt(state.editingId, 10);
       const photoId = String(state.photoEditId || '').trim();
       if (!Number.isFinite(id) || !photoId) return;
+      const file = photoUi.editFile && photoUi.editFile.files ? photoUi.editFile.files[0] : null;
       const category = photoUi.editCategory ? photoUi.editCategory.value.trim() : '';
       const comment = photoUi.editComment ? photoUi.editComment.value.trim() : '';
       if (!category) { popup('Укажите тип фото'); return; }
@@ -711,16 +755,17 @@
 
       if (photoUi.editSave) photoUi.editSave.disabled = true;
       try {
-        let data = await sendPhotoUpdate(id, photoId, { category, comment, replace_title: replaceTitle });
+        let data = await mutateEquipmentPhotoEdit(id, photoId, file, category, comment, replaceTitle);
         if (data.success === false && data.requires_confirmation === true && !replaceTitle) {
           const confirmed = await confirmTitleReplacement({ comment: data.existing_title_comment || '' });
           if (!confirmed) return;
           replaceTitle = true;
-          data = await sendPhotoUpdate(id, photoId, { category, comment, replace_title: true });
+          data = await mutateEquipmentPhotoEdit(id, photoId, file, category, comment, true);
         }
         if (data.success === false) throw new Error(data.error || 'Ошибка сохранения фото');
         updateLocalEquipmentMedia(id, data.photo_url || '');
         state.photoEditId = null;
+        if (photoUi.editFile) photoUi.editFile.value = '';
         window.bootstrap.Modal.getOrCreateInstance(photoUi.editModalEl).hide();
       } catch (error) {
         popup('❌ ' + (error && error.message ? error.message : error));
@@ -892,6 +937,11 @@
     }
 
     function handleAddModalClick(event) {
+      const photoAdd = event.target.closest('[data-it-equipment-photo-add-open]');
+      if (photoAdd) {
+        openPhotoAddModal();
+        return;
+      }
       const photoPreview = event.target.closest('[data-it-equipment-photo-preview]');
       if (photoPreview) {
         openPhotoViewer(photoPreview.dataset.itEquipmentPhotoPreview);
@@ -1003,7 +1053,8 @@
         select.addEventListener('change', () => select.classList.remove('is-invalid'));
       });
       if (addModal.form) addModal.form.addEventListener('submit', handleAddFormSubmit);
-      if (addModal.photoUploadButton) addModal.photoUploadButton.addEventListener('click', () => uploadEquipmentPhoto().catch((error) => popup('❌ ' + error)));
+      if (photoUi.addSave) photoUi.addSave.addEventListener('click', () => uploadEquipmentPhoto().catch((error) => popup('❌ ' + error)));
+      if (photoUi.addModalEl) photoUi.addModalEl.addEventListener('hidden.bs.modal', resetPhotoAddModal);
       if (photoUi.viewerPrev) photoUi.viewerPrev.addEventListener('click', () => movePhotoViewer(-1));
       if (photoUi.viewerNext) photoUi.viewerNext.addEventListener('click', () => movePhotoViewer(1));
       if (photoUi.viewerModalEl) {
@@ -1013,7 +1064,12 @@
         });
       }
       if (photoUi.editSave) photoUi.editSave.addEventListener('click', () => saveEquipmentPhotoEdit().catch((error) => popup('❌ ' + error)));
-      if (photoUi.editModalEl) photoUi.editModalEl.addEventListener('hidden.bs.modal', () => { state.photoEditId = null; });
+      if (photoUi.editModalEl) {
+        photoUi.editModalEl.addEventListener('hidden.bs.modal', () => {
+          state.photoEditId = null;
+          if (photoUi.editFile) photoUi.editFile.value = '';
+        });
+      }
       if (photoUi.confirmButton) {
         photoUi.confirmButton.addEventListener('click', () => {
           resolvePhotoConfirm(true);

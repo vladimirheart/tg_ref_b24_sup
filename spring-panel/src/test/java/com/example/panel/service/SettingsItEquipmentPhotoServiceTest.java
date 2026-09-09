@@ -20,7 +20,7 @@ import org.springframework.mock.web.MockMultipartFile;
 class SettingsItEquipmentPhotoServiceTest {
 
     @Test
-    void titleReplacementNeedsConfirmationMetadataCanBeEditedAndDeletePromotesFallbackTitle() throws Exception {
+    void appendsMultiplePhotosGuardsSingleTitleReplacesBinaryAndPromotesFallback() throws Exception {
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 "jdbc:h2:mem:equipment_photos_" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", "");
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
@@ -41,62 +41,90 @@ class SettingsItEquipmentPhotoServiceTest {
 
         ObjectPassportPhotoStorageService storage = mock(ObjectPassportPhotoStorageService.class);
         when(storage.store(any())).thenReturn(
-                new StoredPhoto("front.jpg", "front-1.jpg", "/unused/front-1.jpg", "image/jpeg", 100L, "2026-09-08T17:00:00Z"),
-                new StoredPhoto("rear.jpg", "rear-2.jpg", "/unused/rear-2.jpg", "image/jpeg", 120L, "2026-09-08T17:01:00Z")
+                new StoredPhoto("front.jpg", "front-1.jpg", "/unused/front-1.jpg", "image/jpeg", 100L, "2026-09-09T07:00:00Z"),
+                new StoredPhoto("side.jpg", "side-2.jpg", "/unused/side-2.jpg", "image/jpeg", 110L, "2026-09-09T07:01:00Z"),
+                new StoredPhoto("rear.jpg", "rear-3.jpg", "/unused/rear-3.jpg", "image/jpeg", 120L, "2026-09-09T07:02:00Z"),
+                new StoredPhoto("side-new.webp", "side-new-4.webp", "/unused/side-new-4.webp", "image/webp", 130L, "2026-09-09T07:03:00Z")
         );
         ObjectMapper mapper = new ObjectMapper();
         SettingsItEquipmentPhotoService service = new SettingsItEquipmentPhotoService(jdbc, mapper, storage);
-        MockMultipartFile firstFile = new MockMultipartFile("file", "front.jpg", "image/jpeg", new byte[]{1, 2, 3});
-        MockMultipartFile secondFile = new MockMultipartFile("file", "rear.jpg", "image/jpeg", new byte[]{4, 5, 6});
 
-        Map<String, Object> invalid = service.uploadPhoto(1L, firstFile, "title", "", false);
+        MockMultipartFile front = new MockMultipartFile("file", "front.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        MockMultipartFile side = new MockMultipartFile("file", "side.jpg", "image/jpeg", new byte[]{4, 5, 6});
+        MockMultipartFile rear = new MockMultipartFile("file", "rear.jpg", "image/jpeg", new byte[]{7, 8, 9});
+        MockMultipartFile sideReplacement = new MockMultipartFile("file", "side-new.webp", "image/webp", new byte[]{10, 11, 12});
+
+        Map<String, Object> invalid = service.uploadPhoto(1L, front, "title", "", false);
         assertThat(invalid.get("success")).isEqualTo(false);
 
-        Map<String, Object> first = service.uploadPhoto(1L, firstFile, "title", "Вид спереди", false);
+        Map<String, Object> first = service.uploadPhoto(1L, front, "title", "Фронт", false);
         assertThat(first.get("success")).isEqualTo(true);
 
-        Map<String, Object> blockedReplacement = service.uploadPhoto(1L, secondFile, "title", "Вид сзади", false);
-        assertThat(blockedReplacement.get("success")).isEqualTo(false);
-        assertThat(blockedReplacement.get("requires_confirmation")).isEqualTo(true);
-        assertThat(blockedReplacement.get("error_code")).isEqualTo("title_photo_exists");
-        verify(storage, times(1)).store(any());
-
-        Map<String, Object> second = service.uploadPhoto(1L, secondFile, "title", "Вид сзади", true);
+        Map<String, Object> second = service.uploadPhoto(1L, side, "general", "Сбоку", false);
         assertThat(second.get("success")).isEqualTo(true);
+        JsonNode afterSecond = mapper.readTree((String) second.get("photo_url"));
+        assertThat(afterSecond.path("photos").size()).isEqualTo(2);
+        assertThat(afterSecond.path("photos").findValuesAsText("comment")).containsExactly("Фронт", "Сбоку");
+
+        Map<String, Object> blockedTitle = service.uploadPhoto(1L, rear, "title", "Сзади", false);
+        assertThat(blockedTitle.get("success")).isEqualTo(false);
+        assertThat(blockedTitle.get("requires_confirmation")).isEqualTo(true);
+        assertThat(blockedTitle.get("error_code")).isEqualTo("title_photo_exists");
         verify(storage, times(2)).store(any());
 
-        String raw = jdbc.queryForObject("SELECT photo_url FROM it_equipment_catalog WHERE id = 1", String.class);
-        JsonNode media = mapper.readTree(raw);
-        assertThat(media.path("version").asInt()).isEqualTo(2);
-        assertThat(media.path("photos").size()).isEqualTo(2);
-        assertThat(media.path("photos").findValuesAsText("category")).containsExactlyInAnyOrder("general", "title");
-        assertThat(media.path("photos").findValuesAsText("comment")).contains("Вид спереди", "Вид сзади");
+        Map<String, Object> third = service.uploadPhoto(1L, rear, "title", "Сзади", true);
+        assertThat(third.get("success")).isEqualTo(true);
+        JsonNode afterThird = mapper.readTree((String) third.get("photo_url"));
+        assertThat(afterThird.path("photos").size()).isEqualTo(3);
+        assertThat(afterThird.path("photos").findValuesAsText("category"))
+                .containsExactlyInAnyOrder("general", "general", "title");
 
-        String firstPhotoId = media.path("photos").get(0).path("id").asText();
-        String secondPhotoId = media.path("photos").get(1).path("id").asText();
+        String firstId = afterThird.path("photos").get(0).path("id").asText();
+        String secondId = afterThird.path("photos").get(1).path("id").asText();
+        String thirdId = afterThird.path("photos").get(2).path("id").asText();
 
-        Map<String, Object> blockedEdit = service.updatePhoto(1L, firstPhotoId, "title", "Новый фронт", false);
+        Map<String, Object> replaced = service.replacePhoto(
+                1L, secondId, sideReplacement, "general", "Сбоку после замены", false);
+        assertThat(replaced.get("success")).isEqualTo(true);
+        JsonNode afterReplace = mapper.readTree((String) replaced.get("photo_url"));
+        assertThat(afterReplace.path("photos").size()).isEqualTo(3);
+        JsonNode replacedNode = null;
+        for (JsonNode photo : afterReplace.path("photos")) {
+            if (secondId.equals(photo.path("id").asText())) {
+                replacedNode = photo;
+                break;
+            }
+        }
+        assertThat(replacedNode).isNotNull();
+        assertThat(replacedNode.path("stored_name").asText()).isEqualTo("side-new-4.webp");
+        assertThat(replacedNode.path("comment").asText()).isEqualTo("Сбоку после замены");
+        verify(storage).deleteQuietly("side-2.jpg");
+
+        Map<String, Object> blockedEdit = service.updatePhoto(1L, firstId, "title", "Новый фронт", false);
         assertThat(blockedEdit.get("requires_confirmation")).isEqualTo(true);
 
-        Map<String, Object> edited = service.updatePhoto(1L, firstPhotoId, "title", "Новый фронт", true);
+        Map<String, Object> edited = service.updatePhoto(1L, firstId, "title", "Новый фронт", true);
         assertThat(edited.get("success")).isEqualTo(true);
-        JsonNode editedMedia = mapper.readTree((String) edited.get("photo_url"));
-        assertThat(editedMedia.path("photos").findValuesAsText("comment")).contains("Новый фронт", "Вид сзади");
-        assertThat(editedMedia.path("photos").get(0).path("category").asText()).isEqualTo("title");
-        assertThat(editedMedia.path("photos").get(1).path("category").asText()).isEqualTo("general");
+        JsonNode afterEdit = mapper.readTree((String) edited.get("photo_url"));
+        assertThat(afterEdit.path("photos").findValuesAsText("category"))
+                .containsExactlyInAnyOrder("title", "general", "general");
 
-        Map<String, Object> deleted = service.deletePhoto(1L, firstPhotoId);
+        Map<String, Object> deleted = service.deletePhoto(1L, firstId);
         assertThat(deleted.get("success")).isEqualTo(true);
-        assertThat(deleted.get("promoted_photo_id")).isEqualTo(secondPhotoId);
-        JsonNode deletedMedia = mapper.readTree((String) deleted.get("photo_url"));
-        assertThat(deletedMedia.path("photos").size()).isEqualTo(1);
-        assertThat(deletedMedia.path("photos").get(0).path("id").asText()).isEqualTo(secondPhotoId);
-        assertThat(deletedMedia.path("photos").get(0).path("category").asText()).isEqualTo("title");
+        assertThat(deleted.get("promoted_photo_id")).isEqualTo(secondId);
+        JsonNode afterDelete = mapper.readTree((String) deleted.get("photo_url"));
+        assertThat(afterDelete.path("photos").size()).isEqualTo(2);
+        assertThat(afterDelete.path("photos").findValuesAsText("category"))
+                .containsExactlyInAnyOrder("title", "general");
+        assertThat(afterDelete.path("photos").findValuesAsText("id")).contains(secondId, thirdId);
         verify(storage).deleteQuietly("front-1.jpg");
+        verify(storage, times(4)).store(any());
 
-        String withLink = service.mergeLinksPreservingPhotos((String) deleted.get("photo_url"), "[\"https://docs.example/camera\"]");
-        JsonNode merged = mapper.readTree(withLink);
-        assertThat(merged.path("links").get(0).asText()).isEqualTo("https://docs.example/camera");
-        assertThat(merged.path("photos").size()).isEqualTo(1);
+        Map<String, Object> linked = service.updateLinksPreservingPhotos(
+                1L, "[\"https://docs.example/camera\"]");
+        assertThat(linked.get("success")).isEqualTo(true);
+        JsonNode afterLinks = mapper.readTree((String) linked.get("photo_url"));
+        assertThat(afterLinks.path("links").get(0).asText()).isEqualTo("https://docs.example/camera");
+        assertThat(afterLinks.path("photos").size()).isEqualTo(2);
     }
 }

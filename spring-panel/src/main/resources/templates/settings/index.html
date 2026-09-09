@@ -11,7 +11,7 @@
   <link href="/css/style.css" rel="stylesheet" />
   <link href="/css/app.css" rel="stylesheet" />
   <link href="/css/sidebar.css" rel="stylesheet" />
-  <link href="/css/settings.css?v=20260908-01-259-r4-5" rel="stylesheet" />
+  <link href="/css/settings.css?v=20260909-01-259-r4-6" rel="stylesheet" />
   <script src="/js/common.js"></script>
 
   
@@ -3670,35 +3670,16 @@
 
                 <section class="tab-pane fade" id="itEquipmentPhotoPane" role="tabpanel" aria-labelledby="itEquipmentPhotoTab" data-it-equipment-photo-pane>
                   <div class="it-equipment-photo-manager" data-it-equipment-photo-section>
-                    <div class="d-flex align-items-start justify-content-between gap-2 mb-3">
+                    <div class="it-equipment-photo-manager__head">
                       <div>
                         <h6 class="mb-1">Фотографии модели</h6>
-                        <div class="small text-muted">Фото сохраняются сразу и не требуют сохранения основной формы.</div>
+                        <div class="small text-muted">Фото сохраняются сразу. Нажмите на превью для просмотра.</div>
                       </div>
-                      <span class="small text-muted">Титульное / общее</span>
-                    </div>
-                    <div class="row g-2 align-items-end it-equipment-photo-uploader">
-                      <div class="col-12 col-lg-5">
-                        <label class="form-label small mb-1" for="itEquipmentPhotoFile">Фото</label>
-                        <input class="form-control form-control-sm" id="itEquipmentPhotoFile" type="file" accept="image/*" data-it-equipment-photo-file>
-                      </div>
-                      <div class="col-12 col-sm-4 col-lg-3">
-                        <label class="form-label small mb-1" for="itEquipmentPhotoCategory">Тип фото</label>
-                        <select class="form-select form-select-sm" id="itEquipmentPhotoCategory" data-it-equipment-photo-category required>
-                          <option value="general" selected>Общее</option>
-                          <option value="title">Титульное</option>
-                        </select>
-                      </div>
-                      <div class="col-12 col-sm-8 col-lg-4">
-                        <label class="form-label small mb-1" for="itEquipmentPhotoComment">Описание</label>
-                        <input class="form-control form-control-sm" id="itEquipmentPhotoComment" type="text" placeholder="Что изображено" data-it-equipment-photo-comment required>
-                      </div>
-                      <div class="col-12 d-flex justify-content-end">
-                        <button class="btn btn-sm btn-outline-primary" type="button" data-it-equipment-photo-upload><i class="bi bi-image me-1" aria-hidden="true"></i>Добавить фото</button>
-                      </div>
+                      <button class="it-equipment-photo-add-button" type="button" data-it-equipment-photo-add-open aria-label="Добавить фото" title="Добавить фото" disabled>
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                      </button>
                     </div>
                     <div class="form-text mb-3" data-it-equipment-photo-hint>Сначала сохраните модель оборудования, затем добавьте фотографии.</div>
-                    <div class="small fw-semibold mb-2">Загруженные фото</div>
                     <div class="it-equipment-photo-strip" data-it-equipment-photo-list></div>
                   </div>
                 </section>
@@ -3713,21 +3694,55 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="itEquipmentPhotoViewerModal" tabindex="-1" aria-labelledby="itEquipmentPhotoViewerLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--compact" id="itEquipmentPhotoAddModal" tabindex="-1" aria-labelledby="itEquipmentPhotoAddLabel" aria-hidden="true" data-settings-suspend-parent="itEquipmentAddModal">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="itEquipmentPhotoAddLabel">Добавить фото</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label" for="itEquipmentPhotoAddFile">Файл</label>
+              <input class="form-control" id="itEquipmentPhotoAddFile" type="file" accept="image/*" data-it-equipment-photo-add-file>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="itEquipmentPhotoAddCategory">Тип фото</label>
+              <select class="form-select" id="itEquipmentPhotoAddCategory" data-it-equipment-photo-add-category>
+                <option value="general">Общее</option>
+                <option value="title">Титульное</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="itEquipmentPhotoAddComment">Описание</label>
+              <input class="form-control" id="itEquipmentPhotoAddComment" type="text" placeholder="Что изображено" data-it-equipment-photo-add-comment required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" data-it-equipment-photo-add-save>Добавить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade settings-child-modal" id="itEquipmentPhotoViewerModal" tabindex="-1" aria-labelledby="itEquipmentPhotoViewerLabel" aria-hidden="true" data-settings-suspend-parent="itEquipmentAddModal">
       <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
             <div>
               <h5 class="modal-title" id="itEquipmentPhotoViewerLabel">Просмотр фото</h5>
-              <div class="small text-muted"><span data-it-equipment-photo-viewer-type>Фото</span> · <span data-it-equipment-photo-viewer-counter>0 / 0</span></div>
+              <div class="small text-muted"><span data-it-equipment-photo-viewer-type></span> · <span data-it-equipment-photo-viewer-counter></span></div>
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
             <div class="it-equipment-photo-viewer-stage">
-              <button type="button" class="btn btn-outline-secondary it-equipment-photo-viewer-nav" data-it-equipment-photo-viewer-prev aria-label="Предыдущее фото"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
-              <div class="it-equipment-photo-viewer-frame"><img src="" alt="Фото оборудования" data-it-equipment-photo-viewer-image></div>
-              <button type="button" class="btn btn-outline-secondary it-equipment-photo-viewer-nav" data-it-equipment-photo-viewer-next aria-label="Следующее фото"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+              <button class="btn btn-outline-secondary it-equipment-photo-viewer-nav" type="button" data-it-equipment-photo-viewer-prev aria-label="Предыдущее фото"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+              <div class="it-equipment-photo-viewer-frame">
+                <img src="" alt="" data-it-equipment-photo-viewer-image>
+              </div>
+              <button class="btn btn-outline-secondary it-equipment-photo-viewer-nav" type="button" data-it-equipment-photo-viewer-next aria-label="Следующее фото"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
             </div>
             <div class="it-equipment-photo-viewer-comment" data-it-equipment-photo-viewer-comment>Описание не указано</div>
           </div>
@@ -3735,7 +3750,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--compact" id="itEquipmentPhotoEditModal" tabindex="-1" aria-labelledby="itEquipmentPhotoEditLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--compact" id="itEquipmentPhotoEditModal" tabindex="-1" aria-labelledby="itEquipmentPhotoEditLabel" aria-hidden="true" data-settings-suspend-parent="itEquipmentAddModal">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
@@ -3743,6 +3758,14 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
+            <div class="it-equipment-photo-edit-preview mb-3">
+              <img src="" alt="" data-it-equipment-photo-edit-preview>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="itEquipmentPhotoEditFile">Заменить файл <span class="text-muted">(необязательно)</span></label>
+              <input class="form-control" id="itEquipmentPhotoEditFile" type="file" accept="image/*" data-it-equipment-photo-edit-file>
+              <div class="form-text">Оставьте пустым, чтобы изменить только тип или описание.</div>
+            </div>
             <div class="mb-3">
               <label class="form-label" for="itEquipmentPhotoEditCategory">Тип фото</label>
               <select class="form-select" id="itEquipmentPhotoEditCategory" data-it-equipment-photo-edit-category>
@@ -5370,7 +5393,7 @@
     <script src="/js/modal-helpers.js"></script>
     <script src="/js/settings-page-callback-registry.js"></script>
     <script src="/js/settings-runtime-access.js"></script>
-    <script src="/js/settings-page-shell.js"></script>
+    <script src="/js/settings-page-shell.js?v=20260909-01-259-r4-6"></script>
     <script src="/js/settings-production-readiness.js"></script>
     <script src="/js/settings-save-runtime.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
@@ -5386,7 +5409,7 @@
     <script src="/js/settings-partner-contacts-runtime.js"></script>
     <script src="/js/settings-legal-entities-runtime.js"></script>
     <script src="/js/settings-network-profiles-runtime.js"></script>
-    <script src="/js/settings-it-equipment-runtime.js?v=20260908-01-259-r4-5"></script>
+    <script src="/js/settings-it-equipment-runtime.js?v=20260909-01-259-r4-6"></script>
     <script src="/js/settings-it-connections-runtime.js"></script>
     <script src="/js/settings-parameters-shell-runtime.js"></script>
     <script src="/js/settings-channels-bot-runtime.js"></script>

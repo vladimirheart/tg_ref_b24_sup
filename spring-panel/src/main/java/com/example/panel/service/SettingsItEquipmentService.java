@@ -2,8 +2,11 @@ package com.example.panel.service;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -74,6 +77,7 @@ public class SettingsItEquipmentService {
         return Map.of("success", true, "items", loadItemsWithDiscovered());
     }
 
+    @Transactional
     public Map<String, Object> updateItEquipment(long itemId, Map<String, Object> payload, String actor) {
         StringBuilder updates = new StringBuilder();
         List<Object> params = new ArrayList<>();
@@ -98,13 +102,10 @@ public class SettingsItEquipmentService {
             updates.append("equipment_model = ?,");
             params.add(value);
         }
-        if (payload.containsKey("photo_url") || payload.containsKey("photo")) {
-            Map<String, Object> existing = loadItem(itemId);
-            String existingMedia = existing == null ? "" : stringValue(existing.get("photo_url"));
-            String incoming = stringValue(payload.getOrDefault("photo_url", payload.get("photo")));
-            updates.append("photo_url = ?,");
-            params.add(photoService.mergeLinksPreservingPhotos(existingMedia, incoming));
-        }
+        boolean updateLinks = payload.containsKey("photo_url") || payload.containsKey("photo");
+        String pendingLinks = updateLinks
+                ? stringValue(payload.getOrDefault("photo_url", payload.get("photo")))
+                : "";
         if (payload.containsKey("serial_number")) {
             updates.append("serial_number = ?,");
             params.add(stringValue(payload.get("serial_number")));
@@ -114,14 +115,22 @@ public class SettingsItEquipmentService {
             params.add(stringValue(payload.getOrDefault("accessories", payload.get("additional_equipment"))));
         }
 
-        if (updates.length() == 0) {
+        if (updates.length() == 0 && !updateLinks) {
             return Map.of("success", false, "error", "Нет данных для обновления");
         }
-        updates.append("updated_at = CURRENT_TIMESTAMP");
-        params.add(itemId);
-        int updated = jdbcTemplate.update("UPDATE it_equipment_catalog SET " + updates + " WHERE id = ?", params.toArray());
-        if (updated == 0) {
-            return Map.of("success", false, "error", "Оборудование не найдено");
+        if (updates.length() > 0) {
+            updates.append("updated_at = CURRENT_TIMESTAMP");
+            params.add(itemId);
+            int updated = jdbcTemplate.update("UPDATE it_equipment_catalog SET " + updates + " WHERE id = ?", params.toArray());
+            if (updated == 0) {
+                return Map.of("success", false, "error", "Оборудование не найдено");
+            }
+        }
+        if (updateLinks) {
+            Map<String, Object> mediaResult = photoService.updateLinksPreservingPhotos(itemId, pendingLinks);
+            if (Boolean.FALSE.equals(mediaResult.get("success"))) {
+                return mediaResult;
+            }
         }
         notificationRoutingService.notify(
                 "passports",
@@ -273,19 +282,33 @@ public class SettingsItEquipmentService {
     }
 
     private Map<String, Object> loadItem(long itemId) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+        List<Map<String, Object>> rows = jdbcTemplate.query(
                 "SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories " +
                         "FROM it_equipment_catalog WHERE id = ?",
+                this::mapEquipmentRow,
                 itemId
         );
         return rows.isEmpty() ? null : rows.get(0);
     }
 
     private List<Map<String, Object>> loadItems() {
-        return jdbcTemplate.queryForList(
+        return jdbcTemplate.query(
                 "SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories " +
-                        "FROM it_equipment_catalog ORDER BY id DESC"
+                        "FROM it_equipment_catalog ORDER BY id DESC",
+                this::mapEquipmentRow
         );
+    }
+
+    private Map<String, Object> mapEquipmentRow(ResultSet rs, int rowNum) throws SQLException {
+        LinkedHashMap<String, Object> row = new LinkedHashMap<>();
+        row.put("id", rs.getLong("id"));
+        row.put("equipment_type", rs.getString("equipment_type"));
+        row.put("equipment_vendor", rs.getString("equipment_vendor"));
+        row.put("equipment_model", rs.getString("equipment_model"));
+        row.put("photo_url", rs.getString("photo_url"));
+        row.put("serial_number", rs.getString("serial_number"));
+        row.put("accessories", rs.getString("accessories"));
+        return row;
     }
 
     private String catalogKey(Object rawType, Object rawVendor, Object rawModel) {
