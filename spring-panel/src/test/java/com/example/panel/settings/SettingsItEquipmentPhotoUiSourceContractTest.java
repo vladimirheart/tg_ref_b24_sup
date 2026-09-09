@@ -33,14 +33,16 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("id=\"itEquipmentPhotoConfirmModal\"")
                 .contains("data-settings-suspend-parent=\"itEquipmentAddModal\"")
                 .contains("data-it-equipment-photo-info")
+                .contains("data-it-equipment-photo-info-popover")
+                .contains("aria-controls=\"itEquipmentPhotoInfoPopover\"")
                 .contains("data-it-equipment-photo-add-file-open")
                 .contains("data-it-equipment-photo-add-paste")
                 .contains("data-it-equipment-photo-edit-file-open")
                 .contains("data-it-equipment-photo-edit-paste")
                 .contains("class=\"visually-hidden\" id=\"itEquipmentPhotoAddFile\"")
                 .contains("class=\"visually-hidden\" id=\"itEquipmentPhotoEditFile\"")
-                .contains("settings.css?v=20260909-01-259-r4-7")
-                .contains("settings-it-equipment-runtime.js?v=20260909-01-259-r4-7")
+                .contains("settings.css?v=20260909-01-259-r4-8")
+                .contains("settings-it-equipment-runtime.js?v=20260909-01-259-r4-8")
                 .contains("settings-page-shell.js?v=20260909-01-259-r4-6")
                 .doesNotContain("<div class=\"small text-muted\">Фото сохраняются сразу. Нажмите на превью для просмотра.</div>");
 
@@ -56,13 +58,18 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("it-equipment-photo-thumb__comment")
                 .contains("function handlePhotoPaste(")
                 .contains("navigator.clipboard.read")
+                .contains("function setPhotoInfoVisible(")
+                .contains("window.URL.createObjectURL")
+                .contains("window.URL.revokeObjectURL")
+                .contains("previewPhotoEditFile(file)")
                 .contains("selectedPhotoFile('add')")
                 .contains("selectedPhotoFile('edit')")
                 .contains("payload.photo_url = formatEquipmentLinksPayload(links)")
                 .contains("JSON.stringify(links) !== JSON.stringify(existingLinks)")
                 .doesNotContain("target=\"_blank\" rel=\"noopener\" aria-label=\"Открыть фото\"")
                 .doesNotContain("confirmAction('Удалить это фото оборудования?')")
-                .doesNotContain("? 'Фото сохраняются сразу. Для каждого фото обязательны тип и описание.'");
+                .doesNotContain("? 'Фото сохраняются сразу. Для каждого фото обязательны тип и описание.'")
+                .doesNotContain("window.bootstrap.Popover.getOrCreateInstance");
 
         assertThat(equipmentService)
                 .contains("photoService.updateLinksPreservingPhotos(itemId, pendingLinks)")
@@ -87,7 +94,11 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("#itEquipmentPhotoEditModal .it-equipment-photo-edit-preview")
                 .contains("#itEquipmentPhotoViewerModal .it-equipment-photo-viewer-frame")
                 .contains("/* Equipment photo UX polish — 01-259 r4.7 */")
+                .contains("/* Equipment photo acceptance polish — 01-259 r4.8 */")
                 .contains("it-equipment-photo-file-picker")
-                .contains("it-equipment-photo-file-action");
+                .contains("it-equipment-photo-file-action")
+                .contains("var(--surface-raised)")
+                .contains("var(--color-text)")
+                .contains("it-equipment-photo-info-popover");
     }
 }

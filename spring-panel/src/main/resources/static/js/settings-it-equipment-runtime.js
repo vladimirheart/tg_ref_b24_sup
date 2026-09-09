@@ -15,6 +15,7 @@
       photoConfirmResolver: null,
       photoAddFile: null,
       photoEditFile: null,
+      photoEditPreviewObjectUrl: null,
     };
 
     const elements = {
@@ -105,6 +106,7 @@
       confirmMessage: document.querySelector('[data-it-equipment-photo-confirm-message]'),
       confirmButton: document.querySelector('[data-it-equipment-photo-confirm-accept]'),
       infoButton: document.querySelector('[data-it-equipment-photo-info]'),
+      infoPopover: document.querySelector('[data-it-equipment-photo-info-popover]'),
     };
 
     function getParameterData() {
@@ -600,6 +602,13 @@
       return data || {};
     }
 
+    function setPhotoInfoVisible(visible) {
+      if (!photoUi.infoButton || !photoUi.infoPopover) return;
+      const show = Boolean(visible);
+      photoUi.infoPopover.hidden = !show;
+      photoUi.infoButton.setAttribute('aria-expanded', show ? 'true' : 'false');
+    }
+
     function normalizePhotoFile(file, fallbackPrefix = 'clipboard') {
       if (!(file instanceof Blob) || !String(file.type || '').toLowerCase().startsWith('image/')) {
         return null;
@@ -612,11 +621,31 @@
       return new File([file], `${fallbackPrefix}-${Date.now()}.${extension}`, { type: mime, lastModified: Date.now() });
     }
 
+    function revokePhotoEditPreviewObjectUrl() {
+      if (state.photoEditPreviewObjectUrl && window.URL && typeof window.URL.revokeObjectURL === 'function') {
+        window.URL.revokeObjectURL(state.photoEditPreviewObjectUrl);
+      }
+      state.photoEditPreviewObjectUrl = null;
+    }
+
+    function previewPhotoEditFile(file) {
+      revokePhotoEditPreviewObjectUrl();
+      if (!file || !photoUi.editPreview || !(window.URL && typeof window.URL.createObjectURL === 'function')) return;
+      const objectUrl = window.URL.createObjectURL(file);
+      state.photoEditPreviewObjectUrl = objectUrl;
+      photoUi.editPreview.src = objectUrl;
+      photoUi.editPreview.alt = file.name ? `Предпросмотр нового фото: ${file.name}` : 'Предпросмотр нового фото';
+    }
+
     function setPhotoSelectedFile(kind, rawFile) {
       const file = normalizePhotoFile(rawFile, kind === 'edit' ? 'clipboard-replace' : 'clipboard-photo');
       const isEdit = kind === 'edit';
-      if (isEdit) state.photoEditFile = file;
-      else state.photoAddFile = file;
+      if (isEdit) {
+        state.photoEditFile = file;
+        previewPhotoEditFile(file);
+      } else {
+        state.photoAddFile = file;
+      }
       const label = isEdit ? photoUi.editFileName : photoUi.addFileName;
       if (label) label.textContent = file ? file.name : 'Файл не выбран';
       return file;
@@ -1165,6 +1194,7 @@
       if (photoUi.editModalEl) {
         photoUi.editModalEl.addEventListener('paste', (event) => handlePhotoPaste('edit', event));
         photoUi.editModalEl.addEventListener('hidden.bs.modal', () => {
+          revokePhotoEditPreviewObjectUrl();
           state.photoEditId = null;
           state.photoEditFile = null;
           if (photoUi.editFile) photoUi.editFile.value = '';
@@ -1178,8 +1208,16 @@
         });
       }
       if (photoUi.confirmModalEl) photoUi.confirmModalEl.addEventListener('hidden.bs.modal', () => resolvePhotoConfirm(false));
-      if (photoUi.infoButton && window.bootstrap && window.bootstrap.Popover) {
-        window.bootstrap.Popover.getOrCreateInstance(photoUi.infoButton, { container: 'body', trigger: 'focus' });
+      if (photoUi.infoButton && photoUi.infoPopover) {
+        photoUi.infoButton.addEventListener('mouseenter', () => setPhotoInfoVisible(true));
+        photoUi.infoButton.addEventListener('mouseleave', () => setPhotoInfoVisible(false));
+        photoUi.infoButton.addEventListener('focus', () => setPhotoInfoVisible(true));
+        photoUi.infoButton.addEventListener('blur', () => setPhotoInfoVisible(false));
+        photoUi.infoButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setPhotoInfoVisible(true);
+        });
       }
       if (elements.itEquipmentAddModalEl) {
         elements.itEquipmentAddModalEl.addEventListener('hidden.bs.modal', () => {

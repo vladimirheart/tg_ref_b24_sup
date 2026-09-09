@@ -744,6 +744,13 @@
 }
 
 /* Equipment photo UX polish — 01-259 r4.7 */
+/* Equipment photo acceptance polish — 01-259 r4.8 */
+#itEquipmentAddModal .it-equipment-photo-heading {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
 #itEquipmentAddModal .it-equipment-photo-info {
   display: inline-flex;
   align-items: center;
@@ -751,16 +758,38 @@
   width: 30px;
   height: 30px;
   padding: 0;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 50%;
   background: transparent;
-  color: var(--bs-secondary-color);
+  color: var(--color-text-muted);
 }
 
 #itEquipmentAddModal .it-equipment-photo-info:hover,
 #itEquipmentAddModal .it-equipment-photo-info:focus-visible {
-  background: var(--bs-tertiary-bg);
-  color: var(--bs-body-color);
+  border-color: var(--color-border);
+  background: var(--surface-selected);
+  color: var(--color-accent);
+  outline: none;
+}
+
+#itEquipmentAddModal .it-equipment-photo-info-popover {
+  position: absolute;
+  z-index: 1090;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(390px, calc(100vw - 4rem));
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 0.75rem);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 18%, transparent);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+#itEquipmentAddModal .it-equipment-photo-info-popover[hidden] {
+  display: none;
 }
 
 #itEquipmentPhotoAddModal .it-equipment-photo-file-picker,
@@ -779,17 +808,21 @@
   width: 42px;
   height: 42px;
   padding: 0;
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--bs-border-radius);
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius, 0.65rem);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  box-shadow: none;
 }
 
 #itEquipmentPhotoAddModal .it-equipment-photo-file-action:hover,
 #itEquipmentPhotoAddModal .it-equipment-photo-file-action:focus-visible,
 #itEquipmentPhotoEditModal .it-equipment-photo-file-action:hover,
 #itEquipmentPhotoEditModal .it-equipment-photo-file-action:focus-visible {
-  background: var(--bs-tertiary-bg);
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--color-accent);
+  outline: none;
 }
 
 #itEquipmentPhotoAddModal .it-equipment-photo-file-name,
@@ -799,12 +832,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.875rem;
-  color: var(--bs-secondary-color);
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 @media (max-width: 575.98px) {
   #itEquipmentPhotoAddModal .it-equipment-photo-file-picker,
   #itEquipmentPhotoEditModal .it-equipment-photo-file-picker {
     grid-template-columns: 42px 42px minmax(0, 1fr);
+  }
+
+  #itEquipmentAddModal .it-equipment-photo-info-popover {
+    width: min(320px, calc(100vw - 3rem));
   }
 }

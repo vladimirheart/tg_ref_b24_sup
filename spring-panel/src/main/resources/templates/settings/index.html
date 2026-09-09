@@ -11,7 +11,7 @@
   <link href="/css/style.css" rel="stylesheet" />
   <link href="/css/app.css" rel="stylesheet" />
   <link href="/css/sidebar.css" rel="stylesheet" />
-  <link href="/css/settings.css?v=20260909-01-259-r4-7" rel="stylesheet" />
+  <link href="/css/settings.css?v=20260909-01-259-r4-8" rel="stylesheet" />
   <script src="/js/common.js"></script>
 
   
@@ -3671,11 +3671,16 @@
                 <section class="tab-pane fade" id="itEquipmentPhotoPane" role="tabpanel" aria-labelledby="itEquipmentPhotoTab" data-it-equipment-photo-pane>
                   <div class="it-equipment-photo-manager" data-it-equipment-photo-section>
                     <div class="it-equipment-photo-manager__head">
-                      <div class="d-flex align-items-center gap-2">
-                        <h6 class="mb-0">Фотографии модели</h6>
-                        <button class="it-equipment-photo-info" type="button" data-it-equipment-photo-info data-bs-toggle="popover" data-bs-placement="right" data-bs-content="Фото сохраняются сразу, отдельно от кнопки сохранения карточки. Нажмите на превью для просмотра. Для каждого фото обязательны тип и описание." aria-label="Информация о фотографиях" title="О фотографиях">
-                          <i class="bi bi-info-circle" aria-hidden="true"></i>
-                        </button>
+                      <div class="it-equipment-photo-heading">
+                        <div class="d-flex align-items-center gap-2">
+                          <h6 class="mb-0">Фотографии модели</h6>
+                          <button class="it-equipment-photo-info" type="button" data-it-equipment-photo-info aria-label="Информация о фотографиях" aria-controls="itEquipmentPhotoInfoPopover" aria-expanded="false">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                          </button>
+                        </div>
+                        <div class="it-equipment-photo-info-popover" id="itEquipmentPhotoInfoPopover" data-it-equipment-photo-info-popover role="tooltip" hidden>
+                          Фото сохраняются сразу, отдельно от кнопки сохранения карточки. Нажмите на превью для просмотра. Для каждого фото обязательны тип и описание.
+                        </div>
                       </div>
                       <button class="it-equipment-photo-add-button" type="button" data-it-equipment-photo-add-open aria-label="Добавить фото" title="Добавить фото" disabled>
                         <i class="bi bi-plus-lg" aria-hidden="true"></i>
@@ -5430,7 +5435,7 @@
     <script src="/js/settings-partner-contacts-runtime.js"></script>
     <script src="/js/settings-legal-entities-runtime.js"></script>
     <script src="/js/settings-network-profiles-runtime.js"></script>
-    <script src="/js/settings-it-equipment-runtime.js?v=20260909-01-259-r4-7"></script>
+    <script src="/js/settings-it-equipment-runtime.js?v=20260909-01-259-r4-8"></script>
     <script src="/js/settings-it-connections-runtime.js"></script>
     <script src="/js/settings-parameters-shell-runtime.js"></script>
     <script src="/js/settings-channels-bot-runtime.js"></script>

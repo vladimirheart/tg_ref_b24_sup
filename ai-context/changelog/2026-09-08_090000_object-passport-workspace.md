@@ -91,3 +91,11 @@
 - replaced native file controls with icon actions and added clipboard image paste for add/replace flows;
 - retained all r4.6 media integrity and nested-modal Escape behavior;
 - no database schema migration, backfill, NetBox mutation, or ownership-contract change is included.
+
+## R4.8 photo acceptance polish
+
+- replaced the unreliable Bootstrap photo-info popover with a local hover/focus/click tooltip;
+- moved photo info/file/clipboard controls and filename text onto project theme tokens for readable light/dark contrast;
+- added immediate local preview of a selected or pasted replacement image before saving and revokes temporary object URLs on replacement/close;
+- retained r4.7 save/media behavior and all r4.6 integrity/nested-modal contracts;
+- no database schema migration, backfill, NetBox mutation, worker restart, or ownership-contract change is included.
