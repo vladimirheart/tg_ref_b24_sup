@@ -1,0 +1,240 @@
+@mixin styles {
+    .chart-container {
+      position: relative;
+      min-height: 320px;
+      height: 320px;
+      padding: 0.9rem;
+      border-radius: 1.35rem;
+      background: var(--surface-raised);
+      border: 1px solid var(--color-border);
+    }
+
+    .activity-heatmap-shell {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    .activity-heatmap-summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.9rem 1rem;
+      border-radius: 1.1rem;
+      background: var(--surface-raised);
+      border: 1px solid var(--color-border);
+    }
+
+    .activity-heatmap-summary__eyebrow {
+      display: block;
+      margin-bottom: 0.2rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-text-muted);
+    }
+
+    .activity-heatmap-summary__value {
+      font-size: 1.08rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .activity-heatmap-summary__count {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--color-text);
+    }
+
+    .activity-heatmap-board {
+      padding: 1rem;
+      border-radius: 1.35rem;
+      background: var(--surface-raised);
+      border: 1px solid var(--color-border);
+      overflow-x: auto;
+    }
+
+    .activity-heatmap-grid {
+      display: grid;
+      grid-template-columns: 44px repeat(24, minmax(26px, 1fr));
+      gap: 0.28rem;
+      min-width: 780px;
+    }
+
+    .activity-heatmap-corner,
+    .activity-heatmap-hour,
+    .activity-heatmap-day,
+    .activity-heatmap-cell {
+      border-radius: 0.5rem;
+    }
+
+    .activity-heatmap-cell--level-0 {
+        background:
+            color-mix(
+                in srgb,
+                var(--chart-2) 8%,
+                var(--surface-card)
+            );
+    }
+
+    .activity-heatmap-cell--level-1 {
+        background:
+            color-mix(
+                in srgb,
+                var(--chart-2) 20%,
+                var(--surface-card)
+            );
+    }
+
+    .activity-heatmap-cell--level-2 {
+        background:
+            color-mix(
+                in srgb,
+                var(--chart-2) 34%,
+                var(--surface-card)
+            );
+    }
+
+    .activity-heatmap-cell--level-3 {
+        background:
+            color-mix(
+                in srgb,
+                var(--chart-2) 50%,
+                var(--surface-card)
+            );
+    }
+
+    .activity-heatmap-cell--level-4 {
+        background:
+            color-mix(
+                in srgb,
+                var(--chart-2) 68%,
+                var(--surface-card)
+            );
+    }
+
+    .activity-heatmap-cell--level-5 {
+        background:
+            color-mix(
+                in srgb,
+                var(--chart-2) 84%,
+                var(--surface-card)
+            );
+    }
+
+    .activity-heatmap-hour,
+    .activity-heatmap-day {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      font-size: 0.72rem;
+      color: var(--color-text-muted);
+    }
+
+    .activity-heatmap-hour--business {
+      color: var(--color-accent);
+      font-weight: 700;
+    }
+
+    .activity-heatmap-day {
+      justify-content: flex-start;
+      padding-left: 0.1rem;
+      font-weight: 700;
+    }
+
+    .activity-heatmap-cell {
+	  position: relative;
+	  appearance: none;
+	  padding: 0;
+	  min-height: 34px;
+
+	  border: 1px solid var(--color-border);
+
+	  cursor: pointer;
+
+	  transition:
+		transform 0.14s ease,
+		border-color 0.14s ease,
+		box-shadow 0.14s ease;
+	}
+
+    .activity-heatmap-cell:hover,
+    .activity-heatmap-cell.is-active {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--chart-2) 40%, transparent);
+      box-shadow:
+    0 10px 18px
+    color-mix(
+        in srgb,
+        var(--shadow-color) 8%,
+        transparent
+    );
+    }
+
+    .activity-heatmap-cell--business::after {
+      content: "";
+      position: absolute;
+      left: 5px;
+      right: 5px;
+      bottom: 3px;
+      height: 2px;
+      border-radius: var(--radius-pill);
+      background: color-mix(in srgb, var(--chart-5) 88%, var(--surface-card));
+      opacity: 0.85;
+    }
+
+    .activity-heatmap-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.9rem;
+      font-size: 0.8rem;
+      color: var(--color-text-muted);
+    }
+
+    .activity-heatmap-legend__scale {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .activity-heatmap-legend__swatch {
+	  width: 84px;
+	  height: 12px;
+	  border-radius: var(--radius-pill);
+
+	  background:
+		linear-gradient(
+		  90deg,
+		  color-mix(
+			in srgb,
+			var(--secondary) 14%,
+			var(--surface-card)
+		  ),
+		  color-mix(
+			in srgb,
+			var(--chart-2) 82%,
+			var(--surface-card)
+		  )
+		);
+
+	  border: 1px solid var(--color-border);
+	}
+
+    .activity-heatmap-legend__hours {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .activity-heatmap-legend__line {
+      width: 54px;
+      height: 3px;
+      border-radius: var(--radius-pill);
+      background: color-mix(in srgb, var(--chart-5) 88%, var(--surface-card));
+    }
+}

@@ -1,0 +1,253 @@
+@mixin styles {
+    .metrics-headline {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .metrics-headline__chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 0.72rem;
+      border-radius: var(--radius-pill);
+      background:
+		  color-mix(
+			in srgb,
+			var(--color-on-ink) 12%,
+			transparent
+		  );
+
+		border:
+		  1px solid color-mix(
+			in srgb,
+			var(--color-on-ink) 8%,
+			transparent
+		  );
+
+		color:
+		  color-mix(
+			in srgb,
+			var(--color-on-ink) 90%,
+			transparent
+		  );
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .metrics-headline__meta {
+	  color:
+		color-mix(
+		  in srgb,
+		  var(--color-on-ink) 68%,
+		  transparent
+		);
+	  font-size: 0.78rem;
+	  line-height: 1.35;
+	}
+
+	.metrics-grid {
+	  position: relative;
+	  z-index: 1;
+	  display: grid;
+	  grid-template-columns: repeat(2, minmax(0, 1fr));
+	  gap: 0.8rem;
+	}
+
+	.metric-card {
+	  min-height: 136px;
+	  padding: 0.92rem;
+	  border-radius: 1.2rem;
+
+	  background:
+		color-mix(
+		  in srgb,
+		  var(--color-on-ink) 8%,
+		  transparent
+		);
+
+	  border:
+		1px solid color-mix(
+		  in srgb,
+		  var(--color-on-ink) 8%,
+		  transparent
+		);
+
+	  display: flex;
+	  flex-direction: column;
+	  justify-content: space-between;
+	  gap: 0.62rem;
+
+	  box-shadow:
+		inset 0 1px 0
+		color-mix(
+		  in srgb,
+		  var(--color-on-ink) 5%,
+		  transparent
+		);
+	}
+
+	.metric-card--primary {
+	  background:
+		linear-gradient(
+		  145deg,
+		  color-mix(
+			in srgb,
+			var(--chart-2) 22%,
+			transparent
+		  ),
+		  color-mix(
+			in srgb,
+			var(--color-on-ink) 8%,
+			transparent
+		  )
+		);
+	}
+
+	.metric-card--spotlight {
+	  background:
+		linear-gradient(
+		  145deg,
+		  color-mix(
+			in srgb,
+			var(--chart-3) 24%,
+			transparent
+		  ),
+		  color-mix(
+			in srgb,
+			var(--color-on-ink) 8%,
+			transparent
+		  )
+		);
+
+	  color: var(--color-on-ink);
+	  grid-row: span 1;
+	  min-height: 136px;
+
+	  box-shadow:
+		0 16px 26px
+		color-mix(
+		  in srgb,
+		  var(--color-ink-panel-deep) 32%,
+		  transparent
+		);
+	}
+
+	.metric-card--note {
+	  background:
+		linear-gradient(
+		  145deg,
+		  color-mix(
+			in srgb,
+			var(--state-success) 20%,
+			transparent
+		  ),
+		  color-mix(
+			in srgb,
+			var(--color-on-ink) 8%,
+			transparent
+		  )
+		);
+	}
+
+    .metric-label {
+	  display: inline-flex;
+	  align-items: center;
+	  font-size: 0.7rem;
+	  font-weight: 800;
+	  text-transform: uppercase;
+	  letter-spacing: 0.12em;
+
+	  color:
+		color-mix(
+		  in srgb,
+		  var(--color-on-ink) 62%,
+		  transparent
+		);
+	}
+
+    .metric-card--spotlight .metric-label,
+	.metric-card--spotlight .metric-foot,
+	.metric-card--spotlight .metric-mini-label {
+	  color:
+		color-mix(
+		  in srgb,
+		  var(--color-on-ink) 76%,
+		  transparent
+		);
+	}
+
+    .metric-value {
+      font-size: clamp(1.65rem, 2.3vw, 2.45rem);
+      line-height: 0.98;
+      letter-spacing: -0.05em;
+      font-weight: 800;
+      font-family: var(--font-serif);
+    }
+
+    .metric-foot {
+	  font-size: 0.82rem;
+	  color:
+		color-mix(
+		  in srgb,
+		  var(--color-on-ink) 68%,
+		  transparent
+		);
+	  line-height: 1.35;
+	}
+
+    .metric-mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.55rem;
+    }
+
+    .metric-mini-label {
+	  display: block;
+	  font-size: 0.68rem;
+	  text-transform: uppercase;
+	  letter-spacing: 0.08em;
+
+	  color:
+		color-mix(
+		  in srgb,
+		  var(--color-on-ink) 62%,
+		  transparent
+		);
+	}
+
+    .metric-mini-value {
+      display: block;
+      margin-top: 0.28rem;
+      font-size: 0.98rem;
+      font-weight: 700;
+    }
+
+    .metric-note-text {
+	  margin: 0;
+	  font-size: 0.84rem;
+	  line-height: 1.45;
+
+	  color:
+		color-mix(
+		  in srgb,
+		  var(--color-on-ink) 74%,
+		  transparent
+		);
+	}
+
+    .positive-change {
+	  color: var(--state-success);
+	}
+
+	.negative-change {
+	  color: var(--state-danger);
+	}
+}

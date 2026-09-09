@@ -1,0 +1,112 @@
+@mixin styles {
+    .reports-page-header {
+		border-color:
+			color-mix(
+				in srgb,
+				var(--primary) 18%,
+				var(--color-border)
+			);
+
+		box-shadow: none;
+	}
+
+    .reports-tab-nav {
+        padding: 0.25rem;
+
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+
+        background: var(--surface-card);
+
+        box-shadow: none;
+    }
+
+    .reports-tab-nav .nav-link {
+        padding: 0.58rem 0.82rem;
+
+        border-radius: var(--radius-md);
+
+        font-size: 0.8rem;
+    }
+
+    .reports-tab-nav .nav-link.active {
+        border-color:
+            color-mix(
+                in srgb,
+                var(--primary) 22%,
+                var(--color-border)
+            );
+
+        background: var(--surface-selected);
+        color: var(--color-text);
+
+        box-shadow: none;
+    }
+
+    .chart-panel,
+    .filter-panel,
+    .metrics-panel {
+        border-color: var(--color-border);
+        border-radius: var(--ui-panel-radius);
+
+        box-shadow: none;
+    }
+
+    .filter-panel::before,
+    .metrics-panel::before,
+    .chart-panel::before {
+        display: none;
+    }
+
+    .filter-panel,
+    .chart-panel {
+        background: var(--surface-card);
+    }
+
+    .metrics-panel {
+        border-color:
+            color-mix(
+                in srgb,
+                var(--primary) 18%,
+                var(--color-ink-panel-deep)
+            );
+
+        background:
+            linear-gradient(
+                180deg,
+                var(--color-ink-panel),
+                var(--color-ink-panel-mid) 58%,
+                var(--color-ink-panel-deep)
+            );
+
+        box-shadow: none;
+    }
+
+    .metric-card,
+    .metric-card--primary,
+    .metric-card--spotlight,
+    .metric-card--note {
+        border-color:
+            color-mix(
+                in srgb,
+                var(--color-on-ink) 8%,
+                transparent
+            );
+
+        background:
+            color-mix(
+                in srgb,
+                var(--color-on-ink) 6%,
+                transparent
+            );
+
+        box-shadow: none;
+    }
+
+    .metric-card {
+        min-height: 124px;
+
+        border-radius: var(--radius-lg);
+    }
+    /* Reports sub-workspaces */
+}
