@@ -1,0 +1,368 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="usersAccess"><!-- Пользователи -->
+    <div class="modal fade settings-primary-modal" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="usersModalLabel">Пользователи панели и настройки доступа</h5>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2" data-users-open-password-reset th:if="${canManagePasswordResetRequests}">Заявки на восстановление</button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Управляйте пользователями, ролями и оргструктурой из одного окна, чтобы не терять связность прав доступа.</div>
+            </div>
+            <div
+              class="auth-management"
+              data-auth-management
+              data-auth-state-url="/api/auth/state"
+              data-auth-users-endpoint="/api/users"
+              data-auth-roles-endpoint="/api/roles"
+              data-auth-org-structure-endpoint="/api/auth/org-structure"
+              data-auth-photo-upload-endpoint="/api/users/photo-upload"
+            >
+              <div class="alert alert-danger d-none" role="alert" data-auth-message></div>
+
+              <ul class="nav nav-tabs settings-menu-tabs" role="tablist" data-auth-tabs>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="auth-users-tab" data-bs-toggle="tab" data-bs-target="#settingsAuthUsers" type="button" role="tab">Пользователи</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="auth-roles-tab" data-bs-toggle="tab" data-bs-target="#settingsAuthRoles" type="button" role="tab">Роли</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="auth-org-tab" data-bs-toggle="tab" data-bs-target="#settingsAuthOrg" type="button" role="tab">Орг.структура</button>
+                </li>
+              </ul>
+
+              <div class="tab-content pt-3 settings-tab-content">
+                <div class="tab-pane fade show active" id="settingsAuthUsers" role="tabpanel" data-auth-users-section>
+                  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
+                    <div class="text-muted small">Управляйте карточками пользователей, контактами и доступом.</div>
+                    <button type="button" class="btn btn-primary btn-sm" data-auth-user-create-trigger>+ Создать пользователя</button>
+                  </div>
+
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle" data-auth-users-table>
+                      <thead>
+                        <tr>
+                          <th style="width: 30%">Пользователь</th>
+                          <th style="width: 22%">Роль</th>
+                          <th style="width: 32%">Контакты</th>
+                          <th class="text-end" style="width: 16%">Действия</th>
+                        </tr>
+                      </thead>
+                      <tbody data-auth-users-body></tbody>
+                    </table>
+                  </div>
+                  <div class="alert alert-info mt-3 d-none" data-auth-users-empty>Пользователи не найдены.</div>
+                </div>
+
+                <div class="tab-pane fade" id="settingsAuthRoles" role="tabpanel" data-auth-roles-section>
+                  <form class="row g-2 align-items-end mb-3" data-auth-role-create action="/api/roles" method="post">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                    <div class="col-md-4">
+                      <label class="form-label small mb-1" for="authRoleName">Название</label>
+                      <input type="text" class="form-control form-control-sm" id="authRoleName" name="name" autocomplete="off" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small mb-1" for="authRoleDescription">Описание</label>
+                      <input type="text" class="form-control form-control-sm" id="authRoleDescription" name="description" autocomplete="off">
+                    </div>
+                    <div class="col-md-2 d-flex justify-content-end">
+                      <button type="submit" class="btn btn-primary btn-sm w-100">Создать роль</button>
+                    </div>
+                  </form>
+                  <div class="text-danger small mb-3 d-none" data-auth-role-create-error></div>
+                  <div class="d-flex flex-column gap-3" data-auth-roles-container></div>
+                  <div class="alert alert-info d-none" data-auth-roles-empty>Роли не найдены.</div>
+                </div>
+
+                <div class="tab-pane fade" id="settingsAuthOrg" role="tabpanel" data-org-structure-section>
+                  <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+                        <div class="text-muted small">
+                          Формируйте иерархию подразделений и назначайте пользователей в каждой ветке.
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 justify-content-end">
+                          <button type="button" class="btn btn-outline-primary btn-sm" data-org-action="add-root">+ Добавить корневую ветку</button>
+                          <button type="button" class="btn btn-primary btn-sm" data-org-save disabled>Сохранить оргструктуру</button>
+                        </div>
+                      </div>
+                      <div class="org-tree-wrapper" data-org-tree-wrapper>
+                        <div class="alert alert-info small" data-org-empty>
+                          Оргструктура не задана. Добавьте первую ветку, чтобы начать.
+                        </div>
+                        <ul class="org-tree list-unstyled mb-0" data-org-tree></ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade settings-child-modal settings-child-modal--workspace settings-child-modal--sheet" id="authUserDetailsModal" tabindex="-1" aria-hidden="true" data-auth-user-modal>
+      <div class="modal-dialog modal-dialog-scrollable modal-xl modal-fullscreen-sm-down">
+        <div class="modal-content">
+          <form data-auth-user-form action="/api/users" method="post">
+            <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+            <div class="modal-header">
+              <h5 class="modal-title" data-auth-user-modal-title>Пользователь</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <div class="alert alert-danger d-none" role="alert" data-auth-user-modal-error></div>
+              <div class="d-flex flex-column gap-4">
+                <div class="auth-user-overview d-flex flex-column flex-xl-row align-items-stretch">
+                  <div class="auth-user-main pe-xl-4">
+                    <div class="auth-user-fullname-field mb-3">
+                      <label class="form-label small mb-1" for="authUserModalFullName">ФИО</label>
+                      <input type="text" class="form-control form-control-sm" id="authUserModalFullName" name="full_name" autocomplete="off" placeholder="Введите ФИО целиком">
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label class="form-label small mb-1" for="authUserModalLogin">Логин</label>
+                        <input type="text" class="form-control form-control-sm" id="authUserModalLogin" name="username" autocomplete="off" required>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label small mb-1" for="authUserModalRole">Роль</label>
+                        <select class="form-select form-select-sm" id="authUserModalRole" name="role_id" data-auth-user-role-select>
+                          <option value="">По умолчанию</option>
+                        </select>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label small mb-1" for="authUserModalDepartment">Отдел</label>
+                        <input
+                          type="search"
+                          class="form-control form-control-sm mb-2"
+                          placeholder="Поиск по отделам"
+                          autocomplete="off"
+                          data-auth-user-department-search
+                          aria-label="Поиск по отделам"
+                        >
+                        <select
+                          class="form-select form-select-sm"
+                          id="authUserModalDepartment"
+                          name="department"
+                          data-auth-user-department-select
+                        >
+                          <option value="">Не выбран</option>
+                        </select>
+                        <div class="form-text">Список отделов формируется на вкладке «Орг.структура».</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="auth-user-photo ms-xl-auto">
+                    <div class="auth-user-photo-wrapper auth-user-photo-uploader" data-auth-user-photo-uploader>
+                      <label class="form-label small mb-1" for="authUserModalPhoto">Фото</label>
+                      <input type="hidden" id="authUserModalPhoto" name="photo" data-auth-user-photo-value>
+                      <input type="file" class="visually-hidden" accept="image/*" data-auth-user-photo-file>
+                      <div class="auth-user-photo-dropzone" data-auth-user-photo-dropzone>
+                        <div class="auth-user-photo-placeholder" data-auth-user-photo-placeholder>
+                          <div class="auth-user-photo-icon mb-2">
+                            <i class="bi bi-image"></i>
+                          </div>
+                          <p class="mb-2">Перетащите фото сюда или нажмите, чтобы загрузить</p>
+                          <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-trigger>Выбрать файл</button>
+                          <div class="text-muted small mt-2">PNG, JPG, WebP до 5 МБ</div>
+                        </div>
+                        <div class="auth-user-photo-preview d-none" data-auth-user-photo-preview>
+                          <img
+                            src=""
+                            alt="Фото пользователя"
+                            class="auth-user-photo-img"
+                            data-auth-user-photo-img
+                            data-auth-user-photo-preview-trigger
+                            role="button"
+                            tabindex="0"
+                            aria-label="Открыть фото в полном размере"
+                            loading="lazy"
+                          >
+                          <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-photo-change>Заменить</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-auth-user-photo-remove>Удалить</button>
+                          </div>
+                        </div>
+                        <div class="auth-user-photo-uploading d-none" data-auth-user-photo-uploading>
+                          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                          <span class="ms-2 small">Загрузка...</span>
+                        </div>
+                      </div>
+                      <div class="form-text mt-2" data-auth-user-photo-status></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <div class="border rounded-3 p-3 bg-light-subtle">
+                      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                        <h6 class="mb-0">Контактные данные</h6>
+                      </div>
+                      <div class="row g-3">
+                        <div class="col-md-6">
+                          <label class="form-label small mb-1" for="authUserModalEmail">E-mail</label>
+                          <input type="email" class="form-control form-control-sm" id="authUserModalEmail" name="email" autocomplete="off">
+                        </div>
+                        <div class="col-md-6">
+                          <label class="form-label small mb-1" for="authUserModalBirthDate">Дата рождения</label>
+                          <input type="date" class="form-control form-control-sm" id="authUserModalBirthDate" name="birth_date">
+                        </div>
+                      </div>
+                      <div class="mt-3">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                          <h6 class="mb-0">Телефоны</h6>
+                          <button type="button" class="btn btn-outline-secondary btn-sm" data-auth-user-phone-add>+ Добавить телефон</button>
+                        </div>
+                        <div class="d-flex flex-column gap-2 mt-2" data-auth-user-phones></div>
+                        <div class="text-muted small d-none" data-auth-user-phones-empty>Телефоны не указаны.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <div class="border rounded-3 p-3">
+                      <div class="d-flex flex-column gap-3">
+                        <div class="d-flex flex-column gap-2 d-none" data-auth-user-block-wrapper>
+                          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div>
+                              <h6 class="mb-0">Статус доступа</h6>
+                              <p class="small text-muted mb-0">Управляйте блокировкой доступа к панели.</p>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                              <span class="badge rounded-pill text-bg-success auth-user-block-status" data-auth-user-block-status>Активен</span>
+                              <button type="button" class="btn btn-outline-danger btn-sm" data-auth-user-block-toggle>Заблокировать</button>
+                            </div>
+                          </div>
+                          <div class="small text-muted" data-auth-user-block-message>Пользователь может входить в панель.</div>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2" data-auth-user-password-change-wrapper>
+                          <div>
+                            <h6 class="mb-0">Безопасность</h6>
+                            <p class="small text-muted mb-0">Просмотр текущего пароля доступен по правам. Смена выполняется отдельно.</p>
+                          </div>
+                          <button type="button" class="btn btn-outline-primary btn-sm" data-auth-user-password-change>Сменить пароль</button>
+                        </div>
+                      </div>
+                      <div class="mb-0 mt-3" data-auth-user-password-current>
+                        <label class="form-label small mb-1">Текущий пароль</label>
+                        <div class="input-group input-group-sm">
+                          <input type="password" class="form-control" data-auth-user-password-display value="••••••••" readonly>
+                          <button type="button" class="btn btn-outline-secondary" data-auth-user-password-toggle data-action="toggle-password">Показать</button>
+                        </div>
+                        <div class="form-text">Пароль доступен при наличии прав.</div>
+                      </div>
+                      <div class="mt-3 d-none" data-auth-user-password-create>
+                        <div class="row g-3">
+                          <div class="col-md-6">
+                            <label class="form-label small mb-1" for="authUserModalPassword">Пароль</label>
+                            <input type="password" class="form-control form-control-sm" id="authUserModalPassword" name="password" autocomplete="off" placeholder="Придумайте пароль">
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label small mb-1" for="authUserModalPasswordConfirm">Повторите пароль</label>
+                            <input
+                              type="password"
+                              class="form-control form-control-sm"
+                              id="authUserModalPasswordConfirm"
+                              autocomplete="off"
+                              placeholder="Введите пароль повторно"
+                              data-auth-user-password-confirm
+                            >
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small mb-1" for="authUserModalRegistration">Дата регистрации</label>
+                    <div class="row g-2 align-items-center flex-wrap">
+                      <div class="col-auto">
+                        <input type="text" class="form-control form-control-sm auth-user-registration-input" id="authUserModalRegistration" data-auth-user-registration readonly>
+                      </div>
+                      <div class="col-auto text-muted small auth-user-registration-relative" data-auth-user-registration-relative>—</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <div class="small text-muted me-auto d-none" role="status" aria-live="polite" data-auth-user-save-status></div>
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отменить</button>
+              <button type="submit" class="btn btn-primary" data-auth-user-submit>Сохранить</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--compact" id="authUserPasswordModal" tabindex="-1" aria-hidden="true" data-auth-user-password-modal>
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form data-auth-user-password-form>
+            <div class="modal-header">
+              <h5 class="modal-title">Смена пароля</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <div class="alert alert-danger d-none" role="alert" data-auth-user-password-error></div>
+              <div class="mb-3">
+                <label class="form-label small mb-1" for="authUserPasswordNew">Новый пароль</label>
+                <input type="password" class="form-control" id="authUserPasswordNew" autocomplete="off" data-auth-user-password-new placeholder="Введите новый пароль">
+              </div>
+              <div class="mb-3">
+                <label class="form-label small mb-1" for="authUserPasswordConfirmNew">Повторите пароль</label>
+                <input type="password" class="form-control" id="authUserPasswordConfirmNew" autocomplete="off" data-auth-user-password-confirm-new placeholder="Повторите пароль ещё раз">
+              </div>
+              <p class="small text-muted mb-0">Пароль должен соответствовать корпоративной политике безопасности.</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+              <button type="submit" class="btn btn-primary" data-auth-user-password-submit>Сохранить</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade settings-child-modal" id="authUserPhotoPreviewModal" tabindex="-1" aria-hidden="true" data-auth-user-photo-viewer-modal>
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-dark text-white auth-user-photo-preview-modal">
+          <div class="modal-header border-0">
+            <h5 class="modal-title">Фото пользователя</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body text-center">
+            <img src="" alt="Фото пользователя" class="img-fluid rounded shadow" data-auth-user-photo-viewer-img loading="lazy">
+          </div>
+          <div class="modal-footer border-0 justify-content-center">
+            <a href="#" class="btn btn-outline-light btn-sm" download data-auth-user-photo-download>Скачать фото</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--medium" id="orgMembersModal" tabindex="-1" aria-hidden="true" data-org-members-modal>
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <form data-org-members-form>
+            <div class="modal-header">
+              <h5 class="modal-title" data-org-members-title>Состав ветки</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <div class="text-muted small" data-org-members-description></div>
+              </div>
+              <div class="org-members-list" data-org-members-list></div>
+              <div class="alert alert-info small d-none mt-3" data-org-members-empty>Нет доступных пользователей.</div>
+            </div>
+            <div class="modal-footer justify-content-end">
+              <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div></th:block>
