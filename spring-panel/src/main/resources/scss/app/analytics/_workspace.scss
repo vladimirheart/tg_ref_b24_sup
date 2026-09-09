@@ -1,0 +1,252 @@
+/* Analytics workspace */
+
+[data-ui-page='analytics'] .main-content {
+    background: var(--surface-page);
+    color: var(--color-text);
+}
+
+[data-ui-page='analytics'] .page-shell {
+    max-width: 1600px;
+}
+
+[data-ui-page='analytics'] .analytics-page-header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+[data-ui-page='analytics'] .analytics-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+[data-ui-page='analytics'] .analytics-section-card {
+    overflow: hidden;
+
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-xl) !important;
+
+    background: var(--surface-card) !important;
+
+    box-shadow: none !important;
+}
+
+[data-ui-page='analytics'] .analytics-section-header {
+    padding: 0.9rem 1rem;
+
+    border-bottom: 1px solid var(--color-border);
+
+    background: var(--surface-raised) !important;
+    color: var(--color-text);
+}
+
+[data-ui-page='analytics'] .analytics-metric-card {
+    min-width: 0;
+    padding: 0.75rem 0.8rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+}
+
+[data-ui-page='analytics'] .analytics-metric-card .text-muted {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+}
+
+[data-ui-page='analytics'] .analytics-metric-card .h5 {
+    margin-top: 0.2rem;
+
+    color: var(--color-text);
+
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+[data-ui-page='analytics'] .analytics-table-shell {
+    overflow-x: auto;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-card);
+}
+
+[data-ui-page='analytics'] .analytics-scroll-area {
+    max-height: 420px;
+    overflow: auto;
+}
+
+[data-ui-page='analytics'] .analytics-table-shell .table {
+    margin-bottom: 0;
+
+    --bs-table-bg: var(--surface-card);
+    --bs-table-color: var(--color-text);
+    --bs-table-border-color: var(--color-border);
+}
+
+[data-ui-page='analytics'] .analytics-table-shell thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+
+    background: var(--surface-raised) !important;
+    color: var(--color-text-muted) !important;
+
+    border-bottom: 1px solid var(--color-border);
+
+    font-weight: 700;
+}
+
+[data-ui-page='analytics'] .text-success {
+    color: var(--state-success-text) !important;
+}
+
+[data-ui-page='analytics'] .text-warning {
+    color: var(--state-warning-text) !important;
+}
+
+[data-ui-page='analytics'] .text-danger {
+    color: var(--state-danger-text) !important;
+}
+
+@media (max-width: 991.98px) {
+    [data-ui-page='analytics'] .analytics-page-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    [data-ui-page='analytics'] .analytics-page-actions {
+        width: 100%;
+    }
+
+    [data-ui-page='analytics'] .analytics-bridge-body {
+        grid-template-columns: 1fr;
+    }
+
+    [data-ui-page='analytics'] .analytics-bridge-actions {
+        justify-content: flex-start;
+    }
+
+    [data-ui-page='analytics'] .analytics-filter-bar {
+        width: 100%;
+    }
+
+    [data-ui-page='analytics'] .analytics-control-sm,
+    [data-ui-page='analytics'] .analytics-control-md,
+    [data-ui-page='analytics'] .analytics-control-lg {
+        max-width: none;
+    }
+}
+/* Analytics controls */
+
+[data-ui-page='analytics'] .analytics-control-auto {
+    width: auto;
+}
+
+[data-ui-page='analytics'] .analytics-control-sm {
+    max-width: 210px;
+}
+
+[data-ui-page='analytics'] .analytics-control-md {
+    max-width: 220px;
+}
+
+[data-ui-page='analytics'] .analytics-control-lg {
+    max-width: 230px;
+}
+/* Analytics semantic badges */
+
+[data-ui-page='analytics'] .badge.text-bg-light {
+    border: 1px solid var(--color-border);
+
+    background: var(--surface-raised) !important;
+    color: var(--color-text-muted) !important;
+}
+
+[data-ui-page='analytics'] .badge.text-bg-secondary {
+    border: 1px solid var(--color-border);
+
+    background: var(--color-bg-muted) !important;
+    color: var(--color-text-muted) !important;
+}
+
+[data-ui-page='analytics'] .badge.text-bg-primary {
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--primary) 30%,
+            var(--color-border)
+        );
+
+    background: var(--surface-selected) !important;
+    color: var(--primary) !important;
+}
+
+[data-ui-page='analytics'] .badge.text-bg-success {
+    border: 1px solid var(--state-success-border);
+
+    background: var(--state-success-bg) !important;
+    color: var(--state-success-text) !important;
+}
+
+[data-ui-page='analytics'] .badge.text-bg-warning {
+    border: 1px solid var(--state-warning-border);
+
+    background: var(--state-warning-bg) !important;
+    color: var(--state-warning-text) !important;
+}
+
+[data-ui-page='analytics'] .badge.text-bg-danger {
+    border: 1px solid var(--state-danger-border);
+
+    background: var(--state-danger-bg) !important;
+    color: var(--state-danger-text) !important;
+}
+[data-ui-page='analytics'] .analytics-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+
+    padding: 0.65rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+}
+
+[data-ui-page='analytics'] .analytics-filter-bar .form-control,
+[data-ui-page='analytics'] .analytics-filter-bar .form-select {
+    background: var(--surface-card);
+}
+[data-ui-page='analytics'] .analytics-bridge-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+[data-ui-page='analytics'] .analytics-bridge-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+[data-ui-page='analytics'] .analytics-section-card > .card-header {
+    border-bottom: 1px solid var(--color-border);
+
+    background: var(--surface-raised);
+    color: var(--color-text);
+}
+
+[data-ui-page='analytics'] .analytics-section-card > .card-body {
+    background: var(--surface-card);
+}
