@@ -15,11 +15,13 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
     }
 
     @Test
-    void equipmentPhotoWorkspaceSupportsLargerPreviewsMiniAddFullEditAndStackSafeEscape() throws Exception {
+    void equipmentPhotoWorkspaceSupportsAcceptanceFixesAndRetainsR46Integrity() throws Exception {
         String template = read("src/main/resources/templates/settings/index.html");
         String runtime = read("src/main/resources/static/js/settings-it-equipment-runtime.js");
         String shell = read("src/main/resources/static/js/settings-page-shell.js");
         String scss = read("src/main/resources/scss/settings/_foundation.scss");
+        String equipmentService = read("src/main/java/com/example/panel/service/SettingsItEquipmentService.java");
+        String photoService = read("src/main/java/com/example/panel/service/SettingsItEquipmentPhotoService.java");
 
         assertThat(template)
                 .contains("data-it-equipment-photo-tab")
@@ -28,12 +30,19 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("id=\"itEquipmentPhotoAddModal\"")
                 .contains("id=\"itEquipmentPhotoViewerModal\"")
                 .contains("id=\"itEquipmentPhotoEditModal\"")
-                .contains("data-it-equipment-photo-edit-file")
                 .contains("id=\"itEquipmentPhotoConfirmModal\"")
                 .contains("data-settings-suspend-parent=\"itEquipmentAddModal\"")
-                .contains("settings.css?v=20260909-01-259-r4-6")
-                .contains("settings-it-equipment-runtime.js?v=20260909-01-259-r4-6")
-                .contains("settings-page-shell.js?v=20260909-01-259-r4-6");
+                .contains("data-it-equipment-photo-info")
+                .contains("data-it-equipment-photo-add-file-open")
+                .contains("data-it-equipment-photo-add-paste")
+                .contains("data-it-equipment-photo-edit-file-open")
+                .contains("data-it-equipment-photo-edit-paste")
+                .contains("class=\"visually-hidden\" id=\"itEquipmentPhotoAddFile\"")
+                .contains("class=\"visually-hidden\" id=\"itEquipmentPhotoEditFile\"")
+                .contains("settings.css?v=20260909-01-259-r4-7")
+                .contains("settings-it-equipment-runtime.js?v=20260909-01-259-r4-7")
+                .contains("settings-page-shell.js?v=20260909-01-259-r4-6")
+                .doesNotContain("<div class=\"small text-muted\">Фото сохраняются сразу. Нажмите на превью для просмотра.</div>");
 
         assertThat(runtime)
                 .contains("function openPhotoAddModal()")
@@ -45,8 +54,23 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("async function replaceEquipmentPhoto(")
                 .contains("/replace")
                 .contains("it-equipment-photo-thumb__comment")
+                .contains("function handlePhotoPaste(")
+                .contains("navigator.clipboard.read")
+                .contains("selectedPhotoFile('add')")
+                .contains("selectedPhotoFile('edit')")
+                .contains("payload.photo_url = formatEquipmentLinksPayload(links)")
+                .contains("JSON.stringify(links) !== JSON.stringify(existingLinks)")
                 .doesNotContain("target=\"_blank\" rel=\"noopener\" aria-label=\"Открыть фото\"")
-                .doesNotContain("confirmAction('Удалить это фото оборудования?')");
+                .doesNotContain("confirmAction('Удалить это фото оборудования?')")
+                .doesNotContain("? 'Фото сохраняются сразу. Для каждого фото обязательны тип и описание.'");
+
+        assertThat(equipmentService)
+                .contains("photoService.updateLinksPreservingPhotos(itemId, pendingLinks)")
+                .doesNotContain("@Transactional\n    public Map<String, Object> updateItEquipment");
+
+        assertThat(photoService)
+                .contains("@Transactional\n    public Map<String, Object> updateLinksPreservingPhotos")
+                .contains("FOR UPDATE");
 
         assertThat(shell)
                 .contains("function getSettingsTopVisibleModal()")
@@ -61,6 +85,9 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("width: 120px;")
                 .contains("height: 90px;")
                 .contains("#itEquipmentPhotoEditModal .it-equipment-photo-edit-preview")
-                .contains("#itEquipmentPhotoViewerModal .it-equipment-photo-viewer-frame");
+                .contains("#itEquipmentPhotoViewerModal .it-equipment-photo-viewer-frame")
+                .contains("/* Equipment photo UX polish — 01-259 r4.7 */")
+                .contains("it-equipment-photo-file-picker")
+                .contains("it-equipment-photo-file-action");
     }
 }

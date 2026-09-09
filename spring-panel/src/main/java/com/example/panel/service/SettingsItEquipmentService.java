@@ -2,7 +2,6 @@ package com.example.panel.service;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.sql.ResultSet;
@@ -77,7 +76,6 @@ public class SettingsItEquipmentService {
         return Map.of("success", true, "items", loadItemsWithDiscovered());
     }
 
-    @Transactional
     public Map<String, Object> updateItEquipment(long itemId, Map<String, Object> payload, String actor) {
         StringBuilder updates = new StringBuilder();
         List<Object> params = new ArrayList<>();

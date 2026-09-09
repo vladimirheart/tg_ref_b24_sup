@@ -82,3 +82,12 @@
 - added a settings-wide topmost Escape guard for nested Bootstrap modals so Esc closes only the highest visible modal;
 - cache-busted settings CSS, equipment runtime, and settings-page-shell for the r4.6 browser contract;
 - no database schema migration, data backfill, NetBox mutation or ownership-contract change is included.
+
+## R4.7 production acceptance fixes
+
+- narrowed the main equipment save transaction boundary so best-effort notification/discovery reads cannot poison the media/catalog write transaction; photo media mutations remain row-locked and transactional;
+- omitted no-op photo_url updates from ordinary card saves when links are unchanged;
+- moved persistent photo workflow notes into an info popover;
+- replaced native file controls with icon actions and added clipboard image paste for add/replace flows;
+- retained all r4.6 media integrity and nested-modal Escape behavior;
+- no database schema migration, backfill, NetBox mutation, or ownership-contract change is included.

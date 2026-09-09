@@ -13,6 +13,8 @@
       photoViewerIndex: 0,
       photoEditId: null,
       photoConfirmResolver: null,
+      photoAddFile: null,
+      photoEditFile: null,
     };
 
     const elements = {
@@ -76,6 +78,9 @@
     const photoUi = {
       addModalEl: document.getElementById('itEquipmentPhotoAddModal'),
       addFile: document.querySelector('[data-it-equipment-photo-add-file]'),
+      addFileOpen: document.querySelector('[data-it-equipment-photo-add-file-open]'),
+      addPaste: document.querySelector('[data-it-equipment-photo-add-paste]'),
+      addFileName: document.querySelector('[data-it-equipment-photo-add-file-name]'),
       addCategory: document.querySelector('[data-it-equipment-photo-add-category]'),
       addComment: document.querySelector('[data-it-equipment-photo-add-comment]'),
       addSave: document.querySelector('[data-it-equipment-photo-add-save]'),
@@ -89,6 +94,9 @@
       editModalEl: document.getElementById('itEquipmentPhotoEditModal'),
       editPreview: document.querySelector('[data-it-equipment-photo-edit-preview]'),
       editFile: document.querySelector('[data-it-equipment-photo-edit-file]'),
+      editFileOpen: document.querySelector('[data-it-equipment-photo-edit-file-open]'),
+      editPaste: document.querySelector('[data-it-equipment-photo-edit-paste]'),
+      editFileName: document.querySelector('[data-it-equipment-photo-edit-file-name]'),
       editCategory: document.querySelector('[data-it-equipment-photo-edit-category]'),
       editComment: document.querySelector('[data-it-equipment-photo-edit-comment]'),
       editSave: document.querySelector('[data-it-equipment-photo-edit-save]'),
@@ -96,6 +104,7 @@
       confirmTitle: document.querySelector('[data-it-equipment-photo-confirm-title]'),
       confirmMessage: document.querySelector('[data-it-equipment-photo-confirm-message]'),
       confirmButton: document.querySelector('[data-it-equipment-photo-confirm-accept]'),
+      infoButton: document.querySelector('[data-it-equipment-photo-info]'),
     };
 
     function getParameterData() {
@@ -504,9 +513,13 @@
       }
       if (addModal.photoTabCount) addModal.photoTabCount.textContent = String(photos.length);
       if (addModal.photoHint) {
-        addModal.photoHint.textContent = editing
-          ? 'Фото сохраняются сразу. Для каждого фото обязательны тип и описание.'
-          : 'Сначала сохраните модель оборудования, затем откройте её снова и добавьте фотографии.';
+        if (editing) {
+          addModal.photoHint.textContent = '';
+          addModal.photoHint.classList.add('d-none');
+        } else {
+          addModal.photoHint.textContent = 'Сначала сохраните модель оборудования, затем откройте её снова и добавьте фотографии.';
+          addModal.photoHint.classList.remove('d-none');
+        }
       }
     }
 
@@ -587,8 +600,74 @@
       return data || {};
     }
 
+    function normalizePhotoFile(file, fallbackPrefix = 'clipboard') {
+      if (!(file instanceof Blob) || !String(file.type || '').toLowerCase().startsWith('image/')) {
+        return null;
+      }
+      if (file instanceof File && file.name) {
+        return file;
+      }
+      const mime = String(file.type || 'image/png').toLowerCase();
+      const extension = mime.includes('jpeg') ? 'jpg' : (mime.split('/')[1] || 'png').replace(/[^a-z0-9]+/g, '') || 'png';
+      return new File([file], `${fallbackPrefix}-${Date.now()}.${extension}`, { type: mime, lastModified: Date.now() });
+    }
+
+    function setPhotoSelectedFile(kind, rawFile) {
+      const file = normalizePhotoFile(rawFile, kind === 'edit' ? 'clipboard-replace' : 'clipboard-photo');
+      const isEdit = kind === 'edit';
+      if (isEdit) state.photoEditFile = file;
+      else state.photoAddFile = file;
+      const label = isEdit ? photoUi.editFileName : photoUi.addFileName;
+      if (label) label.textContent = file ? file.name : 'Файл не выбран';
+      return file;
+    }
+
+    function selectedPhotoFile(kind) {
+      const isEdit = kind === 'edit';
+      const stateFile = isEdit ? state.photoEditFile : state.photoAddFile;
+      if (stateFile) return stateFile;
+      const input = isEdit ? photoUi.editFile : photoUi.addFile;
+      const file = input && input.files ? input.files[0] : null;
+      return file ? normalizePhotoFile(file, isEdit ? 'replace-photo' : 'photo') : null;
+    }
+
+    function imageFileFromPasteEvent(event) {
+      const items = Array.from((event && event.clipboardData && event.clipboardData.items) || []);
+      const imageItem = items.find((item) => item && item.kind === 'file' && String(item.type || '').toLowerCase().startsWith('image/'));
+      return imageItem && typeof imageItem.getAsFile === 'function' ? imageItem.getAsFile() : null;
+    }
+
+    function handlePhotoPaste(kind, event) {
+      const file = imageFileFromPasteEvent(event);
+      if (!file) return false;
+      event.preventDefault();
+      setPhotoSelectedFile(kind, file);
+      return true;
+    }
+
+    async function pastePhotoFromClipboard(kind) {
+      if (!(navigator.clipboard && typeof navigator.clipboard.read === 'function')) {
+        popup('Нажмите Ctrl+V в этом окне, чтобы вставить изображение из буфера');
+        return;
+      }
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const type = Array.from(item.types || []).find((entry) => String(entry || '').toLowerCase().startsWith('image/'));
+          if (!type) continue;
+          const blob = await item.getType(type);
+          if (setPhotoSelectedFile(kind, blob)) return;
+        }
+        popup('В буфере обмена нет изображения');
+      } catch (error) {
+        popup('Нажмите Ctrl+V в этом окне, чтобы вставить изображение из буфера');
+      }
+    }
+
     function resetPhotoAddModal() {
+      state.photoAddFile = null;
       if (photoUi.addFile) photoUi.addFile.value = '';
+      if (photoUi.addFileName) photoUi.addFileName.textContent = 'Файл не выбран';
       if (photoUi.addComment) photoUi.addComment.value = '';
       if (photoUi.addCategory) photoUi.addCategory.value = existingTitlePhoto() ? 'general' : 'title';
     }
@@ -623,7 +702,7 @@
     async function uploadEquipmentPhoto() {
       const id = Number.parseInt(state.editingId, 10);
       if (!Number.isFinite(id)) { popup('Сначала сохраните модель оборудования'); return; }
-      const file = photoUi.addFile && photoUi.addFile.files ? photoUi.addFile.files[0] : null;
+      const file = selectedPhotoFile('add');
       const category = photoUi.addCategory ? photoUi.addCategory.value.trim() : '';
       const comment = photoUi.addComment ? photoUi.addComment.value.trim() : '';
       if (!file) { popup('Выберите фото'); return; }
@@ -700,7 +779,9 @@
         photoUi.editPreview.src = String(photo.url || '').trim();
         photoUi.editPreview.alt = String((photo.comment || photo.caption) || '').trim() || photoCategoryLabel(photo);
       }
+      state.photoEditFile = null;
       if (photoUi.editFile) photoUi.editFile.value = '';
+      if (photoUi.editFileName) photoUi.editFileName.textContent = 'Файл не выбран';
       if (photoUi.editCategory) photoUi.editCategory.value = normalize(photo.category) === 'title' ? 'title' : 'general';
       if (photoUi.editComment) photoUi.editComment.value = String((photo.comment || photo.caption) || '').trim();
       window.bootstrap.Modal.getOrCreateInstance(photoUi.editModalEl).show();
@@ -739,7 +820,7 @@
       const id = Number.parseInt(state.editingId, 10);
       const photoId = String(state.photoEditId || '').trim();
       if (!Number.isFinite(id) || !photoId) return;
-      const file = photoUi.editFile && photoUi.editFile.files ? photoUi.editFile.files[0] : null;
+      const file = selectedPhotoFile('edit');
       const category = photoUi.editCategory ? photoUi.editCategory.value.trim() : '';
       const comment = photoUi.editComment ? photoUi.editComment.value.trim() : '';
       if (!category) { popup('Укажите тип фото'); return; }
@@ -765,7 +846,9 @@
         if (data.success === false) throw new Error(data.error || 'Ошибка сохранения фото');
         updateLocalEquipmentMedia(id, data.photo_url || '');
         state.photoEditId = null;
+        state.photoEditFile = null;
         if (photoUi.editFile) photoUi.editFile.value = '';
+        if (photoUi.editFileName) photoUi.editFileName.textContent = 'Файл не выбран';
         window.bootstrap.Modal.getOrCreateInstance(photoUi.editModalEl).hide();
       } catch (error) {
         popup('❌ ' + (error && error.message ? error.message : error));
@@ -864,14 +947,20 @@
     }
 
     function collectModalPayload() {
-      return {
+      const payload = {
         equipment_type: addModal.typeSelect && !addModal.typeSelect.disabled ? addModal.typeSelect.value.trim() : '',
         equipment_vendor: addModal.vendorSelect && !addModal.vendorSelect.disabled ? addModal.vendorSelect.value.trim() : '',
         equipment_model: addModal.modelSelect && !addModal.modelSelect.disabled ? addModal.modelSelect.value.trim() : '',
         serial_number: addModal.serialNumberInput ? addModal.serialNumberInput.value.trim() : '',
         accessories: addModal.accessoriesInput ? addModal.accessoriesInput.value.trim() : '',
-        photo_url: formatEquipmentLinksPayload(collectEquipmentLinks(addModal.linksContainer)),
       };
+      const links = collectEquipmentLinks(addModal.linksContainer);
+      const editingItem = currentEditingItem();
+      const existingLinks = editingItem ? parseEquipmentLinks(editingItem.photo_url) : [];
+      if (!editingItem || JSON.stringify(links) !== JSON.stringify(existingLinks)) {
+        payload.photo_url = formatEquipmentLinksPayload(links);
+      }
+      return payload;
     }
 
     async function deleteItem(item) {
@@ -1054,7 +1143,13 @@
       });
       if (addModal.form) addModal.form.addEventListener('submit', handleAddFormSubmit);
       if (photoUi.addSave) photoUi.addSave.addEventListener('click', () => uploadEquipmentPhoto().catch((error) => popup('❌ ' + error)));
-      if (photoUi.addModalEl) photoUi.addModalEl.addEventListener('hidden.bs.modal', resetPhotoAddModal);
+      if (photoUi.addFileOpen) photoUi.addFileOpen.addEventListener('click', () => photoUi.addFile?.click());
+      if (photoUi.addFile) photoUi.addFile.addEventListener('change', () => setPhotoSelectedFile('add', photoUi.addFile.files ? photoUi.addFile.files[0] : null));
+      if (photoUi.addPaste) photoUi.addPaste.addEventListener('click', () => pastePhotoFromClipboard('add'));
+      if (photoUi.addModalEl) {
+        photoUi.addModalEl.addEventListener('paste', (event) => handlePhotoPaste('add', event));
+        photoUi.addModalEl.addEventListener('hidden.bs.modal', resetPhotoAddModal);
+      }
       if (photoUi.viewerPrev) photoUi.viewerPrev.addEventListener('click', () => movePhotoViewer(-1));
       if (photoUi.viewerNext) photoUi.viewerNext.addEventListener('click', () => movePhotoViewer(1));
       if (photoUi.viewerModalEl) {
@@ -1064,10 +1159,16 @@
         });
       }
       if (photoUi.editSave) photoUi.editSave.addEventListener('click', () => saveEquipmentPhotoEdit().catch((error) => popup('❌ ' + error)));
+      if (photoUi.editFileOpen) photoUi.editFileOpen.addEventListener('click', () => photoUi.editFile?.click());
+      if (photoUi.editFile) photoUi.editFile.addEventListener('change', () => setPhotoSelectedFile('edit', photoUi.editFile.files ? photoUi.editFile.files[0] : null));
+      if (photoUi.editPaste) photoUi.editPaste.addEventListener('click', () => pastePhotoFromClipboard('edit'));
       if (photoUi.editModalEl) {
+        photoUi.editModalEl.addEventListener('paste', (event) => handlePhotoPaste('edit', event));
         photoUi.editModalEl.addEventListener('hidden.bs.modal', () => {
           state.photoEditId = null;
+          state.photoEditFile = null;
           if (photoUi.editFile) photoUi.editFile.value = '';
+          if (photoUi.editFileName) photoUi.editFileName.textContent = 'Файл не выбран';
         });
       }
       if (photoUi.confirmButton) {
@@ -1077,6 +1178,9 @@
         });
       }
       if (photoUi.confirmModalEl) photoUi.confirmModalEl.addEventListener('hidden.bs.modal', () => resolvePhotoConfirm(false));
+      if (photoUi.infoButton && window.bootstrap && window.bootstrap.Popover) {
+        window.bootstrap.Popover.getOrCreateInstance(photoUi.infoButton, { container: 'body', trigger: 'focus' });
+      }
       if (elements.itEquipmentAddModalEl) {
         elements.itEquipmentAddModalEl.addEventListener('hidden.bs.modal', () => {
           state.editingId = null;

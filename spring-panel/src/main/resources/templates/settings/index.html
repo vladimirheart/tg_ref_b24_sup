@@ -11,7 +11,7 @@
   <link href="/css/style.css" rel="stylesheet" />
   <link href="/css/app.css" rel="stylesheet" />
   <link href="/css/sidebar.css" rel="stylesheet" />
-  <link href="/css/settings.css?v=20260909-01-259-r4-6" rel="stylesheet" />
+  <link href="/css/settings.css?v=20260909-01-259-r4-7" rel="stylesheet" />
   <script src="/js/common.js"></script>
 
   
@@ -3671,9 +3671,11 @@
                 <section class="tab-pane fade" id="itEquipmentPhotoPane" role="tabpanel" aria-labelledby="itEquipmentPhotoTab" data-it-equipment-photo-pane>
                   <div class="it-equipment-photo-manager" data-it-equipment-photo-section>
                     <div class="it-equipment-photo-manager__head">
-                      <div>
-                        <h6 class="mb-1">Фотографии модели</h6>
-                        <div class="small text-muted">Фото сохраняются сразу. Нажмите на превью для просмотра.</div>
+                      <div class="d-flex align-items-center gap-2">
+                        <h6 class="mb-0">Фотографии модели</h6>
+                        <button class="it-equipment-photo-info" type="button" data-it-equipment-photo-info data-bs-toggle="popover" data-bs-placement="right" data-bs-content="Фото сохраняются сразу, отдельно от кнопки сохранения карточки. Нажмите на превью для просмотра. Для каждого фото обязательны тип и описание." aria-label="Информация о фотографиях" title="О фотографиях">
+                          <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
                       </div>
                       <button class="it-equipment-photo-add-button" type="button" data-it-equipment-photo-add-open aria-label="Добавить фото" title="Добавить фото" disabled>
                         <i class="bi bi-plus-lg" aria-hidden="true"></i>
@@ -3703,8 +3705,18 @@
           </div>
           <div class="modal-body">
             <div class="mb-3">
-              <label class="form-label" for="itEquipmentPhotoAddFile">Файл</label>
-              <input class="form-control" id="itEquipmentPhotoAddFile" type="file" accept="image/*" data-it-equipment-photo-add-file>
+              <label class="form-label">Файл</label>
+              <div class="it-equipment-photo-file-picker">
+                <input class="visually-hidden" id="itEquipmentPhotoAddFile" type="file" accept="image/*" data-it-equipment-photo-add-file>
+                <button class="it-equipment-photo-file-action" type="button" data-it-equipment-photo-add-file-open aria-label="Выбрать изображение" title="Выбрать изображение">
+                  <i class="bi bi-image" aria-hidden="true"></i>
+                </button>
+                <button class="it-equipment-photo-file-action" type="button" data-it-equipment-photo-add-paste aria-label="Вставить изображение из буфера" title="Вставить из буфера">
+                  <i class="bi bi-clipboard" aria-hidden="true"></i>
+                </button>
+                <span class="it-equipment-photo-file-name" data-it-equipment-photo-add-file-name>Файл не выбран</span>
+              </div>
+              <div class="form-text">Можно выбрать изображение или вставить его из буфера через Ctrl+V.</div>
             </div>
             <div class="mb-3">
               <label class="form-label" for="itEquipmentPhotoAddCategory">Тип фото</label>
@@ -3762,9 +3774,18 @@
               <img src="" alt="" data-it-equipment-photo-edit-preview>
             </div>
             <div class="mb-3">
-              <label class="form-label" for="itEquipmentPhotoEditFile">Заменить файл <span class="text-muted">(необязательно)</span></label>
-              <input class="form-control" id="itEquipmentPhotoEditFile" type="file" accept="image/*" data-it-equipment-photo-edit-file>
-              <div class="form-text">Оставьте пустым, чтобы изменить только тип или описание.</div>
+              <label class="form-label">Заменить файл <span class="text-muted">(необязательно)</span></label>
+              <div class="it-equipment-photo-file-picker">
+                <input class="visually-hidden" id="itEquipmentPhotoEditFile" type="file" accept="image/*" data-it-equipment-photo-edit-file>
+                <button class="it-equipment-photo-file-action" type="button" data-it-equipment-photo-edit-file-open aria-label="Выбрать новое изображение" title="Выбрать новое изображение">
+                  <i class="bi bi-image" aria-hidden="true"></i>
+                </button>
+                <button class="it-equipment-photo-file-action" type="button" data-it-equipment-photo-edit-paste aria-label="Вставить новое изображение из буфера" title="Вставить из буфера">
+                  <i class="bi bi-clipboard" aria-hidden="true"></i>
+                </button>
+                <span class="it-equipment-photo-file-name" data-it-equipment-photo-edit-file-name>Файл не выбран</span>
+              </div>
+              <div class="form-text">Оставьте пустым, чтобы изменить только тип или описание. Для замены можно также нажать Ctrl+V.</div>
             </div>
             <div class="mb-3">
               <label class="form-label" for="itEquipmentPhotoEditCategory">Тип фото</label>
@@ -5409,7 +5430,7 @@
     <script src="/js/settings-partner-contacts-runtime.js"></script>
     <script src="/js/settings-legal-entities-runtime.js"></script>
     <script src="/js/settings-network-profiles-runtime.js"></script>
-    <script src="/js/settings-it-equipment-runtime.js?v=20260909-01-259-r4-6"></script>
+    <script src="/js/settings-it-equipment-runtime.js?v=20260909-01-259-r4-7"></script>
     <script src="/js/settings-it-connections-runtime.js"></script>
     <script src="/js/settings-parameters-shell-runtime.js"></script>
     <script src="/js/settings-channels-bot-runtime.js"></script>
