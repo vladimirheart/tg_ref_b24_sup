@@ -1,0 +1,166 @@
+.metric-card {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--ui-panel-shadow);
+}
+
+.metric-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    box-shadow:
+    0 10px 30px
+    color-mix(
+        in srgb,
+        var(--shadow-color) 8%,
+        transparent
+    );
+}
+
+.dialog-table .client-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dialog-client-meta {
+    min-width: 0;
+}
+
+.dialog-col-question {
+    min-width: 18rem;
+}
+
+.dialog-col-current-answer,
+.dialog-col-proposed-answer {
+    min-width: 16rem;
+}
+
+.dialog-problem-cell {
+    max-width: 260px;
+}
+
+.dialog-client-meta .fw-semibold,
+.dialog-responsible-name,
+.dialog-problem-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dialog-table .dialog-avatar {
+    width: 36px;
+    height: 36px;
+
+    flex: 0 0 36px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+
+    background: var(--surface-card);
+
+    box-shadow: none;
+}
+
+.dialog-table .dialog-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.dialog-table .avatar-circle {
+    width: 100%;
+    height: 100%;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--primary) 28%,
+            var(--color-border)
+        );
+
+background:
+    linear-gradient(
+        135deg,
+        var(--primary),
+        var(--chart-4)
+    );
+    color: var(--primary);
+
+    font-weight: 700;
+}
+
+.dialog-table .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dialog-table .dot-primary {
+    background: var(--primary);
+}
+
+.dialog-table .dot-success {
+    background: var(--state-success);
+}
+
+.dialog-table tbody tr > * {
+    border-bottom-color: var(--color-border);
+
+    transition:
+        background-color 0.16s ease,
+        border-color 0.16s ease;
+}
+
+.dialog-table tbody tr.dialog-row-odd > * {
+    background: var(--surface-raised);
+}
+
+.dialog-table tbody tr.dialog-row-even > * {
+    background: var(--surface-card);
+}
+
+.dialog-table tbody tr.dialog-row-selected > * {
+    background: var(--surface-interactive);
+}
+
+.dialog-table tbody tr.dialog-row-active > * {
+    background: var(--surface-selected);
+}
+
+.dialog-table tbody tr.dialog-row-active > * {
+    border-top-color:
+        color-mix(
+            in srgb,
+            var(--primary) 24%,
+            var(--color-border)
+        );
+
+    border-bottom-color:
+        color-mix(
+            in srgb,
+            var(--primary) 24%,
+            var(--color-border)
+        );
+}
+
+.dialog-table tbody tr.dialog-row-selected.dialog-row-active > * {
+    background: var(--surface-selected);
+}

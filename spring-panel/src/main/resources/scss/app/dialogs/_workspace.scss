@@ -1,0 +1,668 @@
+.dialog-details-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dialog-details-modal-header {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dialog-details-header-copy {
+  min-width: 0;
+}
+
+.dialog-details-location {
+  margin-top: 0.25rem;
+}
+
+.dialog-details-title-row {
+  align-items: center;
+  margin-bottom: 0.2rem;
+}
+
+.dialog-details-title-row .modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.dialog-details-client-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+}
+
+.dialog-details-client-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.dialog-details-client-link:hover,
+.dialog-details-client-link:focus-visible {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.dialog-details-client-link:disabled {
+  opacity: 0.7;
+  cursor: default;
+  text-decoration: none;
+}
+
+.dialog-details-header-actions {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 0.5rem;
+
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+}
+
+.dialog-details-resolution-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+}
+
+.dialog-details-resolution-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.dialog-font-control--header {
+    justify-content: flex-end;
+    gap: 0.4rem;
+    line-height: 1;
+}
+
+.dialog-font-control--header input[type="range"] {
+    width: 108px;
+    margin: 0;
+}
+
+.dialog-details-avatar {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--primary) 28%,
+            var(--color-border)
+        );
+
+    border-radius: 50%;
+
+    background: var(--surface-interactive);
+    color: var(--primary);
+
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.dialog-details-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dialog-details-avatar-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.dialog-details-layout {
+  display: flex;
+  gap: 1rem;
+  min-height: 0;
+  flex: 1 1 auto;
+  height: 100%;
+}
+
+.dialog-details-sidebar {
+  position: relative;
+  flex: 0 0 320px;
+  min-width: 220px;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dialog-details-sidebar-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.4rem;
+  scrollbar-gutter: stable;
+}
+
+.dialog-details-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  min-height: 0;
+}
+
+.dialog-details-rail {
+  flex: 0 0 300px;
+  min-width: 240px;
+  max-width: 360px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog-details-rail-scroll {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.2rem;
+  scrollbar-gutter: stable;
+}
+
+.dialog-details-main .card {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dialog-details-main .card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dialog-details-history-card {
+    flex: 1 1 auto;
+    min-height: 0;
+
+    overflow: hidden;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-card);
+
+    box-shadow: none;
+}
+
+.dialog-details-history-card > .card-body {
+    background: var(--surface-card);
+}
+
+.dialog-details-section {
+    padding: 1rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-card);
+
+    box-shadow:
+        0 0.125rem 0.25rem
+        color-mix(
+            in srgb,
+            var(--shadow-color) 6%,
+            transparent
+        );
+}
+
+.dialog-details-disclosure {
+  padding: 0;
+  overflow: hidden;
+}
+
+.dialog-details-disclosure-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  list-style: none;
+  cursor: pointer;
+  padding: 1rem;
+}
+
+.dialog-details-disclosure-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.dialog-details-disclosure-body {
+  padding: 0 1rem 1rem;
+}
+
+.dialog-details-disclosure-caret {
+  color: var(--color-text-muted);
+  transition: transform 0.2s ease;
+}
+
+.dialog-details-disclosure[open] .dialog-details-disclosure-caret {
+  transform: rotate(180deg);
+}
+
+.dialog-my-dialogs-section + .dialog-my-dialogs-section {
+  margin-top: 0.9rem;
+}
+
+.dialog-my-dialogs-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.dialog-my-dialogs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dialog-my-dialog-item {
+  width: 100%;
+
+  border:
+    1px solid color-mix(
+      in srgb,
+      var(--primary) 16%,
+      var(--color-border)
+    );
+
+  border-radius: var(--radius-lg);
+
+  background: var(--surface-raised);
+
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.dialog-my-dialog-item:hover,
+.dialog-my-dialog-item:focus-visible {
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 42%,
+            var(--color-border)
+        );
+
+    background: var(--surface-interactive);
+
+    box-shadow: none;
+    outline: none;
+}
+
+.dialog-my-dialog-item.is-active {
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 42%,
+            var(--color-border)
+        );
+
+    background: var(--surface-selected);
+
+    box-shadow:
+        0 0 0 1px
+        color-mix(
+            in srgb,
+            var(--primary) 12%,
+            transparent
+        );
+}
+
+.dialog-my-dialog-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.dialog-my-dialog-item-title {
+  font-weight: 700;
+  color: var(--color-text);
+  min-width: 0;
+}
+
+.dialog-my-dialog-item-meta,
+.dialog-my-dialog-item-last {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+.dialog-my-dialog-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.dialog-details-main-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.dialog-details-composer {
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.75rem;
+}
+
+.dialog-composer-input {
+    align-items: stretch;
+}
+
+.dialog-composer-textarea textarea {
+    min-height: 72px;
+}
+
+.dialog-composer-input > .btn-primary {
+    min-width: 112px;
+    align-self: stretch;
+
+    box-shadow: none;
+}
+
+.dialog-details-composer textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.dialog-font-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.dialog-font-control input[type="range"] {
+  width: 120px;
+}
+
+#dialogDetailsModal .modal-dialog {
+  resize: both;
+  overflow: hidden;
+  min-width: 640px;
+  min-height: 420px;
+  max-width: 95vw;
+  max-height: calc(100dvh - 2rem);
+  height: calc(100dvh - 2rem);
+}
+
+#dialogDetailsModal .modal-content {
+    height: 100%;
+
+    overflow: hidden;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+
+    background: var(--surface-page);
+
+    box-shadow:
+        0 24px 64px
+        color-mix(
+            in srgb,
+            var(--shadow-color) 18%,
+            transparent
+        );
+}
+
+#dialogDetailsModal .modal-header {
+    flex: 0 0 auto;
+
+    border-bottom: 1px solid var(--color-border);
+
+    background: var(--surface-card);
+}
+
+#dialogDetailsModal .modal-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+
+    min-height: 0;
+    overflow: hidden;
+
+    padding: 1rem;
+
+    background: var(--surface-page);
+}
+
+#dialogDetailsModal .chat-history {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+  scrollbar-gutter: stable;
+}
+
+#dialogDetailsHistory .chat-message-row {
+  gap: 0.5rem;
+}
+
+#dialogDetailsHistory .chat-message-row + .chat-message-row {
+  margin-top: 0.35rem;
+}
+
+#dialogDetailsHistory .chat-message-avatar {
+  width: 2rem;
+  height: 2rem;
+  flex-basis: 2rem;
+}
+
+#dialogDetailsHistory .chat-message-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: min(88%, 60rem);
+}
+
+#dialogDetailsHistory .chat-message-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.45rem;
+  padding: 0 0.15rem 0.18rem;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+#dialogDetailsHistory .chat-message-meta-sender {
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+#dialogDetailsHistory .chat-message-meta-time {
+  color: var(--color-text-muted);
+}
+
+#dialogDetailsHistory .chat-message-meta-badge {
+  margin-right: 0;
+}
+
+#dialogDetailsHistory .chat-message {
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+  margin-bottom: 0;
+  padding: 0.52rem 0.72rem;
+}
+
+#dialogDetailsHistory .chat-message-stack > .small.text-muted {
+  margin-top: 0.18rem !important;
+  margin-bottom: 0 !important;
+  padding-inline: 0.15rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.dialog-details-problem {
+    padding: 0.75rem;
+
+    border:
+        1px solid color-mix(
+            in srgb,
+            var(--primary) 22%,
+            var(--color-border)
+        );
+
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius-md);
+
+    background: var(--surface-interactive);
+
+    color: var(--color-text);
+
+    font-size: 0.95rem;
+    word-break: break-word;
+}
+
+.dialog-details-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 16px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.dialog-details-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 10%;
+  left: 7px;
+  width: 2px;
+  height: 80%;
+  background:
+  color-mix(
+    in srgb,
+    var(--primary) 28%,
+    transparent
+  );
+  border-radius: 2px;
+}
+
+.dialog-metric-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+
+    padding: 0.45rem 0.55rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+
+    background: var(--surface-raised);
+}
+
+.dialog-metric-item span:last-child {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.dialog-time-metric-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+@media (max-width: 991.98px) {
+  .dialog-details-modal-header {
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .dialog-details-header {
+    align-items: flex-start;
+  }
+
+  .dialog-details-header-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .dialog-details-main-actions {
+    justify-content: flex-end;
+  }
+
+  .dialog-details-layout {
+    flex-direction: column;
+  }
+
+  .dialog-details-sidebar {
+    flex: 1 1 auto;
+    max-width: none;
+    overflow: visible;
+  }
+
+  .dialog-details-rail {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .dialog-details-sidebar-scroll {
+    height: auto;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .dialog-details-rail-scroll {
+    height: auto;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .dialog-details-resize-handle {
+    display: none;
+  }
+
+  .chat-message {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .workspace-message-item {
+    width: 100%;
+    max-width: 100%;
+  }
+}

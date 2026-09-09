@@ -1,0 +1,147 @@
+.dialog-composer-tools {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.dialog-composer-input {
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+.dialog-composer-textarea {
+    position: relative;
+    flex: 1 1 auto;
+}
+
+.dialog-composer-textarea textarea {
+    padding-right: 6.5rem;
+}
+
+.dialog-composer-overlay {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    display: flex;
+    gap: 0.4rem;
+    pointer-events: auto;
+}
+
+.dialog-template-icon {
+    border: 1px solid var(--color-border);
+    background: var(--surface-card);
+    color: var(--color-text-muted);
+
+    border-radius: 0.5rem;
+    width: 32px;
+    height: 32px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 1rem;
+    cursor: pointer;
+    position: relative;
+    opacity: 0.78;
+}
+
+.dialog-template-icon:hover,
+.dialog-template-icon:focus-visible {
+    background: var(--surface-interactive);
+
+    border-color:
+        color-mix(
+            in srgb,
+            var(--primary) 38%,
+            var(--color-border)
+        );
+
+    color: var(--primary);
+    opacity: 1;
+}
+
+.dialog-template-icon:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+}
+
+.dialog-template-icon[data-tooltip]:hover::after,
+.dialog-template-icon[data-tooltip]:focus-visible::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-ink-panel);
+    color: var(--color-on-ink);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.4rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 20;
+}
+
+.dialog-composer-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.dialog-template-panel {
+    display: none;
+
+    padding: 0.75rem;
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+
+    background: var(--surface-raised);
+}
+
+.dialog-template-panel.is-open {
+    display: block;
+}
+
+.dialog-template-panel--summary {
+    display: block;
+}
+
+.dialog-templates-dropdown {
+    position: relative;
+}
+
+.dialog-templates-toggle {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0;
+}
+
+.dialog-templates-caret {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+}
+
+.dialog-templates-menu {
+    margin-top: 0.75rem;
+    display: none;
+}
+
+.dialog-templates-dropdown.is-open .dialog-templates-menu {
+    display: block;
+}
+
+.dialog-completion-template-item {
+    border-color: var(--color-border) !important;
+    background: var(--surface-card);
+    color: var(--color-text);
+}
