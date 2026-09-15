@@ -1,0 +1,134 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="netBoxSyncSection"><div class="accordion-item">
+                <h2 class="accordion-header" id="netBoxSyncSectionHeading">
+                  <button
+                    class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#netBoxSyncSection"
+                    aria-expanded="true"
+                    aria-controls="netBoxSyncSection"
+                  >
+                    Синхронизация NetBox
+                  </button>
+                </h2>
+                <div
+                  id="netBoxSyncSection"
+                  class="accordion-collapse collapse show"
+                  aria-labelledby="netBoxSyncSectionHeading"
+                  data-bs-parent="#itSettingsAccordion"
+                >
+                  <div class="accordion-body">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                      <span class="badge text-bg-warning-subtle border border-warning-subtle text-warning-emphasis d-none" id="netBoxSyncOverwriteBadge">
+                        Первый sync полностью перепишет текущие тестовые паспорта объектов
+                      </span>
+                      <span class="text-muted small">Ручной запуск использует сохранённые настройки. Если меняли URL/токен, сначала нажмите «Сохранить настройки».</span>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-12 col-lg-7">
+                        <label class="form-label" for="netBoxSyncBaseUrl">Base URL NetBox</label>
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="netBoxSyncBaseUrl"
+                          placeholder="https://netbox.example.com"
+                        />
+                      </div>
+                      <div class="col-12 col-lg-5">
+                        <label class="form-label" for="netBoxSyncApiToken">API token</label>
+                        <input
+                          type="password"
+                          class="form-control"
+                          id="netBoxSyncApiToken"
+                          placeholder="Оставьте пустым, чтобы не менять"
+                        />
+                        <div class="form-text" id="netBoxSyncTokenHint">Токен ещё не сохранён. Укажите API token NetBox.</div>
+                      </div>
+                      <div class="col-12 col-md-4">
+                        <div class="form-check form-switch mt-md-4 pt-md-2">
+                          <input class="form-check-input" type="checkbox" id="netBoxSyncEnabled" />
+                          <label class="form-check-label" for="netBoxSyncEnabled">Включить регулярный sync</label>
+                        </div>
+                      </div>
+                      <div class="col-12 col-md-4">
+                        <label class="form-label" for="netBoxSyncInterval">Интервал, минут</label>
+                        <input
+                          type="number"
+                          min="5"
+                          max="10080"
+                          step="1"
+                          class="form-control"
+                          id="netBoxSyncInterval"
+                        />
+                      </div>
+                      <div class="col-12 col-md-3">
+                        <div class="form-check form-switch mt-md-4 pt-md-2">
+                          <input class="form-check-input" type="checkbox" id="netBoxSyncClearToken" />
+                          <label class="form-check-label" for="netBoxSyncClearToken">Удалить сохранённый token</label>
+                        </div>
+                      </div>
+                      <div class="col-12 col-md-5 d-flex align-items-end">
+                        <div class="d-flex flex-column flex-sm-row gap-2 w-100">
+                          <button class="btn btn-outline-primary flex-fill" type="button" id="netBoxSyncSaveBtn">
+                            <i class="bi bi-floppy me-1"></i>Сохранить подключение
+                          </button>
+                          <button class="btn btn-primary flex-fill" type="button" id="netBoxSyncRunBtn">
+                            <i class="bi bi-play-fill me-1"></i>Запустить sync сейчас
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="border rounded-3 p-3 mt-4 bg-body-tertiary">
+                      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-3">
+                        <div>
+                          <div class="fw-semibold">Состав синхронизации</div>
+                          <div class="small text-muted" id="netBoxSyncSiteSelectionHint">
+                            Загрузите список sites из NetBox и отметьте нужные объекты. Если ничего не выбрано, sync импортирует все доступные sites.
+                          </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                          <button class="btn btn-outline-secondary btn-sm" type="button" id="netBoxSyncLoadSitesBtn">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Загрузить sites
+                          </button>
+                          <button class="btn btn-outline-secondary btn-sm" type="button" id="netBoxSyncSelectAllSitesBtn">
+                            Выбрать все
+                          </button>
+                          <button class="btn btn-outline-secondary btn-sm" type="button" id="netBoxSyncSelectActiveSitesBtn">
+                            Выбрать Active
+                          </button>
+                          <button class="btn btn-outline-secondary btn-sm" type="button" id="netBoxSyncSelectRetiredSitesBtn">
+                            Выбрать Retired
+                          </button>
+                          <button class="btn btn-outline-secondary btn-sm" type="button" id="netBoxSyncClearSitesBtn">
+                            Снять выбор
+                          </button>
+                        </div>
+                      </div>
+                      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <span class="badge text-bg-light border" id="netBoxSyncSelectedSitesBadge">Выбрано 0 sites</span>
+                        <span class="small text-muted" id="netBoxSyncSitesState">Список sites ещё не загружен.</span>
+                      </div>
+                      <div
+                        class="border rounded-3 bg-white overflow-auto"
+                        id="netBoxSyncSiteCatalog"
+                        style="max-height: 320px; min-height: 160px;"
+                      >
+                        <div class="small text-muted p-3">Список sites ещё не загружен.</div>
+                      </div>
+                    </div>
+                    <div class="mt-4">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-semibold">Статус синхронизации</div>
+                        <div class="small text-muted">Сайты NetBox -> паспорта объектов Iguana</div>
+                      </div>
+                      <div class="progress mb-2" role="progressbar" aria-label="NetBox sync progress" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar" id="netBoxSyncProgressBar" style="width: 0%">0%</div>
+                      </div>
+                      <div class="small fw-semibold mb-2" id="netBoxSyncStatusText">Синхронизация NetBox ещё не запускалась.</div>
+                      <div class="small text-muted d-grid gap-1 mb-3" id="netBoxSyncMeta"></div>
+                      <div class="alert alert-danger d-none small mb-3" id="netBoxSyncWarnings"></div>
+                      <div class="d-none" id="netBoxSyncResult"></div>
+                    </div>
+                  </div>
+                </div>
+              </div></th:block>
