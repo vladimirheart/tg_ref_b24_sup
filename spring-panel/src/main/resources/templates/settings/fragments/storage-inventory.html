@@ -1,0 +1,65 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="storageInventoryWorkspace"><div class="modal fade settings-primary-modal settings-task-modal settings-task-modal--runner" id="storageInventoryModal" tabindex="-1" aria-labelledby="storageInventoryModalLabel" aria-hidden="true" th:if="${canRunStorageInventory}">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="storageInventoryModalLabel">Storage inventory Iguana</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-hdd-stack-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Запускает inventory-скрипт из репозитория, собирает storage roots, размеры SQLite и проверяет attachment references на path drift и missing files.</div>
+            </div>
+            <div
+              data-storage-inventory
+              data-storage-inventory-endpoint="/api/admin/storage-inventory/run"
+            >
+              <div class="row g-3 align-items-end mb-3">
+                <div class="col-sm-4 col-md-3">
+                  <label class="form-label" for="storageInventoryTopInput">Top N в summary</label>
+                  <input type="number" min="1" max="20" step="1" value="5" class="form-control" id="storageInventoryTopInput" data-storage-inventory-top>
+                </div>
+                <div class="col-sm-8 col-md-9">
+                  <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-primary" data-storage-inventory-run>
+                      <i class="bi bi-play-circle me-1" aria-hidden="true"></i>Запустить inventory
+                    </button>
+                  </div>
+                  <div class="form-text mt-2">Результат сохраняется в <code>run/storage-inventory/</code> как markdown и json snapshot, а ниже показывается raw markdown отчёта.</div>
+                </div>
+              </div>
+              <div class="alert d-none" role="alert" data-storage-inventory-feedback></div>
+              <div class="small text-muted mb-3" data-storage-inventory-meta>После первого запуска здесь появятся длительность и пути к snapshot-файлам.</div>
+              <div class="small text-muted mb-3" data-storage-inventory-last-info>После запуска здесь появится timestamp последнего inventory.</div>
+              <div class="mb-4" data-storage-inventory-summary>
+                <div class="text-muted small">Сводка появится после запуска inventory.</div>
+              </div>
+              <div class="row g-3 mb-4">
+                <div class="col-lg-6">
+                  <h6 class="mb-2">Storage roots</h6>
+                  <div class="settings-storage-inventory__root-list" data-storage-inventory-roots>
+                    <div class="text-muted small">Inventory ещё не запускался.</div>
+                  </div>
+                </div>
+                <div class="col-lg-6">
+                  <h6 class="mb-2">Сигналы риска</h6>
+                  <ul class="small mb-0 ps-3" data-storage-inventory-risks>
+                    <li class="text-muted">После запуска здесь появятся storage-риски и path drift сигналы.</li>
+                  </ul>
+                </div>
+              </div>
+              <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="mb-0">Raw markdown report</h6>
+                  <span class="text-muted small">scripts/report-iguana-storage.py</span>
+                </div>
+                <pre class="border rounded bg-body-tertiary p-3 small font-monospace settings-storage-inventory__report mb-0" data-storage-inventory-output>Отчёт пока не запускался.</pre>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+          </div>
+        </div>
+      </div>
+    </div></th:block>
