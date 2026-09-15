@@ -554,98 +554,10 @@
     <!-- Каналы (боты) -->
         <th:block th:replace="~{settings/fragments/storage-inventory :: storageInventoryWorkspace}"></th:block>
 
-    <div class="modal fade settings-primary-modal settings-task-modal settings-task-modal--reporting" id="reportingModal" tabindex="-1" aria-labelledby="reportingModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="reportingModalLabel">Конструктор автоотчётов</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-          </div>
-          <div class="modal-body">
-            <div class="settings-modal-lead" role="note">
-              <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
-              <div class="settings-modal-lead__text">Соберите шаблон автоотчёта: период, канал доставки и источники данных. Конфигурация сохраняется для выбранного бота.</div>
-            </div>
-            <div class="alert alert-info d-none" role="alert" data-reporting-feedback></div>
-            <div class="form-check form-switch mb-3">
-              <input class="form-check-input" type="checkbox" role="switch" id="reportingEnabled" data-reporting-enabled>
-              <label class="form-check-label" for="reportingEnabled">Включить автоматическую отправку</label>
-            </div>
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label" for="reportingPeriod">Период отчёта, дней</label>
-                <input type="number" min="1" class="form-control" id="reportingPeriod" data-reporting-period>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label" for="reportingFrequency">Периодичность</label>
-                <select class="form-select" id="reportingFrequency" data-reporting-frequency>
-                  <option value="daily">Ежедневно</option>
-                  <option value="weekly">Еженедельно</option>
-                  <option value="monthly">Ежемесячно</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label" for="reportingTime">Время отправки</label>
-                <input type="time" class="form-control" id="reportingTime" data-reporting-time>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label" for="reportingChannel">Группа (канал)</label>
-                <select class="form-select" id="reportingChannel" data-reporting-channel>
-                  <option value="">Подобрать автоматически</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label" for="reportingRecipientUser">Пользователь-получатель</label>
-                <input type="text" class="form-control" id="reportingRecipientUser" data-reporting-recipient-user placeholder="username или ID">
-              </div>
-              <div class="col-12">
-                <label class="form-label d-block">Источники данных отчёта</label>
-                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="reportingIncludeAppeals" data-reporting-include-appeals checked><label class="form-check-label" for="reportingIncludeAppeals">Обращения</label></div>
-                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="reportingIncludeTasks" data-reporting-include-tasks checked><label class="form-check-label" for="reportingIncludeTasks">Задачи</label></div>
-                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="reportingIncludeChanges" data-reporting-include-changes checked><label class="form-check-label" for="reportingIncludeChanges">Изменения системы</label></div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
-            <button type="button" class="btn btn-primary" data-reporting-save>Сохранить</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <th:block th:replace="~{settings/fragments/reporting-manager-bindings :: reportingWorkspace}"></th:block>
 
 
-    <div class="modal fade settings-primary-modal settings-task-modal settings-task-modal--bindings" id="managerBindingsModal" tabindex="-1" aria-labelledby="managerBindingsModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="managerBindingsModalLabel">Привязка управляющих к локациям</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-          </div>
-          <div class="modal-body">
-            <div class="settings-modal-lead" role="note">
-              <i class="bi bi-diagram-2-fill" aria-hidden="true"></i>
-              <div class="settings-modal-lead__text">Назначайте управляющих и руководителей по локациям с периодами действия, чтобы маршрутизация эскалаций была предсказуемой.</div>
-            </div>
-            <div class="alert alert-info d-none" data-manager-bindings-feedback></div>
-            <datalist id="managerBindingsLocationOptions"></datalist>
-            <datalist id="managerBindingsManagerOptions"></datalist>
-            <datalist id="managerBindingsSupervisorOptions"></datalist>
-            <div class="table-responsive">
-              <table class="table table-sm align-middle">
-                <thead><tr><th>Локация</th><th>Управляющий</th><th>Руководитель</th><th>С</th><th>По</th><th></th></tr></thead>
-                <tbody data-manager-bindings-body></tbody>
-              </table>
-            </div>
-            <button class="btn btn-outline-primary btn-sm" type="button" data-manager-bindings-add>Добавить строку</button>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
-            <button type="button" class="btn btn-primary" data-manager-bindings-save>Сохранить</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <th:block th:replace="~{settings/fragments/reporting-manager-bindings :: managerBindingsWorkspace}"></th:block>
 
     <th:block th:replace="~{settings/fragments/channels-workspace :: channelsWorkspace}"></th:block>
 
