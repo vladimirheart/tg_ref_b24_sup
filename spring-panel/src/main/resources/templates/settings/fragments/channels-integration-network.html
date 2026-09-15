@@ -1,0 +1,346 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="integrationNetworkWorkspace"><div class="accordion channels-manage-accordion" id="channelsManageAdvancedAccordion">
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="channelsProfilesHeading">
+                        <button
+                          class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#channelsProfilesCollapse"
+                          aria-expanded="false"
+                          aria-controls="channelsProfilesCollapse"
+                        >
+                          <span>
+                            <span class="fw-semibold d-block">Профили прокси и VPN</span>
+                            <span class="channels-manage-accordion__summary" data-channels-manage-summary="profiles-count">Профили не созданы</span>
+                          </span>
+                        </button>
+                      </h2>
+                      <div
+                        id="channelsProfilesCollapse"
+                        class="accordion-collapse collapse"
+                        aria-labelledby="channelsProfilesHeading"
+                        data-bs-parent="#channelsManageAdvancedAccordion"
+                      >
+                        <div class="accordion-body">
+                          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                            <div>
+                              <h5 class="card-title mb-1">Профили прокси и VPN</h5>
+                              <p class="text-muted mb-0">Создайте именованные профили маршрутизации, чтобы потом выбирать их для проекта, подсистемы ботов и отдельных интеграций.</p>
+                            </div>
+                            <div class="d-flex gap-2 flex-wrap">
+                              <button type="button" class="btn btn-outline-primary btn-sm" data-integration-network-profile-add>+ Добавить профиль</button>
+                              <button type="button" class="btn btn-outline-secondary btn-sm" data-integration-network-profiles-probe-all>Проверить доступность</button>
+                              <button type="button" class="btn btn-outline-primary btn-sm" data-integration-network-profiles-save>Сохранить профили</button>
+                            </div>
+                          </div>
+                          <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0" id="integrationNetworkProfilesTable">
+                              <thead>
+                                <tr>
+                                  <th style="width: 22%">Профиль</th>
+                                  <th style="width: 12%">Тип</th>
+                                  <th style="width: 30%">Маршрут</th>
+                                  <th style="width: 16%">Статус</th>
+                                  <th style="width: 20%" class="text-end">Действия</th>
+                                </tr>
+                              </thead>
+                              <tbody id="integrationNetworkProfilesBody"></tbody>
+                            </table>
+                          </div>
+                          <div class="form-text mt-3" id="integrationNetworkProfilesStatus">Профили нужны, чтобы не копировать одинаковые прокси/VPN вручную для каждого маршрута.</div>
+                          <div class="small text-muted mt-2">Для VLESS создайте несколько профилей (host, port, token), затем выберите их цепочкой в маршруте проекта/ботов. Первый профиль в списке — основной, остальные используются как резерв.</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="accordion-item">
+                      <h2 class="accordion-header" id="channelsRoutesHeading">
+                        <button
+                          class="accordion-button collapsed"
+                          type="button"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#channelsRoutesCollapse"
+                          aria-expanded="false"
+                          aria-controls="channelsRoutesCollapse"
+                        >
+                          <span>
+                            <span class="fw-semibold d-block">Сетевые маршруты интеграций</span>
+                            <span class="channels-manage-accordion__summary">
+                              <span data-channels-manage-summary="routes-project">Проект: без маршрутизации</span>
+                              <span class="d-inline-block ms-2" data-channels-manage-summary="routes-bots">Боты: наследуют проект</span>
+                            </span>
+                          </span>
+                        </button>
+                      </h2>
+                      <div
+                        id="channelsRoutesCollapse"
+                        class="accordion-collapse collapse"
+                        aria-labelledby="channelsRoutesHeading"
+                        data-bs-parent="#channelsManageAdvancedAccordion"
+                      >
+                        <div class="accordion-body">
+                          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                            <div>
+                              <h5 class="card-title mb-1">Сетевые маршруты интеграций</h5>
+                              <p class="text-muted mb-0">Задайте отдельные прокси/VPN для всего проекта и отдельно для подсистемы ботов. Можно использовать как ручные настройки, так и готовые профили.</p>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="integrationNetworkSaveBtn">Сохранить сеть</button>
+                          </div>
+                          <div class="row g-4">
+                            <div class="col-12 col-xl-6">
+                              <div class="border rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">Весь проект</div>
+                                <div class="small text-muted mb-3">Базовый маршрут для панели и интеграций. Если ниже для ботов выбран режим «Наследовать проект», будет использован именно этот блок.</div>
+                                <div class="mb-3">
+                                  <label class="form-label" for="projectNetworkMode">Режим</label>
+                                  <select class="form-select" id="projectNetworkMode" data-network-route-mode="project">
+                                    <option value="direct">Без маршрутизации</option>
+                                    <option value="profile">Выбрать профиль</option>
+                                    <option value="proxy">Через прокси</option>
+                                    <option value="vpn">Через VPN</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3 d-none" data-network-route-profile="project">
+                                  <label class="form-label" for="projectNetworkProfileId">Профили (failover по порядку)</label>
+                                  <select class="form-select" id="projectNetworkProfileId" multiple size="4">
+                                    <option value="">Выберите профиль…</option>
+                                  </select>
+                                  <div class="form-text">Профили можно выбирать обычными кликами. Повторный клик снимает выбор.</div>
+                                  <div class="small text-muted mt-1">Первый профиль — основной, дальше резервные. При проблеме соединения система переключится на следующий доступный профиль.</div>
+                                  <div class="small border rounded-2 p-2 mt-2 bg-light-subtle" data-network-route-profile-preview="project">Цепочка пока не выбрана.</div>
+                                </div>
+                                <div class="row g-2 d-none" data-network-route-proxy="project">
+                                  <div class="col-12 col-md-4">
+                                    <label class="form-label" for="projectProxyScheme">Схема прокси</label>
+                                    <select class="form-select" id="projectProxyScheme">
+                                      <option value="http">HTTP</option>
+                                      <option value="https">HTTPS</option>
+                                      <option value="socks5">SOCKS5</option>
+                                      <option value="socks4">SOCKS4</option>
+                                      <option value="vless">VLESS</option>
+                                    </select>
+                                  </div>
+                                  <div class="col-12 col-md-5">
+                                    <label class="form-label" for="projectProxyHost">Хост</label>
+                                    <input class="form-control" id="projectProxyHost" placeholder="proxy.example.local">
+                                  </div>
+                                  <div class="col-12 col-md-3">
+                                    <label class="form-label" for="projectProxyPort">Порт</label>
+                                    <input class="form-control" id="projectProxyPort" type="number" min="1" max="65535" step="1" placeholder="8080">
+                                  </div>
+                                  <div class="col-12 col-md-6" data-proxy-auth="project">
+                                    <label class="form-label" for="projectProxyUsername">Логин</label>
+                                    <input class="form-control" id="projectProxyUsername" placeholder="Опционально">
+                                  </div>
+                                  <div class="col-12 col-md-6" data-proxy-auth="project">
+                                    <label class="form-label" for="projectProxyPassword">Пароль</label>
+                                    <input class="form-control" id="projectProxyPassword" type="password" placeholder="Опционально">
+                                  </div>
+                                  <div class="col-12 d-none" data-proxy-token="project">
+                                    <label class="form-label" for="projectProxyToken">Token</label>
+                                    <input class="form-control" id="projectProxyToken" placeholder="UUID / token для VLESS">
+                                  </div>
+                                </div>
+                                <div class="row g-2 d-none" data-network-route-vpn="project">
+                                  <div class="col-12 col-md-6">
+                                    <label class="form-label" for="projectVpnName">Название VPN</label>
+                                    <input class="form-control" id="projectVpnName" placeholder="Например: corp-main">
+                                  </div>
+                                  <div class="col-12 col-md-6">
+                                    <label class="form-label" for="projectVpnEndpoint">Endpoint / шлюз</label>
+                                    <input class="form-control" id="projectVpnEndpoint" placeholder="vpn.example.local">
+                                  </div>
+                                  <div class="col-12">
+                                    <label class="form-label" for="projectVpnConfigPath">Путь к конфигу / профилю</label>
+                                    <input class="form-control" id="projectVpnConfigPath" placeholder="/etc/openvpn/project.conf">
+                                  </div>
+                                  <div class="col-12">
+                                    <label class="form-label" for="projectVpnNotes">Примечание</label>
+                                    <textarea class="form-control" id="projectVpnNotes" rows="2" placeholder="Что нужно поднять на сервере или в окружении"></textarea>
+                                  </div>
+                                </div>
+                                <div class="mt-3">
+                                  <label class="form-label" for="projectFailoverDowntimeSeconds">Время недоступности, сек</label>
+                                  <input class="form-control" id="projectFailoverDowntimeSeconds" type="number" min="10" max="86400" step="1" value="120">
+                                  <div class="form-text">Если маршрут не прошёл проверку доступности, он исключается на это время перед новой попыткой.</div>
+                                </div>
+                                <div class="form-text mt-3" data-network-route-summary="project">Сначала выберите режим. Для отдельного прокси заполните host/port, для VPN — название, endpoint и путь к конфигу.</div>
+                              </div>
+                            </div>
+                            <div class="col-12 col-xl-6">
+                              <div class="border rounded-3 p-3 h-100">
+                                <div class="fw-semibold mb-2">Подсистема ботов</div>
+                                <div class="small text-muted mb-3">Отдельный маршрут только для Java/VK-процессов ботов. Удобно, если панель должна работать напрямую, а боты — через выделенный прокси или VPN.</div>
+                                <div class="mb-3">
+                                  <label class="form-label" for="botsNetworkMode">Режим</label>
+                                  <select class="form-select" id="botsNetworkMode" data-network-route-mode="bots">
+                                    <option value="inherit">Наследовать проект</option>
+                                    <option value="direct">Без маршрутизации</option>
+                                    <option value="profile">Выбрать профиль</option>
+                                    <option value="proxy">Через отдельный прокси</option>
+                                    <option value="vpn">Через отдельный VPN</option>
+                                  </select>
+                                </div>
+                                <div class="mb-3 d-none" data-network-route-profile="bots">
+                                  <label class="form-label" for="botsNetworkProfileId">Профили (failover по порядку)</label>
+                                  <select class="form-select" id="botsNetworkProfileId" multiple size="4">
+                                    <option value="">Выберите профиль…</option>
+                                  </select>
+                                  <div class="form-text">Профили можно выбирать обычными кликами. Повторный клик снимает выбор.</div>
+                                  <div class="small text-muted mt-1">Можно выбрать отдельную цепочку профилей только для процессов ботов.</div>
+                                  <div class="small border rounded-2 p-2 mt-2 bg-light-subtle" data-network-route-profile-preview="bots">Цепочка пока не выбрана.</div>
+                                </div>
+                                <div class="row g-2 d-none" data-network-route-proxy="bots">
+                                  <div class="col-12 col-md-4">
+                                    <label class="form-label" for="botsProxyScheme">Схема прокси</label>
+                                    <select class="form-select" id="botsProxyScheme">
+                                      <option value="http">HTTP</option>
+                                      <option value="https">HTTPS</option>
+                                      <option value="socks5">SOCKS5</option>
+                                      <option value="socks4">SOCKS4</option>
+                                      <option value="vless">VLESS</option>
+                                    </select>
+                                  </div>
+                                  <div class="col-12 col-md-5">
+                                    <label class="form-label" for="botsProxyHost">Хост</label>
+                                    <input class="form-control" id="botsProxyHost" placeholder="proxy-bots.example.local">
+                                  </div>
+                                  <div class="col-12 col-md-3">
+                                    <label class="form-label" for="botsProxyPort">Порт</label>
+                                    <input class="form-control" id="botsProxyPort" type="number" min="1" max="65535" step="1" placeholder="8080">
+                                  </div>
+                                  <div class="col-12 col-md-6" data-proxy-auth="bots">
+                                    <label class="form-label" for="botsProxyUsername">Логин</label>
+                                    <input class="form-control" id="botsProxyUsername" placeholder="Опционально">
+                                  </div>
+                                  <div class="col-12 col-md-6" data-proxy-auth="bots">
+                                    <label class="form-label" for="botsProxyPassword">Пароль</label>
+                                    <input class="form-control" id="botsProxyPassword" type="password" placeholder="Опционально">
+                                  </div>
+                                  <div class="col-12 d-none" data-proxy-token="bots">
+                                    <label class="form-label" for="botsProxyToken">Token</label>
+                                    <input class="form-control" id="botsProxyToken" placeholder="UUID / token для VLESS">
+                                  </div>
+                                </div>
+                                <div class="row g-2 d-none" data-network-route-vpn="bots">
+                                  <div class="col-12 col-md-6">
+                                    <label class="form-label" for="botsVpnName">Название VPN</label>
+                                    <input class="form-control" id="botsVpnName" placeholder="Например: tg-bots-vpn">
+                                  </div>
+                                  <div class="col-12 col-md-6">
+                                    <label class="form-label" for="botsVpnEndpoint">Endpoint / шлюз</label>
+                                    <input class="form-control" id="botsVpnEndpoint" placeholder="vpn-bots.example.local">
+                                  </div>
+                                  <div class="col-12">
+                                    <label class="form-label" for="botsVpnConfigPath">Путь к конфигу / профилю</label>
+                                    <input class="form-control" id="botsVpnConfigPath" placeholder="/etc/openvpn/bots.conf">
+                                  </div>
+                                  <div class="col-12">
+                                    <label class="form-label" for="botsVpnNotes">Примечание</label>
+                                    <textarea class="form-control" id="botsVpnNotes" rows="2" placeholder="Опишите, как эта подсистема должна подключаться"></textarea>
+                                  </div>
+                                </div>
+                                <div class="mt-3">
+                                  <label class="form-label" for="botsFailoverDowntimeSeconds">Время недоступности, сек</label>
+                                  <input class="form-control" id="botsFailoverDowntimeSeconds" type="number" min="10" max="86400" step="1" value="120">
+                                  <div class="form-text">Недоступный маршрут временно исключается и бот-процессы переключаются на следующий из списка.</div>
+                                </div>
+                                <div class="form-text mt-3" data-network-route-summary="bots">Если выбрать «Наследовать проект», боты будут использовать маршрут из левого блока без дублирования настроек.</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="form-text mt-3" id="integrationNetworkStatus">Прокси применяются к запросам панели и автоматически передаются отдельным процессам ботов. VPN сохраняется как конфигурация маршрута для окружения и конкретных ботов.</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div></th:block>
+
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="integrationNetworkProfileModal"><div class="modal fade settings-child-modal settings-task-modal settings-task-modal--medium" id="integrationNetworkProfileEditorModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <form data-integration-network-profile-form>
+            <div class="modal-header">
+              <h5 class="modal-title" data-integration-network-profile-title>Профиль сетевого маршрута</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row g-3">
+                <div class="col-12 col-md-8">
+                  <label class="form-label" for="integrationNetworkProfileNameInput">Название профиля</label>
+                  <input type="text" class="form-control" id="integrationNetworkProfileNameInput" data-integration-network-profile-name placeholder="Например: Боты через VPN DC-1" required>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label" for="integrationNetworkProfileModeInput">Тип</label>
+                  <select class="form-select" id="integrationNetworkProfileModeInput" data-integration-network-profile-mode>
+                    <option value="proxy">Прокси</option>
+                    <option value="vpn">VPN</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mt-3 d-none" data-integration-network-profile-proxy-fields>
+                <div class="row g-3">
+                  <div class="col-12 col-md-3">
+                    <label class="form-label" for="integrationNetworkProfileProxySchemeInput">Схема</label>
+                    <select class="form-select" id="integrationNetworkProfileProxySchemeInput" data-integration-network-profile-proxy-scheme>
+                      <option value="http">HTTP</option>
+                      <option value="https">HTTPS</option>
+                      <option value="socks5">SOCKS5</option>
+                      <option value="socks4">SOCKS4</option>
+                      <option value="vless">VLESS</option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-5">
+                    <label class="form-label" for="integrationNetworkProfileProxyHostInput">Хост</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileProxyHostInput" data-integration-network-profile-proxy-host placeholder="proxy.example.local">
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label" for="integrationNetworkProfileProxyPortInput">Порт</label>
+                    <input type="number" class="form-control" id="integrationNetworkProfileProxyPortInput" data-integration-network-profile-proxy-port min="1" max="65535" step="1" placeholder="3128">
+                  </div>
+                  <div class="col-12 col-md-6" data-proxy-auth="integration-profile">
+                    <label class="form-label" for="integrationNetworkProfileProxyUsernameInput">Логин</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileProxyUsernameInput" data-integration-network-profile-proxy-username placeholder="Опционально">
+                  </div>
+                  <div class="col-12 col-md-6" data-proxy-auth="integration-profile">
+                    <label class="form-label" for="integrationNetworkProfileProxyPasswordInput">Пароль</label>
+                    <input type="password" class="form-control" id="integrationNetworkProfileProxyPasswordInput" data-integration-network-profile-proxy-password placeholder="Опционально">
+                  </div>
+                  <div class="col-12 d-none" data-proxy-token="integration-profile">
+                    <label class="form-label" for="integrationNetworkProfileProxyTokenInput">Token</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileProxyTokenInput" data-integration-network-profile-proxy-token placeholder="UUID / token для VLESS">
+                  </div>
+                  <div class="col-12 small text-muted">Для VLESS обязательны `host`, `port` и `token`.</div>
+                </div>
+              </div>
+              <div class="mt-3 d-none" data-integration-network-profile-vpn-fields>
+                <div class="row g-3">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="integrationNetworkProfileVpnNameInput">Название VPN</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileVpnNameInput" data-integration-network-profile-vpn-name placeholder="Например: tg-private-vpn">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label" for="integrationNetworkProfileVpnEndpointInput">Endpoint / шлюз</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileVpnEndpointInput" data-integration-network-profile-vpn-endpoint placeholder="vpn.example.local">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="integrationNetworkProfileVpnConfigPathInput">Путь к конфигу / профилю</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileVpnConfigPathInput" data-integration-network-profile-vpn-config-path placeholder="/etc/openvpn/bots.conf">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="integrationNetworkProfileVpnNotesInput">Примечание</label>
+                    <textarea class="form-control" id="integrationNetworkProfileVpnNotesInput" data-integration-network-profile-vpn-notes rows="2" placeholder="Что должен сделать DevOps / infra"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-danger d-none" data-integration-network-profile-delete>Удалить профиль</button>
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+              <button type="submit" class="btn btn-primary">Сохранить профиль</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div></th:block>
