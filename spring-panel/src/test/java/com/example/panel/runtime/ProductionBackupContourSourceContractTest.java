@@ -143,12 +143,15 @@ class ProductionBackupContourSourceContractTest {
     @Test
     void backupPolicyIsAdminManagedAndPreparedForPortableArchiveRuntime() throws IOException {
         String settingsPage = read("spring-panel/src/main/resources/templates/settings/index.html");
+        String backupTemplate = read("spring-panel/src/main/resources/templates/settings/fragments/backup-recovery.html");
         String runtime = read("spring-panel/src/main/resources/static/js/settings-backup-runtime.js");
         String service = read("spring-panel/src/main/java/com/example/panel/service/BackupSettingsService.java");
         String psLibrary = read("scripts/lib/backup-config.ps1");
 
         assertThat(settingsPage)
-            .contains("data-settings-overview-target=\"backupSettingsModal\"")
+            .contains("data-settings-overview-target=\"backupSettingsModal\"");
+        assertThat(backupTemplate)
+            .contains("th:fragment=\"backupRecoveryWorkspace\"")
             .contains("id=\"backupCriticalEnabled\"")
             .contains("id=\"backupFullEnabled\"")
             .contains("value=\"tar.gz\"");
@@ -215,7 +218,7 @@ class ProductionBackupContourSourceContractTest {
 
     @Test
     void manualBackupRunsThroughSharedQueueAndHostRunnerWithoutDockerSocketInPanel() throws IOException {
-        String settingsPage = read("spring-panel/src/main/resources/templates/settings/index.html");
+        String backupTemplate = read("spring-panel/src/main/resources/templates/settings/fragments/backup-recovery.html");
         String runtime = read("spring-panel/src/main/resources/static/js/settings-backup-runtime.js");
         String controller = read("spring-panel/src/main/java/com/example/panel/controller/BackupSettingsController.java");
         String service = read("spring-panel/src/main/java/com/example/panel/service/BackupManualOperationService.java");
@@ -225,7 +228,7 @@ class ProductionBackupContourSourceContractTest {
         String installerSh = read("scripts/install-backup-policy-runner.sh");
         String productionCompose = read("docker-compose.production-contour.yml");
 
-        assertThat(settingsPage)
+        assertThat(backupTemplate)
             .contains("data-backup-manual-run")
             .contains("id=\"backupManualVerifyRestore\"")
             .contains("id=\"backupManualAllowLocalTest\"")
@@ -335,7 +338,7 @@ class ProductionBackupContourSourceContractTest {
     }
 
     private String read(String relativePath) throws IOException {
-        return Files.readString(REPO_ROOT.resolve(relativePath), StandardCharsets.UTF_8);
+        return Files.readString(REPO_ROOT.resolve(relativePath), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
 
     private String section(String content, String startMarker, String endMarker) {
