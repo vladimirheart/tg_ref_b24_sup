@@ -1,0 +1,272 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="equipmentSection"><div class="accordion-item">
+                <h2 class="accordion-header" id="itEquipmentSectionHeading">
+                  <button
+                    class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#itEquipmentSection"
+                    aria-expanded="true"
+                    aria-controls="itEquipmentSection"
+                  >
+                    Каталог оборудования
+                  </button>
+                </h2>
+                <div
+                  id="itEquipmentSection"
+                  class="accordion-collapse collapse show"
+                  aria-labelledby="itEquipmentSectionHeading"
+                  data-bs-parent="#itSettingsAccordion"
+                >
+                  <div class="accordion-body">
+                    <div class="it-equipment-catalog-toolbar">
+                      <div class="input-group input-group-sm it-equipment-catalog-toolbar__search">
+                        <span class="input-group-text">Поиск</span>
+                        <input
+                          type="search"
+                          class="form-control"
+                          id="itEquipmentSearchInput"
+                          placeholder="Тип, производитель, модель, SN…"
+                          autocomplete="off"
+                        >
+                      </div>
+                      <div class="it-equipment-catalog-toolbar__filters" aria-label="Фильтры каталога оборудования">
+                        <select class="form-select form-select-sm" id="itEquipmentTypeFilter" aria-label="Фильтр по типу оборудования">
+                          <option value="">Все типы</option>
+                        </select>
+                        <select class="form-select form-select-sm" id="itEquipmentVendorFilter" aria-label="Фильтр по производителю">
+                          <option value="">Все производители</option>
+                        </select>
+                      </div>
+                      <div class="d-flex align-items-center gap-2 it-equipment-catalog-toolbar__actions">
+                        <span class="it-equipment-catalog-count" id="itEquipmentCountBadge">0</span>
+                        <button class="btn btn-sm btn-primary" type="button" data-it-equipment-add-open>
+                          + Добавить модель
+                        </button>
+                      </div>
+                    </div>
+                    <div id="itEquipmentBody" class="it-equipment-catalog-grid"></div>
+                    <div id="itEquipmentEmptyState" class="it-equipment-catalog-empty d-none">Пока нет оборудования.</div>
+                    <div class="form-text text-muted mt-2">
+                      Это мастер-каталог моделей. Паспорта объектов используют его для фото, типа, производителя, модели и базовой комплектации; SN/IP/status остаются данными конкретного экземпляра.
+                    </div>
+                  </div>
+                </div>
+              </div></th:block>
+
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="equipmentModals"><div class="modal fade settings-child-modal settings-task-modal settings-task-modal--medium" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="itEquipmentAddModalLabel">Новое оборудование</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <form data-it-equipment-add-form action="/api/settings/it-equipment" method="post">
+            <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+            <div class="modal-body">
+              <ul class="nav nav-tabs settings-menu-tabs it-equipment-card-tabs mb-3" role="tablist" aria-label="Разделы карточки оборудования">
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="itEquipmentMainTab" data-bs-toggle="tab" data-bs-target="#itEquipmentMainPane" type="button" role="tab" aria-controls="itEquipmentMainPane" aria-selected="true" data-it-equipment-main-tab>Основное</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link" id="itEquipmentPhotoTab" data-bs-toggle="tab" data-bs-target="#itEquipmentPhotoPane" type="button" role="tab" aria-controls="itEquipmentPhotoPane" aria-selected="false" data-it-equipment-photo-tab disabled>
+                    Фото <span class="badge rounded-pill text-bg-light ms-1" data-it-equipment-photo-count>0</span>
+                  </button>
+                </li>
+              </ul>
+
+              <div class="tab-content">
+                <section class="tab-pane fade show active" id="itEquipmentMainPane" role="tabpanel" aria-labelledby="itEquipmentMainTab" data-it-equipment-main-pane>
+                  <div class="mb-3">
+                    <label class="form-label" for="itEquipmentTypeSelect">Тип оборудования</label>
+                    <select class="form-select" id="itEquipmentTypeSelect" data-it-equipment-field="equipment_type" required></select>
+                    <div class="form-text">Выберите тип из ранее созданных подключений.</div>
+                    <div class="invalid-feedback">Укажите тип оборудования.</div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="itEquipmentVendorSelect">Производитель оборудования</label>
+                    <select class="form-select" id="itEquipmentVendorSelect" data-it-equipment-field="equipment_vendor" required></select>
+                    <div class="invalid-feedback">Укажите производителя оборудования.</div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="itEquipmentModelSelect">Модель оборудования</label>
+                    <select class="form-select" id="itEquipmentModelSelect" data-it-equipment-field="equipment_model" required></select>
+                    <div class="invalid-feedback">Укажите модель оборудования.</div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="itEquipmentSerialNumberInput">Серийный номер <span class="text-muted">(необязательно)</span></label>
+                    <input type="text" class="form-control" id="itEquipmentSerialNumberInput" data-it-equipment-field="serial_number" placeholder="Например, SN-00012345">
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="itEquipmentAccessoriesInput">Комплектация / аксессуары <span class="text-muted">(необязательно)</span></label>
+                    <textarea class="form-control" id="itEquipmentAccessoriesInput" data-it-equipment-field="accessories" rows="2" placeholder="Кронштейн, блок питания, патч-корд и т.д."></textarea>
+                    <div class="form-text">Поле сохраняется как canonical <code>accessories</code>; старый API-алиас <code>additional_equipment</code> остаётся совместимым.</div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Ссылки <span class="text-muted">(необязательно)</span></label>
+                    <div class="d-flex flex-column gap-2" data-it-equipment-add-links></div>
+                    <button class="btn btn-sm btn-outline-secondary mt-2" type="button" data-it-equipment-add-link>+ Добавить ссылку</button>
+                    <div class="form-text">Можно указать несколько ссылок на инструкции, карточки и т.п.</div>
+                  </div>
+                </section>
+
+                <section class="tab-pane fade" id="itEquipmentPhotoPane" role="tabpanel" aria-labelledby="itEquipmentPhotoTab" data-it-equipment-photo-pane>
+                  <div class="it-equipment-photo-manager" data-it-equipment-photo-section>
+                    <div class="it-equipment-photo-manager__head">
+                      <div class="it-equipment-photo-heading">
+                        <div class="d-flex align-items-center gap-2">
+                          <h6 class="mb-0">Фотографии модели</h6>
+                          <button class="it-equipment-photo-info" type="button" data-it-equipment-photo-info aria-label="Информация о фотографиях" aria-controls="itEquipmentPhotoInfoPopover" aria-expanded="false">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                          </button>
+                        </div>
+                        <div class="it-equipment-photo-info-popover" id="itEquipmentPhotoInfoPopover" data-it-equipment-photo-info-popover role="tooltip" hidden>
+                          Фото сохраняются сразу, отдельно от кнопки сохранения карточки. Нажмите на превью для просмотра. Для каждого фото обязательны тип и описание.
+                        </div>
+                      </div>
+                      <button class="it-equipment-photo-add-button" type="button" data-it-equipment-photo-add-open aria-label="Добавить фото" title="Добавить фото" disabled>
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                    <div class="form-text mb-3" data-it-equipment-photo-hint>Сначала сохраните модель оборудования, затем добавьте фотографии.</div>
+                    <div class="it-equipment-photo-strip" data-it-equipment-photo-list></div>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+              <button type="submit" class="btn btn-primary">Добавить</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--compact" id="itEquipmentPhotoAddModal" tabindex="-1" aria-labelledby="itEquipmentPhotoAddLabel" aria-hidden="true" data-settings-suspend-parent="itEquipmentAddModal">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="itEquipmentPhotoAddLabel">Добавить фото</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Файл</label>
+              <div class="it-equipment-photo-file-picker">
+                <input class="visually-hidden" id="itEquipmentPhotoAddFile" type="file" accept="image/*" data-it-equipment-photo-add-file>
+                <button class="it-equipment-photo-file-action" type="button" data-it-equipment-photo-add-file-open aria-label="Выбрать изображение" title="Выбрать изображение">
+                  <i class="bi bi-image" aria-hidden="true"></i>
+                </button>
+                <button class="it-equipment-photo-file-action" type="button" data-it-equipment-photo-add-paste aria-label="Вставить изображение из буфера" title="Вставить из буфера">
+                  <i class="bi bi-clipboard" aria-hidden="true"></i>
+                </button>
+                <span class="it-equipment-photo-file-name" data-it-equipment-photo-add-file-name>Файл не выбран</span>
+              </div>
+              <div class="form-text">Можно выбрать изображение или вставить его из буфера через Ctrl+V.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="itEquipmentPhotoAddCategory">Тип фото</label>
+              <select class="form-select" id="itEquipmentPhotoAddCategory" data-it-equipment-photo-add-category>
+                <option value="general">Общее</option>
+                <option value="title">Титульное</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="itEquipmentPhotoAddComment">Описание</label>
+              <input class="form-control" id="itEquipmentPhotoAddComment" type="text" placeholder="Что изображено" data-it-equipment-photo-add-comment required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" data-it-equipment-photo-add-save>Добавить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade settings-child-modal" id="itEquipmentPhotoViewerModal" tabindex="-1" aria-labelledby="itEquipmentPhotoViewerLabel" aria-hidden="true" data-settings-suspend-parent="itEquipmentAddModal">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title" id="itEquipmentPhotoViewerLabel">Просмотр фото</h5>
+              <div class="small text-muted"><span data-it-equipment-photo-viewer-type></span> · <span data-it-equipment-photo-viewer-counter></span></div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="it-equipment-photo-viewer-stage">
+              <button class="btn btn-outline-secondary it-equipment-photo-viewer-nav" type="button" data-it-equipment-photo-viewer-prev aria-label="Предыдущее фото"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+              <div class="it-equipment-photo-viewer-frame">
+                <img src="" alt="" data-it-equipment-photo-viewer-image>
+              </div>
+              <button class="btn btn-outline-secondary it-equipment-photo-viewer-nav" type="button" data-it-equipment-photo-viewer-next aria-label="Следующее фото"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+            </div>
+            <div class="it-equipment-photo-viewer-comment" data-it-equipment-photo-viewer-comment>Описание не указано</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--compact" id="itEquipmentPhotoEditModal" tabindex="-1" aria-labelledby="itEquipmentPhotoEditLabel" aria-hidden="true" data-settings-suspend-parent="itEquipmentAddModal">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="itEquipmentPhotoEditLabel">Редактировать фото</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <div class="it-equipment-photo-edit-preview mb-3">
+              <img src="" alt="" data-it-equipment-photo-edit-preview>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Заменить файл <span class="text-muted">(необязательно)</span></label>
+              <div class="it-equipment-photo-file-picker">
+                <input class="visually-hidden" id="itEquipmentPhotoEditFile" type="file" accept="image/*" data-it-equipment-photo-edit-file>
+                <button class="it-equipment-photo-file-action" type="button" data-it-equipment-photo-edit-file-open aria-label="Выбрать новое изображение" title="Выбрать новое изображение">
+                  <i class="bi bi-image" aria-hidden="true"></i>
+                </button>
+                <button class="it-equipment-photo-file-action" type="button" data-it-equipment-photo-edit-paste aria-label="Вставить новое изображение из буфера" title="Вставить из буфера">
+                  <i class="bi bi-clipboard" aria-hidden="true"></i>
+                </button>
+                <span class="it-equipment-photo-file-name" data-it-equipment-photo-edit-file-name>Файл не выбран</span>
+              </div>
+              <div class="form-text">Оставьте пустым, чтобы изменить только тип или описание. Для замены можно также нажать Ctrl+V.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="itEquipmentPhotoEditCategory">Тип фото</label>
+              <select class="form-select" id="itEquipmentPhotoEditCategory" data-it-equipment-photo-edit-category>
+                <option value="general">Общее</option>
+                <option value="title">Титульное</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="itEquipmentPhotoEditComment">Описание</label>
+              <input class="form-control" id="itEquipmentPhotoEditComment" type="text" data-it-equipment-photo-edit-comment required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" data-it-equipment-photo-edit-save>Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade settings-child-modal settings-task-modal settings-task-modal--compact" id="itEquipmentPhotoConfirmModal" tabindex="-1" aria-labelledby="itEquipmentPhotoConfirmLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="itEquipmentPhotoConfirmLabel" data-it-equipment-photo-confirm-title>Подтверждение</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0" data-it-equipment-photo-confirm-message></p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-primary" data-it-equipment-photo-confirm-accept>Подтвердить</button>
+          </div>
+        </div>
+      </div>
+    </div></th:block>
