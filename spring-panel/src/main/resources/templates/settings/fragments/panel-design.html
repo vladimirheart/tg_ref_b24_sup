@@ -1,0 +1,125 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="panelDesignSettings"><div class="modal fade settings-primary-modal" id="panelDesignSettingsModal" tabindex="-1" aria-labelledby="panelDesignSettingsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title" id="panelDesignSettingsModalLabel">Настройки оформления панели</h5>
+              <div class="small text-muted mt-1">Внешний вид интерфейса и визуальные справочники</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body settings-design-workspace">
+            <div class="settings-design-workspace__nav" role="tablist" aria-label="Разделы оформления">
+              <button type="button" class="settings-design-nav-item active" id="panelDesignAppearanceTab" data-bs-toggle="tab" data-bs-target="#panelDesignAppearancePane" role="tab" aria-controls="panelDesignAppearancePane" aria-selected="true">
+                <span class="settings-design-nav-item__title">Оформление интерфейса</span>
+                <span class="settings-design-nav-item__hint">Тема и визуальный стиль</span>
+              </button>
+              <button type="button" class="settings-design-nav-item" id="panelDesignStatusesTab" data-bs-toggle="tab" data-bs-target="#panelDesignStatusesPane" role="tab" aria-controls="panelDesignStatusesPane" aria-selected="false">
+                <span class="settings-design-nav-item__title">Статусы клиентов</span>
+                <span class="settings-design-nav-item__hint">Названия и цветовая семантика</span>
+              </button>
+              <button type="button" class="settings-design-nav-item" id="panelDesignBusinessStylesTab" data-bs-toggle="tab" data-bs-target="#panelDesignBusinessStylesPane" role="tab" aria-controls="panelDesignBusinessStylesPane" aria-selected="false">
+                <span class="settings-design-nav-item__title">Метки бизнесов</span>
+                <span class="settings-design-nav-item__hint">Цвета и мини-иконки</span>
+              </button>
+            </div>
+            <div class="tab-content settings-design-workspace__content">
+              <section class="tab-pane fade show active" id="panelDesignAppearancePane" role="tabpanel" aria-labelledby="panelDesignAppearanceTab" tabindex="0">
+                <div class="settings-design-section__head">
+                  <div>
+                    <h6 class="settings-design-section__title">Оформление интерфейса</h6>
+                    <p class="settings-design-section__description">Настройки применяются ко всем страницам панели.</p>
+                  </div>
+                </div>
+            <form data-theme-form>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Выберите тему</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="themeOption" id="themeOptionLight" value="light">
+                  <label class="form-check-label" for="themeOptionLight">Светлая тема</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="themeOption" id="themeOptionDark" value="dark">
+                  <label class="form-check-label" for="themeOptionDark">Тёмная тема</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="themeOption" id="themeOptionAuto" value="auto">
+                  <label class="form-check-label" for="themeOptionAuto">Автоматически (как в системе)</label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Стиль интерфейса</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="themePaletteOption" id="themePaletteNeo" value="neo">
+                  <label class="form-check-label" for="themePaletteNeo">Штатная тема Iguana</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="themePaletteOption" id="themePaletteCatppuccin" value="catppuccin">
+                  <label class="form-check-label" for="themePaletteCatppuccin">Catppuccin</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="themePaletteOption" id="themePaletteAmberMinimal" value="amber-minimal">
+                  <label class="form-check-label" for="themePaletteAmberMinimal">Amber Minimal</label>
+                </div>
+              </div>
+              <p class="text-muted small mb-0">Настройка сохраняется в вашем браузере и применяется ко всем страницам панели.</p>
+            </form>
+
+              </section>
+              <section class="tab-pane fade" id="panelDesignStatusesPane" role="tabpanel" aria-labelledby="panelDesignStatusesTab" tabindex="0">
+                <div class="settings-design-section__head">
+                  <div>
+                    <h6 class="settings-design-section__title">Статусы клиентов</h6>
+                    <p class="settings-design-section__description">Названия и цветовая семантика статусов клиентов.</p>
+                  </div>
+                </div>
+            <div class="client-status-toolbar mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <h6 class="mb-0">Список статусов</h6>
+                <span class="text-muted small">Изменения можно вносить в режиме редактирования.</span>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="editStatusesBtn">
+                  <i class="bi bi-pencil-square me-1"></i> Редактировать
+                </button>
+                <button type="button" class="btn btn-primary btn-sm d-none" id="saveStatusesBtn">
+                  <i class="bi bi-check-lg me-1"></i> Сохранить
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="cancelStatusesBtn">
+                  Отмена
+                </button>
+              </div>
+            </div>
+            <div id="statusesList" class="list-group"></div>
+            <div id="statusesEmptyPlaceholder" class="text-muted fst-italic small d-none">
+              Пока нет статусов. Нажмите «Редактировать», чтобы добавить первый статус.
+            </div>
+            <button class="btn btn-sm btn-success mt-3 d-none" id="addStatusBtn" type="button">+ Добавить статус</button>
+
+              </section>
+              <section class="tab-pane fade" id="panelDesignBusinessStylesPane" role="tabpanel" aria-labelledby="panelDesignBusinessStylesTab" tabindex="0">
+                <div class="settings-design-section__head">
+                  <div>
+                    <h6 class="settings-design-section__title">Метки бизнесов</h6>
+                    <p class="settings-design-section__description">Цвета, текст и мини-иконки для бизнесов.</p>
+                  </div>
+                </div>
+            <p class="text-muted">
+              Настройте цвет заливки, цвет текста и мини-иконку для столбца «Бизнес» на главной странице.
+              Иконка отображается в левом верхнем углу ячейки и имеет размер 4×4 пикселя.
+            </p>
+            <div id="businessStylesEmpty" class="alert alert-light border d-none">
+              Пока нет ни одной настройки. Добавьте бизнес, чтобы настроить отображение в таблице.
+            </div>
+            <div id="businessStylesContainer" class="d-flex flex-column gap-3"></div>
+            <button type="button" class="btn btn-outline-primary btn-sm mt-3" id="addBusinessStyleBtn">+ Добавить бизнес</button>
+
+                <div class="settings-design-section__actions">
+                  <button type="button" class="btn btn-primary btn-sm" id="saveBusinessStylesBtn">Сохранить изменения</button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></th:block>
