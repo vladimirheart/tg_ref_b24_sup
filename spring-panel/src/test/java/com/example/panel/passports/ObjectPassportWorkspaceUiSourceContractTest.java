@@ -18,6 +18,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
     void detailUsesViewFirstWorkspaceAndDedicatedEditRoute() throws IOException {
         String html = read("src/main/resources/templates/passports/detail.html");
         String edit = read("src/main/resources/templates/passports/fragments/detail-edit.html");
+        String media = read("src/main/resources/templates/passports/fragments/detail-media.html");
         assertTrue(html.contains("passport-workspace-tabs"));
         assertTrue(html.contains("passport-kpi-strip"));
         assertTrue(html.contains("passport-equipment-grid"));
@@ -25,7 +26,10 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(html.contains("passports/fragments/detail-edit :: passportEditLayer"));
         assertTrue(edit.contains("passport-edit-layer"));
         assertTrue(html.contains("initialEditMode"));
-        assertTrue(html.contains("passport-photo-viewer"));
+        assertTrue(html.contains("passports/fragments/detail-media :: photosPanel"));
+        assertTrue(html.contains("passports/fragments/detail-media :: photoViewer"));
+        assertTrue(media.contains("data-passport-panel=\"photos\""));
+        assertTrue(media.contains("passport-photo-viewer"));
         assertTrue(html.contains("data-passport-tab-target=\"photos\""));
         assertTrue(html.contains("/api/object_passports/${passportId}/cases"));
         assertTrue(html.contains("/api/object_passports/${passportId}/tasks"));

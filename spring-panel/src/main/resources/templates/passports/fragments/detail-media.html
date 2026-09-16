@@ -1,0 +1,28 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="photosPanel">        <section class="passport-workspace-panel" data-passport-panel="photos">
+            <div class="passport-section-toolbar">
+                <div>
+                    <span class="passport-section-kicker">Визуальная история</span>
+                    <h2 class="mb-0">Фотографии объекта</h2>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" id="passportPhotosEditLink" type="button">Управлять фото</button>
+            </div>
+            <div class="passport-photo-grid" id="passportPhotoGrid"></div>
+            <div class="passport-empty-state d-none" id="passportPhotosEmpty">Фотографии не загружены.</div>
+        </section></th:block>
+
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="photoViewer">    <div class="passport-photo-viewer" id="passportPhotoViewer" hidden aria-hidden="true">
+        <button type="button" class="passport-photo-viewer__backdrop" data-passport-photo-close aria-label="Закрыть просмотр"></button>
+        <div class="passport-photo-viewer__dialog" role="dialog" aria-modal="true" aria-labelledby="passportPhotoViewerCaption">
+            <button type="button" class="passport-photo-viewer__close" data-passport-photo-close aria-label="Закрыть">&times;</button>
+            <button type="button" class="passport-photo-viewer__nav passport-photo-viewer__nav--prev" data-passport-photo-prev aria-label="Предыдущее фото">&#8249;</button>
+            <img id="passportPhotoViewerImage" alt="Фото объекта">
+            <button type="button" class="passport-photo-viewer__nav passport-photo-viewer__nav--next" data-passport-photo-next aria-label="Следующее фото">&#8250;</button>
+            <div class="passport-photo-viewer__meta">
+                <div>
+                    <span id="passportPhotoViewerCategory"></span>
+                    <strong id="passportPhotoViewerCaption">Фото объекта</strong>
+                </div>
+                <span id="passportPhotoViewerCounter"></span>
+            </div>
+        </div>
+    </div></th:block>
