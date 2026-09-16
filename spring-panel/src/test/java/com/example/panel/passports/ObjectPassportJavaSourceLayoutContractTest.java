@@ -20,12 +20,16 @@ class ObjectPassportJavaSourceLayoutContractTest {
         Path newService = Path.of("src/main/java/com/example/panel/passports/ObjectPassportService.java");
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
         String api = read("src/main/java/com/example/panel/controller/ObjectPassportApiController.java");
-        String page = read("src/main/java/com/example/panel/passports/ObjectPassportPageController.java");
+        Path oldPageController = Path.of("src/main/java/com/example/panel/passports/ObjectPassportPageController.java");
+        Path newPageController = Path.of("src/main/java/com/example/panel/passports/api/ObjectPassportPageController.java");
+        String page = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageController.java");
         String settingsEquipment = read("src/main/java/com/example/panel/service/SettingsItEquipmentService.java");
         String netBoxSync = read("src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncService.java");
 
         assertThat(Files.exists(oldService)).isFalse();
         assertThat(Files.exists(newService)).isTrue();
+        assertThat(Files.exists(oldPageController)).isFalse();
+        assertThat(Files.exists(newPageController)).isTrue();
         assertThat(service)
                 .contains("package com.example.panel.passports;")
                 .contains("public class ObjectPassportService")
@@ -36,8 +40,11 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("import com.example.panel.passports.ObjectPassportService;")
                 .doesNotContain("import com.example.panel.service.ObjectPassportService;");
         assertThat(page)
-                .doesNotContain("import com.example.panel.service.ObjectPassportService;")
-                .doesNotContain("import com.example.panel.passports.ObjectPassportService;");
+                .contains("package com.example.panel.passports.api;")
+                .contains("import com.example.panel.passports.ObjectPassportService;")
+                .contains("public class ObjectPassportPageController")
+                .doesNotContain("package com.example.panel.passports;")
+                .doesNotContain("import com.example.panel.service.ObjectPassportService;");
         assertThat(settingsEquipment).contains("import com.example.panel.passports.ObjectPassportService;");
         assertThat(netBoxSync).contains("import com.example.panel.passports.ObjectPassportService;");
     }

@@ -1,5 +1,6 @@
-package com.example.panel.passports;
+package com.example.panel.passports.api;
 
+import com.example.panel.passports.ObjectPassportService;
 import com.example.panel.entity.ItEquipmentCatalog;
 import com.example.panel.repository.ItEquipmentCatalogRepository;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;

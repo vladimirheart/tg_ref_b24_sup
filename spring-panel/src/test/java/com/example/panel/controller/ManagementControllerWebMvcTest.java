@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
-import com.example.panel.passports.ObjectPassportPageController;
+import com.example.panel.passports.api.ObjectPassportPageController;
 import com.example.panel.settings.SettingsPageController;
 import com.example.panel.repository.AppSettingRepository;
 import com.example.panel.repository.ChannelRepository;
