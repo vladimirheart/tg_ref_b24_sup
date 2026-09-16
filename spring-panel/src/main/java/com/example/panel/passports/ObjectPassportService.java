@@ -1,4 +1,4 @@
-package com.example.panel.service;
+package com.example.panel.passports;
 
 import com.example.panel.config.ObjectsSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;

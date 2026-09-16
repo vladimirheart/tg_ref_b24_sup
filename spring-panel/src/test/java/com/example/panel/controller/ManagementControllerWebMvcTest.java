@@ -22,7 +22,7 @@ import com.example.panel.entity.PanelUser;
 import com.example.panel.service.AutoCloseConfigNormalizer;
 import com.example.panel.service.BotSettingsPayloadNormalizer;
 import com.example.panel.service.NavigationService;
-import com.example.panel.service.ObjectPassportService;
+import com.example.panel.passports.ObjectPassportService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
 import com.example.panel.service.LocationsIikoServerSourceSettingsService;

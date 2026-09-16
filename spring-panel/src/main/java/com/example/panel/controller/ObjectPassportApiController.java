@@ -1,6 +1,6 @@
 package com.example.panel.controller;
 
-import com.example.panel.service.ObjectPassportService;
+import com.example.panel.passports.ObjectPassportService;
 import com.example.panel.service.NotificationRoutingService;
 import com.example.panel.service.IncidentService;
 import com.fasterxml.jackson.databind.ObjectMapper;

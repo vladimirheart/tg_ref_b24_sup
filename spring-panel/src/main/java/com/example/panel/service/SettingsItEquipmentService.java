@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.passports.ObjectPassportService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;

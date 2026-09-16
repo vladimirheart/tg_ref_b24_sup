@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.passports.ObjectPassportService;
 import com.example.panel.runtime.RuntimeRole;
 import com.example.panel.runtime.RuntimeRoleProperties;
 import java.time.OffsetDateTime;

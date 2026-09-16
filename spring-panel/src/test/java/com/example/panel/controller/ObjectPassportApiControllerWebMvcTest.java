@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.panel.service.IncidentService;
-import com.example.panel.service.ObjectPassportService;
+import com.example.panel.passports.ObjectPassportService;
 import com.example.panel.service.NotificationRoutingService;
 import java.util.List;
 import java.util.Map;

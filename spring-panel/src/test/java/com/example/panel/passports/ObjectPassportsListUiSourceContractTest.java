@@ -39,7 +39,10 @@ class ObjectPassportsListUiSourceContractTest {
 
     @Test
     void scssKeepsReadableAppealBadgeThumbnailPreviewAndDeletedRowContract() throws IOException {
-        String scss = read("src/main/resources/scss/app/_passports.scss");
+        String scss = read("src/main/resources/scss/app/passports/_shared.scss")
+                + "\n" + read("src/main/resources/scss/app/passports/_list.scss")
+                + "\n" + read("src/main/resources/scss/app/passports/_list-polish.scss")
+                + "\n" + read("src/main/resources/scss/app/passports/_responsive.scss");
         assertTrue(scss.contains("passport-title-thumb"));
         assertTrue(scss.contains("passport-photo-preview"));
         assertTrue(scss.contains("/* Catalogue polish — 01-258 */"));
@@ -56,8 +59,8 @@ class ObjectPassportsListUiSourceContractTest {
 
     @Test
     void backendExposesDeletedAndTitlePhotoFieldsAndDeletedStatusOption() throws IOException {
-        String service = read("src/main/java/com/example/panel/service/ObjectPassportService.java");
-        String controller = read("src/main/java/com/example/panel/controller/ManagementController.java");
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String controller = read("src/main/java/com/example/panel/passports/ObjectPassportPageController.java");
         assertTrue(service.contains("item.put(\"title_photo_url\""));
         assertTrue(service.contains("item.put(\"deleted\""));
         assertTrue(service.contains("\"удален\".equals(status) || \"deleted\".equals(status)"));

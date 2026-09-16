@@ -4,7 +4,6 @@ import com.example.panel.entity.ItEquipmentCatalog;
 import com.example.panel.repository.ItEquipmentCatalogRepository;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
 import com.example.panel.service.NavigationService;
-import com.example.panel.service.ObjectPassportService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SettingsParameterService;
 import com.example.panel.service.SharedConfigService;
