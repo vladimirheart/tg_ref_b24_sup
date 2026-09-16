@@ -1,0 +1,68 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="passportEditLayer">    <div class="passport-edit-layer" id="passportEditLayer" hidden aria-hidden="true">
+        <button type="button" class="passport-edit-layer__backdrop" data-passport-edit-close aria-label="Закрыть редактор"></button>
+        <aside class="passport-edit-drawer" role="dialog" aria-modal="true" aria-labelledby="passportEditTitle">
+            <header class="passport-edit-drawer__header">
+                <div>
+                    <span class="passport-section-kicker">Редактирование паспорта</span>
+                    <h2 id="passportEditTitle">Изменить объект</h2>
+                    <p>Изменения сохраняются как ручные и не будут перезаписаны NetBox.</p>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-passport-edit-close>Закрыть</button>
+            </header>
+
+            <nav class="passport-edit-tabs" id="passportEditTabs" aria-label="Разделы редактора">
+                <button type="button" class="is-active" data-passport-edit-tab="main">Объект</button>
+                <button type="button" data-passport-edit-tab="contacts">Контакты</button>
+                <button type="button" data-passport-edit-tab="lifecycle">Даты</button>
+                <button type="button" data-passport-edit-tab="network">IT и сеть</button>
+                <button type="button" data-passport-edit-tab="schedule">Расписание</button>
+                <button type="button" data-passport-edit-tab="equipment">Оборудование</button>
+                <button type="button" data-passport-edit-tab="photos">Фото</button>
+            </nav>
+
+            <div class="passport-edit-drawer__body">
+                <section class="passport-edit-panel is-active" data-passport-edit-panel="main"><div class="passport-edit-fields" id="passportEditMainFields"></div></section>
+                <section class="passport-edit-panel" data-passport-edit-panel="contacts"><div class="passport-edit-fields" id="passportEditContactFields"></div></section>
+                <section class="passport-edit-panel" data-passport-edit-panel="lifecycle"><div class="passport-edit-fields" id="passportEditLifecycleFields"></div></section>
+                <section class="passport-edit-panel" data-passport-edit-panel="network"><div class="passport-edit-fields" id="passportEditNetworkFields"></div></section>
+                <section class="passport-edit-panel" data-passport-edit-panel="schedule"><div id="passportEditSchedule"></div></section>
+                <section class="passport-edit-panel" data-passport-edit-panel="equipment">
+                    <div class="passport-edit-panel-toolbar">
+                        <div><strong>Экземпляры на объекте</strong><span>Модель можно связать с мастер-каталогом.</span></div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="passportEditEquipmentAdd">+ Добавить</button>
+                    </div>
+                    <div class="passport-edit-equipment" id="passportEditEquipment"></div>
+                </section>
+                <section class="passport-edit-panel" data-passport-edit-panel="photos">
+                    <form class="passport-edit-photo-upload" id="passportPhotoUploadForm">
+                        <div>
+                            <label class="form-label" for="passportPhotoUploadFile">Файл</label>
+                            <input class="form-control form-control-sm" id="passportPhotoUploadFile" type="file" accept="image/*" required>
+                        </div>
+                        <div>
+                            <label class="form-label" for="passportPhotoUploadCategory">Категория</label>
+                            <select class="form-select form-select-sm" id="passportPhotoUploadCategory">
+                                <option value="archive">Архивное</option>
+                                <option value="title">Титульное</option>
+                            </select>
+                        </div>
+                        <div class="passport-edit-photo-upload__caption">
+                            <label class="form-label" for="passportPhotoUploadCaption">Подпись</label>
+                            <input class="form-control form-control-sm" id="passportPhotoUploadCaption" placeholder="Например: серверный шкаф">
+                        </div>
+                        <button class="btn btn-sm btn-primary" type="submit">Добавить фото</button>
+                    </form>
+                    <div class="passport-edit-photo-list" id="passportEditPhotoList"></div>
+                </section>
+            </div>
+
+            <footer class="passport-edit-drawer__footer">
+                <div class="passport-edit-status" id="passportEditStatus"></div>
+                <div>
+                    <a class="btn btn-sm btn-link text-muted" href="#" id="passportLegacyEditLink">Legacy-редактор</a>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-passport-edit-close>Отмена</button>
+                    <button type="button" class="btn btn-sm btn-primary" id="passportEditSave">Сохранить изменения</button>
+                </div>
+            </footer>
+        </aside>
+    </div></th:block>
