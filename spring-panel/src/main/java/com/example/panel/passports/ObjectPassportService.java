@@ -39,6 +39,7 @@ public class ObjectPassportService {
     private final ObjectPassportPhotoModel photoModel;
     private final ObjectPassportPhotoQuery photoQuery;
     private final ObjectPassportPayloadModel payloadModel;
+    private final ObjectPassportManualOverrideModel manualOverrideModel;
     private final DataSource primaryDataSource;
     private final ObjectsSqliteDataSourceProperties objectsSqliteProperties;
     private final PanelDatabaseRuntimeMode databaseRuntimeMode;
@@ -57,6 +58,7 @@ public class ObjectPassportService {
         this.photoStorageService = photoStorageService;
         this.photoModel = new ObjectPassportPhotoModel(photoStorageService::buildPhotoUrl);
         this.payloadModel = new ObjectPassportPayloadModel(photoModel);
+        this.manualOverrideModel = new ObjectPassportManualOverrideModel();
         this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
         this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery(persistence);
         this.listQuery = new ObjectPassportListQuery(persistence, payloadModel, photoModel, appealQuery);
@@ -103,7 +105,7 @@ public class ObjectPassportService {
             try {
                 ObjectPassportPersistence.StoredPassportRecord existing = persistence.loadStoredPassport(connection, passportId);
                 Map<String, Object> incoming = trackManualOverrides
-                        ? markManualOverrides(existing.payload(), payload)
+                        ? manualOverrideModel.markManualOverrides(existing.payload(), payload)
                         : (payload == null ? Map.of() : payload);
                 Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), incoming, passportId);
                 payloadModel.validatePayload(normalized);
@@ -124,38 +126,6 @@ public class ObjectPassportService {
         } catch (SQLException ex) {
             throw new IllegalStateException("Не удалось обновить паспорт объекта", ex);
         }
-    }
-
-    static Map<String, Object> markManualOverrides(Map<String, Object> existing,
-                                                   Map<String, Object> incoming) {
-        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
-        if (incoming != null) {
-            result.putAll(incoming);
-        }
-        java.util.LinkedHashSet<String> overrides = new java.util.LinkedHashSet<>();
-        Object storedOverrides = existing == null ? null : existing.get("_manual_overrides");
-        if (storedOverrides instanceof List<?> list) {
-            for (Object item : list) {
-                String key = item == null ? "" : String.valueOf(item).trim();
-                if (StringUtils.hasText(key)) {
-                    overrides.add(key);
-                }
-            }
-        }
-        if (incoming != null) {
-            for (Map.Entry<String, Object> entry : incoming.entrySet()) {
-                String key = entry.getKey() == null ? "" : String.valueOf(entry.getKey()).trim();
-                if (!StringUtils.hasText(key) || key.startsWith("_") || "id".equals(key) || "is_new".equals(key)) {
-                    continue;
-                }
-                Object previous = existing == null ? null : existing.get(key);
-                if (!java.util.Objects.deepEquals(previous, entry.getValue())) {
-                    overrides.add(key);
-                }
-            }
-        }
-        result.put("_manual_overrides", List.copyOf(overrides));
-        return result;
     }
 
     public Map<String, Object> getPassport(long passportId) {

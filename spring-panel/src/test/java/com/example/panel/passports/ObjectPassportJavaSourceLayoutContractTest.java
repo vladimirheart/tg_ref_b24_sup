@@ -295,6 +295,37 @@ class ObjectPassportJavaSourceLayoutContractTest {
     }
 
     @Test
+    void passportManualOverridesUseDedicatedModelOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String model = read("src/main/java/com/example/panel/passports/ObjectPassportManualOverrideModel.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportManualOverrideModel manualOverrideModel;")
+                .contains("this.manualOverrideModel = new ObjectPassportManualOverrideModel();")
+                .contains("manualOverrideModel.markManualOverrides(existing.payload(), payload)")
+                .contains("connection.setAutoCommit(false);")
+                .contains("connection.commit();")
+                .contains("connection.rollback();")
+                .contains("private Connection openConnection() throws SQLException")
+                .contains("private DataSource runtimeObjectsDataSource()")
+                .doesNotContain("static Map<String, Object> markManualOverrides(")
+                .doesNotContain("java.util.Objects.deepEquals(previous, entry.getValue())");
+        assertThat(model)
+                .contains("final class ObjectPassportManualOverrideModel")
+                .contains("Map<String, Object> markManualOverrides(")
+                .contains("existing.get(\"_manual_overrides\")")
+                .contains("key.startsWith(\"_\")")
+                .contains("\"id\".equals(key)")
+                .contains("\"is_new\".equals(key)")
+                .contains("Objects.deepEquals(previous, entry.getValue())")
+                .contains("result.put(\"_manual_overrides\", List.copyOf(overrides))")
+                .doesNotContain("Connection")
+                .doesNotContain("DataSource")
+                .doesNotContain("ObjectPassportPersistence")
+                .doesNotContain("ObjectPassportPhotoStorageService");
+    }
+
+    @Test
     void passportPayloadRulesUseDedicatedModelOwner() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
         String model = read("src/main/java/com/example/panel/passports/ObjectPassportPayloadModel.java");
