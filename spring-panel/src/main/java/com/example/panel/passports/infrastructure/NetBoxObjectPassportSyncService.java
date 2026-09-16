@@ -1,5 +1,12 @@
-package com.example.panel.service;
+package com.example.panel.passports.infrastructure;
 
+import com.example.panel.service.BackendOpsCommandExecutionContext;
+import com.example.panel.service.BackendOpsCommandService;
+import com.example.panel.service.BackendOpsCommandTypes;
+import com.example.panel.service.NetBoxApiService;
+import com.example.panel.service.NetBoxSyncSettingsService;
+import com.example.panel.service.SettingsCatalogService;
+import com.example.panel.service.SharedConfigService;
 import com.example.panel.passports.ObjectPassportService;
 import com.example.panel.runtime.RuntimeRole;
 import com.example.panel.runtime.RuntimeRoleProperties;

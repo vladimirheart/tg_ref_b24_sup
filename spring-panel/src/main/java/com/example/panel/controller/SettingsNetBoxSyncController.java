@@ -1,6 +1,6 @@
 package com.example.panel.controller;
 
-import com.example.panel.service.NetBoxObjectPassportSyncService;
+import com.example.panel.passports.infrastructure.NetBoxObjectPassportSyncService;
 import com.example.panel.service.NetBoxSyncSettingsService;
 import com.example.panel.service.SettingsTopLevelUpdateService;
 import com.example.panel.service.SharedConfigService;

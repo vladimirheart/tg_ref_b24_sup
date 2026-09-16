@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.passports.infrastructure.NetBoxObjectPassportSyncService;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;

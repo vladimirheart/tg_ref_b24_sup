@@ -1,4 +1,4 @@
-package com.example.panel.service;
+package com.example.panel.passports.infrastructure;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

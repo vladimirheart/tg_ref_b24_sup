@@ -22,7 +22,7 @@ class ObjectPassportJavaSourceLayoutContractTest {
         String api = read("src/main/java/com/example/panel/controller/ObjectPassportApiController.java");
         String page = read("src/main/java/com/example/panel/passports/ObjectPassportPageController.java");
         String settingsEquipment = read("src/main/java/com/example/panel/service/SettingsItEquipmentService.java");
-        String netBoxSync = read("src/main/java/com/example/panel/service/NetBoxObjectPassportSyncService.java");
+        String netBoxSync = read("src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncService.java");
 
         assertThat(Files.exists(oldService)).isFalse();
         assertThat(Files.exists(newService)).isTrue();
@@ -107,6 +107,29 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("photoUrlBuilder.apply(storedName)")
                 .doesNotContain("openConnection()")
                 .doesNotContain("updatePassportRow(");
+    }
+
+    @Test
+    void passportNetBoxSyncUsesFeatureInfrastructurePackage() throws IOException {
+        Path oldSync = Path.of("src/main/java/com/example/panel/service", "NetBoxObjectPassportSyncService.java");
+        Path newSync = Path.of("src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncService.java");
+        String sync = read("src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncService.java");
+        String settingsPageData = read("src/main/java/com/example/panel/service/SettingsPageDataService.java");
+        String settingsController = read("src/main/java/com/example/panel/controller/SettingsNetBoxSyncController.java");
+        String scheduler = read("src/main/java/com/example/panel/service/NetBoxObjectPassportSyncScheduler.java");
+        String dispatcher = read("src/main/java/com/example/panel/service/BackendOpsCommandDispatcher.java");
+
+        assertThat(Files.exists(oldSync)).isFalse();
+        assertThat(Files.exists(newSync)).isTrue();
+        assertThat(sync)
+                .contains("package com.example.panel.passports.infrastructure;")
+                .contains("import com.example.panel.passports.ObjectPassportService;")
+                .contains("public class NetBoxObjectPassportSyncService");
+        for (String consumer : new String[] {settingsPageData, settingsController, scheduler, dispatcher}) {
+            assertThat(consumer)
+                    .contains("import com.example.panel.passports.infrastructure.NetBoxObjectPassportSyncService;")
+                    .doesNotContain("import com.example.panel.service.NetBoxObjectPassportSyncService;");
+        }
     }
 
 }

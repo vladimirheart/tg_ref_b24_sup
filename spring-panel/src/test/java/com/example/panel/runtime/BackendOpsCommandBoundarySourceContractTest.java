@@ -75,7 +75,7 @@ class BackendOpsCommandBoundarySourceContractTest {
             "IIKO_LOCATIONS_SYNC"
         );
         assertDurableService(
-            "service/NetBoxObjectPassportSyncService.java",
+            "passports/infrastructure/NetBoxObjectPassportSyncService.java",
             "NETBOX_PASSPORTS_SYNC"
         );
     }
@@ -86,7 +86,7 @@ class BackendOpsCommandBoundarySourceContractTest {
             "service/RmsLicenseMonitoringService.java",
             "service/IikoApiMonitoringService.java",
             "service/IikoDepartmentLocationsSyncService.java",
-            "service/NetBoxObjectPassportSyncService.java"
+            "passports/infrastructure/NetBoxObjectPassportSyncService.java"
         }) {
             String content = Files.readString(
                 SOURCE_ROOT.resolve(relativePath),

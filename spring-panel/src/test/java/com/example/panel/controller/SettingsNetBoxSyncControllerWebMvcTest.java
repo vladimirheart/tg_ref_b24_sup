@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.example.panel.service.NetBoxObjectPassportSyncService;
+import com.example.panel.passports.infrastructure.NetBoxObjectPassportSyncService;
 import com.example.panel.service.NetBoxSyncSettingsService;
 import com.example.panel.service.SettingsTopLevelUpdateService;
 import com.example.panel.service.SharedConfigService;

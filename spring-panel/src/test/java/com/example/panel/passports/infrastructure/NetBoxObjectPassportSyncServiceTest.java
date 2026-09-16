@@ -1,6 +1,10 @@
-package com.example.panel.service;
+package com.example.panel.passports.infrastructure;
 
 import com.example.panel.passports.ObjectPassportService;
+import com.example.panel.service.NetBoxApiService;
+import com.example.panel.service.NetBoxSyncSettingsService;
+import com.example.panel.service.SettingsCatalogService;
+import com.example.panel.service.SharedConfigService;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;

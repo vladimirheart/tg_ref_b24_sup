@@ -73,9 +73,12 @@ void migrationExitRunsOnlyAfterSpringApplicationReadyLifecycleReturns() throws I
         }
 
         assertThat(actual).containsExactlyInAnyOrder(
+            "passports/infrastructure/NetBoxObjectPassportSyncService.java",
+            "service/BackendOpsCommandDispatcher.java",
+            "service/BackendOpsCommandExecutionContext.java",
+            "service/BotAutoStartService.java",
             "service/IikoApiMonitoringService.java",
             "service/IikoDepartmentLocationsSyncService.java",
-            "service/NetBoxObjectPassportSyncService.java",
             "service/RmsLicenseMonitoringService.java"
         );
     }
