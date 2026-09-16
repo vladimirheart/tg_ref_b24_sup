@@ -116,6 +116,7 @@
 <script src="/js/passport-detail-overview-runtime.js?v=20260916-01-260-p4b"></script>
 <script src="/js/passport-detail-network-runtime.js?v=20260916-01-260-p4c"></script>
 <script src="/js/passport-detail-equipment-runtime.js?v=20260916-01-260-p4d"></script>
+<script src="/js/passport-detail-activity-runtime.js?v=20260916-01-260-p4e"></script>
 <script th:inline="javascript">
 (() => {
     const catalogRaw = /*[[${itEquipmentCatalog}]]*/ [];
@@ -233,34 +234,16 @@
         throw new Error('PassportDetailEquipmentRuntime is unavailable');
     }
     const { renderEquipment } = passportDetailEquipmentRuntime;
-    function recordCard(item, kind) {
-        const id = first(item && item.id, item && item.ticket_id, item && item.task_id, item && item.number, item && item.key, '');
-        const title = first(item && item.title, item && item.subject, item && item.name, item && item.category, kind === 'task' ? 'Задача' : 'Обращение');
-        const status = first(item && item.status, item && item.state, '');
-        const date = first(item && item.created_at, item && item.createdAt, item && item.updated_at, item && item.date, '');
-        const meta = [id ? `#${id}` : '', date].filter(Boolean).join(' · ');
-        return `<div class="passport-record-card">
-            <div><strong>${escapeHtml(title)}</strong>${meta ? `<span>${escapeHtml(meta)}</span>` : ''}</div>
-            ${status ? `<span class="passport-record-status" data-tone="${statusTone(status)}">${escapeHtml(status)}</span>` : ''}
-        </div>`;
+    const passportDetailActivityRuntime = window.PassportDetailActivityRuntime?.mount({
+        getCases: () => cases,
+        getTasks: () => tasks,
+        getIncidents: () => incidents,
+        coreRuntime: passportDetailCoreRuntime,
+    });
+    if (!passportDetailActivityRuntime) {
+        throw new Error('PassportDetailActivityRuntime is unavailable');
     }
-
-    function renderActivity() {
-        const casesList = document.getElementById('passportCasesList');
-        const tasksList = document.getElementById('passportTasksList');
-        const incidentsList = document.getElementById('passportIncidentsList');
-
-        casesList.innerHTML = cases.map((item) => recordCard(item, 'case')).join('');
-        tasksList.innerHTML = tasks.map((item) => recordCard(item, 'task')).join('');
-        document.getElementById('passportCasesEmpty').classList.toggle('d-none', cases.length > 0);
-        document.getElementById('passportTasksEmpty').classList.toggle('d-none', tasks.length > 0);
-
-        if (incidents.length) {
-            document.getElementById('passportIncidentsHeading').classList.remove('d-none');
-            incidentsList.innerHTML = incidents.map((item) => recordCard(item, 'incident')).join('');
-        }
-    }
-
+    const { renderActivity } = passportDetailActivityRuntime;
     function renderPhotos() {
         const grid = document.getElementById('passportPhotoGrid');
         const photos = Array.isArray(passport.photos) ? passport.photos : [];
