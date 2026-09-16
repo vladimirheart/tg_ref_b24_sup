@@ -116,16 +116,28 @@ class ObjectPassportJavaSourceLayoutContractTest {
         String sync = read("src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncService.java");
         String settingsPageData = read("src/main/java/com/example/panel/service/SettingsPageDataService.java");
         String settingsController = read("src/main/java/com/example/panel/controller/SettingsNetBoxSyncController.java");
-        String scheduler = read("src/main/java/com/example/panel/service/NetBoxObjectPassportSyncScheduler.java");
+        Path oldScheduler = Path.of("src/main/java/com/example/panel/service", "NetBoxObjectPassportSyncScheduler.java");
+        Path newScheduler = Path.of("src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncScheduler.java");
+        String scheduler = read("src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncScheduler.java");
         String dispatcher = read("src/main/java/com/example/panel/service/BackendOpsCommandDispatcher.java");
 
         assertThat(Files.exists(oldSync)).isFalse();
         assertThat(Files.exists(newSync)).isTrue();
+        assertThat(Files.exists(oldScheduler)).isFalse();
+        assertThat(Files.exists(newScheduler)).isTrue();
         assertThat(sync)
                 .contains("package com.example.panel.passports.infrastructure;")
                 .contains("import com.example.panel.passports.ObjectPassportService;")
                 .contains("public class NetBoxObjectPassportSyncService");
-        for (String consumer : new String[] {settingsPageData, settingsController, scheduler, dispatcher}) {
+        assertThat(scheduler)
+                .contains("package com.example.panel.passports.infrastructure;")
+                .contains("import com.example.panel.service.RuntimeCoordinationService;")
+                .contains("public class NetBoxObjectPassportSyncScheduler")
+                .contains("private final NetBoxObjectPassportSyncService syncService;")
+                .contains("RuntimeRole.WORKER")
+                .contains("RuntimeReplicaPolicy.LEASED")
+                .doesNotContain("import com.example.panel.passports.infrastructure.NetBoxObjectPassportSyncService;");
+        for (String consumer : new String[] {settingsPageData, settingsController, dispatcher}) {
             assertThat(consumer)
                     .contains("import com.example.panel.passports.infrastructure.NetBoxObjectPassportSyncService;")
                     .doesNotContain("import com.example.panel.service.NetBoxObjectPassportSyncService;");

@@ -1,6 +1,6 @@
-package com.example.panel.service;
+package com.example.panel.passports.infrastructure;
 
-import com.example.panel.passports.infrastructure.NetBoxObjectPassportSyncService;
+import com.example.panel.service.RuntimeCoordinationService;
 import com.example.panel.runtime.RuntimeWorkload;
 import com.example.panel.runtime.RuntimeRole;
 import com.example.panel.runtime.RuntimeReplicaPolicy;
