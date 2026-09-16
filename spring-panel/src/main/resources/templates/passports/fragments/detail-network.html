@@ -1,0 +1,38 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="networkPanel">        <section class="passport-workspace-panel" data-passport-panel="network">
+            <div class="passport-network-grid">
+                <section class="passport-compact-section">
+                    <div class="passport-section-heading">
+                        <div>
+                            <span class="passport-section-kicker">Локальная инфраструктура</span>
+                            <h2>Внутренняя сеть</h2>
+                        </div>
+                    </div>
+                    <div class="passport-property-grid passport-property-grid--single" id="passportInternalNetwork"></div>
+                </section>
+
+                <section class="passport-compact-section">
+                    <div class="passport-section-heading">
+                        <div>
+                            <span class="passport-section-kicker">Интернет</span>
+                            <h2>Провайдер</h2>
+                        </div>
+                    </div>
+                    <div class="passport-property-grid passport-property-grid--single" id="passportProviderNetwork"></div>
+                </section>
+            </div>
+
+            <details class="passport-technical-details d-none" id="passportNetworkTechnicalDetails">
+                <summary>Технические параметры подключения</summary>
+                <pre id="passportNetworkParams"></pre>
+            </details>
+
+            <section class="passport-compact-section d-none" id="passportNetworkFilesSection">
+                <div class="passport-section-heading">
+                    <div>
+                        <span class="passport-section-kicker">Вложения</span>
+                        <h2>Файлы сети</h2>
+                    </div>
+                </div>
+                <div class="passport-file-list" id="passportNetworkFiles"></div>
+            </section>
+        </section></th:block>
