@@ -113,6 +113,7 @@
 </main>
 
 <script src="/js/passport-detail-core-runtime.js?v=20260916-01-260-p4a"></script>
+<script src="/js/passport-detail-header-runtime.js?v=20260916-01-260-p4g"></script>
 <script src="/js/passport-detail-overview-runtime.js?v=20260916-01-260-p4b"></script>
 <script src="/js/passport-detail-network-runtime.js?v=20260916-01-260-p4c"></script>
 <script src="/js/passport-detail-equipment-runtime.js?v=20260916-01-260-p4d"></script>
@@ -164,52 +165,15 @@
         catalogKey,
         findCatalogItem,
     } = passportDetailCoreRuntime;
-    function renderCover() {
-        const cover = document.getElementById('passportWorkspaceCover');
-        if (!cover) return;
-        const photos = Array.isArray(passport.photos) ? passport.photos : [];
-        const titlePhoto = photos.find((photo) => normalizeKey(photo && photo.category) === 'title') || photos[0];
-        const photoIndex = titlePhoto ? photos.indexOf(titlePhoto) : -1;
-        const url = titlePhoto ? text(titlePhoto.url) : '';
-        delete cover.dataset.passportPhotoIndex;
-        if (!url) {
-            cover.innerHTML = '<span>PO</span>';
-            return;
-        }
-        cover.dataset.passportPhotoIndex = String(photoIndex);
-        cover.innerHTML = `<img src="${escapeHtml(url)}" alt="Фото объекта">`;
+    const passportDetailHeaderRuntime = window.PassportDetailHeaderRuntime?.mount({
+        getPassport: () => passport,
+        getPassportId: () => passportId,
+        coreRuntime: passportDetailCoreRuntime,
+    });
+    if (!passportDetailHeaderRuntime) {
+        throw new Error('PassportDetailHeaderRuntime is unavailable');
     }
-
-    function renderHeader() {
-        const title = first(passport.department, passport.object_name, `Паспорт #${passportId}`);
-        document.getElementById('passportWorkspaceTitle').textContent = title;
-        setStatus(document.getElementById('passportWorkspaceStatus'), passport.status);
-
-        const subtitle = [passport.business, passport.city, passport.location_address]
-            .map(text)
-            .filter(Boolean)
-            .join(' · ');
-        document.getElementById('passportWorkspaceSubtitle').textContent = subtitle || 'Адрес и бизнес не указаны';
-
-        const meta = [];
-        if (text(passport.partner_type)) meta.push(passport.partner_type);
-        if (text(passport.legal_entity)) meta.push(passport.legal_entity);
-        meta.push(`#${passportId}`);
-        document.getElementById('passportWorkspaceMeta').innerHTML = meta
-            .map((item) => `<span>${escapeHtml(item)}</span>`)
-            .join('');
-
-        const source = document.getElementById('passportWorkspaceSource');
-        if (source && text(passport.netbox_site_id)) {
-            source.textContent = `NetBox site #${passport.netbox_site_id}`;
-            source.classList.remove('d-none');
-        }
-
-        const legacyLink = document.getElementById('passportLegacyEditLink');
-        if (legacyLink) legacyLink.href = `/object-passports/${passportId}/legacy-edit`;
-        renderCover();
-    }
-
+    const { renderCover, renderHeader } = passportDetailHeaderRuntime;
     const passportDetailOverviewRuntime = window.PassportDetailOverviewRuntime?.mount({
         getPassport: () => passport,
         coreRuntime: passportDetailCoreRuntime,
