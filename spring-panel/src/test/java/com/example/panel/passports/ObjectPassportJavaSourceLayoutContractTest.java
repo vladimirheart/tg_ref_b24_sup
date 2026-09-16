@@ -84,4 +84,29 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .doesNotContain("loadAllStoredPassports(");
     }
 
+    @Test
+    void passportPhotoRulesUseDedicatedModelOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String model = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoModel.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportPhotoModel photoModel;")
+                .contains("this.photoModel = new ObjectPassportPhotoModel(photoStorageService::buildPhotoUrl);")
+                .contains("photoModel.normalizePhotos(")
+                .contains("photoModel.mutablePhotoList(")
+                .contains("photoModel.enforceSingleTitlePhoto(")
+                .contains("photoModel.findTitlePhotoUrl(")
+                .doesNotContain("private List<Map<String, Object>> normalizePhotos(Object value)")
+                .doesNotContain("private String findTitlePhotoUrl(");
+        assertThat(model)
+                .contains("final class ObjectPassportPhotoModel")
+                .contains("List<Map<String, Object>> normalizePhotos(Object value)")
+                .contains("List<Map<String, Object>> enforceSingleTitlePhoto(")
+                .contains("String normalizePhotoCategory(Object raw)")
+                .contains("String findTitlePhotoUrl(")
+                .contains("photoUrlBuilder.apply(storedName)")
+                .doesNotContain("openConnection()")
+                .doesNotContain("updatePassportRow(");
+    }
+
 }

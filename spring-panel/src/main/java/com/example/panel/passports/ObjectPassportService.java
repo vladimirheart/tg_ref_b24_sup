@@ -42,6 +42,7 @@ public class ObjectPassportService {
     private final ObjectPassportAppealQuery appealQuery;
     private final ObjectPassportEquipmentCatalogQuery equipmentCatalogQuery;
     private final ObjectPassportPhotoStorageService photoStorageService;
+    private final ObjectPassportPhotoModel photoModel;
     private final DataSource primaryDataSource;
     private final ObjectsSqliteDataSourceProperties objectsSqliteProperties;
     private final PanelDatabaseRuntimeMode databaseRuntimeMode;
@@ -60,6 +61,7 @@ public class ObjectPassportService {
         this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery();
         this.objectMapper = objectMapper;
         this.photoStorageService = photoStorageService;
+        this.photoModel = new ObjectPassportPhotoModel(photoStorageService::buildPhotoUrl);
     }
 
     public Map<String, Object> createPassport(Map<String, Object> payload) {
@@ -248,10 +250,10 @@ public class ObjectPassportService {
                 item.put("city", stringValue(normalized.get("city")));
                 item.put("business", stringValue(normalized.get("business")));
                 String status = stringValue(normalized.get("status"));
-                List<Map<String, Object>> photos = normalizePhotos(normalized.get("photos"));
+                List<Map<String, Object>> photos = photoModel.normalizePhotos(normalized.get("photos"));
                 item.put("status", status);
                 item.put("deleted", isDeletedStatus(status));
-                item.put("title_photo_url", findTitlePhotoUrl(photos));
+                item.put("title_photo_url", photoModel.findTitlePhotoUrl(photos));
                 item.put("location_address", firstNonBlank(normalized.get("location_address"), rs.getString("object_address")));
                 item.put("passport_number", firstNonBlank(normalized.get("department"), rs.getString("passport_number")));
                 item.put("object_name", firstNonBlank(rs.getString("object_name"), normalized.get("department")));
@@ -312,10 +314,10 @@ public class ObjectPassportService {
             try {
                 StoredPassportRecord existing = loadStoredPassport(connection, passportId);
                 Map<String, Object> normalized = normalizePayload(existing.payload(), Map.of(), passportId);
-                List<Map<String, Object>> photos = mutablePhotoList(normalized.get("photos"));
+                List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 LinkedHashMap<String, Object> photo = new LinkedHashMap<>();
                 photo.put("id", UUID.randomUUID().toString());
-                photo.put("category", normalizePhotoCategory(category));
+                photo.put("category", photoModel.normalizePhotoCategory(category));
                 photo.put("caption", stringValue(caption));
                 photo.put("url", storedPhoto.url());
                 photo.put("stored_name", storedPhoto.storedName());
@@ -324,7 +326,7 @@ public class ObjectPassportService {
                 photo.put("size", storedPhoto.size());
                 photo.put("created_at", storedPhoto.uploadedAt());
                 photos.add(photo);
-                normalized.put("photos", enforceSingleTitlePhoto(photos, stringValue(photo.get("id"))));
+                normalized.put("photos", photoModel.enforceSingleTitlePhoto(photos, stringValue(photo.get("id"))));
                 updatePassportRow(connection, passportId, existing.objectId(), normalized);
                 connection.commit();
                 return Map.of("success", true, "photos", normalized.get("photos"));
@@ -345,7 +347,7 @@ public class ObjectPassportService {
             try {
                 StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
                 Map<String, Object> normalized = normalizePayload(existing.payload(), Map.of(), existing.passportId());
-                List<Map<String, Object>> photos = mutablePhotoList(normalized.get("photos"));
+                List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 boolean updated = false;
                 for (Map<String, Object> photo : photos) {
                     if (!stringValue(photo.get("id")).equals(stringValue(photoId))) {
@@ -355,7 +357,7 @@ public class ObjectPassportService {
                         photo.put("caption", stringValue(payload.get("caption")));
                     }
                     if (payload.containsKey("category")) {
-                        photo.put("category", normalizePhotoCategory(payload.get("category")));
+                        photo.put("category", photoModel.normalizePhotoCategory(payload.get("category")));
                     }
                     updated = true;
                     break;
@@ -363,7 +365,7 @@ public class ObjectPassportService {
                 if (!updated) {
                     throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
                 }
-                normalized.put("photos", enforceSingleTitlePhoto(photos, stringValue(photoId)));
+                normalized.put("photos", photoModel.enforceSingleTitlePhoto(photos, stringValue(photoId)));
                 updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
                 connection.commit();
                 return Map.of("success", true, "photos", normalized.get("photos"));
@@ -383,7 +385,7 @@ public class ObjectPassportService {
             try {
                 StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
                 Map<String, Object> normalized = normalizePayload(existing.payload(), Map.of(), existing.passportId());
-                List<Map<String, Object>> photos = mutablePhotoList(normalized.get("photos"));
+                List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 List<Map<String, Object>> remaining = new ArrayList<>();
                 boolean deleted = false;
                 for (Map<String, Object> photo : photos) {
@@ -397,7 +399,7 @@ public class ObjectPassportService {
                 if (!deleted) {
                     throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
                 }
-                normalized.put("photos", enforceSingleTitlePhoto(remaining, null));
+                normalized.put("photos", photoModel.enforceSingleTitlePhoto(remaining, null));
                 updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
                 connection.commit();
                 photoStorageService.deleteQuietly(storedNameToDelete);
@@ -580,7 +582,7 @@ public class ObjectPassportService {
             return storedNames;
         }
         for (StoredPassportRecord record : records) {
-            List<Map<String, Object>> photos = normalizePhotos(record.payload().get("photos"));
+            List<Map<String, Object>> photos = photoModel.normalizePhotos(record.payload().get("photos"));
             for (Map<String, Object> photo : photos) {
                 String storedName = stringValue(photo.get("stored_name"));
                 if (StringUtils.hasText(storedName)) {
@@ -608,7 +610,7 @@ public class ObjectPassportService {
         ensureList(normalized, "schedule");
         ensureList(normalized, "cases");
         ensureList(normalized, "tasks");
-        normalized.put("photos", normalizePhotos(normalized.get("photos")));
+        normalized.put("photos", photoModel.normalizePhotos(normalized.get("photos")));
         ensureList(normalized, "network_files");
         ensureList(normalized, "equipment");
         ensureList(normalized, "status_history");
@@ -622,115 +624,6 @@ public class ObjectPassportService {
         }
     }
 
-    private List<Map<String, Object>> normalizePhotos(Object value) {
-        if (!(value instanceof List<?> rawList)) {
-            return List.of();
-        }
-        List<Map<String, Object>> photos = new ArrayList<>();
-        for (Object item : rawList) {
-            if (!(item instanceof Map<?, ?> rawMap)) {
-                continue;
-            }
-            LinkedHashMap<String, Object> photo = new LinkedHashMap<>();
-            String id = stringValue(rawMap.get("id"));
-            if (StringUtils.hasText(id)) {
-                photo.put("id", id);
-            }
-            photo.put("category", normalizePhotoCategory(rawMap.get("category")));
-            photo.put("caption", stringValue(rawMap.get("caption")));
-            String storedName = firstNonBlank(rawMap.get("stored_name"), rawMap.get("storedName"), rawMap.get("filename"));
-            if (StringUtils.hasText(storedName)) {
-                photo.put("stored_name", storedName);
-            }
-            String originalName = firstNonBlank(rawMap.get("original_name"), rawMap.get("originalName"));
-            if (StringUtils.hasText(originalName)) {
-                photo.put("original_name", originalName);
-            }
-            String source = stringValue(rawMap.get("source"));
-            if (StringUtils.hasText(source)) {
-                photo.put("source", source);
-            }
-            String externalId = firstNonBlank(rawMap.get("external_id"), rawMap.get("externalId"));
-            if (StringUtils.hasText(externalId)) {
-                photo.put("external_id", externalId);
-            }
-            String sourceUrl = firstNonBlank(rawMap.get("source_url"), rawMap.get("sourceUrl"));
-            if (StringUtils.hasText(sourceUrl)) {
-                photo.put("source_url", sourceUrl);
-            }
-            String mimeType = stringValue(rawMap.get("mime_type"));
-            if (StringUtils.hasText(mimeType)) {
-                photo.put("mime_type", mimeType);
-            }
-            Object size = rawMap.get("size");
-            if (size instanceof Number number) {
-                photo.put("size", number.longValue());
-            }
-            String createdAt = firstNonBlank(rawMap.get("created_at"), rawMap.get("createdAt"));
-            if (StringUtils.hasText(createdAt)) {
-                photo.put("created_at", createdAt);
-            }
-            String url = firstNonBlank(rawMap.get("url"), rawMap.get("download_url"));
-            if (!StringUtils.hasText(url) && StringUtils.hasText(storedName)) {
-                url = photoStorageService.buildPhotoUrl(storedName);
-            }
-            if (StringUtils.hasText(url)) {
-                photo.put("url", url);
-            }
-            photos.add(photo);
-        }
-        return enforceSingleTitlePhoto(photos, null);
-    }
-
-    private List<Map<String, Object>> mutablePhotoList(Object value) {
-        List<Map<String, Object>> normalized = normalizePhotos(value);
-        List<Map<String, Object>> mutable = new ArrayList<>();
-        for (Map<String, Object> photo : normalized) {
-            mutable.add(new LinkedHashMap<>(photo));
-        }
-        return mutable;
-    }
-
-    private List<Map<String, Object>> enforceSingleTitlePhoto(List<Map<String, Object>> photos, String preferredTitlePhotoId) {
-        List<Map<String, Object>> normalized = new ArrayList<>();
-        String titleHolderId = null;
-        if (StringUtils.hasText(preferredTitlePhotoId)) {
-            for (Map<String, Object> photo : photos) {
-                if (preferredTitlePhotoId.equals(stringValue(photo.get("id")))
-                        && "title".equals(normalizePhotoCategory(photo.get("category")))) {
-                    titleHolderId = preferredTitlePhotoId;
-                    break;
-                }
-            }
-        }
-        if (!StringUtils.hasText(titleHolderId)) {
-            for (Map<String, Object> photo : photos) {
-                if ("title".equals(normalizePhotoCategory(photo.get("category")))) {
-                    titleHolderId = stringValue(photo.get("id"));
-                    break;
-                }
-            }
-        }
-        for (Map<String, Object> photo : photos) {
-            LinkedHashMap<String, Object> copy = new LinkedHashMap<>(photo);
-            String photoId = stringValue(copy.get("id"));
-            if (StringUtils.hasText(titleHolderId) && titleHolderId.equals(photoId)) {
-                copy.put("category", "title");
-            } else if ("title".equals(normalizePhotoCategory(copy.get("category")))) {
-                copy.put("category", "archive");
-            } else {
-                copy.put("category", normalizePhotoCategory(copy.get("category")));
-            }
-            normalized.add(copy);
-        }
-        return normalized;
-    }
-
-    private String normalizePhotoCategory(Object raw) {
-        String value = stringValue(raw).toLowerCase();
-        return "title".equals(value) ? "title" : "archive";
-    }
-
     private StoredPassportRecord findStoredPassportByPhotoId(Connection connection, String photoId) throws SQLException {
         String normalizedPhotoId = stringValue(photoId);
         if (!StringUtils.hasText(normalizedPhotoId)) {
@@ -742,7 +635,7 @@ public class ObjectPassportService {
             while (rs.next()) {
                 long passportId = rs.getLong("id");
                 StoredPassportRecord record = loadStoredPassport(connection, passportId);
-                List<Map<String, Object>> photos = normalizePhotos(record.payload().get("photos"));
+                List<Map<String, Object>> photos = photoModel.normalizePhotos(record.payload().get("photos"));
                 boolean found = photos.stream()
                         .anyMatch(photo -> normalizedPhotoId.equals(stringValue(photo.get("id"))));
                 if (found) {
@@ -753,22 +646,6 @@ public class ObjectPassportService {
             }
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
-    }
-
-    private String findTitlePhotoUrl(List<Map<String, Object>> photos) {
-        if (photos == null) {
-            return "";
-        }
-        for (Map<String, Object> photo : photos) {
-            if (!"title".equals(normalizePhotoCategory(photo.get("category")))) {
-                continue;
-            }
-            String url = stringValue(photo.get("url"));
-            if (StringUtils.hasText(url)) {
-                return url;
-            }
-        }
-        return "";
     }
 
     private boolean isDeletedStatus(Object raw) {
