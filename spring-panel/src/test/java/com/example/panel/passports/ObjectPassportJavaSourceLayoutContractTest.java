@@ -84,6 +84,49 @@ class ObjectPassportJavaSourceLayoutContractTest {
     }
 
     @Test
+    void passportUpdateWorkflowUsesDedicatedCommandOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String command = read("src/main/java/com/example/panel/passports/ObjectPassportUpdateCommand.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportUpdateCommand updateCommand;")
+                .contains("this.updateCommand = new ObjectPassportUpdateCommand(persistence, payloadModel, manualOverrideModel);")
+                .contains("Map<String, Object> updated = updateCommand.update(")
+                .contains("connection, passportId, payload, trackManualOverrides);")
+                .contains("return updatePassportInternal(passportId, payload, true);")
+                .contains("return updatePassportInternal(passportId, payload, false);")
+                .contains("connection.setAutoCommit(false);")
+                .contains("connection.commit();")
+                .contains("connection.rollback();")
+                .contains("private Connection openConnection() throws SQLException")
+                .contains("private DataSource runtimeObjectsDataSource()")
+                .doesNotContain("manualOverrideModel.markManualOverrides(existing.payload(), payload)")
+                .doesNotContain("persistence.updatePassportRow(connection, passportId, objectId, normalized);");
+        assertThat(command)
+                .contains("final class ObjectPassportUpdateCommand")
+                .contains("private final ObjectPassportPersistence persistence;")
+                .contains("private final ObjectPassportPayloadModel payloadModel;")
+                .contains("private final ObjectPassportManualOverrideModel manualOverrideModel;")
+                .contains("Map<String, Object> update(Connection connection,")
+                .contains("boolean trackManualOverrides) throws SQLException")
+                .contains("persistence.loadStoredPassport(connection, passportId)")
+                .contains("manualOverrideModel.markManualOverrides(existing.payload(), payload)")
+                .contains("payload == null ? Map.of() : payload")
+                .contains("payloadModel.normalizePayload(existing.payload(), incoming, passportId)")
+                .contains("payloadModel.validatePayload(normalized)")
+                .contains("persistence.updateObject(connection, objectId, normalized)")
+                .contains("persistence.insertObject(connection, normalized)")
+                .contains("persistence.updatePassportRow(connection, passportId, objectId, normalized)")
+                .contains("payloadModel.normalizePayload(Map.of(), normalized, passportId)")
+                .doesNotContain("DataSource")
+                .doesNotContain("openConnection()")
+                .doesNotContain("setAutoCommit")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()")
+                .doesNotContain("ObjectPassportPhotoStorageService");
+    }
+
+    @Test
     void passportAppealReadModelUsesDedicatedQueryOwner() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
         String query = read("src/main/java/com/example/panel/passports/ObjectPassportAppealQuery.java");
@@ -392,12 +435,14 @@ class ObjectPassportJavaSourceLayoutContractTest {
     @Test
     void passportManualOverridesUseDedicatedModelOwner() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String command = read("src/main/java/com/example/panel/passports/ObjectPassportUpdateCommand.java");
         String model = read("src/main/java/com/example/panel/passports/ObjectPassportManualOverrideModel.java");
 
         assertThat(service)
                 .contains("private final ObjectPassportManualOverrideModel manualOverrideModel;")
                 .contains("this.manualOverrideModel = new ObjectPassportManualOverrideModel();")
-                .contains("manualOverrideModel.markManualOverrides(existing.payload(), payload)")
+                .contains("this.updateCommand = new ObjectPassportUpdateCommand(persistence, payloadModel, manualOverrideModel);")
+                .doesNotContain("manualOverrideModel.markManualOverrides(existing.payload(), payload)")
                 .contains("connection.setAutoCommit(false);")
                 .contains("connection.commit();")
                 .contains("connection.rollback();")
@@ -405,6 +450,13 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("private DataSource runtimeObjectsDataSource()")
                 .doesNotContain("static Map<String, Object> markManualOverrides(")
                 .doesNotContain("java.util.Objects.deepEquals(previous, entry.getValue())");
+        assertThat(command)
+                .contains("private final ObjectPassportManualOverrideModel manualOverrideModel;")
+                .contains("manualOverrideModel.markManualOverrides(existing.payload(), payload)")
+                .doesNotContain("DataSource")
+                .doesNotContain("openConnection()")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()");
         assertThat(model)
                 .contains("final class ObjectPassportManualOverrideModel")
                 .contains("Map<String, Object> markManualOverrides(")

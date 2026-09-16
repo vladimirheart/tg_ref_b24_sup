@@ -29,6 +29,7 @@ public class ObjectPassportService {
 
     private final ObjectPassportPersistence persistence;
     private final ObjectPassportCreateCommand createCommand;
+    private final ObjectPassportUpdateCommand updateCommand;
     private final ObjectPassportAppealQuery appealQuery;
     private final ObjectPassportCasesQuery casesQuery;
     private final ObjectPassportDetailsQuery detailsQuery;
@@ -61,6 +62,7 @@ public class ObjectPassportService {
         this.manualOverrideModel = new ObjectPassportManualOverrideModel();
         this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
         this.createCommand = new ObjectPassportCreateCommand(persistence, payloadModel);
+        this.updateCommand = new ObjectPassportUpdateCommand(persistence, payloadModel, manualOverrideModel);
         this.detailsQuery = new ObjectPassportDetailsQuery(persistence, payloadModel);
         this.casesQuery = new ObjectPassportCasesQuery(persistence, payloadModel, appealQuery);
         this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery(persistence);
@@ -100,22 +102,10 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                ObjectPassportPersistence.StoredPassportRecord existing = persistence.loadStoredPassport(connection, passportId);
-                Map<String, Object> incoming = trackManualOverrides
-                        ? manualOverrideModel.markManualOverrides(existing.payload(), payload)
-                        : (payload == null ? Map.of() : payload);
-                Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), incoming, passportId);
-                payloadModel.validatePayload(normalized);
-                long objectId = existing.objectId();
-                if (!persistence.updateObject(connection, objectId, normalized)) {
-                    objectId = persistence.insertObject(connection, normalized);
-                }
-                persistence.updatePassportRow(connection, passportId, objectId, normalized);
+                Map<String, Object> updated = updateCommand.update(
+                        connection, passportId, payload, trackManualOverrides);
                 connection.commit();
-                return Map.of(
-                        "success", true,
-                        "id", passportId,
-                        "passport", payloadModel.normalizePayload(Map.of(), normalized, passportId));
+                return updated;
             } catch (RuntimeException | SQLException ex) {
                 connection.rollback();
                 throw ex;
