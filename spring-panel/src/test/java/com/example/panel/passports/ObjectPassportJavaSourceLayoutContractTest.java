@@ -158,6 +158,45 @@ class ObjectPassportJavaSourceLayoutContractTest {
     }
 
     @Test
+    void passportPhotoLookupUsesDedicatedQueryOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String query = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoQuery.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportPhotoQuery photoQuery;")
+                .contains("this.photoQuery = new ObjectPassportPhotoQuery(persistence, photoModel);")
+                .contains("photoQuery.findStoredPassportByPhotoId(connection, photoId)")
+                .contains("public Map<String, Object> uploadPhoto(")
+                .contains("public Map<String, Object> updatePhoto(")
+                .contains("public Map<String, Object> deletePhoto(")
+                .contains("photoStorageService.store(file)")
+                .contains("photoStorageService.deleteQuietly(")
+                .contains("return photoStorageService.download(storedName);")
+                .contains("connection.setAutoCommit(false);")
+                .contains("connection.commit();")
+                .contains("connection.rollback();")
+                .contains("private Connection openConnection() throws SQLException")
+                .contains("private DataSource runtimeObjectsDataSource()")
+                .doesNotContain("SELECT id FROM object_passports")
+                .doesNotContain("private ObjectPassportPersistence.StoredPassportRecord findStoredPassportByPhotoId(")
+                .doesNotContain("import java.sql.ResultSet;");
+        assertThat(query)
+                .contains("final class ObjectPassportPhotoQuery")
+                .contains("findStoredPassportByPhotoId(Connection connection,")
+                .contains("SELECT id FROM object_passports")
+                .contains("persistence.loadStoredPassport(connection, passportId)")
+                .contains("photoModel.normalizePhotos(record.payload().get(\"photos\"))")
+                .contains("new ObjectPassportPersistence.StoredPassportRecord(")
+                .contains("HttpStatus.NOT_FOUND")
+                .doesNotContain("DataSource")
+                .doesNotContain("openConnection()")
+                .doesNotContain("ObjectPassportPhotoStorageService")
+                .doesNotContain("setAutoCommit")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()");
+    }
+
+    @Test
     void passportNetBoxSyncUsesFeatureInfrastructurePackage() throws IOException {
         Path oldSync = Path.of("src/main/java/com/example/panel/service", "NetBoxObjectPassportSyncService.java");
         Path newSync = Path.of("src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncService.java");

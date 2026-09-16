@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -37,6 +36,7 @@ public class ObjectPassportService {
     private final ObjectPassportEquipmentCatalogQuery equipmentCatalogQuery;
     private final ObjectPassportPhotoStorageService photoStorageService;
     private final ObjectPassportPhotoModel photoModel;
+    private final ObjectPassportPhotoQuery photoQuery;
     private final ObjectPassportPayloadModel payloadModel;
     private final DataSource primaryDataSource;
     private final ObjectsSqliteDataSourceProperties objectsSqliteProperties;
@@ -59,6 +59,7 @@ public class ObjectPassportService {
         this.payloadModel = new ObjectPassportPayloadModel(photoModel);
         this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
         this.listQuery = new ObjectPassportListQuery(persistence, payloadModel, photoModel, appealQuery);
+        this.photoQuery = new ObjectPassportPhotoQuery(persistence, photoModel);
     }
 
     public Map<String, Object> createPassport(Map<String, Object> payload) {
@@ -312,7 +313,7 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                ObjectPassportPersistence.StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
+                ObjectPassportPersistence.StoredPassportRecord existing = photoQuery.findStoredPassportByPhotoId(connection, photoId);
                 Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId());
                 List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 boolean updated = false;
@@ -350,7 +351,7 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                ObjectPassportPersistence.StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
+                ObjectPassportPersistence.StoredPassportRecord existing = photoQuery.findStoredPassportByPhotoId(connection, photoId);
                 Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId());
                 List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 List<Map<String, Object>> remaining = new ArrayList<>();
@@ -427,30 +428,6 @@ public class ObjectPassportService {
             }
         }
         return storedNames;
-    }
-
-    private ObjectPassportPersistence.StoredPassportRecord findStoredPassportByPhotoId(Connection connection, String photoId) throws SQLException {
-        String normalizedPhotoId = stringValue(photoId);
-        if (!StringUtils.hasText(normalizedPhotoId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
-        }
-        String sql = "SELECT id FROM object_passports";
-        try (PreparedStatement statement = connection.prepareStatement(sql);
-             ResultSet rs = statement.executeQuery()) {
-            while (rs.next()) {
-                long passportId = rs.getLong("id");
-                ObjectPassportPersistence.StoredPassportRecord record = persistence.loadStoredPassport(connection, passportId);
-                List<Map<String, Object>> photos = photoModel.normalizePhotos(record.payload().get("photos"));
-                boolean found = photos.stream()
-                        .anyMatch(photo -> normalizedPhotoId.equals(stringValue(photo.get("id"))));
-                if (found) {
-                    Map<String, Object> payload = new LinkedHashMap<>(record.payload());
-                    payload.put("photos", photos);
-                    return new ObjectPassportPersistence.StoredPassportRecord(record.passportId(), record.objectId(), payload);
-                }
-            }
-        }
-        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
     }
 
     private String stringValue(Object raw) {
