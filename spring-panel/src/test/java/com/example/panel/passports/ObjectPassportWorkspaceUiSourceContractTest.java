@@ -21,6 +21,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         String media = read("src/main/resources/templates/passports/fragments/detail-media.html");
         String coreRuntime = read("src/main/resources/static/js/passport-detail-core-runtime.js");
         String equipmentRuntime = read("src/main/resources/static/js/passport-detail-equipment-runtime.js");
+        String editorRuntime = read("src/main/resources/static/js/passport-detail-editor-runtime.js");
         String equipment = read("src/main/resources/templates/passports/fragments/detail-equipment.html");
         assertTrue(html.contains("passport-workspace-tabs"));
         assertTrue(html.contains("passport-kpi-strip"));
@@ -42,12 +43,14 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(html.contains("PassportDetailCoreRuntime"));
         assertTrue(html.contains("/js/passport-detail-equipment-runtime.js?v=20260916-01-260-p4d"));
         assertTrue(html.contains("PassportDetailEquipmentRuntime"));
+        assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20260916-01-260-p4h"));
+        assertTrue(html.contains("PassportDetailEditorRuntime"));
         assertTrue(coreRuntime.contains("findCatalogItem"));
         assertTrue(coreRuntime.contains("item && item.catalog_id"));
         assertTrue(coreRuntime.contains("catalogKey("));
-        assertTrue(html.contains("data-equipment-restore"));
-        assertTrue(html.contains("archived_at"));
-        assertTrue(html.contains("перестанет блокировать удаление модели из каталога"));
+        assertTrue(editorRuntime.contains("data-equipment-restore"));
+        assertTrue(editorRuntime.contains("archived_at"));
+        assertTrue(editorRuntime.contains("перестанет блокировать удаление модели из каталога"));
     }
 
     @Test
