@@ -29,6 +29,7 @@ public class ObjectPassportService {
 
     private final ObjectPassportPersistence persistence;
     private final ObjectPassportAppealQuery appealQuery;
+    private final ObjectPassportCasesQuery casesQuery;
     private final ObjectPassportListQuery listQuery;
     private final ObjectPassportNetBoxQuery netBoxQuery;
     private final ObjectPassportEquipmentCatalogQuery equipmentCatalogQuery;
@@ -57,6 +58,7 @@ public class ObjectPassportService {
         this.payloadModel = new ObjectPassportPayloadModel(photoModel);
         this.manualOverrideModel = new ObjectPassportManualOverrideModel();
         this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
+        this.casesQuery = new ObjectPassportCasesQuery(persistence, payloadModel, appealQuery);
         this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery(persistence);
         this.listQuery = new ObjectPassportListQuery(persistence, payloadModel, photoModel, appealQuery);
         this.photoQuery = new ObjectPassportPhotoQuery(persistence, photoModel);
@@ -209,15 +211,7 @@ public class ObjectPassportService {
 
     public Map<String, Object> getEmptyCasesPayload(long passportId) {
         try (Connection connection = openConnection()) {
-            ObjectPassportPersistence.StoredPassportRecord existing = persistence.loadStoredPassport(connection, passportId);
-            Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), existing.payload(), passportId);
-            List<Map<String, Object>> items = appealQuery.loadCases(normalized);
-            return Map.of(
-                    "success", true,
-                    "items", items,
-                    "total_count", items.size(),
-                    "total_minutes", 0,
-                    "total_display", "0 мин");
+            return casesQuery.load(connection, passportId);
         } catch (SQLException ex) {
             throw new IllegalStateException("Не удалось загрузить обращения паспорта объекта", ex);
         }

@@ -52,13 +52,17 @@ class ObjectPassportJavaSourceLayoutContractTest {
     void passportAppealReadModelUsesDedicatedQueryOwner() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
         String query = read("src/main/java/com/example/panel/passports/ObjectPassportAppealQuery.java");
+        String casesQuery = read("src/main/java/com/example/panel/passports/ObjectPassportCasesQuery.java");
 
         assertThat(service)
                 .contains("private final ObjectPassportAppealQuery appealQuery;")
                 .contains("this.appealQuery = new ObjectPassportAppealQuery(jdbcTemplate);")
                 .contains("appealQuery.loadAppealCountsByLocation()")
                 .doesNotContain("appealQuery.resolveAppealCount(appealsCountByLocation, normalized)")
-                .contains("appealQuery.loadCases(normalized)")
+                .contains("private final ObjectPassportCasesQuery casesQuery;")
+                .contains("this.casesQuery = new ObjectPassportCasesQuery(persistence, payloadModel, appealQuery);")
+                .contains("return casesQuery.load(connection, passportId);")
+                .doesNotContain("List<Map<String, Object>> items = appealQuery.loadCases(normalized);")
                 .doesNotContain("private Map<String, Long> loadAppealCountsByLocation()")
                 .doesNotContain("private List<Map<String, Object>> queryCases(");
         assertThat(query)
@@ -68,6 +72,21 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("List<Map<String, Object>> loadCases(")
                 .contains("SELECT DISTINCT ticket_id")
                 .contains("SELECT ticket_id, business, city, problem, created_at");
+        assertThat(casesQuery)
+                .contains("final class ObjectPassportCasesQuery")
+                .contains("private final ObjectPassportPersistence persistence;")
+                .contains("private final ObjectPassportPayloadModel payloadModel;")
+                .contains("private final ObjectPassportAppealQuery appealQuery;")
+                .contains("Map<String, Object> load(Connection connection, long passportId) throws SQLException")
+                .contains("persistence.loadStoredPassport(connection, passportId)")
+                .contains("payloadModel.normalizePayload(Map.of(), existing.payload(), passportId)")
+                .contains("appealQuery.loadCases(normalized)")
+                .contains("\"total_count\", items.size()")
+                .doesNotContain("DataSource")
+                .doesNotContain("openConnection()")
+                .doesNotContain("setAutoCommit")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()");
     }
 
     @Test
