@@ -1,0 +1,61 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="photosSection">      <div class="card passport-card mb-4 ops-section-card" id="photosSection">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#photosBody">
+          <span>Фотографии объекта</span>
+          <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#photosBody" aria-expanded="false">Развернуть ▼</button>
+        </div>
+        <div class="section-collapse" id="photosBody">
+          <div class="card-body">
+          <div class="alert alert-warning d-none" id="photosDisabledHint">Сохраните паспорт, чтобы добавлять фотографии.</div>
+          <form class="row g-3 align-items-end mb-3" id="photoUploadForm">
+            <div class="col-md-3">
+              <label class="form-label">Тип фото</label>
+              <select class="form-select form-select-sm" name="category" required>
+                <option value="title">Титульное</option>
+                <option value="archive">Архивное</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Подпись</label>
+              <input type="text" class="form-control form-control-sm" name="caption" placeholder="Описание" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Файл</label>
+              <input type="file" class="form-control form-control-sm" name="file" accept="image/*" required />
+            </div>
+            <div class="col-md-1">
+              <button class="btn btn-outline-primary btn-sm w-100" type="submit">Добавить</button>
+            </div>
+          </form>
+          <div class="row g-3" id="photosContainer"></div>
+          <div class="text-muted" id="photosEmptyText">Фотографии ещё не добавлены.</div>
+		  </div>
+        </div>
+      </div></th:block>
+
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="photoPreviewModal">  <div class="modal fade" id="photoPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-body">
+          <div id="photoPreviewCarousel" class="carousel slide">
+            <div class="carousel-inner" id="photoPreviewCarouselInner"></div>
+            <button class="carousel-control-prev d-none" type="button" id="photoPreviewPrev" data-bs-target="#photoPreviewCarousel" data-bs-slide="prev">
+              <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Предыдущее</span>
+            </button>
+            <button class="carousel-control-next d-none" type="button" id="photoPreviewNext" data-bs-target="#photoPreviewCarousel" data-bs-slide="next">
+              <span class="carousel-control-next-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Следующее</span>
+            </button>
+          </div>
+          <div class="mt-3" id="photoPreviewMeta">
+            <div class="text-muted small">Подпись</div>
+            <div id="photoPreviewCaption" class="fw-semibold"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <a href="#" class="btn btn-primary" id="photoPreviewDownload" download>Скачать</a>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div></th:block>
