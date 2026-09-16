@@ -90,6 +90,34 @@ class ObjectPassportJavaSourceLayoutContractTest {
     }
 
     @Test
+    void passportDetailsProjectionUsesDedicatedQueryOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String query = read("src/main/java/com/example/panel/passports/ObjectPassportDetailsQuery.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportDetailsQuery detailsQuery;")
+                .contains("this.detailsQuery = new ObjectPassportDetailsQuery(persistence, payloadModel);")
+                .contains("return detailsQuery.load(connection, passportId);")
+                .contains("private Connection openConnection() throws SQLException")
+                .contains("private DataSource runtimeObjectsDataSource()")
+                .doesNotContain("\"passport\", payloadModel.normalizePayload(Map.of(), existing.payload(), passportId));");
+        assertThat(query)
+                .contains("final class ObjectPassportDetailsQuery")
+                .contains("private final ObjectPassportPersistence persistence;")
+                .contains("private final ObjectPassportPayloadModel payloadModel;")
+                .contains("ObjectPassportDetailsQuery(ObjectPassportPersistence persistence,")
+                .contains("Map<String, Object> load(Connection connection, long passportId) throws SQLException")
+                .contains("persistence.loadStoredPassport(connection, passportId)")
+                .contains("payloadModel.normalizePayload(Map.of(), existing.payload(), passportId)")
+                .contains("return Map.of(")
+                .doesNotContain("DataSource")
+                .doesNotContain("openConnection()")
+                .doesNotContain("setAutoCommit")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()");
+    }
+
+    @Test
     void passportListProjectionUsesDedicatedQueryOwner() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
         String query = read("src/main/java/com/example/panel/passports/ObjectPassportListQuery.java");

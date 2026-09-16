@@ -30,6 +30,7 @@ public class ObjectPassportService {
     private final ObjectPassportPersistence persistence;
     private final ObjectPassportAppealQuery appealQuery;
     private final ObjectPassportCasesQuery casesQuery;
+    private final ObjectPassportDetailsQuery detailsQuery;
     private final ObjectPassportListQuery listQuery;
     private final ObjectPassportNetBoxQuery netBoxQuery;
     private final ObjectPassportEquipmentCatalogQuery equipmentCatalogQuery;
@@ -58,6 +59,7 @@ public class ObjectPassportService {
         this.payloadModel = new ObjectPassportPayloadModel(photoModel);
         this.manualOverrideModel = new ObjectPassportManualOverrideModel();
         this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
+        this.detailsQuery = new ObjectPassportDetailsQuery(persistence, payloadModel);
         this.casesQuery = new ObjectPassportCasesQuery(persistence, payloadModel, appealQuery);
         this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery(persistence);
         this.listQuery = new ObjectPassportListQuery(persistence, payloadModel, photoModel, appealQuery);
@@ -129,10 +131,7 @@ public class ObjectPassportService {
 
     public Map<String, Object> getPassport(long passportId) {
         try (Connection connection = openConnection()) {
-            ObjectPassportPersistence.StoredPassportRecord existing = persistence.loadStoredPassport(connection, passportId);
-            return Map.of(
-                    "success", true,
-                    "passport", payloadModel.normalizePayload(Map.of(), existing.payload(), passportId));
+            return detailsQuery.load(connection, passportId);
         } catch (SQLException ex) {
             throw new IllegalStateException("Не удалось загрузить паспорт объекта", ex);
         }
