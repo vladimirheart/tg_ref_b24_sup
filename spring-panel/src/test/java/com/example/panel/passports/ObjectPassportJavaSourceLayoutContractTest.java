@@ -154,7 +154,15 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("photoModel.normalizePhotos(")
                 .contains("photoModel.mutablePhotoList(")
                 .contains("photoModel.enforceSingleTitlePhoto(")
+                .contains("photoModel.updatePhoto(")
+                .contains("photoModel.deletePhoto(")
                 .doesNotContain("photoModel.findTitlePhotoUrl(")
+                .doesNotContain("boolean updated = false;")
+                .doesNotContain("List<Map<String, Object>> remaining = new ArrayList<>();")
+                .doesNotContain("throw new ResponseStatusException(HttpStatus.NOT_FOUND, \"Фото паспорта не найдено\")")
+                .doesNotContain("import java.util.ArrayList;")
+                .doesNotContain("import org.springframework.http.HttpStatus;")
+                .doesNotContain("import org.springframework.web.server.ResponseStatusException;")
                 .doesNotContain("private List<Map<String, Object>> normalizePhotos(Object value)")
                 .doesNotContain("private String findTitlePhotoUrl(");
         assertThat(model)
@@ -163,9 +171,14 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("List<Map<String, Object>> enforceSingleTitlePhoto(")
                 .contains("String normalizePhotoCategory(Object raw)")
                 .contains("String findTitlePhotoUrl(")
+                .contains("List<Map<String, Object>> updatePhoto(Object value,")
+                .contains("PhotoDeleteResult deletePhoto(Object value, String photoId)")
+                .contains("record PhotoDeleteResult(List<Map<String, Object>> photos, String storedName)")
+                .contains("new ResponseStatusException(HttpStatus.NOT_FOUND, \"Фото паспорта не найдено\")")
                 .contains("photoUrlBuilder.apply(storedName)")
                 .doesNotContain("openConnection()")
-                .doesNotContain("updatePassportRow(");
+                .doesNotContain("updatePassportRow(")
+                .doesNotContain("ObjectPassportPhotoStorageService");
     }
 
     @Test

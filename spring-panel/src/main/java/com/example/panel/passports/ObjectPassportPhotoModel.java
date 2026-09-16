@@ -5,7 +5,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 final class ObjectPassportPhotoModel {
 
@@ -119,6 +121,55 @@ final class ObjectPassportPhotoModel {
         return normalized;
     }
 
+    List<Map<String, Object>> updatePhoto(Object value,
+                                                  String photoId,
+                                                  Map<String, Object> payload) {
+        List<Map<String, Object>> photos = mutablePhotoList(value);
+        String normalizedPhotoId = stringValue(photoId);
+        boolean updated = false;
+        for (Map<String, Object> photo : photos) {
+            if (!stringValue(photo.get("id")).equals(normalizedPhotoId)) {
+                continue;
+            }
+            if (payload.containsKey("caption")) {
+                photo.put("caption", stringValue(payload.get("caption")));
+            }
+            if (payload.containsKey("category")) {
+                photo.put("category", normalizePhotoCategory(payload.get("category")));
+            }
+            updated = true;
+            break;
+        }
+        if (!updated) {
+            throw photoNotFound();
+        }
+        return enforceSingleTitlePhoto(photos, normalizedPhotoId);
+    }
+
+    PhotoDeleteResult deletePhoto(Object value, String photoId) {
+        List<Map<String, Object>> photos = mutablePhotoList(value);
+        String normalizedPhotoId = stringValue(photoId);
+        String storedNameToDelete = "";
+        List<Map<String, Object>> remaining = new ArrayList<>();
+        boolean deleted = false;
+        for (Map<String, Object> photo : photos) {
+            if (stringValue(photo.get("id")).equals(normalizedPhotoId)) {
+                storedNameToDelete = stringValue(photo.get("stored_name"));
+                deleted = true;
+                continue;
+            }
+            remaining.add(photo);
+        }
+        if (!deleted) {
+            throw photoNotFound();
+        }
+        return new PhotoDeleteResult(enforceSingleTitlePhoto(remaining, null), storedNameToDelete);
+    }
+
+    private ResponseStatusException photoNotFound() {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
+    }
+
     String normalizePhotoCategory(Object raw) {
         String value = stringValue(raw).toLowerCase();
         return "title".equals(value) ? "title" : "archive";
@@ -155,6 +206,9 @@ final class ObjectPassportPhotoModel {
 
     private String stringValue(Object raw) {
         return raw == null ? "" : String.valueOf(raw).trim();
+    }
+
+    record PhotoDeleteResult(List<Map<String, Object>> photos, String storedName) {
     }
 
 }

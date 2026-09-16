@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,13 +18,11 @@ import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class ObjectPassportService {
@@ -278,25 +275,9 @@ public class ObjectPassportService {
             try {
                 ObjectPassportPersistence.StoredPassportRecord existing = photoQuery.findStoredPassportByPhotoId(connection, photoId);
                 Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId());
-                List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
-                boolean updated = false;
-                for (Map<String, Object> photo : photos) {
-                    if (!stringValue(photo.get("id")).equals(stringValue(photoId))) {
-                        continue;
-                    }
-                    if (payload.containsKey("caption")) {
-                        photo.put("caption", stringValue(payload.get("caption")));
-                    }
-                    if (payload.containsKey("category")) {
-                        photo.put("category", photoModel.normalizePhotoCategory(payload.get("category")));
-                    }
-                    updated = true;
-                    break;
-                }
-                if (!updated) {
-                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
-                }
-                normalized.put("photos", photoModel.enforceSingleTitlePhoto(photos, stringValue(photoId)));
+                List<Map<String, Object>> photos = photoModel.updatePhoto(
+                        normalized.get("photos"), photoId, payload);
+                normalized.put("photos", photos);
                 persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
                 connection.commit();
                 return Map.of("success", true, "photos", normalized.get("photos"));
@@ -310,30 +291,17 @@ public class ObjectPassportService {
     }
 
     public Map<String, Object> deletePhoto(String photoId) {
-        String storedNameToDelete = null;
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
                 ObjectPassportPersistence.StoredPassportRecord existing = photoQuery.findStoredPassportByPhotoId(connection, photoId);
                 Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId());
-                List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
-                List<Map<String, Object>> remaining = new ArrayList<>();
-                boolean deleted = false;
-                for (Map<String, Object> photo : photos) {
-                    if (stringValue(photo.get("id")).equals(stringValue(photoId))) {
-                        storedNameToDelete = stringValue(photo.get("stored_name"));
-                        deleted = true;
-                        continue;
-                    }
-                    remaining.add(photo);
-                }
-                if (!deleted) {
-                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
-                }
-                normalized.put("photos", photoModel.enforceSingleTitlePhoto(remaining, null));
+                ObjectPassportPhotoModel.PhotoDeleteResult deletion = photoModel.deletePhoto(
+                        normalized.get("photos"), photoId);
+                normalized.put("photos", deletion.photos());
                 persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
                 connection.commit();
-                photoStorageService.deleteQuietly(storedNameToDelete);
+                photoStorageService.deleteQuietly(deletion.storedName());
                 return Map.of("success", true, "photos", normalized.get("photos"));
             } catch (RuntimeException | SQLException ex) {
                 connection.rollback();
