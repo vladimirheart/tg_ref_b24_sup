@@ -63,4 +63,25 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("SELECT ticket_id, business, city, problem, created_at");
     }
 
+    @Test
+    void passportEquipmentCatalogueUsesDedicatedQueryOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String query = read("src/main/java/com/example/panel/passports/ObjectPassportEquipmentCatalogQuery.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportEquipmentCatalogQuery equipmentCatalogQuery;")
+                .contains("this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery();")
+                .contains("return equipmentCatalogQuery.listCandidates(passportPayloads);")
+                .doesNotContain("private boolean isArchivedEquipment(Map<?, ?> item)")
+                .doesNotContain("private Long positiveLongValue(Object raw)");
+        assertThat(query)
+                .contains("final class ObjectPassportEquipmentCatalogQuery")
+                .contains("List<Map<String, Object>> listCandidates(")
+                .contains("value.put(\"usage_count\", 0)")
+                .contains("value.put(\"object_count\", 0)")
+                .contains("value.put(\"source\", \"passports\")")
+                .doesNotContain("openConnection()")
+                .doesNotContain("loadAllStoredPassports(");
+    }
+
 }
