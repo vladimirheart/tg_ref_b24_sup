@@ -1,0 +1,58 @@
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="activityWorkspace">      <div class="card passport-card mb-4 ops-section-card" id="casesCard">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#casesBody">
+          <span>Обращения по локации</span>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#casesBody" aria-expanded="false">Развернуть ▼</button>
+            <button class="btn btn-sm btn-outline-primary" id="refreshCasesBtn" type="button">🔄 Обновить</button>
+          </div>
+        </div>
+        <div class="section-collapse" id="casesBody">
+          <div class="card-body">
+          <div class="table-responsive passport-editor-table-shell">
+			<table class="table table-sm passport-editor-table">
+              <thead>
+                <tr>
+                  <th>ID заявки</th>
+                  <th>Бизнес</th>
+                  <th>Город</th>
+                  <th>Описание</th>
+                  <th>Создано</th>
+                </tr>
+              </thead>
+              <tbody id="casesTableBody"></tbody>
+            </table>
+          </div>
+          <div class="text-muted" id="casesEmptyText">Обращения не найдены.</div>
+		  </div>
+        </div>
+      </div>
+
+      <div class="card passport-card mb-4 ops-section-card" id="tasksCard">
+        <div class="card-header d-flex justify-content-between align-items-center" data-section-header data-target="#tasksBody">
+          <span>Задачи по локации</span>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary card-toggle-btn" type="button" data-section-toggle data-target="#tasksBody" aria-expanded="false">Развернуть ▼</button>
+            <button class="btn btn-sm btn-outline-primary" id="refreshTasksBtn" type="button">🔄 Обновить</button>
+          </div>
+        </div>
+        <div class="section-collapse" id="tasksBody">
+          <div class="card-body">
+          <div class="table-responsive passport-editor-table-shell">
+			<table class="table table-sm align-middle passport-editor-table">
+              <thead>
+                <tr>
+                  <th>№ задачи</th>
+                  <th>Название</th>
+                  <th>Статус</th>
+                  <th>Исполнитель</th>
+                  <th>Дедлайн</th>
+                  <th>Обновлено</th>
+                </tr>
+              </thead>
+              <tbody id="tasksTableBody"></tbody>
+            </table>
+          </div>
+          <div class="text-muted" id="tasksEmptyText">Задачи не найдены.</div>
+                  </div>
+        </div>
+      </div></th:block>
