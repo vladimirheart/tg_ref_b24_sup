@@ -206,34 +206,7 @@
             <div class="passport-empty-state d-none" id="passportEquipmentEmpty">Оборудование не добавлено.</div>
         </section>
 
-        <section class="passport-workspace-panel" data-passport-panel="cases">
-            <div class="passport-section-heading">
-                <div>
-                    <span class="passport-section-kicker">Поддержка</span>
-                    <h2>Обращения по локации</h2>
-                </div>
-            </div>
-            <div class="passport-record-list" id="passportCasesList"></div>
-            <div class="passport-empty-state d-none" id="passportCasesEmpty">Обращений пока нет.</div>
-            <div class="passport-section-heading passport-section-heading--secondary d-none" id="passportIncidentsHeading">
-                <div>
-                    <span class="passport-section-kicker">Инциденты</span>
-                    <h2>Связанные инциденты</h2>
-                </div>
-            </div>
-            <div class="passport-record-list" id="passportIncidentsList"></div>
-        </section>
-
-        <section class="passport-workspace-panel" data-passport-panel="tasks">
-            <div class="passport-section-heading">
-                <div>
-                    <span class="passport-section-kicker">Работы</span>
-                    <h2>Задачи по локации</h2>
-                </div>
-            </div>
-            <div class="passport-record-list" id="passportTasksList"></div>
-            <div class="passport-empty-state d-none" id="passportTasksEmpty">Задач пока нет.</div>
-        </section>
+        <th:block th:replace="~{passports/fragments/detail-activity :: activityPanels}"></th:block>
 
         <section class="passport-workspace-panel" data-passport-panel="photos">
             <div class="passport-section-toolbar">
