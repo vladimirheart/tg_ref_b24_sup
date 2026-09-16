@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 import com.example.panel.passports.api.ObjectPassportPageController;
+import com.example.panel.passports.api.ObjectPassportPageModelAssembler;
 import com.example.panel.settings.SettingsPageController;
 import com.example.panel.repository.AppSettingRepository;
 import com.example.panel.repository.ChannelRepository;
@@ -46,7 +47,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest({ManagementController.class, ObjectPassportPageController.class, SettingsPageController.class})
 @AutoConfigureMockMvc
-@Import({NavigationService.class, BotSettingsPayloadNormalizer.class, AutoCloseConfigNormalizer.class})
+@Import({NavigationService.class, BotSettingsPayloadNormalizer.class, AutoCloseConfigNormalizer.class, ObjectPassportPageModelAssembler.class})
 class ManagementControllerWebMvcTest {
 
     @Autowired

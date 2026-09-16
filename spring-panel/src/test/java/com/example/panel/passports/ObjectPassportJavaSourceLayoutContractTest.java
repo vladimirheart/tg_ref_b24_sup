@@ -151,4 +151,26 @@ class ObjectPassportJavaSourceLayoutContractTest {
         }
     }
 
+    @Test
+    void passportPageModelAssemblyUsesDedicatedOwner() throws IOException {
+        String controller = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageController.java");
+        String assembler = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageModelAssembler.java");
+
+        assertThat(controller)
+                .contains("private final ObjectPassportPageModelAssembler pageModelAssembler;")
+                .contains("pageModelAssembler.populatePassportEditor(model, true);")
+                .contains("pageModelAssembler.populatePassportEditor(model, false);")
+                .doesNotContain("private void populatePassportEditor(")
+                .doesNotContain("ItEquipmentCatalogRepository")
+                .doesNotContain("SettingsParameterService");
+        assertThat(assembler)
+                .contains("public class ObjectPassportPageModelAssembler")
+                .contains("void populatePassportEditor(Model model, boolean isNew)")
+                .contains("private Map<String, Object> loadPassportLocationsPayload()")
+                .contains("model.addAttribute(\"parameterValuesPayload\"")
+                .contains("catalogItem.put(\"equipment_model\", item.getEquipmentModel())")
+                .doesNotContain("@GetMapping(")
+                .doesNotContain("ObjectPassportService");
+    }
+
 }

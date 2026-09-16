@@ -60,10 +60,10 @@ class ObjectPassportsListUiSourceContractTest {
     @Test
     void backendExposesDeletedAndTitlePhotoFieldsAndDeletedStatusOption() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
-        String controller = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageController.java");
+        String pageModel = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageModelAssembler.java");
         assertTrue(service.contains("item.put(\"title_photo_url\""));
         assertTrue(service.contains("item.put(\"deleted\""));
         assertTrue(service.contains("\"удален\".equals(status) || \"deleted\".equals(status)"));
-        assertTrue(controller.contains("\"Удалён\""));
+        assertTrue(pageModel.contains("\"Удалён\""));
     }
 }

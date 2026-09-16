@@ -78,13 +78,14 @@ class ObjectPassportWorkspaceUiSourceContractTest {
     @Test
     void controllerSeparatesReadOnlyDetailFromExistingEditorAndExposesCatalogIds() throws IOException {
         String controller = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageController.java");
+        String pageModel = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageModelAssembler.java");
         String managementController = read("src/main/java/com/example/panel/controller/ManagementController.java");
         assertTrue(controller.contains("return \"passports/detail\";"));
         assertTrue(controller.contains("@GetMapping(\"/object-passports/{id}/edit\")"));
         assertTrue(controller.contains("@GetMapping(\"/object-passports/{id}/legacy-edit\")"));
         assertTrue(controller.contains("model.addAttribute(\"passportEditMode\", true)"));
-        assertTrue(controller.contains("catalogItem.put(\"id\", item.getId())"));
-        assertTrue(controller.contains("catalogItem.put(\"equipment_model\", item.getEquipmentModel())"));
+        assertTrue(pageModel.contains("catalogItem.put(\"id\", item.getId())"));
+        assertTrue(pageModel.contains("catalogItem.put(\"equipment_model\", item.getEquipmentModel())"));
         assertTrue(!managementController.contains("@GetMapping(\"/object-passports"));
     }
 
