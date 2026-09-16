@@ -19,9 +19,11 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         String html = read("src/main/resources/templates/passports/detail.html");
         String edit = read("src/main/resources/templates/passports/fragments/detail-edit.html");
         String media = read("src/main/resources/templates/passports/fragments/detail-media.html");
+        String equipment = read("src/main/resources/templates/passports/fragments/detail-equipment.html");
         assertTrue(html.contains("passport-workspace-tabs"));
         assertTrue(html.contains("passport-kpi-strip"));
-        assertTrue(html.contains("passport-equipment-grid"));
+        assertTrue(html.contains("passports/fragments/detail-equipment :: equipmentPanel"));
+        assertTrue(equipment.contains("passport-equipment-grid"));
         assertTrue(html.contains("passport-asset-card"));
         assertTrue(html.contains("passports/fragments/detail-edit :: passportEditLayer"));
         assertTrue(edit.contains("passport-edit-layer"));

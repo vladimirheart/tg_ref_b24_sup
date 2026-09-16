@@ -97,20 +97,7 @@
 
         <th:block th:replace="~{passports/fragments/detail-network :: networkPanel}"></th:block>
 
-        <section class="passport-workspace-panel" data-passport-panel="equipment">
-            <div class="passport-section-toolbar">
-                <div>
-                    <span class="passport-section-kicker">Инфраструктура объекта</span>
-                    <h2 class="mb-0">Оборудование</h2>
-                </div>
-                <div class="passport-equipment-tools">
-                    <input class="form-control form-control-sm" id="passportEquipmentSearch" type="search" placeholder="Поиск по модели, IP, SN…" autocomplete="off">
-                    <button class="btn btn-sm btn-outline-primary" id="passportEquipmentEditLink" type="button">Редактировать</button>
-                </div>
-            </div>
-            <div class="passport-equipment-grid" id="passportEquipmentGrid"></div>
-            <div class="passport-empty-state d-none" id="passportEquipmentEmpty">Оборудование не добавлено.</div>
-        </section>
+        <th:block th:replace="~{passports/fragments/detail-equipment :: equipmentPanel}"></th:block>
 
         <th:block th:replace="~{passports/fragments/detail-activity :: activityPanels}"></th:block>
 
