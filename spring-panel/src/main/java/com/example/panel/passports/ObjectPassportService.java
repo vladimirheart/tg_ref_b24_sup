@@ -33,6 +33,7 @@ public class ObjectPassportService {
 
     private final ObjectPassportPersistence persistence;
     private final ObjectPassportAppealQuery appealQuery;
+    private final ObjectPassportListQuery listQuery;
     private final ObjectPassportEquipmentCatalogQuery equipmentCatalogQuery;
     private final ObjectPassportPhotoStorageService photoStorageService;
     private final ObjectPassportPhotoModel photoModel;
@@ -57,6 +58,7 @@ public class ObjectPassportService {
         this.photoModel = new ObjectPassportPhotoModel(photoStorageService::buildPhotoUrl);
         this.payloadModel = new ObjectPassportPayloadModel(photoModel);
         this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
+        this.listQuery = new ObjectPassportListQuery(persistence, payloadModel, photoModel, appealQuery);
     }
 
     public Map<String, Object> createPassport(Map<String, Object> payload) {
@@ -224,39 +226,9 @@ public class ObjectPassportService {
     }
 
     public List<Map<String, Object>> listPassports() {
-        String sql = """
-                SELECT p.id, p.object_id, p.passport_number, p.details, o.name AS object_name, o.address AS object_address
-                FROM object_passports p
-                LEFT JOIN objects o ON o.id = p.object_id
-                ORDER BY p.id DESC
-                """;
         Map<String, Long> appealsCountByLocation = appealQuery.loadAppealCountsByLocation();
-        try (Connection connection = openConnection();
-             PreparedStatement statement = connection.prepareStatement(sql);
-             ResultSet rs = statement.executeQuery()) {
-            List<Map<String, Object>> items = new ArrayList<>();
-            while (rs.next()) {
-                long passportId = rs.getLong("id");
-                Map<String, Object> payload = persistence.readPayload(rs.getString("details"));
-                Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), payload, passportId);
-                LinkedHashMap<String, Object> item = new LinkedHashMap<>();
-                item.put("id", passportId);
-                item.put("department", stringValue(normalized.get("department")));
-                item.put("city", stringValue(normalized.get("city")));
-                item.put("business", stringValue(normalized.get("business")));
-                String status = stringValue(normalized.get("status"));
-                List<Map<String, Object>> photos = photoModel.normalizePhotos(normalized.get("photos"));
-                item.put("status", status);
-                item.put("deleted", payloadModel.isDeletedStatus(status));
-                item.put("title_photo_url", photoModel.findTitlePhotoUrl(photos));
-                item.put("location_address", firstNonBlank(normalized.get("location_address"), rs.getString("object_address")));
-                item.put("passport_number", firstNonBlank(normalized.get("department"), rs.getString("passport_number")));
-                item.put("object_name", firstNonBlank(rs.getString("object_name"), normalized.get("department")));
-                item.put("appeals_count", appealQuery.resolveAppealCount(appealsCountByLocation, normalized));
-                item.put("photos", photos);
-                items.add(item);
-            }
-            return items;
+        try (Connection connection = openConnection()) {
+            return listQuery.list(connection, appealsCountByLocation);
         } catch (SQLException ex) {
             throw new IllegalStateException("Не удалось загрузить список паспортов объектов", ex);
         }
@@ -479,19 +451,6 @@ public class ObjectPassportService {
             }
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
-    }
-
-    private String firstNonBlank(Object... values) {
-        if (values == null) {
-            return "";
-        }
-        for (Object value : values) {
-            String normalized = stringValue(value);
-            if (StringUtils.hasText(normalized)) {
-                return normalized;
-            }
-        }
-        return "";
     }
 
     private String stringValue(Object raw) {

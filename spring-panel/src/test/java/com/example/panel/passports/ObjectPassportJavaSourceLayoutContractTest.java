@@ -57,7 +57,7 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("private final ObjectPassportAppealQuery appealQuery;")
                 .contains("this.appealQuery = new ObjectPassportAppealQuery(jdbcTemplate);")
                 .contains("appealQuery.loadAppealCountsByLocation()")
-                .contains("appealQuery.resolveAppealCount(appealsCountByLocation, normalized)")
+                .doesNotContain("appealQuery.resolveAppealCount(appealsCountByLocation, normalized)")
                 .contains("appealQuery.loadCases(normalized)")
                 .doesNotContain("private Map<String, Long> loadAppealCountsByLocation()")
                 .doesNotContain("private List<Map<String, Object>> queryCases(");
@@ -68,6 +68,47 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("List<Map<String, Object>> loadCases(")
                 .contains("SELECT DISTINCT ticket_id")
                 .contains("SELECT ticket_id, business, city, problem, created_at");
+    }
+
+    @Test
+    void passportListProjectionUsesDedicatedQueryOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String query = read("src/main/java/com/example/panel/passports/ObjectPassportListQuery.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportListQuery listQuery;")
+                .contains("this.listQuery = new ObjectPassportListQuery(persistence, payloadModel, photoModel, appealQuery);")
+                .contains("appealQuery.loadAppealCountsByLocation()")
+                .contains("return listQuery.list(connection, appealsCountByLocation);")
+                .contains("private Connection openConnection() throws SQLException")
+                .contains("private DataSource runtimeObjectsDataSource()")
+                .doesNotContain("SELECT p.id, p.object_id, p.passport_number, p.details")
+                .doesNotContain("persistence.readPayload(rs.getString(\"details\"))")
+                .doesNotContain("payloadModel.isDeletedStatus(status)")
+                .doesNotContain("photoModel.findTitlePhotoUrl(photos)")
+                .doesNotContain("appealQuery.resolveAppealCount(appealsCountByLocation, normalized)")
+                .doesNotContain("private String firstNonBlank(Object... values)");
+        assertThat(query)
+                .contains("final class ObjectPassportListQuery")
+                .contains("List<Map<String, Object>> list(Connection connection,")
+                .contains("SELECT p.id, p.object_id, p.passport_number, p.details")
+                .contains("ORDER BY p.id DESC")
+                .contains("persistence.readPayload(rs.getString(\"details\"))")
+                .contains("payloadModel.normalizePayload(Map.of(), payload, passportId)")
+                .contains("payloadModel.isDeletedStatus(status)")
+                .contains("photoModel.findTitlePhotoUrl(photos)")
+                .contains("appealQuery.resolveAppealCount(appealsCountByLocation, normalized)")
+                .contains("item.put(\"location_address\"")
+                .contains("item.put(\"passport_number\"")
+                .contains("item.put(\"object_name\"")
+                .contains("item.put(\"appeals_count\"")
+                .contains("item.put(\"photos\", photos)")
+                .doesNotContain("DataSource")
+                .doesNotContain("openConnection()")
+                .doesNotContain("loadAppealCountsByLocation()")
+                .doesNotContain("setAutoCommit")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()");
     }
 
     @Test
@@ -102,7 +143,7 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("photoModel.normalizePhotos(")
                 .contains("photoModel.mutablePhotoList(")
                 .contains("photoModel.enforceSingleTitlePhoto(")
-                .contains("photoModel.findTitlePhotoUrl(")
+                .doesNotContain("photoModel.findTitlePhotoUrl(")
                 .doesNotContain("private List<Map<String, Object>> normalizePhotos(Object value)")
                 .doesNotContain("private String findTitlePhotoUrl(");
         assertThat(model)
@@ -185,7 +226,7 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("payloadModel.validatePayload(")
                 .doesNotContain("payloadModel.buildObjectName(")
                 .doesNotContain("payloadModel.buildPassportNumber(")
-                .contains("payloadModel.isDeletedStatus(")
+                .doesNotContain("payloadModel.isDeletedStatus(")
                 .doesNotContain("private Map<String, Object> normalizePayload(")
                 .doesNotContain("private void validatePayload(")
                 .doesNotContain("private String buildObjectName(")
@@ -217,7 +258,7 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("persistence.updatePassportRow(")
                 .contains("persistence.loadStoredPassport(")
                 .contains("persistence.loadAllStoredPassports(")
-                .contains("persistence.readPayload(")
+                .doesNotContain("persistence.readPayload(")
                 .doesNotContain("private long insertObject(")
                 .doesNotContain("private long insertPassport(")
                 .doesNotContain("private void updatePassportRow(")
