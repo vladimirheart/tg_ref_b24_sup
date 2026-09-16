@@ -118,18 +118,29 @@ class ObjectPassportJavaSourceLayoutContractTest {
 
         assertThat(service)
                 .contains("private final ObjectPassportEquipmentCatalogQuery equipmentCatalogQuery;")
-                .contains("this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery();")
-                .contains("return equipmentCatalogQuery.listCandidates(passportPayloads);")
-                .doesNotContain("private boolean isArchivedEquipment(Map<?, ?> item)")
-                .doesNotContain("private Long positiveLongValue(Object raw)");
+                .contains("this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery(persistence);")
+                .contains("return equipmentCatalogQuery.listCandidates(connection);")
+                .contains("private Connection openConnection() throws SQLException")
+                .contains("private DataSource runtimeObjectsDataSource()")
+                .doesNotContain("new ObjectPassportEquipmentCatalogQuery();")
+                .doesNotContain("List<Map<String, Object>> passportPayloads = new ArrayList<>();")
+                .doesNotContain("return equipmentCatalogQuery.listCandidates(passportPayloads);");
         assertThat(query)
                 .contains("final class ObjectPassportEquipmentCatalogQuery")
-                .contains("List<Map<String, Object>> listCandidates(")
+                .contains("private final ObjectPassportPersistence persistence;")
+                .contains("ObjectPassportEquipmentCatalogQuery(ObjectPassportPersistence persistence)")
+                .contains("List<Map<String, Object>> listCandidates(Connection connection) throws SQLException")
+                .contains("persistence.loadAllStoredPassports(connection)")
+                .contains("passportPayloads.add(record.payload())")
+                .contains("return aggregateCandidates(passportPayloads)")
                 .contains("value.put(\"usage_count\", 0)")
                 .contains("value.put(\"object_count\", 0)")
                 .contains("value.put(\"source\", \"passports\")")
+                .doesNotContain("DataSource")
                 .doesNotContain("openConnection()")
-                .doesNotContain("loadAllStoredPassports(");
+                .doesNotContain("setAutoCommit")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()");
     }
 
     @Test

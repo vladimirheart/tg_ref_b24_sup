@@ -54,11 +54,11 @@ public class ObjectPassportService {
         this.objectsSqliteProperties = objectsSqliteProperties;
         this.databaseRuntimeMode = databaseRuntimeMode;
         this.appealQuery = new ObjectPassportAppealQuery(jdbcTemplate);
-        this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery();
         this.photoStorageService = photoStorageService;
         this.photoModel = new ObjectPassportPhotoModel(photoStorageService::buildPhotoUrl);
         this.payloadModel = new ObjectPassportPayloadModel(photoModel);
         this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
+        this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery(persistence);
         this.listQuery = new ObjectPassportListQuery(persistence, payloadModel, photoModel, appealQuery);
         this.photoQuery = new ObjectPassportPhotoQuery(persistence, photoModel);
         this.netBoxQuery = new ObjectPassportNetBoxQuery(persistence, payloadModel);
@@ -234,11 +234,7 @@ public class ObjectPassportService {
 
     public List<Map<String, Object>> listEquipmentCatalogCandidates() {
         try (Connection connection = openConnection()) {
-            List<Map<String, Object>> passportPayloads = new ArrayList<>();
-            for (ObjectPassportPersistence.StoredPassportRecord record : persistence.loadAllStoredPassports(connection)) {
-                passportPayloads.add(record.payload());
-            }
-            return equipmentCatalogQuery.listCandidates(passportPayloads);
+            return equipmentCatalogQuery.listCandidates(connection);
         } catch (SQLException ex) {
             throw new IllegalStateException("Не удалось собрать модели оборудования из паспортов", ex);
         }

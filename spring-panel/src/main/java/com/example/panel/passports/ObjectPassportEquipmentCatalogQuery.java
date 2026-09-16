@@ -1,5 +1,7 @@
 package com.example.panel.passports;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -11,7 +13,21 @@ import org.springframework.util.StringUtils;
 
 final class ObjectPassportEquipmentCatalogQuery {
 
-    List<Map<String, Object>> listCandidates(List<Map<String, Object>> passportPayloads) {
+    private final ObjectPassportPersistence persistence;
+
+    ObjectPassportEquipmentCatalogQuery(ObjectPassportPersistence persistence) {
+        this.persistence = persistence;
+    }
+
+    List<Map<String, Object>> listCandidates(Connection connection) throws SQLException {
+        List<Map<String, Object>> passportPayloads = new ArrayList<>();
+        for (ObjectPassportPersistence.StoredPassportRecord record : persistence.loadAllStoredPassports(connection)) {
+            passportPayloads.add(record.payload());
+        }
+        return aggregateCandidates(passportPayloads);
+    }
+
+    private List<Map<String, Object>> aggregateCandidates(List<Map<String, Object>> passportPayloads) {
         List<Map<String, Object>> safePayloads = passportPayloads == null ? List.of() : passportPayloads;
         LinkedHashMap<String, Map<String, Object>> candidates = new LinkedHashMap<>();
         for (Map<String, Object> passportPayload : safePayloads) {
@@ -117,5 +133,4 @@ final class ObjectPassportEquipmentCatalogQuery {
     private String stringValue(Object raw) {
         return raw == null ? "" : String.valueOf(raw).trim();
     }
-
 }
