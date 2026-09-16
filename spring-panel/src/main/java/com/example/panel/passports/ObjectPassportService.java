@@ -33,6 +33,7 @@ public class ObjectPassportService {
     private final ObjectPassportPersistence persistence;
     private final ObjectPassportAppealQuery appealQuery;
     private final ObjectPassportListQuery listQuery;
+    private final ObjectPassportNetBoxQuery netBoxQuery;
     private final ObjectPassportEquipmentCatalogQuery equipmentCatalogQuery;
     private final ObjectPassportPhotoStorageService photoStorageService;
     private final ObjectPassportPhotoModel photoModel;
@@ -60,6 +61,7 @@ public class ObjectPassportService {
         this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
         this.listQuery = new ObjectPassportListQuery(persistence, payloadModel, photoModel, appealQuery);
         this.photoQuery = new ObjectPassportPhotoQuery(persistence, photoModel);
+        this.netBoxQuery = new ObjectPassportNetBoxQuery(persistence, payloadModel);
     }
 
     public Map<String, Object> createPassport(Map<String, Object> payload) {
@@ -168,17 +170,12 @@ public class ObjectPassportService {
     }
 
     public Map<String, Object> findPassportByNetBoxSiteId(Object siteId) {
-        String normalizedSiteId = stringValue(siteId);
+        String normalizedSiteId = netBoxQuery.normalizeSiteId(siteId);
         if (!StringUtils.hasText(normalizedSiteId)) {
             return null;
         }
         try (Connection connection = openConnection()) {
-            for (ObjectPassportPersistence.StoredPassportRecord record : persistence.loadAllStoredPassports(connection)) {
-                if (normalizedSiteId.equals(stringValue(record.payload().get("netbox_site_id")))) {
-                    return payloadModel.normalizePayload(Map.of(), record.payload(), record.passportId());
-                }
-            }
-            return null;
+            return netBoxQuery.findBySiteId(connection, normalizedSiteId);
         } catch (SQLException ex) {
             throw new IllegalStateException("РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё РїР°СЃРїРѕСЂС‚ NetBox-РѕР±СЉРµРєС‚Р°", ex);
         }

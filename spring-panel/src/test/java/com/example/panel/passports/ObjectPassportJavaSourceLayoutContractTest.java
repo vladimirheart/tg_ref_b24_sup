@@ -197,6 +197,36 @@ class ObjectPassportJavaSourceLayoutContractTest {
     }
 
     @Test
+    void passportNetBoxLookupUsesDedicatedQueryOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String query = read("src/main/java/com/example/panel/passports/ObjectPassportNetBoxQuery.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportNetBoxQuery netBoxQuery;")
+                .contains("this.netBoxQuery = new ObjectPassportNetBoxQuery(persistence, payloadModel);")
+                .contains("String normalizedSiteId = netBoxQuery.normalizeSiteId(siteId);")
+                .contains("if (!StringUtils.hasText(normalizedSiteId)) {")
+                .contains("return netBoxQuery.findBySiteId(connection, normalizedSiteId);")
+                .contains("Map<String, Object> existing = findPassportByNetBoxSiteId(siteId);")
+                .contains("private Connection openConnection() throws SQLException")
+                .contains("private DataSource runtimeObjectsDataSource()")
+                .doesNotContain("record.payload().get(\"netbox_site_id\")");
+        assertThat(query)
+                .contains("final class ObjectPassportNetBoxQuery")
+                .contains("String normalizeSiteId(Object siteId)")
+                .contains("Map<String, Object> findBySiteId(Connection connection,")
+                .contains("persistence.loadAllStoredPassports(connection)")
+                .contains("record.payload().get(\"netbox_site_id\")")
+                .contains("payloadModel.normalizePayload(Map.of(), record.payload(), record.passportId())")
+                .doesNotContain("DataSource")
+                .doesNotContain("openConnection()")
+                .doesNotContain("setAutoCommit")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()")
+                .doesNotContain("ObjectPassportPhotoStorageService");
+    }
+
+    @Test
     void passportNetBoxSyncUsesFeatureInfrastructurePackage() throws IOException {
         Path oldSync = Path.of("src/main/java/com/example/panel/service", "NetBoxObjectPassportSyncService.java");
         Path newSync = Path.of("src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncService.java");
