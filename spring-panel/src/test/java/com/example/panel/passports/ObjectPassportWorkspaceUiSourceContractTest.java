@@ -57,6 +57,25 @@ class ObjectPassportWorkspaceUiSourceContractTest {
     }
 
     @Test
+    void creationEditorUsesDedicatedPageAndEquipmentRuntimes() throws IOException {
+        String html = read("src/main/resources/templates/passports/new.html");
+        String pageRuntime = read("src/main/resources/static/js/passport-editor-page-runtime.js");
+        String equipmentRuntime = read("src/main/resources/static/js/passport-editor-equipment-runtime.js");
+        assertTrue(html.contains("/js/passport-editor-equipment-runtime.js?v=20260916-01-260-p4j"));
+        assertTrue(html.contains("/js/passport-editor-page-runtime.js?v=20260916-01-260-p4k"));
+        assertTrue(html.contains("PassportEditorPageRuntime"));
+        assertTrue(pageRuntime.contains("PassportEditorEquipmentRuntime"));
+        assertTrue(pageRuntime.contains("async function savePassport()"));
+        assertTrue(pageRuntime.contains("async function ensurePassportDataLoaded()"));
+        assertTrue(pageRuntime.contains("/api/settings/parameters"));
+        assertTrue(pageRuntime.contains("/api/object_passports/${passportData.id}/cases"));
+        assertTrue(pageRuntime.contains("/api/object_passports/${passportData.id}/tasks"));
+        assertTrue(pageRuntime.contains("/api/object_passports/${passportData.id}/photos"));
+        assertTrue(pageRuntime.contains("/api/object_passports/${passportData.id}/network_files"));
+        assertTrue(equipmentRuntime.contains("function renderEquipment(equipmentList)"));
+    }
+
+    @Test
     void controllerSeparatesReadOnlyDetailFromExistingEditorAndExposesCatalogIds() throws IOException {
         String controller = read("src/main/java/com/example/panel/controller/ManagementController.java");
         assertTrue(controller.contains("return \"passports/detail\";"));
