@@ -93,64 +93,7 @@
             </button>
         </nav>
 
-        <section class="passport-workspace-panel is-active" data-passport-panel="overview">
-            <div class="passport-overview-grid">
-                <div class="passport-overview-main">
-                    <section class="passport-compact-section">
-                        <div class="passport-section-heading">
-                            <div>
-                                <span class="passport-section-kicker">Объект</span>
-                                <h2>Основная информация</h2>
-                            </div>
-                        </div>
-                        <div class="passport-property-grid" id="passportCoreProperties"></div>
-                    </section>
-
-                    <section class="passport-compact-section">
-                        <div class="passport-section-heading">
-                            <div>
-                                <span class="passport-section-kicker">Жизненный цикл</span>
-                                <h2>Статусы и даты</h2>
-                            </div>
-                        </div>
-                        <div class="passport-property-grid" id="passportLifecycleProperties"></div>
-                        <div class="passport-timeline d-none" id="passportStatusHistory"></div>
-                    </section>
-                </div>
-
-                <aside class="passport-overview-side">
-                    <section class="passport-compact-section">
-                        <div class="passport-section-heading">
-                            <div>
-                                <span class="passport-section-kicker">Контакты</span>
-                                <h2>Кого искать</h2>
-                            </div>
-                        </div>
-                        <div class="passport-stack" id="passportContacts"></div>
-                    </section>
-
-                    <section class="passport-compact-section">
-                        <div class="passport-section-heading">
-                            <div>
-                                <span class="passport-section-kicker">Режим работы</span>
-                                <h2>Расписание</h2>
-                            </div>
-                        </div>
-                        <div class="passport-schedule" id="passportSchedule"></div>
-                    </section>
-
-                    <section class="passport-compact-section">
-                        <div class="passport-section-heading">
-                            <div>
-                                <span class="passport-section-kicker">Данные</span>
-                                <h2>Качество паспорта</h2>
-                            </div>
-                        </div>
-                        <div class="passport-quality" id="passportQuality"></div>
-                    </section>
-                </aside>
-            </div>
-        </section>
+        <th:block th:replace="~{passports/fragments/detail-overview :: overviewPanel}"></th:block>
 
         <section class="passport-workspace-panel" data-passport-panel="network">
             <div class="passport-network-grid">
