@@ -70,13 +70,14 @@ class ObjectPassportWorkspaceUiSourceContractTest {
     @Test
     void settingsEquipmentCatalogUsesAssetCardsInsteadOfInlineEditorRows() throws IOException {
         String settings = read("src/main/resources/templates/settings/index.html");
+        String equipment = read("src/main/resources/templates/settings/fragments/it-equipment.html");
         String runtime = read("src/main/resources/static/js/settings-it-equipment-runtime.js");
-        String settingsScss = read("src/main/resources/scss/settings/_foundation.scss");
-        assertTrue(settings.contains("itEquipmentSearchInput"));
-        assertTrue(settings.contains("itEquipmentTypeFilter"));
-        assertTrue(settings.contains("itEquipmentVendorFilter"));
-        assertTrue(settings.contains("itEquipmentCountBadge"));
-        assertTrue(settings.contains("it-equipment-catalog-grid"));
+        String settingsCatalogueScss = read("src/main/resources/scss/settings/foundation/_catalogue.scss");
+        assertTrue(equipment.contains("itEquipmentSearchInput"));
+        assertTrue(equipment.contains("itEquipmentTypeFilter"));
+        assertTrue(equipment.contains("itEquipmentVendorFilter"));
+        assertTrue(equipment.contains("itEquipmentCountBadge"));
+        assertTrue(equipment.contains("it-equipment-catalog-grid"));
         assertTrue(runtime.contains("it-equipment-catalog-card"));
         assertTrue(runtime.contains("it-equipment-catalog-card__type-center"));
         assertTrue(runtime.contains("Используется у объектов"));
@@ -88,29 +89,32 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("Из паспортов"));
         assertTrue(runtime.contains("/api/settings/it-equipment/${editId}"));
         assertTrue(runtime.contains("if (state.editingId !== null)"));
-        assertTrue(settings.contains("data-it-equipment-photo-list"));
-        assertTrue(settings.contains("data-it-equipment-photo-add-comment"));
+        assertTrue(equipment.contains("data-it-equipment-photo-list"));
+        assertTrue(equipment.contains("data-it-equipment-photo-add-comment"));
         assertTrue(runtime.contains("/api/settings/it-equipment/${id}/photos"));
         assertTrue(runtime.contains("data-it-equipment-photo-delete"));
         assertTrue(runtime.contains("firstPhoto(item)"));
         assertTrue(settings.contains("/css/settings.css?v=20260909-01-259-r4-8"));
         assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260909-01-259-r4-8"));
-        assertTrue(settingsScss.contains("Equipment catalogue media and lifecycle — 01-259 r4.4"));
+        assertTrue(settingsCatalogueScss.contains("Equipment catalogue media and lifecycle — 01-259 r4.4"));
     }
 
     @Test
     void passportScssKeepsCompactDenseWorkspaceContract() throws IOException {
-        String scss = read("src/main/resources/scss/app/_passports.scss");
-        assertTrue(scss.contains("Passport workspace — 01-259"));
-        assertTrue(scss.contains("passport-overview-grid"));
-        assertTrue(scss.contains("passport-property-grid"));
-        assertTrue(scss.contains("passport-asset-card"));
-        assertTrue(scss.contains("grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))"));
-        assertTrue(scss.contains("Catalogue polish — 01-258"));
-        assertTrue(scss.contains("Workspace refinements — 01-259 r4"));
-        assertTrue(scss.contains("passport-photo-viewer"));
-        assertTrue(scss.contains("passport-edit-drawer"));
-        assertTrue(scss.contains("Equipment archive history — 01-259 r4.4"));
+        String workspaceScss = read("src/main/resources/scss/app/passports/_workspace.scss");
+        String workspaceInteractionsScss = read("src/main/resources/scss/app/passports/_workspace-interactions.scss");
+        String listPolishScss = read("src/main/resources/scss/app/passports/_list-polish.scss");
+        String equipmentHistoryScss = read("src/main/resources/scss/app/passports/_equipment-history.scss");
+        assertTrue(workspaceScss.contains("Passport workspace — 01-259"));
+        assertTrue(workspaceScss.contains("passport-overview-grid"));
+        assertTrue(workspaceScss.contains("passport-property-grid"));
+        assertTrue(workspaceScss.contains("passport-asset-card"));
+        assertTrue(workspaceScss.contains("grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))"));
+        assertTrue(listPolishScss.contains("Catalogue polish — 01-258"));
+        assertTrue(workspaceInteractionsScss.contains("Workspace refinements — 01-259 r4"));
+        assertTrue(workspaceInteractionsScss.contains("passport-photo-viewer"));
+        assertTrue(workspaceInteractionsScss.contains("passport-edit-drawer"));
+        assertTrue(equipmentHistoryScss.contains("Equipment archive history — 01-259 r4.4"));
     }
 
     @Test
