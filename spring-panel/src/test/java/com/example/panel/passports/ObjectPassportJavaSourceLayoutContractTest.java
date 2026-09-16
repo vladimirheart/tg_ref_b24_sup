@@ -173,4 +173,35 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .doesNotContain("ObjectPassportService");
     }
 
+    @Test
+    void passportPayloadRulesUseDedicatedModelOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String model = read("src/main/java/com/example/panel/passports/ObjectPassportPayloadModel.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportPayloadModel payloadModel;")
+                .contains("this.payloadModel = new ObjectPassportPayloadModel(photoModel);")
+                .contains("payloadModel.normalizePayload(")
+                .contains("payloadModel.validatePayload(")
+                .contains("payloadModel.buildObjectName(")
+                .contains("payloadModel.buildPassportNumber(")
+                .contains("payloadModel.isDeletedStatus(")
+                .doesNotContain("private Map<String, Object> normalizePayload(")
+                .doesNotContain("private void validatePayload(")
+                .doesNotContain("private String buildObjectName(")
+                .doesNotContain("private String buildPassportNumber(")
+                .doesNotContain("private boolean isDeletedStatus(");
+        assertThat(model)
+                .contains("final class ObjectPassportPayloadModel")
+                .contains("Map<String, Object> normalizePayload(")
+                .contains("void validatePayload(")
+                .contains("String buildObjectName(")
+                .contains("String buildPassportNumber(")
+                .contains("boolean isDeletedStatus(")
+                .contains("photoModel.normalizePhotos(")
+                .doesNotContain("openConnection()")
+                .doesNotContain("PreparedStatement")
+                .doesNotContain("ObjectPassportPhotoStorageService");
+    }
+
 }

@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -43,6 +42,7 @@ public class ObjectPassportService {
     private final ObjectPassportEquipmentCatalogQuery equipmentCatalogQuery;
     private final ObjectPassportPhotoStorageService photoStorageService;
     private final ObjectPassportPhotoModel photoModel;
+    private final ObjectPassportPayloadModel payloadModel;
     private final DataSource primaryDataSource;
     private final ObjectsSqliteDataSourceProperties objectsSqliteProperties;
     private final PanelDatabaseRuntimeMode databaseRuntimeMode;
@@ -62,21 +62,22 @@ public class ObjectPassportService {
         this.objectMapper = objectMapper;
         this.photoStorageService = photoStorageService;
         this.photoModel = new ObjectPassportPhotoModel(photoStorageService::buildPhotoUrl);
+        this.payloadModel = new ObjectPassportPayloadModel(photoModel);
     }
 
     public Map<String, Object> createPassport(Map<String, Object> payload) {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                Map<String, Object> normalized = normalizePayload(Map.of(), payload, null);
-                validatePayload(normalized);
+                Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), payload, null);
+                payloadModel.validatePayload(normalized);
                 long objectId = insertObject(connection, normalized);
                 long passportId = insertPassport(connection, objectId, normalized);
                 connection.commit();
                 return Map.of(
                         "success", true,
                         "id", passportId,
-                        "passport", normalizePayload(Map.of(), normalized, passportId));
+                        "passport", payloadModel.normalizePayload(Map.of(), normalized, passportId));
             } catch (RuntimeException | SQLException ex) {
                 connection.rollback();
                 throw ex;
@@ -105,8 +106,8 @@ public class ObjectPassportService {
                 Map<String, Object> incoming = trackManualOverrides
                         ? markManualOverrides(existing.payload(), payload)
                         : (payload == null ? Map.of() : payload);
-                Map<String, Object> normalized = normalizePayload(existing.payload(), incoming, passportId);
-                validatePayload(normalized);
+                Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), incoming, passportId);
+                payloadModel.validatePayload(normalized);
                 long objectId = existing.objectId();
                 if (!updateObject(connection, objectId, normalized)) {
                     objectId = insertObject(connection, normalized);
@@ -116,7 +117,7 @@ public class ObjectPassportService {
                 return Map.of(
                         "success", true,
                         "id", passportId,
-                        "passport", normalizePayload(Map.of(), normalized, passportId));
+                        "passport", payloadModel.normalizePayload(Map.of(), normalized, passportId));
             } catch (RuntimeException | SQLException ex) {
                 connection.rollback();
                 throw ex;
@@ -163,7 +164,7 @@ public class ObjectPassportService {
             StoredPassportRecord existing = loadStoredPassport(connection, passportId);
             return Map.of(
                     "success", true,
-                    "passport", normalizePayload(Map.of(), existing.payload(), passportId));
+                    "passport", payloadModel.normalizePayload(Map.of(), existing.payload(), passportId));
         } catch (SQLException ex) {
             throw new IllegalStateException("Не удалось загрузить паспорт объекта", ex);
         }
@@ -177,7 +178,7 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             for (StoredPassportRecord record : loadAllStoredPassports(connection)) {
                 if (normalizedSiteId.equals(stringValue(record.payload().get("netbox_site_id")))) {
-                    return normalizePayload(Map.of(), record.payload(), record.passportId());
+                    return payloadModel.normalizePayload(Map.of(), record.payload(), record.passportId());
                 }
             }
             return null;
@@ -211,8 +212,8 @@ public class ObjectPassportService {
                 }
 
                 for (Map<String, Object> payload : safePayloads) {
-                    Map<String, Object> normalized = normalizePayload(Map.of(), payload, null);
-                    validatePayload(normalized);
+                    Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), payload, null);
+                    payloadModel.validatePayload(normalized);
                     long objectId = insertObject(connection, normalized);
                     insertPassport(connection, objectId, normalized);
                 }
@@ -243,7 +244,7 @@ public class ObjectPassportService {
             while (rs.next()) {
                 long passportId = rs.getLong("id");
                 Map<String, Object> payload = readJson(rs.getString("details"));
-                Map<String, Object> normalized = normalizePayload(Map.of(), payload, passportId);
+                Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), payload, passportId);
                 LinkedHashMap<String, Object> item = new LinkedHashMap<>();
                 item.put("id", passportId);
                 item.put("department", stringValue(normalized.get("department")));
@@ -252,7 +253,7 @@ public class ObjectPassportService {
                 String status = stringValue(normalized.get("status"));
                 List<Map<String, Object>> photos = photoModel.normalizePhotos(normalized.get("photos"));
                 item.put("status", status);
-                item.put("deleted", isDeletedStatus(status));
+                item.put("deleted", payloadModel.isDeletedStatus(status));
                 item.put("title_photo_url", photoModel.findTitlePhotoUrl(photos));
                 item.put("location_address", firstNonBlank(normalized.get("location_address"), rs.getString("object_address")));
                 item.put("passport_number", firstNonBlank(normalized.get("department"), rs.getString("passport_number")));
@@ -282,7 +283,7 @@ public class ObjectPassportService {
     public Map<String, Object> getEmptyCasesPayload(long passportId) {
         try (Connection connection = openConnection()) {
             StoredPassportRecord existing = loadStoredPassport(connection, passportId);
-            Map<String, Object> normalized = normalizePayload(Map.of(), existing.payload(), passportId);
+            Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), existing.payload(), passportId);
             List<Map<String, Object>> items = appealQuery.loadCases(normalized);
             return Map.of(
                     "success", true,
@@ -313,7 +314,7 @@ public class ObjectPassportService {
             connection.setAutoCommit(false);
             try {
                 StoredPassportRecord existing = loadStoredPassport(connection, passportId);
-                Map<String, Object> normalized = normalizePayload(existing.payload(), Map.of(), passportId);
+                Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), passportId);
                 List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 LinkedHashMap<String, Object> photo = new LinkedHashMap<>();
                 photo.put("id", UUID.randomUUID().toString());
@@ -346,7 +347,7 @@ public class ObjectPassportService {
             connection.setAutoCommit(false);
             try {
                 StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
-                Map<String, Object> normalized = normalizePayload(existing.payload(), Map.of(), existing.passportId());
+                Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId());
                 List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 boolean updated = false;
                 for (Map<String, Object> photo : photos) {
@@ -384,7 +385,7 @@ public class ObjectPassportService {
             connection.setAutoCommit(false);
             try {
                 StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
-                Map<String, Object> normalized = normalizePayload(existing.payload(), Map.of(), existing.passportId());
+                Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId());
                 List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 List<Map<String, Object>> remaining = new ArrayList<>();
                 boolean deleted = false;
@@ -445,16 +446,10 @@ public class ObjectPassportService {
         }
     }
 
-    private void validatePayload(Map<String, Object> payload) {
-        if (!StringUtils.hasText(stringValue(payload.get("department")))) {
-            throw new IllegalArgumentException("Поле «Департамент» обязательно для заполнения.");
-        }
-    }
-
     private long insertObject(Connection connection, Map<String, Object> payload) throws SQLException {
         String sql = "INSERT INTO objects(name, address, created_at) VALUES (?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            statement.setString(1, buildObjectName(payload));
+            statement.setString(1, payloadModel.buildObjectName(payload));
             statement.setString(2, stringValue(payload.get("location_address")));
             statement.setString(3, nowText());
             statement.executeUpdate();
@@ -465,7 +460,7 @@ public class ObjectPassportService {
     private boolean updateObject(Connection connection, long objectId, Map<String, Object> payload) throws SQLException {
         String sql = "UPDATE objects SET name = ?, address = ? WHERE id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            statement.setString(1, buildObjectName(payload));
+            statement.setString(1, payloadModel.buildObjectName(payload));
             statement.setString(2, stringValue(payload.get("location_address")));
             statement.setLong(3, objectId);
             return statement.executeUpdate() > 0;
@@ -476,8 +471,8 @@ public class ObjectPassportService {
         String sql = "INSERT INTO object_passports(object_id, passport_number, details, created_at) VALUES (?, ?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             statement.setLong(1, objectId);
-            statement.setString(2, buildPassportNumber(payload));
-            statement.setString(3, writeJson(normalizePayload(Map.of(), payload, null)));
+            statement.setString(2, payloadModel.buildPassportNumber(payload));
+            statement.setString(3, writeJson(payloadModel.normalizePayload(Map.of(), payload, null)));
             statement.setString(4, nowText());
             statement.executeUpdate();
             return readGeneratedKey(statement, "object_passports");
@@ -510,8 +505,8 @@ public class ObjectPassportService {
         String sql = "UPDATE object_passports SET object_id = ?, passport_number = ?, details = ? WHERE id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setLong(1, objectId);
-            statement.setString(2, buildPassportNumber(payload));
-            statement.setString(3, writeJson(normalizePayload(Map.of(), payload, passportId)));
+            statement.setString(2, payloadModel.buildPassportNumber(payload));
+            statement.setString(3, writeJson(payloadModel.normalizePayload(Map.of(), payload, passportId)));
             statement.setLong(4, passportId);
             int updated = statement.executeUpdate();
             if (updated == 0) {
@@ -593,37 +588,6 @@ public class ObjectPassportService {
         return storedNames;
     }
 
-    private Map<String, Object> normalizePayload(Map<String, Object> existing,
-                                                 Map<String, Object> incoming,
-                                                 Long passportId) {
-        LinkedHashMap<String, Object> normalized = new LinkedHashMap<>();
-        if (existing != null) {
-            normalized.putAll(existing);
-        }
-        if (incoming != null) {
-            normalized.putAll(incoming);
-        }
-        if (passportId != null) {
-            normalized.put("id", passportId);
-        }
-        normalized.put("is_new", false);
-        ensureList(normalized, "schedule");
-        ensureList(normalized, "cases");
-        ensureList(normalized, "tasks");
-        normalized.put("photos", photoModel.normalizePhotos(normalized.get("photos")));
-        ensureList(normalized, "network_files");
-        ensureList(normalized, "equipment");
-        ensureList(normalized, "status_history");
-        return normalized;
-    }
-
-    private void ensureList(Map<String, Object> payload, String key) {
-        Object value = payload.get(key);
-        if (!(value instanceof List<?>)) {
-            payload.put(key, List.of());
-        }
-    }
-
     private StoredPassportRecord findStoredPassportByPhotoId(Connection connection, String photoId) throws SQLException {
         String normalizedPhotoId = stringValue(photoId);
         if (!StringUtils.hasText(normalizedPhotoId)) {
@@ -646,11 +610,6 @@ public class ObjectPassportService {
             }
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
-    }
-
-    private boolean isDeletedStatus(Object raw) {
-        String status = normalizeLookupValue(raw);
-        return "удален".equals(status) || "deleted".equals(status);
     }
 
     private String firstNonBlank(Object... values) {
@@ -683,42 +642,6 @@ public class ObjectPassportService {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Не удалось сериализовать паспорт объекта", ex);
         }
-    }
-
-    private String buildObjectName(Map<String, Object> payload) {
-        String department = stringValue(payload.get("department"));
-        String city = stringValue(payload.get("city"));
-        String business = stringValue(payload.get("business"));
-        if (StringUtils.hasText(department) && StringUtils.hasText(city)) {
-            return city + " - " + department;
-        }
-        if (StringUtils.hasText(department)) {
-            return department;
-        }
-        if (StringUtils.hasText(business) && StringUtils.hasText(city)) {
-            return business + " - " + city;
-        }
-        return "Паспорт объекта";
-    }
-
-    private String buildPassportNumber(Map<String, Object> payload) {
-        String department = stringValue(payload.get("department"));
-        if (StringUtils.hasText(department)) {
-            return department;
-        }
-        return buildObjectName(payload);
-    }
-
-    private String normalizeLookupValue(Object raw) {
-        String value = stringValue(raw);
-        if (!StringUtils.hasText(value)) {
-            return "";
-        }
-        return value
-                .replace('Ё', 'Е')
-                .replace('ё', 'е')
-                .trim()
-                .toLowerCase(Locale.ROOT);
     }
 
     private String stringValue(Object raw) {
