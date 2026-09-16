@@ -41,4 +41,26 @@ class ObjectPassportJavaSourceLayoutContractTest {
         assertThat(settingsEquipment).contains("import com.example.panel.passports.ObjectPassportService;");
         assertThat(netBoxSync).contains("import com.example.panel.passports.ObjectPassportService;");
     }
+    @Test
+    void passportAppealReadModelUsesDedicatedQueryOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String query = read("src/main/java/com/example/panel/passports/ObjectPassportAppealQuery.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportAppealQuery appealQuery;")
+                .contains("this.appealQuery = new ObjectPassportAppealQuery(jdbcTemplate);")
+                .contains("appealQuery.loadAppealCountsByLocation()")
+                .contains("appealQuery.resolveAppealCount(appealsCountByLocation, normalized)")
+                .contains("appealQuery.loadCases(normalized)")
+                .doesNotContain("private Map<String, Long> loadAppealCountsByLocation()")
+                .doesNotContain("private List<Map<String, Object>> queryCases(");
+        assertThat(query)
+                .contains("final class ObjectPassportAppealQuery")
+                .contains("Map<String, Long> loadAppealCountsByLocation()")
+                .contains("long resolveAppealCount(")
+                .contains("List<Map<String, Object>> loadCases(")
+                .contains("SELECT DISTINCT ticket_id")
+                .contains("SELECT ticket_id, business, city, problem, created_at");
+    }
+
 }
