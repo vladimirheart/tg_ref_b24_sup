@@ -5,16 +5,12 @@ import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.config.SqliteConnectionConfigSupport;
 import com.example.panel.storage.ObjectPassportPhotoStorageService;
 import com.example.panel.storage.ObjectPassportPhotoStorageService.StoredPhoto;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -35,9 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class ObjectPassportService {
 
-    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
-
-    private final ObjectMapper objectMapper;
+    private final ObjectPassportPersistence persistence;
     private final ObjectPassportAppealQuery appealQuery;
     private final ObjectPassportEquipmentCatalogQuery equipmentCatalogQuery;
     private final ObjectPassportPhotoStorageService photoStorageService;
@@ -59,10 +53,10 @@ public class ObjectPassportService {
         this.databaseRuntimeMode = databaseRuntimeMode;
         this.appealQuery = new ObjectPassportAppealQuery(jdbcTemplate);
         this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery();
-        this.objectMapper = objectMapper;
         this.photoStorageService = photoStorageService;
         this.photoModel = new ObjectPassportPhotoModel(photoStorageService::buildPhotoUrl);
         this.payloadModel = new ObjectPassportPayloadModel(photoModel);
+        this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
     }
 
     public Map<String, Object> createPassport(Map<String, Object> payload) {
@@ -71,8 +65,8 @@ public class ObjectPassportService {
             try {
                 Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), payload, null);
                 payloadModel.validatePayload(normalized);
-                long objectId = insertObject(connection, normalized);
-                long passportId = insertPassport(connection, objectId, normalized);
+                long objectId = persistence.insertObject(connection, normalized);
+                long passportId = persistence.insertPassport(connection, objectId, normalized);
                 connection.commit();
                 return Map.of(
                         "success", true,
@@ -102,17 +96,17 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                StoredPassportRecord existing = loadStoredPassport(connection, passportId);
+                ObjectPassportPersistence.StoredPassportRecord existing = persistence.loadStoredPassport(connection, passportId);
                 Map<String, Object> incoming = trackManualOverrides
                         ? markManualOverrides(existing.payload(), payload)
                         : (payload == null ? Map.of() : payload);
                 Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), incoming, passportId);
                 payloadModel.validatePayload(normalized);
                 long objectId = existing.objectId();
-                if (!updateObject(connection, objectId, normalized)) {
-                    objectId = insertObject(connection, normalized);
+                if (!persistence.updateObject(connection, objectId, normalized)) {
+                    objectId = persistence.insertObject(connection, normalized);
                 }
-                updatePassportRow(connection, passportId, objectId, normalized);
+                persistence.updatePassportRow(connection, passportId, objectId, normalized);
                 connection.commit();
                 return Map.of(
                         "success", true,
@@ -161,7 +155,7 @@ public class ObjectPassportService {
 
     public Map<String, Object> getPassport(long passportId) {
         try (Connection connection = openConnection()) {
-            StoredPassportRecord existing = loadStoredPassport(connection, passportId);
+            ObjectPassportPersistence.StoredPassportRecord existing = persistence.loadStoredPassport(connection, passportId);
             return Map.of(
                     "success", true,
                     "passport", payloadModel.normalizePayload(Map.of(), existing.payload(), passportId));
@@ -176,7 +170,7 @@ public class ObjectPassportService {
             return null;
         }
         try (Connection connection = openConnection()) {
-            for (StoredPassportRecord record : loadAllStoredPassports(connection)) {
+            for (ObjectPassportPersistence.StoredPassportRecord record : persistence.loadAllStoredPassports(connection)) {
                 if (normalizedSiteId.equals(stringValue(record.payload().get("netbox_site_id")))) {
                     return payloadModel.normalizePayload(Map.of(), record.payload(), record.passportId());
                 }
@@ -201,7 +195,7 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                List<StoredPassportRecord> existing = loadAllStoredPassports(connection);
+                List<ObjectPassportPersistence.StoredPassportRecord> existing = persistence.loadAllStoredPassports(connection);
                 Set<String> storedPhotosToDelete = collectStoredPhotos(existing);
 
                 try (PreparedStatement statement = connection.prepareStatement("DELETE FROM object_passports")) {
@@ -214,8 +208,8 @@ public class ObjectPassportService {
                 for (Map<String, Object> payload : safePayloads) {
                     Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), payload, null);
                     payloadModel.validatePayload(normalized);
-                    long objectId = insertObject(connection, normalized);
-                    insertPassport(connection, objectId, normalized);
+                    long objectId = persistence.insertObject(connection, normalized);
+                    persistence.insertPassport(connection, objectId, normalized);
                 }
 
                 connection.commit();
@@ -243,7 +237,7 @@ public class ObjectPassportService {
             List<Map<String, Object>> items = new ArrayList<>();
             while (rs.next()) {
                 long passportId = rs.getLong("id");
-                Map<String, Object> payload = readJson(rs.getString("details"));
+                Map<String, Object> payload = persistence.readPayload(rs.getString("details"));
                 Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), payload, passportId);
                 LinkedHashMap<String, Object> item = new LinkedHashMap<>();
                 item.put("id", passportId);
@@ -271,7 +265,7 @@ public class ObjectPassportService {
     public List<Map<String, Object>> listEquipmentCatalogCandidates() {
         try (Connection connection = openConnection()) {
             List<Map<String, Object>> passportPayloads = new ArrayList<>();
-            for (StoredPassportRecord record : loadAllStoredPassports(connection)) {
+            for (ObjectPassportPersistence.StoredPassportRecord record : persistence.loadAllStoredPassports(connection)) {
                 passportPayloads.add(record.payload());
             }
             return equipmentCatalogQuery.listCandidates(passportPayloads);
@@ -282,7 +276,7 @@ public class ObjectPassportService {
 
     public Map<String, Object> getEmptyCasesPayload(long passportId) {
         try (Connection connection = openConnection()) {
-            StoredPassportRecord existing = loadStoredPassport(connection, passportId);
+            ObjectPassportPersistence.StoredPassportRecord existing = persistence.loadStoredPassport(connection, passportId);
             Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), existing.payload(), passportId);
             List<Map<String, Object>> items = appealQuery.loadCases(normalized);
             return Map.of(
@@ -313,7 +307,7 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                StoredPassportRecord existing = loadStoredPassport(connection, passportId);
+                ObjectPassportPersistence.StoredPassportRecord existing = persistence.loadStoredPassport(connection, passportId);
                 Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), passportId);
                 List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 LinkedHashMap<String, Object> photo = new LinkedHashMap<>();
@@ -328,7 +322,7 @@ public class ObjectPassportService {
                 photo.put("created_at", storedPhoto.uploadedAt());
                 photos.add(photo);
                 normalized.put("photos", photoModel.enforceSingleTitlePhoto(photos, stringValue(photo.get("id"))));
-                updatePassportRow(connection, passportId, existing.objectId(), normalized);
+                persistence.updatePassportRow(connection, passportId, existing.objectId(), normalized);
                 connection.commit();
                 return Map.of("success", true, "photos", normalized.get("photos"));
             } catch (RuntimeException | SQLException ex) {
@@ -346,7 +340,7 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
+                ObjectPassportPersistence.StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
                 Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId());
                 List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 boolean updated = false;
@@ -367,7 +361,7 @@ public class ObjectPassportService {
                     throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
                 }
                 normalized.put("photos", photoModel.enforceSingleTitlePhoto(photos, stringValue(photoId)));
-                updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
+                persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
                 connection.commit();
                 return Map.of("success", true, "photos", normalized.get("photos"));
             } catch (RuntimeException | SQLException ex) {
@@ -384,7 +378,7 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
+                ObjectPassportPersistence.StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
                 Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId());
                 List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
                 List<Map<String, Object>> remaining = new ArrayList<>();
@@ -401,7 +395,7 @@ public class ObjectPassportService {
                     throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
                 }
                 normalized.put("photos", photoModel.enforceSingleTitlePhoto(remaining, null));
-                updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
+                persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
                 connection.commit();
                 photoStorageService.deleteQuietly(storedNameToDelete);
                 return Map.of("success", true, "photos", normalized.get("photos"));
@@ -420,7 +414,7 @@ public class ObjectPassportService {
 
     private void ensurePassportExists(long passportId) {
         try (Connection connection = openConnection()) {
-            loadStoredPassport(connection, passportId);
+            persistence.loadStoredPassport(connection, passportId);
         } catch (SQLException ex) {
             throw new IllegalStateException("Не удалось загрузить паспорт объекта", ex);
         }
@@ -446,137 +440,12 @@ public class ObjectPassportService {
         }
     }
 
-    private long insertObject(Connection connection, Map<String, Object> payload) throws SQLException {
-        String sql = "INSERT INTO objects(name, address, created_at) VALUES (?, ?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            statement.setString(1, payloadModel.buildObjectName(payload));
-            statement.setString(2, stringValue(payload.get("location_address")));
-            statement.setString(3, nowText());
-            statement.executeUpdate();
-            return readGeneratedKey(statement, "objects");
-        }
-    }
-
-    private boolean updateObject(Connection connection, long objectId, Map<String, Object> payload) throws SQLException {
-        String sql = "UPDATE objects SET name = ?, address = ? WHERE id = ?";
-        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            statement.setString(1, payloadModel.buildObjectName(payload));
-            statement.setString(2, stringValue(payload.get("location_address")));
-            statement.setLong(3, objectId);
-            return statement.executeUpdate() > 0;
-        }
-    }
-
-    private long insertPassport(Connection connection, long objectId, Map<String, Object> payload) throws SQLException {
-        String sql = "INSERT INTO object_passports(object_id, passport_number, details, created_at) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            statement.setLong(1, objectId);
-            statement.setString(2, payloadModel.buildPassportNumber(payload));
-            statement.setString(3, writeJson(payloadModel.normalizePayload(Map.of(), payload, null)));
-            statement.setString(4, nowText());
-            statement.executeUpdate();
-            return readGeneratedKey(statement, "object_passports");
-        }
-    }
-
-    private long readGeneratedKey(PreparedStatement statement, String tableName) throws SQLException {
-        try (ResultSet rs = statement.getGeneratedKeys()) {
-            if (rs.next()) {
-                return rs.getLong(1);
-            }
-        }
-        throw new SQLException("Failed to read generated key for " + tableName);
-    }
-
-    private long fetchLastInsertRowId(Connection connection) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("SELECT 0");
-             ResultSet rs = statement.executeQuery()) {
-            if (rs.next()) {
-                return rs.getLong(1);
-            }
-        }
-        throw new SQLException("Не удалось получить id вставленной записи");
-    }
-
-    private void updatePassportRow(Connection connection,
-                                   long passportId,
-                                   long objectId,
-                                   Map<String, Object> payload) throws SQLException {
-        String sql = "UPDATE object_passports SET object_id = ?, passport_number = ?, details = ? WHERE id = ?";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setLong(1, objectId);
-            statement.setString(2, payloadModel.buildPassportNumber(payload));
-            statement.setString(3, writeJson(payloadModel.normalizePayload(Map.of(), payload, passportId)));
-            statement.setLong(4, passportId);
-            int updated = statement.executeUpdate();
-            if (updated == 0) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Паспорт объекта не найден");
-            }
-        }
-    }
-
-    private StoredPassportRecord loadStoredPassport(Connection connection, long passportId) throws SQLException {
-        String sql = """
-                SELECT p.id, p.object_id, p.passport_number, p.details, o.name AS object_name, o.address AS object_address
-                FROM object_passports p
-                LEFT JOIN objects o ON o.id = p.object_id
-                WHERE p.id = ?
-                """;
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setLong(1, passportId);
-            try (ResultSet rs = statement.executeQuery()) {
-                if (!rs.next()) {
-                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Паспорт объекта не найден");
-                }
-                Map<String, Object> payload = readJson(rs.getString("details"));
-                if (!StringUtils.hasText(stringValue(payload.get("department")))) {
-                    payload.put("department", rs.getString("passport_number"));
-                }
-                if (!StringUtils.hasText(stringValue(payload.get("location_address")))) {
-                    payload.put("location_address", rs.getString("object_address"));
-                }
-                return new StoredPassportRecord(
-                        rs.getLong("id"),
-                        rs.getLong("object_id"),
-                        payload);
-            }
-        }
-    }
-
-    private List<StoredPassportRecord> loadAllStoredPassports(Connection connection) throws SQLException {
-        String sql = """
-                SELECT p.id, p.object_id, p.passport_number, p.details, o.name AS object_name, o.address AS object_address
-                FROM object_passports p
-                LEFT JOIN objects o ON o.id = p.object_id
-                ORDER BY p.id ASC
-                """;
-        try (PreparedStatement statement = connection.prepareStatement(sql);
-             ResultSet rs = statement.executeQuery()) {
-            List<StoredPassportRecord> items = new ArrayList<>();
-            while (rs.next()) {
-                Map<String, Object> payload = readJson(rs.getString("details"));
-                if (!StringUtils.hasText(stringValue(payload.get("department")))) {
-                    payload.put("department", rs.getString("passport_number"));
-                }
-                if (!StringUtils.hasText(stringValue(payload.get("location_address")))) {
-                    payload.put("location_address", rs.getString("object_address"));
-                }
-                items.add(new StoredPassportRecord(
-                        rs.getLong("id"),
-                        rs.getLong("object_id"),
-                        payload
-                ));
-            }
-            return items;
-        }
-    }
-
-    private Set<String> collectStoredPhotos(List<StoredPassportRecord> records) {
+    private Set<String> collectStoredPhotos(List<ObjectPassportPersistence.StoredPassportRecord> records) {
         Set<String> storedNames = new HashSet<>();
         if (records == null) {
             return storedNames;
         }
-        for (StoredPassportRecord record : records) {
+        for (ObjectPassportPersistence.StoredPassportRecord record : records) {
             List<Map<String, Object>> photos = photoModel.normalizePhotos(record.payload().get("photos"));
             for (Map<String, Object> photo : photos) {
                 String storedName = stringValue(photo.get("stored_name"));
@@ -588,7 +457,7 @@ public class ObjectPassportService {
         return storedNames;
     }
 
-    private StoredPassportRecord findStoredPassportByPhotoId(Connection connection, String photoId) throws SQLException {
+    private ObjectPassportPersistence.StoredPassportRecord findStoredPassportByPhotoId(Connection connection, String photoId) throws SQLException {
         String normalizedPhotoId = stringValue(photoId);
         if (!StringUtils.hasText(normalizedPhotoId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
@@ -598,14 +467,14 @@ public class ObjectPassportService {
              ResultSet rs = statement.executeQuery()) {
             while (rs.next()) {
                 long passportId = rs.getLong("id");
-                StoredPassportRecord record = loadStoredPassport(connection, passportId);
+                ObjectPassportPersistence.StoredPassportRecord record = persistence.loadStoredPassport(connection, passportId);
                 List<Map<String, Object>> photos = photoModel.normalizePhotos(record.payload().get("photos"));
                 boolean found = photos.stream()
                         .anyMatch(photo -> normalizedPhotoId.equals(stringValue(photo.get("id"))));
                 if (found) {
                     Map<String, Object> payload = new LinkedHashMap<>(record.payload());
                     payload.put("photos", photos);
-                    return new StoredPassportRecord(record.passportId(), record.objectId(), payload);
+                    return new ObjectPassportPersistence.StoredPassportRecord(record.passportId(), record.objectId(), payload);
                 }
             }
         }
@@ -625,33 +494,8 @@ public class ObjectPassportService {
         return "";
     }
 
-    private Map<String, Object> readJson(String raw) {
-        if (!StringUtils.hasText(raw)) {
-            return new LinkedHashMap<>();
-        }
-        try {
-            return objectMapper.readValue(raw, Map.class);
-        } catch (JsonProcessingException ex) {
-            return new LinkedHashMap<>();
-        }
-    }
-
-    private String writeJson(Map<String, Object> payload) {
-        try {
-            return objectMapper.writeValueAsString(payload);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Не удалось сериализовать паспорт объекта", ex);
-        }
-    }
-
     private String stringValue(Object raw) {
         return raw == null ? "" : String.valueOf(raw).trim();
     }
 
-    private String nowText() {
-        return OffsetDateTime.now().format(TIMESTAMP_FORMATTER);
-    }
-
-    private record StoredPassportRecord(long passportId, long objectId, Map<String, Object> payload) {
-    }
 }

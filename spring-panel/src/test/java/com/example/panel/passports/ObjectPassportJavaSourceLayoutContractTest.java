@@ -183,8 +183,8 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("this.payloadModel = new ObjectPassportPayloadModel(photoModel);")
                 .contains("payloadModel.normalizePayload(")
                 .contains("payloadModel.validatePayload(")
-                .contains("payloadModel.buildObjectName(")
-                .contains("payloadModel.buildPassportNumber(")
+                .doesNotContain("payloadModel.buildObjectName(")
+                .doesNotContain("payloadModel.buildPassportNumber(")
                 .contains("payloadModel.isDeletedStatus(")
                 .doesNotContain("private Map<String, Object> normalizePayload(")
                 .doesNotContain("private void validatePayload(")
@@ -202,6 +202,45 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .doesNotContain("openConnection()")
                 .doesNotContain("PreparedStatement")
                 .doesNotContain("ObjectPassportPhotoStorageService");
+    }
+
+    @Test
+    void passportPersistenceUsesDedicatedOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String persistence = read("src/main/java/com/example/panel/passports/ObjectPassportPersistence.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportPersistence persistence;")
+                .contains("this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);")
+                .contains("persistence.insertObject(")
+                .contains("persistence.insertPassport(")
+                .contains("persistence.updatePassportRow(")
+                .contains("persistence.loadStoredPassport(")
+                .contains("persistence.loadAllStoredPassports(")
+                .contains("persistence.readPayload(")
+                .doesNotContain("private long insertObject(")
+                .doesNotContain("private long insertPassport(")
+                .doesNotContain("private void updatePassportRow(")
+                .doesNotContain("private StoredPassportRecord loadStoredPassport(")
+                .doesNotContain("private Map<String, Object> readJson(")
+                .doesNotContain("TIMESTAMP_FORMATTER");
+        assertThat(persistence)
+                .contains("final class ObjectPassportPersistence")
+                .contains("long insertObject(Connection connection")
+                .contains("long insertPassport(Connection connection")
+                .contains("void updatePassportRow(Connection connection")
+                .contains("StoredPassportRecord loadStoredPassport(Connection connection")
+                .contains("List<StoredPassportRecord> loadAllStoredPassports(Connection connection")
+                .contains("Map<String, Object> readPayload(String raw)")
+                .contains("INSERT INTO object_passports")
+                .contains("UPDATE object_passports SET object_id")
+                .contains("payloadModel.buildObjectName(")
+                .contains("payloadModel.buildPassportNumber(")
+                .doesNotContain("DataSource")
+                .doesNotContain("SqliteConnectionConfigSupport")
+                .doesNotContain("setAutoCommit")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()");
     }
 
 }
