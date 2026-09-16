@@ -20,12 +20,13 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         String edit = read("src/main/resources/templates/passports/fragments/detail-edit.html");
         String media = read("src/main/resources/templates/passports/fragments/detail-media.html");
         String coreRuntime = read("src/main/resources/static/js/passport-detail-core-runtime.js");
+        String equipmentRuntime = read("src/main/resources/static/js/passport-detail-equipment-runtime.js");
         String equipment = read("src/main/resources/templates/passports/fragments/detail-equipment.html");
         assertTrue(html.contains("passport-workspace-tabs"));
         assertTrue(html.contains("passport-kpi-strip"));
         assertTrue(html.contains("passports/fragments/detail-equipment :: equipmentPanel"));
         assertTrue(equipment.contains("passport-equipment-grid"));
-        assertTrue(html.contains("passport-asset-card"));
+        assertTrue(equipmentRuntime.contains("passport-asset-card"));
         assertTrue(html.contains("passports/fragments/detail-edit :: passportEditLayer"));
         assertTrue(edit.contains("passport-edit-layer"));
         assertTrue(html.contains("initialEditMode"));
@@ -39,6 +40,8 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(html.contains("/api/object_passports/${passportId}/incidents"));
         assertTrue(html.contains("/js/passport-detail-core-runtime.js?v=20260916-01-260-p4a"));
         assertTrue(html.contains("PassportDetailCoreRuntime"));
+        assertTrue(html.contains("/js/passport-detail-equipment-runtime.js?v=20260916-01-260-p4d"));
+        assertTrue(html.contains("PassportDetailEquipmentRuntime"));
         assertTrue(coreRuntime.contains("findCatalogItem"));
         assertTrue(coreRuntime.contains("item && item.catalog_id"));
         assertTrue(coreRuntime.contains("catalogKey("));
