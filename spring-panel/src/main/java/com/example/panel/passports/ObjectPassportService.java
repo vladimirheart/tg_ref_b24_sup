@@ -28,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ObjectPassportService {
 
     private final ObjectPassportPersistence persistence;
+    private final ObjectPassportCreateCommand createCommand;
     private final ObjectPassportAppealQuery appealQuery;
     private final ObjectPassportCasesQuery casesQuery;
     private final ObjectPassportDetailsQuery detailsQuery;
@@ -59,6 +60,7 @@ public class ObjectPassportService {
         this.payloadModel = new ObjectPassportPayloadModel(photoModel);
         this.manualOverrideModel = new ObjectPassportManualOverrideModel();
         this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
+        this.createCommand = new ObjectPassportCreateCommand(persistence, payloadModel);
         this.detailsQuery = new ObjectPassportDetailsQuery(persistence, payloadModel);
         this.casesQuery = new ObjectPassportCasesQuery(persistence, payloadModel, appealQuery);
         this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery(persistence);
@@ -71,15 +73,9 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), payload, null);
-                payloadModel.validatePayload(normalized);
-                long objectId = persistence.insertObject(connection, normalized);
-                long passportId = persistence.insertPassport(connection, objectId, normalized);
+                Map<String, Object> created = createCommand.create(connection, payload);
                 connection.commit();
-                return Map.of(
-                        "success", true,
-                        "id", passportId,
-                        "passport", payloadModel.normalizePayload(Map.of(), normalized, passportId));
+                return created;
             } catch (RuntimeException | SQLException ex) {
                 connection.rollback();
                 throw ex;

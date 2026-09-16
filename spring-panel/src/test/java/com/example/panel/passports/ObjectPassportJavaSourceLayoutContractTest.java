@@ -49,6 +49,41 @@ class ObjectPassportJavaSourceLayoutContractTest {
         assertThat(netBoxSync).contains("import com.example.panel.passports.ObjectPassportService;");
     }
     @Test
+    void passportCreateWorkflowUsesDedicatedCommandOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String command = read("src/main/java/com/example/panel/passports/ObjectPassportCreateCommand.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportCreateCommand createCommand;")
+                .contains("this.createCommand = new ObjectPassportCreateCommand(persistence, payloadModel);")
+                .contains("Map<String, Object> created = createCommand.create(connection, payload);")
+                .contains("connection.setAutoCommit(false);")
+                .contains("connection.commit();")
+                .contains("connection.rollback();")
+                .contains("private Connection openConnection() throws SQLException")
+                .contains("private DataSource runtimeObjectsDataSource()")
+                .doesNotContain("long passportId = persistence.insertPassport(connection, objectId, normalized);");
+        assertThat(command)
+                .contains("final class ObjectPassportCreateCommand")
+                .contains("private final ObjectPassportPersistence persistence;")
+                .contains("private final ObjectPassportPayloadModel payloadModel;")
+                .contains("ObjectPassportCreateCommand(ObjectPassportPersistence persistence,")
+                .contains("Map<String, Object> create(Connection connection, Map<String, Object> payload) throws SQLException")
+                .contains("payloadModel.normalizePayload(Map.of(), payload, null)")
+                .contains("payloadModel.validatePayload(normalized)")
+                .contains("persistence.insertObject(connection, normalized)")
+                .contains("persistence.insertPassport(connection, objectId, normalized)")
+                .contains("payloadModel.normalizePayload(Map.of(), normalized, passportId)")
+                .contains("return Map.of(")
+                .doesNotContain("DataSource")
+                .doesNotContain("openConnection()")
+                .doesNotContain("setAutoCommit")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()")
+                .doesNotContain("ObjectPassportPhotoStorageService");
+    }
+
+    @Test
     void passportAppealReadModelUsesDedicatedQueryOwner() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
         String query = read("src/main/java/com/example/panel/passports/ObjectPassportAppealQuery.java");
