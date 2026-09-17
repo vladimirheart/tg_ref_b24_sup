@@ -8,9 +8,7 @@ import com.example.panel.storage.ObjectPassportPhotoStorageService.StoredPhoto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +28,7 @@ public class ObjectPassportService {
     private final ObjectPassportPersistence persistence;
     private final ObjectPassportCreateCommand createCommand;
     private final ObjectPassportUpdateCommand updateCommand;
+    private final ObjectPassportReplaceAllCommand replaceAllCommand;
     private final ObjectPassportAppealQuery appealQuery;
     private final ObjectPassportCasesQuery casesQuery;
     private final ObjectPassportDetailsQuery detailsQuery;
@@ -63,6 +62,7 @@ public class ObjectPassportService {
         this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);
         this.createCommand = new ObjectPassportCreateCommand(persistence, payloadModel);
         this.updateCommand = new ObjectPassportUpdateCommand(persistence, payloadModel, manualOverrideModel);
+        this.replaceAllCommand = new ObjectPassportReplaceAllCommand(persistence, payloadModel, photoModel);
         this.detailsQuery = new ObjectPassportDetailsQuery(persistence, payloadModel);
         this.casesQuery = new ObjectPassportCasesQuery(persistence, payloadModel, appealQuery);
         this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery(persistence);
@@ -145,27 +145,10 @@ public class ObjectPassportService {
     }
 
     public void replaceAllPassports(List<Map<String, Object>> payloads) {
-        List<Map<String, Object>> safePayloads = payloads == null ? List.of() : payloads;
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                List<ObjectPassportPersistence.StoredPassportRecord> existing = persistence.loadAllStoredPassports(connection);
-                Set<String> storedPhotosToDelete = collectStoredPhotos(existing);
-
-                try (PreparedStatement statement = connection.prepareStatement("DELETE FROM object_passports")) {
-                    statement.executeUpdate();
-                }
-                try (PreparedStatement statement = connection.prepareStatement("DELETE FROM objects")) {
-                    statement.executeUpdate();
-                }
-
-                for (Map<String, Object> payload : safePayloads) {
-                    Map<String, Object> normalized = payloadModel.normalizePayload(Map.of(), payload, null);
-                    payloadModel.validatePayload(normalized);
-                    long objectId = persistence.insertObject(connection, normalized);
-                    persistence.insertPassport(connection, objectId, normalized);
-                }
-
+                Set<String> storedPhotosToDelete = replaceAllCommand.replace(connection, payloads);
                 connection.commit();
                 storedPhotosToDelete.forEach(photoStorageService::deleteQuietly);
             } catch (RuntimeException | SQLException ex) {
@@ -321,23 +304,6 @@ public class ObjectPassportService {
             }
             return objectsCompatibilityDataSource;
         }
-    }
-
-    private Set<String> collectStoredPhotos(List<ObjectPassportPersistence.StoredPassportRecord> records) {
-        Set<String> storedNames = new HashSet<>();
-        if (records == null) {
-            return storedNames;
-        }
-        for (ObjectPassportPersistence.StoredPassportRecord record : records) {
-            List<Map<String, Object>> photos = photoModel.normalizePhotos(record.payload().get("photos"));
-            for (Map<String, Object> photo : photos) {
-                String storedName = stringValue(photo.get("stored_name"));
-                if (StringUtils.hasText(storedName)) {
-                    storedNames.add(storedName);
-                }
-            }
-        }
-        return storedNames;
     }
 
     private String stringValue(Object raw) {

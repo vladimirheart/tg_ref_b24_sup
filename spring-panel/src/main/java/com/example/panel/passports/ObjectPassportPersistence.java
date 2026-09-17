@@ -128,6 +128,15 @@ final class ObjectPassportPersistence {
         }
     }
 
+    void deleteAllPassportData(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM object_passports")) {
+            statement.executeUpdate();
+        }
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM objects")) {
+            statement.executeUpdate();
+        }
+    }
+
     Map<String, Object> readPayload(String raw) {
         if (!StringUtils.hasText(raw)) {
             return new LinkedHashMap<>();
