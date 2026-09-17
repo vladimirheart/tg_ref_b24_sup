@@ -39,4 +39,27 @@ class SupportBotJavaSourceLayoutContractTest {
                 .doesNotContain("ConversationSession")
                 .doesNotContain("execute(");
     }
+
+    @Test
+    void apiEndpointPolicyUsesDedicatedSupportOwner() throws IOException {
+        String bot = read("src/main/java/com/example/supportbot/telegram/SupportBot.java");
+        String support = read("src/main/java/com/example/supportbot/telegram/TelegramApiEndpointSupport.java");
+
+        assertThat(bot)
+                .contains("TelegramApiEndpointSupport.botApiBaseUrl(env(\"TELEGRAM_BOT_API_BASE_URL\"))")
+                .contains("TelegramApiEndpointSupport.normalizeRootUrl(env(\"TELEGRAM_BOT_API_BASE_URL\"))")
+                .doesNotContain("DEFAULT_TELEGRAM_API_ROOT_URL")
+                .doesNotContain("static String buildTelegramBotApiBaseUrl(")
+                .doesNotContain("static String normalizeTelegramApiRootUrl(");
+
+        assertThat(support)
+                .contains("final class TelegramApiEndpointSupport")
+                .contains("static String botApiBaseUrl(String rawRootUrl)")
+                .contains("static String normalizeRootUrl(String rawRootUrl)")
+                .doesNotContain("System.getenv")
+                .doesNotContain("DefaultBotOptions")
+                .doesNotContain("HttpURLConnection")
+                .doesNotContain("TelegramLongPollingBot")
+                .doesNotContain("execute(");
+    }
 }

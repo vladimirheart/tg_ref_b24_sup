@@ -90,7 +90,6 @@ public class SupportBot extends TelegramLongPollingBot {
     private static final int DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES = 10;
     private static final String DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE =
             "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
-    private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
 
     private final BotProperties properties;
     private final BlacklistService blacklistService;
@@ -1237,7 +1236,7 @@ public class SupportBot extends TelegramLongPollingBot {
         if (filePath == null || filePath.isBlank()) {
             throw new TelegramApiException("Telegram returned empty file path for fileId=" + fileId);
         }
-        String downloadUrl = normalizeTelegramApiRootUrl(env("TELEGRAM_BOT_API_BASE_URL"))
+        String downloadUrl = TelegramApiEndpointSupport.normalizeRootUrl(env("TELEGRAM_BOT_API_BASE_URL"))
                 + "/file/bot"
                 + getBotToken()
                 + "/"
@@ -2599,30 +2598,11 @@ public class SupportBot extends TelegramLongPollingBot {
     }
 
     static String resolveTelegramBotApiBaseUrlFromEnv() {
-        return buildTelegramBotApiBaseUrl(env("TELEGRAM_BOT_API_BASE_URL"));
-    }
-
-    static String buildTelegramBotApiBaseUrl(String rawRootUrl) {
-        return normalizeTelegramApiRootUrl(rawRootUrl) + "/bot";
-    }
-
-    static String normalizeTelegramApiRootUrl(String rawRootUrl) {
-        String value = rawRootUrl == null ? "" : rawRootUrl.trim();
-        if (value.isEmpty()) {
-            return DEFAULT_TELEGRAM_API_ROOT_URL;
-        }
-        String normalized = value.replaceAll("/+$", "");
-        if (normalized.equals(DEFAULT_TELEGRAM_API_ROOT_URL + "/bot")) {
-            return DEFAULT_TELEGRAM_API_ROOT_URL;
-        }
-        if (normalized.endsWith("/bot")) {
-            return normalized.substring(0, normalized.length() - 4);
-        }
-        return normalized;
+        return TelegramApiEndpointSupport.botApiBaseUrl(env("TELEGRAM_BOT_API_BASE_URL"));
     }
 
     private static String resolveTelegramApiRootUrlForLogs() {
-        return normalizeTelegramApiRootUrl(env("TELEGRAM_BOT_API_BASE_URL"));
+        return TelegramApiEndpointSupport.normalizeRootUrl(env("TELEGRAM_BOT_API_BASE_URL"));
     }
 
     private static int parsePositiveInt(String value) {
