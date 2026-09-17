@@ -23,8 +23,8 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .contains("MaxInboundPayloadSupport.resolveClientProfile(message, userId)")
                 .contains("MaxInboundPayloadSupport.resolveInboundPayload(message, clientProfile)")
                 .contains("MaxInboundPayloadSupport.normalizeAttachmentType(attachments.get(0).type())")
-                .contains("resolveProviderMessageId(update, message)")
-                .contains("resolveReplyToProviderMessageId(message)")
+                .contains("MaxDeliveryIdentitySupport.resolveProviderMessageId(update, message)")
+                .contains("MaxDeliveryIdentitySupport.resolveReplyToProviderMessageId(message)")
                 .contains("storeIncomingAttachment(channel, attachments.get(0))")
                 .doesNotContain("private MaxInboundPayload resolveInboundPayload(")
                 .doesNotContain("private MaxClientProfile resolveClientProfile(")
@@ -47,5 +47,35 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("MessagingService")
                 .doesNotContain("BotWebhookDeliveryGuardService")
                 .doesNotContain("ResponseEntity");
+    }
+
+    @Test
+    void deliveryIdentityUsesDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxDeliveryIdentitySupport.java");
+
+        assertThat(controller)
+                .contains("MaxDeliveryIdentitySupport.buildDeliveryKey(update)")
+                .contains("MaxDeliveryIdentitySupport.resolveProviderMessageId(update, message)")
+                .contains("MaxDeliveryIdentitySupport.resolveReplyToProviderMessageId(message)")
+                .doesNotContain("private String buildDeliveryKey(")
+                .doesNotContain("private Long resolveProviderMessageId(")
+                .doesNotContain("private Long resolveReplyToProviderMessageId(")
+                .doesNotContain("import java.util.UUID;")
+                .doesNotContain("import java.nio.charset.StandardCharsets;");
+
+        assertThat(support)
+                .contains("final class MaxDeliveryIdentitySupport")
+                .contains("static String buildDeliveryKey(JsonNode update)")
+                .contains("static Long resolveProviderMessageId(JsonNode update, JsonNode message)")
+                .contains("static Long resolveReplyToProviderMessageId(JsonNode message)")
+                .doesNotContain("@RestController")
+                .doesNotContain("TicketService")
+                .doesNotContain("AttachmentService")
+                .doesNotContain("MaxApiClient")
+                .doesNotContain("MessagingService")
+                .doesNotContain("BotWebhookDeliveryGuardService")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("StringUtils");
     }
 }

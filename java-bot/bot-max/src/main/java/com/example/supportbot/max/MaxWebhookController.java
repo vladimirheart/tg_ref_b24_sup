@@ -34,7 +34,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -43,7 +42,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -181,7 +179,7 @@ public class MaxWebhookController {
         BotWebhookDeliveryGuardService.DeliveryClaim claim = webhookDeliveryGuardService.tryClaim(
                 SESSION_PLATFORM,
                 properties.getChannelId(),
-                buildDeliveryKey(update));
+                MaxDeliveryIdentitySupport.buildDeliveryKey(update));
         if (claim.alreadyProcessed()) {
             return ResponseEntity.ok(Map.of("ok", true, "duplicate", true));
         }
@@ -193,7 +191,7 @@ public class MaxWebhookController {
         JsonNode message = update.path("message");
         Long userId = asLong(message.path("sender").path("user_id"));
         Long chatId = asLong(message.path("recipient").path("chat_id"));
-        Long providerMessageId = resolveProviderMessageId(update, message);
+        Long providerMessageId = MaxDeliveryIdentitySupport.resolveProviderMessageId(update, message);
         MaxInboundPayloadSupport.ClientProfile clientProfile = MaxInboundPayloadSupport.resolveClientProfile(message, userId);
         MaxInboundPayloadSupport.InboundPayload inboundPayload = MaxInboundPayloadSupport.resolveInboundPayload(message, clientProfile);
         String text = inboundPayload.text();
@@ -278,7 +276,7 @@ public class MaxWebhookController {
                 attachmentRef,
                 attachmentName,
                 providerMessageId,
-                resolveReplyToProviderMessageId(message),
+                MaxDeliveryIdentitySupport.resolveReplyToProviderMessageId(message),
                 inboundPayload.forwardedFrom(),
                 OffsetDateTime.now()
             ));
@@ -1020,39 +1018,6 @@ public class MaxWebhookController {
         return expected.equals(provided);
     }
 
-    private String buildDeliveryKey(JsonNode update) {
-        String updateId = firstNonBlank(
-                text(update, "update_id"),
-                text(update, "event_id")
-        );
-        if (updateId != null) {
-            return "update:" + updateId;
-        }
-        JsonNode message = update.path("message");
-        String messageId = firstNonBlank(
-                text(message, "message_id"),
-                text(message.path("body"), "mid"),
-                text(message.path("body"), "message_id")
-        );
-        if (messageId != null) {
-            return "message:" + messageId;
-        }
-        String senderId = text(message.path("sender"), "user_id");
-        String chatId = firstNonBlank(
-                text(message.path("recipient"), "chat_id"),
-                text(message.path("recipient"), "user_id")
-        );
-        String createdAt = firstNonBlank(
-                text(message, "timestamp"),
-                text(message.path("body"), "created_at"),
-                text(message.path("body"), "timestamp")
-        );
-        if (StringUtils.hasText(senderId) || StringUtils.hasText(chatId) || StringUtils.hasText(createdAt)) {
-            return "message_created|sender=" + senderId + "|chat=" + chatId + "|created_at=" + createdAt;
-        }
-        return update != null ? update.toString() : "missing-update";
-    }
-
     private String text(JsonNode node, String field) {
         JsonNode value = node != null ? node.path(field) : null;
         return value == null || value.isMissingNode() || value.isNull() ? "" : value.asText("");
@@ -1074,42 +1039,6 @@ public class MaxWebhookController {
         } catch (NumberFormatException ex) {
             return null;
         }
-    }
-
-    private Long resolveProviderMessageId(JsonNode update, JsonNode message) {
-        Long numericId = asLong(message.path("message_id"));
-        if (numericId == null) {
-            numericId = asLong(message.path("body").path("mid"));
-        }
-        if (numericId != null) {
-            return numericId;
-        }
-        UUID stableId = UUID.nameUUIDFromBytes(buildDeliveryKey(update).getBytes(StandardCharsets.UTF_8));
-        long value = stableId.getMostSignificantBits() & Long.MAX_VALUE;
-        return value == 0L ? 1L : value;
-    }
-
-    private Long resolveReplyToProviderMessageId(JsonNode message) {
-        JsonNode link = message != null ? message.path("link") : null;
-        if (link == null || link.isMissingNode() || link.isNull()
-                || !"reply".equalsIgnoreCase(text(link, "type"))) {
-            return null;
-        }
-
-        JsonNode linkedMessage = link.path("message");
-        for (JsonNode candidate : List.of(
-                link.path("message_id"),
-                link.path("mid"),
-                linkedMessage.path("message_id"),
-                linkedMessage.path("mid"),
-                linkedMessage.path("body").path("message_id"),
-                linkedMessage.path("body").path("mid"))) {
-            Long messageId = asLong(candidate);
-            if (messageId != null) {
-                return messageId;
-            }
-        }
-        return null;
     }
 
     private record StoredIncomingAttachment(String storageKey, String originalName) {
