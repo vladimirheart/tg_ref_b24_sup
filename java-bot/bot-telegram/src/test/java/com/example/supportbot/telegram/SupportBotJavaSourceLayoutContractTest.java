@@ -62,4 +62,31 @@ class SupportBotJavaSourceLayoutContractTest {
                 .doesNotContain("TelegramLongPollingBot")
                 .doesNotContain("execute(");
     }
+
+    @Test
+    void startupFailurePolicyUsesDedicatedSupportOwner() throws IOException {
+        String bot = read("src/main/java/com/example/supportbot/telegram/SupportBot.java");
+        String lifecycle = read("src/main/java/com/example/supportbot/telegram/TelegramLongPollingLifecycle.java");
+        String support = read("src/main/java/com/example/supportbot/telegram/TelegramStartupFailureSupport.java");
+
+        assertThat(bot)
+                .contains("String describeStartupFailure(String fallbackMessage, TelegramApiException exception)")
+                .contains("return TelegramStartupFailureSupport.describe(")
+                .contains("resolveTelegramApiRootUrlForLogs()")
+                .doesNotContain("private Throwable rootCauseOf(")
+                .doesNotContain("private boolean isConnectivityFailure(")
+                .doesNotContain("private boolean isProxyTunnelFailure(");
+
+        assertThat(lifecycle)
+                .contains("supportBot.describeStartupFailure(");
+
+        assertThat(support)
+                .contains("final class TelegramStartupFailureSupport")
+                .contains("static String describe(String fallbackMessage, Throwable exception, String apiRootUrl)")
+                .doesNotContain("System.getenv")
+                .doesNotContain("DefaultBotOptions")
+                .doesNotContain("TelegramLongPollingBot")
+                .doesNotContain("execute(")
+                .doesNotContain("LoggerFactory");
+    }
 }
