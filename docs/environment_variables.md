@@ -113,7 +113,6 @@
 | `APP_SECURITY_REMEMBER_ME_KEY` | секретный ключ remember-me cookie; во внешнем production-like контуре должен быть явно переопределён | `iguana-panel-remember-me` |
 | `APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME` | bootstrap username для первого administrator-пользователя, если в users/authorities ещё нет `ROLE_ADMIN` | unset |
 | `APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD` | bootstrap password для первого administrator-пользователя, если в users/authorities ещё нет `ROLE_ADMIN` | unset |
-| `APP_SECURITY_BOOTSTRAP_ADMIN_ALLOW_DEFAULT_CREDENTIALS_IN_SQLITE` | разрешить dev-friendly fallback `admin/admin` только для SQLite compatibility mode | `true` |
 
 ## Пример запуска
 

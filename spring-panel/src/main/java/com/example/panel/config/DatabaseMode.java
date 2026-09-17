@@ -4,7 +4,6 @@ import java.util.Locale;
 
 public enum DatabaseMode {
     AUTO,
-    SQLITE,
     POSTGRESQL,
     MYSQL;
 

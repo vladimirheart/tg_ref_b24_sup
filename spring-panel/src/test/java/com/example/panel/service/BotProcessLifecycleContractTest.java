@@ -5,9 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.config.BotProcessProperties;
-import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
-import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.InputStream;
@@ -43,11 +41,6 @@ class BotProcessLifecycleContractTest {
         properties.setStartupReadinessTimeout(Duration.ofSeconds(5));
         properties.setStartupPollInterval(Duration.ofMillis(50));
 
-        SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
-        sqliteProperties.setPath(tempDir.resolve("panel_runtime.db").toString());
-        BotSqliteDataSourceProperties botSqliteProperties = new BotSqliteDataSourceProperties();
-        botSqliteProperties.setPath(tempDir.resolve("bot_runtime.db").toString());
-
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
@@ -59,8 +52,6 @@ class BotProcessLifecycleContractTest {
             .withProperty("spring.datasource.username", "iguana")
             .withProperty("spring.datasource.password", "secret");
         BotRuntimeContractService contractService = new BotRuntimeContractService(
-            sqliteProperties,
-            botSqliteProperties,
             properties,
             integrationNetworkService,
             new ObjectMapper(),

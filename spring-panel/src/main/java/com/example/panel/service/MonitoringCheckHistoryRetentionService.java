@@ -56,11 +56,7 @@ public class MonitoringCheckHistoryRetentionService implements ApplicationRunner
 
     private void runCleanup(String trigger) {
         Runnable cleanup = () -> cleanupSafely(trigger);
-        if (databaseRuntimeMode.isExternalDatabaseEnabled()) {
-            runtimeCoordinationService.runWithLease(LEASE_NAME, LEASE_TTL, cleanup);
-            return;
-        }
-        cleanup.run();
+        runtimeCoordinationService.runWithLease(LEASE_NAME, LEASE_TTL, cleanup);
     }
 
     void cleanupSafely(String trigger) {

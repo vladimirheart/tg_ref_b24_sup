@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.entity.Channel;
 import com.example.panel.entity.Feedback;
 import com.example.panel.entity.PendingFeedbackRequest;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.mock.env.MockEnvironment;
 
 class BotRuntimeTicketWriteServiceTest {
 
@@ -38,7 +36,6 @@ class BotRuntimeTicketWriteServiceTest {
     void setUp() throws Exception {
         Path dbFile = Files.createTempFile("bot-runtime-ticket-write-", ".db");
         jdbcTemplate = new JdbcTemplate(new DriverManagerDataSource("jdbc:sqlite:" + dbFile.toAbsolutePath()));
-        PanelDatabaseRuntimeMode databaseRuntimeMode = new PanelDatabaseRuntimeMode(new MockEnvironment());
         DialogReplyTargetService dialogReplyTargetService = new DialogReplyTargetService(
             jdbcTemplate,
             new ChatAttachmentMetadataService(jdbcTemplate, mock(AttachmentObjectStorageService.class))
@@ -46,8 +43,7 @@ class BotRuntimeTicketWriteServiceTest {
         dialogResponsibilityService = new DialogResponsibilityService(jdbcTemplate);
         dialogParticipantService = new DialogParticipantService(
             jdbcTemplate,
-            jdbcTemplate,
-            databaseRuntimeMode
+            jdbcTemplate
         );
         channelRepository = mock(ChannelRepository.class);
         providerDeliveryLedgerService = new ProviderDeliveryLedgerService(
@@ -312,7 +308,6 @@ class BotRuntimeTicketWriteServiceTest {
     void storeFeedbackSavesRatingAndAppendsUiEvent() {
         PendingFeedbackRequestRepository pendingFeedbackRequestRepository = mock(PendingFeedbackRequestRepository.class);
         FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
-        PanelDatabaseRuntimeMode databaseRuntimeMode = new PanelDatabaseRuntimeMode(new MockEnvironment());
         DialogReplyTargetService dialogReplyTargetService = new DialogReplyTargetService(
             jdbcTemplate,
             new ChatAttachmentMetadataService(jdbcTemplate, mock(AttachmentObjectStorageService.class))

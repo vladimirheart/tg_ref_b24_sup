@@ -1,6 +1,5 @@
 package com.example.panel.service;
 
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.model.dialog.DialogOperatorOption;
 import com.example.panel.model.dialog.DialogParticipantDto;
 import com.example.panel.support.JdbcSchemaInspector;
@@ -31,15 +30,11 @@ public class DialogParticipantService {
 
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
-    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
 
     public DialogParticipantService(JdbcTemplate jdbcTemplate,
-                                    @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
-                                    PanelDatabaseRuntimeMode databaseRuntimeMode) {
+                                    @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
-        this.databaseRuntimeMode = databaseRuntimeMode;
-        ensureSchema();
     }
 
     public boolean ticketExists(String ticketId) {
@@ -66,9 +61,7 @@ public class DialogParticipantService {
             return List.of();
         }
         try {
-            String addedAtOrder = databaseRuntimeMode.isSqliteMode()
-                    ? "COALESCE(added_at, '') ASC"
-                    : "added_at ASC NULLS FIRST";
+            String addedAtOrder = "added_at ASC NULLS FIRST";
             String sql = """
                     SELECT username, added_at, added_by
                       FROM ticket_participants
@@ -219,14 +212,10 @@ public class DialogParticipantService {
         }
         sql.append(" WHERE 1 = 1 ");
         if (userColumns.contains("enabled")) {
-            sql.append(databaseRuntimeMode.isSqliteMode()
-                    ? " AND COALESCE(u.enabled, 1) = 1 "
-                    : " AND COALESCE(u.enabled, TRUE) = TRUE ");
+            sql.append(" AND COALESCE(u.enabled, TRUE) = TRUE ");
         }
         if (userColumns.contains("is_blocked")) {
-            sql.append(databaseRuntimeMode.isSqliteMode()
-                    ? " AND COALESCE(u.is_blocked, 0) = 0 "
-                    : " AND COALESCE(u.is_blocked, FALSE) = FALSE ");
+            sql.append(" AND COALESCE(u.is_blocked, FALSE) = FALSE ");
         }
 
         List<Object> params = new ArrayList<>();
@@ -274,29 +263,6 @@ public class DialogParticipantService {
         } catch (DataAccessException ex) {
             log.warn("Unable to inspect users schema: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Set.of();
-        }
-    }
-
-    private void ensureSchema() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        try {
-            jdbcTemplate.execute("""
-                    CREATE TABLE IF NOT EXISTS ticket_participants (
-                        ticket_id TEXT NOT NULL,
-                        username TEXT NOT NULL,
-                        added_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        added_by TEXT,
-                        PRIMARY KEY (ticket_id, username)
-                    )
-                    """);
-            jdbcTemplate.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_ticket_participants_username
-                        ON ticket_participants(username)
-                    """);
-        } catch (DataAccessException ex) {
-            log.warn("Unable to ensure ticket_participants schema: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 

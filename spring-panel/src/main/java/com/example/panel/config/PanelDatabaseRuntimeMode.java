@@ -18,14 +18,6 @@ public class PanelDatabaseRuntimeMode {
         return DatabaseMode.from(environment.getProperty("app.datasource.mode"));
     }
 
-    public boolean isSqliteMode() {
-        return externalSettings().isEmpty();
-    }
-
-    public boolean isExternalDatabaseEnabled() {
-        return externalSettings().isPresent();
-    }
-
     public Optional<ExternalDatabaseSettings> externalSettings() {
         return ExternalDatabaseSettingsResolver.resolve(environment);
     }
@@ -33,6 +25,6 @@ public class PanelDatabaseRuntimeMode {
     public String modeLabel() {
         return externalSettings()
             .map(settings -> settings.vendor().name().toLowerCase(Locale.ROOT))
-            .orElse("sqlite");
+            .orElseGet(() -> configuredMode().name().toLowerCase(Locale.ROOT));
     }
 }

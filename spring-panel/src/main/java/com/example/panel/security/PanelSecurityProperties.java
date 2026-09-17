@@ -24,7 +24,6 @@ public class PanelSecurityProperties {
 
         private String username = "";
         private String password = "";
-        private boolean allowDefaultCredentialsInSqlite = true;
 
         public String getUsername() {
             return username;
@@ -42,12 +41,5 @@ public class PanelSecurityProperties {
             this.password = password;
         }
 
-        public boolean isAllowDefaultCredentialsInSqlite() {
-            return allowDefaultCredentialsInSqlite;
-        }
-
-        public void setAllowDefaultCredentialsInSqlite(boolean allowDefaultCredentialsInSqlite) {
-            this.allowDefaultCredentialsInSqlite = allowDefaultCredentialsInSqlite;
-        }
     }
 }

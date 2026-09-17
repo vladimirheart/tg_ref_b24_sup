@@ -1,8 +1,8 @@
 package com.example.panel.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.example.panel.config.DatabaseMode;
 import com.example.panel.support.PanelTimestampSqlSupport;
+import com.example.panel.support.SqlitePanelTimestampSqlSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -40,7 +40,7 @@ class DialogAiAssistantConfigServiceTest {
                 jdbcTemplate,
                 sharedConfigService,
                 persistenceService,
-                new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
+                new SqlitePanelTimestampSqlSupport()
         );
 
         assertThat(service.isAgentEnabled()).isFalse();
@@ -65,7 +65,7 @@ class DialogAiAssistantConfigServiceTest {
                 jdbcTemplate,
                 sharedConfigService,
                 persistenceService,
-                new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
+                new SqlitePanelTimestampSqlSupport()
         );
 
         assertThat(service.resolveAgentMode()).isEqualTo("auto_reply");
@@ -100,7 +100,7 @@ class DialogAiAssistantConfigServiceTest {
                 jdbcTemplate,
                 sharedConfigService,
                 persistenceService,
-                new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
+                new SqlitePanelTimestampSqlSupport()
         );
 
         DialogAiAssistantConfigService.AutoReplyGuard guard = service.evaluateAutoReplyGuard("T-1");

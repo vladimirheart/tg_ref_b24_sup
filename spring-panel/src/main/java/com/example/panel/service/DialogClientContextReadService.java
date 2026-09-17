@@ -250,9 +250,7 @@ public class DialogClientContextReadService {
 
     private List<Map<String, Object>> querySettingsParameterMatches(String paramType, String incomingValue, int limit) {
         String normalizedIncoming = incomingValue.trim().toLowerCase(Locale.ROOT);
-        String notDeletedPredicate = timestampSqlSupport.isSqliteMode()
-                ? "is_deleted = 0"
-                : "is_deleted = FALSE";
+        String notDeletedPredicate = "is_deleted = FALSE";
         try {
             String sql = """
                     SELECT id, value, state

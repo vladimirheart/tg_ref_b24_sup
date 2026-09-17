@@ -10,7 +10,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -22,16 +21,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 class SecurityBootstrapTest {
 
     @Test
-    void externalModeWithoutAdminAndBootstrapCredentialsFailsFast() {
+    void externalRuntimeWithoutAdminAndBootstrapCredentialsFailsFast() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
-        PanelDatabaseRuntimeMode runtimeMode = mock(PanelDatabaseRuntimeMode.class);
         ObjectProvider<JdbcTemplate> jdbcProvider = mock(ObjectProvider.class);
         PanelSecurityProperties properties = new PanelSecurityProperties();
 
         when(jdbcProvider.getIfAvailable()).thenReturn(jdbcTemplate);
-        when(runtimeMode.isSqliteMode()).thenReturn(false);
-        when(runtimeMode.modeLabel()).thenReturn("postgresql");
         when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM user_authorities", Integer.class)).thenReturn(1);
         when(jdbcTemplate.query(
             eq("SELECT DISTINCT user_id FROM user_authorities WHERE authority = ? ORDER BY user_id LIMIT 1"),
@@ -39,7 +35,7 @@ class SecurityBootstrapTest {
             eq("ROLE_ADMIN")
         )).thenReturn(List.of());
 
-        SecurityBootstrap bootstrap = new SecurityBootstrap(jdbcProvider, passwordEncoder, runtimeMode, properties);
+        SecurityBootstrap bootstrap = new SecurityBootstrap(jdbcProvider, passwordEncoder, properties);
 
         assertThatThrownBy(bootstrap::ensureDefaultAdmin)
             .isInstanceOf(IllegalStateException.class)
@@ -50,10 +46,9 @@ class SecurityBootstrapTest {
     }
 
     @Test
-    void externalModeUsesExplicitBootstrapCredentials() {
+    void externalRuntimeUsesExplicitBootstrapCredentials() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
-        PanelDatabaseRuntimeMode runtimeMode = mock(PanelDatabaseRuntimeMode.class);
         ObjectProvider<JdbcTemplate> jdbcProvider = mock(ObjectProvider.class);
         PanelSecurityProperties properties = new PanelSecurityProperties();
 
@@ -61,8 +56,6 @@ class SecurityBootstrapTest {
         properties.getBootstrapAdmin().setPassword("super-secret");
 
         when(jdbcProvider.getIfAvailable()).thenReturn(jdbcTemplate);
-        when(runtimeMode.isSqliteMode()).thenReturn(false);
-        when(runtimeMode.modeLabel()).thenReturn("postgresql");
         when(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM user_authorities", Integer.class)).thenReturn(1);
         when(jdbcTemplate.query(
             eq("SELECT DISTINCT user_id FROM user_authorities WHERE authority = ? ORDER BY user_id LIMIT 1"),
@@ -98,7 +91,7 @@ class SecurityBootstrapTest {
             anyString()
         )).thenReturn(1);
 
-        SecurityBootstrap bootstrap = new SecurityBootstrap(jdbcProvider, passwordEncoder, runtimeMode, properties);
+        SecurityBootstrap bootstrap = new SecurityBootstrap(jdbcProvider, passwordEncoder, properties);
 
         assertThatCode(bootstrap::ensureDefaultAdmin).doesNotThrowAnyException();
 

@@ -1,7 +1,6 @@
 package com.example.panel.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.example.panel.config.DatabaseMode;
 import com.example.panel.support.PanelTimestampSqlSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,7 +55,7 @@ class AiOfflineEvaluationServiceTest {
         AiRetrievalService aiRetrievalService = new AiRetrievalService(
                 jdbcTemplate,
                 aiIntentService,
-                new PanelTimestampSqlSupport(DatabaseMode.POSTGRESQL)
+                new PanelTimestampSqlSupport()
         );
         RuntimeCoordinationService runtimeCoordinationService = mock(RuntimeCoordinationService.class);
         doAnswer(invocation -> {

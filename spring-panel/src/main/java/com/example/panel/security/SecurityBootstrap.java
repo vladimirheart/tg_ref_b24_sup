@@ -1,6 +1,5 @@
 package com.example.panel.security;
 
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.Set;
@@ -18,18 +17,15 @@ public class SecurityBootstrap {
 
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
-    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
     private final PanelSecurityProperties securityProperties;
 
     public SecurityBootstrap(
         @org.springframework.beans.factory.annotation.Qualifier("usersJdbcTemplate") ObjectProvider<JdbcTemplate> jdbcTemplate,
         PasswordEncoder passwordEncoder,
-        PanelDatabaseRuntimeMode databaseRuntimeMode,
         PanelSecurityProperties securityProperties
     ) {
         this.jdbcTemplate = jdbcTemplate.getIfAvailable();
         this.passwordEncoder = passwordEncoder;
-        this.databaseRuntimeMode = databaseRuntimeMode;
         this.securityProperties = securityProperties;
     }
 
@@ -50,39 +46,14 @@ public class SecurityBootstrap {
     }
 
     private void ensureAuthoritiesTable() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            try {
-                jdbcTemplate.queryForObject("SELECT COUNT(*) FROM user_authorities", Integer.class);
-                return;
-            } catch (DataAccessException ex) {
-                throw new IllegalStateException(
-                    "user_authorities must be created by Flyway before spring-panel starts in external "
-                        + databaseRuntimeMode.modeLabel() + " mode",
-                    ex
-                );
-            }
-        }
-
         try {
             jdbcTemplate.queryForObject("SELECT COUNT(*) FROM user_authorities", Integer.class);
-            return;
-        } catch (DataAccessException ignored) {
-            // SQLite compatibility mode may bootstrap this table on first run.
-        }
-
-        jdbcTemplate.execute("""
-            CREATE TABLE IF NOT EXISTS user_authorities (
-                user_id BIGINT NOT NULL,
-                authority TEXT NOT NULL,
-                PRIMARY KEY(user_id, authority),
-                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        } catch (DataAccessException ex) {
+            throw new IllegalStateException(
+                "user_authorities must be created by Flyway before spring-panel starts in external production-like mode",
+                ex
             );
-        """);
-
-        jdbcTemplate.execute("""
-            CREATE INDEX IF NOT EXISTS idx_user_authorities_user_id
-            ON user_authorities(user_id);
-        """);
+        }
     }
 
     private Long findExistingAdminUserId() {
@@ -144,18 +115,13 @@ public class SecurityBootstrap {
         }
 
         if (StringUtils.hasText(configuredUsername) && StringUtils.hasText(configuredPassword)) {
-            if (!databaseRuntimeMode.isSqliteMode()
-                && "admin".equalsIgnoreCase(configuredUsername)
+            if ("admin".equalsIgnoreCase(configuredUsername)
                 && "admin".equals(configuredPassword)) {
                 throw new IllegalStateException(
                     "Во внешнем production-like режиме bootstrap admin не может использовать пару admin/admin."
                 );
             }
             return new BootstrapAdminCredentials(configuredUsername, configuredPassword);
-        }
-
-        if (databaseRuntimeMode.isSqliteMode() && bootstrapAdmin.isAllowDefaultCredentialsInSqlite()) {
-            return new BootstrapAdminCredentials("admin", "admin");
         }
 
         throw new IllegalStateException(

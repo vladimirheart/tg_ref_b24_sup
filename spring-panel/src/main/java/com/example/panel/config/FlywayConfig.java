@@ -67,11 +67,6 @@ public class FlywayConfig {
 
     private String resolveFlywayLocation(Environment environment) {
         DatabaseMode requestedMode = DatabaseMode.from(environment.getProperty("app.datasource.mode"));
-        if (requestedMode == DatabaseMode.SQLITE) {
-            throw new IllegalStateException(
-                "spring-panel Flyway no longer supports SQLite runtime mode. Configure an external PostgreSQL/MySQL datasource."
-            );
-        }
         if (requestedMode == DatabaseMode.POSTGRESQL) {
             return "classpath:db/migration/postgresql";
         }

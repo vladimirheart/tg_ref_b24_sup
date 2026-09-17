@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,13 +19,21 @@ import org.mockito.ArgumentCaptor;
 class MonitoringCheckHistoryRetentionServiceTest {
 
     @Test
-    void sqliteStartupCleanupUsesThirtyDayCutoffWithoutLease() {
+    void startupCleanupUsesThirtyDayCutoffUnderSharedLease() {
         MonitoringCheckHistoryRepository repository = mock(MonitoringCheckHistoryRepository.class);
         PanelDatabaseRuntimeMode runtimeMode = mock(PanelDatabaseRuntimeMode.class);
         RuntimeCoordinationService coordinationService = mock(RuntimeCoordinationService.class);
-        when(runtimeMode.isExternalDatabaseEnabled()).thenReturn(false);
-        when(runtimeMode.modeLabel()).thenReturn("sqlite");
+        when(runtimeMode.modeLabel()).thenReturn("postgresql");
         when(repository.deleteOlderThan(any())).thenReturn(3);
+        doAnswer(invocation -> {
+            Runnable action = invocation.getArgument(2);
+            action.run();
+            return null;
+        }).when(coordinationService).runWithLease(
+            eq("monitoring-history-retention"),
+            eq(Duration.ofMinutes(10)),
+            any(Runnable.class)
+        );
 
         MonitoringCheckHistoryRetentionService service = new MonitoringCheckHistoryRetentionService(
             repository,
@@ -41,15 +48,18 @@ class MonitoringCheckHistoryRetentionServiceTest {
         verify(repository).deleteOlderThan(cutoff.capture());
         assertFalse(cutoff.getValue().isBefore(lowerBound));
         assertFalse(cutoff.getValue().isAfter(upperBound));
-        verify(coordinationService, never()).runWithLease(any(), any(Duration.class), any(Runnable.class));
+        verify(coordinationService).runWithLease(
+            eq("monitoring-history-retention"),
+            eq(Duration.ofMinutes(10)),
+            any(Runnable.class)
+        );
     }
 
     @Test
-    void externalScheduledCleanupRunsUnderSharedLease() {
+    void scheduledCleanupRunsUnderSharedLease() {
         MonitoringCheckHistoryRepository repository = mock(MonitoringCheckHistoryRepository.class);
         PanelDatabaseRuntimeMode runtimeMode = mock(PanelDatabaseRuntimeMode.class);
         RuntimeCoordinationService coordinationService = mock(RuntimeCoordinationService.class);
-        when(runtimeMode.isExternalDatabaseEnabled()).thenReturn(true);
         when(runtimeMode.modeLabel()).thenReturn("postgresql");
         doAnswer(invocation -> {
             Runnable action = invocation.getArgument(2);

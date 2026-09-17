@@ -6,9 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.config.BotProcessProperties;
-import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
-import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
@@ -51,7 +49,12 @@ class BotRuntimeContractServiceTest {
             "auto",
             Map.of("bot-telegram", "dist/bot-telegram-runtime.jar"),
             Map.of(),
-            Map.of("app.datasource.mode", "sqlite")
+            Map.of(
+                "app.datasource.mode", "mysql",
+                "spring.datasource.url", "jdbc:mysql://db.example.local:3306/iguana",
+                "spring.datasource.username", "iguana",
+                "spring.datasource.password", "secret"
+            )
         );
         Channel channel = new Channel();
         channel.setId(16L);
@@ -62,10 +65,10 @@ class BotRuntimeContractServiceTest {
         assertThat(contract.resolvedLauncherKind()).isEqualTo("jar");
         assertThat(contract.artifactSource()).isEqualTo("explicit-config");
         assertThat(contract.executableJarPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
-        assertThat(contract.warnings()).anyMatch(item -> item.contains("SQLite panel runtime"));
+        assertThat(contract.warnings()).anyMatch(item -> item.contains("PostgreSQL external DB") && item.contains("mysql"));
         assertThat(contract.production().readyForProduction()).isFalse();
         assertThat(contract.production().blockingReasons())
-            .anyMatch(item -> item.contains("SQLite compatibility mode"))
+            .anyMatch(item -> item.contains("External DB vendor mysql"))
             .anyMatch(item -> item.contains("app.integration.transport.mode=rabbitmq"));
         assertThat(contract.production().recommendedArtifactPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
         assertThat(contract.lifecycle().runningStatus()).isEqualTo("running");
@@ -478,12 +481,17 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
-    void buildEnvironmentRejectsSqlitePanelRuntimeForJdbcTransport() {
+    void buildEnvironmentRejectsNonPostgresExternalDatasource() {
         BotRuntimeContractService service = createService(
             "auto",
             Map.of(),
             Map.of(),
-            Map.of("app.datasource.mode", "sqlite")
+            Map.of(
+                "app.datasource.mode", "mysql",
+                "spring.datasource.url", "jdbc:mysql://db.example.local:3306/iguana",
+                "spring.datasource.username", "iguana",
+                "spring.datasource.password", "secret"
+            )
         );
         Channel channel = new Channel();
         channel.setId(43L);
@@ -492,11 +500,11 @@ class BotRuntimeContractServiceTest {
         assertThatThrownBy(() -> service.buildEnvironment(
             channel,
             new com.example.panel.model.channel.BotCredential(13L, "tg", "telegram", "tg-token", true),
-            tempDir.resolve("sqlite-jdbc.log")
+            tempDir.resolve("mysql-jdbc.log")
         ))
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("canonical PostgreSQL datasource")
-            .hasMessageContaining("SQLite compatibility mode");
+            .hasMessageContaining("supports only PostgreSQL")
+            .hasMessageContaining("mysql");
     }
 
     @Test
@@ -728,10 +736,6 @@ class BotRuntimeContractServiceTest {
                                                     Map<String, String> executableJars,
                                                     Map<String, Object> settings,
                                                     Map<String, String> environmentOverrides) {
-        SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
-        sqliteProperties.setPath(tempDir.resolve("panel_runtime.db").toString());
-        BotSqliteDataSourceProperties botSqliteProperties = new BotSqliteDataSourceProperties();
-        botSqliteProperties.setPath(tempDir.resolve("bot_runtime.db").toString());
         BotProcessProperties properties = new BotProcessProperties();
         properties.setLaunchMode(launchMode);
         properties.setExecutableJars(executableJars);
@@ -746,8 +750,6 @@ class BotRuntimeContractServiceTest {
         environmentOverrides.forEach(environment::setProperty);
         PanelDatabaseRuntimeMode databaseRuntimeMode = new PanelDatabaseRuntimeMode(environment);
         return new BotRuntimeContractService(
-            sqliteProperties,
-            botSqliteProperties,
             properties,
             integrationNetworkService,
             new ObjectMapper(),

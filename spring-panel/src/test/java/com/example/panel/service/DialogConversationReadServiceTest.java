@@ -1,10 +1,10 @@
 package com.example.panel.service;
 
-import com.example.panel.config.DatabaseMode;
 import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogPreviousHistoryPage;
 import com.example.panel.storage.AttachmentService;
 import com.example.panel.support.PanelTimestampSqlSupport;
+import com.example.panel.support.SqlitePanelTimestampSqlSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -38,7 +38,7 @@ class DialogConversationReadServiceTest {
         service = new DialogConversationReadService(
                 jdbcTemplate,
                 mock(AttachmentService.class),
-                new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
+                new SqlitePanelTimestampSqlSupport()
         );
         createSchema();
     }
@@ -169,7 +169,7 @@ class DialogConversationReadServiceTest {
         DialogConversationReadService fallbackService = new DialogConversationReadService(
                 failingJdbcTemplate,
                 mock(AttachmentService.class),
-                new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
+                new SqlitePanelTimestampSqlSupport()
         );
 
         when(failingJdbcTemplate.execute(org.mockito.ArgumentMatchers.<ConnectionCallback<Set<String>>>any())).thenReturn(

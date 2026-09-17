@@ -39,7 +39,6 @@ final class ExternalDatabaseSettingsResolver {
         Optional<ExternalDatabaseSettings> resolved = explicitSettings.isPresent() ? explicitSettings : databaseUrlSettings;
 
         return switch (requestedMode) {
-            case SQLITE -> Optional.empty();
             case AUTO -> resolved;
             case POSTGRESQL -> Optional.of(requireVendor(resolved, DatabaseMode.POSTGRESQL, "postgresql"));
             case MYSQL -> Optional.of(requireVendor(resolved, DatabaseMode.MYSQL, "mysql"));
@@ -54,7 +53,7 @@ final class ExternalDatabaseSettingsResolver {
             return Optional.empty();
         }
         DatabaseMode vendor = detectVendorFromJdbcUrl(jdbcUrl);
-        if (vendor == null || vendor == DatabaseMode.SQLITE) {
+        if (vendor == null) {
             return Optional.empty();
         }
         return Optional.of(new ExternalDatabaseSettings(
@@ -74,7 +73,7 @@ final class ExternalDatabaseSettingsResolver {
         }
         if (rawDatabaseUrl.startsWith("jdbc:")) {
             DatabaseMode vendor = detectVendorFromJdbcUrl(rawDatabaseUrl);
-            if (vendor == null || vendor == DatabaseMode.SQLITE) {
+            if (vendor == null) {
                 return Optional.empty();
             }
             return Optional.of(new ExternalDatabaseSettings(
@@ -161,9 +160,6 @@ final class ExternalDatabaseSettingsResolver {
         }
         if (normalized.startsWith("jdbc:mysql:")) {
             return DatabaseMode.MYSQL;
-        }
-        if (normalized.startsWith("jdbc:sqlite:")) {
-            return DatabaseMode.SQLITE;
         }
         return null;
     }

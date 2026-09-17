@@ -1,7 +1,7 @@
 package com.example.panel.service;
 
-import com.example.panel.config.DatabaseMode;
 import com.example.panel.support.PanelTimestampSqlSupport;
+import com.example.panel.support.SqlitePanelTimestampSqlSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -25,7 +25,7 @@ class DialogClientContextReadServiceTest {
         Path dbFile = Files.createTempFile("dialog-client-context-", ".db");
         DataSource dataSource = new DriverManagerDataSource("jdbc:sqlite:" + dbFile.toAbsolutePath());
         jdbcTemplate = new JdbcTemplate(dataSource);
-        service = new DialogClientContextReadService(jdbcTemplate, new PanelTimestampSqlSupport(DatabaseMode.SQLITE));
+        service = new DialogClientContextReadService(jdbcTemplate, new SqlitePanelTimestampSqlSupport());
         createSchema();
     }
 

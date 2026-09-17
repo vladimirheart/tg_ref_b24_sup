@@ -1,6 +1,5 @@
 package com.example.panel.support;
 
-import com.example.panel.config.DatabaseMode;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
@@ -9,8 +8,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PanelTimestampSqlSupportTest {
 
     @Test
-    void sqliteModeBuildsDatetimePredicateWithRelativeModifier() {
-        PanelTimestampSqlSupport support = new PanelTimestampSqlSupport(DatabaseMode.SQLITE);
+    void sqliteFixtureBuildsDatetimePredicateWithRelativeModifier() {
+        PanelTimestampSqlSupport support = new SqlitePanelTimestampSqlSupport();
 
         PanelTimestampSqlSupport.SqlCondition condition = support.since("created_at", Duration.ofMinutes(60));
 
@@ -20,8 +19,8 @@ class PanelTimestampSqlSupportTest {
     }
 
     @Test
-    void postgresModeBuildsTypedPredicateWithNullSafeOrdering() {
-        PanelTimestampSqlSupport support = new PanelTimestampSqlSupport(DatabaseMode.POSTGRESQL);
+    void productionSupportBuildsTypedPredicateWithNullSafeOrdering() {
+        PanelTimestampSqlSupport support = new PanelTimestampSqlSupport();
 
         PanelTimestampSqlSupport.SqlCondition condition = support.between("COALESCE(updated_at, created_at)", Duration.ofDays(14), Duration.ofDays(7));
 

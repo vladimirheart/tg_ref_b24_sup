@@ -1,10 +1,10 @@
 package com.example.panel.service;
 
-import com.example.panel.config.DatabaseMode;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.storage.AttachmentObjectStorageService;
 import com.example.panel.support.PanelTimestampSqlSupport;
+import com.example.panel.support.SqlitePanelTimestampSqlSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -41,7 +41,7 @@ class DialogLookupReadServiceTest {
                 jdbcTemplate,
                 usersJdbcTemplate,
                 new PanelUserPhotoService(attachmentObjectStorageService),
-                new PanelTimestampSqlSupport(DatabaseMode.SQLITE)
+                new SqlitePanelTimestampSqlSupport()
         );
         createPanelSchema();
         createUsersSchema();

@@ -1,7 +1,6 @@
 package com.example.panel.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.example.panel.config.DatabaseMode;
 import com.example.panel.support.PanelTimestampSqlSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +34,7 @@ class AiRetrievalServiceTest {
         retrievalService = new AiRetrievalService(
                 jdbcTemplate,
                 intentService,
-                new PanelTimestampSqlSupport(DatabaseMode.POSTGRESQL)
+                new PanelTimestampSqlSupport()
         );
         knowledgeService = new AiKnowledgeService(jdbcTemplate);
     }

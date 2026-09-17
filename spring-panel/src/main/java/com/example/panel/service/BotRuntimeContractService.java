@@ -1,11 +1,9 @@
 package com.example.panel.service;
 
 import com.example.panel.config.BotProcessProperties;
-import com.example.panel.config.BotSqliteDataSourceProperties;
 import com.example.panel.config.DatabaseMode;
 import com.example.panel.config.ExternalDatabaseSettings;
 import com.example.panel.config.PanelDatabaseRuntimeMode;
-import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -36,23 +34,17 @@ public class BotRuntimeContractService {
     private static final String FAILURE_SIGNAL = "APPLICATION FAILED TO START banner";
     private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
 
-    private final SqliteDataSourceProperties ticketsDbProperties;
-    private final BotSqliteDataSourceProperties botRuntimeDbProperties;
     private final BotProcessProperties botProcessProperties;
     private final IntegrationNetworkService integrationNetworkService;
     private final ObjectMapper objectMapper;
     private final PanelDatabaseRuntimeMode databaseRuntimeMode;
     private final Environment environment;
 
-    public BotRuntimeContractService(SqliteDataSourceProperties ticketsDbProperties,
-                                     BotSqliteDataSourceProperties botRuntimeDbProperties,
-                                     BotProcessProperties botProcessProperties,
+    public BotRuntimeContractService(BotProcessProperties botProcessProperties,
                                      IntegrationNetworkService integrationNetworkService,
                                      ObjectMapper objectMapper,
                                      PanelDatabaseRuntimeMode databaseRuntimeMode,
                                      Environment environment) {
-        this.ticketsDbProperties = ticketsDbProperties;
-        this.botRuntimeDbProperties = botRuntimeDbProperties;
         this.botProcessProperties = botProcessProperties;
         this.integrationNetworkService = integrationNetworkService;
         this.objectMapper = objectMapper;
@@ -84,11 +76,6 @@ public class BotRuntimeContractService {
         }
         if (launchMode == BotProcessProperties.LaunchMode.AUTO && executableJar == null) {
             warnings.add("Для модуля не найден jar, будет использован fallback на Maven launcher.");
-        }
-        if (databaseRuntimeMode.isSqliteMode()) {
-            warnings.add(
-                "SQLite panel runtime больше не поддерживается для child bot JDBC contract: сначала переведите backend на PostgreSQL или используйте worker contour через RabbitMQ."
-            );
         }
         databaseRuntimeMode.externalSettings()
             .filter(settings -> settings.vendor() != DatabaseMode.POSTGRESQL)
@@ -394,12 +381,6 @@ public class BotRuntimeContractService {
     }
 
     private void applyDatabaseEnvironment(Map<String, String> env) {
-        if (databaseRuntimeMode.isSqliteMode()) {
-            throw new IllegalStateException(
-                "Bot runtime JDBC contract requires canonical PostgreSQL datasource. Current panel runtime is still in SQLite compatibility mode."
-            );
-        }
-
         ExternalDatabaseSettings settings = databaseRuntimeMode.externalSettings()
             .orElseThrow(() -> new IllegalStateException("External database mode was selected but datasource settings are absent."));
         if (settings.vendor() != DatabaseMode.POSTGRESQL) {
@@ -441,11 +422,6 @@ public class BotRuntimeContractService {
         String preferredLauncher = botProcessProperties.resolvePreferredProductionLauncher().name().toLowerCase();
         String recommendedArtifactPath = resolveRecommendedArtifactPath(botWorkingDir, botModule);
         List<String> blockers = new ArrayList<>();
-        if (databaseRuntimeMode.isSqliteMode()) {
-            blockers.add(
-                "Canonical panel runtime всё ещё находится в SQLite compatibility mode; production backend должен работать на PostgreSQL."
-            );
-        }
         if (!isRabbitMqTransportMode()) {
             blockers.add(
                 "Production bot worker требует app.integration.transport.mode=rabbitmq и backend-owned queue/API boundary вместо прямого business datasource."

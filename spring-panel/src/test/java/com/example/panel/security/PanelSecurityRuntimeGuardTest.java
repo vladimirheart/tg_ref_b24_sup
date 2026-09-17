@@ -2,24 +2,17 @@ package com.example.panel.security;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import org.junit.jupiter.api.Test;
 
 class PanelSecurityRuntimeGuardTest {
 
     @Test
-    void externalModeRejectsDefaultInternalBotApiToken() {
+    void externalRuntimeRejectsDefaultInternalBotApiToken() {
         PanelSecurityProperties properties = new PanelSecurityProperties();
         properties.setRememberMeKey("custom-remember-key");
 
-        PanelDatabaseRuntimeMode runtimeMode = mock(PanelDatabaseRuntimeMode.class);
-        when(runtimeMode.isExternalDatabaseEnabled()).thenReturn(true);
-
         PanelSecurityRuntimeGuard guard = new PanelSecurityRuntimeGuard(
-            runtimeMode,
             properties,
             "iguana-internal-bot-token"
         );
@@ -30,14 +23,10 @@ class PanelSecurityRuntimeGuardTest {
     }
 
     @Test
-    void externalModeRejectsDefaultRememberMeKey() {
+    void externalRuntimeRejectsDefaultRememberMeKey() {
         PanelSecurityProperties properties = new PanelSecurityProperties();
 
-        PanelDatabaseRuntimeMode runtimeMode = mock(PanelDatabaseRuntimeMode.class);
-        when(runtimeMode.isExternalDatabaseEnabled()).thenReturn(true);
-
         PanelSecurityRuntimeGuard guard = new PanelSecurityRuntimeGuard(
-            runtimeMode,
             properties,
             "custom-internal-token"
         );
@@ -48,16 +37,13 @@ class PanelSecurityRuntimeGuardTest {
     }
 
     @Test
-    void sqliteCompatibilityModeAllowsDevDefaults() {
+    void externalRuntimeAcceptsExplicitSecrets() {
         PanelSecurityProperties properties = new PanelSecurityProperties();
-
-        PanelDatabaseRuntimeMode runtimeMode = mock(PanelDatabaseRuntimeMode.class);
-        when(runtimeMode.isExternalDatabaseEnabled()).thenReturn(false);
+        properties.setRememberMeKey("custom-remember-key");
 
         PanelSecurityRuntimeGuard guard = new PanelSecurityRuntimeGuard(
-            runtimeMode,
             properties,
-            "iguana-internal-bot-token"
+            "custom-internal-token"
         );
 
         assertThatCode(guard::validate).doesNotThrowAnyException();

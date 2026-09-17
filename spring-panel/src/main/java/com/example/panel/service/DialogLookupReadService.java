@@ -573,9 +573,7 @@ public class DialogLookupReadService {
                         OR (%1$s = ? AND t.ticket_id <= ?)
                    )
                 """.formatted(createdAtExpr, timestampSqlSupport.dateBucketExpression(createdAtExpr));
-        Object comparableCreatedAtParam = timestampSqlSupport.isSqliteMode()
-                ? comparableCreatedAt
-                : timestampSqlSupport.comparableTimestampParam(comparableCreatedAt);
+        Object comparableCreatedAtParam = timestampSqlSupport.comparableTimestampParam(comparableCreatedAt);
         Long count = jdbcTemplate.queryForObject(
                 sql,
                 Long.class,
@@ -657,35 +655,19 @@ public class DialogLookupReadService {
     }
 
     private String comparableTicketCreatedAtSql(String ticketAlias) {
-        if (timestampSqlSupport.isSqliteMode()) {
-            return "replace(" + ticketCreatedAtSql(ticketAlias) + ", ' ', 'T')";
-        }
         return ticketCreatedAtSql(ticketAlias);
     }
 
     private String ticketCreatedAtSql(String ticketAlias) {
-        if (!timestampSqlSupport.isSqliteMode()) {
-            return """
-                    COALESCE(
-                        (
-                            SELECT MIN(m0.created_at)
-                              FROM messages m0
-                             WHERE m0.ticket_id = %1$s.ticket_id
-                               AND m0.created_at IS NOT NULL
-                        ),
-                        %1$s.created_at
-                    )
-                    """.formatted(ticketAlias);
-        }
         return """
                 COALESCE(
                     (
-                        SELECT MIN(substr(m0.created_at, 1, 19))
+                        SELECT MIN(m0.created_at)
                           FROM messages m0
                          WHERE m0.ticket_id = %1$s.ticket_id
                            AND m0.created_at IS NOT NULL
                     ),
-                    substr(%1$s.created_at, 1, 19)
+                    %1$s.created_at
                 )
                 """.formatted(ticketAlias);
     }
