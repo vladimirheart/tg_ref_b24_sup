@@ -660,19 +660,6 @@ public class MaxWebhookController {
         messagingService.sendToSupportChat(channel, builder.toString());
     }
 
-    private String firstNonBlank(String... values) {
-        if (values == null || values.length == 0) {
-            return null;
-        }
-        for (String value : values) {
-            String normalized = trimOrNull(value);
-            if (normalized != null) {
-                return normalized;
-            }
-        }
-        return null;
-    }
-
     private StoredIncomingAttachment storeIncomingAttachment(Channel channel, MaxInboundPayloadSupport.IncomingAttachment attachment) {
         if (attachment == null) {
             return null;
@@ -684,9 +671,9 @@ public class MaxWebhookController {
                     : null;
         }
         try (MaxApiClient.DownloadedAttachment downloaded = maxApiClient.downloadAttachment(attachment.url())) {
-            String originalName = firstNonBlank(attachment.name(), downloaded.filename());
-            String extension = resolveAttachmentExtension(originalName, downloaded.contentType(), attachment.type());
-            String channelPublicId = firstNonBlank(
+            String originalName = MaxAttachmentMetadataSupport.firstNonBlank(attachment.name(), downloaded.filename());
+            String extension = MaxAttachmentMetadataSupport.resolveAttachmentExtension(originalName, downloaded.contentType(), attachment.type());
+            String channelPublicId = MaxAttachmentMetadataSupport.firstNonBlank(
                     channel != null ? channel.getPublicId() : null,
                     channel != null && channel.getId() != null ? "max-" + channel.getId() : "max"
             );
@@ -703,41 +690,6 @@ public class MaxWebhookController {
                     ? new StoredIncomingAttachment(fallbackRef, attachment.name())
                     : null;
         }
-    }
-
-    private String resolveAttachmentExtension(String filename, String contentType, String attachmentType) {
-        if (StringUtils.hasText(filename)) {
-            String normalized = filename.trim();
-            int dot = normalized.lastIndexOf('.');
-            if (dot >= 0 && dot < normalized.length() - 1) {
-                String extension = normalized.substring(dot + 1).replaceAll("[^A-Za-z0-9]", "");
-                if (!extension.isBlank() && extension.length() <= 10) {
-                    return extension.toLowerCase();
-                }
-            }
-        }
-        String normalizedContentType = contentType == null ? "" : contentType.toLowerCase();
-        if (normalizedContentType.contains("jpeg")) return "jpg";
-        if (normalizedContentType.contains("png")) return "png";
-        if (normalizedContentType.contains("gif")) return "gif";
-        if (normalizedContentType.contains("webp")) return "webp";
-        if (normalizedContentType.contains("mp4")) return "mp4";
-        if (normalizedContentType.contains("ogg")) return "ogg";
-        if (normalizedContentType.contains("mpeg")) return "mp3";
-        if (normalizedContentType.contains("pdf")) return "pdf";
-        String normalizedType = attachmentType == null ? "" : attachmentType.toLowerCase();
-        if (normalizedType.contains("image") || normalizedType.contains("photo")) return "jpg";
-        if (normalizedType.contains("video")) return "mp4";
-        if (normalizedType.contains("audio")) return "ogg";
-        return "bin";
-    }
-
-    private String trimOrNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String normalized = value.trim();
-        return normalized.isEmpty() ? null : normalized;
     }
 
     private boolean secretValid(String provided) {

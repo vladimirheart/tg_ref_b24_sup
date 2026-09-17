@@ -258,4 +258,36 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("ObjectMapper")
                 .doesNotContain("StringUtils");
     }
+
+    @Test
+    void attachmentMetadataPolicyUsesDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxAttachmentMetadataSupport.java");
+
+        assertThat(controller)
+                .contains("MaxAttachmentMetadataSupport.firstNonBlank(attachment.name(), downloaded.filename())")
+                .contains("MaxAttachmentMetadataSupport.resolveAttachmentExtension(originalName, downloaded.contentType(), attachment.type())")
+                .contains("String channelPublicId = MaxAttachmentMetadataSupport.firstNonBlank(")
+                .contains("maxApiClient.downloadAttachment(attachment.url())")
+                .contains("attachmentService.store(channelPublicId, extension, downloaded.body())")
+                .contains("private StoredIncomingAttachment storeIncomingAttachment(")
+                .doesNotContain("private String firstNonBlank(")
+                .doesNotContain("private String resolveAttachmentExtension(")
+                .doesNotContain("private String trimOrNull(");
+
+        assertThat(support)
+                .contains("final class MaxAttachmentMetadataSupport")
+                .contains("static String firstNonBlank(String... values)")
+                .contains("static String resolveAttachmentExtension(String filename, String contentType, String attachmentType)")
+                .doesNotContain("@RestController")
+                .doesNotContain("AttachmentService")
+                .doesNotContain("MaxApiClient")
+                .doesNotContain("MessagingService")
+                .doesNotContain("TicketService")
+                .doesNotContain("BotSessionStoreService")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("ObjectMapper")
+                .doesNotContain("StringUtils")
+                .doesNotContain("LoggerFactory");
+    }
 }
