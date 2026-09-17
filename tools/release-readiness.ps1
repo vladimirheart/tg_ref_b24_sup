@@ -167,6 +167,21 @@ HasNot $sidebar '.sidebar-nav .nav-link:hover .nav-label-sub' 'Sidebar hover is 
 HasNot $sidebar '.sidebar-nav .nav-link:focus-visible .nav-label-sub' 'Sidebar focus is spatially stable'
 Has $sidebar '.sidebar-nav .nav-link.active .nav-label-sub' 'Active sidebar secondary label remains'
 
+$sourceLayoutReport = Join-Path $root 'tools\source-layout-report.ps1'
+if (-not (Test-Path -LiteralPath $sourceLayoutReport -PathType Leaf)) {
+    Fail 'tools\source-layout-report.ps1 missing'
+} else {
+    Write-Host ''
+    Write-Host '[INFO] Source layout review report (size findings are non-blocking)'
+    $currentPowerShell = (Get-Process -Id $PID).Path
+    & $currentPowerShell -NoProfile -ExecutionPolicy Bypass -File $sourceLayoutReport
+    if ($LASTEXITCODE -eq 0) {
+        Pass 'Source layout review report completed (review signal only)'
+    } else {
+        Fail "Source layout review report execution failed with exit $LASTEXITCODE"
+    }
+}
+
 if (-not $SkipBuild) {
     $panelDir = Join-Path $root 'spring-panel'
     $mvnw = Join-Path $panelDir 'mvnw.cmd'

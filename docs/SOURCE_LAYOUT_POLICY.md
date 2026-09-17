@@ -34,6 +34,21 @@
 
 Исключения: generated CSS, vendored assets, migrations, fixtures, generated code, исторические документы и safety-critical workflow, где разбиение ухудшит атомарность/проверяемость.
 
+### Automated review report
+
+`tools/source-layout-report.ps1` applies the thresholds above to tracked source files and compares current review-triggered files with `tools/source-layout-baseline.json`.
+
+- metrics are platform-stable: UTF-8 byte count is calculated after CRLF/CR -> LF normalization;
+- existing threshold crossings are retained as baseline carry-over;
+- a new threshold crossing is reported as `NEW`;
+- growth of an already-baselined review item is reported as `REGRESSION`;
+- a file that drops below its review threshold is reported as `IMPROVED`;
+- normal `NEW`/`REGRESSION` findings are review signals and do not return a failing exit code;
+- report execution/configuration failures remain real tool failures;
+- refresh the baseline only after an intentional review with `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\source-layout-report.ps1 -WriteBaseline`.
+
+`tools/release-readiness.ps1` runs this report automatically. The size findings themselves do not fail the release-readiness gate.
+
 ## Target frontend layout
 
 ```text

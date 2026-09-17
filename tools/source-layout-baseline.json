@@ -1,0 +1,614 @@
+{
+    "schema":  1,
+    "baseline_commit":  "94f42bf30fd48419c53515c7c0fef87f91cf97be",
+    "policy":  "docs/SOURCE_LAYOUT_POLICY.md",
+    "normalization":  "UTF-8 bytes after CRLF/CR -\u003e LF; line count ignores the final trailing newline",
+    "entries":  [
+                    {
+                        "path":  "java-bot/bot-core/src/main/java/com/example/supportbot/service/TicketService.java",
+                        "kind":  "java",
+                        "bytes":  45241,
+                        "lines":  1016
+                    },
+                    {
+                        "path":  "java-bot/bot-core/src/main/java/com/example/supportbot/settings/BotSettingsService.java",
+                        "kind":  "java",
+                        "bytes":  95884,
+                        "lines":  1600
+                    },
+                    {
+                        "path":  "java-bot/bot-max/src/main/java/com/example/supportbot/max/MaxWebhookController.java",
+                        "kind":  "java",
+                        "bytes":  37520,
+                        "lines":  742
+                    },
+                    {
+                        "path":  "java-bot/bot-telegram/src/main/java/com/example/supportbot/telegram/SupportBot.java",
+                        "kind":  "java",
+                        "bytes":  114913,
+                        "lines":  2603
+                    },
+                    {
+                        "path":  "java-bot/bot-vk/src/main/java/com/example/supportbot/vk/VkSupportBot.java",
+                        "kind":  "java",
+                        "bytes":  76142,
+                        "lines":  1745
+                    },
+                    {
+                        "path":  "scripts/apply-settings-calm-ui-pass.ps1",
+                        "kind":  "operational-script",
+                        "bytes":  29148,
+                        "lines":  597
+                    },
+                    {
+                        "path":  "scripts/docker-production-credential-migration-apply.ps1",
+                        "kind":  "operational-script",
+                        "bytes":  58900,
+                        "lines":  1486
+                    },
+                    {
+                        "path":  "scripts/docker-production-credential-migration-apply.sh",
+                        "kind":  "operational-script",
+                        "bytes":  44968,
+                        "lines":  1164
+                    },
+                    {
+                        "path":  "scripts/docker-production-credential-migration-status.ps1",
+                        "kind":  "operational-script",
+                        "bytes":  36296,
+                        "lines":  645
+                    },
+                    {
+                        "path":  "scripts/docker-production-storage-backfill.ps1",
+                        "kind":  "operational-script",
+                        "bytes":  21205,
+                        "lines":  611
+                    },
+                    {
+                        "path":  "scripts/docker-production-storage-cutover-gate.ps1",
+                        "kind":  "operational-script",
+                        "bytes":  24549,
+                        "lines":  664
+                    },
+                    {
+                        "path":  "scripts/docker-production-up.ps1",
+                        "kind":  "operational-script",
+                        "bytes":  25526,
+                        "lines":  621
+                    },
+                    {
+                        "path":  "scripts/preflight-windows.ps1",
+                        "kind":  "operational-script",
+                        "bytes":  36583,
+                        "lines":  1377
+                    },
+                    {
+                        "path":  "scripts/report-iguana-storage.py",
+                        "kind":  "operational-script",
+                        "bytes":  29067,
+                        "lines":  866
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/controller/AuthManagementApiController.java",
+                        "kind":  "java",
+                        "bytes":  34507,
+                        "lines":  739
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/controller/ClientProfileApiController.java",
+                        "kind":  "java",
+                        "bytes":  30937,
+                        "lines":  666
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/controller/DialogQuickActionsController.java",
+                        "kind":  "java",
+                        "bytes":  30063,
+                        "lines":  513
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/model/dialog/DialogListItem.java",
+                        "kind":  "java",
+                        "bytes":  18530,
+                        "lines":  544
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/passports/api/ObjectPassportPageModelAssembler.java",
+                        "kind":  "java",
+                        "bytes":  26576,
+                        "lines":  546
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncService.java",
+                        "kind":  "java",
+                        "bytes":  64759,
+                        "lines":  1458
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/AiControlledLlmService.java",
+                        "kind":  "java",
+                        "bytes":  35573,
+                        "lines":  777
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/AiIntentService.java",
+                        "kind":  "java",
+                        "bytes":  27426,
+                        "lines":  651
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/AiOpsRuntimeService.java",
+                        "kind":  "java",
+                        "bytes":  33542,
+                        "lines":  689
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/AiRetrievalService.java",
+                        "kind":  "java",
+                        "bytes":  37052,
+                        "lines":  866
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/BackendOpsCommandService.java",
+                        "kind":  "java",
+                        "bytes":  25802,
+                        "lines":  744
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/BackupReadinessMonitoringService.java",
+                        "kind":  "java",
+                        "bytes":  37732,
+                        "lines":  848
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/BotProcessService.java",
+                        "kind":  "java",
+                        "bytes":  35864,
+                        "lines":  834
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/BotRuntimeContractService.java",
+                        "kind":  "java",
+                        "bytes":  38099,
+                        "lines":  790
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/ChannelTransportService.java",
+                        "kind":  "java",
+                        "bytes":  54565,
+                        "lines":  1194
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/ClientsService.java",
+                        "kind":  "java",
+                        "bytes":  32155,
+                        "lines":  809
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/CredentialRotationRegistryService.java",
+                        "kind":  "java",
+                        "bytes":  66076,
+                        "lines":  1400
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DashboardAnalyticsService.java",
+                        "kind":  "java",
+                        "bytes":  38074,
+                        "lines":  901
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogConversationReadService.java",
+                        "kind":  "java",
+                        "bytes":  27064,
+                        "lines":  596
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogLookupReadService.java",
+                        "kind":  "java",
+                        "bytes":  38844,
+                        "lines":  834
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogMacroService.java",
+                        "kind":  "java",
+                        "bytes":  27661,
+                        "lines":  543
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogNotificationService.java",
+                        "kind":  "java",
+                        "bytes":  21322,
+                        "lines":  522
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogQuickActionService.java",
+                        "kind":  "java",
+                        "bytes":  32291,
+                        "lines":  681
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogReplyTransportService.java",
+                        "kind":  "java",
+                        "bytes":  68521,
+                        "lines":  1634
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogWorkspaceContextContractService.java",
+                        "kind":  "java",
+                        "bytes":  30790,
+                        "lines":  555
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogWorkspaceContextSourceService.java",
+                        "kind":  "java",
+                        "bytes":  29875,
+                        "lines":  615
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogWorkspaceExternalKpiService.java",
+                        "kind":  "java",
+                        "bytes":  45545,
+                        "lines":  720
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogWorkspaceRolloutAssessmentService.java",
+                        "kind":  "java",
+                        "bytes":  42569,
+                        "lines":  812
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogWorkspaceRolloutGovernanceConfigService.java",
+                        "kind":  "java",
+                        "bytes":  26393,
+                        "lines":  512
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/DialogWorkspaceTelemetryAnalyticsService.java",
+                        "kind":  "java",
+                        "bytes":  64017,
+                        "lines":  1171
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/EmployeeDiscountAutomationService.java",
+                        "kind":  "java",
+                        "bytes":  25808,
+                        "lines":  562
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/IikoApiMonitoringService.java",
+                        "kind":  "java",
+                        "bytes":  49159,
+                        "lines":  1178
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/IikoDepartmentLocationCatalogService.java",
+                        "kind":  "java",
+                        "bytes":  45747,
+                        "lines":  1025
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/IikoDepartmentLocationsSyncService.java",
+                        "kind":  "java",
+                        "bytes":  27644,
+                        "lines":  713
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/IikoDirectoryService.java",
+                        "kind":  "java",
+                        "bytes":  22708,
+                        "lines":  517
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/IncidentService.java",
+                        "kind":  "java",
+                        "bytes":  72558,
+                        "lines":  1547
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/integration/IntegrationTransportOpsService.java",
+                        "kind":  "java",
+                        "bytes":  81272,
+                        "lines":  1729
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/IntegrationNetworkService.java",
+                        "kind":  "java",
+                        "bytes":  34897,
+                        "lines":  849
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/KnowledgeBaseNotionService.java",
+                        "kind":  "java",
+                        "bytes":  72461,
+                        "lines":  1594
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/LegacyBotShardConsolidationService.java",
+                        "kind":  "java",
+                        "bytes":  22376,
+                        "lines":  556
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/LegacySqliteImportService.java",
+                        "kind":  "java",
+                        "bytes":  35064,
+                        "lines":  933
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/MonitoringDatabaseBootstrapService.java",
+                        "kind":  "java",
+                        "bytes":  35297,
+                        "lines":  797
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/NotificationRoutingService.java",
+                        "kind":  "java",
+                        "bytes":  23462,
+                        "lines":  521
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/PostgresLegacyCriticalDataRecoveryService.java",
+                        "kind":  "java",
+                        "bytes":  26800,
+                        "lines":  644
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/ProviderDeliveryAlertingService.java",
+                        "kind":  "java",
+                        "bytes":  35751,
+                        "lines":  802
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/ProviderHealthMonitoringService.java",
+                        "kind":  "java",
+                        "bytes":  39776,
+                        "lines":  917
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/PublicIngressMonitoringService.java",
+                        "kind":  "java",
+                        "bytes":  26823,
+                        "lines":  645
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/RmsLicenseMonitoringService.java",
+                        "kind":  "java",
+                        "bytes":  123690,
+                        "lines":  2981
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/SettingsCatalogService.java",
+                        "kind":  "java",
+                        "bytes":  27372,
+                        "lines":  580
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/SettingsItEquipmentPhotoService.java",
+                        "kind":  "java",
+                        "bytes":  25562,
+                        "lines":  579
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/SettingsParameterService.java",
+                        "kind":  "java",
+                        "bytes":  32613,
+                        "lines":  720
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/SlaEscalationAutoAssignService.java",
+                        "kind":  "java",
+                        "bytes":  33720,
+                        "lines":  643
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/service/SmtpNotificationMonitoringService.java",
+                        "kind":  "java",
+                        "bytes":  24842,
+                        "lines":  580
+                    },
+                    {
+                        "path":  "spring-panel/src/main/java/com/example/panel/storage/AttachmentService.java",
+                        "kind":  "java",
+                        "bytes":  26859,
+                        "lines":  580
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/scss/app/_operations.scss",
+                        "kind":  "scss",
+                        "bytes":  31515,
+                        "lines":  1241
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/scss/app/passports/_workspace.scss",
+                        "kind":  "scss",
+                        "bytes":  24059,
+                        "lines":  834
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/scss/style/_base.scss",
+                        "kind":  "scss",
+                        "bytes":  24594,
+                        "lines":  1350
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/ai-ops.js",
+                        "kind":  "browser-js",
+                        "bytes":  45533,
+                        "lines":  957
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/analytics.js",
+                        "kind":  "browser-js",
+                        "bytes":  160375,
+                        "lines":  2930
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/auth-management.js",
+                        "kind":  "browser-js",
+                        "bytes":  134072,
+                        "lines":  3523
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/bot-settings.js",
+                        "kind":  "browser-js",
+                        "bytes":  180651,
+                        "lines":  4130
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/dialogs.js",
+                        "kind":  "browser-js",
+                        "bytes":  175504,
+                        "lines":  4543
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/dialogs-actions-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  41118,
+                        "lines":  928
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/dialogs-details-history-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  84512,
+                        "lines":  2047
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/dialogs-list-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  47182,
+                        "lines":  1270
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/dialogs-workspace-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  122526,
+                        "lines":  2452
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/incidents-workbench.js",
+                        "kind":  "browser-js",
+                        "bytes":  93168,
+                        "lines":  2777
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/passport-editor-equipment-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  53328,
+                        "lines":  1140
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/passport-editor-page-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  103390,
+                        "lines":  2473
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/rms-monitoring.js",
+                        "kind":  "browser-js",
+                        "bytes":  58380,
+                        "lines":  1249
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/settings-dialog-sla-core-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  146549,
+                        "lines":  2482
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/settings-dialog-templates-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  61098,
+                        "lines":  1276
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/settings-dialog-workspace-external-kpi-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  72715,
+                        "lines":  1026
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/settings-integration-network-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  62579,
+                        "lines":  1260
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/settings-it-equipment-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  60330,
+                        "lines":  1251
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/settings-locations-tree-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  55011,
+                        "lines":  1458
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/settings-page-shell.js",
+                        "kind":  "browser-js",
+                        "bytes":  64958,
+                        "lines":  1778
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/settings-partner-contacts-runtime.js",
+                        "kind":  "browser-js",
+                        "bytes":  113697,
+                        "lines":  2613
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/static/js/sidebar.js",
+                        "kind":  "browser-js",
+                        "bytes":  69097,
+                        "lines":  1954
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/templates/analytics/index.html",
+                        "kind":  "template",
+                        "bytes":  110667,
+                        "lines":  1389
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/templates/clients/profile.html",
+                        "kind":  "template",
+                        "bytes":  54367,
+                        "lines":  771
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/templates/dashboard/index.html",
+                        "kind":  "template",
+                        "bytes":  100613,
+                        "lines":  2509
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/templates/dialogs/index.html",
+                        "kind":  "template",
+                        "bytes":  93104,
+                        "lines":  1361
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/templates/passports/list.html",
+                        "kind":  "template",
+                        "bytes":  29681,
+                        "lines":  644
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/templates/settings/fragments/channel-editor.html",
+                        "kind":  "template",
+                        "bytes":  41146,
+                        "lines":  551
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/templates/settings/fragments/dialog-settings.html",
+                        "kind":  "template",
+                        "bytes":  124116,
+                        "lines":  1450
+                    },
+                    {
+                        "path":  "spring-panel/src/main/resources/templates/ui-kit/index.html",
+                        "kind":  "template",
+                        "bytes":  15999,
+                        "lines":  524
+                    }
+                ]
+}
