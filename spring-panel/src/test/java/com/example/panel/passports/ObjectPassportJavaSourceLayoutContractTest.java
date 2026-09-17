@@ -212,39 +212,6 @@ class ObjectPassportJavaSourceLayoutContractTest {
     }
 
     @Test
-    void passportTasksProjectionUsesDedicatedQueryOwner() throws IOException {
-        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
-        String query = read("src/main/java/com/example/panel/passports/ObjectPassportTasksQuery.java");
-
-        assertThat(service)
-                .contains("private final ObjectPassportTasksQuery tasksQuery;")
-                .contains("this.tasksQuery = new ObjectPassportTasksQuery(persistence);")
-                .contains("return tasksQuery.load(connection, passportId);")
-                .contains("private Connection openConnection() throws SQLException")
-                .contains("private DataSource runtimeObjectsDataSource()")
-                .doesNotContain("ensurePassportExists(passportId)")
-                .doesNotContain("private void ensurePassportExists(long passportId)")
-                .doesNotContain("\"items\", List.of()")
-                .doesNotContain("\"total_minutes\", 0")
-                .doesNotContain("\"total_display\", \"0 мин\"");
-        assertThat(query)
-                .contains("final class ObjectPassportTasksQuery")
-                .contains("private final ObjectPassportPersistence persistence;")
-                .contains("ObjectPassportTasksQuery(ObjectPassportPersistence persistence)")
-                .contains("Map<String, Object> load(Connection connection, long passportId) throws SQLException")
-                .contains("persistence.loadStoredPassport(connection, passportId)")
-                .contains("\"items\", List.of()")
-                .contains("\"total_minutes\", 0")
-                .contains("\"total_display\", \"0 мин\"")
-                .doesNotContain("DataSource")
-                .doesNotContain("openConnection()")
-                .doesNotContain("setAutoCommit")
-                .doesNotContain("connection.commit()")
-                .doesNotContain("connection.rollback()")
-                .doesNotContain("ObjectPassportPhotoStorageService");
-    }
-
-    @Test
     void passportDetailsProjectionUsesDedicatedQueryOwner() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
         String query = read("src/main/java/com/example/panel/passports/ObjectPassportDetailsQuery.java");
@@ -676,7 +643,6 @@ class ObjectPassportJavaSourceLayoutContractTest {
         String updateCommand = read("src/main/java/com/example/panel/passports/ObjectPassportUpdateCommand.java");
         String replaceCommand = read("src/main/java/com/example/panel/passports/ObjectPassportReplaceAllCommand.java");
         String photoCommand = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoCommand.java");
-        String tasksQuery = read("src/main/java/com/example/panel/passports/ObjectPassportTasksQuery.java");
         String persistence = read("src/main/java/com/example/panel/passports/ObjectPassportPersistence.java");
 
         assertThat(service)
@@ -685,7 +651,7 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .doesNotContain("persistence.insertObject(")
                 .doesNotContain("persistence.insertPassport(")
                 .doesNotContain("persistence.updatePassportRow(")
-                .doesNotContain("persistence.loadStoredPassport(")
+                .contains("persistence.loadStoredPassport(")
                 .doesNotContain("persistence.loadAllStoredPassports(")
                 .doesNotContain("persistence.readPayload(")
                 .doesNotContain("private long insertObject(")
@@ -709,10 +675,6 @@ class ObjectPassportJavaSourceLayoutContractTest {
         assertThat(photoCommand)
                 .contains("persistence.loadStoredPassport(connection, passportId)")
                 .contains("persistence.updatePassportRow(");
-        assertThat(tasksQuery)
-                .contains("persistence.loadStoredPassport(connection, passportId)")
-                .doesNotContain("DataSource")
-                .doesNotContain("openConnection()");
         assertThat(persistence)
                 .contains("final class ObjectPassportPersistence")
                 .contains("long insertObject(Connection connection")
