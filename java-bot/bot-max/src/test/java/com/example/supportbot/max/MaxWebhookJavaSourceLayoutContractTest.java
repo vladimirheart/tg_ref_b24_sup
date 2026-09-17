@@ -1,0 +1,51 @@
+package com.example.supportbot.max;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
+
+class MaxWebhookJavaSourceLayoutContractTest {
+
+    private String read(String relative) throws IOException {
+        return Files.readString(Path.of(relative), StandardCharsets.UTF_8);
+    }
+
+    @Test
+    void inboundPayloadDecodingUsesDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxInboundPayloadSupport.java");
+
+        assertThat(controller)
+                .contains("MaxInboundPayloadSupport.resolveClientProfile(message, userId)")
+                .contains("MaxInboundPayloadSupport.resolveInboundPayload(message, clientProfile)")
+                .contains("MaxInboundPayloadSupport.normalizeAttachmentType(attachments.get(0).type())")
+                .contains("resolveProviderMessageId(update, message)")
+                .contains("resolveReplyToProviderMessageId(message)")
+                .contains("storeIncomingAttachment(channel, attachments.get(0))")
+                .doesNotContain("private MaxInboundPayload resolveInboundPayload(")
+                .doesNotContain("private MaxClientProfile resolveClientProfile(")
+                .doesNotContain("private List<MaxIncomingAttachment> extractIncomingAttachments(")
+                .doesNotContain("private String extractMessageText(")
+                .doesNotContain("private String normalizeAttachmentType(")
+                .doesNotContain("private record MaxInboundPayload(")
+                .doesNotContain("private record MaxIncomingAttachment(")
+                .doesNotContain("private record MaxClientProfile(");
+
+        assertThat(support)
+                .contains("final class MaxInboundPayloadSupport")
+                .contains("static ClientProfile resolveClientProfile(JsonNode message, Long userId)")
+                .contains("static InboundPayload resolveInboundPayload(JsonNode message, ClientProfile clientProfile)")
+                .contains("static String normalizeAttachmentType(String rawType)")
+                .doesNotContain("@RestController")
+                .doesNotContain("TicketService")
+                .doesNotContain("AttachmentService")
+                .doesNotContain("MaxApiClient")
+                .doesNotContain("MessagingService")
+                .doesNotContain("BotWebhookDeliveryGuardService")
+                .doesNotContain("ResponseEntity");
+    }
+}

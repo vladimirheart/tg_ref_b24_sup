@@ -194,10 +194,10 @@ public class MaxWebhookController {
         Long userId = asLong(message.path("sender").path("user_id"));
         Long chatId = asLong(message.path("recipient").path("chat_id"));
         Long providerMessageId = resolveProviderMessageId(update, message);
-        MaxClientProfile clientProfile = resolveClientProfile(message, userId);
-        MaxInboundPayload inboundPayload = resolveInboundPayload(message, clientProfile);
+        MaxInboundPayloadSupport.ClientProfile clientProfile = MaxInboundPayloadSupport.resolveClientProfile(message, userId);
+        MaxInboundPayloadSupport.InboundPayload inboundPayload = MaxInboundPayloadSupport.resolveInboundPayload(message, clientProfile);
         String text = inboundPayload.text();
-        List<MaxIncomingAttachment> attachments = inboundPayload.attachments();
+        List<MaxInboundPayloadSupport.IncomingAttachment> attachments = inboundPayload.attachments();
         boolean hasAttachments = !attachments.isEmpty();
         try {
             if (userId == null || (text.isBlank() && !hasAttachments)) {
@@ -260,7 +260,7 @@ public class MaxWebhookController {
             }
             String ticketId = active.get().getTicketId();
             String clientText = !text.isBlank() ? text : "[вложение от клиента]";
-            String messageType = hasAttachments ? normalizeAttachmentType(attachments.get(0).type()) : "text";
+            String messageType = hasAttachments ? MaxInboundPayloadSupport.normalizeAttachmentType(attachments.get(0).type()) : "text";
             StoredIncomingAttachment storedAttachment = hasAttachments
                     ? storeIncomingAttachment(channel, attachments.get(0))
                     : null;
@@ -906,224 +906,9 @@ public class MaxWebhookController {
                 || "отмена".equals(normalized);
     }
 
-    private String extractMessageText(JsonNode message) {
-        if (message == null || message.isNull() || message.isMissingNode()) {
-            return "";
-        }
-        String bodyText = text(message.path("body"), "text").trim();
-        if (!bodyText.isBlank()) {
-            return bodyText;
-        }
-        return text(message, "text").trim();
-    }
-
-    /**
-     * MAX places the original content under {@code link} for forwarded messages
-     * and may leave the outer body null. Keep the outer sender as the client
-     * while storing the original author separately for the operator timeline.
-     */
-    private MaxInboundPayload resolveInboundPayload(JsonNode message, MaxClientProfile clientProfile) {
-        String directText = extractMessageText(message);
-        List<MaxIncomingAttachment> attachments = extractIncomingAttachments(message);
-        JsonNode forwardedMessage = resolveForwardedMessage(message);
-        boolean forwarded = forwardedMessage != null;
-
-        if (directText.isBlank() && forwarded) {
-            directText = extractMessageText(forwardedMessage);
-        }
-        if (attachments.isEmpty() && forwarded) {
-            attachments = extractIncomingAttachments(forwardedMessage);
-        }
-
-        return new MaxInboundPayload(
-                directText,
-                attachments,
-                forwarded ? resolveForwardedFrom(message, forwardedMessage, clientProfile) : null
-        );
-    }
-
-    private JsonNode resolveForwardedMessage(JsonNode message) {
-        if (message == null || message.isNull() || message.isMissingNode()) {
-            return null;
-        }
-        JsonNode link = message.path("link");
-        if (link.isMissingNode() || link.isNull() || !isForwardLink(link)) {
-            return null;
-        }
-        for (String field : List.of("message", "linked_message", "forwarded_message", "forward", "source")) {
-            JsonNode candidate = link.path(field);
-            if (candidate.isObject()) {
-                return candidate;
-            }
-        }
-        return link.isObject() ? link : null;
-    }
-
-    private boolean isForwardLink(JsonNode link) {
-        String type = firstNonBlank(text(link, "type"), text(link, "link_type"));
-        return type != null && ("forward".equalsIgnoreCase(type) || "forwarded".equalsIgnoreCase(type));
-    }
-
-    private String resolveForwardedFrom(JsonNode message,
-                                        JsonNode forwardedMessage,
-                                        MaxClientProfile outerClient) {
-        List<JsonNode> authorCandidates = new ArrayList<>();
-        collectForwardedAuthorCandidates(authorCandidates, forwardedMessage);
-        JsonNode link = message != null ? message.path("link") : null;
-        if (link != forwardedMessage) {
-            collectForwardedAuthorCandidates(authorCandidates, link);
-        }
-        for (JsonNode candidate : authorCandidates) {
-            MaxClientProfile profile = resolveClientProfileFromSender(candidate);
-            if (isSameClient(profile, outerClient)) {
-                continue;
-            }
-            String label = profile.displayLabel();
-            if (label != null && !label.isBlank() && !label.startsWith("MAX user ")) {
-                return label;
-            }
-        }
-        return null;
-    }
-
-    private void collectForwardedAuthorCandidates(List<JsonNode> candidates, JsonNode node) {
-        if (node == null || node.isNull() || node.isMissingNode()) {
-            return;
-        }
-        for (String field : List.of(
-                "author", "original_author", "original_sender", "forwarded_from", "from", "user", "sender", "owner"
-        )) {
-            JsonNode candidate = node.path(field);
-            if (candidate.isObject()) {
-                candidates.add(candidate);
-            }
-        }
-    }
-
-    private boolean isSameClient(MaxClientProfile candidate, MaxClientProfile outerClient) {
-        if (candidate == null || outerClient == null) {
-            return false;
-        }
-        if (candidate.userId() != null && outerClient.userId() != null) {
-            return candidate.userId().equals(outerClient.userId());
-        }
-        return candidate.identity() != null && candidate.identity().equalsIgnoreCase(outerClient.identity());
-    }
-
-    private MaxClientProfile resolveClientProfile(JsonNode message, Long userId) {
-        JsonNode sender = message != null ? message.path("sender") : null;
-        MaxClientProfile profile = resolveClientProfileFromSender(sender);
-        String username = profile.username();
-        String clientName = profile.clientName();
-        if ((username == null || username.isBlank()) && userId != null) {
-            username = "max_" + userId;
-        }
-        if ((clientName == null || clientName.isBlank()) && userId != null) {
-            clientName = "MAX user " + userId;
-        }
-        return new MaxClientProfile(trimOrNull(username), trimOrNull(clientName), userId);
-    }
-
-    private MaxClientProfile resolveClientProfileFromSender(JsonNode sender) {
-        String username = firstNonBlank(
-                text(sender, "username"),
-                text(sender, "user_name"),
-                text(sender, "screen_name"),
-                text(sender, "login")
-        );
-        String clientName = firstNonBlank(
-                text(sender, "name"),
-                text(sender, "display_name"),
-                joinNames(text(sender, "first_name"), text(sender, "last_name")),
-                joinNames(text(sender, "firstName"), text(sender, "lastName")),
-                username
-        );
-        return new MaxClientProfile(trimOrNull(username), trimOrNull(clientName), asLong(sender != null ? sender.path("user_id") : null));
-    }
-
-    private List<MaxIncomingAttachment> extractIncomingAttachments(JsonNode message) {
-        List<MaxIncomingAttachment> result = new ArrayList<>();
-        if (message == null || message.isNull() || message.isMissingNode()) {
-            return result;
-        }
-        collectIncomingAttachments(result, message.path("attachments"));
-        JsonNode body = message.path("body");
-        collectIncomingAttachments(result, body.path("attachments"));
-        collectIncomingAttachments(result, body.path("media"));
-        collectIncomingAttachments(result, body.path("files"));
-        return result;
-    }
-
-    private void collectIncomingAttachments(List<MaxIncomingAttachment> result, JsonNode node) {
-        if (node == null || node.isNull() || node.isMissingNode()) {
-            return;
-        }
-        if (node.isArray()) {
-            for (JsonNode item : node) {
-                addIncomingAttachment(result, item);
-            }
-            return;
-        }
-        addIncomingAttachment(result, node);
-    }
-
-    private void addIncomingAttachment(List<MaxIncomingAttachment> result, JsonNode raw) {
-        if (raw == null || raw.isNull() || raw.isMissingNode()) {
-            return;
-        }
-        String type = firstNonBlank(
-                text(raw, "type"),
-                text(raw, "kind"),
-                text(raw, "media_type"),
-                text(raw, "mime_type"),
-                "attachment"
-        );
-        String url = firstNonBlank(
-                text(raw, "url"),
-                text(raw, "link"),
-                text(raw, "download_url"),
-                text(raw, "downloadUrl"),
-                text(raw, "src"),
-                text(raw.path("file"), "url"),
-                text(raw.path("photo"), "url"),
-                text(raw.path("video"), "url"),
-                text(raw.path("payload"), "url")
-        );
-        String name = firstNonBlank(
-                text(raw, "name"),
-                text(raw, "file_name"),
-                text(raw, "filename"),
-                text(raw.path("file"), "name")
-        );
-        if ((url == null || url.isBlank()) && (name == null || name.isBlank())) {
-            return;
-        }
-        result.add(new MaxIncomingAttachment(type, trimOrNull(url), trimOrNull(name)));
-    }
-
-    private String normalizeAttachmentType(String rawType) {
-        String type = rawType == null ? "" : rawType.trim().toLowerCase();
-        if (type.contains("animation") || type.contains("gif")) {
-            return "animation";
-        }
-        if (type.contains("video")) {
-            return "video";
-        }
-        if (type.contains("audio") || type.contains("voice")) {
-            return "audio";
-        }
-        if (type.contains("photo") || type.contains("image") || type.contains("sticker")) {
-            return "photo";
-        }
-        if (type.contains("doc") || type.contains("file")) {
-            return "document";
-        }
-        return "attachment";
-    }
-
     private void notifyOperatorsAboutActiveMessage(Channel channel,
                                                    String ticketId,
-                                                   MaxClientProfile clientProfile,
+                                                   MaxInboundPayloadSupport.ClientProfile clientProfile,
                                                    String text,
                                                    String messageType,
                                                    String attachmentRef,
@@ -1147,21 +932,6 @@ public class MaxWebhookController {
         messagingService.sendToSupportChat(channel, builder.toString());
     }
 
-    private String joinNames(String first, String last) {
-        String left = trimOrNull(first);
-        String right = trimOrNull(last);
-        if (left == null && right == null) {
-            return null;
-        }
-        if (left == null) {
-            return right;
-        }
-        if (right == null) {
-            return left;
-        }
-        return left + " " + right;
-    }
-
     private String firstNonBlank(String... values) {
         if (values == null || values.length == 0) {
             return null;
@@ -1175,7 +945,7 @@ public class MaxWebhookController {
         return null;
     }
 
-    private StoredIncomingAttachment storeIncomingAttachment(Channel channel, MaxIncomingAttachment attachment) {
+    private StoredIncomingAttachment storeIncomingAttachment(Channel channel, MaxInboundPayloadSupport.IncomingAttachment attachment) {
         if (attachment == null) {
             return null;
         }
@@ -1342,43 +1112,7 @@ public class MaxWebhookController {
         return null;
     }
 
-    private record MaxIncomingAttachment(String type, String url, String name) {
-        String urlOrName() {
-            if (url != null && !url.isBlank()) {
-                return url;
-            }
-            return name;
-        }
-    }
-
-    private record MaxInboundPayload(String text,
-                                     List<MaxIncomingAttachment> attachments,
-                                     String forwardedFrom) {
-    }
-
     private record StoredIncomingAttachment(String storageKey, String originalName) {
-    }
-
-    private record MaxClientProfile(String username, String clientName, Long userId) {
-        String identity() {
-            if (username != null && !username.isBlank()) {
-                return username;
-            }
-            return userId != null ? userId.toString() : null;
-        }
-
-        String displayLabel() {
-            if (clientName != null && !clientName.isBlank()) {
-                if (username != null && !username.isBlank() && !clientName.equalsIgnoreCase(username)) {
-                    return clientName + " (@" + username + ")";
-                }
-                return clientName;
-            }
-            if (username != null && !username.isBlank()) {
-                return "@" + username;
-            }
-            return userId != null ? "MAX user " + userId : "клиент";
-        }
     }
 
     private record HistoryEvent(Long userId, String text, String messageType) {
