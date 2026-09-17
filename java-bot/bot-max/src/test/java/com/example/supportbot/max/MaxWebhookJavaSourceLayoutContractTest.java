@@ -119,4 +119,38 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("ResponseEntity")
                 .doesNotContain("ObjectMapper");
     }
+
+    @Test
+    void questionOptionsUseDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxQuestionOptionSupport.java");
+
+        assertThat(controller)
+                .contains("MaxQuestionOptionSupport.resolveSelectOptions(current)")
+                .contains("MaxQuestionOptionSupport.resolveLocationOptions(field, answers, tree)")
+                .contains("MaxQuestionOptionSupport.resolvePresetDefinitionOptions(group, field, presetDefinitions())")
+                .contains("MaxQuestionOptionSupport.applyExcludedOptions(options, current.getExcludedOptions())")
+                .contains("private Map<String, Object> locationTree()")
+                .contains("private Map<String, Object> presetDefinitions()")
+                .doesNotContain("private List<String> resolvePresetDefinitionOptions(")
+                .doesNotContain("private List<String> resolveLocationOptions(")
+                .doesNotContain("private List<String> sortedKeys(")
+                .doesNotContain("private Map<String, Object> asMap(")
+                .doesNotContain("private List<String> asList(")
+                .doesNotContain("import java.util.Objects;");
+
+        assertThat(support)
+                .contains("final class MaxQuestionOptionSupport")
+                .contains("static List<String> resolveSelectOptions(QuestionFlowItemDto current)")
+                .contains("static List<String> resolvePresetDefinitionOptions(String group,")
+                .contains("static List<String> resolveLocationOptions(String field,")
+                .contains("static List<String> applyExcludedOptions(List<String> options, List<String> excluded)")
+                .doesNotContain("@RestController")
+                .doesNotContain("RuntimeConfigService")
+                .doesNotContain("BotSettingsService")
+                .doesNotContain("TicketService")
+                .doesNotContain("MessagingService")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("ObjectMapper");
+    }
 }

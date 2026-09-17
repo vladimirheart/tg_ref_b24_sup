@@ -39,7 +39,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -682,12 +681,7 @@ public class MaxWebhookController {
 
     private List<String> resolveQuestionOptions(QuestionFlowItemDto current, Map<String, String> answers) {
         if (MaxQuestionInputSupport.isSelectQuestion(current)) {
-            return current.getOptions().stream()
-                    .map(QuestionOptionDto::getLabel)
-                    .filter(Objects::nonNull)
-                    .map(String::trim)
-                    .filter(value -> !value.isBlank())
-                    .toList();
+            return MaxQuestionOptionSupport.resolveSelectOptions(current);
         }
         return resolvePresetOptions(current, answers);
     }
@@ -704,91 +698,14 @@ public class MaxWebhookController {
         List<String> options;
         if ("locations".equalsIgnoreCase(group)) {
             Map<String, Object> tree = locationTree();
-            options = resolveLocationOptions(field, answers, tree);
+            options = MaxQuestionOptionSupport.resolveLocationOptions(field, answers, tree);
             if (options.isEmpty()) {
-                options = resolvePresetDefinitionOptions(group, field);
+                options = MaxQuestionOptionSupport.resolvePresetDefinitionOptions(group, field, presetDefinitions());
             }
         } else {
-            options = resolvePresetDefinitionOptions(group, field);
+            options = MaxQuestionOptionSupport.resolvePresetDefinitionOptions(group, field, presetDefinitions());
         }
-        List<String> excluded = Optional.ofNullable(current.getExcludedOptions()).orElseGet(List::of);
-        if (!excluded.isEmpty() && !options.isEmpty()) {
-            options = options.stream()
-                    .filter(option -> !excluded.contains(option))
-                    .toList();
-        }
-        return options;
-    }
-
-    private List<String> resolvePresetDefinitionOptions(String group, String field) {
-        if (group == null || field == null) {
-            return List.of();
-        }
-        Map<String, Object> definitions = presetDefinitions();
-        Map<String, Object> groupData = asMap(definitions.get(group));
-        Map<String, Object> fields = asMap(groupData.get("fields"));
-        Map<String, Object> fieldData = asMap(fields.get(field));
-        return asList(fieldData.get("options"));
-    }
-
-    private List<String> resolveLocationOptions(String field, Map<String, String> answers, Map<String, Object> tree) {
-        if (tree.isEmpty()) {
-            return List.of();
-        }
-        String business = answers.get("business");
-        String locationType = answers.get("location_type");
-        String city = answers.get("city");
-        return switch (field) {
-            case "business" -> sortedKeys(tree);
-            case "location_type" -> business == null ? List.of() : sortedKeys(asMap(tree.get(business)));
-            case "city" -> {
-                if (business == null || locationType == null) {
-                    yield List.of();
-                }
-                Map<String, Object> businessNode = asMap(tree.get(business));
-                yield sortedKeys(asMap(businessNode.get(locationType)));
-            }
-            case "location_name" -> {
-                if (business == null || locationType == null || city == null) {
-                    yield List.of();
-                }
-                Map<String, Object> businessNode = asMap(tree.get(business));
-                Map<String, Object> typeNode = asMap(businessNode.get(locationType));
-                yield asList(typeNode.get(city));
-            }
-            default -> List.of();
-        };
-    }
-
-    private List<String> sortedKeys(Map<String, Object> node) {
-        if (node == null || node.isEmpty()) {
-            return List.of();
-        }
-        return node.keySet().stream()
-                .map(Object::toString)
-                .sorted()
-                .toList();
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> asMap(Object node) {
-        if (node instanceof Map<?, ?> map) {
-            return new LinkedHashMap<>((Map<String, Object>) map);
-        }
-        return new LinkedHashMap<>();
-    }
-
-    private List<String> asList(Object node) {
-        if (node instanceof List<?> list) {
-            List<String> result = new ArrayList<>();
-            for (Object item : list) {
-                if (item != null) {
-                    result.add(item.toString());
-                }
-            }
-            return result;
-        }
-        return List.of();
+        return MaxQuestionOptionSupport.applyExcludedOptions(options, current.getExcludedOptions());
     }
 
     private Map<String, Object> locationTree() {
