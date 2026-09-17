@@ -30,6 +30,7 @@ public class ObjectPassportService {
     private final ObjectPassportPhotoCommand photoCommand;
     private final ObjectPassportAppealQuery appealQuery;
     private final ObjectPassportCasesQuery casesQuery;
+    private final ObjectPassportTasksQuery tasksQuery;
     private final ObjectPassportDetailsQuery detailsQuery;
     private final ObjectPassportListQuery listQuery;
     private final ObjectPassportNetBoxQuery netBoxQuery;
@@ -64,6 +65,7 @@ public class ObjectPassportService {
         this.replaceAllCommand = new ObjectPassportReplaceAllCommand(persistence, payloadModel, photoModel);
         this.detailsQuery = new ObjectPassportDetailsQuery(persistence, payloadModel);
         this.casesQuery = new ObjectPassportCasesQuery(persistence, payloadModel, appealQuery);
+        this.tasksQuery = new ObjectPassportTasksQuery(persistence);
         this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery(persistence);
         this.listQuery = new ObjectPassportListQuery(persistence, payloadModel, photoModel, appealQuery);
         this.photoQuery = new ObjectPassportPhotoQuery(persistence, photoModel);
@@ -186,12 +188,11 @@ public class ObjectPassportService {
     }
 
     public Map<String, Object> getEmptyTasksPayload(long passportId) {
-        ensurePassportExists(passportId);
-        return Map.of(
-                "success", true,
-                "items", List.of(),
-                "total_minutes", 0,
-                "total_display", "0 мин");
+        try (Connection connection = openConnection()) {
+            return tasksQuery.load(connection, passportId);
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Не удалось загрузить паспорт объекта", ex);
+        }
     }
 
     public Map<String, Object> uploadPhoto(long passportId,
@@ -259,14 +260,6 @@ public class ObjectPassportService {
 
     public ResponseEntity<Resource> downloadPhoto(String storedName) throws IOException {
         return photoStorageService.download(storedName);
-    }
-
-    private void ensurePassportExists(long passportId) {
-        try (Connection connection = openConnection()) {
-            persistence.loadStoredPassport(connection, passportId);
-        } catch (SQLException ex) {
-            throw new IllegalStateException("Не удалось загрузить паспорт объекта", ex);
-        }
     }
 
     private Connection openConnection() throws SQLException {
