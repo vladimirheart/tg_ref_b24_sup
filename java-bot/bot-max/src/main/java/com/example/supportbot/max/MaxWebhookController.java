@@ -133,7 +133,7 @@ public class MaxWebhookController {
         try {
             return handleUpdateOnce(update, secret);
         } catch (SessionStateConflictException ex) {
-            Long userId = asLong(update.path("message").path("sender").path("user_id"));
+            Long userId = MaxWebhookInputSupport.asLong(update.path("message").path("sender").path("user_id"));
             if (attempt + 1 >= SESSION_MUTATION_MAX_RETRIES) {
                 log.warn("MAX session mutation conflict for user {} after {} attempt(s): {}",
                         userId,
@@ -154,10 +154,10 @@ public class MaxWebhookController {
         if (!properties.isEnabled()) {
             return ResponseEntity.ok(Map.of("ok", true, "ignored", "max-bot-disabled"));
         }
-        if (!secretValid(secret)) {
+        if (!MaxWebhookInputSupport.isSecretValid(properties.getWebhookSecret(), secret)) {
             return ResponseEntity.status(403).body(Map.of("ok", false, "error", "invalid-secret"));
         }
-        String updateType = text(update, "update_type");
+        String updateType = MaxWebhookInputSupport.text(update, "update_type");
         if (!"message_created".equals(updateType)) {
             return ResponseEntity.ok(Map.of("ok", true, "ignored", updateType));
         }
@@ -178,8 +178,8 @@ public class MaxWebhookController {
         }
 
         JsonNode message = update.path("message");
-        Long userId = asLong(message.path("sender").path("user_id"));
-        Long chatId = asLong(message.path("recipient").path("chat_id"));
+        Long userId = MaxWebhookInputSupport.asLong(message.path("sender").path("user_id"));
+        Long chatId = MaxWebhookInputSupport.asLong(message.path("recipient").path("chat_id"));
         Long providerMessageId = MaxDeliveryIdentitySupport.resolveProviderMessageId(update, message);
         MaxInboundPayloadSupport.ClientProfile clientProfile = MaxInboundPayloadSupport.resolveClientProfile(message, userId);
         MaxInboundPayloadSupport.InboundPayload inboundPayload = MaxInboundPayloadSupport.resolveInboundPayload(message, clientProfile);
@@ -681,37 +681,6 @@ public class MaxWebhookController {
             return StringUtils.hasText(fallbackRef)
                     ? new StoredIncomingAttachment(fallbackRef, attachment.name())
                     : null;
-        }
-    }
-
-    private boolean secretValid(String provided) {
-        String expected = properties.getWebhookSecret();
-        if (expected == null || expected.isBlank()) {
-            return true;
-        }
-        return expected.equals(provided);
-    }
-
-    private String text(JsonNode node, String field) {
-        JsonNode value = node != null ? node.path(field) : null;
-        return value == null || value.isMissingNode() || value.isNull() ? "" : value.asText("");
-    }
-
-    private Long asLong(JsonNode node) {
-        if (node == null || node.isMissingNode() || node.isNull()) {
-            return null;
-        }
-        if (node.isNumber()) {
-            return node.longValue();
-        }
-        String raw = node.asText("").trim();
-        if (raw.isEmpty()) {
-            return null;
-        }
-        try {
-            return Long.parseLong(raw);
-        } catch (NumberFormatException ex) {
-            return null;
         }
     }
 

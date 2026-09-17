@@ -394,4 +394,40 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("StringUtils")
                 .doesNotContain("LoggerFactory");
     }
+
+    @Test
+    void webhookPrimitiveInputUsesDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxWebhookInputSupport.java");
+
+        assertThat(controller)
+                .contains("MaxWebhookInputSupport.isSecretValid(properties.getWebhookSecret(), secret)")
+                .contains("MaxWebhookInputSupport.text(update, \"update_type\")")
+                .contains("MaxWebhookInputSupport.asLong(update.path(\"message\").path(\"sender\").path(\"user_id\"))")
+                .contains("MaxWebhookInputSupport.asLong(message.path(\"sender\").path(\"user_id\"))")
+                .contains("MaxWebhookInputSupport.asLong(message.path(\"recipient\").path(\"chat_id\"))")
+                .doesNotContain("private boolean secretValid(")
+                .doesNotContain("private String text(JsonNode node, String field)")
+                .doesNotContain("private Long asLong(JsonNode node)");
+
+        assertThat(support)
+                .contains("final class MaxWebhookInputSupport")
+                .contains("static boolean isSecretValid(String expected, String provided)")
+                .contains("static String text(JsonNode node, String field)")
+                .contains("static Long asLong(JsonNode node)")
+                .contains("expected == null || expected.isBlank()")
+                .contains("expected.equals(provided)")
+                .contains("node.longValue()")
+                .contains("Long.parseLong(raw)")
+                .doesNotContain("@RestController")
+                .doesNotContain("MaxBotProperties")
+                .doesNotContain("MessagingService")
+                .doesNotContain("TicketService")
+                .doesNotContain("BlacklistService")
+                .doesNotContain("BotSessionStoreService")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("ObjectMapper")
+                .doesNotContain("StringUtils")
+                .doesNotContain("LoggerFactory");
+    }
 }
