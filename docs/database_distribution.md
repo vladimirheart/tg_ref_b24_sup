@@ -51,11 +51,13 @@ Legacy SQLite-файлы допускаются только как источн
 
 Этот technical worker store не следует смешивать с retired panel SQLite compatibility topology.
 
-## Transitional source cleanup
+## Source cleanup status
 
-После structural slice 1 `spring-panel` уже отклоняет selectable SQLite runtime mode. В рамках `01-229` source tree всё ещё может содержать unreachable legacy bootstrap/property classes, которые удаляются последующими structural slices.
+После structural slice 2B live panel graph больше не содержит secondary SQLite bootstrap для clients/knowledge/objects/monitoring. `ObjectPassportService` использует только canonical primary datasource, а monitoring JDBC beans являются aliases того же primary datasource.
 
-Такие классы не являются документированным production runtime contract.
+Оставшиеся `SqliteDataSourceProperties`, `MonitoringSqliteDataSourceProperties` и `BotSqliteDataSourceProperties` регистрируются через `LegacySqliteArchiveConfiguration` только как source-path holders для explicit archive/recovery tooling; эта конфигурация не создаёт live `DataSource`.
+
+Оставшийся source cleanup в `01-229`: удалить panel-side `isSqliteMode()`/SQLite SQL-dialect branches, которые стали недостижимы после cutover, и провести финальный UI/reference audit.
 
 ## Operational rule
 

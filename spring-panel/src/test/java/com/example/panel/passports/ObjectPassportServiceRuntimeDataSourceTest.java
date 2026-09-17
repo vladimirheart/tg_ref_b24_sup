@@ -3,25 +3,17 @@ package com.example.panel.passports;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-import com.example.panel.config.ObjectsSqliteDataSourceProperties;
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.storage.ObjectPassportPhotoStorageService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.file.Path;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.mock.env.MockEnvironment;
 
 class ObjectPassportServiceRuntimeDataSourceTest {
 
-    @TempDir
-    Path tempDir;
-
     @Test
-    void listPassportsUsesPrimaryDatasourceInExternalMode() {
+    void listPassportsUsesPrimaryDatasource() {
         DataSource primaryDataSource = new DriverManagerDataSource(
             "jdbc:h2:mem:object_passports_service_" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
             "sa",
@@ -55,16 +47,8 @@ class ObjectPassportServiceRuntimeDataSourceTest {
             )
             """);
 
-        ObjectsSqliteDataSourceProperties properties = new ObjectsSqliteDataSourceProperties();
-        properties.setPath(tempDir.resolve("objects.db").toString());
         ObjectPassportService service = new ObjectPassportService(
             primaryDataSource,
-            properties,
-            new PanelDatabaseRuntimeMode(new MockEnvironment()
-                .withProperty("app.datasource.mode", "postgresql")
-                .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/iguana")
-                .withProperty("spring.datasource.username", "iguana")
-                .withProperty("spring.datasource.password", "iguana")),
             jdbcTemplate,
             new ObjectMapper(),
             mock(ObjectPassportPhotoStorageService.class)

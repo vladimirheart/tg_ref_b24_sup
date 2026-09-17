@@ -3,11 +3,11 @@ package com.example.panel.config;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties({
-    ClientsSqliteDataSourceProperties.class,
-    KnowledgeSqliteDataSourceProperties.class,
-    ObjectsSqliteDataSourceProperties.class
+    SqliteDataSourceProperties.class,
+    MonitoringSqliteDataSourceProperties.class,
+    BotSqliteDataSourceProperties.class
 })
-public class SecondarySqliteDataSourceConfiguration {
+public class LegacySqliteArchiveConfiguration {
 }

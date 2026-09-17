@@ -1,8 +1,5 @@
 package com.example.panel.passports;
 
-import com.example.panel.config.ObjectsSqliteDataSourceProperties;
-import com.example.panel.config.PanelDatabaseRuntimeMode;
-import com.example.panel.config.SqliteConnectionConfigSupport;
 import com.example.panel.storage.ObjectPassportPhotoStorageService;
 import com.example.panel.storage.ObjectPassportPhotoStorageService.StoredPhoto;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,19 +37,12 @@ public class ObjectPassportService {
     private final ObjectPassportPayloadModel payloadModel;
     private final ObjectPassportManualOverrideModel manualOverrideModel;
     private final DataSource primaryDataSource;
-    private final ObjectsSqliteDataSourceProperties objectsSqliteProperties;
-    private final PanelDatabaseRuntimeMode databaseRuntimeMode;
-    private volatile DataSource objectsCompatibilityDataSource;
 
     public ObjectPassportService(DataSource primaryDataSource,
-                                 ObjectsSqliteDataSourceProperties objectsSqliteProperties,
-                                 PanelDatabaseRuntimeMode databaseRuntimeMode,
                                  JdbcTemplate jdbcTemplate,
                                  ObjectMapper objectMapper,
                                  ObjectPassportPhotoStorageService photoStorageService) {
         this.primaryDataSource = primaryDataSource;
-        this.objectsSqliteProperties = objectsSqliteProperties;
-        this.databaseRuntimeMode = databaseRuntimeMode;
         this.appealQuery = new ObjectPassportAppealQuery(jdbcTemplate);
         this.photoStorageService = photoStorageService;
         this.photoModel = new ObjectPassportPhotoModel(photoStorageService::buildPhotoUrl);
@@ -270,23 +260,7 @@ public class ObjectPassportService {
     }
 
     private Connection openConnection() throws SQLException {
-        return runtimeObjectsDataSource().getConnection();
-    }
-
-    private DataSource runtimeObjectsDataSource() {
-        if (databaseRuntimeMode.isExternalDatabaseEnabled()) {
-            return primaryDataSource;
-        }
-        DataSource cached = objectsCompatibilityDataSource;
-        if (cached != null) {
-            return cached;
-        }
-        synchronized (this) {
-            if (objectsCompatibilityDataSource == null) {
-                objectsCompatibilityDataSource = SqliteConnectionConfigSupport.createDataSource(objectsSqliteProperties);
-            }
-            return objectsCompatibilityDataSource;
-        }
+        return primaryDataSource.getConnection();
     }
 
 }

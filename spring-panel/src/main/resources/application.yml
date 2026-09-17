@@ -17,19 +17,19 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        # Do not disable JDBC metadata here. External PostgreSQL/MySQL mode
-        # relies on Hibernate 6 detecting the dialect from the configured
-        # DataSource; SQLite compatibility mode still sets its dialect explicitly.
+        # Do not disable JDBC metadata here. Supported production modes rely on
+        # Hibernate 6 detecting the dialect from the configured external DataSource.
 
   flyway:
-    # Main runtime is PostgreSQL-first. FlywayConfig switches this location
-    # to sqlite/mysql when the selected datasource mode requires it.
+    # Main production runtime is PostgreSQL-first. FlywayConfig may select the
+    # supported external MySQL chain; legacy SQLite migrations are archive/test-only.
     locations:
       - classpath:db/migration/postgresql
     baseline-on-migrate: true
     baseline-version: 0
     # PostgreSQL migrations are maintained as a strictly increasing chain.
-    # SQLite keeps its own compatibility setting in application-sqlite.yml.
+    # Legacy SQLite migration files remain only for recovery/tests and are not
+    # a selectable spring-panel runtime mode.
     out-of-order: false
     placeholders:
       autoIncrement: AUTOINCREMENT
@@ -68,20 +68,14 @@ app:
       channel: ${APP_UI_EVENT_FANOUT_CHANNEL:iguana:ui-events:v1}
   datasource:
     mode: ${APP_DB_MODE:postgresql}
+    # Legacy source paths below are archive/recovery inputs only. They do not
+    # create live spring-panel datasources.
     sqlite:
       path: ${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:panel_runtime.db}}
     monitoring-sqlite:
       path: ${APP_DB_MONITORING:monitoring.db}
-    users-sqlite:
-      path: ${APP_DB_PANEL_IDENTITY:${APP_DB_USERS:panel_identity.db}}
     bot-sqlite:
       path: ${APP_DB_BOT_RUNTIME:${APP_DB_BOT:bot_runtime.db}}
-    clients-sqlite:
-      path: ${APP_DB_CLIENTS:clients.db}
-    knowledge-sqlite:
-      path: ${APP_DB_KNOWLEDGE:knowledge_base.db}
-    objects-sqlite:
-      path: ${APP_DB_OBJECTS:objects.db}
   bots:
     database-dir: ${APP_BOT_DATABASE_DIR:../bot_databases}
     launch-mode: ${APP_BOT_LAUNCH_MODE:auto} # auto -> prefer explicit/prebuilt jar, fallback to spring-boot:run in dev

@@ -61,9 +61,6 @@ class RuntimeStartupOwnershipSourceContractTest {
         assertMigrator("service/LegacyMonitoringHistoryCompactionService.java");
         assertMigrator("service/RmsMonitoringSeedImportService.java");
         assertMigrator("service/LocationsSharedConfigRepairService.java");
-
-        assertCompatibilityOnly("service/DatabaseBootstrapService.java");
-        assertCompatibilityOnly("service/MonitoringDatabaseBootstrapService.java");
     }
 
     @Test
@@ -85,15 +82,6 @@ class RuntimeStartupOwnershipSourceContractTest {
             .as(relativePath)
             .contains("@RuntimeWorkload(")
             .contains("RuntimeRole.MIGRATOR")
-            .contains("RuntimeReplicaPolicy.SINGLETON");
-    }
-
-    private void assertCompatibilityOnly(String relativePath) throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve(relativePath), StandardCharsets.UTF_8);
-        assertThat(source)
-            .as(relativePath)
-            .contains("@RuntimeWorkload(")
-            .contains("roles = {}")
             .contains("RuntimeReplicaPolicy.SINGLETON");
     }
 

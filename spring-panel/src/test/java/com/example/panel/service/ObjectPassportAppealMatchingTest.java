@@ -4,24 +4,16 @@ import com.example.panel.passports.ObjectPassportService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-import com.example.panel.config.ObjectsSqliteDataSourceProperties;
-import com.example.panel.config.PanelDatabaseRuntimeMode;
 import com.example.panel.storage.ObjectPassportPhotoStorageService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.mock.env.MockEnvironment;
 
 class ObjectPassportAppealMatchingTest {
-
-    @TempDir
-    Path tempDir;
 
     @Test
     void casesPreferLocationAndDeduplicateTicketMessagesWhenCityFormattingDiffers() throws Exception {
@@ -49,16 +41,8 @@ class ObjectPassportAppealMatchingTest {
         jdbc.update("INSERT INTO messages(ticket_id,business,city,location_name,problem,created_at) VALUES ('T-1','БлинБери','Волгоград','7 Гвардейская','Второе','2026-09-08T10:00:00')");
         jdbc.update("INSERT INTO messages(ticket_id,business,city,location_name,problem,created_at) VALUES ('T-2','БлинБери','город Волгоград','7 Гвардейская','Третье','2026-09-08T11:00:00')");
 
-        ObjectsSqliteDataSourceProperties properties = new ObjectsSqliteDataSourceProperties();
-        properties.setPath(tempDir.resolve("objects.db").toString());
         ObjectPassportService service = new ObjectPassportService(
                 dataSource,
-                properties,
-                new PanelDatabaseRuntimeMode(new MockEnvironment()
-                        .withProperty("app.datasource.mode", "postgresql")
-                        .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/iguana")
-                        .withProperty("spring.datasource.username", "iguana")
-                        .withProperty("spring.datasource.password", "iguana")),
                 jdbc,
                 mapper,
                 mock(ObjectPassportPhotoStorageService.class)

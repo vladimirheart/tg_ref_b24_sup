@@ -3,6 +3,7 @@
 Date: 2026-08-26
 Task: 01-211
 Status: Phase B ownership contract; compose split not enabled yet.
+Updated: 2026-09-17 for task 01-229 SQLite perimeter cleanup.
 
 ## Why this exists
 
@@ -39,9 +40,9 @@ Migrator-owned:
 - security bootstrap bean from `PanelApplication`
 
 Compatibility-only:
-- `DatabaseBootstrapService`
-- `MonitoringDatabaseBootstrapService`
 - legacy local additional-services process check from `PanelApplication`
+
+No SQLite business/secondary database bootstrap runner remains in the live panel graph. Legacy SQLite import/recovery stays migrator-owned, explicit and opt-in; `LegacySqliteArchiveConfiguration` only binds archive source paths and creates no runtime datasource.
 
 Worker-owned:
 - scheduled services that already implement `ApplicationRunner` and carry worker `@RuntimeWorkload`.
