@@ -48,7 +48,7 @@ MONITORING_CREDENTIALS_MASTER_KEY=base64:<generated-or-legacy-key>
 - `APP_DB_MODE` — для `spring-panel` production runtime используется `postgresql`; `sqlite` больше не является поддерживаемым panel runtime mode. Изолированный dynamic bot child использует отдельный `worker` contract, а archival SQLite import запускается только специальным tooling.
 - `APP_DB_PANEL_RUNTIME`, `APP_DB_PANEL_IDENTITY`, `APP_DB_BOT_RUNTIME` и legacy aliases `APP_DB_TICKETS` / `APP_DB_USERS` / `APP_DB_BOT` сохраняются только как archive/import source hints; normal PostgreSQL runtime не использует их как live datasource contract.
 - Secondary `APP_DB_*` пути относятся к legacy archive/import/diagnostic perimeter и не должны создавать live business SQLite databases.
-- `APP_BOT_DATABASE_DIR` — каталог, в котором будут храниться отдельные базы для каждого бота.
+- `APP_BOT_DATABASE_DIR` — каталог legacy per-channel shard-файлов для archive/import/diagnostic сценариев; normal bot runtime не создаёт там отдельный business source of truth.
 - `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` — preferred-конфиг для external DB.
 - `DATABASE_URL` — compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL.
 - `IGUANA_BOOTSTRAP_INSTALL_DOCKER` — разрешает bootstrap на Windows автоматически поставить Docker Desktop через `winget` (по умолчанию `true`).
@@ -70,7 +70,7 @@ SPRING_DATASOURCE_PASSWORD=secret
 Важно:
 
 - `spring-panel` в external DB-режиме теперь сам выбирает vendor-specific Flyway migrations, а не SQLite-папку по умолчанию.
-- `spring-panel` в external DB-режиме поднимает secondary/user/bot/settings datasources поверх primary JDBC-контура и не пытается создавать отдельные SQLite-файлы для этих ролей.
+- `spring-panel` использует canonical primary external datasource; users/monitoring runtime JDBC являются aliases этого contour, а legacy SQLite path holders зарегистрированы только для explicit archive/recovery flows и не создают live datasource.
 - `java-bot` больше не использует Spring Boot `sql.init` как runtime-механику владения схемой: в external PostgreSQL-режиме бот просто подключается к готовой схеме, а не пытается инициализировать её сам.
 - `java-bot` production child runtime использует `worker` contract: временный technical store допустим только для self-owned coordination/dedup state и не является business SQLite compatibility mode.
 - runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели; child `java-bot` JDBC launch больше не поддерживает SQLite compatibility env.

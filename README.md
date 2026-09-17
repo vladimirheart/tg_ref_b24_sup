@@ -96,7 +96,7 @@ cd spring-panel
 - поднимает локальные `PostgreSQL` и `RabbitMQ`, переводит старт в `APP_DB_MODE=postgresql` и включает `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
 - если Docker недоступен, bootstrap теперь завершается ошибкой вместо молчаливого перехода в SQLite;
 - дефолтные runtime-конфиги `spring-panel` и `java-bot` теперь тоже ориентированы на `APP_DB_MODE=postgresql`;
-- `APP_DB_MODE=sqlite` оставлен только как явный compatibility override для локального legacy/dev-сценария.
+- `APP_DB_MODE=sqlite` для `spring-panel` отклоняется; legacy SQLite читается только explicit archive/import/recovery tooling, а не normal runtime.
 
 Если нужен именно dockerized contour, а не local process bootstrap, используйте:
 
@@ -186,20 +186,21 @@ SQLite и `bot_databases/` не являются live production storage: это
 - JSON-настройки в `config/shared/`;
 - UI-настройки через `spring-panel`.
 
-Ключевые переменные:
+Ключевые переменные normal runtime:
 
-- `APP_DB_PANEL_RUNTIME`
-- `APP_DB_PANEL_IDENTITY`
-- `APP_DB_BOT_RUNTIME`
-- `APP_DB_MONITORING`
-- `APP_DB_CLIENTS`
-- `APP_DB_KNOWLEDGE`
-- `APP_DB_OBJECTS`
-- `APP_BOT_DATABASE_DIR`
+- `APP_DB_MODE=postgresql`
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+- `APP_INTEGRATION_TRANSPORT_MODE`
+- `APP_COORDINATION_MODE`
+- `APP_STORAGE_OBJECT_MODE`
 - `APP_STORAGE_ATTACHMENTS`
 - `TELEGRAM_BOT_TOKEN`
 - `VK_BOT_TOKEN`
 - `MAX_BOT_TOKEN`
+
+Legacy `APP_DB_*` path keys и `APP_BOT_DATABASE_DIR` сохраняются только как archive/import/diagnostic source hints и не являются live datasource contract.
 
 Полный список смотрите в [docs/environment_variables.md](docs/environment_variables.md).
 

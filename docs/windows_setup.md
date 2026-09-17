@@ -30,14 +30,7 @@ On a fresh clone the script now runs a first-run bootstrap automatically when th
 - if Docker Desktop is missing, tries to install it automatically via `winget`;
 - starts Docker Desktop and waits until `docker info` becomes ready;
 - starts local PostgreSQL and RabbitMQ through `docker compose`;
-- only if Docker still cannot be used after the install attempt does bootstrap fall back to SQLite dev mode.
-
-If you want strict PostgreSQL-only first-run behavior without SQLite fallback, set:
-
-```powershell
-$env:IGUANA_BOOTSTRAP_ALLOW_SQLITE_FALLBACK = "false"
-.\run-windows.bat
-```
+- if Docker/required PostgreSQL-first infrastructure still cannot be used after the install attempt, bootstrap exits with an error instead of falling back to business SQLite.
 
 If you want to disable the automatic Docker Desktop installation and keep the old behavior, set:
 
@@ -54,7 +47,7 @@ PS> ..\scripts\bootstrap-first-run.ps1 -Force
 
 The script now bundles the Maven Wrapper (`mvnw.cmd`), so Maven will be downloaded automatically on the first run. If you have Maven installed globally it will be used as a fallback.
 
-After the dependencies download the panel becomes available at <http://localhost:8080/>. The default admin credentials are `admin` / `admin`.
+After the dependencies download the panel becomes available at <http://localhost:8080/>. There is no supported `admin/admin` bootstrap fallback; if no administrator exists, configure `APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME` and `APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD` explicitly.
 
 If another service already listens on port 8080, set `APP_HTTP_PORT` before launching to override the HTTP port without editing `application.yml`:
 

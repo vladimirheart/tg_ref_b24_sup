@@ -2,6 +2,8 @@
 
 Документ фиксирует обязательный стартовый audit для задачи `01-181` по фактическому состоянию репозитория на `2026-08-11` и задаёт безопасный порядок перехода к production-архитектуре без параллельного развития двух несовместимых source-of-truth.
 
+> **Исторический roadmap snapshot.** Storage/runtime части этого плана superseded принятыми `01-228` и `01-229`: canonical panel runtime уже PostgreSQL-only, panel SQLite bootstrap/compatibility graph retired. Ниже сохранена эволюционная история `01-181`; для текущего operational contract используйте `database_distribution.md`, `SQLITE_BOOTSTRAP_PERIMETER.md` и production runbooks.
+
 ## 1. Текущие DB writers
 
 ### `spring-panel`

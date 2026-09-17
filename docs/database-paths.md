@@ -1,63 +1,38 @@
-📁 Пути к базам данных
+# Legacy SQLite source paths после PostgreSQL cutover
 
-Этот документ фиксирует transitional-модель: какие physical files проект использует сейчас и как они соотносятся с целевыми logical contours.
+Этот документ описывает только archive/import/recovery path hints. Он **не** является картой production runtime datasource.
 
-Target-state topology и причины итогового разбиения описаны в `docs/db/sqlite-target-topology.md`.
+## Production runtime
 
-## Current physical mapping
+Для `spring-panel` canonical database contract:
 
-| Текущий env/path | Текущий файл | Текущий смысл | Целевой logical contour |
-| --- | --- | --- | --- |
-| `APP_DB_PANEL_RUNTIME` | `panel_runtime.db` | Главный runtime панели | `panel-runtime` |
-| `APP_DB_PANEL_IDENTITY` | `panel_identity.db` | Пользователи, роли, доступ | `panel-identity` |
-| `APP_DB_MONITORING` | `monitoring.db` | Monitoring runtime | `monitoring` |
-| `APP_DB_BOT_RUNTIME` | `bot_runtime.db` | Shared bot runtime | `bot-runtime` |
-| `APP_DB_TICKETS` | `panel_runtime.db` | legacy alias для primary runtime | `panel-runtime` |
-| `APP_DB_USERS` | `panel_identity.db` | legacy alias для identity runtime | `panel-identity` |
-| `APP_DB_BOT` | `bot_runtime.db` | legacy alias для bot runtime | `bot-runtime` |
-| `APP_DB_CLIENTS` | `clients.db` | Подготовленный secondary clients-файл | transitional only, должен быть поглощён `panel-runtime` |
-| `APP_DB_KNOWLEDGE` | `knowledge_base.db` | Подготовленный secondary knowledge-файл | transitional only, должен быть поглощён `panel-runtime` |
-| `APP_DB_OBJECTS` | `objects.db` | Secondary файл паспортов объектов | transitional only, должен быть поглощён `panel-runtime` |
-| `APP_BOT_DATABASE_DIR` | `bot-<channelId>.db` | Legacy per-channel shard-файлы | import-only transitional слой, не отдельный live bounded context |
-| `SUPPORT_BOT_DATABASE_PATH` | explicit SQLite bridge | Явный shared panel runtime path для `java-bot` compatibility mode | compatibility only |
-
-## Что считается каноническим уже сейчас
-
-- `APP_DB_PANEL_RUNTIME` остаётся главным runtime-контуром панели.
-- `APP_DB_PANEL_IDENTITY` остаётся отдельным identity-контуром.
-- `APP_DB_MONITORING` остаётся отдельным monitoring-контуром и должен стать единственным домом для raw monitoring history.
-- `APP_DB_BOT_RUNTIME` остаётся shared bot-runtime контуром до явного решения по shard-слою.
-- `SUPPORT_BOT_DATABASE_PATH` допустим только как явный compatibility bridge для SQLite-режима `java-bot`, а не как normal default contract.
-- legacy aliases `APP_DB_TICKETS`, `APP_DB_USERS`, `APP_DB_BOT` остаются поддержаны как fallback.
-
-## Что считается transitional legacy
-
-- отдельный `settings.db` больше не входит в active runtime contract и не должен возвращаться как registry/bootstrap contour.
-- `clients.db`, `knowledge_base.db`, `objects.db` нельзя считать долгосрочными canonical DBs только потому, что файлы уже существуют.
-- новые technical history данные не должны по умолчанию падать в `panel_runtime.db`; для них целевые контуры — `monitoring` или будущий `panel-telemetry`.
-
-## Важное ограничение
-
-Physical имя файла теперь должно совпадать с архитектурным смыслом:
-
-- `panel_runtime.db` по роли является `panel-runtime`;
-- `panel_identity.db` по роли является `panel-identity`;
-- `bot_runtime.db` по роли является `bot-runtime`.
-
-Legacy filenames допустимы только как compatibility fallback. Для новых задач решения нужно принимать по logical contour и canonical filename.
-
-## Текущий пример env
-
-```bash
-export APP_DB_PANEL_RUNTIME="/srv/iguana/panel_runtime.db"
-export APP_DB_PANEL_IDENTITY="/srv/iguana/panel_identity.db"
-export APP_DB_MONITORING="/srv/iguana/monitoring.db"
-export APP_DB_CLIENTS="/srv/iguana/clients.db"
-export APP_DB_KNOWLEDGE="/srv/iguana/knowledge_base.db"
-export APP_DB_OBJECTS="/srv/iguana/objects.db"
-export APP_DB_BOT_RUNTIME="/srv/iguana/bot_runtime.db"
-export SUPPORT_BOT_DATABASE_PATH="/srv/iguana/panel_runtime.db"
-export APP_BOT_DATABASE_DIR="/srv/iguana/bot_databases"
+```text
+APP_DB_MODE=postgresql
+SPRING_DATASOURCE_URL=jdbc:postgresql://...
+SPRING_DATASOURCE_USERNAME=...
+SPRING_DATASOURCE_PASSWORD=...
 ```
 
-Legacy aliases `APP_DB_TICKETS`, `APP_DB_USERS` и `APP_DB_BOT` допустимы как compatibility fallback, но в новых конфигурациях нужно использовать canonical env keys.
+Business, identity, monitoring, channels, clients, knowledge и object-passport data живут в canonical PostgreSQL contour. Отдельные panel-side SQLite datasources больше не поддерживаются.
+
+## Legacy archive/import source hints
+
+| Env/path | Historical source | Разрешённое использование |
+| --- | --- | --- |
+| `APP_DB_PANEL_RUNTIME` / `APP_DB_TICKETS` | `panel_runtime.db` / `tickets.db` | archive/import/recovery input |
+| `APP_DB_PANEL_IDENTITY` / `APP_DB_USERS` | `panel_identity.db` / `users.db` | archive/import/recovery input |
+| `APP_DB_MONITORING` | `monitoring.db` | archive/import/recovery input |
+| `APP_DB_BOT_RUNTIME` / `APP_DB_BOT` | `bot_runtime.db` / `bot_database.db` | archive/import/recovery input |
+| `APP_DB_CLIENTS` | `clients.db` | archive/import/recovery input |
+| `APP_DB_KNOWLEDGE` | `knowledge_base.db` | archive/import/recovery input |
+| `APP_DB_OBJECTS` | `objects.db` | archive/import/recovery input |
+| `APP_BOT_DATABASE_DIR` | `bot-<channelId>.db` | legacy shard staging/import/diagnostics |
+| `SUPPORT_BOT_DATABASE_PATH` | legacy/test bridge | test/archive compatibility only; not production business storage |
+
+Наличие этих env keys или файлов не включает SQLite runtime для `spring-panel`. Normal production roles не должны монтировать legacy sources как live datasource.
+
+## Explicit import/recovery
+
+Для controlled legacy import используйте dedicated tooling и staging contour, включая `docker-compose.legacy-sqlite-import.yml`, `scripts/stage-legacy-sqlite-import.*` и verification tooling. Повторный import не должен запускаться автоматически только потому, что рядом с checkout обнаружен `*.db`.
+
+Актуальная production ownership-модель: [database_distribution.md](database_distribution.md). Разрешённый residual SQLite perimeter: [SQLITE_BOOTSTRAP_PERIMETER.md](SQLITE_BOOTSTRAP_PERIMETER.md).

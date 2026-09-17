@@ -2,7 +2,7 @@
 
 ## Статус документа
 
-- Актуально на `1 сентября 2026 года`.
+- Актуально на `17 сентября 2026 года`.
 - Этот документ описывает текущее состояние репозитория и runtime-контуров на момент обновления.
 - Если более узкоспециализированный документ в `docs/` описывает частный контур глубже, его нужно считать источником деталей, а этот документ - основной обзорной и навигационной точкой.
 
@@ -43,7 +43,7 @@
 
 ### 3.1. Коротко
 
-На `1 сентября 2026 года` Iguana работает в PostgreSQL production contour; `SQLite` сохранён только как compatibility/import/diagnostic perimeter и не является допустимым live storage для production.
+На `17 сентября 2026 года` Iguana работает в PostgreSQL production contour; `spring-panel` не поддерживает SQLite runtime mode, а SQLite сохранён только в explicit archive/import/recovery, read-only verification, test-fixture и изолированном bot-worker technical perimeter.
 
 Это означает:
 
@@ -51,7 +51,7 @@
 - `spring-panel` является центром ownership для business data и operator-facing workflow;
 - `java-bot` больше не должен быть владельцем business schema в production-контуре;
 - `RabbitMQ`, `Redis` и object storage уже входят в целевую модель;
-- legacy `SQLite` остаётся только для controlled import, диагностики и явно выбранных local compatibility-сценариев.
+- legacy `SQLite` остаётся только для controlled archive/import/recovery, read-only verification и тестов; отдельный technical worker store не является business source of truth.
 
 ### 3.2. Что считается главным архитектурным направлением
 
@@ -226,23 +226,16 @@ Shared JSON-конфигурация остаётся важной частью 
 
 ## 6.2. Runtime data contours
 
-В compatibility- и local-runtime слоях используются следующие logical/physical contours:
+Normal production data plane больше не делится по SQLite-файлам. Для `spring-panel` business, identity, monitoring, channels и object-passport state живут в canonical PostgreSQL datasource; `usersJdbcTemplate` и monitoring JDBC wiring являются aliases этого же production contour.
 
-| Контур | Текущий physical файл / режим | Комментарий |
-| --- | --- | --- |
-| `panel-runtime` | `panel_runtime.db` или primary external DB | диалоги, сообщения, задачи, notifications, knowledge, clients и большая часть business state |
-| `panel-identity` | `panel_identity.db` | пользователи, роли, часть identity state |
-| `monitoring` | `monitoring.db` | monitoring tables, history, rollups |
-| `bot-runtime` | `bot_runtime.db` | bot-side compatibility/runtime data |
-| `secondary transitional` | `clients.db`, `knowledge_base.db`, `objects.db` | исторические/переходные контуры |
-| `legacy shards` | `bot-<channelId>.db` | import-only / diagnostics perimeter |
+Legacy `panel_runtime.db`, `panel_identity.db`, `monitoring.db`, `bot_runtime.db`, `clients.db`, `knowledge_base.db`, `objects.db` и `bot-<channelId>.db` допускаются только как archive/import/recovery evidence или test/diagnostic input. Они не описывают live production topology.
 
-Подробное ownership-описание лежит в:
+Актуальные источники по storage ownership:
 
-- [database-paths.md](./database-paths.md)
-- [database_distribution.md](./database_distribution.md)
-- [db/sqlite-target-topology.md](./db/sqlite-target-topology.md)
-- `ai-context/rules/backend/04-sqlite-topology.md`
+- [database-paths.md](./database-paths.md) — legacy archive/import source paths;
+- [database_distribution.md](./database_distribution.md) — current production ownership;
+- [SQLITE_BOOTSTRAP_PERIMETER.md](./SQLITE_BOOTSTRAP_PERIMETER.md) — разрешённый residual SQLite perimeter;
+- `ai-context/rules/backend/04-sqlite-topology.md`.
 
 ## 6.3. Что нельзя делать при новых изменениях
 

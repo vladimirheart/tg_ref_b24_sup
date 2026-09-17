@@ -12,7 +12,7 @@ Iguana - это единый support-контур, в котором соеди�
 - эксплуатационные и monitoring-сценарии;
 - управление runtime-процессами ботов.
 
-Проект ориентирован на практическую поддержку бизнеса, поэтому в нём важны не только исходники, но и данные: SQLite-базы, вложения, shared-конфиги, ботовые базы и фактическое состояние каналов.
+Проект ориентирован на практическую поддержку бизнеса, поэтому в нём важны не только исходники, но и данные: canonical PostgreSQL state, object/attachment storage, shared-конфиги, архивные migration evidence и фактическое состояние каналов.
 
 ## 2. Из чего состоит система
 
@@ -106,21 +106,11 @@ Shared JSON-файлы лежат в `config/shared/`:
 
 ## 5. Runtime-контуры и БД
 
-### 5.1 Канонические базы
+### 5.1 Production storage
 
-На текущем этапе нужно ориентироваться на следующие canonical SQLite-файлы:
+Canonical production business/runtime storage — PostgreSQL. `spring-panel` не выбирает SQLite как live datasource и не создаёт отдельные business SQLite-файлы для panel/identity/monitoring/client/knowledge/object контуров.
 
-- `panel_runtime.db`
-- `panel_identity.db`
-- `bot_runtime.db`
-- `monitoring.db`
-
-Дополнительные transitional-файлы:
-
-- `clients.db`
-- `knowledge_base.db`
-- `objects.db`
-- legacy `bot-<channelId>.db`, если нужно подтянуть старые per-channel данные в canonical contour
+Legacy `*.db` сохраняются только для controlled archive/import/recovery, read-only verification и test fixtures. Изолированный `java-bot` technical worker store допустим лишь для self-owned coordination/dedup state и не является business source of truth.
 
 ### 5.2 Bot database directory
 
@@ -174,16 +164,16 @@ python scripts/report-iguana-storage.py
 
 ### 6.2 Наиболее важные env-переменные
 
-Базы данных:
+Production database/runtime:
 
-- `APP_DB_PANEL_RUNTIME`
-- `APP_DB_PANEL_IDENTITY`
-- `APP_DB_BOT_RUNTIME`
-- `APP_DB_MONITORING`
-- `APP_DB_CLIENTS`
-- `APP_DB_KNOWLEDGE`
-- `APP_DB_OBJECTS`
-- `APP_BOT_DATABASE_DIR`
+- `APP_DB_MODE=postgresql`
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+- `APP_INTEGRATION_TRANSPORT_MODE`
+- `APP_COORDINATION_MODE`
+
+Legacy `APP_DB_*`, `SUPPORT_BOT_DATABASE_PATH` и `APP_BOT_DATABASE_DIR` относятся только к archive/import/test/diagnostic perimeter; их наличие не включает SQLite runtime для панели.
 
 Storage:
 
@@ -257,7 +247,7 @@ $env:SPRING_OPTS='--server.port=8080'
 
 Рекомендуемая последовательность:
 
-1. Убедиться, что shared JSON-конфиги и SQLite-файлы на месте.
+1. Убедиться, что canonical PostgreSQL и shared JSON-конфиги доступны, а необходимые legacy SQLite evidence staged только для explicit import/recovery.
 2. Поднять `spring-panel`.
 3. Убедиться, что страница настроек открывается без ошибок.
 4. Проверить список каналов и состояние bot runtime.
@@ -306,8 +296,8 @@ $env:SPRING_OPTS='--server.port=8080'
 
 - исходники репозитория;
 - `config/shared/`;
-- SQLite-базы из корня;
-- `bot_databases/`;
+- PostgreSQL backup/restore artifact или доступ к canonical PostgreSQL;
+- `bot_databases/` и legacy root `*.db` только если они нужны для controlled archive/import/recovery;
 - `attachments/`, если нужны файлы и история вложений;
 - актуальную документацию.
 

@@ -1,40 +1,24 @@
 # Перенос Iguana на другую Windows-машину
 
-## 1. Для чего нужен этот документ
+## 1. Назначение
 
-Этот guide описывает безопасный и воспроизводимый перенос Iguana на другой Windows-хост так, чтобы новая машина могла:
+Этот guide описывает перенос текущего PostgreSQL-first контура Iguana на другой Windows-хост. Normal runtime не восстанавливается из root SQLite-файлов: business source of truth находится в PostgreSQL.
 
-- поднять `spring-panel`;
-- использовать актуальные SQLite-базы;
-- видеть shared-конфиги;
-- запускать ботов;
-- работать с историей вложений и документов.
+## 2. Что переносится
 
-## 2. Куда складывается переносимый пакет
+Минимальный пакет приложения:
 
-По умолчанию проект экспортируется в:
+- исходники или release artifact;
+- `config/shared/`;
+- production configuration/secrets через безопасный deployment mechanism;
+- `attachments/` только если конкретное окружение ещё использует local attachment source для migration/recovery;
+- PostgreSQL backup/restore artifact либо доступ к существующему canonical PostgreSQL;
+- object-storage backup/restore data, если используется отдельный MinIO/S3 contour;
+- документация и runbooks.
 
-```text
-C:\Intel\iguana
-```
+Legacy root `*.db` и `bot_databases/` переносятся только когда они нужны как archive/import/recovery evidence. Они не являются входом normal startup.
 
-Это отдельный каталог внутри `C:\Intel`, чтобы не смешивать файлы Iguana с другими данными.
-
-## 3. Что входит в переносимый пакет
-
-В пакет должны входить:
-
-- `README.md`;
-- каталог `docs/`;
-- каталог `spring-panel/`;
-- каталог `java-bot/`;
-- каталог `config/`;
-- каталог `attachments/`;
-- каталог `bot_databases/`;
-- корневые SQLite-файлы проекта;
-- `ai-context/`, если на новой машине нужен тот же контекст сопровождения и changelog.
-
-## 4. Что намеренно исключается из пакета
+## 3. Что не нужно переносить как runtime state
 
 Обычно не копируются:
 
@@ -42,188 +26,63 @@ C:\Intel\iguana
 - `.venv/`;
 - `node_modules/`;
 - `target/`;
-- `logs/`;
+- старые `logs/`;
 - `run/`;
-- `temp-recovery/`;
-- transient-файлы вроде `*.db-wal`, `*.db-shm`, `*.pid`, `*.tmp`.
+- transient `*.db-wal`, `*.db-shm`, `*.pid`, `*.tmp`.
 
-Причины:
+## 4. Подготовка новой машины
 
-- эти данные либо легко восстанавливаются;
-- либо представляют локальный шум текущей машины;
-- либо делают перенос громоздким без пользы для запуска.
+1. Установить JDK 17.
+2. Установить/запустить Docker Desktop для штатного local PostgreSQL-first bootstrap либо обеспечить доступ к внешнему PostgreSQL/RabbitMQ/Redis/object-storage contour.
+3. Разместить code/release artifact и `config/shared/`.
+4. Восстановить PostgreSQL и object storage по утверждённому backup/recovery runbook либо подключить уже существующие production services.
+5. Задать безопасные secrets и env.
 
-## 5. Рекомендуемый способ экспорта
+Подробный production recovery contract: [runbooks/production-backup-recovery.md](runbooks/production-backup-recovery.md).
 
-Используйте скрипт:
+## 5. Запуск
 
-```powershell
-.\scripts\export-iguana-portable.ps1
-```
-
-Он собирает переносимый пакет в `C:\Intel\iguana`.
-
-### Полезные параметры
+Для локального Windows bootstrap:
 
 ```powershell
-.\scripts\export-iguana-portable.ps1 -DestinationRoot 'C:\Intel' -PackageName 'iguana'
-```
-
-Если нужно пересобрать каталог заново:
-
-```powershell
-.\scripts\export-iguana-portable.ps1 -CleanTarget
-```
-
-## 6. Что нужно на новой машине заранее
-
-Минимальные prerequisites:
-
-1. `JDK 17`.
-2. Права на чтение/запись каталога, где лежит проект.
-3. Доступ в сеть, если Maven wrapper будет догружать зависимости.
-4. Свободный HTTP-порт для `spring-panel`.
-5. При необходимости - сетевой доступ к внешним API каналов и интеграций.
-
-Отдельная установка Maven обычно не нужна: wrapper уже лежит в проекте.
-
-## 7. Порядок запуска на новой машине
-
-### Шаг 1. Проверить содержимое пакета
-
-Убедитесь, что присутствуют:
-
-- `README.md`;
-- `docs/IGUANA_PROJECT_GUIDE.md`;
-- `docs/IGUANA_TRANSFER_WINDOWS.md`;
-- `config/shared/settings.json`;
-- `config/shared/locations.json`;
-- `config/shared/org_structure.json`;
-- `spring-panel/run-windows.bat`;
-- корневые `.db` файлы;
-- `bot_databases/`;
-- `attachments/`, если важны файлы и история.
-
-### Шаг 2. Проверить Java
-
-В PowerShell:
-
-```powershell
-java -version
-```
-
-Должна быть доступна `Java 17`.
-
-### Шаг 3. Запустить панель
-
-```powershell
-cd C:\Intel\iguana\spring-panel
+cd spring-panel
 .\run-windows.bat
 ```
 
-Если порт `8080` занят, startup-скрипт должен подобрать свободный порт автоматически.
+Fresh bootstrap обязан завершиться в PostgreSQL/RabbitMQ contour. Если Docker/required infrastructure недоступны, startup должен завершиться ошибкой, а не создавать новую business SQLite БД.
 
-### Шаг 4. Открыть панель
-
-Откройте в браузере:
-
-```text
-http://localhost:8080/
-```
-
-Если startup вывел другой порт, используйте его.
-
-### Шаг 5. Проверить данные
-
-После входа убедитесь, что в системе видны:
-
-- каналы;
-- шаблоны;
-- сотрудники;
-- история диалогов;
-- dashboard-данные;
-- нужные файлы и вложения.
-
-### Шаг 6. Запустить ботов
-
-В панели:
-
-1. Откройте `Настройки -> Каналы (боты)`.
-2. Проверьте конфигурацию нужного канала.
-3. Запустите соответствующий bot runtime.
-
-## 8. Что проверить после первого старта
-
-Чек-лист:
-
-- панель открывается без stacktrace;
-- страница диалогов показывает реальные обращения;
-- в настройках видны актуальные шаблоны и боты;
-- dashboard не пустой, если ожидаются исторические данные;
-- вложения и карточки клиентов открываются;
-- боты запускаются без ошибок инициализации;
-- новое тестовое сообщение создаёт или продолжает обращение.
-
-## 9. Если новая машина поднимает "чистую" систему
-
-Проверьте по порядку:
-
-1. Скопированы ли корневые SQLite-файлы.
-2. Не подменены ли пути к БД через env-переменные.
-3. На месте ли `bot_databases/`.
-4. Скопирован ли `config/shared/`.
-5. Не указывают ли `APP_STORAGE_*` на старые пути.
-
-Чаще всего "пустая система" означает, что приложение стартовало на новых пустых БД, а не на перенесённых боевых файлах.
-
-## 10. Если не видны вложения
+## 6. Проверка после переноса
 
 Проверьте:
 
-- перенесён ли каталог `attachments/`;
-- совпадают ли пути `APP_STORAGE_ATTACHMENTS` и другие `APP_STORAGE_*`;
-- есть ли доступ на чтение файлов;
-- не был ли пакет собран без нужных подкаталогов вложений.
+- `APP_DB_MODE=postgresql`;
+- доступность canonical PostgreSQL и ожидаемых business данных;
+- shared config;
+- attachments/object storage;
+- каналы и bot supervisor;
+- dialogs, dashboard, knowledge/client/object data;
+- реальное входящее сообщение и operator reply;
+- Settings -> Production readiness для production-like contour.
 
-## 11. Если бот не стартует на новой машине
+## 7. Если система выглядит пустой
 
-Проверьте:
+Проверяйте не наличие root `*.db`, а:
 
-- токен и channel config;
-- не занят ли bot runtime порт;
-- доступна ли сеть до внешнего API;
-- перенесён ли `bot_databases/`;
-- что пишет лог панели или лог конкретного бота.
+1. правильный `SPRING_DATASOURCE_URL`;
+2. восстановлен ли нужный PostgreSQL backup;
+3. совпадает ли environment/secret configuration;
+4. на месте ли `config/shared/`;
+5. доступен ли attachment/object-storage contour.
 
-## 12. Если нужно обновить пакет повторно
+Legacy SQLite следует подключать только через explicit staging/import/recovery tooling и никогда как live fallback.
 
-На исходной машине просто пересоберите переносимый каталог:
+## 8. Legacy migration evidence
 
-```powershell
-cd C:\Users\SinicinVV\git_h\tg_ref_b24_sup
-.\scripts\export-iguana-portable.ps1 -CleanTarget
-```
+Если перенос выполняется именно для исторического recovery/audit, дополнительно можно сохранить:
 
-После этого каталог `C:\Intel\iguana` будет заново наполнен актуальными файлами проекта.
+- legacy root `*.db`;
+- `bot_databases/`;
+- import manifests/ledgers;
+- rollback evidence.
 
-## 13. Что можно не переносить сознательно
-
-Иногда допустимо не переносить:
-
-- `attachments/`, если нужен только "сухой" код и конфиг;
-- `ai-context/`, если новая машина не используется для разработки;
-- часть старых логов.
-
-Но тогда нужно понимать последствия:
-
-- без `attachments/` пропадут файлы и медиа;
-- без `ai-context/` не будет локального task/changelog-контура;
-- без исторических БД система не восстановит боевое состояние.
-
-## 14. Практическая рекомендация
-
-Для боевого или максимально близкого к боевому переноса используйте принцип:
-
-`код + shared config + sqlite state + attachments + bot_databases + документация`
-
-Это самый надёжный способ получить на новой машине именно Iguana, а не только её исходники.
+Это отдельный archive/import package, а не production runtime package.

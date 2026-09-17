@@ -2,6 +2,8 @@
 
 Документ фиксирует итоговый practical status по readiness-части задачи `01-181`.
 
+> **Исторический close-out.** После принятых `01-228` и structural cleanup `01-229` panel-side SQLite runtime полностью retired: `APP_DB_MODE=sqlite` для `spring-panel` отклоняется, first-run SQLite fallback удалён. Ниже сохранён контекст readiness-этапа `01-181`; для текущего состояния используйте `database_distribution.md`, `SQLITE_BOOTSTRAP_PERIMETER.md` и production runbooks.
+
 Речь именно про свежий `PostgreSQL-first` запуск проекта без обязательной миграции уже существующих legacy SQLite-данных.
 
 ## 1. Что уже считается закрытым

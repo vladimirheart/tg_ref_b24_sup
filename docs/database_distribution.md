@@ -57,7 +57,7 @@ Legacy SQLite-файлы допускаются только как источн
 
 Оставшиеся `SqliteDataSourceProperties`, `MonitoringSqliteDataSourceProperties` и `BotSqliteDataSourceProperties` регистрируются через `LegacySqliteArchiveConfiguration` только как source-path holders для explicit archive/recovery tooling; эта конфигурация не создаёт live `DataSource`.
 
-Оставшийся source cleanup в `01-229`: удалить panel-side `isSqliteMode()`/SQLite SQL-dialect branches, которые стали недостижимы после cutover, и провести финальный UI/reference audit.
+Structural source cleanup `01-229` завершён: panel-side SQLite runtime predicates/SQL branches удалены в slice 2C; финальный UI/reference closeout синхронизирует только пользовательские формулировки и текущие reference docs.
 
 ## Operational rule
 

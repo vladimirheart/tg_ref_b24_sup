@@ -36,7 +36,7 @@
 
 Business operations в `rabbitmq` режиме используют queue/internal panel API boundary там, где это требуется transport contract. Прямой JDBC доступ остаётся только к canonical PostgreSQL datasource: он не создаёт локальную копию business data.
 
-Если backend находится в `APP_DB_MODE=sqlite`, production child runtime должен завершаться ошибкой, а не получать `APP_DB_BOT_RUNTIME` / `SUPPORT_BOT_DATABASE_PATH`.
+`spring-panel` больше не имеет SQLite runtime mode: `APP_DB_MODE=sqlite` отклоняется до формирования child runtime contract. Legacy `APP_DB_BOT*` / `SUPPORT_BOT_DATABASE_PATH` остаются только archive/test hints и не передаются production child process.
 
 Platform-specific:
 
@@ -93,10 +93,10 @@ Platform-specific:
 
 Diagnostic payload должен также явно показывать DB boundary:
 
-- в `APP_DB_MODE=sqlite` warnings/blockers обязаны сигнализировать, что это compatibility path и backend нужно перевести на PostgreSQL;
+- explicit `APP_DB_MODE=sqlite` у панели отвергается до runtime diagnostics; diagnostic contract проверяет canonical PostgreSQL backend и отдельно сигнализирует неподдержанный non-PostgreSQL external vendor;
 - production-ready статус для bot runtime допустим только при canonical PostgreSQL backend + `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` + `APP_DB_MODE=postgresql`;
 - child process получает canonical datasource через production configuration; прямое хранение business data в local SQLite считается нарушением production boundary.
-- normal runtime default панели остаётся PostgreSQL; SQLite contract не должен восприниматься как implicit production path.
+- normal runtime панели является PostgreSQL-only; SQLite panel contract отсутствует, а legacy SQLite остаётся за пределами live runtime.
 - per-channel `bot-<channelId>.db` больше не считается допустимым live runtime-path: legacy shard-файлы должны только импортироваться в canonical PostgreSQL contour.
 - в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` bot-side business reads/writes должны идти через internal panel API или queue boundary; silent fallback в local business storage больше не считается допустимым live поведением.
 
