@@ -316,6 +316,7 @@ class ObjectPassportJavaSourceLayoutContractTest {
     void passportPhotoRulesUseDedicatedModelOwner() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
         String replaceCommand = read("src/main/java/com/example/panel/passports/ObjectPassportReplaceAllCommand.java");
+        String photoCommand = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoCommand.java");
         String model = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoModel.java");
 
         assertThat(service)
@@ -324,8 +325,8 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .doesNotContain("photoModel.normalizePhotos(")
                 .contains("photoModel.mutablePhotoList(")
                 .contains("photoModel.enforceSingleTitlePhoto(")
-                .contains("photoModel.updatePhoto(")
-                .contains("photoModel.deletePhoto(")
+                .doesNotContain("photoModel.updatePhoto(")
+                .doesNotContain("photoModel.deletePhoto(")
                 .doesNotContain("photoModel.findTitlePhotoUrl(")
                 .doesNotContain("boolean updated = false;")
                 .doesNotContain("List<Map<String, Object>> remaining = new ArrayList<>();")
@@ -337,6 +338,10 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .doesNotContain("private String findTitlePhotoUrl(");
         assertThat(replaceCommand)
                 .contains("photoModel.normalizePhotos(record.payload().get(\"photos\"))")
+                .doesNotContain("ObjectPassportPhotoStorageService");
+        assertThat(photoCommand)
+                .contains("photoModel.updatePhoto(")
+                .contains("photoModel.deletePhoto(")
                 .doesNotContain("ObjectPassportPhotoStorageService");
         assertThat(model)
                 .contains("final class ObjectPassportPhotoModel")
@@ -355,14 +360,55 @@ class ObjectPassportJavaSourceLayoutContractTest {
     }
 
     @Test
+    void passportPhotoUpdateDeleteWorkflowUsesDedicatedCommandOwner() throws IOException {
+        String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String command = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoCommand.java");
+
+        assertThat(service)
+                .contains("private final ObjectPassportPhotoCommand photoCommand;")
+                .contains("this.photoCommand = new ObjectPassportPhotoCommand(persistence, payloadModel, photoModel, photoQuery);")
+                .contains("Map<String, Object> updated = photoCommand.update(connection, photoId, payload);")
+                .contains("ObjectPassportPhotoCommand.DeleteResult deletion = photoCommand.delete(connection, photoId);")
+                .contains("connection.commit();")
+                .contains("photoStorageService.deleteQuietly(deletion.storedName());")
+                .contains("return deletion.response();")
+                .contains("connection.rollback();")
+                .contains("private Connection openConnection() throws SQLException")
+                .contains("private DataSource runtimeObjectsDataSource()")
+                .doesNotContain("payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId())")
+                .doesNotContain("persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized)");
+        assertThat(command)
+                .contains("final class ObjectPassportPhotoCommand")
+                .contains("private final ObjectPassportPersistence persistence;")
+                .contains("private final ObjectPassportPayloadModel payloadModel;")
+                .contains("private final ObjectPassportPhotoModel photoModel;")
+                .contains("private final ObjectPassportPhotoQuery photoQuery;")
+                .contains("Map<String, Object> update(Connection connection,")
+                .contains("DeleteResult delete(Connection connection, String photoId) throws SQLException")
+                .contains("photoQuery.findStoredPassportByPhotoId(connection, photoId)")
+                .contains("payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId())")
+                .contains("photoModel.updatePhoto(")
+                .contains("photoModel.deletePhoto(")
+                .contains("persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized)")
+                .contains("record DeleteResult(Map<String, Object> response, String storedName)")
+                .doesNotContain("DataSource")
+                .doesNotContain("openConnection()")
+                .doesNotContain("setAutoCommit")
+                .doesNotContain("connection.commit()")
+                .doesNotContain("connection.rollback()")
+                .doesNotContain("ObjectPassportPhotoStorageService");
+    }
+
+    @Test
     void passportPhotoLookupUsesDedicatedQueryOwner() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
+        String command = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoCommand.java");
         String query = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoQuery.java");
 
         assertThat(service)
                 .contains("private final ObjectPassportPhotoQuery photoQuery;")
                 .contains("this.photoQuery = new ObjectPassportPhotoQuery(persistence, photoModel);")
-                .contains("photoQuery.findStoredPassportByPhotoId(connection, photoId)")
+                .doesNotContain("photoQuery.findStoredPassportByPhotoId(connection, photoId)")
                 .contains("public Map<String, Object> uploadPhoto(")
                 .contains("public Map<String, Object> updatePhoto(")
                 .contains("public Map<String, Object> deletePhoto(")
@@ -377,6 +423,11 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .doesNotContain("SELECT id FROM object_passports")
                 .doesNotContain("private ObjectPassportPersistence.StoredPassportRecord findStoredPassportByPhotoId(")
                 .doesNotContain("import java.sql.ResultSet;");
+        assertThat(command)
+                .contains("photoQuery.findStoredPassportByPhotoId(connection, photoId)")
+                .doesNotContain("SELECT id FROM object_passports")
+                .doesNotContain("DataSource")
+                .doesNotContain("openConnection()");
         assertThat(query)
                 .contains("final class ObjectPassportPhotoQuery")
                 .contains("findStoredPassportByPhotoId(Connection connection,")

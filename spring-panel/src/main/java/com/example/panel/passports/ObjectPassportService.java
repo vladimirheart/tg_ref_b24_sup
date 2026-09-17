@@ -29,6 +29,7 @@ public class ObjectPassportService {
     private final ObjectPassportCreateCommand createCommand;
     private final ObjectPassportUpdateCommand updateCommand;
     private final ObjectPassportReplaceAllCommand replaceAllCommand;
+    private final ObjectPassportPhotoCommand photoCommand;
     private final ObjectPassportAppealQuery appealQuery;
     private final ObjectPassportCasesQuery casesQuery;
     private final ObjectPassportDetailsQuery detailsQuery;
@@ -68,6 +69,7 @@ public class ObjectPassportService {
         this.equipmentCatalogQuery = new ObjectPassportEquipmentCatalogQuery(persistence);
         this.listQuery = new ObjectPassportListQuery(persistence, payloadModel, photoModel, appealQuery);
         this.photoQuery = new ObjectPassportPhotoQuery(persistence, photoModel);
+        this.photoCommand = new ObjectPassportPhotoCommand(persistence, payloadModel, photoModel, photoQuery);
         this.netBoxQuery = new ObjectPassportNetBoxQuery(persistence, payloadModel);
     }
 
@@ -235,14 +237,9 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                ObjectPassportPersistence.StoredPassportRecord existing = photoQuery.findStoredPassportByPhotoId(connection, photoId);
-                Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId());
-                List<Map<String, Object>> photos = photoModel.updatePhoto(
-                        normalized.get("photos"), photoId, payload);
-                normalized.put("photos", photos);
-                persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
+                Map<String, Object> updated = photoCommand.update(connection, photoId, payload);
                 connection.commit();
-                return Map.of("success", true, "photos", normalized.get("photos"));
+                return updated;
             } catch (RuntimeException | SQLException ex) {
                 connection.rollback();
                 throw ex;
@@ -256,15 +253,10 @@ public class ObjectPassportService {
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                ObjectPassportPersistence.StoredPassportRecord existing = photoQuery.findStoredPassportByPhotoId(connection, photoId);
-                Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId());
-                ObjectPassportPhotoModel.PhotoDeleteResult deletion = photoModel.deletePhoto(
-                        normalized.get("photos"), photoId);
-                normalized.put("photos", deletion.photos());
-                persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
+                ObjectPassportPhotoCommand.DeleteResult deletion = photoCommand.delete(connection, photoId);
                 connection.commit();
                 photoStorageService.deleteQuietly(deletion.storedName());
-                return Map.of("success", true, "photos", normalized.get("photos"));
+                return deletion.response();
             } catch (RuntimeException | SQLException ex) {
                 connection.rollback();
                 throw ex;
