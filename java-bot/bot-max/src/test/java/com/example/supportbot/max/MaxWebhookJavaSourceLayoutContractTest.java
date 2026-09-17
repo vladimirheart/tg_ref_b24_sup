@@ -78,4 +78,45 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("ResponseEntity")
                 .doesNotContain("StringUtils");
     }
+
+    @Test
+    void questionInputPolicyUsesDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxQuestionInputSupport.java");
+
+        assertThat(controller)
+                .contains("MaxQuestionInputSupport.BACK_BUTTON.equalsIgnoreCase")
+                .contains("MaxQuestionInputSupport.SKIP_BUTTON.equalsIgnoreCase")
+                .contains("MaxQuestionInputSupport.isChoiceQuestion(current)")
+                .contains("MaxQuestionInputSupport.isOptionalFreeQuestion(current)")
+                .contains("MaxQuestionInputSupport.resolveChoiceAnswer(resolvedAnswer, options)")
+                .contains("MaxQuestionInputSupport.buildQuestionPromptText(current, options, session.canGoBack())")
+                .contains("MaxQuestionInputSupport.isSelectQuestion(current)")
+                .contains("MaxQuestionInputSupport.isChoiceQuestion(item)")
+                .contains("MaxQuestionInputSupport.isPresetQuestion(item)")
+                .doesNotContain("return isPresetQuestion(item) ? answer : null;")
+                .doesNotContain("private static final String SKIP_BUTTON")
+                .doesNotContain("private static final String BACK_BUTTON")
+                .doesNotContain("private boolean isPresetQuestion(")
+                .doesNotContain("private boolean isSelectQuestion(")
+                .doesNotContain("private boolean isChoiceQuestion(")
+                .doesNotContain("private boolean isOptionalFreeQuestion(")
+                .doesNotContain("private String buildQuestionPromptText(")
+                .doesNotContain("private String resolveChoiceAnswer(");
+
+        assertThat(support)
+                .contains("final class MaxQuestionInputSupport")
+                .contains("static boolean isChoiceQuestion(QuestionFlowItemDto current)")
+                .contains("static boolean isOptionalFreeQuestion(QuestionFlowItemDto current)")
+                .contains("static String buildQuestionPromptText(QuestionFlowItemDto current, List<String> options, boolean includeBack)")
+                .contains("static String resolveChoiceAnswer(String rawAnswer, List<String> options)")
+                .doesNotContain("@RestController")
+                .doesNotContain("TicketService")
+                .doesNotContain("AttachmentService")
+                .doesNotContain("MaxApiClient")
+                .doesNotContain("MessagingService")
+                .doesNotContain("BotWebhookDeliveryGuardService")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("ObjectMapper");
+    }
 }

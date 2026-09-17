@@ -65,8 +65,6 @@ public class MaxWebhookController {
     private static final int DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES = 10;
     private static final String DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE =
             "Вы не ответили. Диалог был закрыт. При возникновении или актуализации вопросов создайте новое обращение.";
-    private static final String SKIP_BUTTON = "Пропустить";
-    private static final String BACK_BUTTON = "Назад";
     private static final String BLACKLISTED_TEXT =
             "Ваш аккаунт заблокирован. Отправьте /unblock, чтобы подать запрос на разблокировку.";
     private static final String BLACKLISTED_PENDING_TEXT =
@@ -316,7 +314,7 @@ public class MaxWebhookController {
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "question_prompted", true)));
         }
 
-        if (BACK_BUTTON.equalsIgnoreCase(Optional.ofNullable(text).orElse("").trim())) {
+        if (MaxQuestionInputSupport.BACK_BUTTON.equalsIgnoreCase(Optional.ofNullable(text).orElse("").trim())) {
             if (session.stepBack()) {
                 saveSession(session);
                 promptCurrentQuestion(channel, session);
@@ -328,16 +326,16 @@ public class MaxWebhookController {
 
         QuestionFlowItemDto current = session.currentQuestion();
         String resolvedAnswer = text;
-        if (isOptionalFreeQuestion(current) && SKIP_BUTTON.equalsIgnoreCase(String.valueOf(text).trim())) {
+        if (MaxQuestionInputSupport.isOptionalFreeQuestion(current) && MaxQuestionInputSupport.SKIP_BUTTON.equalsIgnoreCase(String.valueOf(text).trim())) {
             resolvedAnswer = "";
-        } else if (isChoiceQuestion(current)) {
+        } else if (MaxQuestionInputSupport.isChoiceQuestion(current)) {
             List<String> options = resolveQuestionOptions(current, session.answers());
             if (options.isEmpty()) {
                 messagingService.sendToUser(channel, userId,
                         "Сейчас нет доступных вариантов для выбора. Обратитесь к администратору.");
                 return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "missing_options", true)));
             }
-            resolvedAnswer = resolveChoiceAnswer(resolvedAnswer, options);
+            resolvedAnswer = MaxQuestionInputSupport.resolveChoiceAnswer(resolvedAnswer, options);
             if (!options.contains(resolvedAnswer)) {
                 messagingService.sendToUser(channel, userId,
                         "Введите один из вариантов: " + String.join(", ", options));
@@ -345,7 +343,7 @@ public class MaxWebhookController {
             }
         }
 
-        if (resolvedAnswer.isBlank() && !isOptionalFreeQuestion(current)) {
+        if (resolvedAnswer.isBlank() && !MaxQuestionInputSupport.isOptionalFreeQuestion(current)) {
             promptCurrentQuestion(channel, session);
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "blank_answer", true)));
         }
@@ -636,8 +634,8 @@ public class MaxWebhookController {
         if (current == null) {
             return;
         }
-        List<String> options = isChoiceQuestion(current) ? resolveQuestionOptions(current, session.answers()) : List.of();
-        messagingService.sendToUser(channel, session.userId(), buildQuestionPromptText(current, options, session.canGoBack()));
+        List<String> options = MaxQuestionInputSupport.isChoiceQuestion(current) ? resolveQuestionOptions(current, session.answers()) : List.of();
+        messagingService.sendToUser(channel, session.userId(), MaxQuestionInputSupport.buildQuestionPromptText(current, options, session.canGoBack()));
     }
 
     private TicketService.TicketCreationResult finalizeConversation(Channel channel, ConversationSession session) {
@@ -682,75 +680,8 @@ public class MaxWebhookController {
         return response;
     }
 
-    private boolean isPresetQuestion(QuestionFlowItemDto current) {
-        if (current == null) {
-            return false;
-        }
-        if ("preset".equalsIgnoreCase(current.getType())) {
-            return true;
-        }
-        return current.getPreset() != null && current.getPreset().field() != null;
-    }
-
-    private boolean isSelectQuestion(QuestionFlowItemDto current) {
-        return current != null
-                && "select".equalsIgnoreCase(Optional.ofNullable(current.getType()).orElse(""))
-                && current.getOptions() != null
-                && !current.getOptions().isEmpty();
-    }
-
-    private boolean isChoiceQuestion(QuestionFlowItemDto current) {
-        return isPresetQuestion(current) || isSelectQuestion(current);
-    }
-
-    private boolean isOptionalFreeQuestion(QuestionFlowItemDto current) {
-        return current != null && !isChoiceQuestion(current) && !current.isRequiredAnswer();
-    }
-
-    private String buildQuestionPromptText(QuestionFlowItemDto current, List<String> options, boolean includeBack) {
-        StringBuilder text = new StringBuilder(Optional.ofNullable(current.getText()).orElse(""));
-        if (options != null && !options.isEmpty()) {
-            text.append("\n\nВарианты:");
-            for (int i = 0; i < options.size(); i++) {
-                text.append("\n").append(i + 1).append(". ").append(options.get(i));
-            }
-            text.append("\nМожно ответить номером (1, 2, ...) или текстом варианта.");
-        }
-        if (isOptionalFreeQuestion(current)) {
-            text.append("\n\nМожно пропустить вопрос: отправьте \"").append(SKIP_BUTTON).append("\".");
-        }
-        if (includeBack) {
-            text.append("\n\nЧтобы вернуться к предыдущему вопросу, отправьте \"").append(BACK_BUTTON).append("\".");
-        }
-        return text.toString();
-    }
-
-    private String resolveChoiceAnswer(String rawAnswer, List<String> options) {
-        if (rawAnswer == null) {
-            return "";
-        }
-        String trimmed = rawAnswer.trim();
-        if (trimmed.isEmpty()) {
-            return trimmed;
-        }
-        try {
-            int numeric = Integer.parseInt(trimmed);
-            if (numeric >= 1 && numeric <= options.size()) {
-                return options.get(numeric - 1);
-            }
-        } catch (NumberFormatException ignored) {
-            // fallback to text matching
-        }
-        for (String option : options) {
-            if (option.equalsIgnoreCase(trimmed)) {
-                return option;
-            }
-        }
-        return trimmed;
-    }
-
     private List<String> resolveQuestionOptions(QuestionFlowItemDto current, Map<String, String> answers) {
-        if (isSelectQuestion(current)) {
+        if (MaxQuestionInputSupport.isSelectQuestion(current)) {
             return current.getOptions().stream()
                     .map(QuestionOptionDto::getLabel)
                     .filter(Objects::nonNull)
@@ -1186,7 +1117,7 @@ public class MaxWebhookController {
                     continue;
                 }
                 String valueId = resolveValueId(item, answer);
-                String valueLabel = isChoiceQuestion(item) ? answer : null;
+                String valueLabel = MaxQuestionInputSupport.isChoiceQuestion(item) ? answer : null;
                 attributes.add(TicketService.TicketAttributeInput.fromQuestion(item, valueId, valueLabel, answer));
             }
             return attributes;
@@ -1385,7 +1316,7 @@ public class MaxWebhookController {
                     }
                 }
             }
-            return isPresetQuestion(item) ? answer : null;
+            return MaxQuestionInputSupport.isPresetQuestion(item) ? answer : null;
         }
 
         private String mergeAnswerWithBootstrap(String answerKey, String answer) {
