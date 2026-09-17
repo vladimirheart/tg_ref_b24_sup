@@ -15,7 +15,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 class ObjectPassportPhotoCommandTest {
 
     @Test
-    void updatesAndDeletesPhotosWithoutOwningTransactionOrStorageCleanup() throws Exception {
+    void uploadsUpdatesAndDeletesPhotosWithoutOwningTransactionOrStorageCleanup() throws Exception {
         DataSource dataSource = new DriverManagerDataSource(
                 "jdbc:h2:mem:passport_photo_command_" + System.nanoTime()
                         + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
@@ -52,6 +52,48 @@ class ObjectPassportPhotoCommandTest {
             long passportId = persistence.insertPassport(connection, objectId, initial);
             connection.commit();
 
+            ObjectPassportPhotoCommand.UploadMetadata metadata =
+                    new ObjectPassportPhotoCommand.UploadMetadata(
+                            " uploaded-original.jpg ",
+                            "uploaded.jpg",
+                            "/api/object_passports/photos/file/uploaded.jpg",
+                            "image/jpeg",
+                            321L,
+                            "2026-09-17T09:00:00Z");
+            Map<String, Object> uploaded = command.upload(
+                    connection, passportId, metadata, " title ", "  Новый файл  ");
+
+            assertThat(connection.getAutoCommit()).isFalse();
+            assertThat(uploaded).containsEntry("success", true);
+            List<Map<String, Object>> uploadedPhotos = photos(uploaded.get("photos"));
+            assertThat(uploadedPhotos).hasSize(3);
+            assertThat(uploadedPhotos.get(0)).containsEntry("category", "archive");
+            assertThat(uploadedPhotos.get(1)).containsEntry("category", "archive");
+            Map<String, Object> uploadedPhoto = uploadedPhotos.get(2);
+            assertThat(uploadedPhoto)
+                    .containsEntry("category", "title")
+                    .containsEntry("caption", "Новый файл")
+                    .containsEntry("stored_name", "uploaded.jpg")
+                    .containsEntry("original_name", " uploaded-original.jpg ")
+                    .containsEntry("url", "/api/object_passports/photos/file/uploaded.jpg")
+                    .containsEntry("mime_type", "image/jpeg")
+                    .containsEntry("size", 321L)
+                    .containsEntry("created_at", "2026-09-17T09:00:00Z");
+            assertThat(uploadedPhoto.get("id")).isInstanceOf(String.class);
+            String uploadedPhotoId = (String) uploadedPhoto.get("id");
+            assertThat(uploadedPhotoId).isNotBlank();
+            connection.commit();
+
+            ObjectPassportPersistence.StoredPassportRecord persistedAfterUpload =
+                    persistence.loadStoredPassport(connection, passportId);
+            List<Map<String, Object>> persistedAfterUploadPhotos =
+                    photoModel.normalizePhotos(persistedAfterUpload.payload().get("photos"));
+            assertThat(persistedAfterUploadPhotos).hasSize(3);
+            assertThat(persistedAfterUploadPhotos.get(2))
+                    .containsEntry("id", uploadedPhotoId)
+                    .containsEntry("category", "title")
+                    .containsEntry("stored_name", "uploaded.jpg");
+
             Map<String, Object> updated = command.update(
                     connection,
                     "  photo-2  ",
@@ -60,21 +102,16 @@ class ObjectPassportPhotoCommandTest {
             assertThat(connection.getAutoCommit()).isFalse();
             assertThat(updated).containsEntry("success", true);
             List<Map<String, Object>> updatedPhotos = photos(updated.get("photos"));
-            assertThat(updatedPhotos).hasSize(2);
+            assertThat(updatedPhotos).hasSize(3);
             assertThat(updatedPhotos.get(0)).containsEntry("category", "archive");
             assertThat(updatedPhotos.get(1))
                     .containsEntry("id", "photo-2")
                     .containsEntry("category", "title")
                     .containsEntry("caption", "Новый вид");
+            assertThat(updatedPhotos.get(2))
+                    .containsEntry("id", uploadedPhotoId)
+                    .containsEntry("category", "archive");
             connection.commit();
-
-            ObjectPassportPersistence.StoredPassportRecord persistedAfterUpdate =
-                    persistence.loadStoredPassport(connection, passportId);
-            List<Map<String, Object>> persistedPhotos =
-                    photoModel.normalizePhotos(persistedAfterUpdate.payload().get("photos"));
-            assertThat(persistedPhotos.get(1))
-                    .containsEntry("category", "title")
-                    .containsEntry("caption", "Новый вид");
 
             ObjectPassportPhotoCommand.DeleteResult deletion = command.delete(connection, "photo-2");
 
@@ -82,9 +119,12 @@ class ObjectPassportPhotoCommandTest {
             assertThat(deletion.storedName()).isEqualTo("second.jpg");
             assertThat(deletion.response()).containsEntry("success", true);
             List<Map<String, Object>> remaining = photos(deletion.response().get("photos"));
-            assertThat(remaining).hasSize(1);
+            assertThat(remaining).hasSize(2);
             assertThat(remaining.get(0))
                     .containsEntry("id", "photo-1")
+                    .containsEntry("category", "archive");
+            assertThat(remaining.get(1))
+                    .containsEntry("id", uploadedPhotoId)
                     .containsEntry("category", "archive");
 
             connection.rollback();
@@ -93,11 +133,14 @@ class ObjectPassportPhotoCommandTest {
                     persistence.loadStoredPassport(connection, passportId);
             List<Map<String, Object>> afterRollback =
                     photoModel.normalizePhotos(persistedAfterRollback.payload().get("photos"));
-            assertThat(afterRollback).hasSize(2);
+            assertThat(afterRollback).hasSize(3);
             assertThat(afterRollback.get(1))
                     .containsEntry("id", "photo-2")
                     .containsEntry("category", "title")
                     .containsEntry("caption", "Новый вид");
+            assertThat(afterRollback.get(2))
+                    .containsEntry("id", uploadedPhotoId)
+                    .containsEntry("category", "archive");
         }
     }
 

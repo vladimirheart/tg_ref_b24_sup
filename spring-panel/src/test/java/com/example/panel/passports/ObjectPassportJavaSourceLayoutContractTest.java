@@ -323,8 +323,8 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("private final ObjectPassportPhotoModel photoModel;")
                 .contains("this.photoModel = new ObjectPassportPhotoModel(photoStorageService::buildPhotoUrl);")
                 .doesNotContain("photoModel.normalizePhotos(")
-                .contains("photoModel.mutablePhotoList(")
-                .contains("photoModel.enforceSingleTitlePhoto(")
+                .doesNotContain("photoModel.mutablePhotoList(")
+                .doesNotContain("photoModel.enforceSingleTitlePhoto(")
                 .doesNotContain("photoModel.updatePhoto(")
                 .doesNotContain("photoModel.deletePhoto(")
                 .doesNotContain("photoModel.findTitlePhotoUrl(")
@@ -332,6 +332,8 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .doesNotContain("List<Map<String, Object>> remaining = new ArrayList<>();")
                 .doesNotContain("throw new ResponseStatusException(HttpStatus.NOT_FOUND, \"Фото паспорта не найдено\")")
                 .doesNotContain("import java.util.ArrayList;")
+                .doesNotContain("import java.util.LinkedHashMap;")
+                .doesNotContain("import java.util.UUID;")
                 .doesNotContain("import org.springframework.http.HttpStatus;")
                 .doesNotContain("import org.springframework.web.server.ResponseStatusException;")
                 .doesNotContain("private List<Map<String, Object>> normalizePhotos(Object value)")
@@ -340,6 +342,9 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("photoModel.normalizePhotos(record.payload().get(\"photos\"))")
                 .doesNotContain("ObjectPassportPhotoStorageService");
         assertThat(photoCommand)
+                .contains("photoModel.mutablePhotoList(")
+                .contains("photoModel.normalizePhotoCategory(category)")
+                .contains("photoModel.enforceSingleTitlePhoto(")
                 .contains("photoModel.updatePhoto(")
                 .contains("photoModel.deletePhoto(")
                 .doesNotContain("ObjectPassportPhotoStorageService");
@@ -360,38 +365,59 @@ class ObjectPassportJavaSourceLayoutContractTest {
     }
 
     @Test
-    void passportPhotoUpdateDeleteWorkflowUsesDedicatedCommandOwner() throws IOException {
+    void passportPhotoWorkflowUsesDedicatedCommandOwner() throws IOException {
         String service = read("src/main/java/com/example/panel/passports/ObjectPassportService.java");
         String command = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoCommand.java");
 
         assertThat(service)
                 .contains("private final ObjectPassportPhotoCommand photoCommand;")
                 .contains("this.photoCommand = new ObjectPassportPhotoCommand(persistence, payloadModel, photoModel, photoQuery);")
+                .contains("StoredPhoto storedPhoto = photoStorageService.store(file);")
+                .contains("ObjectPassportPhotoCommand.UploadMetadata metadata = new ObjectPassportPhotoCommand.UploadMetadata(")
+                .contains("Map<String, Object> uploaded = photoCommand.upload(")
+                .contains("connection, passportId, metadata, category, caption);")
                 .contains("Map<String, Object> updated = photoCommand.update(connection, photoId, payload);")
                 .contains("ObjectPassportPhotoCommand.DeleteResult deletion = photoCommand.delete(connection, photoId);")
                 .contains("connection.commit();")
+                .contains("photoStorageService.deleteQuietly(storedPhoto.storedName());")
                 .contains("photoStorageService.deleteQuietly(deletion.storedName());")
                 .contains("return deletion.response();")
                 .contains("connection.rollback();")
                 .contains("private Connection openConnection() throws SQLException")
                 .contains("private DataSource runtimeObjectsDataSource()")
+                .doesNotContain("payloadModel.normalizePayload(existing.payload(), Map.of(), passportId)")
                 .doesNotContain("payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId())")
-                .doesNotContain("persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized)");
+                .doesNotContain("persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized)")
+                .doesNotContain("persistence.updatePassportRow(connection, passportId, existing.objectId(), normalized)")
+                .doesNotContain("LinkedHashMap<String, Object> photo = new LinkedHashMap<>()")
+                .doesNotContain("UUID.randomUUID()")
+                .doesNotContain("private String stringValue(Object raw)");
         assertThat(command)
                 .contains("final class ObjectPassportPhotoCommand")
                 .contains("private final ObjectPassportPersistence persistence;")
                 .contains("private final ObjectPassportPayloadModel payloadModel;")
                 .contains("private final ObjectPassportPhotoModel photoModel;")
                 .contains("private final ObjectPassportPhotoQuery photoQuery;")
+                .contains("Map<String, Object> upload(Connection connection,")
+                .contains("UploadMetadata metadata,")
+                .contains("persistence.loadStoredPassport(connection, passportId)")
+                .contains("UUID.randomUUID().toString()")
+                .contains("photo.put(\"stored_name\", metadata.storedName())")
+                .contains("photo.put(\"original_name\", metadata.originalName())")
+                .contains("photo.put(\"mime_type\", metadata.mimeType())")
+                .contains("photo.put(\"size\", metadata.size())")
+                .contains("photo.put(\"created_at\", metadata.uploadedAt())")
                 .contains("Map<String, Object> update(Connection connection,")
                 .contains("DeleteResult delete(Connection connection, String photoId) throws SQLException")
                 .contains("photoQuery.findStoredPassportByPhotoId(connection, photoId)")
                 .contains("payloadModel.normalizePayload(existing.payload(), Map.of(), existing.passportId())")
                 .contains("photoModel.updatePhoto(")
                 .contains("photoModel.deletePhoto(")
-                .contains("persistence.updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized)")
+                .contains("record UploadMetadata(String originalName,")
                 .contains("record DeleteResult(Map<String, Object> response, String storedName)")
                 .doesNotContain("DataSource")
+                .doesNotContain("MultipartFile")
+                .doesNotContain("StoredPhoto")
                 .doesNotContain("openConnection()")
                 .doesNotContain("setAutoCommit")
                 .doesNotContain("connection.commit()")
@@ -577,12 +603,13 @@ class ObjectPassportJavaSourceLayoutContractTest {
         String createCommand = read("src/main/java/com/example/panel/passports/ObjectPassportCreateCommand.java");
         String updateCommand = read("src/main/java/com/example/panel/passports/ObjectPassportUpdateCommand.java");
         String replaceCommand = read("src/main/java/com/example/panel/passports/ObjectPassportReplaceAllCommand.java");
+        String photoCommand = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoCommand.java");
         String model = read("src/main/java/com/example/panel/passports/ObjectPassportPayloadModel.java");
 
         assertThat(service)
                 .contains("private final ObjectPassportPayloadModel payloadModel;")
                 .contains("this.payloadModel = new ObjectPassportPayloadModel(photoModel);")
-                .contains("payloadModel.normalizePayload(")
+                .doesNotContain("payloadModel.normalizePayload(")
                 .doesNotContain("payloadModel.validatePayload(")
                 .doesNotContain("payloadModel.buildObjectName(")
                 .doesNotContain("payloadModel.buildPassportNumber(")
@@ -595,6 +622,7 @@ class ObjectPassportJavaSourceLayoutContractTest {
         for (String command : new String[] {createCommand, updateCommand, replaceCommand}) {
             assertThat(command).contains("payloadModel.validatePayload(normalized)");
         }
+        assertThat(photoCommand).contains("payloadModel.normalizePayload(");
         assertThat(model)
                 .contains("final class ObjectPassportPayloadModel")
                 .contains("Map<String, Object> normalizePayload(")
@@ -614,6 +642,7 @@ class ObjectPassportJavaSourceLayoutContractTest {
         String createCommand = read("src/main/java/com/example/panel/passports/ObjectPassportCreateCommand.java");
         String updateCommand = read("src/main/java/com/example/panel/passports/ObjectPassportUpdateCommand.java");
         String replaceCommand = read("src/main/java/com/example/panel/passports/ObjectPassportReplaceAllCommand.java");
+        String photoCommand = read("src/main/java/com/example/panel/passports/ObjectPassportPhotoCommand.java");
         String persistence = read("src/main/java/com/example/panel/passports/ObjectPassportPersistence.java");
 
         assertThat(service)
@@ -621,7 +650,7 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("this.persistence = new ObjectPassportPersistence(objectMapper, payloadModel);")
                 .doesNotContain("persistence.insertObject(")
                 .doesNotContain("persistence.insertPassport(")
-                .contains("persistence.updatePassportRow(")
+                .doesNotContain("persistence.updatePassportRow(")
                 .contains("persistence.loadStoredPassport(")
                 .doesNotContain("persistence.loadAllStoredPassports(")
                 .doesNotContain("persistence.readPayload(")
@@ -643,6 +672,9 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .contains("persistence.deleteAllPassportData(connection)")
                 .contains("persistence.insertObject(connection, normalized)")
                 .contains("persistence.insertPassport(connection, objectId, normalized)");
+        assertThat(photoCommand)
+                .contains("persistence.loadStoredPassport(connection, passportId)")
+                .contains("persistence.updatePassportRow(");
         assertThat(persistence)
                 .contains("final class ObjectPassportPersistence")
                 .contains("long insertObject(Connection connection")

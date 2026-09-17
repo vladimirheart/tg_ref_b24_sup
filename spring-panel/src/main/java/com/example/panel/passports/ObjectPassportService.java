@@ -9,11 +9,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
@@ -201,27 +199,20 @@ public class ObjectPassportService {
                                            String category,
                                            String caption) throws IOException {
         StoredPhoto storedPhoto = photoStorageService.store(file);
+        ObjectPassportPhotoCommand.UploadMetadata metadata = new ObjectPassportPhotoCommand.UploadMetadata(
+                storedPhoto.originalName(),
+                storedPhoto.storedName(),
+                storedPhoto.url(),
+                storedPhoto.mimeType(),
+                storedPhoto.size(),
+                storedPhoto.uploadedAt());
         try (Connection connection = openConnection()) {
             connection.setAutoCommit(false);
             try {
-                ObjectPassportPersistence.StoredPassportRecord existing = persistence.loadStoredPassport(connection, passportId);
-                Map<String, Object> normalized = payloadModel.normalizePayload(existing.payload(), Map.of(), passportId);
-                List<Map<String, Object>> photos = photoModel.mutablePhotoList(normalized.get("photos"));
-                LinkedHashMap<String, Object> photo = new LinkedHashMap<>();
-                photo.put("id", UUID.randomUUID().toString());
-                photo.put("category", photoModel.normalizePhotoCategory(category));
-                photo.put("caption", stringValue(caption));
-                photo.put("url", storedPhoto.url());
-                photo.put("stored_name", storedPhoto.storedName());
-                photo.put("original_name", storedPhoto.originalName());
-                photo.put("mime_type", storedPhoto.mimeType());
-                photo.put("size", storedPhoto.size());
-                photo.put("created_at", storedPhoto.uploadedAt());
-                photos.add(photo);
-                normalized.put("photos", photoModel.enforceSingleTitlePhoto(photos, stringValue(photo.get("id"))));
-                persistence.updatePassportRow(connection, passportId, existing.objectId(), normalized);
+                Map<String, Object> uploaded = photoCommand.upload(
+                        connection, passportId, metadata, category, caption);
                 connection.commit();
-                return Map.of("success", true, "photos", normalized.get("photos"));
+                return uploaded;
             } catch (RuntimeException | SQLException ex) {
                 connection.rollback();
                 photoStorageService.deleteQuietly(storedPhoto.storedName());
@@ -296,10 +287,6 @@ public class ObjectPassportService {
             }
             return objectsCompatibilityDataSource;
         }
-    }
-
-    private String stringValue(Object raw) {
-        return raw == null ? "" : String.valueOf(raw).trim();
     }
 
 }
