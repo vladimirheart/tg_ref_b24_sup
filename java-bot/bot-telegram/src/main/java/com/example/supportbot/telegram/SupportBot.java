@@ -844,7 +844,7 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         List<String> options = resolveQuestionOptions(session.currentQuestion(), session.answers());
-        String text = choiceQuestionMediaGuidance(options);
+        String text = TelegramChoiceInputSupport.mediaGuidance(options);
         SendMessage retry = SendMessage.builder()
                 .chatId(session.chatId())
                 .text(text)
@@ -855,14 +855,6 @@ public class SupportBot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             log.error("Failed to send choice-question media guidance", e);
         }
-    }
-
-    static String choiceQuestionMediaGuidance(List<String> options) {
-        String prefix = "\u0414\u043b\u044f \u044d\u0442\u043e\u0433\u043e \u0432\u043e\u043f\u0440\u043e\u0441\u0430 \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043e\u0434\u0438\u043d \u0438\u0437 \u0432\u0430\u0440\u0438\u0430\u043d\u0442\u043e\u0432";
-        if (options == null || options.isEmpty()) {
-            return prefix + ".";
-        }
-        return prefix + ": " + String.join(", ", options) + ".";
     }
 
     private void acceptAttachmentAsSessionAnswer(Message message,
@@ -1746,41 +1738,25 @@ public class SupportBot extends TelegramLongPollingBot {
                                        List<String> options,
                                        QuestionFlowItemDto question,
                                        BotSettingsDto settings) {
-        if (rawAnswer == null) {
-            return "";
-        }
-        String trimmed = rawAnswer.trim();
-        if (trimmed.isEmpty()) {
-            return trimmed;
-        }
-        try {
-            int numeric = Integer.parseInt(trimmed);
-            if (numeric >= 1 && numeric <= options.size()) {
-                return options.get(numeric - 1);
-            }
-        } catch (NumberFormatException ignored) {
-            // fallback to text matching
-        }
-        for (String option : options) {
-            if (option.equalsIgnoreCase(trimmed)) {
-                return option;
-            }
+        String resolved = TelegramChoiceInputSupport.resolveDirectAnswer(rawAnswer, options);
+        if (resolved.isEmpty() || options.contains(resolved)) {
+            return resolved;
         }
         if (isBusinessPresetQuestion(question)) {
-            String normalizedInput = normalizeAlias(trimmed);
+            String normalizedInput = TelegramChoiceInputSupport.normalizeAlias(resolved);
             if (!normalizedInput.isBlank()) {
                 Map<String, List<String>> aliases = botSettingsService.businessAliases(settings);
                 for (Map.Entry<String, List<String>> aliasEntry : aliases.entrySet()) {
                     String canonicalBusiness = aliasEntry.getKey();
-                    if (normalizedInput.equals(normalizeAlias(canonicalBusiness))) {
-                        String matched = matchOptionByValue(options, canonicalBusiness);
+                    if (normalizedInput.equals(TelegramChoiceInputSupport.normalizeAlias(canonicalBusiness))) {
+                        String matched = TelegramChoiceInputSupport.matchOptionByValue(options, canonicalBusiness);
                         if (matched != null) {
                             return matched;
                         }
                     }
                     for (String alias : aliasEntry.getValue()) {
-                        if (normalizedInput.equals(normalizeAlias(alias))) {
-                            String matched = matchOptionByValue(options, canonicalBusiness);
+                        if (normalizedInput.equals(TelegramChoiceInputSupport.normalizeAlias(alias))) {
+                            String matched = TelegramChoiceInputSupport.matchOptionByValue(options, canonicalBusiness);
                             if (matched != null) {
                                 return matched;
                             }
@@ -1789,7 +1765,7 @@ public class SupportBot extends TelegramLongPollingBot {
                 }
             }
         }
-        return trimmed;
+        return resolved;
     }
 
     private boolean isBusinessPresetQuestion(QuestionFlowItemDto question) {
@@ -1801,30 +1777,8 @@ public class SupportBot extends TelegramLongPollingBot {
         return "locations".equalsIgnoreCase(group) && "business".equalsIgnoreCase(field);
     }
 
-    private String matchOptionByValue(List<String> options, String value) {
-        if (options == null || value == null) {
-            return null;
-        }
-        for (String option : options) {
-            if (option != null && option.equalsIgnoreCase(value)) {
-                return option;
-            }
-        }
-        return null;
-    }
-
     static String defaultStartAutoReply() {
         return "Здравствуйте! Опишите, пожалуйста, ваш вопрос, чтобы мы могли быстрее помочь.";
-    }
-
-    static String normalizeAlias(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.trim()
-                .toLowerCase(Locale.ROOT)
-                .replace('ё', 'е')
-                .replaceAll("[\\p{Punct}\\s]+", "");
     }
 
     private boolean isMyTicketsCommand(String text) {

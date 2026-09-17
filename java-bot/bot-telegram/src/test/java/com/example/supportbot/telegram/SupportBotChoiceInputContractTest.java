@@ -10,12 +10,21 @@ class SupportBotChoiceInputContractTest {
 
     @Test
     void choiceQuestionMediaGuidanceIsReadableAndListsAllowedOptions() {
-        String message = SupportBot.choiceQuestionMediaGuidance(List.of("1", "2"));
+        String message = TelegramChoiceInputSupport.mediaGuidance(List.of("1", "2"));
 
         assertEquals(
                 "\u0414\u043b\u044f \u044d\u0442\u043e\u0433\u043e \u0432\u043e\u043f\u0440\u043e\u0441\u0430 \u0432\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u043e\u0434\u0438\u043d \u0438\u0437 \u0432\u0430\u0440\u0438\u0430\u043d\u0442\u043e\u0432: 1, 2.",
                 message
         );
+    }
+
+    @Test
+    void directChoiceInputAcceptsNumberAndCaseInsensitiveLabel() {
+        List<String> options = List.of("Первый", "Второй");
+
+        assertEquals("Второй", TelegramChoiceInputSupport.resolveDirectAnswer(" 2 ", options));
+        assertEquals("Первый", TelegramChoiceInputSupport.resolveDirectAnswer(" первый ", options));
+        assertEquals("другое", TelegramChoiceInputSupport.resolveDirectAnswer(" другое ", options));
     }
 
     @Test
@@ -32,6 +41,10 @@ class SupportBotChoiceInputContractTest {
                 "Здравствуйте! Опишите, пожалуйста, ваш вопрос, чтобы мы могли быстрее помочь.",
                 SupportBot.defaultStartAutoReply()
         );
-        assertEquals("елка", SupportBot.normalizeAlias("Ёлка"));
+        assertEquals("елка", TelegramChoiceInputSupport.normalizeAlias("Ёлка"));
+        assertEquals(
+                "СушиВесла",
+                TelegramChoiceInputSupport.matchOptionByValue(List.of("СушиВесла", "БлинБери"), "сушивесла")
+        );
     }
 }
