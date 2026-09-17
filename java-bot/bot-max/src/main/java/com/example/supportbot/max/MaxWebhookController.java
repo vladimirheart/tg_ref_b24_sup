@@ -204,7 +204,7 @@ public class MaxWebhookController {
                 log.info("Blocked message from blacklisted MAX user {} (matched key: {})",
                         userId,
                         resolvedBlacklist.matchedUserId());
-                if ("/unblock".equalsIgnoreCase(text)) {
+                if (MaxCommandSupport.isUnblockCommand(text)) {
                     handleUnblockRequest(channel, userId);
                     return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "unblock_requested", true)));
                 }
@@ -213,7 +213,7 @@ public class MaxWebhookController {
             }
 
         MaxConversationSession session = loadSession(userId);
-        if ("/start".equalsIgnoreCase(text)) {
+        if (MaxCommandSupport.isStartCommand(text)) {
             if (session != null) {
                 deleteSession(session);
             }
@@ -223,7 +223,7 @@ public class MaxWebhookController {
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true)));
         }
 
-        if (isCancelCommand(text)) {
+        if (MaxCommandSupport.isCancelCommand(text)) {
             if (session != null) {
                 deleteSession(session);
             } else {
@@ -622,16 +622,6 @@ public class MaxWebhookController {
                 && cachedPresetDefinitions != null
                 && locationCacheUpdatedAt != null
                 && locationCacheUpdatedAt.plus(LOCATION_CACHE_TTL).isAfter(Instant.now());
-    }
-
-    private boolean isCancelCommand(String text) {
-        if (text == null) {
-            return false;
-        }
-        String normalized = text.trim().toLowerCase(java.util.Locale.ROOT);
-        return "/cancel".equals(normalized)
-                || "cancel".equals(normalized)
-                || "отмена".equals(normalized);
     }
 
     private void notifyOperatorsAboutActiveMessage(Channel channel,

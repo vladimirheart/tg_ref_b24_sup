@@ -322,4 +322,36 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("StringUtils")
                 .doesNotContain("LoggerFactory");
     }
+
+    @Test
+    void maxCommandsUseDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxCommandSupport.java");
+
+        assertThat(controller)
+                .contains("MaxCommandSupport.isUnblockCommand(text)")
+                .contains("MaxCommandSupport.isStartCommand(text)")
+                .contains("MaxCommandSupport.isCancelCommand(text)")
+                .doesNotContain("\"/unblock\".equalsIgnoreCase(text)")
+                .doesNotContain("\"/start\".equalsIgnoreCase(text)")
+                .doesNotContain("private boolean isCancelCommand(")
+                .doesNotContain("\"отмена\".equals(normalized)");
+
+        assertThat(support)
+                .contains("final class MaxCommandSupport")
+                .contains("static boolean isUnblockCommand(String text)")
+                .contains("static boolean isStartCommand(String text)")
+                .contains("static boolean isCancelCommand(String text)")
+                .contains("text.trim().toLowerCase(Locale.ROOT)")
+                .contains("\"отмена\".equals(normalized)")
+                .doesNotContain("@RestController")
+                .doesNotContain("MessagingService")
+                .doesNotContain("TicketService")
+                .doesNotContain("BlacklistService")
+                .doesNotContain("BotSessionStoreService")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("ObjectMapper")
+                .doesNotContain("StringUtils")
+                .doesNotContain("LoggerFactory");
+    }
 }
