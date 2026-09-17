@@ -22,7 +22,6 @@ import com.example.supportbot.service.SessionStateConflictException;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
-import com.example.supportbot.settings.dto.PresetReference;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -32,8 +31,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +54,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class MaxWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(MaxWebhookController.class);
-    private static final List<String> CORE_LOCATION_FIELDS = List.of("business", "location_type", "city", "location_name");
     private static final Duration LOCATION_CACHE_TTL = Duration.ofMinutes(5);
     private static final int DEFAULT_FIRST_RESPONSE_TIMEOUT_MINUTES = 10;
     private static final String DEFAULT_FIRST_RESPONSE_TIMEOUT_MESSAGE =
@@ -547,7 +543,7 @@ public class MaxWebhookController {
 
     private MaxConversationSession startSession(Long userId, Long chatId, String username, String clientName, Channel channel) {
         BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
-        List<QuestionFlowItemDto> flow = buildIncidentFlow(settings);
+        List<QuestionFlowItemDto> flow = MaxIncidentFlowSupport.normalize(botSettingsService.questionFlow(settings));
 
         MaxConversationSession session = new MaxConversationSession(userId, chatId, username, clientName, flow, settings);
         ticketService.findLastMessage(userId)
@@ -560,66 +556,9 @@ public class MaxWebhookController {
         return session;
     }
 
-    private List<QuestionFlowItemDto> buildIncidentFlow(BotSettingsDto settings) {
-        List<QuestionFlowItemDto> source = new ArrayList<>(botSettingsService.questionFlow(settings));
-        source.sort(Comparator.comparingInt(QuestionFlowItemDto::getOrder));
-
-        Map<String, QuestionFlowItemDto> byField = new LinkedHashMap<>();
-        for (QuestionFlowItemDto item : source) {
-            if (item == null || item.getPreset() == null) {
-                continue;
-            }
-            String field = item.getPreset().field();
-            String group = item.getPreset().group();
-            if (!"locations".equalsIgnoreCase(group) || field == null || field.isBlank()) {
-                continue;
-            }
-            if (CORE_LOCATION_FIELDS.contains(field) && !byField.containsKey(field)) {
-                byField.put(field, item);
-            }
-        }
-
-        List<QuestionFlowItemDto> normalized = new ArrayList<>();
-        int order = 1;
-        for (String field : CORE_LOCATION_FIELDS) {
-            QuestionFlowItemDto existing = byField.get(field);
-            String text = existing != null ? existing.getText() : defaultPrompt(field);
-            List<String> excluded = existing != null && existing.getExcludedOptions() != null
-                    ? existing.getExcludedOptions()
-                    : List.of();
-            QuestionFlowItemDto question = new QuestionFlowItemDto(
-                    field,
-                    "preset",
-                    (text == null || text.isBlank()) ? defaultPrompt(field) : text,
-                    order++,
-                    new PresetReference("locations", field),
-                    excluded
-            );
-            if (existing != null) {
-                question.setBindingKey(existing.getBindingKey());
-                question.setIncludeInDashboard(existing.getIncludeInDashboard());
-                question.setRoutes(existing.getRoutes());
-            }
-            normalized.add(question);
-        }
-
-        normalized.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", order, null, List.of()));
-        return normalized;
-    }
-
     private boolean shouldCaptureBootstrapProblemText(String text) {
         String normalized = ConversationProblemTextSupport.trimToNull(text);
         return normalized != null && !normalized.startsWith("/");
-    }
-
-    private String defaultPrompt(String field) {
-        return switch (field) {
-            case "business" -> "Бизнес";
-            case "location_type" -> "Тип бизнеса";
-            case "city" -> "Город";
-            case "location_name" -> "Локация";
-            default -> field;
-        };
     }
 
     private void promptCurrentQuestion(Channel channel, MaxConversationSession session) {

@@ -195,4 +195,34 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("ResponseEntity")
                 .doesNotContain("ObjectMapper");
     }
+
+    @Test
+    void incidentFlowUsesDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxIncidentFlowSupport.java");
+
+        assertThat(controller)
+                .contains("MaxIncidentFlowSupport.normalize(botSettingsService.questionFlow(settings))")
+                .contains("botSettingsService.questionFlow(settings)")
+                .doesNotContain("CORE_LOCATION_FIELDS")
+                .doesNotContain("private List<QuestionFlowItemDto> buildIncidentFlow(")
+                .doesNotContain("private String defaultPrompt(")
+                .doesNotContain("import com.example.supportbot.settings.dto.PresetReference;")
+                .doesNotContain("import java.util.ArrayList;")
+                .doesNotContain("import java.util.Comparator;");
+
+        assertThat(support)
+                .contains("final class MaxIncidentFlowSupport")
+                .contains("static List<QuestionFlowItemDto> normalize(List<QuestionFlowItemDto> configuredFlow)")
+                .contains("new PresetReference(\"locations\", field)")
+                .contains("new QuestionFlowItemDto(\"problem\", \"text\", \"Опишите проблему\"")
+                .doesNotContain("@RestController")
+                .doesNotContain("BotSettingsService")
+                .doesNotContain("RuntimeConfigService")
+                .doesNotContain("TicketService")
+                .doesNotContain("MessagingService")
+                .doesNotContain("BotSessionStoreService")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("ObjectMapper");
+    }
 }
