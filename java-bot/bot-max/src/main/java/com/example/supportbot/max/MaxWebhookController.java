@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -448,7 +447,11 @@ public class MaxWebhookController {
         if (decision.created()) {
             notifyOperatorsAboutUnblockRequest(channel, decision.request());
         }
-        messagingService.sendToUser(channel, userId, buildUnblockResponse(decision));
+        messagingService.sendToUser(
+                channel,
+                userId,
+                MaxUnblockMessageSupport.buildClientResponse(decision.request(), decision.created(), decision.retryAfter())
+        );
     }
 
     private void handleBlacklistedUser(Channel channel, Long userId, BlacklistService.BlacklistStatus status) {
@@ -464,65 +467,7 @@ public class MaxWebhookController {
         if (channel == null || request == null) {
             return;
         }
-        StringBuilder builder = new StringBuilder();
-        builder.append("Новый запрос на разблокировку\n");
-        if (request.getId() != null) {
-            builder.append("Заявка: #").append(request.getId()).append("\n");
-        }
-        builder.append("Клиент: ").append(request.getUserId()).append("\n");
-        if (request.getReason() != null && !request.getReason().isBlank()) {
-            builder.append("Причина: ").append(request.getReason()).append("\n");
-        }
-        if (request.getCreatedAt() != null) {
-            builder.append("Создан: ").append(formatTimestamp(request.getCreatedAt())).append("\n");
-        }
-        builder.append("Статус: ").append(request.getStatus());
-        messagingService.sendToSupportChat(channel, builder.toString());
-    }
-
-    private String buildUnblockResponse(BlacklistService.UnblockRequestDecision decision) {
-        String requestId = decision.request() != null && decision.request().getId() != null
-                ? "#" + decision.request().getId()
-                : null;
-        if (decision.created()) {
-            return requestId == null
-                    ? "Запрос на разблокировку отправлен оператору."
-                    : "Запрос на разблокировку отправлен оператору. Номер заявки: " + requestId + ".";
-        }
-        Duration retryAfter = decision.retryAfter();
-        if (retryAfter != null && !retryAfter.isZero() && !retryAfter.isNegative()) {
-            String retryText = formatRetryAfter(retryAfter);
-            if (requestId != null) {
-                return "Запрос уже зарегистрирован под номером " + requestId
-                        + ". Повторно можно отправить через " + retryText + ".";
-            }
-            return "Запрос уже зарегистрирован. Повторно можно отправить через " + retryText + ".";
-        }
-        return requestId == null
-                ? "Запрос уже на рассмотрении."
-                : "Запрос уже на рассмотрении. Номер заявки: " + requestId + ".";
-    }
-
-    private String formatRetryAfter(Duration retryAfter) {
-        if (retryAfter == null || retryAfter.isZero() || retryAfter.isNegative()) {
-            return "несколько минут";
-        }
-        long seconds = retryAfter.getSeconds();
-        if (seconds < 60) {
-            return "менее минуты";
-        }
-        long minutes = (seconds + 59) / 60;
-        if (minutes <= 1) {
-            return "менее минуты";
-        }
-        return minutes + " мин.";
-    }
-
-    private String formatTimestamp(OffsetDateTime value) {
-        if (value == null) {
-            return "";
-        }
-        return value.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+        messagingService.sendToSupportChat(channel, MaxUnblockMessageSupport.buildOperatorRequestMessage(request));
     }
 
     private boolean isStaleActiveTicket(String ticketId) {

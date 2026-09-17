@@ -225,4 +225,37 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("ResponseEntity")
                 .doesNotContain("ObjectMapper");
     }
+
+    @Test
+    void unblockMessagePolicyUsesDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxUnblockMessageSupport.java");
+
+        assertThat(controller)
+                .contains("MaxUnblockMessageSupport.buildOperatorRequestMessage(request)")
+                .contains("MaxUnblockMessageSupport.buildClientResponse(decision.request(), decision.created(), decision.retryAfter())")
+                .contains("blacklistService.requestUnblock(userId, \"\", channelId, cooldown)")
+                .contains("messagingService.sendToSupportChat(channel")
+                .contains("messagingService.sendToUser(")
+                .doesNotContain("private String buildUnblockResponse(")
+                .doesNotContain("private String formatRetryAfter(")
+                .doesNotContain("private String formatTimestamp(")
+                .doesNotContain("import java.time.format.DateTimeFormatter;");
+
+        assertThat(support)
+                .contains("final class MaxUnblockMessageSupport")
+                .contains("static String buildOperatorRequestMessage(ClientUnblockRequest request)")
+                .contains("static String buildClientResponse(ClientUnblockRequest request, boolean created, Duration retryAfter)")
+                .contains("DateTimeFormatter.ofPattern(\"dd.MM.yyyy HH:mm\")")
+                .doesNotContain("@RestController")
+                .doesNotContain("BlacklistService")
+                .doesNotContain("MessagingService")
+                .doesNotContain("BotSettingsService")
+                .doesNotContain("RuntimeConfigService")
+                .doesNotContain("TicketService")
+                .doesNotContain("BotSessionStoreService")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("ObjectMapper")
+                .doesNotContain("StringUtils");
+    }
 }
