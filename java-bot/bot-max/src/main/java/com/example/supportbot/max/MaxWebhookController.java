@@ -644,20 +644,17 @@ public class MaxWebhookController {
         if (channel == null || ticketId == null || ticketId.isBlank()) {
             return;
         }
-        StringBuilder builder = new StringBuilder();
-        builder.append("Новый ответ клиента ").append(clientProfile.displayLabel()).append("\n");
-        builder.append("ID заявки: #").append(ticketId).append("\n");
-        if (text != null && !text.isBlank()) {
-            builder.append(text);
-        } else {
-            builder.append("[").append(messageType).append("]");
-        }
-        if (attachmentRef != null && !attachmentRef.isBlank()) {
-            builder.append("\nВложение: ").append(attachmentRef);
-        } else if (attachmentCount > 0) {
-            builder.append("\nВложений: ").append(attachmentCount);
-        }
-        messagingService.sendToSupportChat(channel, builder.toString());
+        messagingService.sendToSupportChat(
+                channel,
+                MaxActiveMessageSupport.buildOperatorMessage(
+                        ticketId,
+                        clientProfile.displayLabel(),
+                        text,
+                        messageType,
+                        attachmentRef,
+                        attachmentCount
+                )
+        );
     }
 
     private StoredIncomingAttachment storeIncomingAttachment(Channel channel, MaxInboundPayloadSupport.IncomingAttachment attachment) {

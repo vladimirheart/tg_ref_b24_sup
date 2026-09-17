@@ -290,4 +290,36 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("StringUtils")
                 .doesNotContain("LoggerFactory");
     }
+
+    @Test
+    void activeTicketOperatorMessageUsesDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxActiveMessageSupport.java");
+
+        assertThat(controller)
+                .contains("MaxActiveMessageSupport.buildOperatorMessage(")
+                .contains("clientProfile.displayLabel()")
+                .contains("messagingService.sendToSupportChat(")
+                .contains("private void notifyOperatorsAboutActiveMessage(")
+                .doesNotContain("builder.append(\"Новый ответ клиента \")")
+                .doesNotContain("builder.append(\"ID заявки: #\")");
+
+        assertThat(support)
+                .contains("final class MaxActiveMessageSupport")
+                .contains("static String buildOperatorMessage(")
+                .contains("builder.append(\"Новый ответ клиента \")")
+                .contains("builder.append(\"ID заявки: #\")")
+                .contains("builder.append(\"\\nВложение: \")")
+                .contains("builder.append(\"\\nВложений: \")")
+                .doesNotContain("@RestController")
+                .doesNotContain("MessagingService")
+                .doesNotContain("TicketService")
+                .doesNotContain("AttachmentService")
+                .doesNotContain("MaxApiClient")
+                .doesNotContain("BotSessionStoreService")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("ObjectMapper")
+                .doesNotContain("StringUtils")
+                .doesNotContain("LoggerFactory");
+    }
 }
