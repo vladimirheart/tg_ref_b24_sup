@@ -1,6 +1,5 @@
 package com.example.panel;
 
-import com.example.panel.config.EnvDefaultsInitializer;
 import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.runtime.RuntimeRole;
 import com.example.panel.runtime.RuntimeRoleProperties;
@@ -29,8 +28,6 @@ public class PanelApplication {
 
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(PanelApplication.class);
-        app.addInitializers(new EnvDefaultsInitializer());
-
         ConfigurableApplicationContext context = app.run(args);
         RuntimeRoleProperties runtimeRoleProperties = context.getBean(RuntimeRoleProperties.class);
         if (runtimeRoleProperties.resolvedRole() == RuntimeRole.MIGRATOR

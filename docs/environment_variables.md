@@ -16,7 +16,7 @@
 | `MAX_BOT_ENABLED` | включить MAX-бота (`true/false`) | Java-бот |
 | `MAX_BOT_TOKEN` | токен MAX | Java-бот |
 | `MAX_SUPPORT_CHAT_ID` | чат операторов MAX | Java-бот |
-| `APP_DB_MODE` | режим БД: normal runtime default `postgresql`; `sqlite` только явный compatibility override; для панели ещё `mysql`, `auto` допустим только как ручной transitional режим | Панель и бот |
+| `APP_DB_MODE` | `spring-panel` production runtime: `postgresql`; dynamic bot child: `worker`; `sqlite` не является поддерживаемым panel production mode | Панель и бот |
 | `DATABASE_URL` | compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL | Панель и бот |
 | `SPRING_DATASOURCE_URL` | явный JDBC URL для external DB | Панель и бот |
 | `SPRING_DATASOURCE_USERNAME` | пользователь external DB | Панель и бот |
@@ -87,16 +87,16 @@
 
 | Переменная | Описание | По умолчанию |
 | --- | --- | --- |
-| `APP_DB_PANEL_RUNTIME` | каноническая operational-база панели | `panel_runtime.db` |
-| `APP_DB_PANEL_IDENTITY` | база пользователей панели | `panel_identity.db` |
-| `APP_DB_BOT_RUNTIME` | shared bot runtime база | `bot_runtime.db` |
-| `APP_DB_TICKETS` | legacy alias для `APP_DB_PANEL_RUNTIME` | `panel_runtime.db` |
-| `APP_DB_USERS` | legacy alias для `APP_DB_PANEL_IDENTITY` | `panel_identity.db` |
-| `APP_DB_BOT` | legacy alias для `APP_DB_BOT_RUNTIME` | `bot_runtime.db` |
-| `SUPPORT_BOT_DATABASE_PATH` | явный shared SQLite bridge для `java-bot` compatibility mode | unset |
-| `APP_DB_CLIENTS` | база клиентов | `clients.db` |
-| `APP_DB_KNOWLEDGE` | база знаний | `knowledge_base.db` |
-| `APP_DB_OBJECTS` | база объектов | `objects.db` |
+| `APP_DB_PANEL_RUNTIME` | legacy source hint для archive/import (`panel_runtime.db`), не live production datasource | unset / archive-only |
+| `APP_DB_PANEL_IDENTITY` | legacy source hint для archive/import (`panel_identity.db`) | unset / archive-only |
+| `APP_DB_BOT_RUNTIME` | legacy source hint для archive/import (`bot_runtime.db`) | unset / archive-only |
+| `APP_DB_TICKETS` | legacy alias для archive/import source | unset / archive-only |
+| `APP_DB_USERS` | legacy alias для archive/import source | unset / archive-only |
+| `APP_DB_BOT` | legacy alias для archive/import source | unset / archive-only |
+| `SUPPORT_BOT_DATABASE_PATH` | legacy/test SQLite bridge; не production business storage | unset |
+| `APP_DB_CLIENTS` | legacy archive/import source hint (`clients.db`) | unset / archive-only |
+| `APP_DB_KNOWLEDGE` | legacy archive/import source hint (`knowledge_base.db`) | unset / archive-only |
+| `APP_DB_OBJECTS` | legacy archive/import source hint (`objects.db`) | unset / archive-only |
 | `APP_BOT_DATABASE_DIR` | каталог legacy per-channel shard-файлов `bot-<channelId>.db` для import/диагностики | `../bot_databases` |
 
 ## Хранилища
@@ -138,7 +138,7 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 
 Для `java-bot` действует явная граница:
 
-- в `APP_DB_MODE=sqlite` runtime сам поднимает local schema через `SqliteSchemaInitializer`, но panel-side child JDBC contract больше не должен запускать этот путь автоматически;
+- production child runtime использует `APP_DB_MODE=worker`; его temporary SQLite store является только technical coordination/dedup state и не владеет business schema;
 - в `APP_DB_MODE=postgresql` runtime получает готовый PostgreSQL datasource-контракт и не несёт `SPRING_SQL_INIT_MODE`/`schema-sqlite.sql` в production-path.
 - в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` bot-side business операции по ticket/channel/feedback/blacklist должны идти через `APP_PANEL_INTERNAL_API_*`; silent fallback в local `JPA/SQLite` business storage больше не считается допустимым live-path.
 - для multi-instance bot ingress в production contour нужно использовать `APP_COORDINATION_MODE=redis`, чтобы `Telegram`/`VK`/`MAX` long-poll owner semantics не оставались process-local.
@@ -146,8 +146,8 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 
 Для `spring-panel` действует ещё одно правило:
 
-- локальные `APP_DB_*` SQLite-пути автоматически подставляются только в явном `APP_DB_MODE=sqlite`;
-- normal runtime path с `APP_DB_MODE=postgresql` больше не получает скрытый SQLite compatibility bootstrap через `EnvDefaultsInitializer`.
+- `spring-panel` не подставляет local `APP_DB_*` SQLite-пути как runtime defaults; `EnvDefaultsInitializer` удалён из startup graph.
+- explicit `APP_DB_MODE=sqlite` для панели отклоняется; legacy `APP_DB_*` допускаются только в archive/import/diagnostic tooling.
 - `APP_DB_SETTINGS` больше не входит в active runtime/env contract: отдельный `settings.db` registry layer удалён как legacy topology.
 - во внешнем production-like контуре `spring-panel` теперь fail-fast останавливается, если `APP_INTERNAL_BOT_API_TOKEN` или `APP_SECURITY_REMEMBER_ME_KEY` оставлены на встроенных дефолтах.
 - если во внешнем контуре в `users/user_authorities` ещё нет пользователя с `ROLE_ADMIN`, для первого старта нужно заранее передать `APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME` и `APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD`.

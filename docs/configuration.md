@@ -45,10 +45,9 @@ MONITORING_CREDENTIALS_MASTER_KEY=base64:<generated-or-legacy-key>
 
 - `TELEGRAM_BOT_TOKEN` — токен Telegram-бота.
 - `GROUP_CHAT_ID` — ID рабочей группы/чата для уведомлений (можно оставить пустым и сохранить в панели).
-- `APP_DB_MODE` — явный режим БД: normal runtime default теперь `postgresql`; `sqlite` оставлен только как явный compatibility override, `auto` допустим только как ручной transitional режим; для `spring-panel` режим `mysql` остаётся legacy-compatible external option.
-- `APP_DB_PANEL_RUNTIME`, `APP_DB_PANEL_IDENTITY`, `APP_DB_BOT_RUNTIME` — канонические пути к основным SQLite-контурам.
-- `APP_DB_TICKETS`, `APP_DB_USERS`, `APP_DB_BOT` — legacy aliases, которые пока остаются поддержаны.
-- `APP_DB_*` для secondary-баз задают пути к клиентам, knowledge, объектам и registry-контуру.
+- `APP_DB_MODE` — для `spring-panel` production runtime используется `postgresql`; `sqlite` больше не является поддерживаемым panel runtime mode. Изолированный dynamic bot child использует отдельный `worker` contract, а archival SQLite import запускается только специальным tooling.
+- `APP_DB_PANEL_RUNTIME`, `APP_DB_PANEL_IDENTITY`, `APP_DB_BOT_RUNTIME` и legacy aliases `APP_DB_TICKETS` / `APP_DB_USERS` / `APP_DB_BOT` сохраняются только как archive/import source hints; normal PostgreSQL runtime не использует их как live datasource contract.
+- Secondary `APP_DB_*` пути относятся к legacy archive/import/diagnostic perimeter и не должны создавать live business SQLite databases.
 - `APP_BOT_DATABASE_DIR` — каталог, в котором будут храниться отдельные базы для каждого бота.
 - `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` — preferred-конфиг для external DB.
 - `DATABASE_URL` — compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL.
@@ -73,7 +72,7 @@ SPRING_DATASOURCE_PASSWORD=secret
 - `spring-panel` в external DB-режиме теперь сам выбирает vendor-specific Flyway migrations, а не SQLite-папку по умолчанию.
 - `spring-panel` в external DB-режиме поднимает secondary/user/bot/settings datasources поверх primary JDBC-контура и не пытается создавать отдельные SQLite-файлы для этих ролей.
 - `java-bot` больше не использует Spring Boot `sql.init` как runtime-механику владения схемой: в external PostgreSQL-режиме бот просто подключается к готовой схеме, а не пытается инициализировать её сам.
-- `java-bot` в SQLite-режиме теперь поднимает local schema явным `SqliteSchemaInitializer`, который исполняет `schema-sqlite.sql` только для local/dev-контура.
+- `java-bot` production child runtime использует `worker` contract: временный technical store допустим только для self-owned coordination/dedup state и не является business SQLite compatibility mode.
 - runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели; child `java-bot` JDBC launch больше не поддерживает SQLite compatibility env.
 - для multi-instance bot ingress production contour теперь предполагает shared coordination:
   - `Telegram`, `VK`, `MAX` long-poll ownership должен идти через `APP_COORDINATION_MODE=redis`;
@@ -81,7 +80,7 @@ SPRING_DATASOURCE_PASSWORD=secret
 - `VK` и `MAX` webhook mode теперь не должны опираться на single-owner `409` gating:
   - question-flow session state externalized через shared bot session store;
   - multi-instance webhook contour требует общего Redis coordination/session layer.
-- `spring-panel` больше не подставляет `APP_DB_*` SQLite-пути автоматически, если `app.datasource.mode` не выставлен в явный `sqlite`.
+- `spring-panel` больше не регистрирует `EnvDefaultsInitializer` и не подставляет `APP_DB_*` SQLite-пути как runtime defaults; explicit `APP_DB_MODE=sqlite` для панели отклоняется.
 - normal first-run path больше не должен неявно переводить проект обратно в SQLite только потому, что Docker недоступен.
 - `VK` webhook mode не должен silently жить рядом с long-poll: при `vk-bot.webhook-enabled=true` long-poll runner должен быть выключен, а webhook/runtime state должен идти через shared coordination/session layer.
 - `spring-panel/run-windows.bat` и `spring-panel/run-linux.sh` умеют мягко долечить старый local bootstrap `.env` только для безопасных app-side секретов (`APP_INTERNAL_BOT_API_TOKEN`, `APP_SECURITY_REMEMBER_ME_KEY`, `MONITORING_CREDENTIALS_MASTER_KEY`) и не должны молча ротировать persisted infra credentials.
