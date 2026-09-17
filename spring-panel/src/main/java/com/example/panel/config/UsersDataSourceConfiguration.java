@@ -2,20 +2,17 @@ package com.example.panel.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @Configuration
-@EnableConfigurationProperties(UsersSqliteDataSourceProperties.class)
-public class UsersSqliteDataSourceConfiguration {
+public class UsersDataSourceConfiguration {
 
-    private static final Logger log = LoggerFactory.getLogger(UsersSqliteDataSourceConfiguration.class);
+    private static final Logger log = LoggerFactory.getLogger(UsersDataSourceConfiguration.class);
 
     @Bean(name = "usersJdbcTemplate")
-    public JdbcTemplate usersJdbcTemplate(UsersSqliteDataSourceProperties props,
-                                          JdbcTemplate primaryJdbcTemplate,
+    public JdbcTemplate usersJdbcTemplate(JdbcTemplate primaryJdbcTemplate,
                                           PanelDatabaseRuntimeMode databaseRuntimeMode) {
         log.info("Using primary {} datasource as USERS runtime template", databaseRuntimeMode.modeLabel());
         return primaryJdbcTemplate;

@@ -2,447 +2,69 @@
 
 ## Назначение документа
 
-Этот документ фиксирует фактическое распределение баз данных в проекте
-`Iguana` на текущий момент. В отличие от target-state документов, здесь
-описано не желаемое будущее состояние, а реальный runtime wiring:
+Этот документ фиксирует **текущую production storage model** после принятого PostgreSQL cutover (`01-228`) и начала удаления SQLite compatibility perimeter (`01-229`).
 
-- какие SQLite-файлы подключаются сейчас;
-- какие `DataSource` и `JdbcTemplate` их обслуживают;
-- какие модули и сервисы используют каждую БД;
-- где контур уже является каноническим, а где он остаётся transitional или
-  legacy.
+Он описывает runtime ownership, а не историческую физическую топологию legacy `*.db` файлов.
 
-Документ актуализирован по коду репозитория на `9 июля 2026`.
+## Production runtime
 
-## Короткое резюме
+В production единственным business/identity/monitoring datasource для `spring-panel` является внешний PostgreSQL-контур, задаваемый через:
 
-Сейчас в проекте задекларировано несколько SQLite-контуров, но их роль разная:
+- `APP_DB_MODE=postgresql`;
+- `SPRING_DATASOURCE_URL`;
+- `SPRING_DATASOURCE_USERNAME`;
+- `SPRING_DATASOURCE_PASSWORD`.
 
-- `panel_runtime.db` - главный operational runtime панели и фактический
-  source of truth для большинства бизнес-таблиц;
-- `panel_identity.db` - отдельная БД пользователей, ролей и auth-контуров;
-- `monitoring.db` - отдельный monitoring-контур;
-- `bot_runtime.db` - shared bot/runtime compatibility-контур, который больше
-  не поднимается как отдельный live Spring datasource в external runtime;
-- `objects.db` - реально используемый отдельный контур паспортов объектов;
-- `clients.db`, `knowledge_base.db` - transitional/compatibility
-  контуры, из которых не все являются текущим business source of truth.
+Primary datasource создаёт `PanelDataSourceConfiguration`. Обычный `JdbcTemplate`, JPA и transaction manager работают поверх этого external datasource.
 
-Отдельно существует каталог legacy `bot-<channelId>.db`, который больше не
-создаётся панелью как normal runtime path и нужен только для controlled import
-старых channel-local bot shard-файлов.
+`usersJdbcTemplate` создаёт `UsersDataSourceConfiguration`, но это **alias на тот же primary datasource**, а не отдельная SQLite БД пользователей.
 
-## 1. Текущее распределение БД
+Monitoring/business/read-model контуры в production также не должны открывать отдельные SQLite-файлы как runtime storage.
 
-| Логический контур | Физический файл | Spring property / env | Кто подключает | Как используется сейчас | Статус |
-| --- | --- | --- | --- | --- | --- |
-| `panel-runtime` | `panel_runtime.db` | `app.datasource.sqlite.path` / `APP_DB_PANEL_RUNTIME` | `spring-panel`, `java-bot` | Главная runtime БД панели, JPA + primary `JdbcTemplate` | canonical |
-| `panel-identity` | `panel_identity.db` | `app.datasource.users-sqlite.path` / `APP_DB_PANEL_IDENTITY` | `spring-panel` | Пользователи, роли, auth/read-write через `usersJdbcTemplate` | canonical |
-| `monitoring` | `monitoring.db` | `app.datasource.monitoring-sqlite.path` / `APP_DB_MONITORING` | `spring-panel` | SQLite compatibility/bootstrap контур; в external runtime monitoring-domain идёт через primary PostgreSQL contour | compatibility |
-| `bot-runtime` | `bot_runtime.db` | `app.datasource.bot-sqlite.path` / `APP_DB_BOT_RUNTIME` | `spring-panel` | Lazy SQLite compatibility/shared-bot contour; external runtime больше не поднимает отдельный Spring datasource bean | transitional |
-| `clients` | `clients.db` | `app.datasource.clients-sqlite.path` / `APP_DB_CLIENTS` | `spring-panel` | Bootstrap secondary БД клиентов | transitional |
-| `knowledge` | `knowledge_base.db` | `app.datasource.knowledge-sqlite.path` / `APP_DB_KNOWLEDGE` | `spring-panel` | Bootstrap secondary knowledge БД | transitional |
-| `objects` | `objects.db` | `app.datasource.objects-sqlite.path` / `APP_DB_OBJECTS` | `spring-panel` | Отдельный контур паспортов объектов | active |
-| `bot shard layer` | `bot-<channelId>.db` | `APP_BOT_DATABASE_DIR` | `spring-panel` | Legacy per-channel shard-файлы, консолидируются backend-owned import service | import-only legacy layer |
+## Canonical ownership
 
-## 2. Как БД подключаются в `spring-panel`
+| Контур | Production owner | Runtime access |
+| --- | --- | --- |
+| panel/business runtime | PostgreSQL | primary JPA + primary `JdbcTemplate` |
+| identity/auth | PostgreSQL | `usersJdbcTemplate` alias на primary datasource |
+| monitoring | PostgreSQL | primary/monitoring runtime JDBC alias |
+| bot business data | PostgreSQL / panel internal API boundary | canonical PostgreSQL contract |
+| object passports | PostgreSQL | canonical panel datasource |
 
-### 2.1. Primary runtime: `panel_runtime.db`
+Это означает, что имена `panel_runtime.db`, `panel_identity.db`, `monitoring.db`, `bot_runtime.db`, `clients.db`, `knowledge_base.db`, `objects.db` больше не описывают production runtime topology.
 
-Главная БД панели поднимается через:
+## Legacy SQLite perimeter
 
-- `spring-panel/src/main/resources/application.yml`
-- `SqliteDataSourceConfiguration`
-- `SqliteDataSourceProperties`
+Legacy SQLite-файлы допускаются только как источник для controlled import/recovery, диагностики исторических инсталляций и тестовых fixtures.
 
-Путь задаётся так:
+В частности:
 
-```yaml
-app:
-  datasource:
-    sqlite:
-      path: ${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:panel_runtime.db}}
+- `docker-compose.legacy-sqlite-import.yml` и backend-owned import/recovery services могут читать staged legacy `*.db`;
+- `bot-<channelId>.db` сохраняется как import-only legacy shard source;
+- `IGUANA_LEGACY_SQLITE_AUTO_IMPORT` в normal production runtime должен оставаться `false`;
+- legacy source files не должны монтироваться в live `panel-web` / `ops-worker` как runtime datasource;
+- наличие archive/import tooling не означает поддержку `APP_DB_MODE=sqlite` для `spring-panel`.
+
+## Java bot / worker exception
+
+Отдельный technical SQLite store может существовать внутри изолированного bot worker/local-test contract, если он не становится business source of truth и не возвращает panel production runtime к SQLite ownership.
+
+Этот technical worker store не следует смешивать с retired panel SQLite compatibility topology.
+
+## Transitional source cleanup
+
+После structural slice 1 `spring-panel` уже отклоняет selectable SQLite runtime mode. В рамках `01-229` source tree всё ещё может содержать unreachable legacy bootstrap/property classes, которые удаляются последующими structural slices.
+
+Такие классы не являются документированным production runtime contract.
+
+## Operational rule
+
+Для production проверки ориентируйтесь на фактический datasource contract и container env, а не на наличие исторических `*.db` рядом с checkout:
+
+```text
+APP_DB_MODE=postgresql
+SPRING_DATASOURCE_URL=jdbc:postgresql://...
+IGUANA_LEGACY_SQLITE_AUTO_IMPORT=false
 ```
 
-Этот `DataSource` является `@Primary`, а значит:
-
-- JPA-репозитории по умолчанию работают именно с ним;
-- основной `JdbcTemplate` панели также смотрит в него;
-- большая часть `entity` и `repository` живёт на этом контуре.
-
-### 2.2. Identity runtime: `panel_identity.db`
-
-Отдельный users/roles/auth-контур поднимается через:
-
-- `UsersSqliteDataSourceConfiguration`
-- `UsersSqliteDataSourceProperties`
-- бин `usersJdbcTemplate`
-
-Путь задаётся так:
-
-```yaml
-app:
-  datasource:
-    users-sqlite:
-      path: ${APP_DB_PANEL_IDENTITY:${APP_DB_USERS:panel_identity.db}}
-```
-
-С этим контуром работают:
-
-- `UserRepositoryUserDetailsService`
-- `AuthManagementApiController`
-- security bootstrap вокруг `users`, `roles`, `user_authorities`
-
-### 2.3. Monitoring runtime: `monitoring.db`
-
-Monitoring-контур поднимается через:
-
-- `MonitoringSqliteDataSourceConfiguration`
-- `MonitoringSqliteDataSourceProperties`
-- бин `monitoringJdbcTemplate`
-- бин `monitoringRuntimeJdbcTemplate`
-
-Путь задаётся так:
-
-```yaml
-app:
-  datasource:
-    monitoring-sqlite:
-      path: ${APP_DB_MONITORING:monitoring.db}
-```
-
-С этим контуром работают:
-
-- `MonitoringDatabaseBootstrapService`
-
-Runtime-смысл теперь разный по режимам:
-
-- в `APP_DB_MODE=sqlite` monitoring-domain продолжает работать через отдельный `monitoring.db`;
-- в `APP_DB_MODE=postgresql` live monitoring repositories переключаются на primary datasource через `monitoringRuntimeJdbcTemplate`;
-- отдельный `monitoringJdbcTemplate` остаётся только для SQLite bootstrap/migration слоя.
-
-### 2.4. Bot runtime: `bot_runtime.db`
-
-Bot-контур для панели теперь больше не поднимается как отдельный live
-datasource bean. Через Spring остаётся только properties-holder:
-
-- `BotSqliteDataSourceConfiguration`
-- `BotSqliteDataSourceProperties`
-
-Путь задаётся так:
-
-```yaml
-app:
-  datasource:
-    bot-sqlite:
-      path: ${APP_DB_BOT_RUNTIME:${APP_DB_BOT:bot_runtime.db}}
-```
-
-Runtime-смысл теперь разный по режимам:
-
-- в `APP_DB_MODE=sqlite` `DatabaseBootstrapService` лениво создаёт локальный
-  SQLite datasource для `bot_runtime.db` и bootstrap-ит compatibility-таблицы;
-- в `APP_DB_MODE=postgresql` отдельный `botDataSource` / `botJdbcTemplate`
-  больше не поднимаются, а panel-side runtime продолжает жить через canonical
-  primary contour и internal API boundary.
-
-Важно: панель всё ещё умеет bootstrap-ить `bot_runtime.db` в explicit
-compatibility path, но запуск самих `java-bot` процессов сейчас ориентирован
-прежде всего на `panel_runtime.db`, а не на `bot_runtime.db` как единственный
-runtime source.
-
-### 2.5. Secondary/legacy контуры
-
-Через Spring datasource graph больше не поднимаются отдельные legacy
-`clients`/`knowledge`/`settings`/`objects` data source beans.
-
-Отдельно:
-
-- `clients.db` и `knowledge_base.db` больше не поднимаются как общие Spring
-  datasources и создаются только лениво из `DatabaseBootstrapService` в явном
-  SQLite compatibility path;
-- отдельный `settings.db` registry contour удалён из active runtime wiring и
-  больше не поднимается даже как lazy compatibility datasource.
-- `objects.db` тоже больше не поднимается как отдельный общий Spring
-  datasource: `ObjectPassportService` использует primary datasource в external
-  runtime и ленивый SQLite datasource только в explicit compatibility path.
-
-## 3. Фактическое владение данными по БД
-
-### 3.1. `panel_runtime.db`
-
-Это фактический центр проекта. Здесь живут или фактически читаются:
-
-- `tickets`
-- `messages`
-- `chat_history`
-- `channels`
-- `tasks`, `task_*`
-- `notifications`
-- `ticket_active`, `ticket_responsibles`, `ticket_spans`
-- `pending_feedback_requests`
-- `client_statuses`
-- `client_blacklist`
-- `client_unblock_requests`
-- `client_phones`, `client_usernames`, `client_avatar_history`
-- `web_form_sessions`
-- `knowledge_articles`, `knowledge_article_files`
-- `app_settings`
-- `settings_parameters`
-
-Это видно по двум признакам:
-
-- primary JPA-репозитории по умолчанию работают с `@Primary DataSource`;
-- основные сервисы и SQL-запросы панели используют обычный `JdbcTemplate`,
-  а не отдельные legacy bootstrap contours `clients.db` или `knowledge_base.db`.
-
-Примеры:
-
-- `DialogLookupReadService` читает `client_statuses`;
-- `DialogConversationReadService` и `DialogReplyTargetService` работают с
-  `web_form_sessions`;
-- `KnowledgeBaseService` использует JPA-репозитории
-  `KnowledgeArticleRepository` и `KnowledgeArticleFileRepository`, а значит
-  фактически живёт на primary runtime DB.
-
-Вывод: `panel_runtime.db` - реальный business source of truth панели.
-
-### 3.2. `panel_identity.db`
-
-Здесь сосредоточен отдельный identity/access контур:
-
-- `users`
-- `roles`
-- `user_authorities`
-- auth-related данные
-- при JDBC session storage - также `SPRING_SESSION` и
-  `SPRING_SESSION_ATTRIBUTES`
-
-Эта БД используется отдельно от business runtime и обслуживается
-`usersJdbcTemplate`.
-
-### 3.3. `monitoring.db`
-
-Здесь сосредоточен monitoring-контур:
-
-- `ssl_certificate_monitors`
-- `rms_license_monitors`
-- `iiko_api_monitors`
-- `monitoring_check_history`
-
-`MonitoringDatabaseBootstrapService` не только создаёт эти таблицы, но и умеет
-мигрировать monitoring-данные из primary runtime в отдельную monitoring БД.
-
-Вывод: как отдельный physical split этот контур теперь допустим только в явном
-SQLite compatibility path. В external PostgreSQL runtime monitoring-domain уже
-не должен зависеть от отдельного monitoring datasource.
-
-### 3.4. `bot_runtime.db`
-
-Этот файл больше не подключается в панели как отдельный live Spring datasource
-контур. Он остался только как shared bot/runtime compatibility storage для
-явного SQLite path.
-
-По коду видно важный сдвиг: operator-facing сервисы панели уже не должны
-считать `bot_runtime.db` canonical owner для `feedbacks` и
-`client_unblock_requests`; эти таблицы читаются через основной runtime-контур,
-а отдельный bot contour остаётся в compatibility/runtime-роли.
-
-При этом есть важный архитектурный нюанс:
-
-- `BotRuntimeContractService.buildEnvironment(...)` передаёт ботам
-  `APP_DB_PANEL_RUNTIME` и `APP_DB_TICKETS`;
-- `java-bot/bot-core/application.yml` задаёт
-  `support-bot.database.path` через цепочку, в которой первым идёт
-  `APP_DB_PANEL_RUNTIME`.
-
-Это означает, что `java-bot` по умолчанию всё ещё тяготеет к
-`panel_runtime.db`, даже если в панели уже существует отдельный
-`bot_runtime.db`.
-
-Вывод: physical datasource split для bot-runtime уже ослаблен, но transport
-ownership задачи ещё не закрыты полностью, потому что сама интеграционная
-модель и per-channel shard layer пока остаются.
-
-### 3.5. `objects.db`
-
-`objects.db` долго оставался последним реальным live split-контуром для
-паспортов объектов.
-
-Сейчас `ObjectPassportService` уже не зависит от отдельного Spring datasource
-bean: в external runtime он работает через primary datasource, а локальный
-SQLite datasource поднимает только лениво в compatibility path.
-
-Доменный split при этом пока ещё остаётся логически выделенным, потому что
-сам сервис и таблицы `objects` / `object_passports` ещё не растворены в общем
-production storage model.
-
-- `ObjectPassportService`
-
-Именно этот сервис использует отдельные SQL-запросы к:
-
-- `objects`
-- `object_passports`
-
-Вывод: physical runtime split уже ослаблен, но сам объектный контур ещё не
-закрыт как архитектурная задача.
-
-### 3.6. `clients.db`
-
-`clients.db` создаётся и инициализируется в `DatabaseBootstrapService`.
-Туда bootstrap-логика кладёт таблицы вроде:
-
-- `clients`
-- `client_usernames`
-- `client_phones`
-- `client_statuses`
-- `client_blacklist`
-- `client_unblock_requests`
-- `client_avatar_history`
-
-Но фактическая бизнес-логика панели в большинстве случаев уже не использует
-этот secondary контур как основной источник истины. Те же клиентские таблицы
-активно читаются из primary runtime через обычный `JdbcTemplate` и JPA.
-
-Вывод: `clients.db` сейчас скорее transitional/legacy split, чем реальный
-канонический контур.
-Дополнительно это уже не live datasource contour external runtime:
-отдельный SQLite datasource для него остаётся только внутри local bootstrap.
-
-### 3.7. `knowledge_base.db`
-
-`knowledge_base.db` также инициализируется через `DatabaseBootstrapService`,
-но текущая knowledge-логика панели использует JPA-репозитории и primary
-runtime DB.
-
-Bootstrap создаёт:
-
-- `knowledge_articles`
-- `knowledge_article_files`
-- `it_equipment_catalog`
-
-Но `KnowledgeBaseService` работает через стандартные JPA-репозитории, которые
-по умолчанию подключены к `panel_runtime.db`.
-
-Вывод: `knowledge_base.db` существует физически, но knowledge-домен уже
-фактически живёт в `panel_runtime.db`.
-Как и `clients.db`, этот файл больше не поднимается как отдельный live
-Spring datasource outside явного SQLite bootstrap path.
-
-### 3.8. Удалённый `settings.db` contour
-
-Отдельный `settings.db` больше не входит в текущую active topology.
-
-Исторически он использовался как registry/metadata слой для:
-
-- `database_registry`
-- `bot_instances`
-- `database_links`
-
-Но этот registry не читался как живой source of truth и только закреплял
-legacy multi-SQLite topology. Поэтому отдельный `settings.db` contour удалён,
-а per-channel shard layer переведён из bootstrap-ветки в controlled import:
-legacy `bot-<channelId>.db` теперь рассматривается только как источник данных
-для последующей консолидации в canonical contour.
-
-## 4. Как БД используются в `java-bot`
-
-В `java-bot` ситуация проще, но есть важная особенность.
-
-Основной datasource `bot-core` строится в `DataSourceConfig`, а путь берётся из
-свойства:
-
-```yaml
-support-bot:
-  database:
-    path: ${SUPPORT_BOT_DATABASE_PATH:${APP_DB_BOT_RUNTIME:${APP_DB_BOT:${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:../bot_runtime.db}}}}}
-```
-
-Это значит:
-
-1. если panel сознательно прокидывает shared SQLite business path, он идёт через `SUPPORT_BOT_DATABASE_PATH`;
-2. default bot-side fallback теперь смотрит в `APP_DB_BOT_RUNTIME`;
-3. legacy `APP_DB_PANEL_RUNTIME` / `APP_DB_TICKETS` остаются только дальним compatibility fallback;
-4. fallback по умолчанию больше не привязывает `java-bot` к `panel_runtime.db` как implicit primary DB.
-
-Следствие:
-
-- `java-bot` больше не получает `panel_runtime.db` как default runtime contract;
-- shared panel runtime в SQLite-совместимом сценарии теперь должен передаваться
-  явно через `SUPPORT_BOT_DATABASE_PATH`;
-- default bot-side datasource contract стал заметно ближе к отдельному
-  transport/runtime contour.
-
-Это нужно учитывать при любой работе по разделению panel и bot контуров.
-
-## 5. Legacy слой `bot-<channelId>.db`
-
-Per-channel bot shard-файлы больше не bootstrap-ятся панелью и не считаются
-допустимым live runtime storage. Каталог `APP_BOT_DATABASE_DIR` сохраняется
-только как import boundary для существующих legacy-файлов.
-
-Назначение этого слоя теперь ограничено:
-
-- сохранить legacy channel-local bot данные до переноса;
-- дать backend-owned consolidation step импортировать `bot_users`,
-  `bot_chat_history` и `applications` в canonical PostgreSQL contour;
-- не участвовать в live business reads/writes и не расти как runtime topology.
-
-## 6. Ключевые архитектурные выводы
-
-### Что уже реально отделено
-
-- `panel_identity.db`
-- `monitoring.db`
-- `objects.db`
-
-### Что задекларировано, но остаётся смешанным
-
-- `bot_runtime.db` существует и остаётся compatibility-layer, но default
-  runtime contract `java-bot` уже больше не должен неявно тянуться к
-  `panel_runtime.db`;
-- `clients.db` и `knowledge_base.db` существуют, но многие их домены уже
-  фактически живут в primary runtime.
-
-## 7. Практическая интерпретация для разработчика
-
-Если задача касается:
-
-- диалогов, сообщений, каналов, клиентских карточек, knowledge, задач,
-  уведомлений - почти наверняка смотреть нужно в `panel_runtime.db`;
-- пользователей, ролей и прав - в `panel_identity.db`;
-- SSL/RMS/iiko monitoring - в `monitoring.db`;
-- паспортов объектов - в `objects.db`;
-- bot-side client/unblock/runtime хвостов - в `bot_runtime.db`; legacy
-  `bot-<channelId>.db` допускается только как import source для старых данных.
-
-## 8. Связанные документы
-
-- [docs/database-paths.md](docs/database-paths.md) - текущая transitional карта
-  env/path и logical contour.
-- [docs/db/sqlite-target-topology.md](docs/db/sqlite-target-topology.md) -
-  целевая архитектура SQLite-контура.
-- [docs/sqlite_schema_snapshot.md](docs/sqlite_schema_snapshot.md) -
-  исторический snapshot схем legacy SQLite-файлов.
-
-## 9. Вывод
-
-Текущее распределение БД в проекте уже не равно простой схеме
-"один модуль = одна база". На практике проект использует смесь:
-
-- канонических выделенных контуров;
-- transitional secondary БД;
-- legacy-compatible fallback wiring;
-- legacy shard-файлов для controlled bot-data import.
-
-Главный практический вывод такой:
-
-- `panel_runtime.db` остаётся центральной business БД проекта;
-- `panel_identity.db` и `monitoring.db` уже выделены правильно;
-- `objects.db` реально используется отдельно;
-- `clients.db` и `knowledge_base.db` нужно трактовать как
-  transitional/служебные контуры, а не как равноправные business source of
-  truth;
-- `settings.db` как отдельный registry contour уже удалён из active runtime contract;
-- `bot_runtime.db` уже не поднимается как отдельный live datasource bean, но
-  разделение panel и bot transport/runtime данных ещё не доведено до конца.
+Повторный import, migration или backfill не выполняется автоматически только из-за наличия legacy SQLite evidence.

@@ -3,8 +3,8 @@ package com.example.panel.config;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -24,29 +24,23 @@ import java.util.Map;
 import java.util.Optional;
 
 @Configuration
-@EnableConfigurationProperties({
-    SqliteDataSourceProperties.class,
-    BotProcessProperties.class
-})
-public class SqliteDataSourceConfiguration {
+@EnableConfigurationProperties(BotProcessProperties.class)
+public class PanelDataSourceConfiguration {
 
-    private static final Logger log = LoggerFactory.getLogger(SqliteDataSourceConfiguration.class);
+    private static final Logger log = LoggerFactory.getLogger(PanelDataSourceConfiguration.class);
     private static final long DEFAULT_HIKARI_LEAK_DETECTION_MS = 15_000L;
 
     @Bean
     @Primary
-    public DataSource dataSource(SqliteDataSourceProperties properties, ConfigurableEnvironment environment) {
+    public DataSource dataSource(ConfigurableEnvironment environment) {
         Optional<ExternalDatabaseSettings> externalDatabaseSettings = ExternalDatabaseSettingsResolver.resolve(environment);
         if (externalDatabaseSettings.isEmpty()) {
             throw new IllegalStateException(
-                "spring-panel now requires an external datasource contract. SQLite runtime mode is no longer supported."
+                "spring-panel requires an external datasource contract. Configure PostgreSQL or the supported external MySQL mode."
             );
         }
         ExternalDatabaseSettings settings = externalDatabaseSettings.get();
 
-        // Hibernate 6 can detect PostgreSQL/MySQL directly from JDBC metadata.
-        // Supplying PostgreSQLDialect explicitly only produces a deprecation
-        // warning and is unnecessary for external database mode.
         registerRuntimeProperty(environment, "spring.sql.init.mode", "never");
 
         log.info("Using external {} database at {}", settings.vendor().name().toLowerCase(), settings.jdbcUrl());

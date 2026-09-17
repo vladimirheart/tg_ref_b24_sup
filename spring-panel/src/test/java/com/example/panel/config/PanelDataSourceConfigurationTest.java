@@ -7,32 +7,29 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
-class SqliteDataSourceConfigurationTest {
+class PanelDataSourceConfigurationTest {
 
-    private final SqliteDataSourceConfiguration configuration = new SqliteDataSourceConfiguration();
+    private final PanelDataSourceConfiguration configuration = new PanelDataSourceConfiguration();
 
     @Test
-    void dataSourceRejectsRetiredSqliteRuntime() {
-        SqliteDataSourceProperties properties = new SqliteDataSourceProperties();
+    void dataSourceRejectsMissingExternalDatasource() {
         MockEnvironment environment = new MockEnvironment()
-            .withProperty("app.datasource.mode", "sqlite");
+            .withProperty("app.datasource.mode", "auto");
 
-        assertThatThrownBy(() -> configuration.dataSource(properties, environment))
+        assertThatThrownBy(() -> configuration.dataSource(environment))
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("external datasource contract")
-            .hasMessageContaining("SQLite runtime mode");
+            .hasMessageContaining("external datasource contract");
     }
 
     @Test
     void dataSourceBuildsExternalDatasourceForPostgresql() {
-        SqliteDataSourceProperties properties = new SqliteDataSourceProperties();
         MockEnvironment environment = new MockEnvironment()
             .withProperty("app.datasource.mode", "postgresql")
             .withProperty("spring.datasource.url", "jdbc:postgresql://db.example.local:5432/iguana")
             .withProperty("spring.datasource.username", "iguana")
             .withProperty("spring.datasource.password", "secret");
 
-        DataSource dataSource = configuration.dataSource(properties, environment);
+        DataSource dataSource = configuration.dataSource(environment);
 
         assertThat(dataSource).isNotNull();
         assertThat(environment.getProperty("spring.sql.init.mode")).isEqualTo("never");
