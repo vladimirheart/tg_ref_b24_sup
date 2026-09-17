@@ -83,6 +83,7 @@ class MaxWebhookJavaSourceLayoutContractTest {
     void questionInputPolicyUsesDedicatedPureOwner() throws IOException {
         String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
         String support = read("src/main/java/com/example/supportbot/max/MaxQuestionInputSupport.java");
+        String session = read("src/main/java/com/example/supportbot/max/MaxConversationSession.java");
 
         assertThat(controller)
                 .contains("MaxQuestionInputSupport.BACK_BUTTON.equalsIgnoreCase")
@@ -92,8 +93,6 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .contains("MaxQuestionInputSupport.resolveChoiceAnswer(resolvedAnswer, options)")
                 .contains("MaxQuestionInputSupport.buildQuestionPromptText(current, options, session.canGoBack())")
                 .contains("MaxQuestionInputSupport.isSelectQuestion(current)")
-                .contains("MaxQuestionInputSupport.isChoiceQuestion(item)")
-                .contains("MaxQuestionInputSupport.isPresetQuestion(item)")
                 .doesNotContain("return isPresetQuestion(item) ? answer : null;")
                 .doesNotContain("private static final String SKIP_BUTTON")
                 .doesNotContain("private static final String BACK_BUTTON")
@@ -103,6 +102,10 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("private boolean isOptionalFreeQuestion(")
                 .doesNotContain("private String buildQuestionPromptText(")
                 .doesNotContain("private String resolveChoiceAnswer(");
+
+        assertThat(session)
+                .contains("MaxQuestionInputSupport.isChoiceQuestion(item)")
+                .contains("MaxQuestionInputSupport.isPresetQuestion(item)");
 
         assertThat(support)
                 .contains("final class MaxQuestionInputSupport")
@@ -150,6 +153,45 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("BotSettingsService")
                 .doesNotContain("TicketService")
                 .doesNotContain("MessagingService")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("ObjectMapper");
+    }
+
+    @Test
+    void conversationSessionUsesDedicatedStateOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String session = read("src/main/java/com/example/supportbot/max/MaxConversationSession.java");
+
+        assertThat(controller)
+                .contains("MaxConversationSession session = loadSession(userId)")
+                .contains("private MaxConversationSession startSession(")
+                .contains("private MaxConversationSession loadSession(Long userId)")
+                .contains("MaxConversationSession.State.class")
+                .contains("new MaxConversationSession(stored.payload())")
+                .contains("private void saveSession(MaxConversationSession session)")
+                .contains("private void deleteSession(MaxConversationSession session)")
+                .contains("session.snapshot()")
+                .contains("sessionStoreService.saveIfUnchanged(")
+                .contains("sessionStoreService.deleteIfUnchanged(")
+                .doesNotContain("private record HistoryEvent(")
+                .doesNotContain("private record ConversationSessionState(")
+                .doesNotContain("private final class ConversationSession")
+                .doesNotContain("import com.example.supportbot.settings.dto.QuestionOptionDto;")
+                .doesNotContain("import com.example.supportbot.settings.dto.QuestionRouteDto;");
+
+        assertThat(session)
+                .contains("final class MaxConversationSession")
+                .contains("record HistoryEvent(Long userId, String text, String messageType)")
+                .contains("record State(Long userId,")
+                .contains("void recordAnswer(String text)")
+                .contains("boolean consumeReuseDecision(String decision)")
+                .contains("boolean shouldExpireDueToMissingFirstResponse(OffsetDateTime now, int timeoutMinutes)")
+                .contains("State snapshot()")
+                .doesNotContain("@RestController")
+                .doesNotContain("BotSessionStoreService")
+                .doesNotContain("SessionStateConflictException")
+                .doesNotContain("MessagingService")
+                .doesNotContain("RuntimeConfigService")
                 .doesNotContain("ResponseEntity")
                 .doesNotContain("ObjectMapper");
     }
