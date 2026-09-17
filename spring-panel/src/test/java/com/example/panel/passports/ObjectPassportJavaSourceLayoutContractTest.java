@@ -25,11 +25,19 @@ class ObjectPassportJavaSourceLayoutContractTest {
         String page = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageController.java");
         String settingsEquipment = read("src/main/java/com/example/panel/service/SettingsItEquipmentService.java");
         String netBoxSync = read("src/main/java/com/example/panel/passports/infrastructure/NetBoxObjectPassportSyncService.java");
+        Path oldRuntimeDataSourceTest = Path.of(
+                "src/test/java/com/example/panel/service/ObjectPassportServiceRuntimeDataSourceTest.java");
+        Path newRuntimeDataSourceTest = Path.of(
+                "src/test/java/com/example/panel/passports/ObjectPassportServiceRuntimeDataSourceTest.java");
+        String runtimeDataSourceTest = read(
+                "src/test/java/com/example/panel/passports/ObjectPassportServiceRuntimeDataSourceTest.java");
 
         assertThat(Files.exists(oldService)).isFalse();
         assertThat(Files.exists(newService)).isTrue();
         assertThat(Files.exists(oldPageController)).isFalse();
         assertThat(Files.exists(newPageController)).isTrue();
+        assertThat(Files.exists(oldRuntimeDataSourceTest)).isFalse();
+        assertThat(Files.exists(newRuntimeDataSourceTest)).isTrue();
         assertThat(service)
                 .contains("package com.example.panel.passports;")
                 .contains("public class ObjectPassportService")
@@ -47,6 +55,10 @@ class ObjectPassportJavaSourceLayoutContractTest {
                 .doesNotContain("import com.example.panel.service.ObjectPassportService;");
         assertThat(settingsEquipment).contains("import com.example.panel.passports.ObjectPassportService;");
         assertThat(netBoxSync).contains("import com.example.panel.passports.ObjectPassportService;");
+        assertThat(runtimeDataSourceTest)
+                .contains("package com.example.panel.passports;")
+                .contains("class ObjectPassportServiceRuntimeDataSourceTest")
+                .doesNotContain("import com.example.panel.passports.ObjectPassportService;");
     }
     @Test
     void passportCreateWorkflowUsesDedicatedCommandOwner() throws IOException {
