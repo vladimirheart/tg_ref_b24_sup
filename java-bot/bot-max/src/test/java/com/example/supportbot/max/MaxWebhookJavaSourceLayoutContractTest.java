@@ -354,4 +354,44 @@ class MaxWebhookJavaSourceLayoutContractTest {
                 .doesNotContain("StringUtils")
                 .doesNotContain("LoggerFactory");
     }
+
+    @Test
+    void feedbackInputPolicyUsesDedicatedPureOwner() throws IOException {
+        String controller = read("src/main/java/com/example/supportbot/max/MaxWebhookController.java");
+        String support = read("src/main/java/com/example/supportbot/max/MaxFeedbackInputSupport.java");
+
+        assertThat(controller)
+                .contains("MaxFeedbackInputSupport.normalizeNumericRating(text)")
+                .contains("MaxFeedbackInputSupport.isAllowedRating(")
+                .contains("botSettingsService.ratingAllowedValues(settings)")
+                .contains("MaxFeedbackInputSupport.buildInvalidRatingPrompt(scale)")
+                .contains("int rating = MaxFeedbackInputSupport.parseRating(normalized)")
+                .contains("feedbackService.findActiveRequest(userId, channel)")
+                .contains("feedbackService.storeFeedback(pendingOpt.get(), rating)")
+                .contains("messagingService.sendToUser(")
+                .doesNotContain("Set<String> allowed =")
+                .doesNotContain("String normalized = text.trim();")
+                .doesNotContain("Integer.parseInt(normalized)")
+                .doesNotContain("\"Отправьте число от 1 до \" + scale")
+                .doesNotContain("import java.util.Set;");
+
+        assertThat(support)
+                .contains("final class MaxFeedbackInputSupport")
+                .contains("static String normalizeNumericRating(String text)")
+                .contains("static boolean isAllowedRating(String normalized, Set<String> allowed)")
+                .contains("static int parseRating(String normalized)")
+                .contains("static String buildInvalidRatingPrompt(int scale)")
+                .contains("normalized.matches(\"\\\\d+\")")
+                .contains("allowed.contains(normalized)")
+                .contains("Integer.parseInt(normalized)")
+                .doesNotContain("@RestController")
+                .doesNotContain("FeedbackService")
+                .doesNotContain("MessagingService")
+                .doesNotContain("BotSettingsService")
+                .doesNotContain("PendingFeedbackRequest")
+                .doesNotContain("ResponseEntity")
+                .doesNotContain("ObjectMapper")
+                .doesNotContain("StringUtils")
+                .doesNotContain("LoggerFactory");
+    }
 }

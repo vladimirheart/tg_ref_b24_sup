@@ -34,7 +34,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -356,11 +355,11 @@ public class MaxWebhookController {
     }
 
     private ResponseEntity<Map<String, Object>> tryHandleFeedback(Channel channel, Long userId, String text) {
-        if (userId == null || text == null) {
+        if (userId == null) {
             return null;
         }
-        String normalized = text.trim();
-        if (!normalized.matches("\\d+")) {
+        String normalized = MaxFeedbackInputSupport.normalizeNumericRating(text);
+        if (normalized == null) {
             return null;
         }
         Optional<PendingFeedbackRequest> pendingOpt = feedbackService.findActiveRequest(userId, channel);
@@ -370,14 +369,20 @@ public class MaxWebhookController {
 
         log.info("Processing MAX feedback rating {} from user {}", normalized, userId);
         BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
-        Set<String> allowed = botSettingsService.ratingAllowedValues(settings);
-        if (!allowed.contains(normalized)) {
+        if (!MaxFeedbackInputSupport.isAllowedRating(
+                normalized,
+                botSettingsService.ratingAllowedValues(settings)
+        )) {
             int scale = botSettingsService.ratingScale(settings, 5);
-            messagingService.sendToUser(channel, userId, "Отправьте число от 1 до " + scale);
+            messagingService.sendToUser(
+                    channel,
+                    userId,
+                    MaxFeedbackInputSupport.buildInvalidRatingPrompt(scale)
+            );
             return ResponseEntity.ok(Map.of("ok", true, "awaiting_valid_rating", true));
         }
 
-        int rating = Integer.parseInt(normalized);
+        int rating = MaxFeedbackInputSupport.parseRating(normalized);
         feedbackService.storeFeedback(pendingOpt.get(), rating);
         String response = botSettingsService.ratingResponseFor(settings, rating).orElse("Спасибо за оценку!");
         messagingService.sendToUser(channel, userId, response);
