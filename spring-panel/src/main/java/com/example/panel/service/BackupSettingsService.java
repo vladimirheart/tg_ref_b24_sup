@@ -21,6 +21,7 @@ import org.springframework.util.StringUtils;
 public class BackupSettingsService {
 
     private static final String FILE_NAME = "backup.properties";
+    private static final String PROBE_STATUS_FILE = "backup-destination-probe-status.properties";
 
     private static final String DESTINATION_KEY = BackupDestinationSettings.DESTINATION_KEY;
     private static final String DESTINATION_TYPE_KEY = BackupDestinationSettings.TYPE_KEY;
@@ -107,6 +108,7 @@ public class BackupSettingsService {
                 values.get(EXTERNAL_FAILURE_DOMAIN_KEY),
                 false
         );
+        boolean probeVerified = successfulProbeMatches(destination);
         int postgresRetentionDays = parseInteger(
                 values.get(POSTGRES_RETENTION_KEY),
                 DEFAULT_POSTGRES_RETENTION_DAYS,
@@ -143,9 +145,11 @@ public class BackupSettingsService {
         result.put("destination_username", destination.username());
         result.put("destination_credential_ref", destination.credentialRef());
         result.put("credentials_configured", destination.credentialsConfigured());
-        result.put("destination_dr_classification", destination.drClassification(externalFailureDomain));
-        result.put("destination_probe_available", false);
-        result.put("destination_probe_mode", "read-only-host-runner");
+        result.put("destination_signature", destination.signature());
+        result.put("destination_probe_verified", probeVerified);
+        result.put("destination_dr_classification", destination.drClassification(externalFailureDomain, probeVerified));
+        result.put("destination_probe_available", true);
+        result.put("destination_probe_mode", "host-runner-request-status");
         result.put("destination_probe_steps", destination.probeSteps());
         result.put("destination_probe_error_codes", BackupDestinationSettings.PROBE_ERROR_CODES);
         result.put("external_failure_domain", externalFailureDomain);
@@ -169,6 +173,12 @@ public class BackupSettingsService {
 
     public Map<String, Object> save(Map<String, Object> payload) {
         Map<String, Object> source = payload != null ? payload : Map.of();
+        Map<String, String> currentValues = readValues();
+        BackupDestinationSettings currentDestination = BackupDestinationSettings.fromStored(currentValues);
+        boolean currentExternalFailureDomain = parseBoolean(
+                currentValues.get(EXTERNAL_FAILURE_DOMAIN_KEY),
+                false
+        );
 
         BackupDestinationSettings destination = BackupDestinationSettings.fromPayload(source);
         if (!destination.configured()) {
@@ -182,6 +192,15 @@ public class BackupSettingsService {
         if (destination.localFilesystem() && externalFailureDomain) {
             throw new IllegalArgumentException(
                     "Local filesystem не является отдельным failure domain и не может быть подтверждён как DR."
+            );
+        }
+        boolean probeVerified = successfulProbeMatches(destination);
+        boolean legacyAcknowledgementForSameDestination = currentExternalFailureDomain
+                && currentDestination.signature().equals(destination.signature());
+        if (externalFailureDomain && !destination.localFilesystem()
+                && !probeVerified && !legacyAcknowledgementForSameDestination) {
+            throw new IllegalArgumentException(
+                    "Для нового DR acknowledgement требуется matching successful connection probe."
             );
         }
         int postgresRetentionDays = parseInteger(
@@ -240,6 +259,43 @@ public class BackupSettingsService {
 
         writeValues(values);
         return load();
+    }
+
+
+    private boolean successfulProbeMatches(BackupDestinationSettings destination) {
+        if (!destination.configured() || destination.localFilesystem()) {
+            return false;
+        }
+        Map<String, String> status = readFlatValues(PROBE_STATUS_FILE);
+        return "success".equalsIgnoreCase(status.getOrDefault("status", ""))
+                && destination.signature().equals(status.getOrDefault("destination_signature", ""));
+    }
+
+    private Map<String, String> readFlatValues(String fileName) {
+        Path file = sharedConfigService.resolvePath(fileName);
+        Map<String, String> values = new LinkedHashMap<>();
+        if (!Files.isRegularFile(file)) {
+            return values;
+        }
+        try {
+            for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+                if (!StringUtils.hasText(line)) {
+                    continue;
+                }
+                String trimmed = line.trim();
+                if (trimmed.startsWith("#") || trimmed.startsWith("!")) {
+                    continue;
+                }
+                int separator = trimmed.indexOf('=');
+                if (separator < 1) {
+                    continue;
+                }
+                values.put(trimmed.substring(0, separator).trim(), trimmed.substring(separator + 1).trim());
+            }
+            return values;
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to read backup runtime state " + file, ex);
+        }
     }
 
     private Map<String, String> readValues() {

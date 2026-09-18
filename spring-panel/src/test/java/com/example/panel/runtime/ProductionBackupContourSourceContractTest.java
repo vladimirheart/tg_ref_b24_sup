@@ -219,6 +219,69 @@ class ProductionBackupContourSourceContractTest {
             .doesNotContain("destination_password");
     }
 
+
+    @Test
+    void destinationProbeRunsThroughHostRunnerWithoutExposingSecrets() throws IOException {
+        String controller = read("spring-panel/src/main/java/com/example/panel/controller/BackupSettingsController.java");
+        String probeService = read("spring-panel/src/main/java/com/example/panel/service/BackupDestinationProbeService.java");
+        String settingsService = read("spring-panel/src/main/java/com/example/panel/service/BackupSettingsService.java");
+        String runtime = read("spring-panel/src/main/resources/static/js/settings-backup-runtime.js");
+        String template = read("spring-panel/src/main/resources/templates/settings/fragments/backup-recovery.html");
+        String runnerPs = read("scripts/run-backup-policy.ps1");
+        String runnerSh = read("scripts/run-backup-policy.sh");
+
+        assertThat(controller)
+            .contains("@GetMapping(\"/probe\")")
+            .contains("@PostMapping(\"/probe\")")
+            .contains("BackupDestinationProbeService");
+
+        assertThat(probeService)
+            .contains("backup-destination-probe-request.properties")
+            .contains("backup-destination-probe-request.running")
+            .contains("backup-destination-probe-status.properties")
+            .contains("destination_signature")
+            .contains("write_test")
+            .contains("ATOMIC_MOVE")
+            .doesNotContain("destination_password")
+            .doesNotContain("password=");
+
+        assertThat(settingsService)
+            .contains("destination_probe_available\", true")
+            .contains("destination_probe_verified")
+            .contains("successfulProbeMatches")
+            .contains("matching successful connection probe");
+
+        assertThat(runtime)
+            .contains("`${ENDPOINT}/probe`")
+            .contains("queueDestinationProbe")
+            .contains("destination_verified")
+            .contains("backupDestinationProbeWriteTest")
+            .doesNotContain("destination_password");
+
+        assertThat(template)
+            .contains("data-backup-destination-probe-status")
+            .contains("id=\"backupDestinationProbeWriteTest\"")
+            .contains("data-backup-destination-probe-meta");
+
+        assertThat(runnerPs)
+            .contains("Process-DestinationProbeRequest")
+            .contains("$prefix = \"IGUANA_BACKUP_CREDENTIAL_${token}\"")
+            .contains("${prefix}_PASSWORD")
+            .contains("Test-ProbeTcp445")
+            .contains("New-PSDrive")
+            .contains("WRITE_FAILED")
+            .contains("DELETE_FAILED")
+            .doesNotContain("Write-Host $password");
+
+        assertThat(runnerSh)
+            .contains("process_destination_probe")
+            .contains("smbclient")
+            .contains("IGUANA_BACKUP_CREDENTIAL_${token}")
+            .contains("chmod 600")
+            .contains("WRITE_FAILED")
+            .contains("DELETE_FAILED");
+    }
+
     @Test
     void backupReadinessTracksPortablePackagesIncludingFiles() throws IOException {
         String service = read("spring-panel/src/main/java/com/example/panel/service/BackupReadinessMonitoringService.java");

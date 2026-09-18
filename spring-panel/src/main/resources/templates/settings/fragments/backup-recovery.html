@@ -70,7 +70,7 @@
                       <div class="col-md-4">
                         <label class="form-label" for="backupDestinationAuthMode">Authentication</label>
                         <select class="form-select" id="backupDestinationAuthMode">
-                          <option value="current-identity">Current Windows identity</option>
+                          <option value="current-identity">Current host identity / Kerberos</option>
                           <option value="credential-ref">Host-managed credential reference</option>
                         </select>
                       </div>
@@ -85,7 +85,7 @@
                             <input type="text" class="form-control font-monospace" id="backupDestinationCredentialRef" placeholder="backup-destination-main">
                           </div>
                         </div>
-                        <div class="form-text">Reference указывает на будущий host-managed secret boundary. Сам secret API/UI не принимает и не возвращает.</div>
+                        <div class="form-text">Reference разрешается только host runner'ом через host-managed environment/secret boundary. Сам secret API/UI не принимает и не возвращает.</div>
                       </div>
                     </div>
                   </div>
@@ -107,8 +107,18 @@
                   </div>
 
                   <div class="col-12">
-                    <div class="alert alert-light border mb-0 small" data-backup-destination-probe-note>
-                      Connection test будет выполняться host policy runner'ом в phase B. Panel-web не открывает SMB session и не получает host credentials.
+                    <div class="alert alert-light border mb-2 small" data-backup-destination-probe-note>
+                      Connection test выполняется host policy runner'ом. Panel-web не открывает SMB session и не получает host credentials.
+                    </div>
+                    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2">
+                      <div>
+                        <span class="badge text-bg-secondary" data-backup-destination-probe-status>Probe не запускался</span>
+                        <div class="small text-muted mt-1" data-backup-destination-probe-meta>Read-only по умолчанию.</div>
+                      </div>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="backupDestinationProbeWriteTest">
+                        <label class="form-check-label" for="backupDestinationProbeWriteTest">Разрешить write/delete probe</label>
+                      </div>
                     </div>
                   </div>
                 </div>

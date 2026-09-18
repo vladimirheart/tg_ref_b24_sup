@@ -36,6 +36,9 @@ state_file="${shared_dir}/backup-scheduler.state"
 request_file="${shared_dir}/backup-manual-request.properties"
 running_file="${shared_dir}/backup-manual-request.running"
 manual_status="${shared_dir}/backup-manual-status.properties"
+probe_request="${shared_dir}/backup-destination-probe-request.properties"
+probe_running="${shared_dir}/backup-destination-probe-request.running"
+probe_status="${shared_dir}/backup-destination-probe-status.properties"
 runner_status="${shared_dir}/backup-policy-runner.status"
 stop_file="${shared_dir}/backup-policy-runner.stop"
 lock_dir="${shared_dir}/.backup-scheduler.lock"
@@ -139,6 +142,238 @@ manual_restore_components() {
     *) echo "[ERROR] Unsupported manual backup mode: $1" >&2; return 1 ;;
   esac
 }
+
+credential_ref_token() {
+  printf '%s' "$1" | tr '[:lower:]' '[:upper:]' | sed 's/[^A-Z0-9]/_/g'
+}
+
+probe_finish_error() {
+  local request_id="$1" signature="$2" write_test="$3" requested_at="$4" requested_by="$5" started_at="$6"
+  local step="$7" code="$8" completed="$9" message="${10}"
+  write_status "${probe_status}" \
+    request_id "${request_id}" status error destination_signature "${signature}" \
+    write_test "${write_test}" requested_at "${requested_at}" requested_by "${requested_by}" \
+    started_at "${started_at}" finished_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    step "${step}" error_code "${code}" completed_steps "${completed}" free_bytes "" message "${message}"
+  echo "[ERROR] Destination probe failed: request=${request_id} code=${code} step=${step}" >&2
+}
+
+smb_error_code() {
+  local output="$1" fallback="$2"
+  case "${output}" in
+    *NT_STATUS_LOGON_FAILURE*|*NT_STATUS_WRONG_PASSWORD*) printf '%s' AUTH_FAILED ;;
+    *NT_STATUS_ACCESS_DENIED*) printf '%s' ACCESS_DENIED ;;
+    *NT_STATUS_BAD_NETWORK_NAME*) printf '%s' SHARE_NOT_FOUND ;;
+    *NT_STATUS_OBJECT_PATH_NOT_FOUND*|*NT_STATUS_OBJECT_NAME_NOT_FOUND*) printf '%s' PATH_NOT_FOUND ;;
+    *) printf '%s' "${fallback}" ;;
+  esac
+}
+
+process_destination_probe() {
+  if [[ -f "${probe_running}" ]]; then
+    if find "${probe_running}" -mmin +10 -print -quit 2>/dev/null | grep -q .; then
+      probe_finish_error \
+        "$(flat_get "${probe_running}" request_id)" \
+        "$(flat_get "${probe_running}" destination_signature)" \
+        "$(flat_get "${probe_running}" write_test)" \
+        "$(flat_get "${probe_running}" requested_at)" \
+        "$(flat_get "${probe_running}" requested_by)" \
+        "" runner TIMEOUT "" "Stale destination probe claim detected after runner interruption."
+      rm -f "${probe_running}"
+    else
+      return 0
+    fi
+  fi
+
+  [[ -f "${probe_request}" ]] || return 0
+  mv "${probe_request}" "${probe_running}" 2>/dev/null || return 0
+
+  local request_id signature type path write_test requested_at requested_by started_at completed free_bytes
+  request_id="$(flat_get "${probe_running}" request_id)"
+  signature="$(flat_get "${probe_running}" destination_signature)"
+  type="$(flat_get "${probe_running}" destination_type)"
+  path="$(flat_get "${probe_running}" destination_path)"
+  write_test="$(flat_get "${probe_running}" write_test)"
+  requested_at="$(flat_get "${probe_running}" requested_at)"
+  requested_by="$(flat_get "${probe_running}" requested_by)"
+  started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  completed=""
+  free_bytes=""
+
+  write_status "${probe_status}" \
+    request_id "${request_id}" status running destination_signature "${signature}" \
+    write_test "${write_test}" requested_at "${requested_at}" requested_by "${requested_by}" \
+    started_at "${started_at}" step runner error_code "" completed_steps "" free_bytes "" \
+    message "Destination probe is running on host runner."
+
+  if [[ "${type}" == "local-filesystem" || "${type}" == "mounted-network-filesystem" ]]; then
+    if [[ ! -d "${path}" ]]; then
+      probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" path PATH_NOT_FOUND "${completed}" "Destination path was not found."
+      rm -f "${probe_running}"
+      return 0
+    fi
+    completed=path
+    if ! find "${path}" -mindepth 1 -maxdepth 1 -print -quit >/dev/null 2>&1; then
+      probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" read READ_FAILED "${completed}" "Destination path could not be read."
+      rm -f "${probe_running}"
+      return 0
+    fi
+    completed="${completed},read"
+    if ! free_bytes="$(df -Pk "${path}" 2>/dev/null | awk 'NR==2 {printf "%.0f", $4 * 1024}')"; then
+      probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" free_space READ_FAILED "${completed}" "Free-space information could not be read."
+      rm -f "${probe_running}"
+      return 0
+    fi
+    completed="${completed},free_space"
+
+    if iguana_is_truthy "${write_test}"; then
+      local probe_file="${path%/}/.iguana-probe-${request_id}.tmp"
+      if ! (umask 077; printf '%s' iguana-destination-probe > "${probe_file}"); then
+        probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" write WRITE_FAILED "${completed}" "Explicit write probe failed."
+        rm -f "${probe_running}"
+        return 0
+      fi
+      completed="${completed},write"
+      if ! rm -f "${probe_file}"; then
+        probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" delete DELETE_FAILED "${completed}" "Explicit delete probe failed."
+        rm -f "${probe_running}"
+        return 0
+      fi
+      completed="${completed},delete"
+    fi
+  elif [[ "${type}" == "smb-unc" ]]; then
+    local server share subpath auth_mode credential_ref username token prefix password domain auth_file smb_dir output code
+    server="$(flat_get "${probe_running}" destination_server)"
+    share="$(flat_get "${probe_running}" destination_share)"
+    subpath="$(flat_get "${probe_running}" destination_subpath)"
+    auth_mode="$(flat_get "${probe_running}" destination_auth_mode)"
+    credential_ref="$(flat_get "${probe_running}" destination_credential_ref)"
+    username="$(flat_get "${probe_running}" destination_username)"
+    auth_file=""
+
+    if ! command -v smbclient >/dev/null 2>&1; then
+      probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" authentication DEPENDENCY_MISSING "${completed}" "smbclient is required for smb-unc probe on Unix host."
+      rm -f "${probe_running}"
+      return 0
+    fi
+    if command -v getent >/dev/null 2>&1 && ! getent ahosts "${server}" >/dev/null 2>&1; then
+      probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" host HOST_UNREACHABLE "${completed}" "Host name could not be resolved."
+      rm -f "${probe_running}"
+      return 0
+    fi
+    completed=host
+    if command -v timeout >/dev/null 2>&1; then
+      if ! timeout 5 bash -c 'exec 3<>/dev/tcp/"$1"/"$2"' _ "${server}" 445 >/dev/null 2>&1; then
+        probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" tcp_445 PORT_UNREACHABLE "${completed}" "TCP 445 is unreachable."
+        rm -f "${probe_running}"
+        return 0
+      fi
+    fi
+    completed="${completed},tcp_445"
+
+    local smb_args=("//${server}/${share}" -g)
+    if [[ "${auth_mode}" == "credential-ref" ]]; then
+      token="$(credential_ref_token "${credential_ref}")"
+      prefix="IGUANA_BACKUP_CREDENTIAL_${token}"
+      local username_var="${prefix}_USERNAME" password_var="${prefix}_PASSWORD" domain_var="${prefix}_DOMAIN"
+      [[ -n "${!username_var:-}" ]] && username="${!username_var}"
+      password="${!password_var:-}"
+      domain="${!domain_var:-}"
+      if [[ -z "${username}" || -z "${password}" ]]; then
+        probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" authentication AUTH_REQUIRED "${completed}" "Host-managed credential is not configured."
+        rm -f "${probe_running}"
+        return 0
+      fi
+      auth_file="$(mktemp "${TMPDIR:-/tmp}/iguana-smb-probe.XXXXXX")"
+      chmod 600 "${auth_file}"
+      {
+        printf 'username = %s\n' "${username}"
+        printf 'password = %s\n' "${password}"
+        [[ -z "${domain}" ]] || printf 'domain = %s\n' "${domain}"
+      } > "${auth_file}"
+      smb_args+=( -A "${auth_file}" )
+    else
+      if [[ -z "${KRB5CCNAME:-}" ]] || ! smbclient --help 2>&1 | grep -q -- '--use-kerberos'; then
+        probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" authentication AUTH_REQUIRED "${completed}" "Unix current-identity SMB probe requires a Kerberos ticket and Kerberos-capable smbclient."
+        rm -f "${probe_running}"
+        return 0
+      fi
+      smb_args+=( --use-kerberos=required -N )
+    fi
+
+    smb_dir="${subpath//\\//}"
+    [[ -z "${smb_dir}" ]] || smb_args+=( -D "${smb_dir}" )
+    set +e
+    output="$(smbclient "${smb_args[@]}" -c 'ls' 2>&1)"
+    code=$?
+    set -e
+    if [[ "${code}" -ne 0 ]]; then
+      local mapped
+      mapped="$(smb_error_code "${output}" READ_FAILED)"
+      [[ -z "${auth_file}" ]] || rm -f "${auth_file}"
+      probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" authentication "${mapped}" "${completed}" "SMB authentication/share/read probe failed."
+      rm -f "${probe_running}"
+      return 0
+    fi
+    completed="${completed},authentication,share,path,read"
+
+    set +e
+    smbclient "${smb_args[@]}" -c 'df' >/dev/null 2>&1
+    code=$?
+    set -e
+    if [[ "${code}" -ne 0 ]]; then
+      [[ -z "${auth_file}" ]] || rm -f "${auth_file}"
+      probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" free_space READ_FAILED "${completed}" "SMB free-space probe failed."
+      rm -f "${probe_running}"
+      return 0
+    fi
+    completed="${completed},free_space"
+
+    if iguana_is_truthy "${write_test}"; then
+      local local_probe="${TMPDIR:-/tmp}/iguana-probe-${request_id}.tmp" remote_probe=".iguana-probe-${request_id}.tmp"
+      (umask 077; printf '%s' iguana-destination-probe > "${local_probe}")
+      set +e
+      smbclient "${smb_args[@]}" -c "put ${local_probe} ${remote_probe}" >/dev/null 2>&1
+      code=$?
+      set -e
+      rm -f "${local_probe}"
+      if [[ "${code}" -ne 0 ]]; then
+        [[ -z "${auth_file}" ]] || rm -f "${auth_file}"
+        probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" write WRITE_FAILED "${completed}" "Explicit SMB write probe failed."
+        rm -f "${probe_running}"
+        return 0
+      fi
+      completed="${completed},write"
+      set +e
+      smbclient "${smb_args[@]}" -c "del ${remote_probe}" >/dev/null 2>&1
+      code=$?
+      set -e
+      if [[ "${code}" -ne 0 ]]; then
+        [[ -z "${auth_file}" ]] || rm -f "${auth_file}"
+        probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" delete DELETE_FAILED "${completed}" "Explicit SMB delete probe failed."
+        rm -f "${probe_running}"
+        return 0
+      fi
+      completed="${completed},delete"
+    fi
+    [[ -z "${auth_file}" ]] || rm -f "${auth_file}"
+  else
+    probe_finish_error "${request_id}" "${signature}" "${write_test}" "${requested_at}" "${requested_by}" "${started_at}" destination_type UNKNOWN_ERROR "${completed}" "Unsupported destination type."
+    rm -f "${probe_running}"
+    return 0
+  fi
+
+  write_status "${probe_status}" \
+    request_id "${request_id}" status success destination_signature "${signature}" \
+    write_test "${write_test}" requested_at "${requested_at}" requested_by "${requested_by}" \
+    started_at "${started_at}" finished_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    step "$([[ "${write_test}" == "true" || "${write_test}" == "1" ]] && printf delete || printf free_space)" \
+    error_code "" completed_steps "${completed}" free_bytes "${free_bytes}" \
+    message "Destination probe completed successfully."
+  echo "[GREEN] Destination probe completed: request=${request_id} type=${type} write_test=${write_test}"
+  rm -f "${probe_running}"
+}
+
 
 process_manual_request() {
   if [[ -f "${running_file}" ]]; then
@@ -279,6 +514,7 @@ invoke_cycle() {
   refresh_policy
   write_heartbeat online
 
+  process_destination_probe
   process_manual_request
 
   iguana_is_truthy "${IGUANA_BACKUP_EXTERNAL_FAILURE_DOMAIN:-false}" || return 0

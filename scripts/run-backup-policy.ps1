@@ -113,6 +113,9 @@ $statePath = Join-Path $shared "backup-scheduler.state"
 $requestPath = Join-Path $shared "backup-manual-request.properties"
 $runningPath = Join-Path $shared "backup-manual-request.running"
 $statusPath = Join-Path $shared "backup-manual-status.properties"
+$probeRequestPath = Join-Path $shared "backup-destination-probe-request.properties"
+$probeRunningPath = Join-Path $shared "backup-destination-probe-request.running"
+$probeStatusPath = Join-Path $shared "backup-destination-probe-status.properties"
 $runnerStatusPath = Join-Path $shared "backup-policy-runner.status"
 $stopPath = Join-Path $shared "backup-policy-runner.stop"
 
@@ -173,6 +176,290 @@ function Write-RunnerHeartbeat {
         message = $Message
     })
 }
+
+function Get-HostCredentialValue([string]$Name) {
+    foreach ($scope in @("Process", "User", "Machine")) {
+        $value = [Environment]::GetEnvironmentVariable($Name, $scope)
+        if (-not [string]::IsNullOrWhiteSpace($value)) { return $value }
+    }
+    return ""
+}
+
+function Convert-CredentialRefToken([string]$Reference) {
+    if ([string]::IsNullOrWhiteSpace($Reference)) { return "" }
+    return ([regex]::Replace($Reference.Trim().ToUpperInvariant(), "[^A-Z0-9]", "_"))
+}
+
+function Resolve-ProbeCredential([hashtable]$Request) {
+    $reference = [string]$Request["destination_credential_ref"]
+    $token = Convert-CredentialRefToken $reference
+    if ([string]::IsNullOrWhiteSpace($token)) {
+        throw [System.InvalidOperationException]::new("AUTH_REQUIRED|authentication|Credential reference is empty.")
+    }
+
+    $prefix = "IGUANA_BACKUP_CREDENTIAL_${token}"
+    $username = Get-HostCredentialValue "${prefix}_USERNAME"
+    if ([string]::IsNullOrWhiteSpace($username)) {
+        $username = [string]$Request["destination_username"]
+    }
+    $password = Get-HostCredentialValue "${prefix}_PASSWORD"
+    $domain = Get-HostCredentialValue "${prefix}_DOMAIN"
+
+    if ([string]::IsNullOrWhiteSpace($username) -or [string]::IsNullOrWhiteSpace($password)) {
+        throw [System.InvalidOperationException]::new("AUTH_REQUIRED|authentication|Host-managed credential is not configured.")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($domain) -and $username -notmatch "[\\@]") {
+        $username = "$domain\$username"
+    }
+
+    $secure = ConvertTo-SecureString $password -AsPlainText -Force
+    return New-Object System.Management.Automation.PSCredential($username, $secure)
+}
+
+function Get-ProbeError([System.Exception]$Exception, [string]$FallbackStep) {
+    $message = [string]$Exception.Message
+    if ($message -match "^([A-Z_]+)\|([^|]+)\|") {
+        return @($Matches[1], $Matches[2], ($message.Substring($message.IndexOf('|', $message.IndexOf('|') + 1) + 1)))
+    }
+
+    $lower = $message.ToLowerInvariant()
+    if ($lower.Contains("logon failure") -or $lower.Contains("user name or password is incorrect")) {
+        return @("AUTH_FAILED", "authentication", "SMB authentication failed.")
+    }
+    if ($lower.Contains("access is denied") -or $lower.Contains("access denied")) {
+        return @("ACCESS_DENIED", $FallbackStep, "Destination access was denied.")
+    }
+    if ($lower.Contains("network name cannot be found") -or $lower.Contains("network path was not found")) {
+        return @("SHARE_NOT_FOUND", "share", "SMB share was not found.")
+    }
+    return @("UNKNOWN_ERROR", $FallbackStep, "Destination probe failed on host runner.")
+}
+
+function Test-ProbeTcp445([string]$Server) {
+    try {
+        $addresses = [System.Net.Dns]::GetHostAddresses($Server)
+        if ($null -eq $addresses -or $addresses.Count -eq 0) {
+            throw [System.InvalidOperationException]::new("HOST_UNREACHABLE|host|Host name could not be resolved.")
+        }
+    } catch {
+        if ($_.Exception.Message -match "^[A-Z_]+\|") { throw }
+        throw [System.InvalidOperationException]::new("HOST_UNREACHABLE|host|Host name could not be resolved.")
+    }
+
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $task = $client.ConnectAsync($Server, 445)
+        if (-not $task.Wait(5000) -or -not $client.Connected) {
+            throw [System.InvalidOperationException]::new("PORT_UNREACHABLE|tcp_445|TCP 445 is unreachable.")
+        }
+    } catch {
+        if ($_.Exception.Message -match "^[A-Z_]+\|") { throw }
+        throw [System.InvalidOperationException]::new("PORT_UNREACHABLE|tcp_445|TCP 445 is unreachable.")
+    } finally {
+        $client.Dispose()
+    }
+}
+
+function Get-PathFreeBytes([string]$Path) {
+    $item = Get-Item -LiteralPath $Path -ErrorAction Stop
+    if ($null -eq $item.PSDrive) { return "" }
+    $drive = Get-PSDrive -Name $item.PSDrive.Name -ErrorAction Stop
+    if ($null -eq $drive.Free) { return "" }
+    return [string][int64]$drive.Free
+}
+
+function Invoke-ProbePathChecks {
+    param(
+        [string]$Path,
+        [bool]$WriteTest,
+        [string]$RequestId,
+        [System.Collections.Generic.List[string]]$CompletedSteps
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+        throw [System.InvalidOperationException]::new("PATH_NOT_FOUND|path|Destination path was not found.")
+    }
+    [void]$CompletedSteps.Add("path")
+
+    try {
+        Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop | Select-Object -First 1 | Out-Null
+    } catch {
+        throw [System.InvalidOperationException]::new("READ_FAILED|read|Destination path could not be read.")
+    }
+    [void]$CompletedSteps.Add("read")
+
+    try {
+        $freeBytes = Get-PathFreeBytes $Path
+    } catch {
+        throw [System.InvalidOperationException]::new("READ_FAILED|free_space|Free-space information could not be read.")
+    }
+    [void]$CompletedSteps.Add("free_space")
+
+    if ($WriteTest) {
+        $probeFile = Join-Path $Path (".iguana-probe-" + $RequestId + ".tmp")
+        try {
+            [System.IO.File]::WriteAllText($probeFile, "iguana-destination-probe", (New-Object System.Text.UTF8Encoding($false)))
+            [void]$CompletedSteps.Add("write")
+        } catch {
+            throw [System.InvalidOperationException]::new("WRITE_FAILED|write|Explicit write probe failed.")
+        }
+        try {
+            Remove-Item -LiteralPath $probeFile -Force -ErrorAction Stop
+            [void]$CompletedSteps.Add("delete")
+        } catch {
+            throw [System.InvalidOperationException]::new("DELETE_FAILED|delete|Explicit delete probe failed.")
+        }
+    }
+
+    return $freeBytes
+}
+
+function Process-DestinationProbeRequest {
+    if (Test-Path -LiteralPath $probeRunningPath -PathType Leaf) {
+        $age = [DateTime]::UtcNow - (Get-Item -LiteralPath $probeRunningPath).LastWriteTimeUtc
+        if ($age.TotalMinutes -gt 10) {
+            $stale = Read-FlatFile $probeRunningPath
+            Write-FlatFile $probeStatusPath ([ordered]@{
+                request_id = [string]$stale["request_id"]
+                status = "error"
+                destination_signature = [string]$stale["destination_signature"]
+                write_test = [string]$stale["write_test"]
+                finished_at = [DateTimeOffset]::UtcNow.ToString("o")
+                step = "runner"
+                error_code = "TIMEOUT"
+                completed_steps = ""
+                free_bytes = ""
+                message = "Stale destination probe claim detected after runner interruption."
+            })
+            Remove-Item -LiteralPath $probeRunningPath -Force -ErrorAction SilentlyContinue
+        } else {
+            return
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $probeRequestPath -PathType Leaf)) { return }
+    try {
+        Move-Item -LiteralPath $probeRequestPath -Destination $probeRunningPath -ErrorAction Stop
+    } catch {
+        return
+    }
+
+    $request = Read-FlatFile $probeRunningPath
+    $requestId = [string]$request["request_id"]
+    $signature = [string]$request["destination_signature"]
+    $type = ([string]$request["destination_type"]).Trim().ToLowerInvariant()
+    $path = [string]$request["destination_path"]
+    $writeTest = Truthy ([string]$request["write_test"])
+    $startedAt = [DateTimeOffset]::UtcNow.ToString("o")
+    $completed = New-Object System.Collections.Generic.List[string]
+    $freeBytes = ""
+    $psDriveName = ""
+
+    Write-FlatFile $probeStatusPath ([ordered]@{
+        request_id = $requestId
+        status = "running"
+        destination_signature = $signature
+        write_test = $writeTest.ToString().ToLowerInvariant()
+        requested_at = [string]$request["requested_at"]
+        requested_by = [string]$request["requested_by"]
+        started_at = $startedAt
+        step = "runner"
+        error_code = ""
+        completed_steps = ""
+        free_bytes = ""
+        message = "Destination probe is running on host runner."
+    })
+
+    try {
+        switch ($type) {
+            "local-filesystem" {
+                $freeBytes = Invoke-ProbePathChecks -Path $path -WriteTest $writeTest -RequestId $requestId -CompletedSteps $completed
+            }
+            "mounted-network-filesystem" {
+                $freeBytes = Invoke-ProbePathChecks -Path $path -WriteTest $writeTest -RequestId $requestId -CompletedSteps $completed
+            }
+            "smb-unc" {
+                $server = [string]$request["destination_server"]
+                $share = [string]$request["destination_share"]
+                $subpath = [string]$request["destination_subpath"]
+                if ([string]::IsNullOrWhiteSpace($server) -or [string]::IsNullOrWhiteSpace($share)) {
+                    throw [System.InvalidOperationException]::new("SHARE_NOT_FOUND|share|SMB server/share is incomplete.")
+                }
+
+                Test-ProbeTcp445 $server
+                [void]$completed.Add("host")
+                [void]$completed.Add("tcp_445")
+
+                $root = "\\$server\$share"
+                $psDriveName = "IGP" + ([Guid]::NewGuid().ToString("N").Substring(0, 8))
+                $authMode = ([string]$request["destination_auth_mode"]).Trim().ToLowerInvariant()
+                try {
+                    if ($authMode -eq "credential-ref") {
+                        $credential = Resolve-ProbeCredential $request
+                        New-PSDrive -Name $psDriveName -PSProvider FileSystem -Root $root -Credential $credential -Scope Script -ErrorAction Stop | Out-Null
+                    } else {
+                        New-PSDrive -Name $psDriveName -PSProvider FileSystem -Root $root -Scope Script -ErrorAction Stop | Out-Null
+                    }
+                } catch {
+                    $mapped = Get-ProbeError $_.Exception "share"
+                    throw [System.InvalidOperationException]::new("$($mapped[0])|$($mapped[1])|$($mapped[2])")
+                }
+                [void]$completed.Add("authentication")
+                [void]$completed.Add("share")
+
+                $target = "$psDriveName`:"
+                if (-not [string]::IsNullOrWhiteSpace($subpath)) {
+                    $target = Join-Path $target $subpath
+                }
+                $freeBytes = Invoke-ProbePathChecks -Path $target -WriteTest $writeTest -RequestId $requestId -CompletedSteps $completed
+            }
+            default {
+                throw [System.InvalidOperationException]::new("UNKNOWN_ERROR|destination_type|Unsupported destination type.")
+            }
+        }
+
+        Write-FlatFile $probeStatusPath ([ordered]@{
+            request_id = $requestId
+            status = "success"
+            destination_signature = $signature
+            write_test = $writeTest.ToString().ToLowerInvariant()
+            requested_at = [string]$request["requested_at"]
+            requested_by = [string]$request["requested_by"]
+            started_at = $startedAt
+            finished_at = [DateTimeOffset]::UtcNow.ToString("o")
+            step = $(if ($writeTest) { "delete" } else { "free_space" })
+            error_code = ""
+            completed_steps = ($completed -join ",")
+            free_bytes = $freeBytes
+            message = "Destination probe completed successfully."
+        })
+        Write-Host "[GREEN] Destination probe completed: request=$requestId type=$type write_test=$writeTest"
+    } catch {
+        $mapped = Get-ProbeError $_.Exception "runner"
+        Write-FlatFile $probeStatusPath ([ordered]@{
+            request_id = $requestId
+            status = "error"
+            destination_signature = $signature
+            write_test = $writeTest.ToString().ToLowerInvariant()
+            requested_at = [string]$request["requested_at"]
+            requested_by = [string]$request["requested_by"]
+            started_at = $startedAt
+            finished_at = [DateTimeOffset]::UtcNow.ToString("o")
+            step = [string]$mapped[1]
+            error_code = [string]$mapped[0]
+            completed_steps = ($completed -join ",")
+            free_bytes = $freeBytes
+            message = [string]$mapped[2]
+        })
+        Write-Warning "Destination probe failed: request=$requestId code=$($mapped[0]) step=$($mapped[1])"
+    } finally {
+        if (-not [string]::IsNullOrWhiteSpace($psDriveName)) {
+            Remove-PSDrive -Name $psDriveName -Force -ErrorAction SilentlyContinue
+        }
+        Remove-Item -LiteralPath $probeRunningPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 
 function Process-ManualRequest {
     if (Test-Path -LiteralPath $runningPath -PathType Leaf) {
@@ -350,6 +637,7 @@ function Invoke-PolicyCycle {
     Refresh-BackupPolicyEnvironment
     Write-RunnerHeartbeat -Status "online"
 
+    Process-DestinationProbeRequest
     Process-ManualRequest
 
     if (-not (Truthy (Get-Env "IGUANA_BACKUP_EXTERNAL_FAILURE_DOMAIN" "false"))) {

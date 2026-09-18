@@ -1,6 +1,10 @@
 package com.example.panel.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -68,6 +72,7 @@ record BackupDestinationSettings(
             "TIMEOUT",
             "TLS_ERROR",
             "HOST_KEY_MISMATCH",
+            "DEPENDENCY_MISSING",
             "UNKNOWN_ERROR"
     );
 
@@ -230,15 +235,34 @@ record BackupDestinationSettings(
     }
 
     String drClassification(boolean externalFailureDomainAcknowledged) {
+        return drClassification(externalFailureDomainAcknowledged, false);
+    }
+
+    String drClassification(boolean externalFailureDomainAcknowledged, boolean probeVerified) {
         if (!configured()) {
             return "not_configured";
         }
         if (localFilesystem()) {
             return "not_dr";
         }
+        if (probeVerified) {
+            return externalFailureDomainAcknowledged ? "dr_verified" : "probe_verified";
+        }
         return externalFailureDomainAcknowledged
                 ? "acknowledged_unverified"
                 : "external_unverified";
+    }
+
+    String signature() {
+        String canonical = String.join("\u001f",
+                type, destinationPath, server, share, subpath, authMode, username, credentialRef);
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable", ex);
+        }
     }
 
     Map<String, String> persistedFields() {

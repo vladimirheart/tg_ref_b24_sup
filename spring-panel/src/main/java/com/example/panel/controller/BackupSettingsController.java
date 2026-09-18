@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.service.BackupDestinationProbeService;
 import com.example.panel.service.BackupManualOperationService;
 import com.example.panel.service.BackupSettingsService;
 import java.util.Map;
@@ -17,11 +18,14 @@ public class BackupSettingsController {
 
     private final BackupSettingsService backupSettingsService;
     private final BackupManualOperationService backupManualOperationService;
+    private final BackupDestinationProbeService backupDestinationProbeService;
 
     public BackupSettingsController(BackupSettingsService backupSettingsService,
-                                    BackupManualOperationService backupManualOperationService) {
+                                    BackupManualOperationService backupManualOperationService,
+                                    BackupDestinationProbeService backupDestinationProbeService) {
         this.backupSettingsService = backupSettingsService;
         this.backupManualOperationService = backupManualOperationService;
+        this.backupDestinationProbeService = backupDestinationProbeService;
     }
 
     @GetMapping
@@ -37,6 +41,32 @@ public class BackupSettingsController {
             return Map.of("success", true, "settings", backupSettingsService.save(payload));
         } catch (IllegalArgumentException ex) {
             return Map.of("success", false, "error", ex.getMessage());
+        }
+    }
+
+
+    @GetMapping("/probe")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    public Map<String, Object> getDestinationProbeStatus() {
+        return Map.of("success", true, "probe", backupDestinationProbeService.status());
+    }
+
+    @PostMapping("/probe")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    public Map<String, Object> queueDestinationProbe(@RequestBody Map<String, Object> payload,
+                                                     Authentication authentication) {
+        try {
+            String requestedBy = authentication != null ? authentication.getName() : "unknown";
+            return Map.of(
+                    "success", true,
+                    "probe", backupDestinationProbeService.enqueue(payload, requestedBy)
+            );
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return Map.of(
+                    "success", false,
+                    "error", ex.getMessage(),
+                    "probe", backupDestinationProbeService.status()
+            );
         }
     }
 

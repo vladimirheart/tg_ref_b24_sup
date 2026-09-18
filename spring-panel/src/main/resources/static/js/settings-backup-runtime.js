@@ -1,11 +1,15 @@
 (function () {
   const ENDPOINT = '/api/settings/backup';
   const MANUAL_ENDPOINT = `${ENDPOINT}/manual`;
+  const PROBE_ENDPOINT = `${ENDPOINT}/probe`;
   const COMPONENTS = ['postgres', 'minio', 'shared-config', 'templates', 'static-js', 'static-css'];
   const DESTINATION_TYPES = new Set(['local-filesystem', 'smb-unc', 'mounted-network-filesystem']);
   const SMB_AUTH_MODES = new Set(['current-identity', 'credential-ref']);
   let currentSettings = {};
+  let currentProbe = {};
+  let destinationDirty = false;
   let manualPollTimer = null;
+  let probePollTimer = null;
 
   function byId(id) { return document.getElementById(id); }
 
@@ -50,6 +54,13 @@
     return `\\\\${server}\\${share}${subpath ? `\\${subpath}` : ''}`;
   }
 
+  function markDestinationDirty() {
+    destinationDirty = true;
+    const ack = byId('backupExternalFailureDomain');
+    if (ack instanceof HTMLInputElement) ack.checked = false;
+    updateDestinationUi();
+  }
+
   function updateDestinationUi() {
     const type = selectedDestinationType();
     const authMode = selectedSmbAuthMode();
@@ -60,6 +71,10 @@
     const testButton = document.querySelector('[data-backup-destination-test]');
     const ack = byId('backupExternalFailureDomain');
     const probeAvailable = Boolean(currentSettings.destination_probe_available);
+    const probeBusy = ['queued', 'running'].includes(String(currentProbe.operation_status || 'idle'));
+    const probeVerified = !destinationDirty && Boolean(
+      currentProbe.destination_verified || currentSettings.destination_probe_verified
+    );
 
     if (pathBlock instanceof HTMLElement) pathBlock.classList.toggle('d-none', type === 'smb-unc');
     if (smbBlock instanceof HTMLElement) smbBlock.classList.toggle('d-none', type !== 'smb-unc');
@@ -67,10 +82,13 @@
       credentialBlock.classList.toggle('d-none', type !== 'smb-unc' || authMode !== 'credential-ref');
     }
     if (localWarning instanceof HTMLElement) localWarning.classList.toggle('d-none', type !== 'local-filesystem');
-    if (testButton instanceof HTMLButtonElement) testButton.disabled = !probeAvailable;
+    if (testButton instanceof HTMLButtonElement) {
+      testButton.disabled = !probeAvailable || probeBusy || !Boolean(currentSettings.configured);
+      testButton.setAttribute('aria-busy', probeBusy ? 'true' : 'false');
+    }
     if (ack instanceof HTMLInputElement) {
       if (type === 'local-filesystem') ack.checked = false;
-      ack.disabled = type === 'local-filesystem' || !probeAvailable;
+      ack.disabled = type === 'local-filesystem' || !probeAvailable || !probeVerified;
     }
 
     const note = document.querySelector('[data-backup-destination-probe-note]');
@@ -79,8 +97,8 @@
         ? currentSettings.destination_probe_steps.join(' → ')
         : 'host → tcp_445 → authentication → share → path → read → free_space';
       note.textContent = probeAvailable
-        ? `Read-only host probe готов: ${steps}`
-        : `Phase A: host-side probe execution ещё не включён. Контракт проверки: ${steps}.`;
+        ? `Host probe: ${steps}. Write/delete выполняется только по explicit switch.`
+        : `Host-side probe недоступен. Контракт проверки: ${steps}.`;
     }
 
     updateDerivedPaths();
@@ -128,7 +146,7 @@
       ? false
       : ackInput instanceof HTMLInputElement && !ackInput.disabled
         ? ackInput.checked
-        : existingAck;
+        : destinationDirty ? false : existingAck;
 
     return {
       destination_type: type,
@@ -175,6 +193,7 @@
   function render(settings) {
     const s = settings && typeof settings === 'object' ? settings : {};
     currentSettings = s;
+    destinationDirty = false;
     const map = {
       backupDestinationType: s.destination_type || 'local-filesystem',
       backupDestinationPath: s.destination_path || '',
@@ -215,6 +234,8 @@
       not_dr: ['NOT_DR · local', 'text-bg-warning'],
       external_unverified: ['External · не проверено', 'text-bg-warning'],
       acknowledged_unverified: ['DR ack · probe не выполнен', 'text-bg-warning'],
+      probe_verified: ['Probe verified · ожидает DR ack', 'text-bg-info'],
+      dr_verified: ['DR verified', 'text-bg-success'],
     };
     const [label, badgeClass] = labels[classification] || [classification, 'text-bg-secondary'];
     for (const element of [status, destinationStatus]) {
@@ -240,6 +261,81 @@
     if (!raw) return '';
     const parsed = new Date(raw);
     return Number.isNaN(parsed.getTime()) ? raw : parsed.toLocaleString();
+  }
+
+  function renderProbeStatus(probe) {
+    const data = probe && typeof probe === 'object' ? probe : {};
+    currentProbe = data;
+    const status = document.querySelector('[data-backup-destination-probe-status]');
+    const meta = document.querySelector('[data-backup-destination-probe-meta]');
+    const operationStatus = String(data.operation_status || 'idle');
+    const labels = {
+      idle: ['Probe не запускался', 'text-bg-secondary'],
+      queued: ['Probe в очереди', 'text-bg-warning'],
+      running: ['Probe выполняется', 'text-bg-primary'],
+      success: [data.destination_verified ? 'Probe verified' : 'Probe success · destination changed', 'text-bg-success'],
+      error: ['Probe error', 'text-bg-danger'],
+    };
+    if (status instanceof HTMLElement) {
+      const [label, badgeClass] = labels[operationStatus] || [operationStatus, 'text-bg-secondary'];
+      status.className = `badge ${badgeClass}`;
+      status.textContent = label;
+    }
+    if (meta instanceof HTMLElement) {
+      const parts = [];
+      if (data.step) parts.push(`step: ${data.step}`);
+      if (data.error_code) parts.push(`code: ${data.error_code}`);
+      if (data.completed_steps) parts.push(`done: ${data.completed_steps}`);
+      if (data.free_bytes) parts.push(`free: ${data.free_bytes} B`);
+      if (data.write_test) parts.push('write/delete enabled');
+      if (data.finished_at) parts.push(`finished: ${formatTimestamp(data.finished_at)}`);
+      if (data.message) parts.push(data.message);
+      if (operationStatus === 'queued' && !data.runner_active) parts.push('Host runner offline.');
+      meta.textContent = parts.length ? parts.join(' · ') : 'Read-only по умолчанию.';
+    }
+    updateDestinationUi();
+  }
+
+  async function loadProbeStatus() {
+    try {
+      const response = await fetch(PROBE_ENDPOINT, { headers: { Accept: 'application/json' } });
+      const data = await response.json();
+      if (!response.ok || data.success !== true) throw new Error(data.error || `HTTP ${response.status}`);
+      renderProbeStatus(data.probe);
+      return data.probe;
+    } catch (error) {
+      const meta = document.querySelector('[data-backup-destination-probe-meta]');
+      if (meta instanceof HTMLElement) meta.textContent = `Не удалось получить probe status: ${error.message}`;
+      return null;
+    }
+  }
+
+  async function queueDestinationProbe() {
+    clearFeedback();
+    const button = document.querySelector('[data-backup-destination-test]');
+    if (button instanceof HTMLButtonElement) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
+    try {
+      await persistSettings(false);
+      const response = await fetch(PROBE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...csrfHeaders() },
+        body: JSON.stringify({ write_test: Boolean(byId('backupDestinationProbeWriteTest')?.checked) }),
+      });
+      const data = await response.json();
+      renderProbeStatus(data.probe);
+      if (!response.ok || data.success !== true) throw new Error(data.error || `HTTP ${response.status}`);
+      setFeedback(
+        data.probe?.runner_active
+          ? 'Destination probe поставлен в очередь host runner.'
+          : 'Probe поставлен в очередь, но host runner offline.',
+        data.probe?.runner_active ? 'success' : 'warning'
+      );
+    } catch (error) {
+      setFeedback(`Не удалось запустить destination probe: ${error.message}`, 'danger');
+    } finally {
+      await loadProbeStatus();
+      if (button instanceof HTMLButtonElement) button.removeAttribute('aria-busy');
+    }
   }
 
   function renderManualStatus(manual) {
@@ -317,7 +413,7 @@
       const data = await response.json();
       if (!response.ok || data.success !== true) throw new Error(data.error || `HTTP ${response.status}`);
       render(data.settings);
-      await loadManualStatus();
+      await Promise.all([loadManualStatus(), loadProbeStatus()]);
     } catch (error) {
       setFeedback(`Не удалось загрузить backup policy: ${error.message}`, 'danger');
     }
@@ -397,21 +493,34 @@
     if (manualPollTimer !== null) { window.clearInterval(manualPollTimer); manualPollTimer = null; }
   }
 
+  function startProbePolling() {
+    stopProbePolling();
+    loadProbeStatus();
+    probePollTimer = window.setInterval(loadProbeStatus, 2000);
+  }
+
+  function stopProbePolling() {
+    if (probePollTimer !== null) { window.clearInterval(probePollTimer); probePollTimer = null; }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     const modal = byId('backupSettingsModal');
     if (modal instanceof HTMLElement) {
-      modal.addEventListener('shown.bs.modal', () => { loadSettings(); startManualPolling(); });
-      modal.addEventListener('hidden.bs.modal', stopManualPolling);
+      modal.addEventListener('shown.bs.modal', () => { loadSettings(); startManualPolling(); startProbePolling(); });
+      modal.addEventListener('hidden.bs.modal', () => { stopManualPolling(); stopProbePolling(); });
     }
-    byId('backupDestinationType')?.addEventListener('change', updateDestinationUi);
-    byId('backupDestinationPath')?.addEventListener('input', updateDestinationUi);
-    byId('backupDestinationServer')?.addEventListener('input', updateDestinationUi);
-    byId('backupDestinationShare')?.addEventListener('input', updateDestinationUi);
-    byId('backupDestinationSubpath')?.addEventListener('input', updateDestinationUi);
-    byId('backupDestinationAuthMode')?.addEventListener('change', updateDestinationUi);
+    byId('backupDestinationType')?.addEventListener('change', markDestinationDirty);
+    byId('backupDestinationPath')?.addEventListener('input', markDestinationDirty);
+    byId('backupDestinationServer')?.addEventListener('input', markDestinationDirty);
+    byId('backupDestinationShare')?.addEventListener('input', markDestinationDirty);
+    byId('backupDestinationSubpath')?.addEventListener('input', markDestinationDirty);
+    byId('backupDestinationAuthMode')?.addEventListener('change', markDestinationDirty);
+    byId('backupDestinationUsername')?.addEventListener('input', markDestinationDirty);
+    byId('backupDestinationCredentialRef')?.addEventListener('input', markDestinationDirty);
     byId('backupCriticalFrequency')?.addEventListener('change', () => updateWeekdayVisibility('backupCritical'));
     byId('backupFullFrequency')?.addEventListener('change', () => updateWeekdayVisibility('backupFull'));
     document.querySelector('[data-backup-settings-save]')?.addEventListener('click', saveSettings);
+    document.querySelector('[data-backup-destination-test]')?.addEventListener('click', queueDestinationProbe);
     document.querySelector('[data-backup-manual-run]')?.addEventListener('click', queueManualBackup);
     document.querySelector('[data-backup-manual-refresh]')?.addEventListener('click', loadManualStatus);
   });

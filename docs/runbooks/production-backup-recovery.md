@@ -302,3 +302,13 @@ The existing `IGUANA_BACKUP_DESTINATION_DIR` remains the canonical filesystem pa
 SMB auth modes in phase A are `current-identity` and `credential-ref`. `credential_ref` is non-secret metadata only. Passwords, private keys and access keys are not accepted by this settings contract and must not be written to `backup.properties`, API responses or logs. Resolution of a real host-managed credential is intentionally deferred to the host-side execution slice.
 
 The API also exposes the normalized read-only probe contract (`host`, `tcp_445`, `authentication`, `share`, `path`, `read`, `free_space`) and stable error codes, but `destination_probe_available=false` in phase A. The UI therefore shows the future connection-test action as unavailable and does not allow a new DR acknowledgement from path text alone. A network destination remains `external_unverified` (or `acknowledged_unverified` for a pre-existing acknowledgement) until host-side probe execution is implemented and passes.
+
+## Host-side destination probe (01-271 phase B)
+
+`panel-web` never opens an SMB session. It publishes a non-secret request into shared config; `run-backup-policy.ps1` / `.sh` claims it and writes a sanitized status file. The default probe is read-only. Write/delete is performed only when the operator explicitly enables the write test.
+
+For `credential-ref`, the ref is normalized to uppercase with non-alphanumeric characters replaced by `_`. Example `backup-destination-main` resolves on the host to `IGUANA_BACKUP_CREDENTIAL_BACKUP_DESTINATION_MAIN_USERNAME`, `..._PASSWORD`, and optional `..._DOMAIN`. Secret values must be injected by host secret management / service environment and are never written to Git, `backup.properties`, probe request/status, API responses, or logs.
+
+Windows SMB uses an ephemeral PowerShell PSDrive and removes it after each probe. Unix SMB requires `smbclient`; credential-ref uses a temporary mode-0600 auth file that is deleted after the probe, while current-identity requires a Kerberos ticket and a Kerberos-capable `smbclient`.
+
+A successful probe carries a `destination_signature`. A new `external_failure_domain=true` acknowledgement is accepted only when the last successful probe signature matches the exact current destination. A pre-existing legacy acknowledgement can remain only while the destination stays unchanged.
