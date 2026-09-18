@@ -213,7 +213,9 @@ class ProductionBackupContourSourceContractTest {
             .contains("data-backup-info-toggle")
             .contains("data-backup-destination-probe-summary")
             .contains("data-no-disclosure")
-            .contains("NOT_DR");
+            .contains("NOT_DR")
+            .doesNotContain("<h6>Retention</h6>")
+            .doesNotContain("<h6>Периодичность</h6>");
 
         assertThat(runtime)
             .contains("destination_type")
