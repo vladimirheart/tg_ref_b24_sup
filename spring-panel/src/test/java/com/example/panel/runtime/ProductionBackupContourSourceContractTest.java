@@ -180,6 +180,7 @@ class ProductionBackupContourSourceContractTest {
         String service = read("spring-panel/src/main/java/com/example/panel/service/BackupSettingsService.java");
         String backupTemplate = read("spring-panel/src/main/resources/templates/settings/fragments/backup-recovery.html");
         String runtime = read("spring-panel/src/main/resources/static/js/settings-backup-runtime.js");
+        String backupScss = read("spring-panel/src/main/resources/scss/settings/_backup-recovery.scss");
 
         assertThat(model)
             .contains("static final String TYPE_KEY = \"IGUANA_BACKUP_DESTINATION_TYPE\"")
@@ -209,6 +210,9 @@ class ProductionBackupContourSourceContractTest {
             .contains("id=\"backupDestinationServer\"")
             .contains("id=\"backupDestinationCredentialRef\"")
             .contains("data-backup-destination-test disabled")
+            .contains("data-backup-info-toggle")
+            .contains("data-backup-destination-probe-summary")
+            .contains("data-no-disclosure")
             .contains("NOT_DR");
 
         assertThat(runtime)
@@ -216,7 +220,15 @@ class ProductionBackupContourSourceContractTest {
             .contains("destination_auth_mode")
             .contains("destination_credential_ref")
             .contains("destination_probe_available")
+            .contains("formatBytes")
+            .contains("initBackupInfoPanels")
             .doesNotContain("destination_password");
+
+        assertThat(backupScss)
+            .contains("#backupSettingsModal")
+            .contains(".backup-info__panel")
+            .contains(".backup-probe-summary")
+            .contains(".backup-state-strip");
     }
 
 

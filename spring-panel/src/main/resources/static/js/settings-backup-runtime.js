@@ -10,6 +10,7 @@
   let destinationDirty = false;
   let manualPollTimer = null;
   let probePollTimer = null;
+  let feedbackTimer = null;
 
   function byId(id) { return document.getElementById(id); }
 
@@ -21,16 +22,61 @@
   function setFeedback(message, type = 'info') {
     const element = document.querySelector('[data-backup-settings-feedback]');
     if (!(element instanceof HTMLElement)) return;
+    if (feedbackTimer !== null) { window.clearTimeout(feedbackTimer); feedbackTimer = null; }
     element.className = `alert alert-${type}`;
     element.textContent = message;
     element.classList.remove('d-none');
+    if (type === 'success' || type === 'info') {
+      feedbackTimer = window.setTimeout(clearFeedback, 4500);
+    }
   }
 
   function clearFeedback() {
     const element = document.querySelector('[data-backup-settings-feedback]');
+    if (feedbackTimer !== null) { window.clearTimeout(feedbackTimer); feedbackTimer = null; }
     if (!(element instanceof HTMLElement)) return;
     element.classList.add('d-none');
     element.textContent = '';
+  }
+
+  function closeBackupInfoPanels(exceptButton = null) {
+    document.querySelectorAll('[data-backup-info-toggle]').forEach((button) => {
+      if (!(button instanceof HTMLButtonElement) || button === exceptButton) return;
+      const panelId = button.getAttribute('aria-controls');
+      const panel = panelId ? byId(panelId) : null;
+      if (panel instanceof HTMLElement) panel.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function toggleBackupInfo(button) {
+    const panelId = button.getAttribute('aria-controls');
+    const panel = panelId ? byId(panelId) : null;
+    if (!(panel instanceof HTMLElement)) return;
+    const open = button.getAttribute('aria-expanded') === 'true';
+    closeBackupInfoPanels(open ? null : button);
+    panel.hidden = open;
+    button.setAttribute('aria-expanded', String(!open));
+  }
+
+  function initBackupInfoPanels() {
+    document.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const button = target?.closest('[data-backup-info-toggle]');
+      if (button instanceof HTMLButtonElement) {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleBackupInfo(button);
+        return;
+      }
+      if (!target?.closest('[data-backup-info-panel]')) closeBackupInfoPanels();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      const open = document.querySelector('[data-backup-info-toggle][aria-expanded="true"]');
+      closeBackupInfoPanels();
+      if (open instanceof HTMLButtonElement) open.focus({ preventScroll: true });
+    });
   }
 
   function selectedDestinationType() {
@@ -263,10 +309,26 @@
     return Number.isNaN(parsed.getTime()) ? raw : parsed.toLocaleString();
   }
 
+  function formatBytes(raw) {
+    const bytes = Number(raw);
+    if (!Number.isFinite(bytes) || bytes < 0) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    const units = ['KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+    let value = bytes;
+    let unit = 'B';
+    for (const next of units) {
+      value /= 1024;
+      unit = next;
+      if (value < 1024) break;
+    }
+    return `${value >= 100 ? value.toFixed(0) : value >= 10 ? value.toFixed(1) : value.toFixed(2)} ${unit}`;
+  }
+
   function renderProbeStatus(probe) {
     const data = probe && typeof probe === 'object' ? probe : {};
     currentProbe = data;
     const status = document.querySelector('[data-backup-destination-probe-status]');
+    const summary = document.querySelector('[data-backup-destination-probe-summary]');
     const meta = document.querySelector('[data-backup-destination-probe-meta]');
     const operationStatus = String(data.operation_status || 'idle');
     const labels = {
@@ -280,6 +342,16 @@
       const [label, badgeClass] = labels[operationStatus] || [operationStatus, 'text-bg-secondary'];
       status.className = `badge ${badgeClass}`;
       status.textContent = label;
+    }
+    if (summary instanceof HTMLElement) {
+      const parts = [];
+      if (data.completed_steps) parts.push(String(data.completed_steps).split(',').filter(Boolean).join(' → '));
+      if (data.free_bytes) parts.push(formatBytes(data.free_bytes));
+      if (data.finished_at) parts.push(formatTimestamp(data.finished_at));
+      if (data.error_code) parts.unshift(`Ошибка: ${data.error_code}`);
+      if (data.write_test) parts.push('write/delete');
+      if (operationStatus === 'queued' && !data.runner_active) parts.push('runner offline');
+      summary.textContent = parts.length ? parts.join(' · ') : 'Read-only · данных проверки пока нет';
     }
     if (meta instanceof HTMLElement) {
       const parts = [];
@@ -305,7 +377,9 @@
       return data.probe;
     } catch (error) {
       const meta = document.querySelector('[data-backup-destination-probe-meta]');
+      const summary = document.querySelector('[data-backup-destination-probe-summary]');
       if (meta instanceof HTMLElement) meta.textContent = `Не удалось получить probe status: ${error.message}`;
+      if (summary instanceof HTMLElement) summary.textContent = 'Статус probe недоступен';
       return null;
     }
   }
@@ -504,6 +578,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    initBackupInfoPanels();
     const modal = byId('backupSettingsModal');
     if (modal instanceof HTMLElement) {
       modal.addEventListener('shown.bs.modal', () => { loadSettings(); startManualPolling(); startProbePolling(); });
