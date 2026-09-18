@@ -2,6 +2,8 @@
   const ENDPOINT = '/api/settings/backup';
   const MANUAL_ENDPOINT = `${ENDPOINT}/manual`;
   const COMPONENTS = ['postgres', 'minio', 'shared-config', 'templates', 'static-js', 'static-css'];
+  const DESTINATION_TYPES = new Set(['local-filesystem', 'smb-unc', 'mounted-network-filesystem']);
+  const SMB_AUTH_MODES = new Set(['current-identity', 'credential-ref']);
   let currentSettings = {};
   let manualPollTimer = null;
 
@@ -25,6 +27,63 @@
     if (!(element instanceof HTMLElement)) return;
     element.classList.add('d-none');
     element.textContent = '';
+  }
+
+  function selectedDestinationType() {
+    const type = byId('backupDestinationType')?.value || currentSettings.destination_type || 'local-filesystem';
+    return DESTINATION_TYPES.has(type) ? type : 'local-filesystem';
+  }
+
+  function selectedSmbAuthMode() {
+    const mode = byId('backupDestinationAuthMode')?.value || currentSettings.destination_auth_mode || 'current-identity';
+    return SMB_AUTH_MODES.has(mode) ? mode : 'current-identity';
+  }
+
+  function destinationRoot() {
+    const type = selectedDestinationType();
+    if (type !== 'smb-unc') return byId('backupDestinationPath')?.value?.trim() || '';
+
+    const server = byId('backupDestinationServer')?.value?.trim().replace(/^[\\/]+|[\\/]+$/g, '') || '';
+    const share = byId('backupDestinationShare')?.value?.trim().replace(/^[\\/]+|[\\/]+$/g, '') || '';
+    const subpath = byId('backupDestinationSubpath')?.value?.trim().replace(/^[\\/]+|[\\/]+$/g, '').replace(/\//g, '\\') || '';
+    if (!server || !share) return '';
+    return `\\\\${server}\\${share}${subpath ? `\\${subpath}` : ''}`;
+  }
+
+  function updateDestinationUi() {
+    const type = selectedDestinationType();
+    const authMode = selectedSmbAuthMode();
+    const pathBlock = document.querySelector('[data-backup-destination-path-block]');
+    const smbBlock = document.querySelector('[data-backup-destination-smb-block]');
+    const credentialBlock = document.querySelector('[data-backup-destination-credential-block]');
+    const localWarning = document.querySelector('[data-backup-destination-local-warning]');
+    const testButton = document.querySelector('[data-backup-destination-test]');
+    const ack = byId('backupExternalFailureDomain');
+    const probeAvailable = Boolean(currentSettings.destination_probe_available);
+
+    if (pathBlock instanceof HTMLElement) pathBlock.classList.toggle('d-none', type === 'smb-unc');
+    if (smbBlock instanceof HTMLElement) smbBlock.classList.toggle('d-none', type !== 'smb-unc');
+    if (credentialBlock instanceof HTMLElement) {
+      credentialBlock.classList.toggle('d-none', type !== 'smb-unc' || authMode !== 'credential-ref');
+    }
+    if (localWarning instanceof HTMLElement) localWarning.classList.toggle('d-none', type !== 'local-filesystem');
+    if (testButton instanceof HTMLButtonElement) testButton.disabled = !probeAvailable;
+    if (ack instanceof HTMLInputElement) {
+      if (type === 'local-filesystem') ack.checked = false;
+      ack.disabled = type === 'local-filesystem' || !probeAvailable;
+    }
+
+    const note = document.querySelector('[data-backup-destination-probe-note]');
+    if (note instanceof HTMLElement) {
+      const steps = Array.isArray(currentSettings.destination_probe_steps)
+        ? currentSettings.destination_probe_steps.join(' → ')
+        : 'host → tcp_445 → authentication → share → path → read → free_space';
+      note.textContent = probeAvailable
+        ? `Read-only host probe готов: ${steps}`
+        : `Phase A: host-side probe execution ещё не включён. Контракт проверки: ${steps}.`;
+    }
+
+    updateDerivedPaths();
   }
 
   function readComponents(kind) {
@@ -51,11 +110,10 @@
   }
 
   function updateDerivedPaths() {
-    const input = byId('backupDestinationPath');
     const postgres = document.querySelector('[data-backup-postgres-path]');
     const minio = document.querySelector('[data-backup-minio-path]');
     const files = document.querySelector('[data-backup-files-path]');
-    const root = input instanceof HTMLInputElement ? input.value.trim().replace(/[\\/]+$/, '') : '';
+    const root = destinationRoot().replace(/[\\/]+$/, '');
     const separator = root.includes('\\') ? '\\' : '/';
     if (postgres instanceof HTMLElement) postgres.textContent = root ? `${root}${separator}postgres` : '—';
     if (minio instanceof HTMLElement) minio.textContent = root ? `${root}${separator}minio` : '—';
@@ -63,9 +121,25 @@
   }
 
   function collectSettingsPayload() {
+    const type = selectedDestinationType();
+    const ackInput = byId('backupExternalFailureDomain');
+    const existingAck = Boolean(currentSettings.external_failure_domain);
+    const externalFailureDomain = type === 'local-filesystem'
+      ? false
+      : ackInput instanceof HTMLInputElement && !ackInput.disabled
+        ? ackInput.checked
+        : existingAck;
+
     return {
-      destination_path: byId('backupDestinationPath')?.value?.trim() || '',
-      external_failure_domain: Boolean(byId('backupExternalFailureDomain')?.checked),
+      destination_type: type,
+      destination_path: destinationRoot(),
+      destination_server: byId('backupDestinationServer')?.value?.trim() || '',
+      destination_share: byId('backupDestinationShare')?.value?.trim() || '',
+      destination_subpath: byId('backupDestinationSubpath')?.value?.trim() || '',
+      destination_auth_mode: selectedSmbAuthMode(),
+      destination_username: byId('backupDestinationUsername')?.value?.trim() || '',
+      destination_credential_ref: byId('backupDestinationCredentialRef')?.value?.trim() || '',
+      external_failure_domain: externalFailureDomain,
       postgres_retention_days: Number(byId('backupPostgresRetentionDays')?.value || 30),
       minio_retention_days: Number(byId('backupMinioRetentionDays')?.value || 14),
       manual_mode: byId('backupManualMode')?.value || 'critical',
@@ -83,7 +157,16 @@
   }
 
   function validateSettingsPayload(payload) {
-    if (!payload.destination_path) throw new Error('Укажите путь к backup-хранилищу.');
+    if (payload.destination_type === 'smb-unc') {
+      if (!payload.destination_server || !payload.destination_share) {
+        throw new Error('Для SMB укажите server и share.');
+      }
+      if (payload.destination_auth_mode === 'credential-ref' && !payload.destination_credential_ref) {
+        throw new Error('Для SMB credential-ref укажите ссылку на host-managed credential.');
+      }
+    } else if (!payload.destination_path) {
+      throw new Error('Укажите путь к backup-хранилищу.');
+    }
     if (!payload.custom_components.length || !payload.restore_components.length) {
       throw new Error('Для custom backup и restore rehearsal выберите хотя бы по одному компоненту.');
     }
@@ -93,7 +176,14 @@
     const s = settings && typeof settings === 'object' ? settings : {};
     currentSettings = s;
     const map = {
+      backupDestinationType: s.destination_type || 'local-filesystem',
       backupDestinationPath: s.destination_path || '',
+      backupDestinationServer: s.destination_server || '',
+      backupDestinationShare: s.destination_share || '',
+      backupDestinationSubpath: s.destination_subpath || '',
+      backupDestinationAuthMode: s.destination_auth_mode || 'current-identity',
+      backupDestinationUsername: s.destination_username || '',
+      backupDestinationCredentialRef: s.destination_credential_ref || '',
       backupPostgresRetentionDays: s.postgres_retention_days ?? 30,
       backupMinioRetentionDays: s.minio_retention_days ?? 14,
       backupManualMode: s.manual_mode || 'critical',
@@ -109,20 +199,29 @@
       if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement) input.value = String(value);
     });
 
-    if (byId('backupExternalFailureDomain') instanceof HTMLInputElement) byId('backupExternalFailureDomain').checked = Boolean(s.external_failure_domain);
+    if (byId('backupExternalFailureDomain') instanceof HTMLInputElement) {
+      byId('backupExternalFailureDomain').checked = Boolean(s.external_failure_domain);
+    }
     if (byId('backupCriticalEnabled') instanceof HTMLInputElement) byId('backupCriticalEnabled').checked = Boolean(s.critical_enabled);
     if (byId('backupFullEnabled') instanceof HTMLInputElement) byId('backupFullEnabled').checked = Boolean(s.full_enabled);
     writeComponents('custom', s.custom_components);
     writeComponents('restore', s.restore_components);
 
+    const classification = String(s.destination_dr_classification || 'not_configured');
     const status = document.querySelector('[data-backup-settings-status]');
-    if (status instanceof HTMLElement) {
-      const configured = Boolean(s.configured);
-      const offHost = Boolean(s.external_failure_domain);
-      status.className = `badge ${configured && offHost ? 'text-bg-success' : configured ? 'text-bg-warning' : 'text-bg-secondary'}`;
-      status.textContent = configured && offHost
-        ? 'Настроено: внешний failure domain'
-        : configured ? 'Путь задан, внешний storage не подтверждён' : 'Не настроено';
+    const destinationStatus = document.querySelector('[data-backup-destination-classification]');
+    const labels = {
+      not_configured: ['Не настроено', 'text-bg-secondary'],
+      not_dr: ['NOT_DR · local', 'text-bg-warning'],
+      external_unverified: ['External · не проверено', 'text-bg-warning'],
+      acknowledged_unverified: ['DR ack · probe не выполнен', 'text-bg-warning'],
+    };
+    const [label, badgeClass] = labels[classification] || [classification, 'text-bg-secondary'];
+    for (const element of [status, destinationStatus]) {
+      if (element instanceof HTMLElement) {
+        element.className = `badge ${badgeClass}`;
+        element.textContent = label;
+      }
     }
 
     const localBlock = document.querySelector('[data-backup-local-test-block]');
@@ -131,6 +230,7 @@
       byId('backupManualAllowLocalTest').checked = false;
     }
 
+    updateDestinationUi();
     updateWeekdayVisibility('backupCritical');
     updateWeekdayVisibility('backupFull');
     updateDerivedPaths();
@@ -303,7 +403,12 @@
       modal.addEventListener('shown.bs.modal', () => { loadSettings(); startManualPolling(); });
       modal.addEventListener('hidden.bs.modal', stopManualPolling);
     }
-    byId('backupDestinationPath')?.addEventListener('input', updateDerivedPaths);
+    byId('backupDestinationType')?.addEventListener('change', updateDestinationUi);
+    byId('backupDestinationPath')?.addEventListener('input', updateDestinationUi);
+    byId('backupDestinationServer')?.addEventListener('input', updateDestinationUi);
+    byId('backupDestinationShare')?.addEventListener('input', updateDestinationUi);
+    byId('backupDestinationSubpath')?.addEventListener('input', updateDestinationUi);
+    byId('backupDestinationAuthMode')?.addEventListener('change', updateDestinationUi);
     byId('backupCriticalFrequency')?.addEventListener('change', () => updateWeekdayVisibility('backupCritical'));
     byId('backupFullFrequency')?.addEventListener('change', () => updateWeekdayVisibility('backupFull'));
     document.querySelector('[data-backup-settings-save]')?.addEventListener('click', saveSettings);

@@ -22,7 +22,14 @@ public class BackupSettingsService {
 
     private static final String FILE_NAME = "backup.properties";
 
-    private static final String DESTINATION_KEY = "IGUANA_BACKUP_DESTINATION_DIR";
+    private static final String DESTINATION_KEY = BackupDestinationSettings.DESTINATION_KEY;
+    private static final String DESTINATION_TYPE_KEY = BackupDestinationSettings.TYPE_KEY;
+    private static final String DESTINATION_SERVER_KEY = BackupDestinationSettings.SERVER_KEY;
+    private static final String DESTINATION_SHARE_KEY = BackupDestinationSettings.SHARE_KEY;
+    private static final String DESTINATION_SUBPATH_KEY = BackupDestinationSettings.SUBPATH_KEY;
+    private static final String DESTINATION_AUTH_MODE_KEY = BackupDestinationSettings.AUTH_MODE_KEY;
+    private static final String DESTINATION_USERNAME_KEY = BackupDestinationSettings.USERNAME_KEY;
+    private static final String DESTINATION_CREDENTIAL_REF_KEY = BackupDestinationSettings.CREDENTIAL_REF_KEY;
     private static final String EXTERNAL_FAILURE_DOMAIN_KEY = "IGUANA_BACKUP_EXTERNAL_FAILURE_DOMAIN";
     private static final String POSTGRES_RETENTION_KEY = "IGUANA_BACKUP_RETENTION_DAYS";
     private static final String MINIO_RETENTION_KEY = "IGUANA_MINIO_BACKUP_RETENTION_DAYS";
@@ -42,7 +49,6 @@ public class BackupSettingsService {
     private static final int DEFAULT_POSTGRES_RETENTION_DAYS = 30;
     private static final int DEFAULT_MINIO_RETENTION_DAYS = 14;
     private static final int MAX_RETENTION_DAYS = 3650;
-    private static final int MAX_DESTINATION_LENGTH = 2048;
 
     private static final Set<String> ALLOWED_MODES = Set.of("critical", "full", "custom");
     private static final Set<String> ALLOWED_FREQUENCIES = Set.of("daily", "weekly");
@@ -63,6 +69,13 @@ public class BackupSettingsService {
 
     private static final List<String> ORDERED_KEYS = List.of(
             DESTINATION_KEY,
+            DESTINATION_TYPE_KEY,
+            DESTINATION_SERVER_KEY,
+            DESTINATION_SHARE_KEY,
+            DESTINATION_SUBPATH_KEY,
+            DESTINATION_AUTH_MODE_KEY,
+            DESTINATION_USERNAME_KEY,
+            DESTINATION_CREDENTIAL_REF_KEY,
             EXTERNAL_FAILURE_DOMAIN_KEY,
             POSTGRES_RETENTION_KEY,
             MINIO_RETENTION_KEY,
@@ -89,7 +102,7 @@ public class BackupSettingsService {
     public Map<String, Object> load() {
         Map<String, String> values = readValues();
 
-        String destination = normalizeDestination(values.getOrDefault(DESTINATION_KEY, ""));
+        BackupDestinationSettings destination = BackupDestinationSettings.fromStored(values);
         boolean externalFailureDomain = parseBoolean(
                 values.get(EXTERNAL_FAILURE_DOMAIN_KEY),
                 false
@@ -121,7 +134,20 @@ public class BackupSettingsService {
         );
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("destination_path", destination);
+        result.put("destination_type", destination.type());
+        result.put("destination_path", destination.destinationPath());
+        result.put("destination_server", destination.server());
+        result.put("destination_share", destination.share());
+        result.put("destination_subpath", destination.subpath());
+        result.put("destination_auth_mode", destination.authMode());
+        result.put("destination_username", destination.username());
+        result.put("destination_credential_ref", destination.credentialRef());
+        result.put("credentials_configured", destination.credentialsConfigured());
+        result.put("destination_dr_classification", destination.drClassification(externalFailureDomain));
+        result.put("destination_probe_available", false);
+        result.put("destination_probe_mode", "read-only-host-runner");
+        result.put("destination_probe_steps", destination.probeSteps());
+        result.put("destination_probe_error_codes", BackupDestinationSettings.PROBE_ERROR_CODES);
         result.put("external_failure_domain", externalFailureDomain);
         result.put("postgres_retention_days", postgresRetentionDays);
         result.put("minio_retention_days", minioRetentionDays);
@@ -137,15 +163,15 @@ public class BackupSettingsService {
         result.put("full_frequency", normalizeFrequency(values.get(FULL_FREQUENCY_KEY), "weekly"));
         result.put("full_time", normalizeTime(values.get(FULL_TIME_KEY), "03:00", FULL_TIME_KEY));
         result.put("full_weekday", normalizeWeekday(values.get(FULL_WEEKDAY_KEY), "SUN"));
-        result.put("configured", StringUtils.hasText(destination));
+        result.put("configured", destination.configured());
         return result;
     }
 
     public Map<String, Object> save(Map<String, Object> payload) {
         Map<String, Object> source = payload != null ? payload : Map.of();
 
-        String destination = normalizeDestination(asString(source.get("destination_path")));
-        if (!StringUtils.hasText(destination)) {
+        BackupDestinationSettings destination = BackupDestinationSettings.fromPayload(source);
+        if (!destination.configured()) {
             throw new IllegalArgumentException("Укажите путь backup-хранилища.");
         }
 
@@ -153,6 +179,11 @@ public class BackupSettingsService {
                 source.get("external_failure_domain"),
                 false
         );
+        if (destination.localFilesystem() && externalFailureDomain) {
+            throw new IllegalArgumentException(
+                    "Local filesystem не является отдельным failure domain и не может быть подтверждён как DR."
+            );
+        }
         int postgresRetentionDays = parseInteger(
                 source.get("postgres_retention_days"),
                 DEFAULT_POSTGRES_RETENTION_DAYS,
@@ -190,7 +221,7 @@ public class BackupSettingsService {
         String fullWeekday = normalizeWeekday(source.get("full_weekday"), "SUN");
 
         Map<String, String> values = new LinkedHashMap<>();
-        values.put(DESTINATION_KEY, destination);
+        values.putAll(destination.persistedFields());
         values.put(EXTERNAL_FAILURE_DOMAIN_KEY, Boolean.toString(externalFailureDomain));
         values.put(POSTGRES_RETENTION_KEY, Integer.toString(postgresRetentionDays));
         values.put(MINIO_RETENTION_KEY, Integer.toString(minioRetentionDays));
@@ -285,19 +316,6 @@ public class BackupSettingsService {
                 }
             }
         }
-    }
-
-    private String normalizeDestination(String raw) {
-        String value = raw != null ? raw.trim() : "";
-        if (value.length() > MAX_DESTINATION_LENGTH) {
-            throw new IllegalArgumentException("Путь backup-хранилища слишком длинный.");
-        }
-        if (value.indexOf('\r') >= 0 || value.indexOf('\n') >= 0 || value.indexOf('\u0000') >= 0) {
-            throw new IllegalArgumentException(
-                    "Путь backup-хранилища содержит недопустимые управляющие символы."
-            );
-        }
-        return value;
     }
 
     private int parseInteger(Object raw, int fallback, String fieldName) {
@@ -401,7 +419,4 @@ public class BackupSettingsService {
         return List.copyOf(normalized);
     }
 
-    private String asString(Object raw) {
-        return raw != null ? raw.toString() : "";
-    }
 }

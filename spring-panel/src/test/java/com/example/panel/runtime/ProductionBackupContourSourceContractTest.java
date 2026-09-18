@@ -175,6 +175,51 @@ class ProductionBackupContourSourceContractTest {
     }
 
     @Test
+    void backupDestinationContractSeparatesPolicyFromHostProbeAndSecrets() throws IOException {
+        String model = read("spring-panel/src/main/java/com/example/panel/service/BackupDestinationSettings.java");
+        String service = read("spring-panel/src/main/java/com/example/panel/service/BackupSettingsService.java");
+        String backupTemplate = read("spring-panel/src/main/resources/templates/settings/fragments/backup-recovery.html");
+        String runtime = read("spring-panel/src/main/resources/static/js/settings-backup-runtime.js");
+
+        assertThat(model)
+            .contains("static final String TYPE_KEY = \"IGUANA_BACKUP_DESTINATION_TYPE\"")
+            .contains("static final String CREDENTIAL_REF_KEY = \"IGUANA_BACKUP_DESTINATION_CREDENTIAL_REF\"")
+            .contains("local-filesystem")
+            .contains("smb-unc")
+            .contains("mounted-network-filesystem")
+            .contains("current-identity")
+            .contains("credential-ref")
+            .contains("HOST_UNREACHABLE")
+            .contains("PORT_UNREACHABLE")
+            .contains("PATH_NOT_FOUND")
+            .contains("WRITE_FAILED")
+            .contains("credential_ref")
+            .doesNotContain("destination_password=");
+
+        assertThat(service)
+            .contains("DESTINATION_TYPE_KEY = BackupDestinationSettings.TYPE_KEY")
+            .contains("DESTINATION_CREDENTIAL_REF_KEY = BackupDestinationSettings.CREDENTIAL_REF_KEY")
+            .contains("destination_dr_classification")
+            .contains("destination_probe_available")
+            .contains("destination_probe_steps")
+            .contains("destination_probe_error_codes");
+
+        assertThat(backupTemplate)
+            .contains("id=\"backupDestinationType\"")
+            .contains("id=\"backupDestinationServer\"")
+            .contains("id=\"backupDestinationCredentialRef\"")
+            .contains("data-backup-destination-test disabled")
+            .contains("NOT_DR");
+
+        assertThat(runtime)
+            .contains("destination_type")
+            .contains("destination_auth_mode")
+            .contains("destination_credential_ref")
+            .contains("destination_probe_available")
+            .doesNotContain("destination_password");
+    }
+
+    @Test
     void backupReadinessTracksPortablePackagesIncludingFiles() throws IOException {
         String service = read("spring-panel/src/main/java/com/example/panel/service/BackupReadinessMonitoringService.java");
 

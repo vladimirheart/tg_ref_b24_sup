@@ -287,3 +287,18 @@ When restore rehearsal is enabled, scope follows the backup mode:
 - Critical -> PostgreSQL, MinIO, shared config;
 - Full -> PostgreSQL, MinIO, shared config, templates, JS, CSS;
 - Custom -> saved Custom component set.
+## Managed backup destination contract (01-271 phase A)
+
+`Backup & recovery` now treats destination configuration as a typed non-secret policy instead of a single opaque path.
+
+Phase A destination types:
+
+- `local-filesystem` — local host path such as `C:\\1C\\backup`; always classified as `NOT_DR`;
+- `smb-unc` — Windows SMB/UNC described by `server`, `share` and optional `subpath`;
+- `mounted-network-filesystem` — a path already mounted/authenticated by the host OS (mapped drive, NFS mount or equivalent).
+
+The existing `IGUANA_BACKUP_DESTINATION_DIR` remains the canonical filesystem path consumed by the current Docker backup contour. Additional keys in `backup.properties` only describe destination type/auth metadata and therefore keep backward compatibility with the bind-based runtime.
+
+SMB auth modes in phase A are `current-identity` and `credential-ref`. `credential_ref` is non-secret metadata only. Passwords, private keys and access keys are not accepted by this settings contract and must not be written to `backup.properties`, API responses or logs. Resolution of a real host-managed credential is intentionally deferred to the host-side execution slice.
+
+The API also exposes the normalized read-only probe contract (`host`, `tcp_445`, `authentication`, `share`, `path`, `read`, `free_space`) and stable error codes, but `destination_probe_available=false` in phase A. The UI therefore shows the future connection-test action as unavailable and does not allow a new DR acknowledgement from path text alone. A network destination remains `external_unverified` (or `acknowledged_unverified` for a pre-existing acknowledgement) until host-side probe execution is implemented and passes.
