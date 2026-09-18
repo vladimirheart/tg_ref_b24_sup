@@ -18,7 +18,6 @@ import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 @Repository
@@ -109,7 +108,7 @@ public class IikoApiMonitorRepository {
             try (PreparedStatement ps = prepareInsertStatement(connection)) {
                 bindCommon(ps, item);
                 ps.executeUpdate();
-                return JdbcGeneratedKeySupport.extractGeneratedKey(ps, connection);
+                return JdbcGeneratedKeySupport.extractGeneratedKey(ps);
             }
         });
         if (key != null) {
@@ -173,26 +172,12 @@ public class IikoApiMonitorRepository {
     }
 
     private void bindOffsetDateTime(PreparedStatement ps, int index, OffsetDateTime value) throws SQLException {
-        String databaseProductName = ps.getConnection().getMetaData().getDatabaseProductName();
-        boolean postgresql = databaseProductName != null
-            && databaseProductName.toLowerCase(Locale.ROOT).contains("postgresql");
-
         if (value == null) {
-            if (postgresql) {
-                ps.setNull(index, Types.TIMESTAMP_WITH_TIMEZONE);
-            } else {
-                ps.setNull(index, Types.VARCHAR);
-            }
+            ps.setNull(index, Types.TIMESTAMP_WITH_TIMEZONE);
             return;
         }
-
-        if (postgresql) {
-            ps.setObject(index, value);
-        } else {
-            ps.setString(index, value.toString());
-        }
+        ps.setObject(index, value);
     }
-
     private PreparedStatement prepareInsertStatement(Connection connection) throws SQLException {
         return connection.prepareStatement(
             """

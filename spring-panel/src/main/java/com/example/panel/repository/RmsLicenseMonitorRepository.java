@@ -4,7 +4,6 @@ import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import com.example.panel.entity.RmsLicenseMonitor;
 import com.example.panel.service.MonitoringCredentialsCryptoService;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,15 +18,12 @@ import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 @Repository
 public class RmsLicenseMonitorRepository {
 
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
-    private static final int[] BUSY_RETRY_DELAYS_MS = {150, 350, 750, 1_500};
 
     private final JdbcTemplate jdbcTemplate;
     private final MonitoringCredentialsCryptoService credentialsCryptoService;
@@ -144,7 +140,7 @@ public class RmsLicenseMonitorRepository {
 
     public void softDeleteById(Long id) {
         OffsetDateTime now = OffsetDateTime.now(java.time.ZoneOffset.UTC);
-        runWithBusyRetry(() -> jdbcTemplate.execute((ConnectionCallback<Integer>) connection -> {
+        jdbcTemplate.execute((ConnectionCallback<Integer>) connection -> {
             try (PreparedStatement ps = connection.prepareStatement(
                 "UPDATE rms_license_monitors SET is_deleted = TRUE, deleted_at = ?, updated_at = ? WHERE id = ?"
             )) {
@@ -153,7 +149,7 @@ public class RmsLicenseMonitorRepository {
                 ps.setLong(3, id);
                 return ps.executeUpdate();
             }
-        }));
+        });
     }
 
     public RmsLicenseMonitor save(RmsLicenseMonitor item) {
@@ -173,13 +169,13 @@ public class RmsLicenseMonitorRepository {
     }
 
     private RmsLicenseMonitor insert(RmsLicenseMonitor item) {
-        Long key = runWithBusyRetry(() -> jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
+        Long key = jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
             try (PreparedStatement ps = prepareInsertStatement(connection)) {
                 bindCommon(ps, item);
                 ps.executeUpdate();
-                return JdbcGeneratedKeySupport.extractGeneratedKey(ps, connection);
+                return JdbcGeneratedKeySupport.extractGeneratedKey(ps);
             }
-        }));
+        });
         if (key != null) {
             item.setId(key);
         }
@@ -187,7 +183,7 @@ public class RmsLicenseMonitorRepository {
     }
 
     private void update(RmsLicenseMonitor item) {
-        runWithBusyRetry(() -> jdbcTemplate.execute((ConnectionCallback<Integer>) connection -> {
+        jdbcTemplate.execute((ConnectionCallback<Integer>) connection -> {
             try (PreparedStatement ps = connection.prepareStatement(
                 """
                 UPDATE rms_license_monitors
@@ -229,51 +225,7 @@ public class RmsLicenseMonitorRepository {
                 ps.setLong(32, item.getId());
                 return ps.executeUpdate();
             }
-        }));
-    }
-
-    private void runWithBusyRetry(Runnable action) {
-        runWithBusyRetry(() -> {
-            action.run();
-            return null;
         });
-    }
-
-    private <T> T runWithBusyRetry(Supplier<T> action) {
-        DataAccessException lastException = null;
-        for (int attempt = 0; attempt <= BUSY_RETRY_DELAYS_MS.length; attempt++) {
-            try {
-                return action.get();
-            } catch (DataAccessException ex) {
-                if (!isBusyException(ex) || attempt == BUSY_RETRY_DELAYS_MS.length) {
-                    throw ex;
-                }
-                lastException = ex;
-                sleepBeforeRetry(BUSY_RETRY_DELAYS_MS[attempt]);
-            }
-        }
-        throw lastException;
-    }
-
-    private boolean isBusyException(Throwable ex) {
-        Throwable current = ex;
-        while (current != null) {
-            String message = current.getMessage();
-            if (message != null && (message.contains("SQLITE_BUSY") || message.contains("SQLITE_BUSY_SNAPSHOT"))) {
-                return true;
-            }
-            current = current.getCause();
-        }
-        return false;
-    }
-
-    private void sleepBeforeRetry(long delayMs) {
-        try {
-            Thread.sleep(delayMs);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while waiting to retry SQLite write", interrupted);
-        }
     }
 
     private void bindCommon(PreparedStatement ps, RmsLicenseMonitor item) throws SQLException {
@@ -319,29 +271,12 @@ public class RmsLicenseMonitorRepository {
     }
 
     private void bindOffsetDateTime(PreparedStatement ps, int index, OffsetDateTime value) throws SQLException {
-        String databaseProductName = ps.getConnection().getMetaData().getDatabaseProductName();
-        boolean postgresql = databaseProductName != null
-            && databaseProductName.toLowerCase(Locale.ROOT).contains("postgresql");
-
         if (value == null) {
-            if (postgresql) {
-                ps.setNull(index, Types.TIMESTAMP_WITH_TIMEZONE);
-            } else {
-                ps.setNull(index, Types.VARCHAR);
-            }
+            ps.setNull(index, Types.TIMESTAMP_WITH_TIMEZONE);
             return;
         }
-
-        if (postgresql) {
-            ps.setObject(index, value);
-            return;
-        }
-
-        // SQLite stores these timestamps as text. Keeping the ISO-8601 format
-        // preserves the existing runtime representation and parser behavior.
-        ps.setString(index, value.toString());
+        ps.setObject(index, value);
     }
-
     private PreparedStatement prepareInsertStatement(Connection connection) throws SQLException {
         return connection.prepareStatement(
             """

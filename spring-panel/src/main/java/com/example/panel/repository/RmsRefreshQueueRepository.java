@@ -2,7 +2,6 @@ package com.example.panel.repository;
 
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,9 +14,7 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 @Repository
 public class RmsRefreshQueueRepository {
@@ -28,7 +25,6 @@ public class RmsRefreshQueueRepository {
     public static final String STATUS_RUNNING = "running";
 
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
-    private static final int[] BUSY_RETRY_DELAYS_MS = {150, 350, 750, 1_500};
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -41,7 +37,7 @@ public class RmsRefreshQueueRepository {
                                      boolean withNotifications,
                                      OffsetDateTime requestedAt) {
         OffsetDateTime safeRequestedAt = requestedAt != null ? requestedAt : OffsetDateTime.now(java.time.ZoneOffset.UTC);
-        Long key = runWithBusyRetry(() -> jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
+        Long key = jdbcTemplate.execute((ConnectionCallback<Long>) connection -> {
             try (PreparedStatement ps = prepareInsertStatement(connection)) {
                 ps.setString(1, queueKind);
                 if (monitorId != null) {
@@ -53,26 +49,26 @@ public class RmsRefreshQueueRepository {
                 ps.setString(4, STATUS_QUEUED);
                 bindOffsetDateTime(ps, 5, safeRequestedAt);
                 ps.executeUpdate();
-                return JdbcGeneratedKeySupport.extractGeneratedKey(ps, connection);
+                return JdbcGeneratedKeySupport.extractGeneratedKey(ps);
             }
-        }));
+        });
         long id = key != null ? key : -1L;
         return new RefreshQueueEntry(id, queueKind, monitorId, withNotifications, STATUS_QUEUED, safeRequestedAt);
     }
 
     public void markRunning(long id) {
-        runWithBusyRetry(() -> jdbcTemplate.update(
+        jdbcTemplate.update(
             "UPDATE rms_refresh_queue SET status = ? WHERE id = ?",
             STATUS_RUNNING,
             id
-        ));
+        );
     }
 
     public void delete(long id) {
-        runWithBusyRetry(() -> jdbcTemplate.update(
+        jdbcTemplate.update(
             "DELETE FROM rms_refresh_queue WHERE id = ?",
             id
-        ));
+        );
     }
 
     public Optional<RefreshQueueEntry> findNextActive(String queueKind) {
@@ -142,50 +138,6 @@ public class RmsRefreshQueueRepository {
         );
     }
 
-    private void runWithBusyRetry(Runnable action) {
-        runWithBusyRetry(() -> {
-            action.run();
-            return null;
-        });
-    }
-
-    private <T> T runWithBusyRetry(Supplier<T> action) {
-        DataAccessException lastException = null;
-        for (int attempt = 0; attempt <= BUSY_RETRY_DELAYS_MS.length; attempt++) {
-            try {
-                return action.get();
-            } catch (DataAccessException ex) {
-                if (!isBusyException(ex) || attempt == BUSY_RETRY_DELAYS_MS.length) {
-                    throw ex;
-                }
-                lastException = ex;
-                sleepBeforeRetry(BUSY_RETRY_DELAYS_MS[attempt]);
-            }
-        }
-        throw lastException;
-    }
-
-    private boolean isBusyException(Throwable ex) {
-        Throwable current = ex;
-        while (current != null) {
-            String message = current.getMessage();
-            if (message != null && (message.contains("SQLITE_BUSY") || message.contains("SQLITE_BUSY_SNAPSHOT"))) {
-                return true;
-            }
-            current = current.getCause();
-        }
-        return false;
-    }
-
-    private void sleepBeforeRetry(long delayMs) {
-        try {
-            Thread.sleep(delayMs);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while waiting to retry SQLite write", interrupted);
-        }
-    }
-
     private static OffsetDateTime parseOffsetDateTime(String value) {
         return DATE_TIME_CONVERTER.convertToEntityAttribute(value);
     }
@@ -196,28 +148,12 @@ public class RmsRefreshQueueRepository {
     }
 
     private void bindOffsetDateTime(PreparedStatement ps, int index, OffsetDateTime value) throws SQLException {
-        String databaseProductName = ps.getConnection().getMetaData().getDatabaseProductName();
-        boolean postgresql = databaseProductName != null
-            && databaseProductName.toLowerCase(Locale.ROOT).contains("postgresql");
-
         if (value == null) {
-            if (postgresql) {
-                ps.setNull(index, Types.TIMESTAMP_WITH_TIMEZONE);
-            } else {
-                ps.setNull(index, Types.VARCHAR);
-            }
+            ps.setNull(index, Types.TIMESTAMP_WITH_TIMEZONE);
             return;
         }
-
-        if (postgresql) {
-            ps.setObject(index, value);
-            return;
-        }
-
-        // SQLite stores queue timestamps as ISO-8601 text.
-        ps.setString(index, value.toString());
+        ps.setObject(index, value);
     }
-
     private PreparedStatement prepareInsertStatement(Connection connection) throws java.sql.SQLException {
         return connection.prepareStatement(
             """

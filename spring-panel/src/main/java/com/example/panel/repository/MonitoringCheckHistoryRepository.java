@@ -2,7 +2,6 @@ package com.example.panel.repository;
 
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -13,14 +12,11 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Locale;
-import java.util.function.Supplier;
 
 @Repository
 public class MonitoringCheckHistoryRepository {
 
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
-    private static final int[] BUSY_RETRY_DELAYS_MS = {150, 350, 750, 1_500};
 
     private static final RowMapper<HistoryEntry> ROW_MAPPER = (rs, rowNum) -> new HistoryEntry(
         rs.getLong("id"),
@@ -50,7 +46,7 @@ public class MonitoringCheckHistoryRepository {
                        Integer httpStatus,
                        Long durationMs,
                        OffsetDateTime createdAt) {
-        runWithBusyRetry(() -> jdbcTemplate.update(connection -> {
+        jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                 """
                 INSERT INTO monitoring_check_history (
@@ -76,14 +72,9 @@ public class MonitoringCheckHistoryRepository {
                 ps.setObject(8, null);
             }
             OffsetDateTime effectiveCreatedAt = createdAt != null ? createdAt : OffsetDateTime.now();
-            String productName = connection.getMetaData().getDatabaseProductName();
-            if (productName != null && productName.toLowerCase(Locale.ROOT).contains("postgresql")) {
-                ps.setObject(9, effectiveCreatedAt);
-            } else {
-                ps.setString(9, effectiveCreatedAt.toString());
-            }
+            ps.setObject(9, effectiveCreatedAt);
             return ps;
-        }));
+        });
     }
 
     public List<HistoryEntry> findRecent(String monitorKind, long monitorId, int limit) {
@@ -107,21 +98,13 @@ public class MonitoringCheckHistoryRepository {
 
     public int deleteOlderThan(OffsetDateTime cutoff) {
         OffsetDateTime effectiveCutoff = cutoff != null ? cutoff : OffsetDateTime.now().minusDays(30);
-        return runWithBusyRetry(() -> jdbcTemplate.update(connection -> {
-            String productName = connection.getMetaData().getDatabaseProductName();
-            boolean sqlite = productName != null && productName.toLowerCase(Locale.ROOT).contains("sqlite");
+        return jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
-                sqlite
-                    ? "DELETE FROM monitoring_check_history WHERE julianday(created_at) < julianday(?)"
-                    : "DELETE FROM monitoring_check_history WHERE created_at < ?"
+                "DELETE FROM monitoring_check_history WHERE created_at < ?"
             );
-            if (productName != null && productName.toLowerCase(Locale.ROOT).contains("postgresql")) {
-                ps.setObject(1, effectiveCutoff);
-            } else {
-                ps.setString(1, effectiveCutoff.toString());
-            }
+            ps.setObject(1, effectiveCutoff);
             return ps;
-        }));
+        });
     }
 
     private static OffsetDateTime readOffsetDateTime(java.sql.ResultSet rs, String columnName) {
@@ -155,50 +138,6 @@ public class MonitoringCheckHistoryRepository {
             return value instanceof Number number ? number.longValue() : null;
         } catch (Exception ignored) {
             return null;
-        }
-    }
-
-    private void runWithBusyRetry(Runnable action) {
-        runWithBusyRetry(() -> {
-            action.run();
-            return null;
-        });
-    }
-
-    private <T> T runWithBusyRetry(Supplier<T> action) {
-        DataAccessException lastException = null;
-        for (int attempt = 0; attempt <= BUSY_RETRY_DELAYS_MS.length; attempt++) {
-            try {
-                return action.get();
-            } catch (DataAccessException ex) {
-                if (!isBusyException(ex) || attempt == BUSY_RETRY_DELAYS_MS.length) {
-                    throw ex;
-                }
-                lastException = ex;
-                sleepBeforeRetry(BUSY_RETRY_DELAYS_MS[attempt]);
-            }
-        }
-        throw lastException;
-    }
-
-    private boolean isBusyException(Throwable ex) {
-        Throwable current = ex;
-        while (current != null) {
-            String message = current.getMessage();
-            if (message != null && (message.contains("SQLITE_BUSY") || message.contains("SQLITE_BUSY_SNAPSHOT"))) {
-                return true;
-            }
-            current = current.getCause();
-        }
-        return false;
-    }
-
-    private void sleepBeforeRetry(long delayMs) {
-        try {
-            Thread.sleep(delayMs);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while waiting to retry SQLite write", interrupted);
         }
     }
 

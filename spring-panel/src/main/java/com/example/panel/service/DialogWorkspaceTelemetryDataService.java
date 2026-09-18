@@ -425,7 +425,7 @@ public class DialogWorkspaceTelemetryDataService {
         try {
             return Instant.parse(text);
         } catch (Exception ignored) {
-            // SQLite may materialize timestamp values as epoch millis text.
+            // Legacy or driver-specific values may materialize epoch millis as text.
         }
         try {
             return Instant.ofEpochMilli(Long.parseLong(text));
