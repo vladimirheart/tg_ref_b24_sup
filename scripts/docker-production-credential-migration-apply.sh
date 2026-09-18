@@ -687,6 +687,7 @@ run_postgresql() {
   RESTART_SERVICES=()
   service_is_running "ops-worker" && RESTART_SERVICES+=("ops-worker")
   service_is_running "panel-web" && RESTART_SERVICES+=("panel-web")
+  service_is_running "bot-runner" && RESTART_SERVICES+=("bot-runner")
   service_is_running "postgres-exporter" && RESTART_SERVICES+=("postgres-exporter")
   build_compose_files
 
@@ -782,6 +783,7 @@ run_rabbitmq() {
   RESTART_SERVICES=()
   service_is_running "ops-worker" && RESTART_SERVICES+=("ops-worker")
   service_is_running "panel-web" && RESTART_SERVICES+=("panel-web")
+  service_is_running "bot-runner" && RESTART_SERVICES+=("bot-runner")
   service_is_running "bot-telegram" && RESTART_SERVICES+=("bot-telegram")
   service_is_running "bot-vk" && RESTART_SERVICES+=("bot-vk")
   service_is_running "bot-max" && RESTART_SERVICES+=("bot-max")
@@ -877,6 +879,7 @@ run_redis() {
   service_is_running "redis-exporter" && RESTART_SERVICES+=("redis-exporter")
   service_is_running "ops-worker" && RESTART_SERVICES+=("ops-worker")
   service_is_running "panel-web" && RESTART_SERVICES+=("panel-web")
+  service_is_running "bot-runner" && RESTART_SERVICES+=("bot-runner")
   service_is_running "bot-telegram" && RESTART_SERVICES+=("bot-telegram")
   service_is_running "bot-vk" && RESTART_SERVICES+=("bot-vk")
   service_is_running "bot-max" && RESTART_SERVICES+=("bot-max")
@@ -985,6 +988,7 @@ run_minio() {
   RESTART_SERVICES=("minio" "minio-init")
   service_is_running "ops-worker" && RESTART_SERVICES+=("ops-worker")
   service_is_running "panel-web" && RESTART_SERVICES+=("panel-web")
+  service_is_running "bot-runner" && RESTART_SERVICES+=("bot-runner")
   service_is_running "bot-telegram" && RESTART_SERVICES+=("bot-telegram")
   service_is_running "bot-vk" && RESTART_SERVICES+=("bot-vk")
   service_is_running "bot-max" && RESTART_SERVICES+=("bot-max")

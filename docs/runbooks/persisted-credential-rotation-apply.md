@@ -192,13 +192,15 @@ Bash:
 
 - `ops-worker`;
 - `panel-web`;
+- `bot-runner` — supervisor и все dynamic child runtimes должны получить новый datasource credential;
 - `postgres-exporter`, если observability overlay уже поднят.
 
 ### После RabbitMQ rotation
 
 - `ops-worker`;
 - `panel-web`;
-- `bot-telegram`, `bot-vk`, `bot-max`, если они реально запущены.
+- `bot-runner` — dynamic child runtimes наследуют RabbitMQ credential от supervisor environment;
+- `bot-telegram`, `bot-vk`, `bot-max`, если emergency legacy profile реально запущен.
 
 ### После Redis rotation
 
@@ -206,7 +208,8 @@ Bash:
 - `redis-exporter`, если observability overlay уже поднят;
 - `ops-worker`;
 - `panel-web`;
-- `bot-telegram`, `bot-vk`, `bot-max`, если они реально запущены.
+- `bot-runner`;
+- `bot-telegram`, `bot-vk`, `bot-max`, если emergency legacy profile реально запущен.
 
 ### После MinIO rotation
 
@@ -214,7 +217,10 @@ Bash:
 - `minio-init`;
 - `ops-worker`;
 - `panel-web`;
-- `bot-telegram`, `bot-vk`, `bot-max`, если они реально запущены.
+- `bot-runner`;
+- `bot-telegram`, `bot-vk`, `bot-max`, если emergency legacy profile реально запущен.
+
+Dynamic `bot-runner` обязателен в restart choreography для всех четырёх data-plane credentials. Static bot services остаются только compatibility/emergency contour и не заменяют restart `bot-runner`.
 
 ### После Grafana rotation
 

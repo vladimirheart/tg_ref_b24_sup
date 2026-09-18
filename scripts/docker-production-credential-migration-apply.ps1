@@ -992,7 +992,7 @@ switch ($Component) {
         }
 
         $restartServices = New-Object 'System.Collections.Generic.List[string]'
-        foreach ($candidate in @("ops-worker", "panel-web", "postgres-exporter")) {
+        foreach ($candidate in @("ops-worker", "panel-web", "bot-runner", "postgres-exporter")) {
             if ($runningServices -contains $candidate -and -not $restartServices.Contains($candidate)) {
                 $restartServices.Add($candidate)
             }
@@ -1093,7 +1093,7 @@ switch ($Component) {
         }
 
         $restartServices = New-Object 'System.Collections.Generic.List[string]'
-        foreach ($candidate in @("ops-worker", "panel-web", "bot-telegram", "bot-vk", "bot-max")) {
+        foreach ($candidate in @("ops-worker", "panel-web", "bot-runner", "bot-telegram", "bot-vk", "bot-max")) {
             if ($runningServices -contains $candidate -and -not $restartServices.Contains($candidate)) {
                 $restartServices.Add($candidate)
             }
@@ -1192,7 +1192,7 @@ switch ($Component) {
         }
 
         $restartServices = New-Object 'System.Collections.Generic.List[string]'
-        foreach ($candidate in @("redis", "redis-exporter", "ops-worker", "panel-web", "bot-telegram", "bot-vk", "bot-max")) {
+        foreach ($candidate in @("redis", "redis-exporter", "ops-worker", "panel-web", "bot-runner", "bot-telegram", "bot-vk", "bot-max")) {
             if ($runningServices -contains $candidate -and -not $restartServices.Contains($candidate)) {
                 $restartServices.Add($candidate)
             }
@@ -1306,7 +1306,7 @@ switch ($Component) {
         }
 
         $restartServices = New-Object 'System.Collections.Generic.List[string]'
-        foreach ($candidate in @("minio", "minio-init", "ops-worker", "panel-web", "bot-telegram", "bot-vk", "bot-max")) {
+        foreach ($candidate in @("minio", "minio-init", "ops-worker", "panel-web", "bot-runner", "bot-telegram", "bot-vk", "bot-max")) {
             if (($candidate -eq "minio" -or $candidate -eq "minio-init") -or ($runningServices -contains $candidate)) {
                 if (-not $restartServices.Contains($candidate)) {
                     $restartServices.Add($candidate)

@@ -36,7 +36,11 @@ class PersistedCredentialRotationApplySourceContractTest {
             .contains("\"grafana\"")
             .contains("\"cli\"")
             .contains("reset-admin-password")
-            .contains("docker-compose.production-observability.yml");
+            .contains("docker-compose.production-observability.yml")
+            .contains("@(\"ops-worker\", \"panel-web\", \"bot-runner\", \"postgres-exporter\")")
+            .contains("@(\"ops-worker\", \"panel-web\", \"bot-runner\", \"bot-telegram\", \"bot-vk\", \"bot-max\")")
+            .contains("@(\"redis\", \"redis-exporter\", \"ops-worker\", \"panel-web\", \"bot-runner\", \"bot-telegram\", \"bot-vk\", \"bot-max\")")
+            .contains("@(\"minio\", \"minio-init\", \"ops-worker\", \"panel-web\", \"bot-runner\", \"bot-telegram\", \"bot-vk\", \"bot-max\")");
 
         assertThat(sh)
             .contains("SUPPORTED_COMPONENTS=(postgresql rabbitmq redis minio grafana)")
@@ -54,7 +58,8 @@ class PersistedCredentialRotationApplySourceContractTest {
             .contains("Best-effort Grafana rollback recreate failed")
             .contains("IGUANA_GRAFANA_ADMIN_PASSWORD")
             .contains("grafana cli --homepath /usr/share/grafana --config /etc/grafana/grafana.ini admin reset-admin-password")
-            .contains("docker-compose.production-observability.yml");
+            .contains("docker-compose.production-observability.yml")
+            .contains("service_is_running \"bot-runner\" && RESTART_SERVICES+=(\"bot-runner\")");
 
         assertThat(runbook)
             .contains("scripts/docker-production-credential-migration-apply.ps1")

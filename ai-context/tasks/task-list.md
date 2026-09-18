@@ -255,7 +255,7 @@
 🟢 [01-233] Сделать интервалы и паузы RMS-мониторинга настраиваемыми из UI
 🟢 [01-234] Перевести production bot runtime на обязательный PostgreSQL datasource
 🟢 [01-235] Восстановить core production services и выполнить контролируемый rollout bot runtime с PostgreSQL и Redis lease
-🟠 [01-236] Провести контролируемую ротацию паролей persistent Docker-инфраструктуры
+🟡 [01-236] Провести контролируемую ротацию паролей persistent Docker-инфраструктуры
 🟣 [01-237] Выделить единый dynamic bot-runner для неограниченного числа активных каналов
 🟣 [01-238] Устранить стартовые timeout внутреннего channel API для MAX и включить фактические retry
 🟣 [01-239] Актуализировать README и production-документацию под dynamic bot-runner и PostgreSQL contour
