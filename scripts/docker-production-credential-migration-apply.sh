@@ -511,6 +511,28 @@ service_is_running() {
   array_contains "${service_name}" "${RUNNING_SERVICES[@]}"
 }
 
+assert_bot_runtime_ownership_topology() {
+  local -a legacy_running=()
+  local candidate
+  for candidate in bot-telegram bot-vk bot-max; do
+    service_is_running "${candidate}" && legacy_running+=("${candidate}")
+  done
+  if service_is_running "bot-runner" && (( ${#legacy_running[@]} > 0 )); then
+    die "Credential rotation blocked: bot-runner and legacy static bot services are running simultaneously: $(join_by_comma "${legacy_running[@]}"). Stop/remove legacy static runtime(s) before rehearsal/apply."
+  fi
+}
+
+add_bot_runtime_restart_targets() {
+  if service_is_running "bot-runner"; then
+    RESTART_SERVICES+=("bot-runner")
+    return 0
+  fi
+  local candidate
+  for candidate in bot-telegram bot-vk bot-max; do
+    service_is_running "${candidate}" && RESTART_SERVICES+=("${candidate}")
+  done
+}
+
 COMPOSE_FILES=()
 RESTART_SERVICES=()
 
@@ -610,6 +632,9 @@ run_orchestration() {
     die "Explicit target credential arguments are supported only for single-component runs."
   fi
 
+  load_running_services
+  assert_bot_runtime_ownership_topology
+
   echo "[INFO] Credential rotation orchestration mode: ${mode}"
   echo "[INFO] Ordered component flow: $(join_by_comma "${SELECTED_COMPONENTS[@]}")"
 
@@ -662,6 +687,7 @@ if (( USE_ORCHESTRATION == 1 )); then
 fi
 COMPONENT="${SELECTED_COMPONENTS[0]}"
 load_running_services
+assert_bot_runtime_ownership_topology
 
 run_postgresql() {
   local service_name="postgres"
@@ -687,8 +713,8 @@ run_postgresql() {
   RESTART_SERVICES=()
   service_is_running "ops-worker" && RESTART_SERVICES+=("ops-worker")
   service_is_running "panel-web" && RESTART_SERVICES+=("panel-web")
-  service_is_running "bot-runner" && RESTART_SERVICES+=("bot-runner")
   service_is_running "postgres-exporter" && RESTART_SERVICES+=("postgres-exporter")
+  add_bot_runtime_restart_targets
   build_compose_files
 
   local backup_path="${REPO_ROOT}/.env.credential-migration-postgresql-$(date +%Y%m%d-%H%M%S).bak"
@@ -783,10 +809,7 @@ run_rabbitmq() {
   RESTART_SERVICES=()
   service_is_running "ops-worker" && RESTART_SERVICES+=("ops-worker")
   service_is_running "panel-web" && RESTART_SERVICES+=("panel-web")
-  service_is_running "bot-runner" && RESTART_SERVICES+=("bot-runner")
-  service_is_running "bot-telegram" && RESTART_SERVICES+=("bot-telegram")
-  service_is_running "bot-vk" && RESTART_SERVICES+=("bot-vk")
-  service_is_running "bot-max" && RESTART_SERVICES+=("bot-max")
+  add_bot_runtime_restart_targets
   build_compose_files
 
   local backup_path="${REPO_ROOT}/.env.credential-migration-rabbitmq-$(date +%Y%m%d-%H%M%S).bak"
@@ -879,10 +902,7 @@ run_redis() {
   service_is_running "redis-exporter" && RESTART_SERVICES+=("redis-exporter")
   service_is_running "ops-worker" && RESTART_SERVICES+=("ops-worker")
   service_is_running "panel-web" && RESTART_SERVICES+=("panel-web")
-  service_is_running "bot-runner" && RESTART_SERVICES+=("bot-runner")
-  service_is_running "bot-telegram" && RESTART_SERVICES+=("bot-telegram")
-  service_is_running "bot-vk" && RESTART_SERVICES+=("bot-vk")
-  service_is_running "bot-max" && RESTART_SERVICES+=("bot-max")
+  add_bot_runtime_restart_targets
   build_compose_files
 
   local backup_path="${REPO_ROOT}/.env.credential-migration-redis-$(date +%Y%m%d-%H%M%S).bak"
@@ -988,10 +1008,7 @@ run_minio() {
   RESTART_SERVICES=("minio" "minio-init")
   service_is_running "ops-worker" && RESTART_SERVICES+=("ops-worker")
   service_is_running "panel-web" && RESTART_SERVICES+=("panel-web")
-  service_is_running "bot-runner" && RESTART_SERVICES+=("bot-runner")
-  service_is_running "bot-telegram" && RESTART_SERVICES+=("bot-telegram")
-  service_is_running "bot-vk" && RESTART_SERVICES+=("bot-vk")
-  service_is_running "bot-max" && RESTART_SERVICES+=("bot-max")
+  add_bot_runtime_restart_targets
   build_compose_files
 
   local backup_path="${REPO_ROOT}/.env.credential-migration-minio-$(date +%Y%m%d-%H%M%S).bak"

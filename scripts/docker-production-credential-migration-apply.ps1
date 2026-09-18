@@ -156,13 +156,16 @@ function Invoke-RotationOrchestration {
         throw "-Apply and -Rehearsal cannot be used together."
     }
 
+    $repoRoot = Get-RepoRoot
+    $dockerCommand = Ensure-DockerAvailable
+    $envPath = Join-Path $repoRoot ".env"
+    $state = Read-DotEnvState -Path $envPath
+    $project = Resolve-ComposeProjectName -ExplicitName $ProjectName -Settings $state.Settings -RepoRoot $repoRoot
+    $runningServices = Get-RunningServiceNames -DockerCommand $dockerCommand -ProjectName $project
+    Assert-BotRuntimeOwnershipTopology -RunningServices $runningServices
+
     $snapshotDir = $null
     if ($Apply) {
-        $repoRoot = Get-RepoRoot
-        $dockerCommand = Ensure-DockerAvailable
-        $envPath = Join-Path $repoRoot ".env"
-        $state = Read-DotEnvState -Path $envPath
-        $project = Resolve-ComposeProjectName -ExplicitName $ProjectName -Settings $state.Settings -RepoRoot $repoRoot
         $snapshotDir = New-PreApplyBackupSnapshot -DockerCommand $dockerCommand -RepoRoot $repoRoot -ProjectName $project -SelectedComponents $SelectedComponents -RequestedDirectory $BackupDirectory
         if ($snapshotDir) {
             Write-Host "[INFO] Pre-apply snapshot created at: $snapshotDir"
@@ -804,6 +807,39 @@ function Get-RunningServiceNames {
     return @($serviceNames)
 }
 
+function Assert-BotRuntimeOwnershipTopology {
+    param([string[]]$RunningServices)
+
+    $legacyStaticServices = @("bot-telegram", "bot-vk", "bot-max")
+    $runningLegacyStaticServices = @(
+        $legacyStaticServices | Where-Object { $RunningServices -contains $_ }
+    )
+
+    if (($RunningServices -contains "bot-runner") -and $runningLegacyStaticServices.Count -gt 0) {
+        throw "Credential rotation blocked: bot-runner and legacy static bot services are running simultaneously: $($runningLegacyStaticServices -join ', '). Stop/remove legacy static runtime(s) before rehearsal/apply."
+    }
+}
+
+function Add-BotRuntimeRestartTargets {
+    param(
+        [object]$RestartServices,
+        [string[]]$RunningServices
+    )
+
+    if ($RunningServices -contains "bot-runner") {
+        if (-not $RestartServices.Contains("bot-runner")) {
+            $RestartServices.Add("bot-runner")
+        }
+        return
+    }
+
+    foreach ($candidate in @("bot-telegram", "bot-vk", "bot-max")) {
+        if ($RunningServices -contains $candidate -and -not $RestartServices.Contains($candidate)) {
+            $RestartServices.Add($candidate)
+        }
+    }
+}
+
 function Get-ComposeServiceNameFromContainer {
     param(
         [string]$DockerCommand,
@@ -964,6 +1000,7 @@ $envPath = Join-Path $repoRoot ".env"
 $state = Read-DotEnvState -Path $envPath
 $project = Resolve-ComposeProjectName -ExplicitName $ProjectName -Settings $state.Settings -RepoRoot $repoRoot
 $runningServices = Get-RunningServiceNames -DockerCommand $dockerCommand -ProjectName $project
+Assert-BotRuntimeOwnershipTopology -RunningServices $runningServices
 
 $backupPath = Join-Path $repoRoot (".env.credential-migration-{0}-{1}.bak" -f $Component, (Get-Date -Format "yyyyMMdd-HHmmss"))
 $liveChanged = $false
@@ -992,11 +1029,12 @@ switch ($Component) {
         }
 
         $restartServices = New-Object 'System.Collections.Generic.List[string]'
-        foreach ($candidate in @("ops-worker", "panel-web", "bot-runner", "postgres-exporter")) {
+        foreach ($candidate in @("ops-worker", "panel-web", "postgres-exporter")) {
             if ($runningServices -contains $candidate -and -not $restartServices.Contains($candidate)) {
                 $restartServices.Add($candidate)
             }
         }
+        Add-BotRuntimeRestartTargets -RestartServices $restartServices -RunningServices $runningServices
         $composeFiles = Get-ComposeFilesForServices -Services @($restartServices) -RunningServices $runningServices -RepoRoot $repoRoot
 
         if (-not $Apply) {
@@ -1093,11 +1131,12 @@ switch ($Component) {
         }
 
         $restartServices = New-Object 'System.Collections.Generic.List[string]'
-        foreach ($candidate in @("ops-worker", "panel-web", "bot-runner", "bot-telegram", "bot-vk", "bot-max")) {
+        foreach ($candidate in @("ops-worker", "panel-web")) {
             if ($runningServices -contains $candidate -and -not $restartServices.Contains($candidate)) {
                 $restartServices.Add($candidate)
             }
         }
+        Add-BotRuntimeRestartTargets -RestartServices $restartServices -RunningServices $runningServices
         $composeFiles = Get-ComposeFilesForServices -Services @($restartServices) -RunningServices $runningServices -RepoRoot $repoRoot
 
         if (-not $Apply) {
@@ -1192,11 +1231,12 @@ switch ($Component) {
         }
 
         $restartServices = New-Object 'System.Collections.Generic.List[string]'
-        foreach ($candidate in @("redis", "redis-exporter", "ops-worker", "panel-web", "bot-runner", "bot-telegram", "bot-vk", "bot-max")) {
+        foreach ($candidate in @("redis", "redis-exporter", "ops-worker", "panel-web")) {
             if ($runningServices -contains $candidate -and -not $restartServices.Contains($candidate)) {
                 $restartServices.Add($candidate)
             }
         }
+        Add-BotRuntimeRestartTargets -RestartServices $restartServices -RunningServices $runningServices
         $composeFiles = Get-ComposeFilesForServices -Services @($restartServices) -RunningServices $runningServices -RepoRoot $repoRoot
 
         if (-not $Apply) {
@@ -1306,13 +1346,14 @@ switch ($Component) {
         }
 
         $restartServices = New-Object 'System.Collections.Generic.List[string]'
-        foreach ($candidate in @("minio", "minio-init", "ops-worker", "panel-web", "bot-runner", "bot-telegram", "bot-vk", "bot-max")) {
+        foreach ($candidate in @("minio", "minio-init", "ops-worker", "panel-web")) {
             if (($candidate -eq "minio" -or $candidate -eq "minio-init") -or ($runningServices -contains $candidate)) {
                 if (-not $restartServices.Contains($candidate)) {
                     $restartServices.Add($candidate)
                 }
             }
         }
+        Add-BotRuntimeRestartTargets -RestartServices $restartServices -RunningServices $runningServices
         $composeFiles = Get-ComposeFilesForServices -Services @($restartServices) -RunningServices $runningServices -RepoRoot $repoRoot
 
         if (-not $Apply) {

@@ -86,6 +86,9 @@ class DockerProductionRoleTopologySourceContractTest {
             String botSection = section(compose, "  " + bot, nextServiceMarker(compose, "  " + bot));
             assertThat(botSection)
                 .as(bot)
+                .contains("profiles: [\"legacy-static-bots-disabled\"]")
+                .contains("restart: \"no\"")
+                .doesNotContain("restart: unless-stopped")
                 .contains("APP_DB_MODE: postgresql")
                 .contains("SPRING_DATASOURCE_URL")
                 .contains("SPRING_DATASOURCE_USERNAME")

@@ -37,10 +37,11 @@ class PersistedCredentialRotationApplySourceContractTest {
             .contains("\"cli\"")
             .contains("reset-admin-password")
             .contains("docker-compose.production-observability.yml")
-            .contains("@(\"ops-worker\", \"panel-web\", \"bot-runner\", \"postgres-exporter\")")
-            .contains("@(\"ops-worker\", \"panel-web\", \"bot-runner\", \"bot-telegram\", \"bot-vk\", \"bot-max\")")
-            .contains("@(\"redis\", \"redis-exporter\", \"ops-worker\", \"panel-web\", \"bot-runner\", \"bot-telegram\", \"bot-vk\", \"bot-max\")")
-            .contains("@(\"minio\", \"minio-init\", \"ops-worker\", \"panel-web\", \"bot-runner\", \"bot-telegram\", \"bot-vk\", \"bot-max\")");
+            .contains("Assert-BotRuntimeOwnershipTopology")
+            .contains("Add-BotRuntimeRestartTargets")
+            .contains("Credential rotation blocked: bot-runner and legacy static bot services are running simultaneously:")
+            .contains("foreach ($candidate in @(\"bot-telegram\", \"bot-vk\", \"bot-max\"))")
+            .doesNotContain("@(\"ops-worker\", \"panel-web\", \"bot-runner\", \"bot-telegram\"");
 
         assertThat(sh)
             .contains("SUPPORTED_COMPONENTS=(postgresql rabbitmq redis minio grafana)")
@@ -59,7 +60,9 @@ class PersistedCredentialRotationApplySourceContractTest {
             .contains("IGUANA_GRAFANA_ADMIN_PASSWORD")
             .contains("grafana cli --homepath /usr/share/grafana --config /etc/grafana/grafana.ini admin reset-admin-password")
             .contains("docker-compose.production-observability.yml")
-            .contains("service_is_running \"bot-runner\" && RESTART_SERVICES+=(\"bot-runner\")");
+            .contains("assert_bot_runtime_ownership_topology")
+            .contains("add_bot_runtime_restart_targets")
+            .contains("Credential rotation blocked: bot-runner and legacy static bot services are running simultaneously:");
 
         assertThat(runbook)
             .contains("scripts/docker-production-credential-migration-apply.ps1")
@@ -77,7 +80,9 @@ class PersistedCredentialRotationApplySourceContractTest {
             .contains("api/user")
             .contains("rehearsal")
             .contains("01-212")
-            .contains("01-220");
+            .contains("01-220")
+            .contains("mixed bot runtime ownership")
+            .contains("restart: \"no\"");
     }
 
     private String read(String relativePath) throws IOException {

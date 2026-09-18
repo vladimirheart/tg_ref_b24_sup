@@ -274,7 +274,7 @@ services:
       dockerfile: docker/bot.Dockerfile
       args:
         BOT_MODULE: bot-telegram
-    restart: unless-stopped
+    restart: "no"
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -328,7 +328,7 @@ services:
       dockerfile: docker/bot.Dockerfile
       args:
         BOT_MODULE: bot-vk
-    restart: unless-stopped
+    restart: "no"
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -389,7 +389,7 @@ services:
       dockerfile: docker/bot.Dockerfile
       args:
         BOT_MODULE: bot-max
-    restart: unless-stopped
+    restart: "no"
     depends_on:
       rabbitmq:
         condition: service_healthy

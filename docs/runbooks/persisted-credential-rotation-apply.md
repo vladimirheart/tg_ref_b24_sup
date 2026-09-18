@@ -192,15 +192,14 @@ Bash:
 
 - `ops-worker`;
 - `panel-web`;
-- `bot-runner` — supervisor и все dynamic child runtimes должны получить новый datasource credential;
-- `postgres-exporter`, если observability overlay уже поднят.
+- `postgres-exporter`, если observability overlay уже поднят;
+- bot runtime target выбирается взаимоисключающе: running `bot-runner`, либо — только если supervisor отсутствует — реально запущенные emergency `bot-telegram` / `bot-vk` / `bot-max`.
 
 ### После RabbitMQ rotation
 
 - `ops-worker`;
 - `panel-web`;
-- `bot-runner` — dynamic child runtimes наследуют RabbitMQ credential от supervisor environment;
-- `bot-telegram`, `bot-vk`, `bot-max`, если emergency legacy profile реально запущен.
+- тот же взаимоисключающий bot runtime target.
 
 ### После Redis rotation
 
@@ -208,8 +207,7 @@ Bash:
 - `redis-exporter`, если observability overlay уже поднят;
 - `ops-worker`;
 - `panel-web`;
-- `bot-runner`;
-- `bot-telegram`, `bot-vk`, `bot-max`, если emergency legacy profile реально запущен.
+- тот же взаимоисключающий bot runtime target.
 
 ### После MinIO rotation
 
@@ -217,10 +215,13 @@ Bash:
 - `minio-init`;
 - `ops-worker`;
 - `panel-web`;
-- `bot-runner`;
-- `bot-telegram`, `bot-vk`, `bot-max`, если emergency legacy profile реально запущен.
+- тот же взаимоисключающий bot runtime target.
 
-Dynamic `bot-runner` обязателен в restart choreography для всех четырёх data-plane credentials. Static bot services остаются только compatibility/emergency contour и не заменяют restart `bot-runner`.
+### Runtime ownership guard
+
+Перед каждым component dry-run/rehearsal/apply workflow проверяет mixed bot runtime ownership. Если одновременно запущены `bot-runner` и хотя бы один legacy static service, rotation немедленно блокируется до любых credential changes. Нельзя пересоздавать оба ownership-контура в одной операции.
+
+Static services `bot-telegram`, `bot-vk`, `bot-max` имеют `restart: "no"` и предназначены только для явной emergency-диагностики. Уже существующий контейнер со старой policy `unless-stopped` нужно один раз отдельно перевести на `restart=no` и остановить/удалить перед production rotation. Это отдельная runtime mutation и не выполняется source apply-оператором.
 
 ### После Grafana rotation
 
