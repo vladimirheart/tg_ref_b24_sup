@@ -253,7 +253,7 @@
 🟢 [01-231] Исправить битую UTF-8 кодировку fallback-ответа Telegram-бота для стикеров
 🟢 [01-232] Устранить конкурирующие Telegram long-polling экземпляры с одним токеном
 🟢 [01-233] Сделать интервалы и паузы RMS-мониторинга настраиваемыми из UI
-🟣 [01-234] Перевести production bot runtime на обязательный PostgreSQL datasource
+🟢 [01-234] Перевести production bot runtime на обязательный PostgreSQL datasource
 🟢 [01-235] Восстановить core production services и выполнить контролируемый rollout bot runtime с PostgreSQL и Redis lease
 🟠 [01-236] Провести контролируемую ротацию паролей persistent Docker-инфраструктуры
 🟣 [01-237] Выделить единый dynamic bot-runner для неограниченного числа активных каналов
