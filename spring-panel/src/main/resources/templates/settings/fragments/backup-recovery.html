@@ -7,14 +7,14 @@
                 <h5 class="modal-title mb-0" id="backupSettingsModalLabel">Backup &amp; recovery</h5>
                 <span class="badge text-bg-secondary" data-backup-settings-status>Не настроено</span>
               </div>
-              <div class="small text-muted mt-1">Host-level backup policy. Секреты SMB/NFS здесь не хранятся.</div>
+              <div class="backup-header-note mt-1">Host-level backup policy · SMB/NFS secrets stay on host.</div>
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
             <div class="backup-context-line" data-no-disclosure>
               <i class="bi bi-shield-check" aria-hidden="true"></i>
-              <span>Host-level policy · secrets остаются на host · recovery package: <strong>.tar.gz</strong></span>
+              <span>Host-level · secrets only on host · package <strong>.tar.gz</strong></span>
               <span class="backup-info backup-info--left">
                 <button type="button" class="backup-info__toggle" data-backup-info-toggle
                         aria-label="О backup policy" aria-controls="backupPolicyInfo" aria-expanded="false">
@@ -28,9 +28,9 @@
             <div class="alert d-none" role="alert" data-backup-settings-feedback></div>
 
             <h6 class="backup-section-title">Backup destination</h6>
-            <div class="card border mb-4" data-backup-destination-card>
-              <div class="card-body">
-                <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3 mb-3">
+            <div class="card border mb-3" data-backup-destination-card>
+              <div class="card-body backup-destination-body">
+                <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2 mb-2">
                   <div class="d-flex flex-wrap align-items-center gap-2">
                     <div class="fw-semibold">Хранилище backup</div>
                     <span class="badge text-bg-secondary" data-backup-destination-classification>Не настроено</span>
@@ -49,7 +49,7 @@
                   </button>
                 </div>
 
-                <div class="row g-3">
+                <div class="row g-2">
                   <div class="col-lg-4">
                     <label class="form-label" for="backupDestinationType">Тип хранилища</label>
                     <select class="form-select" id="backupDestinationType">
@@ -77,7 +77,7 @@
                   </div>
 
                   <div class="col-12 d-none" data-backup-destination-smb-block>
-                    <div class="row g-3">
+                    <div class="row g-2">
                       <div class="col-md-4">
                         <label class="form-label" for="backupDestinationServer">Server</label>
                         <input type="text" class="form-control font-monospace" id="backupDestinationServer" placeholder="10.10.1.1">
@@ -98,7 +98,7 @@
                         </select>
                       </div>
                       <div class="col-md-8 d-none" data-backup-destination-credential-block>
-                        <div class="row g-3">
+                        <div class="row g-2">
                           <div class="col-md-5">
                             <label class="form-label" for="backupDestinationUsername">Username (metadata)</label>
                             <input type="text" class="form-control font-monospace" id="backupDestinationUsername" placeholder="DOMAIN\backup-user">
@@ -140,7 +140,7 @@
                   </div>
 
                   <div class="col-12">
-                    <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="d-flex flex-wrap align-items-center gap-2 backup-dr-ack">
                       <div class="form-check form-switch mb-0">
                         <input class="form-check-input" type="checkbox" id="backupExternalFailureDomain" disabled>
                         <label class="form-check-label" for="backupExternalFailureDomain">
@@ -176,7 +176,7 @@
                             </span>
                           </span>
                         </div>
-                        <div class="form-check form-switch mb-0">
+                        <div class="form-check form-switch mb-0 backup-probe-summary__write">
                           <input class="form-check-input" type="checkbox" id="backupDestinationProbeWriteTest">
                           <label class="form-check-label" for="backupDestinationProbeWriteTest">Write/delete probe</label>
                         </div>
@@ -188,66 +188,79 @@
             </div>
 
             <h6 class="backup-section-title">Retention</h6>
-            <div class="row g-3 mb-4">
+            <div class="row g-2 mb-3 backup-retention-grid">
               <div class="col-md-4">
-                <label class="form-label" for="backupPostgresRetentionDays">PostgreSQL retention, дней</label>
+                <label class="form-label" for="backupPostgresRetentionDays">PostgreSQL, дней</label>
                 <input type="number" class="form-control" id="backupPostgresRetentionDays" min="1" max="3650" value="30">
               </div>
               <div class="col-md-4">
-                <label class="form-label" for="backupMinioRetentionDays">MinIO retention, дней</label>
+                <label class="form-label" for="backupMinioRetentionDays">MinIO, дней</label>
                 <input type="number" class="form-control" id="backupMinioRetentionDays" min="1" max="3650" value="14">
               </div>
               <div class="col-md-4">
-                <label class="form-label">Формат recovery package</label>
+                <label class="form-label">Recovery package</label>
                 <input type="text" class="form-control font-monospace" value="tar.gz" readonly>
               </div>
             </div>
 
 
             <h6 class="backup-section-title">Ручной backup</h6>
-            <div class="row g-3 mb-4">
-              <div class="col-md-4">
-                <label class="form-label" for="backupManualMode">Режим ручного запуска</label>
-                <select class="form-select" id="backupManualMode">
-                  <option value="critical">Critical</option>
-                  <option value="full">Full</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </div>
-              <div class="col-md-8">
-                <div class="form-label">Custom components</div>
-                <div class="row row-cols-1 row-cols-md-2">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-custom-postgres" data-backup-custom-component="postgres">
-                    <label class="form-check-label" for="backup-custom-postgres">PostgreSQL / БД</label>
+            <div class="card border mb-3 backup-manual-card" data-backup-manual-control>
+              <div class="card-body">
+                <div class="row g-2 align-items-end backup-manual-config">
+                  <div class="col-lg-3">
+                    <label class="form-label" for="backupManualMode">Режим</label>
+                    <select class="form-select" id="backupManualMode">
+                      <option value="critical">Critical</option>
+                      <option value="full">Full</option>
+                      <option value="custom">Custom</option>
+                    </select>
                   </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-custom-minio" data-backup-custom-component="minio">
-                    <label class="form-check-label" for="backup-custom-minio">MinIO / object storage</label>
-                  </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-custom-shared-config" data-backup-custom-component="shared-config">
-                    <label class="form-check-label" for="backup-custom-shared-config">Критические конфиги</label>
-                  </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-custom-templates" data-backup-custom-component="templates">
-                    <label class="form-check-label" for="backup-custom-templates">HTML / Thymeleaf pages</label>
-                  </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-custom-static-js" data-backup-custom-component="static-js">
-                    <label class="form-check-label" for="backup-custom-static-js">JavaScript</label>
-                  </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-custom-static-css" data-backup-custom-component="static-css">
-                    <label class="form-check-label" for="backup-custom-static-css">CSS</label>
+                  <div class="col-lg-9">
+                    <div class="d-flex align-items-center gap-1">
+                      <div class="form-label mb-0">Custom components</div>
+                      <span class="backup-info backup-info--left">
+                        <button type="button" class="backup-info__toggle" data-backup-info-toggle
+                                aria-label="О составе Custom backup" aria-controls="backupManualComponentsInfo" aria-expanded="false">
+                          <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                        <span class="backup-info__panel" id="backupManualComponentsInfo" data-backup-info-panel role="tooltip" hidden>
+                          Эти компоненты используются только при режиме Custom. Critical и Full используют свой сохранённый состав.
+                        </span>
+                      </span>
+                    </div>
+                    <div class="backup-component-grid mt-2">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="backup-custom-postgres" data-backup-custom-component="postgres">
+                        <label class="form-check-label" for="backup-custom-postgres">PostgreSQL / БД</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="backup-custom-minio" data-backup-custom-component="minio">
+                        <label class="form-check-label" for="backup-custom-minio">MinIO / object storage</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="backup-custom-shared-config" data-backup-custom-component="shared-config">
+                        <label class="form-check-label" for="backup-custom-shared-config">Критические конфиги</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="backup-custom-templates" data-backup-custom-component="templates">
+                        <label class="form-check-label" for="backup-custom-templates">HTML / Thymeleaf pages</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="backup-custom-static-js" data-backup-custom-component="static-js">
+                        <label class="form-check-label" for="backup-custom-static-js">JavaScript</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="backup-custom-static-css" data-backup-custom-component="static-css">
+                        <label class="form-check-label" for="backup-custom-static-css">CSS</label>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div class="card border mb-4 backup-manual-card" data-backup-manual-control>
-              <div class="card-body">
-                <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-between gap-3">
+                <div class="backup-manual-divider"></div>
+
+                <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2">
                   <div>
                     <div class="d-flex flex-wrap align-items-center gap-2">
                       <div class="fw-semibold">Запуск вручную</div>
@@ -263,7 +276,7 @@
                         </span>
                       </span>
                     </div>
-                    <div class="small text-muted" data-backup-manual-meta>Ручной backup ещё не запускался.</div>
+                    <div data-backup-manual-meta>Ручной backup ещё не запускался.</div>
                   </div>
                   <div class="d-flex flex-wrap gap-2">
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-backup-manual-refresh>Обновить статус</button>
@@ -272,35 +285,66 @@
                     </button>
                   </div>
                 </div>
-                <div class="row g-2 mt-2">
+
+                <div class="row g-2 mt-2 backup-manual-options">
                   <div class="col-lg-6">
-                    <div class="form-check form-switch">
-                      <input class="form-check-input" type="checkbox" id="backupManualVerifyRestore">
-                      <label class="form-check-label" for="backupManualVerifyRestore">После backup выполнить isolated restore rehearsal</label>
+                    <div class="d-flex align-items-start gap-1">
+                      <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="backupManualVerifyRestore">
+                        <label class="form-check-label" for="backupManualVerifyRestore">После backup выполнить isolated restore rehearsal</label>
+                      </div>
+                      <span class="backup-info backup-info--left">
+                        <button type="button" class="backup-info__toggle" data-backup-info-toggle
+                                aria-label="О restore rehearsal после backup" aria-controls="backupVerifyRestoreInfo" aria-expanded="false">
+                          <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                        <span class="backup-info__panel" id="backupVerifyRestoreInfo" data-backup-info-panel role="tooltip" hidden>
+                          Critical проверяет DB/MinIO/shared config, Full — весь Full, Custom — сохранённый Custom.
+                        </span>
+                      </span>
                     </div>
-                    <div class="form-text" data-no-disclosure>Critical проверяет DB/MinIO/shared config, Full — весь Full, Custom — сохранённый Custom.</div>
                   </div>
                   <div class="col-lg-6" data-backup-local-test-block>
-                    <div class="form-check form-switch">
-                      <input class="form-check-input" type="checkbox" id="backupManualAllowLocalTest">
-                      <label class="form-check-label text-warning-emphasis" for="backupManualAllowLocalTest">Разрешить локальный тестовый запуск (не DR)</label>
+                    <div class="d-flex align-items-start gap-1">
+                      <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="backupManualAllowLocalTest">
+                        <label class="form-check-label text-warning-emphasis" for="backupManualAllowLocalTest">Разрешить локальный тестовый запуск (не DR)</label>
+                      </div>
+                      <span class="backup-info backup-info--left">
+                        <button type="button" class="backup-info__toggle" data-backup-info-toggle
+                                aria-label="О локальном тестовом backup" aria-controls="backupLocalTestInfo" aria-expanded="false">
+                          <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                        <span class="backup-info__panel" id="backupLocalTestInfo" data-backup-info-panel role="tooltip" hidden>
+                          Автоматическое расписание на локальном пути всё равно не выполняется; local destination остаётся NOT_DR.
+                        </span>
+                      </span>
                     </div>
-                    <div class="form-text" data-no-disclosure>Автоматическое расписание на локальном пути всё равно не выполняется.</div>
                   </div>
                 </div>
               </div>
             </div>
 
             <h6 class="backup-section-title">Периодичность</h6>
-            <div class="row g-4 mb-4">
+            <div class="row g-2 mb-3 backup-schedule-grid">
               <div class="col-lg-6">
-                <div class="card h-100">
+                <div class="card h-100 backup-schedule-card">
                   <div class="card-body">
-                    <div class="form-check form-switch mb-3">
-                      <input class="form-check-input" type="checkbox" id="backupCriticalEnabled">
-                      <label class="form-check-label fw-semibold" for="backupCriticalEnabled">Critical backup включён</label>
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                      <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="backupCriticalEnabled">
+                        <label class="form-check-label fw-semibold" for="backupCriticalEnabled">Critical backup включён</label>
+                      </div>
+                      <span class="backup-info backup-info--left">
+                        <button type="button" class="backup-info__toggle" data-backup-info-toggle
+                                aria-label="О Critical backup" aria-controls="backupCriticalInfo" aria-expanded="false">
+                          <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                        <span class="backup-info__panel" id="backupCriticalInfo" data-backup-info-panel role="tooltip" hidden>
+                          БД + object storage + критические конфиги. Предназначен для частого запуска.
+                        </span>
+                      </span>
                     </div>
-                    <p class="small text-muted">БД + object storage + критические конфиги. Предназначен для частого запуска.</p>
                     <div class="row g-2">
                       <div class="col-sm-4">
                         <label class="form-label" for="backupCriticalFrequency">Период</label>
@@ -325,13 +369,23 @@
                 </div>
               </div>
               <div class="col-lg-6">
-                <div class="card h-100">
+                <div class="card h-100 backup-schedule-card">
                   <div class="card-body">
-                    <div class="form-check form-switch mb-3">
-                      <input class="form-check-input" type="checkbox" id="backupFullEnabled">
-                      <label class="form-check-label fw-semibold" for="backupFullEnabled">Full backup включён</label>
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                      <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="backupFullEnabled">
+                        <label class="form-check-label fw-semibold" for="backupFullEnabled">Full backup включён</label>
+                      </div>
+                      <span class="backup-info backup-info--left">
+                        <button type="button" class="backup-info__toggle" data-backup-info-toggle
+                                aria-label="О Full backup" aria-controls="backupFullInfo" aria-expanded="false">
+                          <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                        <span class="backup-info__panel" id="backupFullInfo" data-backup-info-panel role="tooltip" hidden>
+                          Critical data + templates/pages + JS + CSS. Обычно запускается реже.
+                        </span>
+                      </span>
                     </div>
-                    <p class="small text-muted">Critical data + templates/pages + JS + CSS. Обычно запускается реже.</p>
                     <div class="row g-2">
                       <div class="col-sm-4">
                         <label class="form-label" for="backupFullFrequency">Период</label>
@@ -357,41 +411,66 @@
               </div>
             </div>
 
-            <h6 class="backup-section-title d-flex align-items-center gap-2">Restore rehearsal <span class="backup-info backup-info--left"><button type="button" class="backup-info__toggle" data-backup-info-toggle aria-label="О restore rehearsal" aria-controls="backupRestoreInfo" aria-expanded="false"><i class="bi bi-info-circle" aria-hidden="true"></i></button><span class="backup-info__panel" id="backupRestoreInfo" data-backup-info-panel role="tooltip" hidden>Изолированная проверка восстановления не является production restore. Production restore остаётся отдельной подтверждаемой операцией.</span></span></h6>
-
-            <div class="row row-cols-1 row-cols-md-2 mb-4">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-restore-postgres" data-backup-restore-component="postgres">
-                    <label class="form-check-label" for="backup-restore-postgres">PostgreSQL / БД</label>
+            <div class="row g-2 mb-2 backup-secondary-grid">
+              <div class="col-lg-7">
+                <div class="backup-secondary-section">
+                  <div class="backup-secondary-section__title">
+                    <span>Restore rehearsal</span>
+                    <span class="backup-info backup-info--left">
+                      <button type="button" class="backup-info__toggle" data-backup-info-toggle
+                              aria-label="О restore rehearsal" aria-controls="backupRestoreInfo" aria-expanded="false">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                      </button>
+                      <span class="backup-info__panel" id="backupRestoreInfo" data-backup-info-panel role="tooltip" hidden>
+                        Изолированная проверка восстановления не является production restore. Production restore остаётся отдельной подтверждаемой операцией.
+                      </span>
+                    </span>
                   </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-restore-minio" data-backup-restore-component="minio">
-                    <label class="form-check-label" for="backup-restore-minio">MinIO / object storage</label>
+                  <div class="row row-cols-2 row-cols-xl-3 backup-restore-grid">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="backup-restore-postgres" data-backup-restore-component="postgres">
+                      <label class="form-check-label" for="backup-restore-postgres">PostgreSQL / БД</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="backup-restore-minio" data-backup-restore-component="minio">
+                      <label class="form-check-label" for="backup-restore-minio">MinIO / object storage</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="backup-restore-shared-config" data-backup-restore-component="shared-config">
+                      <label class="form-check-label" for="backup-restore-shared-config">Критические конфиги</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="backup-restore-templates" data-backup-restore-component="templates">
+                      <label class="form-check-label" for="backup-restore-templates">HTML / Thymeleaf pages</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="backup-restore-static-js" data-backup-restore-component="static-js">
+                      <label class="form-check-label" for="backup-restore-static-js">JavaScript</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="backup-restore-static-css" data-backup-restore-component="static-css">
+                      <label class="form-check-label" for="backup-restore-static-css">CSS</label>
+                    </div>
                   </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-restore-shared-config" data-backup-restore-component="shared-config">
-                    <label class="form-check-label" for="backup-restore-shared-config">Критические конфиги</label>
-                  </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-restore-templates" data-backup-restore-component="templates">
-                    <label class="form-check-label" for="backup-restore-templates">HTML / Thymeleaf pages</label>
-                  </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-restore-static-js" data-backup-restore-component="static-js">
-                    <label class="form-check-label" for="backup-restore-static-js">JavaScript</label>
-                  </div>
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="backup-restore-static-css" data-backup-restore-component="static-css">
-                    <label class="form-check-label" for="backup-restore-static-css">CSS</label>
-                  </div>
+                </div>
+              </div>
+              <div class="col-lg-5">
+                <div class="backup-secondary-section">
+                  <div class="backup-secondary-section__title">Фактические каталоги</div>
+                  <dl class="backup-path-summary mb-0">
+                    <div class="backup-path-summary__row">
+                      <dt>PostgreSQL</dt><dd><code data-backup-postgres-path>—</code></dd>
+                    </div>
+                    <div class="backup-path-summary__row">
+                      <dt>MinIO</dt><dd><code data-backup-minio-path>—</code></dd>
+                    </div>
+                    <div class="backup-path-summary__row">
+                      <dt>File packages</dt><dd><code data-backup-files-path>—</code></dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
             </div>
-
-            <h6 class="backup-section-title">Фактические каталоги</h6>
-            <dl class="row mb-0">
-              <dt class="col-sm-3">PostgreSQL</dt><dd class="col-sm-9"><code data-backup-postgres-path>—</code></dd>
-              <dt class="col-sm-3">MinIO</dt><dd class="col-sm-9"><code data-backup-minio-path>—</code></dd>
-              <dt class="col-sm-3">File packages</dt><dd class="col-sm-9"><code data-backup-files-path>—</code></dd>
-            </dl>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>

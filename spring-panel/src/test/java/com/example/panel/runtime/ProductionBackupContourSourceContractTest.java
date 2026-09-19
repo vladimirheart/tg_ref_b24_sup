@@ -213,6 +213,11 @@ class ProductionBackupContourSourceContractTest {
             .contains("data-backup-info-toggle")
             .contains("data-backup-destination-probe-summary")
             .contains("data-no-disclosure")
+            .contains("backup-destination-body")
+            .contains("backup-retention-grid")
+            .contains("backup-component-grid")
+            .contains("backup-schedule-card")
+            .contains("backup-secondary-section")
             .contains("NOT_DR")
             .doesNotContain("<h6>Retention</h6>")
             .doesNotContain("<h6>Периодичность</h6>");
@@ -230,7 +235,10 @@ class ProductionBackupContourSourceContractTest {
             .contains("#backupSettingsModal")
             .contains(".backup-info__panel")
             .contains(".backup-probe-summary")
-            .contains(".backup-state-strip");
+            .contains(".backup-state-strip")
+            .contains("[data-bs-theme=\"dark\"] #backupSettingsModal")
+            .contains("color: rgba(255, 255, 255, .84)")
+            .contains(".backup-secondary-section");
     }
 
 
