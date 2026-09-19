@@ -127,6 +127,8 @@ Production-ready contract считается выполненным, когда:
 - Для Telegram Redis lease строится по SHA-256 fingerprint токена; для MAX/VK ownership привязан к channel. Это исключает логирование token в coordination keys.
 - Нельзя параллельно запускать static profile `bot-telegram`, `bot-vk` или `bot-max` с dynamic supervisor для того же канала: два consumer приведут к duplicate ingress, а Telegram вернёт `409 Conflict`.
 - Child runtimes обращаются к internal panel API по `http://panel-web:8080`. Клиент повторяет только временные transport failures и HTTP `5xx`, с ограничением существующими `retry-attempts` и `retry-backoff`; write requests сохраняют один idempotency key.
+- Ручные `start/stop` из web UI не создают child JVM в `panel-web`: web-роль отправляет signed + idempotent internal command на `http://bot-runner:8080/internal/api/bot/runtime/{channelId}/{action}` и принимает результат только при совпадающих `commandId`, `channelId`, `action` и непустом `runnerInstanceId`.
+- Internal lifecycle endpoint выполняет команду только в роли `bot-runner` (или локальной `all`), поэтому ownership процесса остаётся single-owner.
 - Изменение числа или набора каналов не требует добавления Docker service. Изменения токена, активности либо module configuration вносятся через settings/API и подхватываются supervisor lifecycle.
 
 ## Lifecycle Contract Test

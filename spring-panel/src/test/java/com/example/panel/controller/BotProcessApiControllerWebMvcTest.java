@@ -1,5 +1,7 @@
 package com.example.panel.controller;
 
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -9,7 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.runtime.RuntimeRoleProperties;
+import com.example.panel.service.BotLifecycleCommandResult;
 import com.example.panel.service.BotProcessService;
+import com.example.panel.service.BotRunnerLifecycleClient;
 import com.example.panel.service.BotRuntimeContractService;
 import com.example.panel.service.UiEventStreamService;
 import java.time.OffsetDateTime;
@@ -31,6 +35,9 @@ class BotProcessApiControllerWebMvcTest {
 
     @MockBean
     private BotProcessService botProcessService;
+
+    @MockBean
+    private BotRunnerLifecycleClient botRunnerLifecycleClient;
 
     @MockBean
     private ChannelRepository channelRepository;
@@ -413,5 +420,57 @@ class BotProcessApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.status").value("unknown"));
+    }
+
+    @Test
+    void webRoleForwardsStartToBotRunnerAndReturnsAcknowledgement() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(71L);
+        when(runtimeRoleProperties.getRole()).thenReturn("panel-web");
+        when(channelRepository.findById(71L)).thenReturn(Optional.of(channel));
+        when(botRunnerLifecycleClient.start(71L)).thenReturn(new BotLifecycleCommandResult(
+            "cmd-71", 71L, "start", true, "running", "2026-09-19T15:00:00Z", "runner-1"
+        ));
+
+        mockMvc.perform(post("/api/bots/71/start"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.status").value("running"))
+            .andExpect(jsonPath("$.commandId").value("cmd-71"))
+            .andExpect(jsonPath("$.runnerInstanceId").value("runner-1"));
+
+        verify(botRunnerLifecycleClient).start(71L);
+        verify(botProcessService, never()).start(channel);
+    }
+
+    @Test
+    void webRoleForwardsStopToBotRunner() throws Exception {
+        when(runtimeRoleProperties.getRole()).thenReturn("panel-web");
+        when(botRunnerLifecycleClient.stop(72L)).thenReturn(new BotLifecycleCommandResult(
+            "cmd-72", 72L, "stop", true, "stopped", null, "runner-1"
+        ));
+
+        mockMvc.perform(post("/api/bots/72/stop"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("stopped"))
+            .andExpect(jsonPath("$.commandId").value("cmd-72"));
+
+        verify(botRunnerLifecycleClient).stop(72L);
+        verify(botProcessService, never()).stop(72L);
+    }
+
+    @Test
+    void workerRoleStillRejectsManualLifecycle() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(73L);
+        when(runtimeRoleProperties.getRole()).thenReturn("ops-worker");
+        when(channelRepository.findById(73L)).thenReturn(Optional.of(channel));
+
+        mockMvc.perform(post("/api/bots/73/start"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.success").value(false));
+
+        verify(botRunnerLifecycleClient, never()).start(73L);
+        verify(botProcessService, never()).start(channel);
     }
 }

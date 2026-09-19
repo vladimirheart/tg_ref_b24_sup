@@ -87,6 +87,9 @@ app:
     recommended-artifact-directory: ${APP_BOT_RECOMMENDED_ARTIFACT_DIRECTORY:dist}
     startup-readiness-timeout: ${APP_BOT_STARTUP_READINESS_TIMEOUT:90s}
     startup-poll-interval: ${APP_BOT_STARTUP_POLL_INTERVAL:250ms}
+    runner-api:
+      base-url: ${APP_BOT_RUNNER_INTERNAL_API_BASE_URL:http://bot-runner:8080}
+      request-timeout: ${APP_BOT_RUNNER_INTERNAL_API_REQUEST_TIMEOUT:110s}
     internal-api:
       token: ${APP_INTERNAL_BOT_API_TOKEN:iguana-internal-bot-token}
       signature-secret: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:}
