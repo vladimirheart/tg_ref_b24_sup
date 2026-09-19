@@ -99,7 +99,11 @@ fi
 if [[ ! -d "${DESTINATION}" ]]; then
   [[ "${ALLOW_LOCAL_DESTINATION}" == "1" ]] && mkdir -p "${DESTINATION}" || { echo "[ERROR] Backup destination is not mounted: ${DESTINATION}" >&2; exit 1; }
 fi
-probe="${DESTINATION}/.iguana-write-probe-$$"; printf probe > "${probe}"; rm -f "${probe}"
+if [[ "${VALIDATE_ONLY}" != "1" ]]; then
+  probe="${DESTINATION}/.iguana-write-probe-$$"
+  printf probe > "${probe}"
+  rm -f "${probe}"
+fi
 
 export IGUANA_BACKUP_DESTINATION_DIR="${DESTINATION}"
 export IGUANA_BACKUP_MODE="${MODE}"

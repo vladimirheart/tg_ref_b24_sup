@@ -1,6 +1,6 @@
 # Iguana production backup and recovery contour
 
-Актуально на `2026-08-26`. Связанная задача: `01-212`.
+Актуально на `2026-09-19`. Связанная задача: `01-212`.
 
 ## 1. Назначение
 
@@ -84,12 +84,21 @@ Backup jobs сами по себе не публикуют host ports и не в
 .\scripts\docker-production-backup.ps1 -Action restore
 ```
 
+Read-only validation policy/Compose/destination presence без записи probe-файла:
+
+```powershell
+.\scripts\docker-production-backup.ps1 -ValidateOnly
+```
+
+`-ValidateOnly` проверяет policy, failure-domain acknowledgement, наличие destination и Compose config, но не создаёт `.iguana-write-probe-*`. Реальные `backup`, `restore` и `full` сохраняют write/delete preflight перед Docker jobs. Это отделяет validation от explicit write boundary destination probe.
+
 Linux equivalents:
 
 ```bash
 ./scripts/docker-production-backup.sh --action backup
 ./scripts/docker-production-backup.sh --action full
 ./scripts/docker-production-backup.sh --action restore
+./scripts/docker-production-backup.sh --validate-only
 ```
 
 ## 6. Schedule baseline

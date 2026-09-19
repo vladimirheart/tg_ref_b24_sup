@@ -108,13 +108,18 @@ class ProductionBackupContourSourceContractTest {
             .contains("RestoreComponents")
             .contains("files-backup")
             .contains("files-restore-rehearsal")
-            .contains("IGUANA_BACKUP_EXTERNAL_FAILURE_DOMAIN");
+            .contains("IGUANA_BACKUP_EXTERNAL_FAILURE_DOMAIN")
+            .contains("RequireWriteAccess")
+            .contains("-RequireWriteAccess:(-not $ValidateOnly)")
+            .contains("if ($RequireWriteAccess)");
 
         assertThat(backupSh)
             .contains("--mode")
             .contains("--restore-components")
             .contains("files-backup")
-            .contains("files-restore-rehearsal");
+            .contains("files-restore-rehearsal")
+            .contains("if [[ \"${VALIDATE_ONLY}\" != \"1\" ]]")
+            .contains(".iguana-write-probe-$$");
 
         assertThat(runnerPs)
             .contains("Get-Env \"IGUANA_BACKUP_${Prefix}_ENABLED\"")

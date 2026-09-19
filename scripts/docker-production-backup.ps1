@@ -107,7 +107,7 @@ function Resolve-RestoreComponents {
 }
 
 function Resolve-BackupDestination {
-    param([string]$RepoRoot, [hashtable]$DotEnv, [bool]$AllowLocal)
+    param([string]$RepoRoot, [hashtable]$DotEnv, [bool]$AllowLocal, [bool]$RequireWriteAccess)
 
     $raw = Get-SettingValue -DotEnv $DotEnv -Name "IGUANA_BACKUP_DESTINATION_DIR"
     if ([string]::IsNullOrWhiteSpace($raw)) {
@@ -137,9 +137,11 @@ function Resolve-BackupDestination {
         else { throw "Backup destination does not exist or is not mounted: $resolved" }
     }
 
-    $probe = Join-Path $resolved (".iguana-write-probe-" + [Guid]::NewGuid().ToString("N"))
-    try { [System.IO.File]::WriteAllText($probe, "probe") }
-    finally { Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue }
+    if ($RequireWriteAccess) {
+        $probe = Join-Path $resolved (".iguana-write-probe-" + [Guid]::NewGuid().ToString("N"))
+        try { [System.IO.File]::WriteAllText($probe, "probe") }
+        finally { Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue }
+    }
     $resolved
 }
 
@@ -180,7 +182,7 @@ $dockerCommand = Get-Command docker -ErrorAction SilentlyContinue
 if (-not $dockerCommand) { throw "Docker is not installed or not available in PATH." }
 
 $dotEnv = Read-DotEnvFile $dotEnvPath
-$destination = Resolve-BackupDestination -RepoRoot $repoRoot -DotEnv $dotEnv -AllowLocal:$AllowLocalDestination
+$destination = Resolve-BackupDestination -RepoRoot $repoRoot -DotEnv $dotEnv -AllowLocal:$AllowLocalDestination -RequireWriteAccess:(-not $ValidateOnly)
 $modeValue = Resolve-BackupMode -DotEnv $dotEnv -ExplicitMode $Mode
 $backupComponents = Resolve-BackupComponents -DotEnv $dotEnv -ModeValue $modeValue -ExplicitComponents $Components
 $restoreItems = Resolve-RestoreComponents -DotEnv $dotEnv -ExplicitComponents $RestoreComponents
