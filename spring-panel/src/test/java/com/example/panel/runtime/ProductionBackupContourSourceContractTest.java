@@ -236,8 +236,13 @@ class ProductionBackupContourSourceContractTest {
             .contains(".backup-info__panel")
             .contains(".backup-probe-summary")
             .contains(".backup-state-strip")
+            .contains("[data-theme=\"dark\"] #backupSettingsModal")
             .contains("[data-bs-theme=\"dark\"] #backupSettingsModal")
-            .contains("color: rgba(255, 255, 255, .84)")
+            .contains("background: var(--surface-raised)")
+            .contains("color: var(--color-text-muted)")
+            .doesNotContain("var(--bs-tertiary-bg)")
+            .doesNotContain("var(--bs-body-color)")
+            .doesNotContain("var(--bs-emphasis-color)")
             .contains(".backup-secondary-section");
     }
 
