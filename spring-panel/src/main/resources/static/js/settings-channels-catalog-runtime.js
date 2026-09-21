@@ -322,9 +322,9 @@
 
         registry.set(String(row.id), prepared);
 
-        const statusBadge = prepared.is_active
-          ? '<span class="badge bg-success-subtle text-success">Активен</span>'
-          : '<span class="badge bg-secondary-subtle text-secondary">Выключен</span>';
+        const channelStateLabel = prepared.is_active ? 'Канал активен' : 'Канал выключен';
+        const channelStateTone = prepared.is_active ? 'text-success' : 'text-secondary';
+        const channelStateIcon = prepared.is_active ? 'bi-check-circle-fill' : 'bi-pause-circle-fill';
         const supportChatRaw = prepared.support_chat_id;
         const hasSupportChat = supportChatRaw !== null && supportChatRaw !== undefined && String(supportChatRaw).trim() !== '';
         const supportChatLabel = hasSupportChat
@@ -375,7 +375,10 @@
         tr.dataset.id = row.id;
         tr.innerHTML = `
           <td class="channels-channel-name-cell">
-            <div class="fw-medium channels-channel-name">${escapeHtml(prepared.channel_name || '—')}</div>
+            <div class="channels-channel-name-line">
+              <span class="channels-channel-state-icon ${channelStateTone}" role="img" aria-label="${escapeHtml(channelStateLabel)}" title="${escapeHtml(channelStateLabel)}"><i class="bi ${channelStateIcon}" aria-hidden="true"></i></span>
+              <div class="fw-medium channels-channel-name">${escapeHtml(prepared.channel_name || '—')}</div>
+            </div>
             <div class="text-muted small channels-channel-bot-label">Бот: ${escapeHtml(botLabel)}</div>
           </td>
           <td class="align-top channels-platform-cell">
@@ -410,14 +413,13 @@
             </div>
           </td>
           <td class="text-center align-top channels-status-cell">
-            <div>${statusBadge}</div>
-            <div class="mt-1">
+            <div class="channels-runtime-control-row">
               <span class="badge bg-light text-secondary border border-secondary-subtle" data-channel-bot-runtime-status="${prepared.id}">Процесс: проверка…</span>
-            </div>
-            <div class="d-flex justify-content-center mt-2 channels-channel-actions">
-              <button type="button" class="btn btn-sm btn-outline-success channels-icon-button" data-channel-start="${prepared.id}" aria-label="Запустить" title="Запустить" disabled><i class="bi bi-play-fill" aria-hidden="true"></i></button>
-              <button type="button" class="btn btn-sm btn-outline-danger channels-icon-button" data-channel-stop="${prepared.id}" aria-label="Остановить" title="Остановить" hidden><i class="bi bi-stop-fill" aria-hidden="true"></i></button>
-              <button type="button" class="btn btn-sm btn-outline-primary channels-icon-button" data-channel-edit="${prepared.id}" aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i></button>
+              <div class="d-flex justify-content-center channels-channel-actions">
+                <button type="button" class="btn btn-sm btn-outline-success channels-icon-button" data-channel-start="${prepared.id}" aria-label="Запустить" title="Запустить" disabled><i class="bi bi-play-fill" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger channels-icon-button" data-channel-stop="${prepared.id}" aria-label="Остановить" title="Остановить" hidden><i class="bi bi-stop-fill" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-primary channels-icon-button" data-channel-edit="${prepared.id}" aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i></button>
+              </div>
             </div>
           </td>
         `;

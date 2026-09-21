@@ -22,8 +22,14 @@ class SettingsChannelsRuntimeUiSourceContractTest {
     private static final Path WORKSPACE = Path.of(
         "src/main/resources/templates/settings/fragments/channels-workspace.html"
     );
+    private static final Path NETWORK_WORKSPACE = Path.of(
+        "src/main/resources/templates/settings/fragments/channels-integration-network.html"
+    );
     private static final Path CHANNELS_SCSS = Path.of(
         "src/main/resources/scss/settings/calm/_channels.scss"
+    );
+    private static final Path WORKSPACE_SCSS = Path.of(
+        "src/main/resources/scss/settings/_workspace.scss"
     );
 
     @Test
@@ -78,9 +84,52 @@ class SettingsChannelsRuntimeUiSourceContractTest {
             .contains("max-width: 100%;")
             .contains("min-width: 0;")
             .contains("overflow-wrap: anywhere;")
-            .contains("#channelsModal .channels-icon-button")
-            .contains("width: 1.9rem;")
-            .contains("height: 1.9rem;");
+            .contains("#channelsModal .channels-icon-button");
+    }
+
+    @Test
+    void channelManagementTabsAndNestedModalScrollStayCompact() throws IOException {
+        String catalog = read(CATALOG);
+        String workspace = read(WORKSPACE);
+        String networkWorkspace = read(NETWORK_WORKSPACE);
+        String channelsScss = read(CHANNELS_SCSS);
+        String workspaceScss = read(WORKSPACE_SCSS);
+
+        assertThat(workspace)
+            .contains("id=\"channelsManageTabs\"")
+            .contains("data-bs-target=\"#channels-manage-bots\"")
+            .contains("data-bs-target=\"#channels-manage-profiles\"")
+            .contains("data-bs-target=\"#channels-manage-routes\"")
+            .contains("data-channels-manage-stat=\"channels-count\"")
+            .contains("data-channels-manage-stat=\"active-count\"")
+            .contains("channels-manage-info")
+            .contains("btn btn-sm btn-primary channels-add-button")
+            .doesNotContain("channels-quick-grid");
+        assertThat(networkWorkspace)
+            .contains("id=\"channels-manage-profiles\"")
+            .contains("id=\"channels-manage-routes\"")
+            .contains("channels-manage-network-pane")
+            .doesNotContain("channelsManageAdvancedAccordion")
+            .doesNotContain("channelsProfilesCollapse")
+            .doesNotContain("channelsRoutesCollapse");
+        assertThat(catalog)
+            .contains("const channelStateLabel = prepared.is_active ? 'Канал активен' : 'Канал выключен';")
+            .contains("channels-channel-state-icon")
+            .contains("title=\"${escapeHtml(channelStateLabel)}\"")
+            .contains("channels-runtime-control-row")
+            .doesNotContain("const statusBadge = prepared.is_active");
+        assertThat(channelsScss)
+            .contains("#channelsModal .channels-manage-tabs")
+            .contains("#channelsModal .channels-runtime-control-row")
+            .contains("#channelsModal .channels-channel-state-icon")
+            .contains("width: 1.65rem;")
+            .contains("height: 1.65rem;");
+        assertThat(workspaceScss)
+            .contains(".settings-child-modal.show .modal-dialog-scrollable .modal-body")
+            .contains("overscroll-behavior-y: contain;")
+            .contains(".modal.show[inert] .modal-dialog-scrollable .modal-body")
+            .contains("overflow: hidden !important;")
+            .contains("overscroll-behavior: none;");
     }
 
     private String read(Path path) throws IOException {

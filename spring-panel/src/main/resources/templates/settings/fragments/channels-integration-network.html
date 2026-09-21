@@ -1,27 +1,6 @@
-<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="integrationNetworkWorkspace"><div class="accordion channels-manage-accordion" id="channelsManageAdvancedAccordion">
-                    <div class="accordion-item">
-                      <h2 class="accordion-header" id="channelsProfilesHeading">
-                        <button
-                          class="accordion-button collapsed"
-                          type="button"
-                          data-bs-toggle="collapse"
-                          data-bs-target="#channelsProfilesCollapse"
-                          aria-expanded="false"
-                          aria-controls="channelsProfilesCollapse"
-                        >
-                          <span>
-                            <span class="fw-semibold d-block">Профили прокси и VPN</span>
-                            <span class="channels-manage-accordion__summary" data-channels-manage-summary="profiles-count">Профили не созданы</span>
-                          </span>
-                        </button>
-                      </h2>
-                      <div
-                        id="channelsProfilesCollapse"
-                        class="accordion-collapse collapse"
-                        aria-labelledby="channelsProfilesHeading"
-                        data-bs-parent="#channelsManageAdvancedAccordion"
-                      >
-                        <div class="accordion-body">
+<th:block xmlns:th="http://www.thymeleaf.org" th:fragment="integrationNetworkWorkspace">
+                    <section class="tab-pane fade channels-manage-network-pane" id="channels-manage-profiles" role="tabpanel" aria-labelledby="channels-manage-profiles-tab" tabindex="0">
+                      <div class="channels-manage-network-body">
                           <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                             <div>
                               <h5 class="card-title mb-1">Профили прокси и VPN</h5>
@@ -50,35 +29,10 @@
                           <div class="form-text mt-3" id="integrationNetworkProfilesStatus">Профили нужны, чтобы не копировать одинаковые прокси/VPN вручную для каждого маршрута.</div>
                           <div class="small text-muted mt-2">Для VLESS создайте несколько профилей (host, port, token), затем выберите их цепочкой в маршруте проекта/ботов. Первый профиль в списке — основной, остальные используются как резерв.</div>
                         </div>
-                      </div>
-                    </div>
+                    </section>
 
-                    <div class="accordion-item">
-                      <h2 class="accordion-header" id="channelsRoutesHeading">
-                        <button
-                          class="accordion-button collapsed"
-                          type="button"
-                          data-bs-toggle="collapse"
-                          data-bs-target="#channelsRoutesCollapse"
-                          aria-expanded="false"
-                          aria-controls="channelsRoutesCollapse"
-                        >
-                          <span>
-                            <span class="fw-semibold d-block">Сетевые маршруты интеграций</span>
-                            <span class="channels-manage-accordion__summary">
-                              <span data-channels-manage-summary="routes-project">Проект: без маршрутизации</span>
-                              <span class="d-inline-block ms-2" data-channels-manage-summary="routes-bots">Боты: наследуют проект</span>
-                            </span>
-                          </span>
-                        </button>
-                      </h2>
-                      <div
-                        id="channelsRoutesCollapse"
-                        class="accordion-collapse collapse"
-                        aria-labelledby="channelsRoutesHeading"
-                        data-bs-parent="#channelsManageAdvancedAccordion"
-                      >
-                        <div class="accordion-body">
+                    <section class="tab-pane fade channels-manage-network-pane" id="channels-manage-routes" role="tabpanel" aria-labelledby="channels-manage-routes-tab" tabindex="0">
+                      <div class="channels-manage-network-body">
                           <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                             <div>
                               <h5 class="card-title mb-1">Сетевые маршруты интеграций</h5>
@@ -251,9 +205,8 @@
                           </div>
                           <div class="form-text mt-3" id="integrationNetworkStatus">Прокси применяются к запросам панели и автоматически передаются отдельным процессам ботов. VPN сохраняется как конфигурация маршрута для окружения и конкретных ботов.</div>
                         </div>
-                      </div>
-                    </div>
-                  </div></th:block>
+                    </section>
+                  </th:block>
 
 <th:block xmlns:th="http://www.thymeleaf.org" th:fragment="integrationNetworkProfileModal"><div class="modal fade settings-child-modal settings-task-modal settings-task-modal--medium" id="integrationNetworkProfileEditorModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">

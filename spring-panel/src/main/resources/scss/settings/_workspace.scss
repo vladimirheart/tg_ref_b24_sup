@@ -142,6 +142,21 @@
   margin-top: 0 !important;
 }
 
+/* Nested settings modals own their scroll; suspended parents must never consume wheel/touch scroll. */
+.settings-child-modal.show {
+  overscroll-behavior: none;
+}
+
+.settings-child-modal.show .modal-dialog-scrollable .modal-body {
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+}
+
+.modal.show[inert] .modal-dialog-scrollable .modal-body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
 /* Bootstrap light diagnostics must follow the active Iguana theme. */
 .modal .alert.alert-light {
   --bs-alert-color: var(--color-text-muted);

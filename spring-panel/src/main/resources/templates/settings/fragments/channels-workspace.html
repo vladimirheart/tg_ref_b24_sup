@@ -63,82 +63,57 @@
                 aria-labelledby="channels-manage-tab"
               >
                 <div class="channels-manage-shell">
-                  <div class="channels-quick-grid">
-                    <section class="channels-quick-card channels-quick-card--accent">
-                      <div class="channels-quick-card__head">
-                        <div>
-                          <h5 class="channels-quick-card__title mb-1">Добавить канал</h5>
-                          <p class="channels-quick-card__text mb-0">Подключение нового Telegram, VK или MAX-бота теперь остаётся отдельным действием, а не развёрнутым блоком на весь экран.</p>
-                        </div>
-                        <span class="channels-quick-card__icon"><i class="bi bi-plus-circle" aria-hidden="true"></i></span>
-                      </div>
-                      <div class="channels-quick-card__meta">
-                        <span class="channels-quick-card__pill" data-channels-manage-stat="channels-count">0 каналов</span>
-                        <span class="channels-quick-card__pill" data-channels-manage-stat="active-count">0 активных</span>
-                      </div>
-                      <div class="channels-quick-card__actions">
-                        <button class="btn btn-primary" type="button" data-add-channel-open>Добавить канал</button>
-                      </div>
-                      <div class="channels-quick-card__note">Подробные инструкции и поля платформы уже находятся внутри модалки.</div>
-                    </section>
-
-                    <section class="channels-quick-card">
-                      <div class="channels-quick-card__head">
-                        <div>
-                          <h5 class="channels-quick-card__title mb-1">Профили прокси и VPN</h5>
-                          <p class="channels-quick-card__text mb-0">Открывайте только когда нужно переиспользовать маршруты между проектом, ботами и отдельными интеграциями.</p>
-                        </div>
-                        <span class="channels-quick-card__icon"><i class="bi bi-diagram-3" aria-hidden="true"></i></span>
-                      </div>
-                      <div class="channels-quick-card__meta">
-                        <span class="channels-quick-card__pill" data-channels-manage-summary="profiles-count">Профили не созданы</span>
-                      </div>
-                      <div class="channels-quick-card__actions">
-                        <button type="button" class="btn btn-outline-primary" data-channels-network-profile-quick-add data-channels-open-profiles>Новый профиль</button>
-                        <button type="button" class="btn btn-outline-secondary" data-channels-open-profiles>Открыть список</button>
-                      </div>
-                    </section>
-
-                    <section class="channels-quick-card">
-                      <div class="channels-quick-card__head">
-                        <div>
-                          <h5 class="channels-quick-card__title mb-1">Сетевые маршруты</h5>
-                          <p class="channels-quick-card__text mb-0">Настройки сети остаются доступными, но теперь не перекрывают основной рабочий список каналов.</p>
-                        </div>
-                        <span class="channels-quick-card__icon"><i class="bi bi-shuffle" aria-hidden="true"></i></span>
-                      </div>
-                      <div class="channels-quick-card__stack">
-                        <div class="channels-quick-card__route" data-channels-manage-summary="routes-project">Проект: без маршрутизации</div>
-                        <div class="channels-quick-card__route" data-channels-manage-summary="routes-bots">Боты: наследуют проект</div>
-                      </div>
-                      <div class="channels-quick-card__actions">
-                        <button type="button" class="btn btn-outline-primary" data-channels-open-routes>Настроить сеть</button>
-                      </div>
-                    </section>
+                  <div class="channels-manage-tabs-bar">
+                    <ul class="nav nav-tabs channels-manage-tabs" id="channelsManageTabs" role="tablist">
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="channels-manage-bots-tab" data-bs-toggle="tab" data-bs-target="#channels-manage-bots" type="button" role="tab" aria-controls="channels-manage-bots" aria-selected="true">Боты</button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="channels-manage-profiles-tab" data-bs-toggle="tab" data-bs-target="#channels-manage-profiles" type="button" role="tab" aria-controls="channels-manage-profiles" aria-selected="false">Профили прокси и VPN</button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="channels-manage-routes-tab" data-bs-toggle="tab" data-bs-target="#channels-manage-routes" type="button" role="tab" aria-controls="channels-manage-routes" aria-selected="false">Сетевые маршруты</button>
+                      </li>
+                    </ul>
                   </div>
 
-                  <div class="table-responsive shadow-sm channels-manage-table-card">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 p-2 border border-bottom-0 rounded-top bg-light-subtle">
-                      <div class="small text-muted" id="channelsBotStatusesInfo">Статусы процессов не обновлялись.</div>
-                      <button type="button" class="btn btn-sm btn-outline-primary" id="channelsRefreshBotStatusesBtn">Обновить статусы всех ботов</button>
-                    </div>
-                    <table class="table align-middle mb-0 channels-manage-table">
-                      <thead class="table-light">
-                        <tr>
-                          <th style="width: 34%">Название для панели</th>
-                          <th style="width: 42%">Платформа</th>
-                          <th style="width: 24%" class="text-center">Статус</th>
-                        </tr>
-                      </thead>
-                      <tbody id="channelsBody">
-                        <tr>
-                          <td colspan="3" class="text-center text-muted py-4">Загрузка каналов…</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                  <div class="tab-content channels-manage-tab-content" id="channelsManageTabsContent">
+                    <section class="tab-pane fade show active" id="channels-manage-bots" role="tabpanel" aria-labelledby="channels-manage-bots-tab" tabindex="0">
+                      <div class="channels-manage-toolbar">
+                        <div class="channels-manage-toolbar__meta">
+                          <div class="channels-manage-stats">
+                            <span class="channels-manage-stat" data-channels-manage-stat="channels-count">0 каналов</span>
+                            <span class="channels-manage-stat" data-channels-manage-stat="active-count">0 активных</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary channels-icon-button channels-manage-info" aria-label="Подключение нового Telegram, VK или MAX-бота теперь остаётся отдельным действием, а не развёрнутым блоком на весь экран." title="Подключение нового Telegram, VK или MAX-бота теперь остаётся отдельным действием, а не развёрнутым блоком на весь экран."><i class="bi bi-info-circle" aria-hidden="true"></i></button>
+                          </div>
+                          <div class="small text-muted channels-manage-runtime-info" id="channelsBotStatusesInfo">Статусы процессов не обновлялись.</div>
+                        </div>
+                        <div class="channels-manage-toolbar__actions">
+                          <button type="button" class="btn btn-sm btn-outline-secondary" id="channelsRefreshBotStatusesBtn">Обновить статусы</button>
+                          <button class="btn btn-sm btn-primary channels-add-button" type="button" data-add-channel-open><i class="bi bi-plus-lg" aria-hidden="true"></i><span>Добавить канал</span></button>
+                        </div>
+                      </div>
 
-                  <th:block th:replace="~{settings/fragments/channels-integration-network :: integrationNetworkWorkspace}"></th:block>
+                      <div class="table-responsive shadow-sm channels-manage-table-card">
+                        <table class="table align-middle mb-0 channels-manage-table">
+                          <thead class="table-light">
+                            <tr>
+                              <th style="width: 34%">Название для панели</th>
+                              <th style="width: 42%">Платформа</th>
+                              <th style="width: 24%" class="text-center">Статус</th>
+                            </tr>
+                          </thead>
+                          <tbody id="channelsBody">
+                            <tr>
+                              <td colspan="3" class="text-center text-muted py-4">Загрузка каналов…</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+
+                    <th:block th:replace="~{settings/fragments/channels-integration-network :: integrationNetworkWorkspace}"></th:block>
+                  </div>
                 </div>
               </div>
 
