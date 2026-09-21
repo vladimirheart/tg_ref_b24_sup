@@ -41,9 +41,83 @@
       display: none;
     }
 
+    #channelsModal .channels-manage-shell,
     #channelsModal .channels-manage-table-card {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    #channelsModal .channels-manage-table-card {
+      overflow: hidden;
       border-radius: var(--radius-md);
       box-shadow: none !important;
+    }
+
+    #channelsModal .channels-manage-table {
+      width: 100%;
+      max-width: 100%;
+      table-layout: fixed;
+    }
+
+    #channelsModal .channels-manage-table th,
+    #channelsModal .channels-manage-table td {
+      min-width: 0;
+      padding: 0.55rem 0.65rem;
+    }
+
+    #channelsModal .channels-channel-name,
+    #channelsModal .channels-channel-bot-label,
+    #channelsModal .channels-platform-meta,
+    #channelsModal .channels-platform-template-summary {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #channelsModal .channels-platform-summary-wrap,
+    #channelsModal .channels-platform-summary-content,
+    #channelsModal .channels-platform-meta-line {
+      min-width: 0;
+    }
+
+    #channelsModal .channels-platform-meta {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    #channelsModal .channels-platform-details,
+    #channelsModal .channels-platform-details * {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    #channelsModal .channels-status-cell .badge {
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    #channelsModal .channels-channel-actions {
+      gap: 0.35rem;
+      flex-wrap: nowrap;
+    }
+
+    #channelsModal .channels-icon-button {
+      display: inline-flex;
+      width: 1.9rem;
+      height: 1.9rem;
+      padding: 0;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 1.9rem;
+      line-height: 1;
+    }
+
+    #channelsModal .channels-icon-button i {
+      font-size: 0.9rem;
+      line-height: 1;
     }
 
     #channelsModal .channels-manage-table-card > .d-flex:first-child {

@@ -374,30 +374,31 @@
         const tr = document.createElement('tr');
         tr.dataset.id = row.id;
         tr.innerHTML = `
-          <td>
-            <div class="fw-medium">${escapeHtml(prepared.channel_name || '—')}</div>
-            <div class="text-muted small">Бот: ${escapeHtml(botLabel)}</div>
+          <td class="channels-channel-name-cell">
+            <div class="fw-medium channels-channel-name">${escapeHtml(prepared.channel_name || '—')}</div>
+            <div class="text-muted small channels-channel-bot-label">Бот: ${escapeHtml(botLabel)}</div>
           </td>
-          <td class="align-top">
-            <div class="d-flex align-items-start gap-2" title="${escapeHtml(platformHoverText)}">
-              <div class="flex-grow-1 overflow-hidden" style="min-width: 0">
-                <div class="d-flex align-items-center gap-2 small text-truncate">
+          <td class="align-top channels-platform-cell">
+            <div class="d-flex align-items-start gap-2 channels-platform-summary-wrap" title="${escapeHtml(platformHoverText)}">
+              <div class="flex-grow-1 channels-platform-summary-content">
+                <div class="d-flex align-items-center gap-2 small channels-platform-meta-line">
                   <span class="badge bg-secondary-subtle text-uppercase flex-shrink-0">${escapeHtml(platformLabel)}</span>
-                  <span class="text-truncate">${escapeHtml(platformMetaParts.join(' • '))}</span>
+                  <span class="channels-platform-meta">${escapeHtml(platformMetaParts.join(' • '))}</span>
                 </div>
-                <div class="small text-muted text-truncate mt-1">${escapeHtml(templateSummary)}</div>
+                <div class="small text-muted mt-1 channels-platform-template-summary">${escapeHtml(templateSummary)}</div>
               </div>
               <button
                 type="button"
-                class="btn btn-sm btn-outline-secondary flex-shrink-0 py-0 px-2"
+                class="btn btn-sm btn-outline-secondary flex-shrink-0 channels-icon-button"
                 data-channel-platform-info="${prepared.id}"
                 aria-expanded="false"
                 aria-controls="channel-platform-details-${prepared.id}"
+                aria-label="Показать подробности"
                 title="Показать подробности"
-              ><i class="bi bi-info-circle" aria-hidden="true"></i><span class="visually-hidden">Подробности платформы</span></button>
+              ><i class="bi bi-info-circle" aria-hidden="true"></i></button>
             </div>
             <div
-              class="small text-muted mt-2 p-2 border rounded bg-light-subtle"
+              class="small text-muted mt-2 p-2 border rounded bg-light-subtle channels-platform-details"
               id="channel-platform-details-${prepared.id}"
               data-channel-platform-details="${prepared.id}"
               hidden
@@ -408,15 +409,15 @@
               ${templateLines}
             </div>
           </td>
-          <td class="text-center align-top">
+          <td class="text-center align-top channels-status-cell">
             <div>${statusBadge}</div>
             <div class="mt-1">
               <span class="badge bg-light text-secondary border border-secondary-subtle" data-channel-bot-runtime-status="${prepared.id}">Процесс: проверка…</span>
             </div>
-            <div class="d-flex justify-content-center gap-2 mt-2 flex-wrap">
-              <button type="button" class="btn btn-sm btn-outline-success" data-channel-start="${prepared.id}" disabled>Запустить</button>
-              <button type="button" class="btn btn-sm btn-outline-danger" data-channel-stop="${prepared.id}" hidden>Остановить</button>
-              <button type="button" class="btn btn-sm btn-outline-primary" data-channel-edit="${prepared.id}">Редактировать</button>
+            <div class="d-flex justify-content-center mt-2 channels-channel-actions">
+              <button type="button" class="btn btn-sm btn-outline-success channels-icon-button" data-channel-start="${prepared.id}" aria-label="Запустить" title="Запустить" disabled><i class="bi bi-play-fill" aria-hidden="true"></i></button>
+              <button type="button" class="btn btn-sm btn-outline-danger channels-icon-button" data-channel-stop="${prepared.id}" aria-label="Остановить" title="Остановить" hidden><i class="bi bi-stop-fill" aria-hidden="true"></i></button>
+              <button type="button" class="btn btn-sm btn-outline-primary channels-icon-button" data-channel-edit="${prepared.id}" aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i></button>
             </div>
           </td>
         `;
@@ -780,7 +781,9 @@
         }
         const expanded = infoBtn.getAttribute('aria-expanded') === 'true';
         infoBtn.setAttribute('aria-expanded', String(!expanded));
-        infoBtn.title = expanded ? 'Показать подробности' : 'Скрыть подробности';
+        const disclosureLabel = expanded ? 'Показать подробности' : 'Скрыть подробности';
+        infoBtn.title = disclosureLabel;
+        infoBtn.setAttribute('aria-label', disclosureLabel);
         details.hidden = expanded;
         return;
       }
