@@ -7,6 +7,7 @@ import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.service.ActiveInboundClientMessageCommand;
 import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BlacklistService;
+import com.example.supportbot.service.BotWebhookDeliveryGuardService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.ConversationHistoryEntry;
@@ -101,6 +102,7 @@ public class SupportBot extends TelegramLongPollingBot {
     private final ChatHistoryService chatHistoryService;
     private final FeedbackService feedbackService;
     private final BotIngressCoordinationService ingressCoordinationService;
+    private final BotWebhookDeliveryGuardService webhookDeliveryGuardService;
     private final RuntimeConfigService runtimeConfigService;
     private final ObjectMapper objectMapper;
 
@@ -125,6 +127,7 @@ public class SupportBot extends TelegramLongPollingBot {
                       ChatHistoryService chatHistoryService,
                       FeedbackService feedbackService,
                       BotIngressCoordinationService ingressCoordinationService,
+                      BotWebhookDeliveryGuardService webhookDeliveryGuardService,
                       RuntimeConfigService runtimeConfigService,
                       ObjectMapper objectMapper) {
         super(resolveTelegramBotOptionsFromEnv(), properties.getToken());
@@ -138,6 +141,7 @@ public class SupportBot extends TelegramLongPollingBot {
         this.chatHistoryService = chatHistoryService;
         this.feedbackService = feedbackService;
         this.ingressCoordinationService = ingressCoordinationService;
+        this.webhookDeliveryGuardService = webhookDeliveryGuardService;
         this.runtimeConfigService = runtimeConfigService;
         this.objectMapper = objectMapper;
     }
@@ -221,6 +225,29 @@ public class SupportBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
+        String deliveryKey = TelegramDeliveryIdentitySupport.buildDeliveryKey(update);
+        BotWebhookDeliveryGuardService.DeliveryClaim claim = webhookDeliveryGuardService.tryClaim(
+                "telegram",
+                properties.getChannelId(),
+                deliveryKey);
+        if (claim.alreadyProcessed()) {
+            log.info("Skipping already processed Telegram delivery {}", deliveryKey);
+            return;
+        }
+        if (claim.inFlight()) {
+            log.info("Skipping in-flight duplicate Telegram delivery {}", deliveryKey);
+            return;
+        }
+        try {
+            processUpdate(update);
+            webhookDeliveryGuardService.markProcessed(claim);
+        } catch (RuntimeException | Error ex) {
+            webhookDeliveryGuardService.release(claim);
+            throw ex;
+        }
+    }
+
+    private void processUpdate(Update update) {
         log.info("Received Telegram update {} (message={}, callbackQuery={}, editedMessage={}, channelPost={})",
                 update.getUpdateId(),
                 update.getMessage() != null,
@@ -831,6 +858,7 @@ public class SupportBot extends TelegramLongPollingBot {
         if (session == null) {
             return;
         }
+        session.observeProviderMessage(message);
         QuestionFlowItemDto current = session.currentQuestion();
         if (current == null || isChoiceQuestion(current)) {
             return;
@@ -1574,6 +1602,7 @@ public class SupportBot extends TelegramLongPollingBot {
     }
 
     private void handleConversationAnswer(Message message, ConversationSession session) {
+        session.observeProviderMessage(message);
         session.markClientResponseReceived();
         if (session.awaitingReuseDecision()) {
             if (!session.consumeReuseDecision(message.getText())) {
@@ -2012,9 +2041,16 @@ public class SupportBot extends TelegramLongPollingBot {
                                 ))
                                 .toList(),
                         channel,
-                        session.startedAt()
+                        session.startedAt(),
+                        session.providerEventKey()
                 )
         );
+        if ("duplicate".equals(ticket.status())) {
+            log.info("Skipped duplicate Telegram ticket finalization for user {} event {}",
+                    session.userId(),
+                    session.providerEventKey());
+            return;
+        }
         log.info("Created ticket {} for user {} with {} attachments",
                 ticket.ticketId(),
                 session.userId(),
@@ -2091,6 +2127,7 @@ public class SupportBot extends TelegramLongPollingBot {
         private final OffsetDateTime startedAt;
         private Map<String, String> cachedAnswers;
         private String bootstrapProblemText;
+        private String providerEventKey;
         private boolean firstClientResponseReceived;
         private boolean reuseDecisionPending;
         private int currentIndex;
@@ -2108,6 +2145,7 @@ public class SupportBot extends TelegramLongPollingBot {
             this.startedAt = OffsetDateTime.now();
             this.cachedAnswers = new LinkedHashMap<>();
             this.bootstrapProblemText = null;
+            this.providerEventKey = null;
             this.firstClientResponseReceived = false;
             this.reuseDecisionPending = false;
             this.currentIndex = 0;
@@ -2117,6 +2155,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (message == null) {
                 return;
             }
+            observeProviderMessage(message);
             String text = ConversationProblemTextSupport.trimToNull(message.getText());
             if (text == null) {
                 return;
@@ -2137,6 +2176,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         void recordAnswer(Message message, String resolvedAnswer) {
+            observeProviderMessage(message);
             markClientResponseReceived();
             QuestionFlowItemDto current = currentQuestion();
             if (current == null) {
@@ -2196,6 +2236,17 @@ public class SupportBot extends TelegramLongPollingBot {
 
         List<HistoryEvent> historyEvents() {
             return historyEvents;
+        }
+
+        void observeProviderMessage(Message message) {
+            String resolved = TelegramDeliveryIdentitySupport.buildMessageKey(message);
+            if (resolved != null && !resolved.isBlank()) {
+                providerEventKey = resolved;
+            }
+        }
+
+        String providerEventKey() {
+            return providerEventKey;
         }
 
         long chatId() {

@@ -21,17 +21,20 @@ public class ConversationTicketCreatedPublisher {
         this.rabbitProperties = rabbitProperties;
     }
 
-    public void publish(ConversationTicketCreationCommand command,
-                        String ticketId,
-                        String business,
-                        String locationType,
-                        String city,
-                        String locationName,
-                        String problem) {
+    public boolean publish(ConversationTicketCreationCommand command,
+                           String ticketId,
+                           String business,
+                           String locationType,
+                           String city,
+                           String locationName,
+                           String problem) {
         if (command == null || command.channel() == null) {
             throw new IllegalArgumentException("Conversation ticket creation requires a resolved channel.");
         }
-        String eventId = UUID.randomUUID().toString();
+        String eventId = InboundProviderIdentity.deterministicId("ticket.created.initial_contact", command);
+        if (eventId == null) {
+            eventId = UUID.randomUUID().toString();
+        }
         String platform = command.channel().getPlatform() != null ? command.channel().getPlatform() : "telegram";
         ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(
             eventId,
@@ -52,8 +55,13 @@ public class ConversationTicketCreatedPublisher {
             mapAttributes(command.attributes()),
             command.historyEntries()
         );
-        integrationTransportOutboxService.enqueueConversationTicketCreated(event, rabbitProperties);
-        log.info("Queued conversation ticket creation event {} for ticket {}", eventId, ticketId);
+        boolean queued = integrationTransportOutboxService.enqueueConversationTicketCreated(event, rabbitProperties);
+        if (queued) {
+            log.info("Queued conversation ticket creation event {} for ticket {}", eventId, ticketId);
+        } else {
+            log.info("Skipped duplicate conversation ticket creation event {} for ticket {}", eventId, ticketId);
+        }
+        return queued;
     }
 
     private List<ConversationTicketCreatedEvent.TicketAttributePayload> mapAttributes(

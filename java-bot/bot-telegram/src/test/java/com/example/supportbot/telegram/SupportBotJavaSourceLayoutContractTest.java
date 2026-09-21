@@ -15,6 +15,26 @@ class SupportBotJavaSourceLayoutContractTest {
     }
 
     @Test
+    void telegramIngressUsesDeliveryGuardBeforeBusinessSideEffects() throws IOException {
+        String bot = read("src/main/java/com/example/supportbot/telegram/SupportBot.java");
+        String identity = read("src/main/java/com/example/supportbot/telegram/TelegramDeliveryIdentitySupport.java");
+
+        assertThat(bot)
+                .contains("TelegramDeliveryIdentitySupport.buildDeliveryKey(update)")
+                .contains("webhookDeliveryGuardService.tryClaim(")
+                .contains("webhookDeliveryGuardService.markProcessed(claim)")
+                .contains("webhookDeliveryGuardService.release(claim)")
+                .contains("private void processUpdate(Update update)")
+                .contains("session.observeProviderMessage(message)")
+                .contains("session.providerEventKey()");
+
+        assertThat(identity)
+                .contains("return buildDeliveryKey(update.getUpdateId())")
+                .contains("return updateId != null ? \"update:\" + updateId : \"update:missing\"")
+                .contains("static String buildMessageKey(Message message)");
+    }
+
+    @Test
     void choiceInputPolicyUsesDedicatedSupportOwner() throws IOException {
         String bot = read("src/main/java/com/example/supportbot/telegram/SupportBot.java");
         String support = read("src/main/java/com/example/supportbot/telegram/TelegramChoiceInputSupport.java");

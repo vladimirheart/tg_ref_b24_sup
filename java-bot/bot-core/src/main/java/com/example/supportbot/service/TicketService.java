@@ -158,7 +158,10 @@ public class TicketService {
             throw new IllegalArgumentException("Conversation ticket creation requires a channel.");
         }
         if (integrationTransportMode.isRabbitMqMode()) {
-            String ticketId = UUID.randomUUID().toString();
+            String ticketId = InboundProviderIdentity.deterministicId("ticket", command);
+            if (ticketId == null) {
+                ticketId = UUID.randomUUID().toString();
+            }
             List<TicketAttributeInput> attributes = command.attributes() != null ? command.attributes() : List.of();
             Map<String, String> answers = command.answers() != null ? command.answers() : Map.of();
             String business = resolvePromotedValue(attributes, answers, "business");
@@ -166,7 +169,7 @@ public class TicketService {
             String city = resolvePromotedValue(attributes, answers, "city");
             String locationName = resolvePromotedValue(attributes, answers, "location_name");
             String problem = resolvePromotedValue(attributes, answers, "problem");
-            conversationTicketCreatedPublisher.publish(
+            boolean queued = conversationTicketCreatedPublisher.publish(
                 command,
                 ticketId,
                 business,
@@ -175,7 +178,7 @@ public class TicketService {
                 locationName,
                 problem
             );
-            return new TicketCreationResult(ticketId, null, "queued");
+            return new TicketCreationResult(ticketId, null, queued ? "queued" : "duplicate");
         }
         TicketCreationResult created = createTicketDirect(
             command.userId(),

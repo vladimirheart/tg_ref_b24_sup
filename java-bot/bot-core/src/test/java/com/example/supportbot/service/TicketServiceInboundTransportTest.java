@@ -143,6 +143,8 @@ class TicketServiceInboundTransportTest {
         PanelTicketReadClient panelTicketReadClient = mock(PanelTicketReadClient.class);
         PanelTicketWriteClient panelTicketWriteClient = mock(PanelTicketWriteClient.class);
 
+        when(ticketCreatedPublisher.publish(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
+
         TicketService service = createService(
             messageRepository,
             ticketActiveRepository,
@@ -172,10 +174,49 @@ class TicketServiceInboundTransportTest {
             )
         );
 
+        assertThat(created.status()).isEqualTo("queued");
         verify(ticketCreatedPublisher).publish(any(), eq(created.ticketId()), eq(""), eq(""), eq(""), eq(""), eq("Пропал интернет"));
         verify(messageRepository, never()).save(any());
         verify(ticketActiveRepository, never()).save(any());
         verify(chatHistoryService, never()).storeEntry(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void duplicateConversationProviderEventKeepsStableTicketIdentityAndReturnsDuplicateStatus() {
+        ConversationTicketCreatedPublisher ticketCreatedPublisher = mock(ConversationTicketCreatedPublisher.class);
+        when(ticketCreatedPublisher.publish(any(), any(), any(), any(), any(), any(), any())).thenReturn(true, false);
+        TicketService service = createService(
+            mock(TicketMessageRepository.class),
+            mock(TicketActiveRepository.class),
+            mock(ChatHistoryService.class),
+            mock(InboundClientMessagePublisher.class),
+            ticketCreatedPublisher,
+            mock(PanelTicketReadClient.class),
+            mock(PanelTicketWriteClient.class),
+            new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")
+        );
+        Channel channel = new Channel();
+        channel.setId(3L);
+        channel.setPlatform("telegram");
+        ConversationTicketCreationCommand command = new ConversationTicketCreationCommand(
+            501L,
+            "501",
+            "tg_user",
+            "Telegram User",
+            java.util.Map.of("problem", "Пропал интернет"),
+            java.util.List.of(),
+            java.util.List.of(),
+            channel,
+            OffsetDateTime.parse("2026-09-21T10:00:00Z"),
+            "message:501:9001"
+        );
+
+        TicketService.TicketCreationResult first = service.createConversationTicket(command);
+        TicketService.TicketCreationResult duplicate = service.createConversationTicket(command);
+
+        assertThat(first.ticketId()).isEqualTo(duplicate.ticketId());
+        assertThat(first.status()).isEqualTo("queued");
+        assertThat(duplicate.status()).isEqualTo("duplicate");
     }
 
     @Test

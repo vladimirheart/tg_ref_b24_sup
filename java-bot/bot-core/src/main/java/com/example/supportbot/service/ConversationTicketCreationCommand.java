@@ -13,5 +13,18 @@ public record ConversationTicketCreationCommand(Long userId,
                                                 List<TicketService.TicketAttributeInput> attributes,
                                                 List<ConversationHistoryEntry> historyEntries,
                                                 Channel channel,
-                                                OffsetDateTime startedAt) {
+                                                OffsetDateTime startedAt,
+                                                String providerEventKey) {
+
+    public ConversationTicketCreationCommand(Long userId,
+                                             String userIdentity,
+                                             String username,
+                                             String clientName,
+                                             Map<String, String> answers,
+                                             List<TicketService.TicketAttributeInput> attributes,
+                                             List<ConversationHistoryEntry> historyEntries,
+                                             Channel channel,
+                                             OffsetDateTime startedAt) {
+        this(userId, userIdentity, username, clientName, answers, attributes, historyEntries, channel, startedAt, null);
+    }
 }

@@ -65,9 +65,9 @@ public class IntegrationTransportOutboxService {
         );
     }
 
-    public void enqueueConversationTicketCreated(ConversationTicketCreatedEvent event,
-                                                 IntegrationRabbitProperties properties) {
-        enqueue(
+    public boolean enqueueConversationTicketCreated(ConversationTicketCreatedEvent event,
+                                                    IntegrationRabbitProperties properties) {
+        return enqueue(
             event.eventId(),
             "bot.inbound.ticket-created",
             event.eventKind(),
@@ -112,8 +112,8 @@ public class IntegrationTransportOutboxService {
         }
     }
 
-    private void enqueue(String eventId,
-                         String transportSource,
+    private boolean enqueue(String eventId,
+                            String transportSource,
                          String eventKind,
                          String exchangeName,
                          String routingKey,
@@ -126,7 +126,7 @@ public class IntegrationTransportOutboxService {
             throw new IllegalArgumentException("Integration transport outbox requires event id, exchange, and routing key.");
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        jdbcTemplate.update("""
+        int inserted = jdbcTemplate.update("""
                 INSERT INTO integration_transport_outbox (
                     event_id,
                     transport_source,
@@ -144,6 +144,7 @@ public class IntegrationTransportOutboxService {
                     created_at,
                     updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(event_id) DO NOTHING
                 """,
             eventId.trim(),
             normalize(transportSource),
@@ -161,6 +162,7 @@ public class IntegrationTransportOutboxService {
             timestamp(now),
             timestamp(now)
         );
+        return inserted > 0;
     }
 
     private void recoverStaleProcessing() {

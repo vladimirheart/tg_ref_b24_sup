@@ -165,10 +165,11 @@ public class MaxWebhookController {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of("ok", false, "error", "not-owner", "retryable", true));
         }
+        String deliveryKey = MaxDeliveryIdentitySupport.buildDeliveryKey(update);
         BotWebhookDeliveryGuardService.DeliveryClaim claim = webhookDeliveryGuardService.tryClaim(
                 SESSION_PLATFORM,
                 properties.getChannelId(),
-                MaxDeliveryIdentitySupport.buildDeliveryKey(update));
+                deliveryKey);
         if (claim.alreadyProcessed()) {
             return ResponseEntity.ok(Map.of("ok", true, "duplicate", true));
         }
@@ -297,7 +298,7 @@ public class MaxWebhookController {
                 return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "awaiting_reuse_decision", true)));
             }
             if (session.isComplete()) {
-                TicketService.TicketCreationResult created = finalizeConversation(channel, session);
+                TicketService.TicketCreationResult created = finalizeConversation(channel, session, deliveryKey);
                 return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ticket_id", created.ticketId())));
             }
             saveSession(session);
@@ -341,7 +342,7 @@ public class MaxWebhookController {
 
         session.recordAnswer(resolvedAnswer);
         if (session.isComplete()) {
-            TicketService.TicketCreationResult created = finalizeConversation(channel, session);
+            TicketService.TicketCreationResult created = finalizeConversation(channel, session, deliveryKey);
             return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ticket_id", created.ticketId())));
         }
 
@@ -524,7 +525,9 @@ public class MaxWebhookController {
         messagingService.sendToUser(channel, session.userId(), MaxQuestionInputSupport.buildQuestionPromptText(current, options, session.canGoBack()));
     }
 
-    private TicketService.TicketCreationResult finalizeConversation(Channel channel, MaxConversationSession session) {
+    private TicketService.TicketCreationResult finalizeConversation(Channel channel,
+                                                                      MaxConversationSession session,
+                                                                      String providerEventKey) {
         deleteSession(session);
         TicketService.TicketCreationResult created = ticketService.createConversationTicket(
                 new ConversationTicketCreationCommand(
@@ -546,9 +549,16 @@ public class MaxWebhookController {
                                 ))
                                 .toList(),
                         channel,
-                        session.startedAt()
+                        session.startedAt(),
+                        providerEventKey
                 )
         );
+        if ("duplicate".equals(created.status())) {
+            log.info("Skipped duplicate MAX ticket finalization for user {} event {}",
+                    session.userId(),
+                    providerEventKey);
+            return created;
+        }
         Optional<String> requestNumber = ticketService.awaitClientTicketNumber(created);
         messagingService.sendToUser(
                 channel,

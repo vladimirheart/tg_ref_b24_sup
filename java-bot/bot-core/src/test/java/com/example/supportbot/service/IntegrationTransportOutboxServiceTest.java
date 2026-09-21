@@ -121,6 +121,69 @@ class IntegrationTransportOutboxServiceTest {
         assertThat(statusOf(event.eventId())).isEqualTo("published");
     }
 
+    @Test
+    void duplicateInboundClientMessageEventIsIgnoredAtomically() {
+        InboundClientMessageEvent event = new InboundClientMessageEvent(
+            "duplicate-client-event",
+            "client_message.active_ticket",
+            "telegram",
+            10L,
+            "T-42",
+            20L,
+            "u20",
+            "tester",
+            "Test User",
+            "hello",
+            "text",
+            null,
+            null,
+            "9001",
+            null,
+            null,
+            OffsetDateTime.parse("2026-09-21T10:00:00Z")
+        );
+
+        service.enqueueInboundClientMessage(event, "integration.inbound.telegram", properties);
+        service.enqueueInboundClientMessage(event, "integration.inbound.telegram", properties);
+
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM integration_transport_outbox WHERE event_id = ?",
+            Integer.class,
+            event.eventId()
+        )).isEqualTo(1);
+    }
+
+    @Test
+    void duplicateConversationTicketEventReturnsFalseAndKeepsSingleOutboxRow() {
+        ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(
+            "duplicate-ticket-event",
+            "ticket.created.initial_contact",
+            "max",
+            2L,
+            "T-MAX-1",
+            1001L,
+            "1001",
+            "max-user",
+            "MAX User",
+            "business",
+            "type",
+            "city",
+            "location",
+            "problem",
+            OffsetDateTime.parse("2026-09-21T10:00:00Z"),
+            List.of(),
+            List.of()
+        );
+
+        assertThat(service.enqueueConversationTicketCreated(event, properties)).isTrue();
+        assertThat(service.enqueueConversationTicketCreated(event, properties)).isFalse();
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM integration_transport_outbox WHERE event_id = ?",
+            Integer.class,
+            event.eventId()
+        )).isEqualTo(1);
+    }
+
     private String statusOf(String eventId) {
         return jdbcTemplate.queryForObject(
             "SELECT status FROM integration_transport_outbox WHERE event_id = ?",
