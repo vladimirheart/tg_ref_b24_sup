@@ -464,31 +464,51 @@
 }
 /* Settings legal entities workspace v9 */
 
-/* Clickable Settings tiles stay spatially still; only the open affordance reacts. */
+/* Settings interactions stay spatially still, but every clickable control gets a visible hover/focus affordance. */
 @media (hover: hover) {
-  .settings-tiles .settings-tile:not(.is-active):hover {
+  .settings-tiles .settings-tile:not(.is-active):hover,
+  .settings-tiles .settings-tile:not(.is-active):focus-visible {
     transform: none !important;
     filter: none !important;
-    box-shadow: var(--ui-panel-shadow) !important;
-  }
-
-  .settings-tiles .settings-tile:not(.settings-tile--accent):not(.is-active):hover {
-    background: var(--surface-card) !important;
-    border-color: var(--color-border) !important;
-  }
-
-  .settings-tiles .settings-tile.settings-tile--accent:not(.is-active):hover {
     background: var(--surface-interactive) !important;
     border-color:
       color-mix(
         in srgb,
-        var(--primary) 24%,
+        var(--primary) 34%,
         var(--color-border)
       ) !important;
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--primary) 10%, transparent),
+      var(--ui-panel-shadow) !important;
+    outline: none;
   }
 
-  .settings-tiles .settings-tile:hover .settings-tile__open {
+  .settings-tiles .settings-tile:hover .settings-tile__open,
+  .settings-tiles .settings-tile:focus-visible .settings-tile__open {
     color: var(--primary);
+  }
+
+  .settings-surface .btn:not(.btn-close):not(:disabled):not(.disabled):hover,
+  .settings-surface .btn:not(.btn-close):not(:disabled):not(.disabled):focus-visible {
+    transform: none !important;
+    filter: brightness(1.04);
+    box-shadow:
+      0 0 0 0.14rem
+      color-mix(in srgb, var(--primary) 13%, transparent);
+  }
+
+  .settings-surface button:not(.btn):not(.nav-link):not(.accordion-button):not(.btn-close):not(:disabled):hover,
+  .settings-surface button:not(.btn):not(.nav-link):not(.accordion-button):not(.btn-close):not(:disabled):focus-visible {
+    transform: none !important;
+    background: var(--surface-interactive);
+    border-color:
+      color-mix(
+        in srgb,
+        var(--primary) 34%,
+        var(--color-border)
+      );
+    color: var(--color-text);
+    outline: none;
   }
 
   .settings-surface .modal .card:hover,

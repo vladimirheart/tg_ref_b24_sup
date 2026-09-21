@@ -40,6 +40,12 @@ class SettingsChannelsRuntimeUiSourceContractTest {
     private static final Path DIALOG_TEMPLATES = Path.of(
         "src/main/resources/static/js/settings-dialog-templates-runtime.js"
     );
+    private static final Path CHANNEL_EDITOR = Path.of(
+        "src/main/resources/templates/settings/fragments/channel-editor.html"
+    );
+    private static final Path CONTENT_DISCLOSURE = Path.of(
+        "src/main/resources/static/js/content-disclosure.js"
+    );
 
     @Test
     void channelRowsExposeStatusAwareStartAndStopThroughBotRuntime() throws IOException {
@@ -203,6 +209,42 @@ class SettingsChannelsRuntimeUiSourceContractTest {
             .contains("height: 1.65rem !important;")
             .contains("min-height: 1.65rem !important;")
             .contains("max-height: 1.65rem;");
+    }
+
+
+    @Test
+    void channelEditorMovesStaticHelpBehindInfoAndSettingsHoverIsConsistent() throws IOException {
+        String channelEditor = read(CHANNEL_EDITOR);
+        String disclosure = read(CONTENT_DISCLOSURE);
+        String channelsScss = read(CHANNELS_SCSS);
+        String workspaceScss = read(WORKSPACE_SCSS);
+
+        assertThat(channelEditor)
+            .contains("<div class=\"modal-body\" data-no-disclosure>")
+            .contains("channel-editor-summary channel-editor-summary--compact")
+            .contains("data-channel-editor-keep-visible data-channel-editor-status-label")
+            .contains("data-channel-editor-keep-visible data-channel-editor-summary=\"question_template_id\"")
+            .contains("data-channel-editor-keep-visible data-channel-editor-support-hint")
+            .contains("data-channel-editor-keep-visible data-network-route-summary=\"channel\"")
+            .contains("data-channel-editor-keep-inline-help")
+            .doesNotContain("id=\"channelEditorDeleteBtn\">Удалить канал</button>\n          <button type=\"button\" class=\"btn btn-outline-secondary\" data-bs-dismiss=\"modal\">Закрыть</button>");
+        assertThat(disclosure)
+            .contains("element.closest('[data-no-disclosure]')")
+            .contains("function buildChannelEditorSectionInfo(section)")
+            .contains(".form-text:not([data-channel-editor-keep-visible]):not([data-channel-editor-keep-inline-help])")
+            .contains("data-channel-editor-info")
+            .contains("#channelEditorModal .channel-editor-section");
+        assertThat(channelsScss)
+            .contains("#channelEditorModal .channel-editor-info__toggle")
+            .contains("#channelEditorModal .channel-editor-info__panel")
+            .contains("#channelEditorModal .channel-editor-summary--compact")
+            .contains("#channelEditorModal .channel-editor-info:hover .channel-editor-info__panel");
+        assertThat(workspaceScss)
+            .contains("every clickable control gets a visible hover/focus affordance")
+            .contains(".settings-tiles .settings-tile:not(.is-active):focus-visible")
+            .contains(".settings-surface .btn:not(.btn-close):not(:disabled):not(.disabled):hover")
+            .contains("button:not(.btn):not(.nav-link):not(.accordion-button):not(.btn-close)")
+            .doesNotContain("only the open affordance reacts");
     }
 
     private String read(Path path) throws IOException {

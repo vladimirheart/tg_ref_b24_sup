@@ -34,7 +34,11 @@
     if (element.closest('.settings-tiles')) {
       return true;
     }
-    if (element.dataset.noDisclosure !== undefined || element.dataset.managerBindingsSummary !== undefined || element.dataset.reportingSummary !== undefined) {
+    if (
+      element.closest('[data-no-disclosure]')
+      || element.dataset.managerBindingsSummary !== undefined
+      || element.dataset.reportingSummary !== undefined
+    ) {
       return true;
     }
     if (containsInteractiveContent(element)) {
@@ -318,6 +322,68 @@ function buildHeaderInfoDisclosure(element) {
     );
 }
 
+
+  function buildChannelEditorSectionInfo(section) {
+    if (!section || section.dataset.channelEditorInfoProcessed === 'true') {
+      return;
+    }
+
+    const head = Array.from(section.children)
+      .find((child) => child.classList?.contains('channel-editor-section__head'));
+    const title = head?.querySelector('.channel-editor-section__title');
+    if (!head || !title) {
+      return;
+    }
+
+    const helpers = Array.from(section.querySelectorAll(
+      '.channel-editor-section__hint, .form-text:not([data-channel-editor-keep-visible]):not([data-channel-editor-keep-inline-help])'
+    )).filter((element) => (
+      element.closest('.channel-editor-section') === section
+      && !element.closest('.d-none')
+      && !containsInteractiveContent(element)
+    ));
+
+    if (!helpers.length) {
+      section.dataset.channelEditorInfoProcessed = 'true';
+      return;
+    }
+
+    disclosureCounter += 1;
+    const panelId = `channelEditorInfoPanel${disclosureCounter}`;
+    const titleText = (title.textContent || 'Раздел').replace(/\s+/g, ' ').trim();
+    const heading = title.parentElement;
+    heading.classList.add('channel-editor-section__heading');
+
+    const info = document.createElement('span');
+    info.className = 'channel-editor-info';
+    info.setAttribute('data-channel-editor-info', 'true');
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'channel-editor-info__toggle';
+    toggle.setAttribute('aria-label', `Справка: ${titleText}`);
+    toggle.setAttribute('aria-describedby', panelId);
+    toggle.innerHTML = '<i class="bi bi-info-circle" aria-hidden="true"></i>';
+
+    const panel = document.createElement('div');
+    panel.id = panelId;
+    panel.className = 'channel-editor-info__panel';
+    panel.setAttribute('role', 'tooltip');
+
+    helpers.forEach((helper) => {
+      helper.hidden = false;
+      helper.removeAttribute('data-disclosure-pending');
+      helper.classList.add('channel-editor-info__copy');
+      helper.dataset.disclosureProcessed = 'true';
+      panel.appendChild(helper);
+    });
+
+    info.appendChild(toggle);
+    info.appendChild(panel);
+    heading.appendChild(info);
+    section.dataset.channelEditorInfoProcessed = 'true';
+  }
+
   function buildDisclosure(element, options) {
     const rawText = (element.textContent || '').replace(/\s+/g, ' ').trim();
     if (!rawText || rawText.length < options.minLength) {
@@ -387,6 +453,10 @@ function buildHeaderInfoDisclosure(element) {
 			);
 		}
 	);
+
+    document.querySelectorAll('#channelEditorModal .channel-editor-section').forEach((section) => {
+      buildChannelEditorSectionInfo(section);
+    });
 
     const cardCandidates = document.querySelectorAll('.card .card-body > .card-text.text-muted');
     cardCandidates.forEach((element) => {

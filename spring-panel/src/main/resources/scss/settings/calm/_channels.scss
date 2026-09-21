@@ -539,21 +539,98 @@
     }
 
     #channelEditorModal .channel-editor-section__head {
-      margin-bottom: 0.7rem;
+      margin-bottom: 0.55rem;
     }
 
     #channelEditorModal .channel-editor-section__title {
+      margin-bottom: 0;
       font-size: 0.94rem;
     }
 
-    #channelEditorModal .channel-editor-section__hint {
-      max-width: 72rem;
-      font-size: 0.81rem;
+    #channelEditorModal .channel-editor-section__heading {
+      display: flex;
+      align-items: center;
+      gap: 0.38rem;
+      min-width: 0;
+    }
+
+    #channelEditorModal .channel-editor-info {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+    }
+
+    #channelEditorModal .channel-editor-info__toggle {
+      display: inline-grid;
+      width: 1.4rem;
+      height: 1.4rem;
+      padding: 0;
+      place-items: center;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--color-text-muted);
+      line-height: 1;
+      cursor: help;
+    }
+
+    #channelEditorModal .channel-editor-info__toggle:hover,
+    #channelEditorModal .channel-editor-info__toggle:focus-visible {
+      border-color: color-mix(in srgb, var(--primary) 55%, var(--color-border));
+      background: var(--surface-interactive);
+      color: var(--primary);
+      outline: none;
+    }
+
+    #channelEditorModal .channel-editor-info__toggle i {
+      font-size: 0.76rem;
+      line-height: 1;
+    }
+
+    #channelEditorModal .channel-editor-info__panel {
+      position: absolute;
+      top: calc(100% + 0.35rem);
+      left: 0;
+      z-index: 1090;
+      display: none;
+      width: min(30rem, 72vw);
+      max-width: calc(100vw - 4rem);
+      gap: 0.42rem;
+      padding: 0.58rem 0.66rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+      color: var(--color-text-muted);
+      box-shadow: var(--shadow-lg);
+      font-size: 0.75rem;
+      font-weight: 400;
       line-height: 1.4;
+      text-align: left;
+      white-space: normal;
+    }
+
+    #channelEditorModal .channel-editor-info:hover .channel-editor-info__panel,
+    #channelEditorModal .channel-editor-info:focus-within .channel-editor-info__panel {
+      display: grid;
+    }
+
+    #channelEditorModal .channel-editor-info__copy {
+      margin: 0 !important;
+      color: var(--color-text-muted) !important;
+      font-size: inherit !important;
+      line-height: inherit !important;
+      overflow-wrap: anywhere;
     }
 
     #channelEditorModal .channel-editor-summary {
       gap: 0.55rem;
+    }
+
+    #channelEditorModal .channel-editor-summary--compact {
+      margin-bottom: 0.65rem;
+      padding: 0 0 0.65rem;
+      border-bottom: 1px solid var(--color-border);
     }
 
     #channelEditorModal .channel-editor-summary__item {
