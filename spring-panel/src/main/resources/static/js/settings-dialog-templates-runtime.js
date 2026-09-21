@@ -111,7 +111,16 @@
         shouldShow = editor.classList.contains('d-none');
       }
       editor.classList.toggle('d-none', !shouldShow);
-      toggleBtn.textContent = shouldShow ? 'Свернуть' : 'Настроить';
+      if (card.matches('[data-auto-close-template]')) {
+        const actionLabel = shouldShow ? 'Свернуть' : 'Редактировать';
+        toggleBtn.setAttribute('aria-label', actionLabel);
+        toggleBtn.setAttribute('title', actionLabel);
+        toggleBtn.innerHTML = shouldShow
+          ? '<i class="bi bi-chevron-up" aria-hidden="true"></i><span class="visually-hidden">Свернуть</span>'
+          : '<i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Редактировать</span>';
+      } else {
+        toggleBtn.textContent = shouldShow ? 'Свернуть' : 'Настроить';
+      }
       toggleBtn.dataset.expanded = shouldShow ? 'true' : 'false';
       toggleBtn.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
       editor.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
@@ -751,23 +760,23 @@
       const safeDescription = escapeHtml(description);
 
       const card = document.createElement('div');
-      card.className = 'card shadow-sm dialog-template-card template-card';
+      card.className = 'card dialog-template-card template-card channels-template-card channels-auto-close-card';
       card.dataset.autoCloseTemplate = 'true';
       card.dataset.templateId = templateId;
       card.innerHTML = `
         <div class="card-body">
-          <div class="template-card-header">
+          <div class="template-card-header channels-template-card__header">
             <h6 class="mb-1" data-auto-close-title>Шаблон автозакрытия</h6>
             <div class="small text-muted dialog-template-summary" data-auto-close-summary>Настройте параметры автозакрытия.</div>
           </div>
-          <div class="d-flex flex-column flex-lg-row align-items-center justify-content-between gap-3 mt-3">
+          <div class="d-flex flex-column flex-lg-row align-items-center justify-content-between channels-template-card__footer">
             <div class="form-check">
               <input class="form-check-input" type="radio" id="auto-template-active-${safeIdAttr}" name="autoCloseActive" value="${safeIdAttr}" data-auto-close-active>
               <label class="form-check-label small" for="auto-template-active-${safeIdAttr}">Активный по умолчанию</label>
             </div>
-            <div class="btn-group btn-group-sm template-card-actions">
-              <button class="btn btn-outline-primary" type="button" data-dialog-template-toggle>Настроить</button>
-              <button class="btn btn-outline-danger" type="button" data-auto-close-template-remove>Удалить</button>
+            <div class="btn-group btn-group-sm template-card-actions channels-template-actions">
+              <button class="btn btn-outline-primary channels-template-action" type="button" data-dialog-template-toggle aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Редактировать</span></button>
+              <button class="btn btn-outline-danger channels-template-action" type="button" data-auto-close-template-remove aria-label="Удалить" title="Удалить"><i class="bi bi-trash3" aria-hidden="true"></i><span class="visually-hidden">Удалить</span></button>
             </div>
           </div>
           <div class="dialog-template-editor bg-light mt-3" data-dialog-template-editor>

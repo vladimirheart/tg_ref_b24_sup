@@ -31,6 +31,15 @@ class SettingsChannelsRuntimeUiSourceContractTest {
     private static final Path WORKSPACE_SCSS = Path.of(
         "src/main/resources/scss/settings/_workspace.scss"
     );
+    private static final Path TEMPLATES_WORKSPACE = Path.of(
+        "src/main/resources/templates/settings/fragments/channels-templates.html"
+    );
+    private static final Path BOT_SETTINGS = Path.of(
+        "src/main/resources/static/js/bot-settings.js"
+    );
+    private static final Path DIALOG_TEMPLATES = Path.of(
+        "src/main/resources/static/js/settings-dialog-templates-runtime.js"
+    );
 
     @Test
     void channelRowsExposeStatusAwareStartAndStopThroughBotRuntime() throws IOException {
@@ -130,6 +139,61 @@ class SettingsChannelsRuntimeUiSourceContractTest {
             .contains(".modal.show[inert] .modal-dialog-scrollable .modal-body")
             .contains("overflow: hidden !important;")
             .contains("overscroll-behavior: none;");
+    }
+
+
+    @Test
+    void templateAndAutomationWorkspacesStayCompactAndUseAccessibleInfoAndIconActions() throws IOException {
+        String templatesWorkspace = read(TEMPLATES_WORKSPACE);
+        String workspace = read(WORKSPACE);
+        String botSettings = read(BOT_SETTINGS);
+        String dialogTemplates = read(DIALOG_TEMPLATES);
+        String channelsScss = read(CHANNELS_SCSS);
+
+        assertThat(templatesWorkspace)
+            .contains("id=\"channelsTemplateTabs\"")
+            .contains("data-bs-target=\"#channels-question-templates\"")
+            .contains("data-bs-target=\"#channels-rating-templates\"")
+            .contains("channels-section-info__toggle")
+            .contains("data-bot-question-active-diagnostic")
+            .contains("data-bot-rating-active-diagnostic")
+            .contains("data-bot-legacy-diagnostic")
+            .doesNotContain("alert alert-light border small mb-3\" data-bot-question-active-diagnostic")
+            .doesNotContain("alert alert-light border small mb-3\" data-bot-rating-active-diagnostic");
+        assertThat(workspace)
+            .contains("channels-template-workspace")
+            .contains("channels-section-info__toggle")
+            .contains("data-auto-close-template-add")
+            .contains("data-auto-close-templates")
+            .doesNotContain("Активный шаблон будет применяться по умолчанию. Позже вы сможете выбирать подходящий сценарий для каждого бота.");
+        assertThat(botSettings)
+            .contains("channels-template-card")
+            .contains("channels-template-action")
+            .contains("data-bot-template-edit")
+            .contains("data-bot-template-duplicate")
+            .contains("data-bot-template-delete")
+            .contains("data-bot-rating-template-edit")
+            .contains("data-bot-rating-template-duplicate")
+            .contains("data-bot-rating-template-delete")
+            .contains("bi-pencil")
+            .contains("bi-copy")
+            .contains("bi-trash3")
+            .doesNotContain("data-bot-template-edit>Редактировать</button>")
+            .doesNotContain("data-bot-rating-template-edit>Редактировать</button>");
+        assertThat(dialogTemplates)
+            .contains("card.matches('[data-auto-close-template]')")
+            .contains("channels-auto-close-card")
+            .contains("channels-template-action")
+            .contains("data-dialog-template-toggle")
+            .contains("data-auto-close-template-remove")
+            .contains("bi-pencil")
+            .contains("bi-trash3");
+        assertThat(channelsScss)
+            .contains("#channelsModal .channels-section-info__panel")
+            .contains("#channelsModal .channels-template-card")
+            .contains("#channelsModal .channels-template-action")
+            .contains("width: 1.65rem;")
+            .contains("height: 1.65rem;");
     }
 
     private String read(Path path) throws IOException {

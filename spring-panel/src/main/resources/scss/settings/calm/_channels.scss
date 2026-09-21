@@ -258,6 +258,218 @@
       }
     }
 
+    /* ---------- channels: compact templates + automation ---------- */
+
+    #channelsModal .channels-template-workspace,
+    #channelsModal .channels-template-tab-content,
+    #channelsModal .channels-template-pane {
+      min-width: 0;
+    }
+
+    #channelsModal .channels-template-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+      margin-bottom: 0.55rem;
+      padding: 0.05rem 0 0.45rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    #channelsModal .channels-template-heading {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-width: 0;
+    }
+
+    #channelsModal .channels-template-heading h6 {
+      font-size: 0.9rem;
+    }
+
+    #channelsModal .channels-section-info {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+    }
+
+    #channelsModal .channels-section-info__toggle {
+      display: inline-grid;
+      width: 1.45rem;
+      height: 1.45rem;
+      padding: 0;
+      place-items: center;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--color-text-muted);
+      line-height: 1;
+      cursor: help;
+    }
+
+    #channelsModal .channels-section-info__toggle:hover,
+    #channelsModal .channels-section-info__toggle:focus-visible {
+      border-color: color-mix(in srgb, var(--primary) 55%, var(--color-border));
+      color: var(--primary);
+      outline: none;
+    }
+
+    #channelsModal .channels-section-info__toggle i {
+      font-size: 0.78rem;
+      line-height: 1;
+    }
+
+    #channelsModal .channels-section-info__panel {
+      position: absolute;
+      top: calc(100% + 0.35rem);
+      left: 0;
+      z-index: 1085;
+      display: none;
+      width: min(28rem, 70vw);
+      max-width: calc(100vw - 4rem);
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+      color: var(--color-text-muted);
+      box-shadow: var(--shadow-lg);
+      font-size: 0.75rem;
+      font-weight: 400;
+      line-height: 1.4;
+      text-align: left;
+      white-space: normal;
+    }
+
+    #channelsModal .channels-section-info:hover .channels-section-info__panel,
+    #channelsModal .channels-section-info:focus-within .channels-section-info__panel {
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    #channelsModal .channels-section-info__diagnostic {
+      display: block;
+      padding-top: 0.4rem;
+      border-top: 1px solid var(--color-border);
+      color: var(--color-text);
+      overflow-wrap: anywhere;
+    }
+
+    #channelsModal .channels-template-list {
+      gap: 0.45rem !important;
+    }
+
+    #channelsModal .channels-template-card {
+      border-color: var(--color-border);
+      border-radius: var(--radius-md);
+      box-shadow: none !important;
+    }
+
+    #channelsModal .channels-template-card.border-primary {
+      border-color: color-mix(in srgb, var(--primary) 70%, var(--color-border)) !important;
+    }
+
+    #channelsModal .channels-template-card .card-body,
+    #channelsModal .channels-template-card__body {
+      padding: 0.55rem 0.65rem;
+    }
+
+    #channelsModal .channels-template-card__header {
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      text-align: left;
+    }
+
+    #channelsModal .channels-template-card__header h6 {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-width: 0;
+      margin-bottom: 0.15rem !important;
+      font-size: 0.84rem;
+      line-height: 1.2;
+    }
+
+    #channelsModal .channels-template-card__header .small,
+    #channelsModal .channels-template-card__header p {
+      margin-bottom: 0.1rem !important;
+      font-size: 0.72rem;
+      line-height: 1.25;
+    }
+
+    #channelsModal .channels-template-card__footer {
+      gap: 0.45rem !important;
+      margin-top: 0.42rem !important;
+    }
+
+    #channelsModal .channels-template-card__footer .form-check {
+      margin: 0;
+    }
+
+    #channelsModal .channels-template-card__footer .form-check-label {
+      font-size: 0.72rem;
+    }
+
+    #channelsModal .channels-template-active {
+      display: inline-grid;
+      width: 0.9rem;
+      height: 0.9rem;
+      place-items: center;
+      flex: 0 0 0.9rem;
+      color: var(--primary);
+      font-size: 0.72rem;
+      line-height: 1;
+      cursor: help;
+    }
+
+    #channelsModal .channels-template-actions {
+      gap: 0.18rem;
+    }
+
+    #channelsModal .channels-template-action {
+      display: inline-flex;
+      width: 1.65rem;
+      height: 1.65rem;
+      padding: 0;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 1.65rem;
+      line-height: 1;
+    }
+
+    #channelsModal .channels-template-action i {
+      font-size: 0.78rem;
+      line-height: 1;
+    }
+
+    #channelsModal .channels-auto-close-card .dialog-template-editor {
+      margin-top: 0.5rem !important;
+      padding-top: 0.55rem;
+      border-top: 1px solid var(--color-border);
+      background: transparent !important;
+    }
+
+    #channelsModal .channels-template-secondary {
+      padding-top: 0.65rem;
+      border-top: 1px solid var(--color-border);
+    }
+
+    @media (max-width: 767.98px) {
+      #channelsModal .channels-template-toolbar {
+        align-items: flex-start;
+      }
+
+      #channelsModal .channels-section-info__panel {
+        width: min(24rem, calc(100vw - 3rem));
+      }
+
+      #channelsModal .channels-template-card__footer {
+        align-items: flex-start !important;
+      }
+    }
+
     /* ---------- channel editor: sections, not cards ---------- */
 
     #channelEditorModal .channel-editor-pane {
