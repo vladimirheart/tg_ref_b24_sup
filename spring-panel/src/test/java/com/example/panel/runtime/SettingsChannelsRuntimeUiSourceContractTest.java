@@ -165,6 +165,8 @@ class SettingsChannelsRuntimeUiSourceContractTest {
             .contains("channels-section-info__toggle")
             .contains("data-auto-close-template-add")
             .contains("data-auto-close-templates")
+            .contains("class=\"btn-close\"")
+            .doesNotContain("<div class=\"modal-footer\">")
             .doesNotContain("Активный шаблон будет применяться по умолчанию. Позже вы сможете выбирать подходящий сценарий для каждого бота.");
         assertThat(botSettings)
             .contains("channels-template-card")
@@ -176,8 +178,12 @@ class SettingsChannelsRuntimeUiSourceContractTest {
             .contains("data-bot-rating-template-duplicate")
             .contains("data-bot-rating-template-delete")
             .contains("bi-pencil")
-            .contains("bi-copy")
+            .contains("bi-files")
             .contains("bi-trash3")
+            .contains("channels-template-card__controls")
+            .contains("d-flex template-card-actions channels-template-actions")
+            .doesNotContain("bi-copy")
+            .doesNotContain("btn-group btn-group-sm template-card-actions channels-template-actions")
             .doesNotContain("data-bot-template-edit>Редактировать</button>")
             .doesNotContain("data-bot-rating-template-edit>Редактировать</button>");
         assertThat(dialogTemplates)
@@ -192,8 +198,11 @@ class SettingsChannelsRuntimeUiSourceContractTest {
             .contains("#channelsModal .channels-section-info__panel")
             .contains("#channelsModal .channels-template-card")
             .contains("#channelsModal .channels-template-action")
-            .contains("width: 1.65rem;")
-            .contains("height: 1.65rem;");
+            .contains("#channelsModal .channels-template-card__controls")
+            .contains("width: 1.65rem !important;")
+            .contains("height: 1.65rem !important;")
+            .contains("min-height: 1.65rem !important;")
+            .contains("max-height: 1.65rem;");
     }
 
     private String read(Path path) throws IOException {

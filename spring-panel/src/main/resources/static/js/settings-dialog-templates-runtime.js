@@ -765,18 +765,20 @@
       card.dataset.templateId = templateId;
       card.innerHTML = `
         <div class="card-body">
-          <div class="template-card-header channels-template-card__header">
-            <h6 class="mb-1" data-auto-close-title>Шаблон автозакрытия</h6>
-            <div class="small text-muted dialog-template-summary" data-auto-close-summary>Настройте параметры автозакрытия.</div>
-          </div>
-          <div class="d-flex flex-column flex-lg-row align-items-center justify-content-between channels-template-card__footer">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" id="auto-template-active-${safeIdAttr}" name="autoCloseActive" value="${safeIdAttr}" data-auto-close-active>
-              <label class="form-check-label small" for="auto-template-active-${safeIdAttr}">Активный по умолчанию</label>
+          <div class="channels-template-card__layout">
+            <div class="template-card-header channels-template-card__header">
+              <h6 class="mb-1" data-auto-close-title>Шаблон автозакрытия</h6>
+              <div class="small text-muted dialog-template-summary" data-auto-close-summary>Настройте параметры автозакрытия.</div>
             </div>
-            <div class="btn-group btn-group-sm template-card-actions channels-template-actions">
-              <button class="btn btn-outline-primary channels-template-action" type="button" data-dialog-template-toggle aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Редактировать</span></button>
-              <button class="btn btn-outline-danger channels-template-action" type="button" data-auto-close-template-remove aria-label="Удалить" title="Удалить"><i class="bi bi-trash3" aria-hidden="true"></i><span class="visually-hidden">Удалить</span></button>
+            <div class="channels-template-card__controls">
+              <div class="form-check channels-template-default">
+                <input class="form-check-input" type="radio" id="auto-template-active-${safeIdAttr}" name="autoCloseActive" value="${safeIdAttr}" data-auto-close-active>
+                <label class="form-check-label small" for="auto-template-active-${safeIdAttr}">Активный по умолчанию</label>
+              </div>
+              <div class="d-flex template-card-actions channels-template-actions">
+                <button class="btn btn-outline-primary channels-template-action" type="button" data-dialog-template-toggle aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Редактировать</span></button>
+                <button class="btn btn-outline-danger channels-template-action" type="button" data-auto-close-template-remove aria-label="Удалить" title="Удалить"><i class="bi bi-trash3" aria-hidden="true"></i><span class="visually-hidden">Удалить</span></button>
+              </div>
             </div>
           </div>
           <div class="dialog-template-editor bg-light mt-3" data-dialog-template-editor>

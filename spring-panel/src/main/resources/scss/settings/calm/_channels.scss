@@ -399,17 +399,42 @@
       line-height: 1.25;
     }
 
-    #channelsModal .channels-template-card__footer {
-      gap: 0.45rem !important;
-      margin-top: 0.42rem !important;
+    #channelsModal .channels-template-card__layout {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.7rem;
+      min-width: 0;
     }
 
-    #channelsModal .channels-template-card__footer .form-check {
+    #channelsModal .channels-template-card__header {
+      flex: 1 1 auto;
+    }
+
+    #channelsModal .channels-template-card__controls {
+      display: inline-flex;
+      flex: 0 0 auto;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.24rem;
+    }
+
+    #channelsModal .channels-template-default {
+      display: flex;
+      align-items: center;
+      gap: 0.32rem;
       margin: 0;
+      min-height: 1.2rem;
     }
 
-    #channelsModal .channels-template-card__footer .form-check-label {
-      font-size: 0.72rem;
+    #channelsModal .channels-template-default .form-check-input {
+      margin-top: 0;
+    }
+
+    #channelsModal .channels-template-default .form-check-label {
+      font-size: 0.7rem;
+      line-height: 1.2;
+      white-space: nowrap;
     }
 
     #channelsModal .channels-template-active {
@@ -425,18 +450,28 @@
     }
 
     #channelsModal .channels-template-actions {
+      display: inline-flex;
+      align-items: center;
+      align-self: flex-end;
       gap: 0.18rem;
+      height: auto !important;
+      line-height: 1;
     }
 
     #channelsModal .channels-template-action {
       display: inline-flex;
-      width: 1.65rem;
-      height: 1.65rem;
-      padding: 0;
+      width: 1.65rem !important;
+      height: 1.65rem !important;
+      min-width: 1.65rem !important;
+      min-height: 1.65rem !important;
+      max-width: 1.65rem;
+      max-height: 1.65rem;
+      padding: 0 !important;
       align-items: center;
       justify-content: center;
-      flex: 0 0 1.65rem;
-      line-height: 1;
+      flex: 0 0 1.65rem !important;
+      border-radius: 0.4rem !important;
+      line-height: 1 !important;
     }
 
     #channelsModal .channels-template-action i {
@@ -465,8 +500,17 @@
         width: min(24rem, calc(100vw - 3rem));
       }
 
-      #channelsModal .channels-template-card__footer {
-        align-items: flex-start !important;
+      #channelsModal .channels-template-card__layout {
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+
+      #channelsModal .channels-template-card__controls {
+        align-items: flex-start;
+      }
+
+      #channelsModal .channels-template-actions {
+        align-self: flex-start;
       }
     }
 

@@ -1591,20 +1591,22 @@
         : '';
       card.innerHTML = `
         <div class="card-body">
-          <div class="template-card-header channels-template-card__header">
-            <h6 class="mb-1">${html(template.name || 'Шаблон вопросов')}${activeBadgeHtml}</h6>
-            ${descriptionHtml}
-            <div class="small text-muted">${html(summary)}</div>
-          </div>
-          <div class="d-flex flex-column flex-lg-row align-items-center justify-content-between channels-template-card__footer">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="radio" name="bot-template-default" value="${html(template.id)}" ${template.id === state.activeTemplateId ? 'checked' : ''} data-bot-template-select>
-              <label class="form-check-label small">Использовать по умолчанию</label>
+          <div class="channels-template-card__layout">
+            <div class="template-card-header channels-template-card__header">
+              <h6 class="mb-1">${html(template.name || 'Шаблон вопросов')}${activeBadgeHtml}</h6>
+              ${descriptionHtml}
+              <div class="small text-muted">${html(summary)}</div>
             </div>
-            <div class="btn-group btn-group-sm template-card-actions channels-template-actions">
-              <button class="btn btn-outline-primary channels-template-action" type="button" data-bot-template-edit aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Редактировать</span></button>
-              <button class="btn btn-outline-secondary channels-template-action" type="button" data-bot-template-duplicate aria-label="Дублировать" title="Дублировать"><i class="bi bi-copy" aria-hidden="true"></i><span class="visually-hidden">Дублировать</span></button>
-              <button class="btn btn-outline-danger channels-template-action" type="button" data-bot-template-delete aria-label="Удалить" title="Удалить" ${state.templates.length === 1 ? 'disabled' : ''}><i class="bi bi-trash3" aria-hidden="true"></i><span class="visually-hidden">Удалить</span></button>
+            <div class="channels-template-card__controls">
+              <div class="form-check form-switch channels-template-default">
+                <input class="form-check-input" type="radio" name="bot-template-default" value="${html(template.id)}" ${template.id === state.activeTemplateId ? 'checked' : ''} data-bot-template-select>
+                <label class="form-check-label small">Использовать по умолчанию</label>
+              </div>
+              <div class="d-flex template-card-actions channels-template-actions">
+                <button class="btn btn-outline-primary channels-template-action" type="button" data-bot-template-edit aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Редактировать</span></button>
+                <button class="btn btn-outline-secondary channels-template-action" type="button" data-bot-template-duplicate aria-label="Дублировать" title="Дублировать"><i class="bi bi-files" aria-hidden="true"></i><span class="visually-hidden">Дублировать</span></button>
+                <button class="btn btn-outline-danger channels-template-action" type="button" data-bot-template-delete aria-label="Удалить" title="Удалить" ${state.templates.length === 1 ? 'disabled' : ''}><i class="bi bi-trash3" aria-hidden="true"></i><span class="visually-hidden">Удалить</span></button>
+              </div>
             </div>
           </div>
         </div>
@@ -1691,20 +1693,22 @@
         : '';
       card.innerHTML = `
         <div class="card-body">
-          <div class="template-card-header channels-template-card__header">
-            <h6 class="mb-1">${html(template.name || 'Шаблон оценок')}${activeBadgeHtml}</h6>
-            ${descriptionHtml}
-            <div class="small text-muted">${html(summaryText)}</div>
-          </div>
-          <div class="d-flex flex-column flex-lg-row align-items-center justify-content-between channels-template-card__footer">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="radio" name="bot-rating-template-default" value="${html(template.id)}" ${template.id === state.activeRatingTemplateId ? 'checked' : ''} data-bot-rating-template-select>
-              <label class="form-check-label small">Использовать по умолчанию</label>
+          <div class="channels-template-card__layout">
+            <div class="template-card-header channels-template-card__header">
+              <h6 class="mb-1">${html(template.name || 'Шаблон оценок')}${activeBadgeHtml}</h6>
+              ${descriptionHtml}
+              <div class="small text-muted">${html(summaryText)}</div>
             </div>
-            <div class="btn-group btn-group-sm template-card-actions channels-template-actions">
-              <button class="btn btn-outline-primary channels-template-action" type="button" data-bot-rating-template-edit aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Редактировать</span></button>
-              <button class="btn btn-outline-secondary channels-template-action" type="button" data-bot-rating-template-duplicate aria-label="Дублировать" title="Дублировать"><i class="bi bi-copy" aria-hidden="true"></i><span class="visually-hidden">Дублировать</span></button>
-              <button class="btn btn-outline-danger channels-template-action" type="button" data-bot-rating-template-delete aria-label="Удалить" title="Удалить" ${state.ratingTemplates.length === 1 ? 'disabled' : ''}><i class="bi bi-trash3" aria-hidden="true"></i><span class="visually-hidden">Удалить</span></button>
+            <div class="channels-template-card__controls">
+              <div class="form-check form-switch channels-template-default">
+                <input class="form-check-input" type="radio" name="bot-rating-template-default" value="${html(template.id)}" ${template.id === state.activeRatingTemplateId ? 'checked' : ''} data-bot-rating-template-select>
+                <label class="form-check-label small">Использовать по умолчанию</label>
+              </div>
+              <div class="d-flex template-card-actions channels-template-actions">
+                <button class="btn btn-outline-primary channels-template-action" type="button" data-bot-rating-template-edit aria-label="Редактировать" title="Редактировать"><i class="bi bi-pencil" aria-hidden="true"></i><span class="visually-hidden">Редактировать</span></button>
+                <button class="btn btn-outline-secondary channels-template-action" type="button" data-bot-rating-template-duplicate aria-label="Дублировать" title="Дублировать"><i class="bi bi-files" aria-hidden="true"></i><span class="visually-hidden">Дублировать</span></button>
+                <button class="btn btn-outline-danger channels-template-action" type="button" data-bot-rating-template-delete aria-label="Удалить" title="Удалить" ${state.ratingTemplates.length === 1 ? 'disabled' : ''}><i class="bi bi-trash3" aria-hidden="true"></i><span class="visually-hidden">Удалить</span></button>
+              </div>
             </div>
           </div>
         </div>
