@@ -327,9 +327,9 @@
           : '<span class="badge bg-secondary-subtle text-secondary">Выключен</span>';
         const supportChatRaw = prepared.support_chat_id;
         const hasSupportChat = supportChatRaw !== null && supportChatRaw !== undefined && String(supportChatRaw).trim() !== '';
-        const supportChatInfo = hasSupportChat
-          ? '<div class="small text-muted mt-1">ID группы: ' + escapeHtml(String(supportChatRaw)) + '</div>'
-          : '<div class="small text-muted mt-1">ID группы пока не привязан</div>';
+        const supportChatLabel = hasSupportChat
+          ? 'ID группы: ' + String(supportChatRaw)
+          : 'ID группы пока не привязан';
         const routeLabel = prepared.network_route?.mode === 'proxy'
           ? 'Маршрут: proxy'
           : prepared.network_route?.mode === 'vpn'
@@ -340,20 +340,26 @@
                 ? 'Маршрут: direct'
                 : 'Маршрут: общий';
         const botLabel = formatBotLabel(prepared);
-        const templateLines = [
-          {
-            title: 'Вопросы',
-            binding: questionTemplateBinding,
-          },
-          {
-            title: 'Оценки',
-            binding: ratingTemplateBinding,
-          },
-          {
-            title: 'Автодействия',
-            binding: autoTemplateBinding,
-          },
-        ].map(({ title, binding }) => {
+        const platformMetaParts = [];
+        if (prepared.vk_group_id) {
+          platformMetaParts.push('group_id: ' + String(prepared.vk_group_id));
+        }
+        platformMetaParts.push(supportChatLabel, routeLabel);
+        const templateBindings = [
+          { title: 'Вопросы', binding: questionTemplateBinding },
+          { title: 'Оценки', binding: ratingTemplateBinding },
+          { title: 'Автодействия', binding: autoTemplateBinding },
+        ];
+        const templateSummary = templateBindings
+          .map(({ title, binding }) => `${title}: ${binding.sourceLabel} • ${binding.summary}`)
+          .join(' · ');
+        const platformHoverText = [
+          platformLabel,
+          ...platformMetaParts,
+          ...templateBindings.map(({ title, binding }) =>
+            `${title}: ${binding.sourceLabel} • ${binding.summary}${binding.note ? ' — ' + binding.note : ''}`),
+        ].join('\n');
+        const templateLines = templateBindings.map(({ title, binding }) => {
           const noteHtml = binding.note
             ? `<div class="small ${escapeHtml(binding.toneClass)}">${escapeHtml(binding.note)}</div>`
             : '';
@@ -372,20 +378,44 @@
             <div class="fw-medium">${escapeHtml(prepared.channel_name || '—')}</div>
             <div class="text-muted small">Бот: ${escapeHtml(botLabel)}</div>
           </td>
-          <td>
-            <div><span class="badge bg-secondary-subtle text-uppercase">${escapeHtml(platformLabel)}</span></div>
-            ${prepared.vk_group_id ? `<div class="small text-muted mt-1">group_id: ${escapeHtml(String(prepared.vk_group_id))}</div>` : ''}
-            ${supportChatInfo}
-            <div class="small text-muted mt-1">${escapeHtml(routeLabel)}</div>
-            ${templateLines}
+          <td class="align-top">
+            <div class="d-flex align-items-start gap-2" title="${escapeHtml(platformHoverText)}">
+              <div class="flex-grow-1 overflow-hidden" style="min-width: 0">
+                <div class="d-flex align-items-center gap-2 small text-truncate">
+                  <span class="badge bg-secondary-subtle text-uppercase flex-shrink-0">${escapeHtml(platformLabel)}</span>
+                  <span class="text-truncate">${escapeHtml(platformMetaParts.join(' • '))}</span>
+                </div>
+                <div class="small text-muted text-truncate mt-1">${escapeHtml(templateSummary)}</div>
+              </div>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary flex-shrink-0 py-0 px-2"
+                data-channel-platform-info="${prepared.id}"
+                aria-expanded="false"
+                aria-controls="channel-platform-details-${prepared.id}"
+                title="Показать подробности"
+              ><i class="bi bi-info-circle" aria-hidden="true"></i><span class="visually-hidden">Подробности платформы</span></button>
+            </div>
+            <div
+              class="small text-muted mt-2 p-2 border rounded bg-light-subtle"
+              id="channel-platform-details-${prepared.id}"
+              data-channel-platform-details="${prepared.id}"
+              hidden
+            >
+              ${prepared.vk_group_id ? `<div>group_id: ${escapeHtml(String(prepared.vk_group_id))}</div>` : ''}
+              <div>${escapeHtml(supportChatLabel)}</div>
+              <div>${escapeHtml(routeLabel)}</div>
+              ${templateLines}
+            </div>
           </td>
-          <td class="text-center">
+          <td class="text-center align-top">
             <div>${statusBadge}</div>
             <div class="mt-1">
               <span class="badge bg-light text-secondary border border-secondary-subtle" data-channel-bot-runtime-status="${prepared.id}">Процесс: проверка…</span>
             </div>
-            <div class="d-flex justify-content-center gap-2 mt-2">
-              <button type="button" class="btn btn-sm btn-outline-success" data-channel-start="${prepared.id}">Запустить</button>
+            <div class="d-flex justify-content-center gap-2 mt-2 flex-wrap">
+              <button type="button" class="btn btn-sm btn-outline-success" data-channel-start="${prepared.id}" disabled>Запустить</button>
+              <button type="button" class="btn btn-sm btn-outline-danger" data-channel-stop="${prepared.id}" hidden>Остановить</button>
               <button type="button" class="btn btn-sm btn-outline-primary" data-channel-edit="${prepared.id}">Редактировать</button>
             </div>
           </td>
@@ -740,6 +770,31 @@
     }
 
     function handleChannelsBodyClick(event) {
+      const infoBtn = event.target.closest('[data-channel-platform-info]');
+      if (infoBtn) {
+        event.preventDefault();
+        const channelId = infoBtn.getAttribute('data-channel-platform-info');
+        const details = elements.channelsBody?.querySelector(`[data-channel-platform-details="${channelId}"]`);
+        if (!details) {
+          return;
+        }
+        const expanded = infoBtn.getAttribute('aria-expanded') === 'true';
+        infoBtn.setAttribute('aria-expanded', String(!expanded));
+        infoBtn.title = expanded ? 'Показать подробности' : 'Скрыть подробности';
+        details.hidden = expanded;
+        return;
+      }
+
+      const stopBtn = event.target.closest('[data-channel-stop]');
+      if (stopBtn) {
+        event.preventDefault();
+        const channelId = stopBtn.getAttribute('data-channel-stop');
+        if (channelId && typeof options.stopBot === 'function') {
+          options.stopBot(channelId);
+        }
+        return;
+      }
+
       const startBtn = event.target.closest('[data-channel-start]');
       if (!startBtn) {
         return;

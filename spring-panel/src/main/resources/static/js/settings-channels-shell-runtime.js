@@ -387,6 +387,7 @@
       showPopup: (message, type) => popup(message, type),
       showNotification: typeof options.showNotification === 'function' ? options.showNotification : null,
       startBot: (...args) => settingsChannelsBotRuntime.startBot(...args),
+      stopBot: (...args) => settingsChannelsBotRuntime.stopBot(...args),
     });
     const settingsChannelsBotRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelsBotRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,

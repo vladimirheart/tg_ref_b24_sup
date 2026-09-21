@@ -134,12 +134,28 @@
       }
     }
 
+    function updateChannelRowBotControls(channelId, code) {
+      const startBtn = document.querySelector(`[data-channel-start="${channelId}"]`);
+      const stopBtn = document.querySelector(`[data-channel-stop="${channelId}"]`);
+      const running = code === 'running';
+      const startAllowed = code === 'stopped' || code === 'error';
+      if (startBtn) {
+        startBtn.hidden = running;
+        startBtn.disabled = !startAllowed;
+      }
+      if (stopBtn) {
+        stopBtn.hidden = !running;
+        stopBtn.disabled = !running;
+      }
+    }
+
     function setChannelRowBotRuntimeStatus(channelId, status, startedAt) {
+      const normalized = normalizeBotRuntimeStatus(status);
+      updateChannelRowBotControls(channelId, normalized.code);
       const badge = document.querySelector(`[data-channel-bot-runtime-status="${channelId}"]`);
       if (!badge) {
         return;
       }
-      const normalized = normalizeBotRuntimeStatus(status);
       badge.className = getBotRuntimeBadgeClass(normalized.code);
       if (normalized.code === 'running' && startedAt) {
         badge.textContent = `Процесс: запущен с ${new Date(startedAt).toLocaleTimeString()}`;
@@ -338,9 +354,10 @@
     async function startBot(channelId) {
       const success = await startBotForChannel(channelId);
       if (success) {
-        popup('Команда запуска отправлена. Проверьте статус бота в настройках канала.');
+        popup('Бот запущен.');
         refreshBotStatus(channelId);
       }
+      return success;
     }
 
     async function stopBotForChannel(channelId) {
@@ -356,12 +373,23 @@
         updateBotStatusLabel(payload.status, payload.startedAt);
         updateBotControls(false);
         setChannelRowBotRuntimeStatus(channelId, payload.status, payload.startedAt);
+        return true;
       } catch (error) {
         console.error('Failed to stop bot', error);
         updateBotStatusLabel(error.message || 'Ошибка');
         setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
         popup('Не удалось остановить бота: ' + error.message);
+        return false;
       }
+    }
+
+    async function stopBot(channelId) {
+      const success = await stopBotForChannel(channelId);
+      if (success) {
+        popup('Бот остановлен.');
+        refreshBotStatus(channelId);
+      }
+      return success;
     }
 
     async function sendChannelTestMessage() {
@@ -431,6 +459,7 @@
       startBotForChannel,
       startBot,
       stopBotForChannel,
+      stopBot,
       sendChannelTestMessage,
     };
   }
