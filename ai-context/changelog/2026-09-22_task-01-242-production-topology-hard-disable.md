@@ -27,4 +27,13 @@ Date: 2026-09-22
 - No database or `.env` mutation is performed.
 - No Git stage/commit/push is performed by the source apply.
 
-Task remains `🟡` until targeted tests, exact commit/push and final read-only topology verification are complete.
+Task remained `🟡` at source-apply time until targeted tests, exact commit/push and final read-only topology verification were complete.
+
+## Final verification
+
+- Targeted topology tests and both Compose contracts completed GREEN.
+- Topology commit `9e9040e37b81b945b6ac2d499230fa990de79e53` was pushed from parent `fc4b63182aa1de37aa4ad6dea2ed7641b48935ee` after exact staging and a fresh remote guard.
+- Independent GitHub verification confirmed exactly 18 expected changed files, `ahead_by=1`, `behind_by=0`.
+- Final read-only production topology acceptance completed GREEN with `bot-runner` as the sole owner, 3 child runtimes, zero legacy static services running, restart-policy guard GREEN, mixed ownership false and current child logs GREEN.
+- No runtime or DB mutation was performed by the final topology acceptance.
+- Task `01-242` is now `🟣`: AI work complete, awaiting manual user acceptance. Only the user may mark it `🟢`.
