@@ -29,5 +29,12 @@ class ApplicationYamlRuntimeContractTest {
         assertThat(source.getProperty("management.metrics.tags.runtime_role")).isNotNull();
         assertThat(source.getProperty("management.metrics.distribution.percentiles-histogram.http.server.requests"))
             .isEqualTo(true);
+
+        Object trafficReadiness = source.getProperty("management.endpoint.health.group.readiness.include");
+        assertThat(trafficReadiness)
+            .as("traffic readiness must contain only request-serving dependencies")
+            .isEqualTo("db,redis,rabbit");
+        assertThat(String.valueOf(trafficReadiness))
+            .doesNotContain("iguanaProduction");
     }
 }
