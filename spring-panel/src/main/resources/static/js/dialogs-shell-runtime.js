@@ -415,20 +415,30 @@
 
     function loadColumnOrder() {
       const storageKey = resolveStorageKey(options.storage?.columnOrder);
+      const versionKey = resolveStorageKey(options.storage?.columnOrderVersion);
+      const schemaVersion = String(options.storage?.columnSchemaVersion || '').trim();
+      const defaultOrder = normalizeColumnOrder(getDefaultColumnOrder());
       if (!storageKey) {
-        setColumnOrder(normalizeColumnOrder(getDefaultColumnOrder()));
+        setColumnOrder(defaultOrder);
         return;
       }
       try {
         const raw = localStorage.getItem(storageKey);
-        if (!raw) {
-          setColumnOrder(normalizeColumnOrder(getDefaultColumnOrder()));
-          return;
+        let nextOrder = defaultOrder;
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          nextOrder = normalizeColumnOrder(parsed);
         }
-        const parsed = JSON.parse(raw);
-        setColumnOrder(normalizeColumnOrder(parsed));
+        const migrationRequired = Boolean(versionKey && schemaVersion)
+          && String(localStorage.getItem(versionKey) || '') !== schemaVersion;
+        if (migrationRequired) {
+          nextOrder = ['actions', ...nextOrder.filter((key) => key !== 'actions')];
+          localStorage.setItem(storageKey, JSON.stringify(nextOrder));
+          localStorage.setItem(versionKey, schemaVersion);
+        }
+        setColumnOrder(nextOrder);
       } catch (_error) {
-        setColumnOrder(normalizeColumnOrder(getDefaultColumnOrder()));
+        setColumnOrder(defaultOrder);
       }
     }
 
@@ -460,18 +470,31 @@
 
     function loadColumnState() {
       const storageKey = resolveStorageKey(options.storage?.columns);
+      const versionKey = resolveStorageKey(options.storage?.columnsVersion);
+      const schemaVersion = String(options.storage?.columnSchemaVersion || '').trim();
       if (!storageKey) return;
       try {
-        const raw = localStorage.getItem(storageKey);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object') return;
         const nextState = cloneColumnState(getDefaultColumnState());
-        Object.keys(nextState).forEach((key) => {
-          if (Object.prototype.hasOwnProperty.call(parsed, key)) {
-            nextState[key] = Boolean(parsed[key]);
+        const raw = localStorage.getItem(storageKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            Object.keys(nextState).forEach((key) => {
+              if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+                nextState[key] = Boolean(parsed[key]);
+              }
+            });
           }
-        });
+        }
+        const migrationRequired = Boolean(versionKey && schemaVersion)
+          && String(localStorage.getItem(versionKey) || '') !== schemaVersion;
+        if (migrationRequired) {
+          if (Object.prototype.hasOwnProperty.call(nextState, 'select')) {
+            nextState.select = false;
+          }
+          localStorage.setItem(storageKey, JSON.stringify(nextState));
+          localStorage.setItem(versionKey, schemaVersion);
+        }
         setColumnState(nextState);
       } catch (_error) {
         setColumnState(cloneColumnState(getDefaultColumnState()));

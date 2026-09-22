@@ -15,7 +15,28 @@ public record ClientProfile(
         List<ClientBlacklistHistoryEntry> blacklistHistory,
         List<ClientAnalyticsItem> categoryStats,
         List<ClientAnalyticsItem> locationStats,
+        List<ClientPeriodComparison> periodComparisons,
         List<ClientPhoneEntry> phonesTelegram,
         List<ClientPhoneEntry> phonesManual
 ) {
+    public record ClientPeriodComparison(
+            String key,
+            String label,
+            String description,
+            long currentCount,
+            long previousCount,
+            String deltaLabel,
+            String deltaTone,
+            String currentRange,
+            String previousRange,
+            List<ClientTypeComparison> types
+    ) {
+    }
+
+    public record ClientTypeComparison(
+            String label,
+            long currentCount,
+            long previousCount
+    ) {
+    }
 }

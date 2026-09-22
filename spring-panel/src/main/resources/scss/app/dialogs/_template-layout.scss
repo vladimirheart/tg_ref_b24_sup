@@ -242,3 +242,76 @@ body[data-ui-page='dialogs'] .dialog-business-text { min-width: 0; overflow: hid
 body[data-ui-page='dialogs'] .dialog-actions-inline { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
 body[data-ui-page='dialogs'] .dialog-open-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; border-radius: var(--radius-md); color: var(--primary); text-decoration: none; }
 body[data-ui-page='dialogs'] .dialog-open-icon:hover, body[data-ui-page='dialogs'] .dialog-open-icon:focus-visible { background: var(--surface-selected); }
+
+/* 01-272 dialogs density S3 */
+body[data-ui-page='dialogs'] .dialog-table > :not(caption) > * > * {
+  padding-top: 0.32rem !important;
+  padding-bottom: 0.32rem !important;
+  padding-left: 0.42rem;
+  padding-right: 0.42rem;
+}
+
+body[data-ui-page='dialogs'] .dialog-table [data-column-key='client'] { width: 8.5rem; }
+body[data-ui-page='dialogs'] .dialog-table [data-column-key='status'] { width: 7rem; }
+body[data-ui-page='dialogs'] .dialog-table [data-column-key='business'] { width: 6.25rem; }
+body[data-ui-page='dialogs'] .dialog-table [data-column-key='actions'] { width: 2.4rem; }
+
+body[data-ui-page='dialogs'] .dialog-actions,
+body[data-ui-page='dialogs'] .dialog-actions-head {
+  width: 2.4rem;
+  min-width: 2.4rem;
+  max-width: 2.4rem;
+  padding-left: 0.2rem;
+  padding-right: 0.2rem;
+  text-align: center;
+}
+
+body[data-ui-page='dialogs'] .dialog-actions-inline {
+  align-items: center;
+  justify-content: center;
+  gap: 0.08rem;
+}
+
+body[data-ui-page='dialogs'] .dialog-open-icon {
+  width: 1.35rem;
+  min-width: 1.35rem;
+  height: 1.35rem;
+}
+
+body[data-ui-page='dialogs'] .dialog-actions-toggle {
+  width: 1.45rem;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  min-height: 1.45rem;
+  padding: 0 !important;
+  font-size: 0.9rem;
+}
+
+body[data-ui-page='dialogs'] .dialog-table .dialog-avatar {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+}
+
+body[data-ui-page='dialogs'] .dialog-table .client-cell { gap: 8px; }
+
+body[data-ui-page='dialogs'] .dialog-responsible-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-basis: 1.75rem;
+}
+
+body[data-ui-page='dialogs'] .dialog-business-pill,
+body[data-ui-page='dialogs'] .dialog-channel-pill { min-height: 26px; }
+
+body[data-ui-page='dialogs'] .dialog-business-pill {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+body[data-ui-page='dialogs'] .dialog-channel-pill {
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+}
+
+body[data-ui-page='dialogs'] .dialog-table .small { line-height: 1.08; }

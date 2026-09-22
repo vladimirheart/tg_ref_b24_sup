@@ -1688,6 +1688,56 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   font-size: 0.8rem;
 }
 
+/* 01-272 dialogs corrective S2 */
+body[data-ui-page=dialogs] .dialog-open-icon {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--primary) !important;
+  box-shadow: none !important;
+}
+
+body[data-ui-page=dialogs] .dialog-open-icon:hover,
+body[data-ui-page=dialogs] .dialog-open-icon:focus-visible {
+  background: var(--surface-selected) !important;
+  color: var(--primary) !important;
+}
+
+body[data-ui-page=dialogs] .dialog-actions-menu {
+  left: 0;
+  right: auto;
+}
+
+body[data-ui-page=dialogs] .dialog-sla-badge {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.08rem;
+  padding: 0.3rem 0.42rem;
+  line-height: 1.08;
+  white-space: normal;
+}
+
+body[data-ui-page=dialogs] .dialog-sla-status,
+body[data-ui-page=dialogs] .dialog-sla-timing {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-ui-page=dialogs] .dialog-sla-status {
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+body[data-ui-page=dialogs] .dialog-sla-timing {
+  font-size: 0.62rem;
+  font-weight: 600;
+  opacity: 0.82;
+}
+
 .dialog-details-header {
   display: flex;
   align-items: center;
@@ -2539,6 +2589,126 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   color: var(--color-text);
 }
 
+/* 01-272 client period comparisons S4 */
+.client-period-comparisons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.client-period-comparison {
+  min-width: 0;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.client-period-comparison__head,
+.client-period-comparison__total,
+.client-period-comparison__type {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.client-period-comparison__label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+}
+
+.client-period-comparison__description,
+.client-period-comparison__legend,
+.client-period-comparison__empty {
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+}
+
+.client-period-comparison__description {
+  display: block;
+  margin-top: 0.05rem;
+}
+
+.client-period-comparison__delta {
+  flex: 0 0 auto;
+  padding: 0.12rem 0.34rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.client-period-comparison__delta.is-up,
+.client-period-comparison__delta.is-new {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--color-border));
+  color: var(--primary);
+}
+
+.client-period-comparison__delta.is-down {
+  border-color: color-mix(in srgb, var(--secondary) 38%, var(--color-border));
+  color: var(--secondary);
+}
+
+.client-period-comparison__total {
+  margin-top: 0.45rem;
+}
+
+.client-period-comparison__total strong {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.client-period-comparison__total span {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.client-period-comparison__types {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.5rem;
+}
+
+.client-period-comparison__type {
+  padding-top: 0.2rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+
+.client-period-comparison__type-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+}
+
+.client-period-comparison__type-values {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.1rem;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+}
+
+.client-period-comparison__type-values small {
+  color: var(--color-text-muted);
+}
+
+.client-period-comparison__legend {
+  margin-top: 0.42rem;
+}
+
+@media (max-width: 991.98px) {
+  .client-period-comparisons {
+    grid-template-columns: 1fr;
+  }
+}
 /* Dialogs template-extracted layout */
 body[data-ui-page=dialogs] .dialogs-hero,
 body[data-ui-page=dialogs] .dialogs-summary-card,
@@ -2786,6 +2956,96 @@ body[data-ui-page=dialogs] .dialog-open-icon {
 
 body[data-ui-page=dialogs] .dialog-open-icon:hover, body[data-ui-page=dialogs] .dialog-open-icon:focus-visible {
   background: var(--surface-selected);
+}
+
+/* 01-272 dialogs density S3 */
+body[data-ui-page=dialogs] .dialog-table > :not(caption) > * > * {
+  padding-top: 0.32rem !important;
+  padding-bottom: 0.32rem !important;
+  padding-left: 0.42rem;
+  padding-right: 0.42rem;
+}
+
+body[data-ui-page=dialogs] .dialog-table [data-column-key=client] {
+  width: 8.5rem;
+}
+
+body[data-ui-page=dialogs] .dialog-table [data-column-key=status] {
+  width: 7rem;
+}
+
+body[data-ui-page=dialogs] .dialog-table [data-column-key=business] {
+  width: 6.25rem;
+}
+
+body[data-ui-page=dialogs] .dialog-table [data-column-key=actions] {
+  width: 2.4rem;
+}
+
+body[data-ui-page=dialogs] .dialog-actions,
+body[data-ui-page=dialogs] .dialog-actions-head {
+  width: 2.4rem;
+  min-width: 2.4rem;
+  max-width: 2.4rem;
+  padding-left: 0.2rem;
+  padding-right: 0.2rem;
+  text-align: center;
+}
+
+body[data-ui-page=dialogs] .dialog-actions-inline {
+  align-items: center;
+  justify-content: center;
+  gap: 0.08rem;
+}
+
+body[data-ui-page=dialogs] .dialog-open-icon {
+  width: 1.35rem;
+  min-width: 1.35rem;
+  height: 1.35rem;
+}
+
+body[data-ui-page=dialogs] .dialog-actions-toggle {
+  width: 1.45rem;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  min-height: 1.45rem;
+  padding: 0 !important;
+  font-size: 0.9rem;
+}
+
+body[data-ui-page=dialogs] .dialog-table .dialog-avatar {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+}
+
+body[data-ui-page=dialogs] .dialog-table .client-cell {
+  gap: 8px;
+}
+
+body[data-ui-page=dialogs] .dialog-responsible-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-basis: 1.75rem;
+}
+
+body[data-ui-page=dialogs] .dialog-business-pill,
+body[data-ui-page=dialogs] .dialog-channel-pill {
+  min-height: 26px;
+}
+
+body[data-ui-page=dialogs] .dialog-business-pill {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+body[data-ui-page=dialogs] .dialog-channel-pill {
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
+}
+
+body[data-ui-page=dialogs] .dialog-table .small {
+  line-height: 1.08;
 }
 
 /* Dialog hover ownership */

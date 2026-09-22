@@ -15,11 +15,15 @@ import com.example.panel.repository.ClientUsernameRepository;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.temporal.TemporalAdjusters;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -27,6 +31,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -41,6 +46,9 @@ public class ClientsService {
 
     private static final UUID NAMESPACE_URL = UUID.fromString("6ba7b811-9dad-11d1-80b4-00c04fd430c8");
     private static final DateTimeFormatter DISPLAY_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    private static final DateTimeFormatter PERIOD_RANGE_FORMAT = DateTimeFormatter.ofPattern("dd.MM");
+    private static final ZoneId DEFAULT_ZONE = ZoneId.systemDefault();
+    private static final int PERIOD_TYPE_LIMIT = 3;
 
     private final JdbcTemplate jdbcTemplate;
     private final ClientUsernameRepository clientUsernameRepository;
@@ -291,6 +299,7 @@ public class ClientsService {
         List<ClientBlacklistHistoryEntry> blacklistHistory = loadBlacklistHistory(userId);
         List<ClientAnalyticsItem> categoryStats = buildCategoryStats(tickets);
         List<ClientAnalyticsItem> locationStats = buildLocationStats(tickets);
+        List<ClientProfile.ClientPeriodComparison> periodComparisons = buildPeriodComparisons(tickets);
         List<ClientPhoneEntry> phonesTelegram = loadClientPhones(userId, "telegram");
         List<ClientPhoneEntry> phonesManual = loadClientPhones(userId, "manual");
 
@@ -307,6 +316,7 @@ public class ClientsService {
             blacklistHistory,
             categoryStats,
             locationStats,
+            periodComparisons,
             phonesTelegram,
             phonesManual
         ));
@@ -362,6 +372,190 @@ public class ClientsService {
             ));
         }
         return history;
+    }
+
+    private List<ClientProfile.ClientPeriodComparison> buildPeriodComparisons(List<ClientProfileTicket> tickets) {
+        return buildPeriodComparisons(tickets, ZonedDateTime.now(DEFAULT_ZONE));
+    }
+
+    List<ClientProfile.ClientPeriodComparison> buildPeriodComparisons(List<ClientProfileTicket> tickets, ZonedDateTime now) {
+        ZonedDateTime safeNow = now != null ? now : ZonedDateTime.now(DEFAULT_ZONE);
+        ZoneId zone = safeNow.getZone();
+        List<ClientTrendTicket> uniqueTickets = buildUniqueTrendTickets(tickets);
+
+        ZonedDateTime weekStart = safeNow.toLocalDate()
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .atStartOfDay(zone);
+        ZonedDateTime monthStart = safeNow.toLocalDate().withDayOfMonth(1).atStartOfDay(zone);
+        ZonedDateTime yearStart = safeNow.toLocalDate().withDayOfYear(1).atStartOfDay(zone);
+
+        return List.of(
+            buildPeriodComparison(
+                "wow",
+                "WoW",
+                "Неделя к неделе",
+                weekStart,
+                safeNow,
+                weekStart.minusWeeks(1),
+                safeNow.minusWeeks(1),
+                uniqueTickets
+            ),
+            buildPeriodComparison(
+                "mom",
+                "MoM",
+                "Месяц к месяцу",
+                monthStart,
+                safeNow,
+                monthStart.minusMonths(1),
+                safeNow.minusMonths(1),
+                uniqueTickets
+            ),
+            buildPeriodComparison(
+                "yoy",
+                "YoY",
+                "Год к году",
+                yearStart,
+                safeNow,
+                yearStart.minusYears(1),
+                safeNow.minusYears(1),
+                uniqueTickets
+            )
+        );
+    }
+
+    private List<ClientTrendTicket> buildUniqueTrendTickets(List<ClientProfileTicket> tickets) {
+        if (tickets == null || tickets.isEmpty()) {
+            return List.of();
+        }
+        Map<String, TrendAccumulator> byTicket = new LinkedHashMap<>();
+        for (ClientProfileTicket ticket : tickets) {
+            if (ticket == null || !StringUtils.hasText(ticket.ticketId())) {
+                continue;
+            }
+            Instant createdAt = parseInstant(ticket.createdAt());
+            if (createdAt == null) {
+                continue;
+            }
+            String ticketId = ticket.ticketId().trim();
+            TrendAccumulator accumulator = byTicket.computeIfAbsent(ticketId, key -> new TrendAccumulator());
+            if (accumulator.createdAt == null || createdAt.isBefore(accumulator.createdAt)) {
+                accumulator.createdAt = createdAt;
+            }
+            if (StringUtils.hasText(ticket.category())
+                    && (accumulator.categoryAt == null || createdAt.isAfter(accumulator.categoryAt))) {
+                accumulator.categoryAt = createdAt;
+                accumulator.category = ticket.category().trim();
+            }
+        }
+        List<ClientTrendTicket> result = new ArrayList<>(byTicket.size());
+        byTicket.values().forEach(accumulator -> {
+            if (accumulator.createdAt != null) {
+                result.add(new ClientTrendTicket(
+                    accumulator.createdAt,
+                    StringUtils.hasText(accumulator.category) ? accumulator.category : "Без категории"
+                ));
+            }
+        });
+        return result;
+    }
+
+    private ClientProfile.ClientPeriodComparison buildPeriodComparison(
+            String key,
+            String label,
+            String description,
+            ZonedDateTime currentStart,
+            ZonedDateTime currentEnd,
+            ZonedDateTime previousStart,
+            ZonedDateTime previousEnd,
+            List<ClientTrendTicket> tickets) {
+        ClientPeriodSlice current = collectPeriodSlice(tickets, currentStart.toInstant(), currentEnd.toInstant());
+        ClientPeriodSlice previous = collectPeriodSlice(tickets, previousStart.toInstant(), previousEnd.toInstant());
+        List<ClientProfile.ClientTypeComparison> types = buildTypeComparisons(current.types(), previous.types());
+        return new ClientProfile.ClientPeriodComparison(
+            key,
+            label,
+            description,
+            current.total(),
+            previous.total(),
+            formatPeriodDelta(current.total(), previous.total()),
+            resolvePeriodDeltaTone(current.total(), previous.total()),
+            formatPeriodRange(currentStart, currentEnd),
+            formatPeriodRange(previousStart, previousEnd),
+            types
+        );
+    }
+
+    private ClientPeriodSlice collectPeriodSlice(List<ClientTrendTicket> tickets, Instant startInclusive, Instant endExclusive) {
+        Map<String, Long> typeCounts = new HashMap<>();
+        long total = 0L;
+        for (ClientTrendTicket ticket : tickets) {
+            Instant createdAt = ticket.createdAt();
+            if (createdAt.isBefore(startInclusive) || !createdAt.isBefore(endExclusive)) {
+                continue;
+            }
+            total += 1L;
+            typeCounts.merge(ticket.type(), 1L, Long::sum);
+        }
+        return new ClientPeriodSlice(total, typeCounts);
+    }
+
+    private List<ClientProfile.ClientTypeComparison> buildTypeComparisons(
+            Map<String, Long> current,
+            Map<String, Long> previous) {
+        Set<String> labels = new HashSet<>();
+        labels.addAll(current.keySet());
+        labels.addAll(previous.keySet());
+        return labels.stream()
+            .sorted((left, right) -> {
+                long leftPeak = Math.max(current.getOrDefault(left, 0L), previous.getOrDefault(left, 0L));
+                long rightPeak = Math.max(current.getOrDefault(right, 0L), previous.getOrDefault(right, 0L));
+                int peakCompare = Long.compare(rightPeak, leftPeak);
+                if (peakCompare != 0) {
+                    return peakCompare;
+                }
+                long leftCurrent = current.getOrDefault(left, 0L);
+                long rightCurrent = current.getOrDefault(right, 0L);
+                int currentCompare = Long.compare(rightCurrent, leftCurrent);
+                return currentCompare != 0 ? currentCompare : left.compareToIgnoreCase(right);
+            })
+            .limit(PERIOD_TYPE_LIMIT)
+            .map(type -> new ClientProfile.ClientTypeComparison(
+                type,
+                current.getOrDefault(type, 0L),
+                previous.getOrDefault(type, 0L)
+            ))
+            .toList();
+    }
+
+    private String formatPeriodDelta(long current, long previous) {
+        if (previous == 0L) {
+            return current == 0L ? "0%" : "новое";
+        }
+        long percent = Math.round(((double) current - previous) * 100.0d / previous);
+        if (percent > 0L) {
+            return "↑ +" + percent + "%";
+        }
+        if (percent < 0L) {
+            return "↓ " + percent + "%";
+        }
+        return "0%";
+    }
+
+    private String resolvePeriodDeltaTone(long current, long previous) {
+        if (previous == 0L && current > 0L) {
+            return "new";
+        }
+        if (current > previous) {
+            return "up";
+        }
+        if (current < previous) {
+            return "down";
+        }
+        return "flat";
+    }
+
+    private String formatPeriodRange(ZonedDateTime start, ZonedDateTime end) {
+        return PERIOD_RANGE_FORMAT.format(start) + "–" + PERIOD_RANGE_FORMAT.format(end);
     }
 
     private List<ClientAnalyticsItem> buildCategoryStats(List<ClientProfileTicket> tickets) {
@@ -783,6 +977,18 @@ public class ClientsService {
         buffer.putLong(uuid.getMostSignificantBits());
         buffer.putLong(uuid.getLeastSignificantBits());
         return buffer.array();
+    }
+
+    private static final class TrendAccumulator {
+        private Instant createdAt;
+        private Instant categoryAt;
+        private String category;
+    }
+
+    private record ClientTrendTicket(Instant createdAt, String type) {
+    }
+
+    private record ClientPeriodSlice(long total, Map<String, Long> types) {
     }
 
     private record ClientRow(

@@ -807,3 +807,53 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
   font-family: inherit;
   font-size: 0.8rem;
 }
+
+/* 01-272 dialogs corrective S2 */
+body[data-ui-page='dialogs'] .dialog-open-icon {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--primary) !important;
+  box-shadow: none !important;
+}
+
+body[data-ui-page='dialogs'] .dialog-open-icon:hover,
+body[data-ui-page='dialogs'] .dialog-open-icon:focus-visible {
+  background: var(--surface-selected) !important;
+  color: var(--primary) !important;
+}
+
+body[data-ui-page='dialogs'] .dialog-actions-menu {
+  left: 0;
+  right: auto;
+}
+
+body[data-ui-page='dialogs'] .dialog-sla-badge {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.08rem;
+  padding: 0.3rem 0.42rem;
+  line-height: 1.08;
+  white-space: normal;
+}
+
+body[data-ui-page='dialogs'] .dialog-sla-status,
+body[data-ui-page='dialogs'] .dialog-sla-timing {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-ui-page='dialogs'] .dialog-sla-status {
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+body[data-ui-page='dialogs'] .dialog-sla-timing {
+  font-size: 0.62rem;
+  font-weight: 600;
+  opacity: 0.82;
+}

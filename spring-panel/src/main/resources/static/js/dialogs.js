@@ -416,6 +416,9 @@
 
   const STORAGE_COLUMNS = 'iguana:dialogs:columns';
   const STORAGE_COLUMN_ORDER = 'iguana:dialogs:column-order';
+  const STORAGE_COLUMNS_SCHEMA_VERSION = 'iguana:dialogs:columns-schema-version';
+  const STORAGE_COLUMN_ORDER_SCHEMA_VERSION = 'iguana:dialogs:column-order-schema-version';
+  const DIALOG_COLUMNS_SCHEMA_VERSION = '2';
   const STORAGE_WIDTHS = 'iguana:dialogs:column-widths';
   const STORAGE_TASK = 'iguana:dialogs:create-task';
   const STORAGE_PAGE_SIZE = 'iguana:dialogs:page-size';
@@ -1100,8 +1103,13 @@
     return acc;
   }, {});
 
+  const defaultColumnOrder = [
+    'actions',
+    ...columnMeta.map((item) => item.key).filter((key) => key !== 'actions'),
+  ];
+
   let columnState = { ...defaultColumnState };
-  let columnOrder = columnMeta.map((item) => item.key);
+  let columnOrder = [...defaultColumnOrder];
   let myDialogsState = {
     new: Array.isArray(INITIAL_MY_DIALOGS.new)
       ? INITIAL_MY_DIALOGS.new.filter((item) => item && typeof item === 'object')
@@ -1356,6 +1364,9 @@
       listOnlyMode: STORAGE_LIST_ONLY_MODE,
       columns: STORAGE_COLUMNS,
       columnOrder: STORAGE_COLUMN_ORDER,
+      columnsVersion: STORAGE_COLUMNS_SCHEMA_VERSION,
+      columnOrderVersion: STORAGE_COLUMN_ORDER_SCHEMA_VERSION,
+      columnSchemaVersion: DIALOG_COLUMNS_SCHEMA_VERSION,
       widths: STORAGE_WIDTHS,
       task: STORAGE_TASK,
     },
@@ -1373,7 +1384,7 @@
         ? nextOrder.map((item) => String(item || '').trim()).filter(Boolean)
         : columnMeta.map((item) => item.key);
     },
-    getDefaultColumnOrder: () => columnMeta.map((item) => item.key),
+    getDefaultColumnOrder: () => defaultColumnOrder,
     getHeaderCells: () => headerCells,
     rowsList,
   }) || null;
@@ -2220,7 +2231,10 @@
   function sanitizeDialogProblemLabel(value) {
     const raw = String(value || '').trim();
     if (!raw) return '—';
-    const cleaned = raw.replace(/^Уточнение после ответов на вопросы(?:[.…!?:-]+|s)*/i, '').trim();
+    const cleaned = raw
+      .replace(/Уточнение после ответов на вопрос(?:ы)?\s*:?\s*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
     return cleaned || '—';
   }
 
@@ -2296,10 +2310,27 @@
           data-responsible-raw="${escapeHtml(responsibleRaw)}"
           data-responsible-avatar-url="${escapeHtml(responsibleAvatarUrl)}"
           data-created-at="${escapeHtml(item?.createdAt || '')}"
+          data-resolved-at="${escapeHtml(item?.resolvedAt || '')}"
           data-unread="${unreadCount}"
           data-rating="${Number.isFinite(ratingValue) ? ratingValue : ''}"
           data-last-message-sender="${escapeHtml(item?.lastMessageSender || '')}"
           data-last-message-timestamp="${escapeHtml(item?.lastMessageTimestamp || '')}">
+        <td class="dialog-actions" data-column-key="actions">
+          <div class="dialog-actions-inline">
+            <a href="${escapeHtml(openHref)}" class="dialog-open-btn dialog-open-icon" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Открыть диалог" title="Открыть диалог"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+            <div class="dialog-actions-dropdown" data-dialog-actions>
+              <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false" aria-label="Действия" title="Действия">⋯</button>
+              <div class="dialog-actions-menu" data-dialog-actions-menu>
+              <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${isResolvedStatusKey(statusKey) || !canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
+              <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>
+              <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
+              <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
+                 data-ticket-id="${escapeHtml(ticketId)}"
+                 data-client="${escapeHtml(clientName)}">Задача</a>
+              </div>
+            </div>
+          </div>
+        </td>
         <td class="dialog-select-column" data-column-key="select">
           <input class="form-check-input dialog-row-select" type="checkbox" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Выбрать диалог">
         </td>
@@ -2343,22 +2374,6 @@
         </td>
         <td class="dialog-sla-cell" data-column-key="sla">
           <span class="badge rounded-pill dialog-sla-badge">—</span>
-        </td>
-        <td class="dialog-actions" data-column-key="actions">
-          <div class="dialog-actions-inline">
-            <a href="${escapeHtml(openHref)}" class="dialog-open-btn dialog-open-icon" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Открыть диалог" title="Открыть диалог"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
-            <div class="dialog-actions-dropdown" data-dialog-actions>
-              <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false" aria-label="Действия" title="Действия">⋯</button>
-              <div class="dialog-actions-menu" data-dialog-actions-menu>
-              <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${isResolvedStatusKey(statusKey) || !canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
-              <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>
-              <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
-              <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
-                 data-ticket-id="${escapeHtml(ticketId)}"
-                 data-client="${escapeHtml(clientName)}">Задача</a>
-              </div>
-            </div>
-          </div>
         </td>
       </tr>
     `;
@@ -4044,11 +4059,6 @@
     });
   }
 
-  if (dialogCompactToggle) {
-    dialogCompactToggle.addEventListener('click', () => {
-      toggleCompactMode();
-    });
-  }
 
   if (dialogListOnlyToggle) {
     dialogListOnlyToggle.addEventListener('click', () => {

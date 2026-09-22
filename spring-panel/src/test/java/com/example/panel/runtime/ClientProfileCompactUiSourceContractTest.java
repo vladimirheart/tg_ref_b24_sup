@@ -15,6 +15,8 @@ class ClientProfileCompactUiSourceContractTest {
     void clientProfileIsCompactAndUsesRequestNumbersWithRicherHistoryPreview() throws IOException {
         String template = read("spring-panel/src/main/resources/templates/clients/profile.html");
         String scss = read("spring-panel/src/main/resources/scss/app/_unified-ui.scss");
+        String clientProfileScss = read("spring-panel/src/main/resources/scss/app/dialogs/_client-profile.scss");
+        String profileModel = read("spring-panel/src/main/java/com/example/panel/model/clients/ClientProfile.java");
         String ticketModel = read("spring-panel/src/main/java/com/example/panel/model/clients/ClientProfileTicket.java");
         String clientsService = read("spring-panel/src/main/java/com/example/panel/service/ClientsService.java");
         String taskList = read("ai-context/tasks/task-list.md");
@@ -35,12 +37,27 @@ class ClientProfileCompactUiSourceContractTest {
             .doesNotContain("📋 Заявки клиента")
             .doesNotContain("<h5 class=\"card-title\">📞 Телефоны клиента</h5>")
             .doesNotContain("<h5 class=\"card-title\">📝 История юзернейма</h5>")
+            .contains("client-period-comparisons")
+            .contains("profile.periodComparisons")
+            .contains("trend.currentCount")
+            .contains("trend.previousCount")
+            .contains("trend.types")
             .doesNotContain("ID заявки:");
+
+        assertThat(clientProfileScss)
+            .contains("/* 01-272 client period comparisons S4 */")
+            .contains(".client-period-comparisons")
+            .contains(".client-period-comparison__type-label");
+
+        assertThat(profileModel)
+            .contains("List<ClientPeriodComparison> periodComparisons")
+            .contains("record ClientPeriodComparison(")
+            .contains("record ClientTypeComparison(");
 
         assertThat(ticketModel).contains("String requestNumber,");
         assertThat(clientsService).contains("m.group_msg_id AS request_number").contains("rs.getString(\"request_number\")");
         assertThat(scss).contains("/* 01-256: compact client profile overview and dialog history preview */").contains(".client-profile-page-header-row").contains(".client-profile-primary-shell").contains(".client-ticket-summary").contains("#clientHistoryModal .client-profile-chat-history");
-        assertThat(taskList).contains("🟢 [01-255] Уплотнить идентификационную шапку диалога и вынести бизнес в центр").contains("🟣 [01-256] Уплотнить карточку клиента и улучшить список/историю обращений");
+        assertThat(taskList).contains("🟢 [01-255] Уплотнить идентификационную шапку диалога и вынести бизнес в центр").contains("🟢 [01-256] Уплотнить карточку клиента и улучшить список/историю обращений");
     }
 
     private String read(String relativePath) throws IOException {

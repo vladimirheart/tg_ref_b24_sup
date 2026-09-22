@@ -63,6 +63,29 @@
                     <div class="client-profile-stat client-profile-stat--rating"><div class="client-profile-stat__label">Средняя оценка диалогов</div><div class="client-profile-stat__value"><span th:text="${profile.averageRating != null ? #numbers.formatDecimal(profile.averageRating, 1, 2) : '—'}">—</span><small class="text-muted"> / 5</small></div></div>
                     <div class="client-profile-stat client-profile-stat--time"><div class="client-profile-stat__label">Затрачено времени</div><div class="client-profile-stat__value" th:text="${profile.stats.formattedTime}">0 мин</div></div>
                 </div>
+                <div class="client-period-comparisons mt-3" aria-label="Динамика обращений WoW MoM YoY">
+                    <article class="client-period-comparison" th:each="trend : ${profile.periodComparisons}" th:attr="data-period-key=${trend.key},title=${trend.currentRange + ' vs ' + trend.previousRange}">
+                        <div class="client-period-comparison__head">
+                            <div class="min-w-0">
+                                <span class="client-period-comparison__label" th:text="${trend.label}">WoW</span>
+                                <span class="client-period-comparison__description" th:text="${trend.description}">Неделя к неделе</span>
+                            </div>
+                            <span class="client-period-comparison__delta" th:classappend="' is-' + ${trend.deltaTone}" th:text="${trend.deltaLabel}">0%</span>
+                        </div>
+                        <div class="client-period-comparison__total">
+                            <strong th:text="${trend.currentCount}">0</strong>
+                            <span th:text="'пред. ' + ${trend.previousCount}">пред. 0</span>
+                        </div>
+                        <div class="client-period-comparison__types" th:if="${!#lists.isEmpty(trend.types)}">
+                            <div class="client-period-comparison__type" th:each="type : ${trend.types}">
+                                <span class="client-period-comparison__type-label" th:text="${type.label}" th:title="${type.label}">Тип</span>
+                                <span class="client-period-comparison__type-values"><strong th:text="${type.currentCount}">0</strong><small th:text="'/' + ${type.previousCount}">/0</small></span>
+                            </div>
+                        </div>
+                        <div class="client-period-comparison__empty" th:if="${#lists.isEmpty(trend.types)}">Нет обращений</div>
+                        <div class="client-period-comparison__legend">сейчас / предыдущий период</div>
+                    </article>
+                </div>
                 <div class="mt-3"><div class="text-muted small text-uppercase fw-semibold">Оценки диалогов</div><div class="rating-chart mt-2"><div class="rating-chart-row" th:each="stat : ${profile.ratingStats}"><div class="rating-chart-label" th:text="${stat.label}">5★</div><div class="rating-chart-bar"><div class="rating-chart-fill" th:style="'width:' + (${profile.ratingTotal} > 0 ? (${stat.count} * 100.0 / ${profile.ratingTotal}) : 0) + '%'"></div></div><div class="rating-chart-value" th:text="${stat.count}">0</div></div></div><div class="text-muted small mt-2" th:text="'Всего оценок: ' + ${profile.ratingTotal}">Всего оценок: 0</div></div>
             </div></div>
         </div>

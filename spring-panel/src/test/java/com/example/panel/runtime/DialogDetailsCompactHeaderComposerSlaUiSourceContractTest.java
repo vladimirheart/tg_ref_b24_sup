@@ -16,7 +16,8 @@ class DialogDetailsCompactHeaderComposerSlaUiSourceContractTest {
     void compactDialogHeaderComposerAndSlaPulseLiveInSourceFiles() throws IOException {
         String template = read("spring-panel/src/main/resources/templates/dialogs/index.html");
         String dialogsJs = read("spring-panel/src/main/resources/static/js/dialogs.js");
-        String dialogsScss = read("spring-panel/src/main/resources/scss/app/_dialogs.scss");
+        String dialogsScssIndex = read("spring-panel/src/main/resources/scss/app/_dialogs.scss");
+        String dialogsDetailsScss = read("spring-panel/src/main/resources/scss/app/dialogs/_details-controls.scss");
         String dialogsActionsRuntime = read("spring-panel/src/main/resources/static/js/dialogs-actions-runtime.js");
         String dialogsDetailsRuntime = read("spring-panel/src/main/resources/static/js/dialogs-details-runtime.js");
         String taskList = read("ai-context/tasks/task-list.md");
@@ -62,7 +63,10 @@ class DialogDetailsCompactHeaderComposerSlaUiSourceContractTest {
             .contains("dialogFontSizePanel.hidden = !shouldOpen")
             .contains("dialogFontSizeValue.textContent = size + ' px'");
 
-        assertThat(dialogsScss)
+        assertThat(dialogsScssIndex)
+            .contains("@import 'dialogs/details-controls';");
+
+        assertThat(dialogsDetailsScss)
             .contains("/* 01-254: compact dialog header, composer controls and SLA pulse */")
             .contains("#dialogDetailsModal .dialog-details-action-icon")
             .contains("#dialogDetailsModal .dialog-font-control-panel")

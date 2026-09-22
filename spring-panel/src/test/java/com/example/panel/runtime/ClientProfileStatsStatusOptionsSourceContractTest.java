@@ -51,7 +51,7 @@ class ClientProfileStatsStatusOptionsSourceContractTest {
             .contains("grid-template-columns: repeat(5, minmax(0, 1fr));");
 
         assertThat(taskList)
-            .contains("🟣 [01-257] Добавить общее время в статистику клиента и восстановить варианты статуса");
+            .contains("🟢 [01-257] Добавить общее время в статистику клиента и восстановить варианты статуса");
     }
 
     private String read(String relativePath) throws IOException {

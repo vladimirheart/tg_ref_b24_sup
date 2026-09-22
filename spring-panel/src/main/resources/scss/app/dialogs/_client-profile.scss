@@ -352,3 +352,124 @@
 
     color: var(--color-text);
 }
+
+/* 01-272 client period comparisons S4 */
+.client-period-comparisons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.client-period-comparison {
+    min-width: 0;
+    padding: 0.65rem 0.7rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-raised);
+}
+
+.client-period-comparison__head,
+.client-period-comparison__total,
+.client-period-comparison__type {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    min-width: 0;
+}
+
+.client-period-comparison__label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.035em;
+}
+
+.client-period-comparison__description,
+.client-period-comparison__legend,
+.client-period-comparison__empty {
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+}
+
+.client-period-comparison__description {
+    display: block;
+    margin-top: 0.05rem;
+}
+
+.client-period-comparison__delta {
+    flex: 0 0 auto;
+    padding: 0.12rem 0.34rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    background: var(--surface-card);
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.client-period-comparison__delta.is-up,
+.client-period-comparison__delta.is-new {
+    border-color: color-mix(in srgb, var(--primary) 34%, var(--color-border));
+    color: var(--primary);
+}
+
+.client-period-comparison__delta.is-down {
+    border-color: color-mix(in srgb, var(--secondary) 38%, var(--color-border));
+    color: var(--secondary);
+}
+
+.client-period-comparison__total {
+    margin-top: 0.45rem;
+}
+
+.client-period-comparison__total strong {
+    font-size: 1.3rem;
+    line-height: 1;
+}
+
+.client-period-comparison__total span {
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+}
+
+.client-period-comparison__types {
+    display: grid;
+    gap: 0.2rem;
+    margin-top: 0.5rem;
+}
+
+.client-period-comparison__type {
+    padding-top: 0.2rem;
+    border-top: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+
+.client-period-comparison__type-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.72rem;
+}
+
+.client-period-comparison__type-values {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.1rem;
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+}
+
+.client-period-comparison__type-values small {
+    color: var(--color-text-muted);
+}
+
+.client-period-comparison__legend {
+    margin-top: 0.42rem;
+}
+
+@media (max-width: 991.98px) {
+    .client-period-comparisons {
+        grid-template-columns: 1fr;
+    }
+}
