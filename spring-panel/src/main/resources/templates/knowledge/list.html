@@ -44,14 +44,35 @@
 
     <div class="card mb-4 kb-import-card ops-section-card" id="notion-import">
         <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
-                <div>
-                    <h2 class="h5 mb-1">Интеграция Notion</h2>
-                    <p class="text-muted mb-0">Подключение по internal integration token и импорт статей выбранных авторов в локальную базу знаний.</p>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                <div class="kb-notion-heading">
+                    <h2 class="h5 mb-0">Интеграция Notion</h2>
+                    <p class="text-muted mb-0" data-content-disclosure-help data-disclosure-label="Об интеграции Notion">Подключение по internal integration token и импорт статей выбранных авторов в локальную базу знаний.</p>
                 </div>
-                <div class="kb-notion-header-actions">
-                    <span class="badge text-bg-light border" th:text="${notionHasToken} ? 'Токен сохранён' : 'Токен не сохранён'"></span>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#notionSettingsModal">Настройки интеграции</button>
+                <div class="kb-notion-header-actions" aria-label="Действия интеграции Notion">
+                    <span class="badge text-bg-light border kb-notion-token-badge" th:text="${notionHasToken} ? 'Токен сохранён' : 'Токен не сохранён'"></span>
+                    <form th:action="@{/knowledge-base/notion/test}" method="post" class="d-inline">
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                        <button class="btn btn-outline-primary btn-sm kb-icon-action" type="submit" title="Проверить подключение" aria-label="Проверить подключение">
+                            <i class="bi bi-plug" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                    <form th:action="@{/knowledge-base/notion/import/preview}" method="post" class="d-inline">
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                        <button class="btn btn-primary btn-sm kb-icon-action" type="submit" title="Импортировать статьи" aria-label="Импортировать статьи">
+                            <i class="bi bi-cloud-download" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                    <form th:action="@{/knowledge-base/notion/sync-changed}" method="post" class="d-inline">
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                        <button class="btn btn-outline-secondary btn-sm kb-icon-action" type="submit" title="Обновить изменённые" aria-label="Обновить изменённые">
+                            <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                    <button class="btn btn-outline-secondary btn-sm kb-settings-action" type="button" data-bs-toggle="modal" data-bs-target="#notionSettingsModal">
+                        <i class="bi bi-gear" aria-hidden="true"></i>
+                        <span>Настройки интеграции</span>
+                    </button>
                 </div>
             </div>
 
@@ -64,39 +85,18 @@
                 <div class="kb-notion-status-card">
                     <div class="kb-notion-status-label">Состояние</div>
                     <div class="kb-notion-status-value" th:text="${notionConfig.enabled} ? 'Интеграция включена' : 'Интеграция выключена'"></div>
-                    <div class="kb-notion-status-meta" th:text="${notionHasToken} ? 'Токен сохранён и готов к проверке.' : 'Сначала добавьте токен в настройках интеграции.'"></div>
+                    <div class="kb-notion-status-meta" tabindex="0" th:title="${notionHasToken} ? 'Токен сохранён и готов к проверке.' : 'Сначала добавьте токен в настройках интеграции.'" th:text="${notionHasToken} ? 'Токен сохранён и готов к проверке.' : 'Сначала добавьте токен в настройках интеграции.'"></div>
                 </div>
                 <div class="kb-notion-status-card">
                     <div class="kb-notion-status-label">Источник</div>
                     <div class="kb-notion-status-value" th:text="${#strings.isEmpty(notionConfig.sourceUrl)} ? 'Не задан' : 'Подключён'"></div>
-                    <div class="kb-notion-status-meta" th:text="${#strings.isEmpty(notionConfig.sourceUrl)} ? 'URL или UUID базы Notion пока не указан.' : notionConfig.sourceUrl"></div>
+                    <div class="kb-notion-status-meta" tabindex="0" th:title="${#strings.isEmpty(notionConfig.sourceUrl)} ? 'URL или UUID базы Notion пока не указан.' : notionConfig.sourceUrl" th:text="${#strings.isEmpty(notionConfig.sourceUrl)} ? 'URL или UUID базы Notion пока не указан.' : notionConfig.sourceUrl"></div>
                 </div>
                 <div class="kb-notion-status-card">
                     <div class="kb-notion-status-label">Фильтр авторов</div>
                     <div class="kb-notion-status-value" th:text="${#strings.isEmpty(notionConfig.authors)} ? 'Без фильтра' : 'Выбранные авторы'"></div>
-                    <div class="kb-notion-status-meta" th:text="${#strings.isEmpty(notionConfig.authors)} ? 'Импорт может брать все подходящие статьи.' : 'Импорт ограничен списком авторов из настроек.'"></div>
+                    <div class="kb-notion-status-meta" tabindex="0" th:title="${#strings.isEmpty(notionConfig.authors)} ? 'Импорт может брать все подходящие статьи.' : 'Импорт ограничен списком авторов из настроек.'" th:text="${#strings.isEmpty(notionConfig.authors)} ? 'Импорт может брать все подходящие статьи.' : 'Импорт ограничен списком авторов из настроек.'"></div>
                 </div>
-            </div>
-
-            <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
-                <form th:action="@{/knowledge-base/notion/test}" method="post" class="d-inline">
-                    <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-                    <button class="btn btn-outline-primary" type="submit">Проверить подключение</button>
-                </form>
-                <form th:action="@{/knowledge-base/notion/import/preview}" method="post" class="d-inline">
-                    <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-                    <button class="btn btn-primary"
-							type="submit">
-						Импортировать статьи
-					</button>
-                </form>
-                <form th:action="@{/knowledge-base/notion/sync-changed}" method="post" class="d-inline">
-                    <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-                    <button class="btn btn-outline-secondary"
-							type="submit">
-						Обновить изменённые
-					</button>
-                </form>
             </div>
 
             <div class="card mt-3 kb-notion-sync-card"

@@ -341,8 +341,9 @@ function buildHeaderInfoDisclosure(element) {
     const toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.className = 'page-header-info__toggle';
-    toggle.setAttribute('aria-label', 'Показать пояснение');
-    toggle.setAttribute('title', 'Показать пояснение');
+    const disclosureLabel = (element.dataset.disclosureLabel || 'Показать пояснение').trim() || 'Показать пояснение';
+    toggle.setAttribute('aria-label', disclosureLabel);
+    toggle.setAttribute('title', disclosureLabel);
     toggle.setAttribute('aria-controls', panelId);
     toggle.setAttribute('aria-expanded', 'false');
     toggle.innerHTML = '<i class="bi bi-info-circle" aria-hidden="true"></i>';
@@ -386,6 +387,17 @@ function buildHeaderInfoDisclosure(element) {
 
     document.querySelectorAll('#channelEditorModal .channel-editor-section').forEach((section) => {
       buildChannelEditorSectionInfo(section);
+    });
+
+    const explicitCandidates = document.querySelectorAll('[data-content-disclosure-help]');
+    explicitCandidates.forEach((element) => {
+      if (shouldSkipElement(element)) {
+        return;
+      }
+      buildDisclosure(element, {
+        minLength: 1,
+        variantClass: 'content-disclosure--inline',
+      });
     });
 
     const cardCandidates = document.querySelectorAll('.card .card-body > .card-text.text-muted');
