@@ -25,7 +25,6 @@
   let changePasswordModalInstance = null;
 
   const PREF_KEY_PIN = 'sidebarPinned';
-  const PREF_KEY_NAV_ORDER = 'sidebarNavOrder';
   const PREF_KEY_NAV_SCROLL = 'sidebarNavScrollTop';
   const NOTIFICATIONS_POLL_INTERVAL_MS = 5000;
   const UNBLOCK_POLL_INTERVAL_MS = 30000;
@@ -325,144 +324,12 @@
   syncSidebarForViewport();
 
   const nav = sidebar.querySelector('.sidebar-nav');
-  const navGroups = nav ? Array.from(nav.querySelectorAll('.sidebar-nav-group[data-nav-group]')) : [];
-  const DEFAULT_ORDER = [
-    'dialogs',
-    'ai-ops',
-    'tasks',
-    'clients',
-    'unblock-requests',
-    'passports',
-    'public',
-    'knowledge',
-    'dashboard',
-    'analytics',
-    'channels',
-    'settings',
-    'users',
-  ];
-  const NAV_TITLE_DEFAULT = '';
-  const NAV_TITLE_EDITING = 'Перетащите пункты, чтобы изменить порядок';
-  const NAV_ORDER_HINT = 'Нажмите на иконку «⇅», чтобы изменить расположение страниц';
-  const resetOrderBtn = document.getElementById('resetSidebarOrderBtn');
-  const editOrderBtn = document.getElementById('editSidebarOrderBtn');
-  let isEditingOrder = false;
-  let orderHintShown = false;
-
-  function getNavLinks() {
-    if (!nav) return [];
-    return Array.from(nav.querySelectorAll('.nav-link[data-page-key]'));
-  }
-
-  function getNavGroupContainers() {
-    if (!navGroups.length) return new Map();
-    const containers = new Map();
-    navGroups.forEach((groupEl) => {
-      const key = groupEl.getAttribute('data-nav-group');
-      if (key) {
-        containers.set(key, groupEl);
-      }
-    });
-    return containers;
-  }
-
-  function sanitizeOrder(order) {
-    if (!nav) return [];
-    const availableKeys = new Set(getNavLinks().map((link) => link.dataset.pageKey));
-    const seen = new Set();
-    const result = [];
-    (Array.isArray(order) ? order : []).forEach((key) => {
-      if (!key || seen.has(key) || !availableKeys.has(key)) return;
-      seen.add(key);
-      result.push(key);
-    });
-    DEFAULT_ORDER.forEach((key) => {
-      if (availableKeys.has(key) && !seen.has(key)) {
-        seen.add(key);
-        result.push(key);
-      }
-    });
-    getNavLinks().forEach((link) => {
-      const key = link.dataset.pageKey;
-      if (key && !seen.has(key)) {
-        seen.add(key);
-        result.push(key);
-      }
-    });
-    return result;
-  }
-
-  function applyOrder(order) {
-    if (!nav) return;
-    const previousScrollTop = nav.scrollTop;
-    const byKey = new Map();
-    getNavLinks().forEach((link) => {
-      byKey.set(link.dataset.pageKey, link);
-    });
-    const groupContainers = getNavGroupContainers();
-    const fallbackFragment = document.createDocumentFragment();
-    sanitizeOrder(order).forEach((key) => {
-      const el = byKey.get(key);
-      if (el) {
-        const groupKey = (el.dataset.navGroup || '').trim();
-        const groupContainer = groupContainers.get(groupKey);
-        if (groupContainer) {
-          groupContainer.appendChild(el);
-        } else {
-          fallbackFragment.appendChild(el);
-        }
-        byKey.delete(key);
-      }
-    });
-    byKey.forEach((el) => {
-      const groupKey = (el.dataset.navGroup || '').trim();
-      const groupContainer = groupContainers.get(groupKey);
-      if (groupContainer) {
-        groupContainer.appendChild(el);
-      } else {
-        fallbackFragment.appendChild(el);
-      }
-    });
-    if (fallbackFragment.childNodes.length) {
-      nav.appendChild(fallbackFragment);
-    }
-    nav.scrollTop = previousScrollTop;
-  }
-
-  function normalizedDefaultOrder() {
-    return sanitizeOrder(DEFAULT_ORDER);
-  }
-
-  function persistCurrentOrder() {
-    if (!nav) return;
-    const current = sanitizeOrder(getNavLinks().map((link) => link.dataset.pageKey));
-    const def = normalizedDefaultOrder();
-    if (JSON.stringify(current) === JSON.stringify(def)) {
-      removePreference(PREF_KEY_NAV_ORDER, 'sidebar-order');
-    } else {
-      setPreference(PREF_KEY_NAV_ORDER, current, 'sidebar-order');
-    }
-  }
-
-  function loadSavedOrder() {
-    try {
-      const parsed = prefApi
-        ? getPreference(PREF_KEY_NAV_ORDER, null)
-        : JSON.parse(String(getPreference(PREF_KEY_NAV_ORDER, 'null')));
-      if (!Array.isArray(parsed)) return null;
-      return sanitizeOrder(parsed);
-    } catch (error) {
-      return null;
-    }
-  }
 
   function restoreNavScrollPosition() {
     if (!nav) return;
     const rawValue = getPreference(PREF_KEY_NAV_SCROLL, '0');
     const scrollTop = Number.parseInt(String(rawValue ?? '0'), 10);
-    if (Number.isFinite(scrollTop) && scrollTop > 0) {
-      nav.scrollTop = scrollTop;
-    }
+    if (Number.isFinite(scrollTop) && scrollTop > 0) nav.scrollTop = scrollTop;
   }
 
   function persistNavScrollPosition() {
@@ -470,169 +337,16 @@
     setPreference(PREF_KEY_NAV_SCROLL, String(nav.scrollTop || 0), 'sidebar-nav-scroll');
   }
 
-  function getDragAfterElement(container, y) {
-    const items = Array.from(container.querySelectorAll('.nav-link[data-page-key]:not(.dragging)'));
-    let closest = { offset: Number.NEGATIVE_INFINITY, element: null };
-    for (const child of items) {
-      const box = child.getBoundingClientRect();
-      const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closest.offset) {
-        closest = { offset, element: child };
-      }
-    }
-    return closest.element;
-  }
-
-  function applyDraggableState(enabled) {
-    if (!nav) return;
-    getNavLinks().forEach((link) => {
-      if (enabled) {
-        link.setAttribute('draggable', 'true');
-        link.classList.add('draggable');
-      } else {
-        link.removeAttribute('draggable');
-        link.classList.remove('draggable', 'dragging');
-      }
-    });
-    nav.classList.toggle('editing-order', Boolean(enabled));
-  }
-
-  let dragEventsAttached = false;
-
-  function setupDragAndDrop() {
-    if (!nav || dragEventsAttached) return;
-    dragEventsAttached = true;
-
-    nav.addEventListener('dragstart', (event) => {
-      if (!isEditingOrder) {
-        event.preventDefault();
-        return;
-      }
-      const link = event.target.closest('.nav-link[data-page-key]');
-      if (!link) return;
-      if (event.dataTransfer) {
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', link.dataset.pageKey || '');
-      }
-      link.classList.add('dragging');
-    });
-
-    nav.addEventListener('dragend', () => {
-      if (!isEditingOrder) return;
-      const dragging = nav.querySelector('.nav-link.dragging');
-      if (dragging) dragging.classList.remove('dragging');
-      persistCurrentOrder();
-    });
-
-    nav.addEventListener('dragover', (event) => {
-      if (!isEditingOrder) return;
-      const dragging = nav.querySelector('.nav-link.dragging');
-      if (!dragging) return;
-      event.preventDefault();
-      const after = getDragAfterElement(nav, event.clientY);
-      if (!after) {
-        nav.appendChild(dragging);
-      } else if (after !== dragging) {
-        nav.insertBefore(dragging, after);
-      }
-    });
-
-    nav.addEventListener('drop', (event) => {
-      if (!isEditingOrder) return;
-      const dragging = nav.querySelector('.nav-link.dragging');
-      if (!dragging) return;
-      event.preventDefault();
-      const after = getDragAfterElement(nav, event.clientY);
-      if (!after) {
-        nav.appendChild(dragging);
-      } else if (after !== dragging) {
-        nav.insertBefore(dragging, after);
-      }
-      persistCurrentOrder();
-    });
-  }
-
-  function updateEditOrderButton() {
-    if (resetOrderBtn) {
-      resetOrderBtn.hidden = !isEditingOrder;
-    }
-    if (editOrderBtn) {
-      const icon = editOrderBtn.querySelector('.icon');
-      if (icon) {
-        icon.textContent = isEditingOrder ? '✔️' : '⇅';
-      }
-      editOrderBtn.classList.toggle('active', isEditingOrder);
-      editOrderBtn.setAttribute('aria-pressed', isEditingOrder ? 'true' : 'false');
-      const label = isEditingOrder ? 'Завершить редактирование порядка' : 'Редактировать порядок';
-      editOrderBtn.setAttribute('aria-label', label);
-      editOrderBtn.setAttribute('title', label);
-    }
-    if (nav) {
-      if (isEditingOrder && NAV_TITLE_EDITING) {
-        nav.setAttribute('title', NAV_TITLE_EDITING);
-      } else {
-        nav.removeAttribute('title');
-      }
-    }
-  }
-
-  function setEditingOrder(enabled) {
-    const nextState = Boolean(enabled);
-    if (isEditingOrder === nextState) return;
-    isEditingOrder = nextState;
-    applyDraggableState(isEditingOrder);
-    updateEditOrderButton();
-    if (isEditingOrder && !orderHintShown) {
-      orderHintShown = true;
-      if (typeof showNotificationToast === 'function') {
-        showNotificationToast(NAV_ORDER_HINT);
-      }
-    }
-    if (!isEditingOrder) {
-      const dragging = nav ? nav.querySelector('.nav-link.dragging') : null;
-      if (dragging) dragging.classList.remove('dragging');
-      persistCurrentOrder();
-    }
-  }
-
   if (nav) {
-    const savedOrder = loadSavedOrder();
-    if (savedOrder && savedOrder.length) {
-      applyOrder(savedOrder);
-    } else {
-      applyOrder(DEFAULT_ORDER);
-    }
     restoreNavScrollPosition();
-    setupDragAndDrop();
-    applyDraggableState(false);
-    updateEditOrderButton();
     nav.addEventListener('scroll', persistNavScrollPosition, { passive: true });
-    if (resetOrderBtn) {
-      resetOrderBtn.addEventListener('click', () => {
-        applyOrder(DEFAULT_ORDER);
-        removePreference(PREF_KEY_NAV_ORDER, 'sidebar-order-reset');
-        persistNavScrollPosition();
-        setEditingOrder(false);
-      });
-    }
-
     nav.addEventListener('click', (event) => {
       const link = event.target.closest('.nav-link');
       if (!link) return;
       persistNavScrollPosition();
-      if (isMobileViewport()) {
-        setMobileOpen(false);
-      }
+      if (isMobileViewport()) setMobileOpen(false);
     });
   }
-
-  if (editOrderBtn) {
-    editOrderBtn.addEventListener('click', () => {
-      setEditingOrder(!isEditingOrder);
-      setActionMenuOpen(false);
-    });
-  }
-
   function togglePasswordMessage(element, message) {
     if (!element) return;
     if (message) {
@@ -822,9 +536,7 @@
       applyState();
       return;
     }
-    if (detail.name === PREF_KEY_NAV_ORDER && nav) {
-      applyOrder(Array.isArray(detail.value) ? detail.value : DEFAULT_ORDER);
-    }
+
   });
 
   const bellWrapper = document.getElementById('notify-bell-wrapper');

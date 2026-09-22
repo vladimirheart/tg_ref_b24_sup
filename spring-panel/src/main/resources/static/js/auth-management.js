@@ -389,6 +389,7 @@
           this.orgStructureDirty = false;
           this.orgStructureSaving = false;
           this.render();
+          this.openRequestedSelfEditor();
         })
         .catch((error) => {
           this.setMessage(error.message || String(error));
@@ -405,6 +406,19 @@
       this.updateOrgStructureControls();
       this.updateCreateControls();
       this.updateDepartmentOptionsFromOrgStructure();
+    }
+
+    openRequestedSelfEditor() {
+      if (this.selfEditorRequestHandled) return;
+      const params = new URLSearchParams(window.location.search || '');
+      if (params.get('editSelf') !== '1') return;
+      const userId = this.state.currentUserId;
+      if (userId == null) return;
+      this.selfEditorRequestHandled = true;
+      this.openUserModal(userId);
+      params.delete('editSelf');
+      const nextSearch = params.toString();
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash || ''}`);
     }
 
     capabilitiesEdit(key) {

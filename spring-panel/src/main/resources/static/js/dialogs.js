@@ -72,7 +72,6 @@
   const sortModeSelect = document.getElementById('dialogSortMode');
   const filtersBtn = document.getElementById('dialogFiltersBtn');
   const columnsBtn = document.getElementById('dialogColumnsBtn');
-  const dialogCompactToggle = document.getElementById('dialogCompactToggle');
   const dialogListOnlyToggle = document.getElementById('dialogListOnlyToggle');
   const hotkeysBtn = document.getElementById('dialogHotkeysBtn');
   const experimentInfoMeta = document.getElementById('dialogExperimentInfoMeta');
@@ -366,18 +365,6 @@
     });
   }
 
-  function applyCompactMode(enabled) {
-    dialogsShellRuntime?.applyCompactMode(enabled);
-  }
-
-  function loadCompactMode() {
-    dialogsShellRuntime?.loadCompactMode();
-  }
-
-  function toggleCompactMode() {
-    dialogsShellRuntime?.toggleCompactMode();
-  }
-
   function applyListOnlyMode(enabled) {
     dialogsShellRuntime?.applyListOnlyMode(enabled);
   }
@@ -390,18 +377,6 @@
     dialogsShellRuntime?.toggleListOnlyMode();
   }
 
-  function exitListOnlyMode(reason = 'dialog_open') {
-    if (!document.body.classList.contains('dialog-list-only-mode')) {
-      return;
-    }
-    dialogsShellRuntime?.applyListOnlyMode(false);
-    try {
-      localStorage.setItem(STORAGE_LIST_ONLY_MODE, '0');
-    } catch (_error) {
-      // ignore storage write errors
-    }
-    debugLog('listOnlyMode.exited', { reason });
-  }
 
   function openTaskCreateSurface(ticketId, clientName) {
     dialogsShellRuntime?.openTaskCreateSurface(ticketId, clientName);
@@ -449,7 +424,6 @@
   const STORAGE_VIEW = 'iguana:dialogs:view';
   const STORAGE_SLA_WINDOW = 'iguana:dialogs:sla-window';
   const STORAGE_SORT_MODE = 'iguana:dialogs:sort-mode';
-  const STORAGE_COMPACT_MODE = 'iguana:dialogs:compact-mode';
   const STORAGE_LIST_ONLY_MODE = 'iguana:dialogs:list-only-mode';
   const DEFAULT_LIST_POLL_INTERVAL_MS = 8000;
   const DEFAULT_HISTORY_POLL_INTERVAL_MS = 8000;
@@ -1122,7 +1096,7 @@
     .filter((item) => item.key);
 
   const defaultColumnState = columnMeta.reduce((acc, item) => {
-    acc[item.key] = true;
+    acc[item.key] = item.key !== 'select';
     return acc;
   }, {});
 
@@ -1264,6 +1238,7 @@
     if (!row) return null;
     row.dataset.dialogMarker = String(item?.dialogMarker || '').trim() || buildDialogItemMarker(item);
     hydrateAvatars(row);
+    applyDialogCompactCellTitles(row);
     return row;
   }
 
@@ -1366,7 +1341,6 @@
     openDialogWithWorkspaceFallback,
     openDialogDetails,
     elements: {
-      dialogCompactToggle,
       dialogListOnlyToggle,
       columnsBtn,
       columnsList,
@@ -1379,7 +1353,6 @@
       table,
     },
     storage: {
-      compactMode: STORAGE_COMPACT_MODE,
       listOnlyMode: STORAGE_LIST_ONLY_MODE,
       columns: STORAGE_COLUMNS,
       columnOrder: STORAGE_COLUMN_ORDER,
@@ -2244,6 +2217,36 @@
     syncDetailsMetricsSlaState();
   }
 
+  function sanitizeDialogProblemLabel(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '—';
+    const cleaned = raw.replace(/^Уточнение после ответов на вопросы(?:[.…!?:-]+|s)*/i, '').trim();
+    return cleaned || '—';
+  }
+
+  function applyDialogCompactCellTitles(row) {
+    if (!row) return;
+    const problem = sanitizeDialogProblemLabel(row.dataset.problem || '');
+    row.dataset.problem = problem === '—' ? '' : problem;
+    const problemText = row.querySelector('[data-column-key="problem"] .dialog-problem-cell');
+    if (problemText) problemText.textContent = problem;
+    const values = {
+      client: [row.dataset.client, row.dataset.clientStatus].filter(Boolean).join(' — '),
+      status: row.dataset.status || '',
+      channel: row.dataset.channel || '',
+      business: row.dataset.business || '',
+      responsible: row.dataset.responsible || '',
+      problem,
+    };
+    Object.entries(values).forEach(([key, value]) => {
+      const cell = row.querySelector(`[data-column-key="${key}"]`);
+      if (!cell) return;
+      const title = String(value || '').trim();
+      if (title && title !== '—') cell.title = title; else cell.removeAttribute('title');
+      cell.classList.add('dialog-compact-cell');
+    });
+  }
+
   function renderDialogRow(item) {
     const ticketId = item?.ticketId || '—';
     const requestNumber = item?.requestNumber;
@@ -2256,7 +2259,8 @@
     const clientStatus = item?.clientStatus || 'статус не указан';
     const channelLabel = item?.channelName || 'Без канала';
     const businessLabel = item?.business || 'Без бизнеса';
-    const problemLabel = item?.problem || 'Проблема не указана';
+    const rawProblemLabel = item?.problem || '';
+    const problemLabel = sanitizeDialogProblemLabel(rawProblemLabel);
     const locationLabel = item?.location || [item?.city, item?.locationName].filter(Boolean).join(', ') || '—';
     const statusRaw = item?.status || '';
     const categories = item?.categoriesSafe || item?.categories || '—';
@@ -2342,7 +2346,7 @@
         </td>
         <td class="dialog-actions" data-column-key="actions">
           <div class="dialog-actions-inline">
-            <a href="${escapeHtml(openHref)}" class="btn btn-sm btn-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
+            <a href="${escapeHtml(openHref)}" class="dialog-open-btn dialog-open-icon" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Открыть диалог" title="Открыть диалог"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
             <div class="dialog-actions-dropdown" data-dialog-actions>
               <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false" aria-label="Действия" title="Действия">⋯</button>
               <div class="dialog-actions-menu" data-dialog-actions-menu>
@@ -3167,7 +3171,6 @@
   }
 
   function openDialogSurface(ticketId, row, options = {}) {
-    exitListOnlyMode(options?.reason || options?.source || 'dialog_open');
     return dialogsShellRuntime?.openDialogSurface(ticketId, row, options) || Promise.resolve();
   }
 
@@ -4430,7 +4433,6 @@
   loadColumnState();
   restoreDialogPreferences();
   loadPageSize();
-  loadCompactMode();
   loadListOnlyMode();
   switchWorkspaceTab('client');
   configureSlaWindowSelect();
@@ -4442,6 +4444,7 @@
   applyColumnOrder();
   applyColumnState();
   applyBusinessCellStyles();
+  rowsList().forEach(applyDialogCompactCellTitles);
   hydrateAvatars(table);
   applyOperatorPermissionGuards();
   renderExperimentInfoPanel();

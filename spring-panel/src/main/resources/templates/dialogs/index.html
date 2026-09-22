@@ -44,8 +44,7 @@
     <div class="page-header-card dialogs-hero dialogs-extra-section page-hero">
         <div class="d-flex flex-wrap justify-content-between gap-3 align-items-end">
             <div>
-                <span class="page-kicker">Центр обращений</span>
-                <h1 class="page-title">Диалоги</h1>
+                <div class="page-header-title-row"><span class="page-kicker">Центр обращений</span><h1 class="page-title">Диалоги</h1></div>
                 <p class="page-subtitle">Единое рабочее место для очереди обращений, SLA и быстрых действий операторов.</p>
             </div>
         </div>
@@ -62,7 +61,6 @@
 				   aria-label="Поиск по обращениям, клиентам и каналам">
                 <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogFiltersModal">Фильтры</button>
                 <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogColumnsModal">Колонки</button>
-                <button class="btn btn-outline-secondary btn-sm" id="dialogCompactToggle" type="button">Компактный режим</button>
                 <a class="btn btn-ai-soft btn-sm" href="/ai-ops">AI Ops</a>
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#dialogToolbarAdvanced" aria-expanded="false" aria-controls="dialogToolbarAdvanced">Ещё параметры</button>
             </div>
@@ -428,7 +426,7 @@
                 <table class="table align-middle dialog-table table-ops" id="dialogsTable">
                     <thead>
                     <tr>
-                        <th class="dialog-select-column">
+                        <th class="dialog-select-column" data-column-key="select">
                             <input class="form-check-input" type="checkbox" id="dialogSelectAll" aria-label="Выбрать все видимые диалоги">
                         </th>
                         <th data-column-key="ticket">№ обращения</th>
@@ -540,8 +538,10 @@
                         <td class="dialog-actions" data-column-key="actions">
                             <div class="dialog-actions-inline">
                                 <a th:href="@{/dialogs/{ticketId}(ticketId=${dialog.ticketId},channelId=${dialog.channelId()})}"
-                                   class="btn btn-sm btn-primary dialog-open-btn"
-                                   th:data-ticket-id="${dialog.ticketId}">Открыть</a>
+                                   class="dialog-open-btn dialog-open-icon"
+                                   th:data-ticket-id="${dialog.ticketId}"
+                                   aria-label="Открыть диалог"
+                                   title="Открыть диалог"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
                                 <div class="dialog-actions-dropdown" data-dialog-actions>
                                     <button type="button"
                                             class="btn btn-sm btn-outline-secondary dialog-actions-toggle"

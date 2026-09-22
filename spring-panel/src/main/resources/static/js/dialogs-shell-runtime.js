@@ -242,47 +242,6 @@
       return String(key || '').trim();
     }
 
-    function applyCompactMode(enabled) {
-      const active = Boolean(enabled);
-      document.body.classList.toggle('dialog-compact-mode', active);
-      const toggle = options.elements?.dialogCompactToggle;
-      if (toggle) {
-        toggle.textContent = active ? 'Обычный режим' : 'Компактный режим';
-        toggle.setAttribute('aria-pressed', active ? 'true' : 'false');
-      }
-    }
-
-    function loadCompactMode() {
-      const storageKey = resolveStorageKey(options.storage?.compactMode);
-      if (!storageKey) {
-        applyCompactMode(true);
-        return;
-      }
-      try {
-        const raw = String(localStorage.getItem(storageKey) || '').trim().toLowerCase();
-        if (!raw) {
-          applyCompactMode(true);
-          localStorage.setItem(storageKey, '1');
-          return;
-        }
-        applyCompactMode(raw === '1' || raw === 'true' || raw === 'on');
-      } catch (_error) {
-        applyCompactMode(true);
-      }
-    }
-
-    function toggleCompactMode() {
-      const next = !document.body.classList.contains('dialog-compact-mode');
-      applyCompactMode(next);
-      const storageKey = resolveStorageKey(options.storage?.compactMode);
-      if (!storageKey) return;
-      try {
-        localStorage.setItem(storageKey, next ? '1' : '0');
-      } catch (_error) {
-        // ignore storage write errors
-      }
-    }
-
     function applyListOnlyMode(enabled) {
       const active = Boolean(enabled);
       document.body.classList.toggle('dialog-list-only-mode', active);
@@ -900,9 +859,6 @@
       getDialogUserId,
       bindAvatar,
       hydrateAvatars,
-      applyCompactMode,
-      loadCompactMode,
-      toggleCompactMode,
       applyListOnlyMode,
       loadListOnlyMode,
       toggleListOnlyMode,

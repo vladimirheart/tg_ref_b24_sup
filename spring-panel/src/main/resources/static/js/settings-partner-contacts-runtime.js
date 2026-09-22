@@ -1449,9 +1449,8 @@
                   <div class="partner-contact-summary-value">${escapeHtml(servedSummaryText)}</div>
                 </div>` : ''}
                 <div class="mt-auto text-end">
-                  <span class="text-primary small d-inline-flex align-items-center gap-1">
-                    Подробнее
-                    <i class="bi bi-arrow-right-short fs-5 mb-0"></i>
+                  <span class="text-primary d-inline-flex align-items-center" aria-hidden="true">
+                    <i class="bi bi-info-circle"></i>
                   </span>
                 </div>
               </div>

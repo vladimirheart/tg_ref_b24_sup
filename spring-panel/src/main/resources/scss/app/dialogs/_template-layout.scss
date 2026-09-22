@@ -225,3 +225,20 @@ body[data-ui-page='dialogs'].dialog-compact-mode .dialog-summary-item {
 body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
     display: none !important;
 }
+
+/* 01-272 dialog list compactness */
+body[data-ui-page='dialogs'] .dialog-table { table-layout: fixed; }
+body[data-ui-page='dialogs'] .dialog-table [data-column-key='client'] { width: 10rem; }
+body[data-ui-page='dialogs'] .dialog-table [data-column-key='status'] { width: 8.5rem; }
+body[data-ui-page='dialogs'] .dialog-table [data-column-key='channel'] { width: 7rem; }
+body[data-ui-page='dialogs'] .dialog-table [data-column-key='business'] { width: 8rem; }
+body[data-ui-page='dialogs'] .dialog-table [data-column-key='responsible'] { width: 9rem; }
+body[data-ui-page='dialogs'] .dialog-table [data-column-key='actions'] { width: 3rem; }
+body[data-ui-page='dialogs'] .dialog-compact-cell,
+body[data-ui-page='dialogs'] .dialog-compact-cell > *,
+body[data-ui-page='dialogs'] .dialog-client-meta,
+body[data-ui-page='dialogs'] .dialog-responsible-name,
+body[data-ui-page='dialogs'] .dialog-business-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body[data-ui-page='dialogs'] .dialog-actions-inline { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+body[data-ui-page='dialogs'] .dialog-open-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; border-radius: var(--radius-md); color: var(--primary); text-decoration: none; }
+body[data-ui-page='dialogs'] .dialog-open-icon:hover, body[data-ui-page='dialogs'] .dialog-open-icon:focus-visible { background: var(--surface-selected); }

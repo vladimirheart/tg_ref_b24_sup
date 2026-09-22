@@ -638,12 +638,19 @@
     border-top: 1px solid var(--color-border);
 }
 
-[data-ui-page='passports'].passport-detail-page .passport-asset-details summary {
-    padding-top: 0.45rem;
+[data-ui-page='passports'].passport-detail-page .passport-asset-details > .passport-asset-details__toggle {
+    margin-top: 0.45rem;
+    padding: 0;
+    list-style: none;
     cursor: pointer;
-    color: var(--primary);
-    font-size: 0.7rem;
-    font-weight: 700;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-asset-details > .passport-asset-details__toggle::marker {
+    content: '';
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-asset-details > .passport-asset-details__toggle::-webkit-details-marker {
+    display: none;
 }
 
 [data-ui-page='passports'].passport-detail-page .passport-asset-details__grid {
