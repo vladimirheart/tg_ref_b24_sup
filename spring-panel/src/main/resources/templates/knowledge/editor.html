@@ -9,205 +9,299 @@
     <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
     <link rel="stylesheet" th:href="@{/css/style.css}">
-	<link rel="stylesheet" th:href="@{/css/app.css}">
-	<link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="knowledge">
 <div th:replace="~{fragments/navbar :: navbar('knowledge')}"></div>
 <main class="main-content container-fluid py-4 page-shell ops-page-shell">
-    <div class="row g-4">
-        <div class="col-12 col-xl-8">
+    <div class="row g-3 kb-article-layout">
+        <div class="col-12 col-xl-9">
             <div class="card kb-editor-main ops-section-card">
-                <div class="card-body p-4">
-                    <div class="alert mb-4"
+                <div class="card-body kb-article-card-body">
+                    <div class="alert mb-3"
                          th:if="${message != null and !message.isBlank()}"
                          th:classappend="${messageType} == 'danger' ? ' alert-danger' : ' alert-success'"
                          th:text="${message}"></div>
 
-                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
-                        <div>
-                            <h1 class="h4 mb-2" th:text="${article.title != null and !article.title.isBlank()} ? ${article.title} : 'Новая статья'"></h1>
-                            <p class="text-muted mb-0" th:if="${article.updatedAt != null}" th:text="'Обновлено: ' + ${article.updatedAt}"></p>
+                    <div class="kb-article-heading">
+                        <div class="kb-article-heading__main">
+                            <a class="kb-article-back" th:href="@{/knowledge-base}" aria-label="К списку статей" title="К списку статей">
+                                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                            </a>
+                            <div class="kb-article-heading__text">
+                                <h1 class="h4 mb-0" th:text="${article.title != null and !article.title.isBlank()} ? ${article.title} : 'Новая статья'"></h1>
+                                <div class="kb-article-facts" th:if="${article.id != null}">
+                                    <span class="kb-article-fact" th:if="${article.author != null and !article.author.isBlank()}" th:title="${article.author}">
+                                        <span class="kb-article-fact__label">Автор</span>
+                                        <span class="kb-article-fact__value" th:text="${article.author}"></span>
+                                    </span>
+                                    <span class="kb-article-fact" th:if="${article.status != null and !article.status.isBlank()}" th:title="${article.status}">
+                                        <span class="kb-article-fact__label">Статус</span>
+                                        <span class="kb-article-fact__value text-capitalize" th:text="${article.status}"></span>
+                                    </span>
+                                    <span class="kb-article-fact" th:if="${article.department != null and !article.department.isBlank()}" th:title="${article.department}">
+                                        <span class="kb-article-fact__label">Подразделение</span>
+                                        <span class="kb-article-fact__value" th:text="${article.department}"></span>
+                                    </span>
+                                    <span class="kb-article-fact" th:if="${article.externalSource != null and !article.externalSource.isBlank()}" th:title="${article.externalSource}">
+                                        <span class="kb-article-fact__label">Источник</span>
+                                        <span class="kb-article-fact__value text-capitalize" th:text="${article.externalSource}"></span>
+                                    </span>
+                                    <span class="kb-article-fact" th:if="${article.updatedAt != null}" th:title="${article.updatedAt}">
+                                        <span class="kb-article-fact__label">Обновлена</span>
+                                        <span class="kb-article-fact__value" th:text="${article.updatedAt}"></span>
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="d-flex flex-wrap gap-2">
+
+                        <div class="kb-article-heading__actions">
                             <form th:if="${article.id != null and article.externalSource == 'notion' and article.externalId != null and !article.externalId.isBlank()}"
                                   th:action="@{'/knowledge-base/' + ${article.id} + '/sync-notion'}"
                                   method="post"
-                                  class="d-inline">
+                                  class="d-inline-flex">
                                 <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-                                <button class="btn btn-outline-secondary"
-										type="submit">
-									Обновить из Notion
-								</button>
+                                <button class="btn btn-outline-secondary kb-icon-action"
+                                        type="submit"
+                                        aria-label="Обновить из Notion"
+                                        title="Обновить из Notion">
+                                    <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                                </button>
                             </form>
-                            <button class="btn btn-outline-secondary"
+                            <button class="btn btn-outline-secondary kb-icon-action"
                                     type="button"
                                     id="knowledgeArticleEditToggle"
+                                    th:if="${article.id != null}"
                                     aria-expanded="false"
-                                    aria-controls="knowledgeArticleEditPanel">
-                                Редактировать markdown
+                                    aria-controls="knowledgeArticleEditor"
+                                    aria-label="Редактировать статью"
+                                    title="Редактировать статью">
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
 
-                    <div class="row g-3 mb-4 kb-editor-meta" th:if="${article.id != null}">
-                        <div class="col-sm-6 col-lg-4" th:if="${article.author != null and !article.author.isBlank()}">
-                            <div class="kb-editor-meta-card h-100">
-                                <div class="text-muted small mb-1">Автор</div>
-                                <div class="fw-semibold" th:text="${article.author}"></div>
-                            </div>
-                        </div>
-                        <div class="col-sm-6 col-lg-4" th:if="${article.status != null and !article.status.isBlank()}">
-                            <div class="kb-editor-meta-card h-100">
-                                <div class="text-muted small mb-1">Статус</div>
-                                <div class="fw-semibold text-capitalize" th:text="${article.status}"></div>
-                            </div>
-                        </div>
-                        <div class="col-sm-6 col-lg-4" th:if="${article.department != null and !article.department.isBlank()}">
-                            <div class="kb-editor-meta-card h-100">
-                                <div class="text-muted small mb-1">Подразделение</div>
-                                <div class="fw-semibold" th:text="${article.department}"></div>
-                            </div>
-                        </div>
-                        <div class="col-sm-6 col-lg-4" th:if="${article.externalSource != null and !article.externalSource.isBlank()}">
-                            <div class="kb-editor-meta-card h-100">
-                                <div class="text-muted small mb-1">Источник</div>
-                                <div class="fw-semibold text-capitalize" th:text="${article.externalSource}"></div>
-                            </div>
-                        </div>
-                        <div class="col-sm-6 col-lg-4" th:if="${article.externalUpdatedAt != null}">
-                            <div class="kb-editor-meta-card h-100">
-                                <div class="text-muted small mb-1">Обновлено в источнике</div>
-                                <div class="fw-semibold" th:text="${article.externalUpdatedAt}"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="kb-source-panel mb-4"
-						 th:if="${article.externalSource == 'notion'
-							 and article.externalId != null
-							 and !article.externalId.isBlank()}">
-                        <div class="fw-semibold mb-1">Связь с Notion</div>
-                        <div class="small text-muted mb-2"><span class="kb-source-chip" th:text="'External ID: ' + ${article.externalId}"></span></div>
-                        <a class="small text-decoration-none"
+                    <div class="kb-source-line"
+                         th:if="${article.externalSource == 'notion' and article.externalId != null and !article.externalId.isBlank()}">
+                        <span class="kb-source-chip" th:title="${article.externalId}" th:text="'Notion · ' + ${article.externalId}"></span>
+                        <a class="kb-source-link"
                            th:if="${article.externalUrl != null and !article.externalUrl.isBlank()}"
                            th:href="${article.externalUrl}"
                            target="_blank"
-                           rel="noopener noreferrer">Открыть исходную страницу в Notion</a>
+                           rel="noopener noreferrer"
+                           aria-label="Открыть исходную страницу в Notion"
+                           title="Открыть исходную страницу в Notion">
+                            <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                            <span>Источник</span>
+                        </a>
+                        <span class="kb-source-updated" th:if="${article.externalUpdatedAt != null}" th:text="'Обновлено в Notion: ' + ${article.externalUpdatedAt}"></span>
                     </div>
 
-                    <div class="card kb-article-content-card">
-                        <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-                                <h2 class="h6 mb-0">Содержимое статьи</h2>
-                                <span class="badge text-bg-light">Rendered Markdown</span>
+                    <form th:action="@{/knowledge-base/articles}"
+                          method="post"
+                          class="needs-validation kb-article-editor-form"
+                          novalidate
+                          id="knowledgeArticleForm"
+                          data-markdown-editor-form>
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                        <input type="hidden" name="id" th:value="${article.id}">
+
+                        <div class="kb-markdown-editor"
+                             id="knowledgeArticleEditor"
+                             data-markdown-editor
+                             th:attr="data-editor-autostart=${article.id == null ? 'true' : 'false'}">
+
+                            <div class="kb-markdown-editor-toolbar" data-markdown-toolbar hidden>
+                                <div class="kb-markdown-editor-toolbar__group" role="group" aria-label="Тип блока">
+                                    <select class="kb-editor-block-select" data-editor-block-select aria-label="Тип текущего блока" title="Тип текущего блока">
+                                        <option value="p">Текст</option>
+                                        <option value="h1">Заголовок 1</option>
+                                        <option value="h2">Заголовок 2</option>
+                                        <option value="h3">Заголовок 3</option>
+                                        <option value="ul">Маркированный список</option>
+                                        <option value="ol">Нумерованный список</option>
+                                        <option value="blockquote">Цитата</option>
+                                        <option value="pre">Код</option>
+                                    </select>
+                                </div>
+                                <div class="kb-markdown-editor-toolbar__group" role="group" aria-label="История">
+                                    <button type="button" class="kb-editor-tool" data-editor-command="undo" aria-label="Отменить" title="Отменить">
+                                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="kb-editor-tool" data-editor-command="redo" aria-label="Повторить" title="Повторить">
+                                        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <div class="kb-markdown-editor-toolbar__group" role="group" aria-label="Форматирование текста">
+                                    <button type="button" class="kb-editor-tool" data-editor-command="bold" aria-label="Жирный" title="Жирный" aria-pressed="false">
+                                        <i class="bi bi-type-bold" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="kb-editor-tool" data-editor-command="italic" aria-label="Курсив" title="Курсив" aria-pressed="false">
+                                        <i class="bi bi-type-italic" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="kb-editor-tool" data-editor-command="strikeThrough" aria-label="Зачёркнутый" title="Зачёркнутый" aria-pressed="false">
+                                        <i class="bi bi-type-strikethrough" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="kb-editor-tool" data-editor-command="removeFormat" aria-label="Очистить форматирование" title="Очистить форматирование">
+                                        <i class="bi bi-eraser" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <div class="kb-markdown-editor-toolbar__group" role="group" aria-label="Списки и блоки">
+                                    <button type="button" class="kb-editor-tool" data-editor-command="insertUnorderedList" aria-label="Маркированный список" title="Маркированный список" aria-pressed="false">
+                                        <i class="bi bi-list-ul" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="kb-editor-tool" data-editor-command="insertOrderedList" aria-label="Нумерованный список" title="Нумерованный список" aria-pressed="false">
+                                        <i class="bi bi-list-ol" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="kb-editor-tool" data-editor-command="formatBlock" data-editor-value="blockquote" aria-label="Цитата" title="Цитата" aria-pressed="false">
+                                        <i class="bi bi-quote" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="kb-editor-tool" data-editor-command="formatBlock" data-editor-value="pre" aria-label="Блок кода" title="Блок кода" aria-pressed="false">
+                                        <i class="bi bi-code-slash" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <div class="kb-markdown-editor-toolbar__group" role="group" aria-label="Ссылки">
+                                    <button type="button" class="kb-editor-tool" data-editor-command="createLink" aria-label="Добавить ссылку" title="Добавить ссылку" aria-pressed="false">
+                                        <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="kb-editor-tool" data-editor-command="unlink" aria-label="Удалить ссылку" title="Удалить ссылку">
+                                        <i class="bi bi-link" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <span class="kb-editor-slash-hint" title="Введите / в начале блока, чтобы открыть меню блоков"><kbd>/</kbd> блоки</span>
+                                <div class="kb-markdown-editor-toolbar__spacer"></div>
+                                <div class="kb-markdown-editor-toolbar__actions">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-editor-cancel>
+                                        Отмена
+                                    </button>
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-check2 me-1" aria-hidden="true"></i>Сохранить
+                                    </button>
+                                </div>
                             </div>
-                            <div class="knowledge-markdown"
-                                 th:if="${article.contentHtml != null and !article.contentHtml.isBlank()}"
-                                 th:utext="${article.contentHtml}"></div>
-                            <p class="text-muted mb-0"
-                               th:if="${article.contentHtml == null or article.contentHtml.isBlank()}">
-                                После импорта или сохранения статьи здесь появится отформатированный текст без markdown-тегов.
-                            </p>
-                        </div>
-                    </div>
 
-                    <div class="collapse mt-4"
-							 id="knowledgeArticleEditPanel">
-							<div class="card kb-edit-source-card">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-                                    <div>
-                                        <h2 class="h6 mb-1">Редактирование исходника</h2>
-                                        <p class="text-muted small mb-0">Markdown хранится как source, но в обычном просмотре статья показывается уже в отрендеренном виде.</p>
+                            <div class="kb-editor-bubble" data-editor-bubble hidden role="toolbar" aria-label="Форматирование выделенного текста">
+                                <select class="kb-editor-block-select kb-editor-block-select--bubble" data-editor-block-select aria-label="Тип текущего блока" title="Тип текущего блока">
+                                    <option value="p">Текст</option>
+                                    <option value="h1">H1</option>
+                                    <option value="h2">H2</option>
+                                    <option value="h3">H3</option>
+                                    <option value="ul">Список</option>
+                                    <option value="ol">Нум. список</option>
+                                    <option value="blockquote">Цитата</option>
+                                    <option value="pre">Код</option>
+                                </select>
+                                <span class="kb-editor-bubble__divider" aria-hidden="true"></span>
+                                <button type="button" class="kb-editor-tool" data-editor-command="bold" aria-label="Жирный" title="Жирный" aria-pressed="false"><i class="bi bi-type-bold" aria-hidden="true"></i></button>
+                                <button type="button" class="kb-editor-tool" data-editor-command="italic" aria-label="Курсив" title="Курсив" aria-pressed="false"><i class="bi bi-type-italic" aria-hidden="true"></i></button>
+                                <button type="button" class="kb-editor-tool" data-editor-command="strikeThrough" aria-label="Зачёркнутый" title="Зачёркнутый" aria-pressed="false"><i class="bi bi-type-strikethrough" aria-hidden="true"></i></button>
+                                <button type="button" class="kb-editor-tool" data-editor-command="createLink" aria-label="Добавить ссылку" title="Добавить ссылку" aria-pressed="false"><i class="bi bi-link-45deg" aria-hidden="true"></i></button>
+                            </div>
+
+                            <div class="kb-editor-slash-menu" data-editor-slash-menu hidden role="listbox" aria-label="Вставить или преобразовать блок">
+                                <div class="kb-editor-slash-menu__title">Блоки</div>
+                                <button type="button" class="kb-editor-slash-option" data-editor-slash-type="p" data-editor-slash-keywords="text plain текст абзац" role="option"><span class="kb-editor-slash-option__icon">T</span><span><strong>Текст</strong><small>Обычный текстовый блок</small></span></button>
+                                <button type="button" class="kb-editor-slash-option" data-editor-slash-type="h1" data-editor-slash-keywords="h1 heading заголовок 1" role="option"><span class="kb-editor-slash-option__icon">H1</span><span><strong>Заголовок 1</strong><small>Крупный заголовок</small></span></button>
+                                <button type="button" class="kb-editor-slash-option" data-editor-slash-type="h2" data-editor-slash-keywords="h2 heading заголовок 2" role="option"><span class="kb-editor-slash-option__icon">H2</span><span><strong>Заголовок 2</strong><small>Заголовок раздела</small></span></button>
+                                <button type="button" class="kb-editor-slash-option" data-editor-slash-type="h3" data-editor-slash-keywords="h3 heading заголовок 3" role="option"><span class="kb-editor-slash-option__icon">H3</span><span><strong>Заголовок 3</strong><small>Подзаголовок</small></span></button>
+                                <button type="button" class="kb-editor-slash-option" data-editor-slash-type="ul" data-editor-slash-keywords="bullet list список маркер маркированный" role="option"><span class="kb-editor-slash-option__icon"><i class="bi bi-list-ul" aria-hidden="true"></i></span><span><strong>Маркированный список</strong><small>Список с маркерами</small></span></button>
+                                <button type="button" class="kb-editor-slash-option" data-editor-slash-type="ol" data-editor-slash-keywords="number numbered num список нумерованный" role="option"><span class="kb-editor-slash-option__icon"><i class="bi bi-list-ol" aria-hidden="true"></i></span><span><strong>Нумерованный список</strong><small>Последовательность шагов</small></span></button>
+                                <button type="button" class="kb-editor-slash-option" data-editor-slash-type="blockquote" data-editor-slash-keywords="quote цитата" role="option"><span class="kb-editor-slash-option__icon"><i class="bi bi-quote" aria-hidden="true"></i></span><span><strong>Цитата</strong><small>Выделенный текстовый блок</small></span></button>
+                                <button type="button" class="kb-editor-slash-option" data-editor-slash-type="pre" data-editor-slash-keywords="code код pre" role="option"><span class="kb-editor-slash-option__icon"><i class="bi bi-code-slash" aria-hidden="true"></i></span><span><strong>Код</strong><small>Моноширинный блок</small></span></button>
+                                <button type="button" class="kb-editor-slash-option" data-editor-slash-type="hr" data-editor-slash-keywords="divider line разделитель линия hr" role="option"><span class="kb-editor-slash-option__icon">—</span><span><strong>Разделитель</strong><small>Горизонтальная линия</small></span></button>
+                            </div>
+
+                            <div class="kb-editor-fields" data-editor-fields hidden>
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <label class="form-label">Заголовок</label>
+                                        <input class="form-control" type="text" name="title" th:value="${article.title}" required>
+                                    </div>
+                                    <div class="col-md-6 col-xl-4">
+                                        <label class="form-label">Подразделение</label>
+                                        <input class="form-control" type="text" name="department" th:value="${article.department}">
+                                    </div>
+                                    <div class="col-md-6 col-xl-4">
+                                        <label class="form-label">Тип статьи</label>
+                                        <input class="form-control" type="text" name="articleType" th:value="${article.articleType}">
+                                    </div>
+                                    <div class="col-md-6 col-xl-4">
+                                        <label class="form-label">Статус</label>
+                                        <select class="form-select" name="status">
+                                            <option value="draft" th:selected="${article.status} == 'draft'">Черновик</option>
+                                            <option value="published" th:selected="${article.status} == 'published'">Опубликована</option>
+                                            <option value="archived" th:selected="${article.status} == 'archived'">Архив</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-xl-4">
+                                        <label class="form-label">Автор</label>
+                                        <input class="form-control" type="text" name="author" th:value="${article.author}">
+                                    </div>
+                                    <div class="col-md-6 col-xl-4">
+                                        <label class="form-label">Направление</label>
+                                        <input class="form-control" type="text" name="direction" th:value="${article.direction}">
+                                    </div>
+                                    <div class="col-md-6 col-xl-4">
+                                        <label class="form-label">Поднаправление</label>
+                                        <input class="form-control" type="text" name="directionSubtype" th:value="${article.directionSubtype}">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Краткое описание</label>
+                                        <textarea class="form-control" name="summary" rows="2" th:text="${article.summary}"></textarea>
                                     </div>
                                 </div>
-                                <form th:action="@{/knowledge-base/articles}" method="post" class="needs-validation" novalidate>
-                                    <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-                                    <input type="hidden" name="id" th:value="${article.id}">
-
-                                    <div class="row g-3">
-                                        <div class="col-12">
-                                            <label class="form-label">Заголовок</label>
-                                            <input class="form-control" type="text" name="title" th:value="${article.title}" required>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Подразделение</label>
-                                            <input class="form-control" type="text" name="department" th:value="${article.department}">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Тип статьи</label>
-                                            <input class="form-control" type="text" name="articleType" th:value="${article.articleType}">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Статус</label>
-                                            <select class="form-select" name="status">
-                                                <option value="draft" th:selected="${article.status} == 'draft'">Черновик</option>
-                                                <option value="published" th:selected="${article.status} == 'published'">Опубликована</option>
-                                                <option value="archived" th:selected="${article.status} == 'archived'">Архив</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Автор</label>
-                                            <input class="form-control" type="text" name="author" th:value="${article.author}">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Направление</label>
-                                            <input class="form-control" type="text" name="direction" th:value="${article.direction}">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Поднаправление</label>
-                                            <input class="form-control" type="text" name="directionSubtype" th:value="${article.directionSubtype}">
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">Краткое описание</label>
-                                            <textarea class="form-control" name="summary" rows="3" th:text="${article.summary}"></textarea>
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label">Markdown source</label>
-                                            <textarea class="form-control font-monospace" name="content" rows="18" th:text="${article.content}"></textarea>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-flex justify-content-end mt-4">
-                                        <button class="btn btn-primary" type="submit">Сохранить</button>
-                                    </div>
-                                </form>
                             </div>
+
+                            <div class="kb-article-surface" data-editor-surface-shell>
+                                <div class="knowledge-markdown kb-markdown-editor-surface"
+                                     data-markdown-surface
+                                     data-placeholder="Начните писать статью…"
+                                     th:utext="${article.contentHtml}"></div>
+                            </div>
+
+                            <textarea name="content"
+                                      data-markdown-source
+                                      hidden
+                                      th:text="${article.content}"></textarea>
                         </div>
-                    </div>
+                    </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-xl-4">
-            <div class="card mb-4 kb-editor-side ops-section-card">
+        <div class="col-12 col-xl-3">
+            <div class="card mb-4 kb-editor-side kb-editor-side--sticky ops-section-card">
                 <div class="card-header kb-editor-side__header fw-semibold">Вложения</div>
                 <div class="card-body">
                     <p class="text-muted" th:if="${#lists.isEmpty(article.attachments)}">Нет загруженных файлов.</p>
                     <ul class="list-group kb-attachment-list" th:if="${!#lists.isEmpty(article.attachments)}">
                         <li class="list-group-item d-flex justify-content-between align-items-start" th:each="file : ${article.attachments}">
-                            <div class="me-2">
-                                <div class="fw-semibold" th:text="${file.originalName}"></div>
+                            <div class="me-2 min-w-0">
+                                <div class="fw-semibold text-truncate" th:title="${file.originalName}" th:text="${file.originalName}"></div>
                                 <small class="text-muted" th:text="${file.mimeType} ?: 'файл'"></small>
                             </div>
                             <div class="d-flex flex-column align-items-end gap-2">
                                 <span class="badge text-bg-light" th:text="${file.size} != null ? ${#numbers.formatDecimal(file.size / 1024.0, 0, 'NONE', 1, 'HALF_UP')} + ' КБ' : ''"></span>
-                                <a class="btn btn-sm btn-outline-secondary"
-                                   th:href="@{/api/attachments/knowledge-base/{fileId}(fileId=${file.storedPath})}">
-                                    Скачать
+                                <a class="btn btn-sm btn-outline-secondary kb-icon-action"
+                                   th:href="@{/api/attachments/knowledge-base/{fileId}(fileId=${file.storedPath})}"
+                                   aria-label="Скачать вложение"
+                                   title="Скачать вложение">
+                                    <i class="bi bi-download" aria-hidden="true"></i>
                                 </a>
                             </div>
                         </li>
                     </ul>
                     <form th:action="@{/knowledge-base/attachments}"
-							  method="post"
-							  enctype="multipart/form-data"
-							  class="mt-3 kb-attachment-upload">
+                          method="post"
+                          enctype="multipart/form-data"
+                          class="mt-3 kb-attachment-upload">
                         <input type="hidden" name="_csrf" th:value="${_csrf.token}">
                         <div class="input-group">
                             <input class="form-control" type="file" name="file" required>
-                            <button class="btn btn-outline-secondary" type="submit">Загрузить</button>
+                            <button class="btn btn-outline-secondary kb-icon-action" type="submit" aria-label="Загрузить файл" title="Загрузить файл">
+                                <i class="bi bi-upload" aria-hidden="true"></i>
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -216,33 +310,6 @@
     </div>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const toggle = document.getElementById('knowledgeArticleEditToggle');
-    const panel = document.getElementById('knowledgeArticleEditPanel');
-    if (!toggle || !panel) {
-        return;
-    }
-
-    const syncState = (expanded) => {
-        toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    };
-
-    toggle.addEventListener('click', (event) => {
-        event.preventDefault();
-        if (window.bootstrap && window.bootstrap.Collapse) {
-            window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false }).toggle();
-            syncState(!panel.classList.contains('show'));
-            return;
-        }
-        const expanded = !panel.classList.contains('show');
-        panel.classList.toggle('show', expanded);
-        syncState(expanded);
-    });
-
-    panel.addEventListener('shown.bs.collapse', () => syncState(true));
-    panel.addEventListener('hidden.bs.collapse', () => syncState(false));
-});
-</script>
+<script th:src="@{/js/markdown-visual-editor.js(v='20260922-01-272-s6-r3')}"></script>
 </body>
 </html>

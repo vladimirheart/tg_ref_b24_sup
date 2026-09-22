@@ -1,7 +1,5 @@
 package com.example.panel.entity;
 
-import com.example.panel.converter.LenientOffsetDateTimeConverter;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -48,13 +46,10 @@ public class KnowledgeArticle {
 
     private String externalUrl;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime externalUpdatedAt;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime createdAt;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime updatedAt;
 
     public Long getId() {
