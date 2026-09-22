@@ -73,6 +73,34 @@ get_setting_value() {
   printf ''
 }
 
+resolve_compose_project_name() {
+  local configured
+  configured="$(get_setting_value "COMPOSE_PROJECT_NAME")"
+  if [[ -n "${configured}" ]]; then
+    printf '%s' "${configured}"
+    return 0
+  fi
+  basename "${REPO_ROOT}"
+}
+
+assert_no_legacy_static_bot_containers_running() {
+  local project
+  project="$(resolve_compose_project_name)"
+  local running=()
+  local service
+  for service in bot-telegram bot-vk bot-max; do
+    if [[ -n "$(docker ps -q --filter "label=com.docker.compose.project=${project}" --filter "label=com.docker.compose.service=${service}" | tr -d '\r')" ]]; then
+      running+=("${service}")
+    fi
+  done
+  if [[ ${#running[@]} -gt 0 ]]; then
+    local joined
+    joined="$(IFS=', '; printf '%s' "${running[*]}")"
+    echo "[ERROR] Production startup blocked: emergency legacy static bot services are running: ${joined}. Stop them with scripts/docker-production-legacy-bots.sh before starting bot-runner." >&2
+    exit 20
+  fi
+}
+
 resolve_replica_count() {
   local explicit="$1"
   local setting="$2"
@@ -409,6 +437,8 @@ if [[ "${VALIDATE_ONLY}" == "1" ]]; then
   echo "[INFO] Backup enabled: ${BACKUP}"
   exit 0
 fi
+
+assert_no_legacy_static_bot_containers_running
 
 ARGS=("${BASE_ARGS[@]}" up --remove-orphans --scale "panel-web=${WEB_REPLICAS}" --scale "ops-worker=${WORKER_REPLICAS}" --scale "bot-runner=1")
 [[ "${BUILD}" == "1" ]] && ARGS+=(--build)

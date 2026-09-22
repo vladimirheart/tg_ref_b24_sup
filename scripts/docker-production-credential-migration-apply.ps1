@@ -876,6 +876,11 @@ function Get-ComposeFilesForServices {
     $files = New-Object 'System.Collections.Generic.List[string]'
     $files.Add((Join-Path $RepoRoot "docker-compose.production-contour.yml"))
 
+    $legacyStaticServices = @("bot-telegram", "bot-vk", "bot-max")
+    if ($RunningServices | Where-Object { $legacyStaticServices -contains $_ }) {
+        $files.Add((Join-Path $RepoRoot "docker-compose.production-legacy-bots.yml"))
+    }
+
     $observabilityServices = @(
         "postgres-exporter",
         "redis-exporter",

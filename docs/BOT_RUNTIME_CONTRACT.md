@@ -125,7 +125,7 @@ Production-ready contract считается выполненным, когда:
 
 - `bot-runner` должен иметь ровно одну реплику; `panel-web` и `ops-worker` масштабируются независимо.
 - Для Telegram Redis lease строится по SHA-256 fingerprint токена; для MAX/VK ownership привязан к channel. Это исключает логирование token в coordination keys.
-- Нельзя параллельно запускать static profile `bot-telegram`, `bot-vk` или `bot-max` с dynamic supervisor для того же канала: два consumer приведут к duplicate ingress, а Telegram вернёт `409 Conflict`.
+- Canonical production compose не содержит static `bot-telegram`, `bot-vk` или `bot-max`. Emergency compatibility services находятся только в `docker-compose.production-legacy-bots.yml`; guarded helper отказывает в start при работающем `bot-runner` и откатывает legacy start, если runner появляется конкурентно.
 - Child runtimes обращаются к internal panel API по `http://panel-web:8080`. Клиент повторяет только временные transport failures и HTTP `5xx`, с ограничением существующими `retry-attempts` и `retry-backoff`; write requests сохраняют один idempotency key.
 - Ручные `start/stop` из web UI не создают child JVM в `panel-web`: web-роль отправляет signed + idempotent internal command на `http://bot-runner:8080/internal/api/bot/runtime/{channelId}/{action}` и принимает результат только при совпадающих `commandId`, `channelId`, `action` и непустом `runnerInstanceId`.
 - Internal lifecycle endpoint выполняет команду только в роли `bot-runner` (или локальной `all`), поэтому ownership процесса остаётся single-owner.
@@ -144,4 +144,4 @@ Production-ready contract считается выполненным, когда:
 
 - Нужен полноценный automated end-to-end process contract test: создать несколько каналов, проверить запуск, остановку и замену token без duplicate lease.
 - Перед каждым go-live остаётся обязательной ручная проверка доставки входящего текста и media в каждом реально подключённом внешнем канале.
-- Static compatibility profiles следует удалить после того, как будет доказан аварийный recovery path через dynamic supervisor.
+- Emergency static compatibility contour остаётся ручным recovery-инструментом и должен сохранять source-contract coverage для pre/post ownership guard.

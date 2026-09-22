@@ -76,7 +76,7 @@ docker compose -f docker-compose.production-contour.yml up -d --no-deps --force-
 docker compose -f docker-compose.production-contour.yml logs --tail 200 bot-runner
 ```
 
-Static Compose profiles `bot-telegram`, `bot-vk`, `bot-max` использовать только для изолированной аварийной диагностики. Перед их запуском остановите `bot-runner` или деактивируйте соответствующий канал, чтобы не получить duplicate Telegram long polling / `409 Conflict`.
+Static bot services удалены из canonical production compose. Для аварийной диагностики используйте только `scripts/docker-production-legacy-bots.ps1/.sh` и `docs/runbooks/legacy-static-bot-emergency.md`. Emergency helper требует явного confirmation, блокирует start при запущенном `bot-runner` и повторно проверяет ownership после запуска; raw Compose start не является supported path.
 
 No hardcoded `container_name` is used, so Compose owns instance names.
 

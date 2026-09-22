@@ -221,7 +221,7 @@ Bash:
 
 Перед каждым component dry-run/rehearsal/apply workflow проверяет mixed bot runtime ownership. Если одновременно запущены `bot-runner` и хотя бы один legacy static service, rotation немедленно блокируется до любых credential changes. Нельзя пересоздавать оба ownership-контура в одной операции.
 
-Static services `bot-telegram`, `bot-vk`, `bot-max` имеют `restart: "no"` и предназначены только для явной emergency-диагностики. Уже существующий контейнер со старой policy `unless-stopped` нужно один раз отдельно перевести на `restart=no` и остановить/удалить перед production rotation. Это отдельная runtime mutation и не выполняется source apply-оператором.
+Static services `bot-telegram`, `bot-vk`, `bot-max` удалены из canonical production compose и находятся в `docker-compose.production-legacy-bots.yml` с `restart: "no"`. Запускать их можно только через `scripts/docker-production-legacy-bots.ps1/.sh`, где `bot-runner` обязан быть остановлен. Если credential rotation видит реально запущенный legacy runtime без supervisor, workflow автоматически добавляет emergency compose к recreate model; mixed ownership по-прежнему блокируется до любых credential changes.
 
 ### После Grafana rotation
 

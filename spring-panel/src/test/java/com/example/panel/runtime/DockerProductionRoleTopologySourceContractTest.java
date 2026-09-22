@@ -78,17 +78,26 @@ class DockerProductionRoleTopologySourceContractTest {
         String tlsTemplate = read("docker/nginx/templates/tls.conf.template");
         String direct = read("docker/nginx/panel-direct.conf");
 
+        String legacy = read("docker-compose.production-legacy-bots.yml");
         assertThat(compose)
+            .contains("APP_INTERNAL_BOT_API_BASE_URL: http://panel-web:8080")
+            .doesNotContain("APP_PANEL_INTERNAL_API_BASE_URL:");
+        assertThat(legacy)
             .contains("APP_PANEL_INTERNAL_API_BASE_URL: http://panel-web:8080")
             .doesNotContain("APP_PANEL_INTERNAL_API_BASE_URL: http://spring-panel:8080");
+        assertThat(compose)
+            .doesNotContain("\n  bot-telegram:\n")
+            .doesNotContain("\n  bot-vk:\n")
+            .doesNotContain("\n  bot-max:\n")
+            .doesNotContain("legacy-static-bots-disabled");
 
         for (String bot : new String[] {"bot-telegram:", "bot-vk:", "bot-max:"}) {
-            String botSection = section(compose, "  " + bot, nextServiceMarker(compose, "  " + bot));
+            String botSection = section(legacy, "  " + bot, nextServiceMarker(legacy, "  " + bot));
             assertThat(botSection)
                 .as(bot)
-                .contains("profiles: [\"legacy-static-bots-disabled\"]")
                 .contains("restart: \"no\"")
                 .doesNotContain("restart: unless-stopped")
+                .doesNotContain("profiles:")
                 .contains("APP_DB_MODE: postgresql")
                 .contains("SPRING_DATASOURCE_URL")
                 .contains("SPRING_DATASOURCE_USERNAME")
@@ -126,6 +135,9 @@ class DockerProductionRoleTopologySourceContractTest {
         String smoke = read("scripts/docker-production-role-smoke.ps1");
         String env = read(".env.example");
         String entrypoint = read("docker/panel-entrypoint.sh");
+        String legacyPs = read("scripts/docker-production-legacy-bots.ps1");
+        String legacySh = read("scripts/docker-production-legacy-bots.sh");
+        String legacyRunbook = read("docs/runbooks/legacy-static-bot-emergency.md");
 
         assertThat(ps)
             .contains("WebReplicas")
@@ -133,7 +145,8 @@ class DockerProductionRoleTopologySourceContractTest {
             .contains("panel-web=$resolvedWebReplicas")
             .contains("ops-worker=$resolvedWorkerReplicas")
             .contains("MONITORING_CREDENTIALS_MASTER_KEY")
-            .contains("--remove-orphans");
+            .contains("--remove-orphans")
+            .contains("Assert-NoLegacyStaticBotContainersRunning");
 
         assertThat(sh)
             .contains("--web-replicas")
@@ -141,7 +154,8 @@ class DockerProductionRoleTopologySourceContractTest {
             .contains("panel-web=${WEB_REPLICAS}")
             .contains("ops-worker=${WORKER_REPLICAS}")
             .contains("MONITORING_CREDENTIALS_MASTER_KEY")
-            .contains("--remove-orphans");
+            .contains("--remove-orphans")
+            .contains("assert_no_legacy_static_bot_containers_running");
 
         assertThat(smoke)
             .contains("--scale\", \"panel-web=2")
@@ -158,6 +172,21 @@ class DockerProductionRoleTopologySourceContractTest {
             .contains("APP_INSTANCE_ID")
             .contains("HOSTNAME")
             .contains("APP_PANEL_LOG_PATH");
+
+        assertThat(legacyPs)
+            .contains("ConfirmEmergencyMode")
+            .contains("Assert-BotRunnerStopped")
+            .contains("--no-deps")
+            .contains("Mixed runtime ownership was prevented.");
+        assertThat(legacySh)
+            .contains("--confirm-emergency-mode")
+            .contains("assert_bot_runner_stopped")
+            .contains("--no-deps")
+            .contains("Mixed runtime ownership was prevented.");
+        assertThat(legacyRunbook)
+            .contains("Do not start the emergency services with a raw `docker compose")
+            .contains("bot-runner` has zero running containers")
+            .contains("`bot-runner` plus any running static legacy bot is always BLOCK.");
     }
 
 @Test

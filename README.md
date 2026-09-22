@@ -21,7 +21,7 @@ Iguana - многоканальная support CRM и операторская п
 
 Для containerized contour с `spring-panel + PostgreSQL + RabbitMQ + Redis + MinIO + bot-runner` используйте [docs/docker-production-contour.md](docs/docker-production-contour.md), [docker-compose.production-contour.yml](docker-compose.production-contour.yml) и для публичного ingress [docs/runbooks/docker-production-edge-deploy.md](docs/runbooks/docker-production-edge-deploy.md) вместе с [docker-compose.production-edge.yml](docker-compose.production-edge.yml).
 
-В production `bot-runner` запускается в единственном экземпляре и автоматически поднимает отдельный runtime для каждого активного канала из PostgreSQL. Это снимает лимит на число Telegram, VK и MAX-ботов; статические Compose profiles `bot-telegram`, `bot-vk`, `bot-max` сохранены только для аварийной диагностики и не должны работать параллельно с тем же токеном.
+В production `bot-runner` запускается в единственном экземпляре и автоматически поднимает отдельный runtime для каждого активного канала из PostgreSQL. Canonical `docker-compose.production-contour.yml` больше не содержит static `bot-telegram` / `bot-vk` / `bot-max`. Аварийные compatibility runtime вынесены в `docker-compose.production-legacy-bots.yml` и запускаются только через guarded `scripts/docker-production-legacy-bots.ps1/.sh`, которые блокируют start, пока работает `bot-runner`.
 
 В нём собраны:
 

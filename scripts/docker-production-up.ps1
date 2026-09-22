@@ -90,6 +90,43 @@ function Get-SettingValue {
     return ""
 }
 
+function Resolve-ComposeProjectName {
+    param(
+        [string]$RepoRoot,
+        [hashtable]$DotEnv
+    )
+
+    $configured = Get-SettingValue -DotEnv $DotEnv -Name "COMPOSE_PROJECT_NAME"
+    if (-not [string]::IsNullOrWhiteSpace($configured)) {
+        return $configured.Trim()
+    }
+    return (Split-Path -Leaf $RepoRoot)
+}
+
+function Assert-NoLegacyStaticBotContainersRunning {
+    param(
+        [string]$DockerCommand,
+        [string]$ProjectName
+    )
+
+    $runningLegacy = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($service in @("bot-telegram", "bot-vk", "bot-max")) {
+        $output = @(& $DockerCommand ps -q `
+            --filter "label=com.docker.compose.project=$ProjectName" `
+            --filter "label=com.docker.compose.service=$service" 2>&1)
+        if ($LASTEXITCODE -ne 0) {
+            throw ("Unable to inspect legacy bot ownership for service {0}." -f $service)
+        }
+        if (@($output | Where-Object { -not [string]::IsNullOrWhiteSpace("$_") }).Count -gt 0) {
+            $runningLegacy.Add($service)
+        }
+    }
+
+    if ($runningLegacy.Count -gt 0) {
+        throw ("Production startup blocked: emergency legacy static bot services are running: {0}. Stop them with scripts/docker-production-legacy-bots.ps1 before starting bot-runner." -f ($runningLegacy -join ", "))
+    }
+}
+
 function Resolve-ReplicaCount {
     param(
         [int]$ExplicitValue,
@@ -558,6 +595,9 @@ if ($ValidateOnly) {
     Write-Host "[INFO] Insecure defaults allowed: $AllowInsecureDefaults"
     exit 0
 }
+
+$composeProjectName = Resolve-ComposeProjectName -RepoRoot $repoRoot -DotEnv $dotEnv
+Assert-NoLegacyStaticBotContainersRunning -DockerCommand $dockerCommand -ProjectName $composeProjectName
 
 $arguments = $baseArguments + @(
     "up",

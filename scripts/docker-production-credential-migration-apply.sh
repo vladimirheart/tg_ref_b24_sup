@@ -539,6 +539,12 @@ RESTART_SERVICES=()
 build_compose_files() {
   COMPOSE_FILES=("${REPO_ROOT}/docker-compose.production-contour.yml")
   local candidate
+  for candidate in bot-telegram bot-vk bot-max; do
+    if service_is_running "${candidate}"; then
+      COMPOSE_FILES+=("${REPO_ROOT}/docker-compose.production-legacy-bots.yml")
+      break
+    fi
+  done
   for candidate in postgres-exporter redis-exporter alertmanager prometheus loki alloy grafana; do
     if service_is_running "${candidate}"; then
       COMPOSE_FILES+=("${REPO_ROOT}/docker-compose.production-observability.yml")

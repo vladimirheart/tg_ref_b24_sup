@@ -37,6 +37,7 @@ class PersistedCredentialRotationApplySourceContractTest {
             .contains("\"cli\"")
             .contains("reset-admin-password")
             .contains("docker-compose.production-observability.yml")
+            .contains("docker-compose.production-legacy-bots.yml")
             .contains("Assert-BotRuntimeOwnershipTopology")
             .contains("Add-BotRuntimeRestartTargets")
             .contains("Credential rotation blocked: bot-runner and legacy static bot services are running simultaneously:")
@@ -60,6 +61,7 @@ class PersistedCredentialRotationApplySourceContractTest {
             .contains("IGUANA_GRAFANA_ADMIN_PASSWORD")
             .contains("grafana cli --homepath /usr/share/grafana --config /etc/grafana/grafana.ini admin reset-admin-password")
             .contains("docker-compose.production-observability.yml")
+            .contains("docker-compose.production-legacy-bots.yml")
             .contains("assert_bot_runtime_ownership_topology")
             .contains("add_bot_runtime_restart_targets")
             .contains("Credential rotation blocked: bot-runner and legacy static bot services are running simultaneously:");
@@ -82,6 +84,8 @@ class PersistedCredentialRotationApplySourceContractTest {
             .contains("01-212")
             .contains("01-220")
             .contains("mixed bot runtime ownership")
+            .contains("docker-compose.production-legacy-bots.yml")
+            .contains("docker-production-legacy-bots.ps1")
             .contains("restart: \"no\"");
     }
 

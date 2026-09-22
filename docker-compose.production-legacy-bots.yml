@@ -1,0 +1,179 @@
+# Emergency-only legacy static bot services for task 01-242.
+# This file is not a normal production entrypoint.
+# Combine it with docker-compose.production-contour.yml only through
+# scripts/docker-production-legacy-bots.ps1 or .sh; those helpers block
+# startup while bot-runner is running and re-check ownership after start.
+
+services:
+  bot-telegram:
+    # Emergency-only compatibility runtime; normal production uses bot-runner.
+    build:
+      context: .
+      dockerfile: docker/bot.Dockerfile
+      args:
+        BOT_MODULE: bot-telegram
+    restart: "no"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      panel-web:
+        condition: service_healthy
+    environment:
+      APP_DB_MODE: postgresql
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IGUANA_POSTGRES_DB:-iguana}
+      SPRING_DATASOURCE_USERNAME: ${IGUANA_POSTGRES_USER:-iguana}
+      SPRING_DATASOURCE_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
+      APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
+      APP_COORDINATION_MODE: redis
+      APP_STORAGE_OBJECT_MODE: s3
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${IGUANA_RABBITMQ_USER:-iguana}
+      SPRING_RABBITMQ_PASSWORD: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
+      APP_PANEL_INTERNAL_API_BASE_URL: http://panel-web:8080
+      APP_PANEL_INTERNAL_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
+      APP_PANEL_INTERNAL_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
+      APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED: "true"
+      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
+      APP_STORAGE_OBJECT_REGION: ${APP_STORAGE_OBJECT_REGION:-us-east-1}
+      APP_STORAGE_OBJECT_KEY_PREFIX: ${APP_STORAGE_OBJECT_KEY_PREFIX:-iguana}
+      APP_STORAGE_OBJECT_ENDPOINT: http://minio:9000
+      APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
+      APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
+      APP_STORAGE_OBJECT_PATH_STYLE_ACCESS: "true"
+      APP_STORAGE_ATTACHMENTS: /opt/iguana/attachments
+      APP_STORAGE_WEBFORMS: /opt/iguana/attachments/forms
+      APP_BOT_LOG_DIR: /opt/iguana/logs
+      APP_BOT_LOG_PATH: /opt/iguana/logs/bot-telegram.log
+      SHARED_CONFIG_DIR: /opt/iguana/config/shared
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      GROUP_CHAT_ID: ${GROUP_CHAT_ID:-0}
+    volumes:
+      - ${IGUANA_SHARED_CONFIG_DIR:-../iguana-runtime/tg_ref_b24_sup/shared-config}:/opt/iguana/config/shared
+      - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
+      - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
+
+  bot-vk:
+    build:
+      context: .
+      dockerfile: docker/bot.Dockerfile
+      args:
+        BOT_MODULE: bot-vk
+    restart: "no"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      panel-web:
+        condition: service_healthy
+    environment:
+      APP_DB_MODE: postgresql
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IGUANA_POSTGRES_DB:-iguana}
+      SPRING_DATASOURCE_USERNAME: ${IGUANA_POSTGRES_USER:-iguana}
+      SPRING_DATASOURCE_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
+      APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
+      APP_COORDINATION_MODE: redis
+      APP_STORAGE_OBJECT_MODE: s3
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${IGUANA_RABBITMQ_USER:-iguana}
+      SPRING_RABBITMQ_PASSWORD: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
+      APP_PANEL_INTERNAL_API_BASE_URL: http://panel-web:8080
+      APP_PANEL_INTERNAL_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
+      APP_PANEL_INTERNAL_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
+      APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED: "true"
+      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
+      APP_STORAGE_OBJECT_REGION: ${APP_STORAGE_OBJECT_REGION:-us-east-1}
+      APP_STORAGE_OBJECT_KEY_PREFIX: ${APP_STORAGE_OBJECT_KEY_PREFIX:-iguana}
+      APP_STORAGE_OBJECT_ENDPOINT: http://minio:9000
+      APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
+      APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
+      APP_STORAGE_OBJECT_PATH_STYLE_ACCESS: "true"
+      APP_STORAGE_ATTACHMENTS: /opt/iguana/attachments
+      APP_STORAGE_WEBFORMS: /opt/iguana/attachments/forms
+      APP_BOT_LOG_DIR: /opt/iguana/logs
+      APP_BOT_LOG_PATH: /opt/iguana/logs/bot-vk.log
+      SHARED_CONFIG_DIR: /opt/iguana/config/shared
+      VK_BOT_ENABLED: "true"
+      VK_BOT_TOKEN: ${VK_BOT_TOKEN:-}
+      VK_GROUP_ID: ${VK_GROUP_ID:-0}
+      VK_OPERATOR_CHAT_ID: ${VK_OPERATOR_CHAT_ID:-0}
+      VK_WEBHOOK_ENABLED: ${VK_WEBHOOK_ENABLED:-false}
+      VK_CONFIRMATION_TOKEN: ${VK_CONFIRMATION_TOKEN:-}
+      VK_WEBHOOK_SECRET: ${VK_WEBHOOK_SECRET:-}
+      SERVER_PORT: 8080
+    ports:
+      - "${VK_BOT_BIND_HOST:-127.0.0.1}:${VK_BOT_HTTP_PORT:-18082}:8080"
+    volumes:
+      - ${IGUANA_SHARED_CONFIG_DIR:-../iguana-runtime/tg_ref_b24_sup/shared-config}:/opt/iguana/config/shared
+      - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
+      - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs
+
+  bot-max:
+    build:
+      context: .
+      dockerfile: docker/bot.Dockerfile
+      args:
+        BOT_MODULE: bot-max
+    restart: "no"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      panel-web:
+        condition: service_healthy
+    environment:
+      APP_DB_MODE: postgresql
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${IGUANA_POSTGRES_DB:-iguana}
+      SPRING_DATASOURCE_USERNAME: ${IGUANA_POSTGRES_USER:-iguana}
+      SPRING_DATASOURCE_PASSWORD: ${IGUANA_POSTGRES_PASSWORD:-iguana}
+      APP_INTEGRATION_TRANSPORT_MODE: rabbitmq
+      APP_COORDINATION_MODE: redis
+      APP_STORAGE_OBJECT_MODE: s3
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${IGUANA_RABBITMQ_USER:-iguana}
+      SPRING_RABBITMQ_PASSWORD: ${IGUANA_RABBITMQ_PASSWORD:-iguana}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${IGUANA_REDIS_PASSWORD:-iguana-redis}
+      APP_PANEL_INTERNAL_API_BASE_URL: http://panel-web:8080
+      APP_PANEL_INTERNAL_API_TOKEN: ${APP_INTERNAL_BOT_API_TOKEN:-change-me}
+      APP_PANEL_INTERNAL_API_SIGNATURE_SECRET: ${APP_INTERNAL_BOT_API_SIGNATURE_SECRET:-}
+      APP_PANEL_INTERNAL_API_REQUEST_SIGNING_ENABLED: "true"
+      APP_STORAGE_OBJECT_BUCKET: ${APP_STORAGE_OBJECT_BUCKET:-iguana}
+      APP_STORAGE_OBJECT_REGION: ${APP_STORAGE_OBJECT_REGION:-us-east-1}
+      APP_STORAGE_OBJECT_KEY_PREFIX: ${APP_STORAGE_OBJECT_KEY_PREFIX:-iguana}
+      APP_STORAGE_OBJECT_ENDPOINT: http://minio:9000
+      APP_STORAGE_OBJECT_ACCESS_KEY: ${APP_STORAGE_OBJECT_ACCESS_KEY:-iguana-minio}
+      APP_STORAGE_OBJECT_SECRET_KEY: ${APP_STORAGE_OBJECT_SECRET_KEY:-iguana-minio-secret}
+      APP_STORAGE_OBJECT_PATH_STYLE_ACCESS: "true"
+      APP_STORAGE_ATTACHMENTS: /opt/iguana/attachments
+      APP_STORAGE_WEBFORMS: /opt/iguana/attachments/forms
+      APP_BOT_LOG_DIR: /opt/iguana/logs
+      APP_BOT_LOG_PATH: /opt/iguana/logs/bot-max.log
+      SHARED_CONFIG_DIR: /opt/iguana/config/shared
+      MAX_BOT_ENABLED: "true"
+      MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:-}
+      MAX_CHANNEL_ID: ${MAX_CHANNEL_ID:-0}
+      MAX_SUPPORT_CHAT_ID: ${MAX_SUPPORT_CHAT_ID:-0}
+      MAX_WEBHOOK_SECRET: ${MAX_WEBHOOK_SECRET:-}
+      SERVER_ADDRESS: 0.0.0.0
+      SERVER_PORT: 8080
+    ports:
+      - "${MAX_BOT_BIND_HOST:-127.0.0.1}:${MAX_BOT_HTTP_PORT:-18083}:8080"
+    volumes:
+      - ${IGUANA_SHARED_CONFIG_DIR:-../iguana-runtime/tg_ref_b24_sup/shared-config}:/opt/iguana/config/shared
+      - ${IGUANA_ATTACHMENTS_DIR:-./attachments}:/opt/iguana/attachments
+      - ${IGUANA_LOGS_DIR:-./logs}:/opt/iguana/logs

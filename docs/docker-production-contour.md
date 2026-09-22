@@ -54,7 +54,7 @@ bot-runner x 1
   - `APP_RUNTIME_ROLE=bot-runner`;
   - запускает один supervisor и дочерний prebuilt JAR для каждого активного канала из PostgreSQL;
   - не масштабируется: `bot-runner=1` обязателен для исключения duplicate ingress и Telegram `409 Conflict`;
-  - static profiles `bot-telegram`, `bot-vk`, `bot-max` сохранены только для аварийной диагностики и не должны работать параллельно с supervisor для того же token.
+  - canonical `docker-compose.production-contour.yml` не содержит static bot services; emergency `bot-telegram` / `bot-vk` / `bot-max` вынесены в `docker-compose.production-legacy-bots.yml` и запускаются только guarded helper-скриптами при остановленном `bot-runner`.
 - `panel-direct`:
   - lightweight nginx;
   - сохраняет исторический loopback URL `http://127.0.0.1:8080`;
@@ -187,6 +187,10 @@ Runtime role/instance также доступны в `/actuator/info` и metrics
 - используют canonical PostgreSQL datasource, RabbitMQ, Redis, MinIO/S3 и `http://panel-web:8080`;
 - не используют SQLite как live business storage;
 - не являются source of truth business data.
+
+### 9.1 Emergency static compatibility contour
+
+Для аварийной диагностики используйте `docs/runbooks/legacy-static-bot-emergency.md`. Raw `docker compose ... up bot-*` не является supported entrypoint: start выполняется только через `scripts/docker-production-legacy-bots.ps1/.sh`, которые проверяют ownership до и после запуска.
 
 ## 10. Проверки
 
