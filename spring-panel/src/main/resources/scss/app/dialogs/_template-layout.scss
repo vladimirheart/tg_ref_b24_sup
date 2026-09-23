@@ -222,6 +222,7 @@ body[data-ui-page='dialogs'].dialog-compact-mode .dialog-summary-item {
     padding: 0.5rem 0.75rem;
 }
 
+html.dialog-list-only-prepaint body[data-ui-page='dialogs'] .dialogs-extra-section,
 body[data-ui-page='dialogs'].dialog-list-only-mode .dialogs-extra-section {
     display: none !important;
 }

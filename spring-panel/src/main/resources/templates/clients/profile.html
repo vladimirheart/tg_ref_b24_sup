@@ -20,7 +20,7 @@
             <div class="client-profile-page-heading">
                 <span class="page-kicker mb-0">Клиент</span>
                 <h1 class="page-title mb-0">Карточка клиента</h1>
-                <span class="page-subtitle mb-0" th:text="'ID: ' + ${profile.header.userId}">ID</span>
+                <span class="page-subtitle mb-0" data-no-disclosure th:text="'ID: ' + ${profile.header.userId}">ID</span>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap client-profile-page-actions">
                 <a class="btn btn-outline-secondary btn-sm" th:href="@{/clients}">← Назад</a>

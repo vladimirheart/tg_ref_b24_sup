@@ -111,6 +111,30 @@
       toggle.focus({ preventScroll: true });
     });
   }
+function ensurePageHeaderTitleRow(header, title) {
+  if (!(header instanceof HTMLElement) || !(title instanceof HTMLElement)) {
+    return null;
+  }
+
+  let titleRow = title.parentElement?.classList.contains('page-header-title-row')
+    ? title.parentElement
+    : null;
+
+  if (!titleRow) {
+    titleRow = document.createElement('div');
+    titleRow.className = 'page-header-title-row';
+    title.parentNode.insertBefore(titleRow, title);
+    titleRow.appendChild(title);
+  }
+
+  const kicker = header.querySelector('.page-kicker');
+  if (kicker instanceof HTMLElement && !titleRow.contains(kicker)) {
+    titleRow.insertBefore(kicker, title);
+  }
+
+  return titleRow;
+}
+
 function buildHeaderInfoDisclosure(element) {
     const rawText =
         (element.textContent || '')
@@ -140,32 +164,14 @@ function buildHeaderInfoDisclosure(element) {
     const panelId =
         `pageHeaderInfoPanel${disclosureCounter}`;
 
-    let titleRow =
-        title.parentElement
-            ?.classList
-            .contains(
-                'page-header-title-row'
-            )
-            ? title.parentElement
-            : null;
+    const titleRow =
+        ensurePageHeaderTitleRow(
+            header,
+            title
+        );
 
     if (!titleRow) {
-        titleRow =
-            document.createElement(
-                'div'
-            );
-
-        titleRow.className =
-            'page-header-title-row';
-
-        title.parentNode.insertBefore(
-            titleRow,
-            title
-        );
-
-        titleRow.appendChild(
-            title
-        );
+        return;
     }
 
     const info =
@@ -364,6 +370,11 @@ function buildHeaderInfoDisclosure(element) {
   }
 
   function initContentDisclosure() {
+    document.querySelectorAll('.page-header-card .page-title').forEach((title) => {
+      const header = title.closest('.page-header-card');
+      ensurePageHeaderTitleRow(header, title);
+    });
+
     const subtitleCandidates =
 		document.querySelectorAll(
 			'.page-header-card .page-subtitle'

@@ -1,0 +1,95 @@
+package com.example.panel.runtime;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class UiFinalHygieneSourceContractTest {
+
+    private static final Path DISCLOSURE = Path.of("src/main/resources/static/js/content-disclosure.js");
+    private static final Path CORE_SCSS = Path.of("src/main/resources/scss/app/_core.scss");
+    private static final Path CLIENT_PROFILE = Path.of("src/main/resources/templates/clients/profile.html");
+    private static final Path PASSPORT_EDITOR = Path.of("src/main/resources/templates/passports/new.html");
+
+    @Test
+    void sharedHeaderContractKeepsStaticHelpCompactAndDynamicIdentityVisible() throws IOException {
+        String disclosure = read(DISCLOSURE);
+        String core = read(CORE_SCSS);
+        String clientProfile = read(CLIENT_PROFILE);
+        String passportEditor = read(PASSPORT_EDITOR);
+
+        assertThat(disclosure)
+            .contains("function ensurePageHeaderTitleRow(header, title)")
+            .contains("const kicker = header.querySelector('.page-kicker');")
+            .contains("titleRow.insertBefore(kicker, title);")
+            .contains("document.querySelectorAll('.page-header-card .page-title').forEach((title) =>")
+            .contains("buildHeaderInfoDisclosure(element)")
+            .contains("element.closest('[data-no-disclosure]')");
+
+        assertThat(core)
+            .contains(".page-header-title-row .page-kicker,")
+            .contains(".page-header-title-row .page-title {")
+            .contains("margin-top: 0;")
+            .contains("margin-bottom: 0;");
+
+        assertThat(clientProfile)
+            .contains("class=\"page-subtitle mb-0\" data-no-disclosure")
+            .contains("th:text=\"'ID: ' + ${profile.header.userId}\"");
+
+        assertThat(passportEditor)
+            .contains("class=\"page-subtitle object-title\" data-no-disclosure")
+            .contains("id=\"objectTitle\"");
+    }
+
+    @Test
+    void prePaintHeaderParityMatchesRuntimeTitleRowBeforeDisclosureBoot() throws IOException {
+        String core = read(CORE_SCSS);
+
+        assertThat(core)
+            .contains("/* 01-272 S11 R2: pre-paint header parity */")
+            .contains("@supports selector(.page-header-card:has(> .page-title))")
+            .contains(".page-header-card:has(> .page-kicker):has(> .page-title)")
+            .contains("flex-wrap: wrap;")
+            .contains("column-gap: 0.45rem;")
+            .contains(".client-profile-page-heading:has(> .page-kicker):has(> .page-title) > .page-subtitle[data-no-disclosure]");
+    }
+
+    @Test
+    void staticHeaderHelpAndDialogListOnlyPreferenceAreStableFromFirstPaint() throws IOException {
+        String disclosure = read(DISCLOSURE);
+        String core = read(CORE_SCSS);
+        String dialogsTemplate = read(Path.of("src/main/resources/templates/dialogs/index.html"));
+        String dialogsPrepaint = read(Path.of("src/main/resources/static/js/dialogs-prepaint-runtime.js"));
+        String dialogsShell = read(Path.of("src/main/resources/static/js/dialogs-shell-runtime.js"));
+        String dialogsScss = read(Path.of("src/main/resources/scss/app/dialogs/_template-layout.scss"));
+
+        assertThat(core)
+            .contains("/* 01-272 S11 R3: hide static header help before disclosure boot */")
+            .contains(".page-header-card .page-subtitle:not([data-no-disclosure]):not([data-disclosure-processed='true'])");
+        assertThat(disclosure).contains("element.dataset.disclosureProcessed =");
+        assertThat(dialogsTemplate)
+            .contains("/js/dialogs-prepaint-runtime.js")
+            .contains("/js/common.js");
+        assertThat(dialogsTemplate.indexOf("/js/dialogs-prepaint-runtime.js"))
+            .isLessThan(dialogsTemplate.indexOf("/js/common.js"));
+        assertThat(dialogsPrepaint)
+            .contains("iguana:dialogs:list-only-mode")
+            .contains("dialog-list-only-prepaint")
+            .contains("document.documentElement.classList.toggle(ROOT_CLASS, enabled);");
+        assertThat(dialogsShell)
+            .contains("document.documentElement.classList.toggle('dialog-list-only-prepaint', active);")
+            .contains("document.body.classList.toggle('dialog-list-only-mode', active);");
+        assertThat(dialogsScss)
+            .contains("html.dialog-list-only-prepaint body[data-ui-page='dialogs'] .dialogs-extra-section");
+    }
+
+    private String read(Path path) throws IOException {
+        return Files.readString(path, StandardCharsets.UTF_8)
+            .replace("\r\n", "\n")
+            .replace("\r", "\n");
+    }
+}

@@ -244,6 +244,7 @@
 
     function applyListOnlyMode(enabled) {
       const active = Boolean(enabled);
+      document.documentElement.classList.toggle('dialog-list-only-prepaint', active);
       document.body.classList.toggle('dialog-list-only-mode', active);
       const toggle = options.elements?.dialogListOnlyToggle;
       if (toggle) {
