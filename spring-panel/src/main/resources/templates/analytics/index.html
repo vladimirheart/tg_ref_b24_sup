@@ -13,52 +13,61 @@
 <body class="with-sidebar sidebar-pinned" data-ui-page="analytics">
 <div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
 <main class="main-content container-fluid py-4 page-shell ops-page-shell">
-    <div class="page-header-card analytics-page-header mb-4 ops-page-header">
-        <div>
-            <span class="page-kicker">
-                Операционная аналитика
-            </span>
-
-            <h1 class="page-title">
-                Аналитика
-            </h1>
-
-            <p class="page-subtitle mb-0">
-                Сводка по обращениям, сервисам,
-                интеграциям и активности клиентов.
-            </p>
+    <div class="page-header-card analytics-page-header analytics-page-header--compact mb-3 ops-page-header">
+        <div class="analytics-page-heading">
+            <span class="page-kicker">Операционная аналитика</span>
+            <h1 class="page-title">Аналитика</h1>
+            <p class="page-subtitle mb-0">Состояние runtime, интеграций и rollout-контуров.</p>
         </div>
 
         <div class="analytics-page-actions ops-page-actions">
-            <a class="btn btn-outline-secondary" th:href="@{/analytics/certificates}">Мониторинг SSL</a>
-            <a class="btn btn-outline-secondary" th:href="@{/analytics/rms-control}">Контроль RMS</a>
-            <a class="btn btn-outline-secondary" th:href="@{/analytics/iiko-api-monitoring}">Мониторинг iiko API</a>
-            <a class="btn btn-outline-secondary" th:href="@{/analytics/backup-readiness}">Backup readiness</a>
-            <a class="btn btn-outline-secondary" th:href="@{/analytics/public-ingress}">Public ingress</a>
-            <a class="btn btn-outline-secondary" th:href="@{/analytics/smtp-notifications}">SMTP / notifications</a>
-            <a class="btn btn-outline-secondary" th:href="@{/analytics/provider-health}">Provider health</a>
-            <a class="btn btn-outline-secondary" th:href="@{/analytics/provider-delivery}">Provider delivery</a>
-            <a class="btn btn-outline-secondary" th:href="@{/analytics/credential-rotation}">Token rotation</a>
-            <form method="post" th:action="@{/analytics/export}">
+            <nav class="analytics-route-strip" aria-label="Мониторинг и сервисные контуры">
+                <span class="analytics-route-strip__label">Мониторинг</span>
+                <div class="analytics-route-strip__links">
+                    <a class="analytics-route-link" th:href="@{/analytics/certificates}" title="Мониторинг SSL">SSL</a>
+                    <a class="analytics-route-link" th:href="@{/analytics/rms-control}" title="Контроль RMS">RMS</a>
+                    <a class="analytics-route-link" th:href="@{/analytics/iiko-api-monitoring}" title="Мониторинг iiko API">iiko API</a>
+                    <a class="analytics-route-link" th:href="@{/analytics/backup-readiness}" title="Backup readiness">Backup</a>
+                    <a class="analytics-route-link" th:href="@{/analytics/public-ingress}" title="Public ingress">Ingress</a>
+                    <a class="analytics-route-link" th:href="@{/analytics/smtp-notifications}" title="SMTP / notifications">SMTP</a>
+                    <a class="analytics-route-link" th:href="@{/analytics/provider-health}" title="Provider health">Provider health</a>
+                    <a class="analytics-route-link" th:href="@{/analytics/provider-delivery}" title="Provider delivery">Delivery</a>
+                    <a class="analytics-route-link" th:href="@{/analytics/credential-rotation}" title="Token rotation">Token rotation</a>
+                </div>
+            </nav>
+            <form class="analytics-export-form" method="post" th:action="@{/analytics/export}">
                 <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-                <button class="btn btn-outline-secondary"
-						type="submit">
-					Экспорт CSV
-				</button>
+                <button class="btn btn-outline-secondary ui-icon-control analytics-export-action"
+                        type="submit"
+                        title="Экспорт CSV"
+                        aria-label="Экспорт CSV">
+                    <i class="bi bi-download" aria-hidden="true"></i>
+                    <span class="visually-hidden">Экспорт CSV</span>
+                </button>
             </form>
         </div>
     </div>
 
-    <div class="card analytics-section-card mb-4 ops-section-card"
+    <nav class="analytics-jump-nav" aria-label="Разделы аналитики">
+        <a class="analytics-jump-nav__link" href="#analyticsBotRuntimeCard">Runtime ботов</a>
+        <a class="analytics-jump-nav__link" href="#analyticsIntegrationTransportCard">Транспорт</a>
+        <a class="analytics-jump-nav__link" href="#workspaceTelemetryCard">Workspace rollout</a>
+    </nav>
+
+    <div class="card analytics-section-card mb-3 ops-section-card"
 		id="analyticsBotRuntimeCard">
         <div class="card-header analytics-section-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
             <div>
-                <h2 class="h5 mb-1">Bot Runtime Monitoring</h2>
-                <p class="text-muted mb-0">Фактический статус процессов ботов по каналам: какие из них реально запущены сейчас.</p>
+                <div class="analytics-section-title-row">
+                    <h2 class="h5 mb-0">Runtime ботов</h2>
+                    <p class="text-muted mb-0 analytics-section-help"
+                       data-content-disclosure-help
+                       data-disclosure-label="О мониторинге runtime ботов">Фактический статус процессов ботов по каналам и их текущая доступность.</p>
+                </div>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <small class="text-muted" id="analyticsBotRuntimeUpdatedAt">Обновление...</small>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="analyticsBotRuntimeRefresh">Обновить</button>
+                <button type="button" class="btn btn-sm btn-outline-primary ui-icon-control" id="analyticsBotRuntimeRefresh" title="Обновить runtime ботов" aria-label="Обновить runtime ботов"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i><span class="visually-hidden">Обновить</span></button>
             </div>
         </div>
         <div class="card-body">
@@ -92,17 +101,21 @@
         </div>
     </div>
 
-    <div class="card analytics-section-card mb-4 ops-section-card" id="analyticsIntegrationTransportCard">
+    <div class="card analytics-section-card mb-3 ops-section-card" id="analyticsIntegrationTransportCard">
         <div class="card-header analytics-section-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
             <div>
-                <h2 class="h5 mb-1">Integration Transport Ops</h2>
-                <p class="text-muted mb-0">Inbox/outbox status, trend history, manual recovery pressure и transport-related incidents в canonical backend contour.</p>
+                <div class="analytics-section-title-row">
+                    <h2 class="h5 mb-0">Транспорт интеграций</h2>
+                    <p class="text-muted mb-0 analytics-section-help"
+                       data-content-disclosure-help
+                       data-disclosure-label="О транспорте интеграций">Состояние inbox/outbox, recovery-нагрузка, checkpoints и связанные инциденты.</p>
+                </div>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 <small class="text-muted" id="analyticsIntegrationTransportUpdatedAt">Обновление...</small>
                 <button type="button" class="btn btn-sm btn-outline-secondary" id="analyticsIntegrationTransportReplayFailed">Replay failed inbound</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary" id="analyticsIntegrationTransportRequeueFailed">Requeue failed publish</button>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="analyticsIntegrationTransportRefresh">Обновить</button>
+                <button type="button" class="btn btn-sm btn-outline-primary ui-icon-control" id="analyticsIntegrationTransportRefresh" title="Обновить транспорт интеграций" aria-label="Обновить транспорт интеграций"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i><span class="visually-hidden">Обновить</span></button>
             </div>
         </div>
         <div class="card-body">
@@ -132,7 +145,13 @@
                     <div class="text-muted small">Transport alerts загружаются…</div>
                 </div>
             </div>
-            <div class="row g-3">
+            <details class="analytics-progressive-disclosure analytics-transport-diagnostics">
+                <summary>
+                    <span><i class="bi bi-tools" aria-hidden="true"></i> Диагностика и recovery</span>
+                    <small>inbox / outbox / workers / history</small>
+                </summary>
+                <div class="analytics-progressive-disclosure__body">
+                    <div class="row g-3">
                 <div class="col-12 col-xl-6">
                     <h3 class="h6 mb-2">Replayable inbound events</h3>
                     <div class="table-responsive analytics-table-shell analytics-scroll-area ops-table-shell">
@@ -328,6 +347,8 @@
                     </div>
                 </div>
             </div>
+                </div>
+            </details>
         </div>
     </div>
 
@@ -382,10 +403,12 @@
             <div class="card analytics-section-card ops-section-card" id="workspaceTelemetryCard">
                 <div class="card-header analytics-section-header analytics-telemetry-header">
 					<div>
-						<h2 class="h5 mb-0">Workspace rollout guardrails</h2>
-						<small class="text-muted">
-							Операционные алерты и KPI по `workspace_v1` из серверной telemetry.
-						</small>
+						<div class="analytics-section-title-row">
+                    <h2 class="h5 mb-0">Контроль rollout workspace</h2>
+                    <p class="text-muted mb-0 analytics-section-help"
+                       data-content-disclosure-help
+                       data-disclosure-label="О контроле rollout workspace">Операционные алерты и KPI по workspace_v1 из серверной telemetry.</p>
+                </div>
 					</div>
 
 					<div class="analytics-filter-bar ops-list-toolbar">
@@ -432,33 +455,30 @@
 							   id="workspaceTelemetrySegment"
 							   placeholder="segment (напр. night/team-a)">
 
-						<button class="btn btn-sm btn-outline-secondary"
-								type="button"
-								id="workspaceTelemetryResetWindow">
-							Сбросить окно
-						</button>
+						<button class="btn btn-sm btn-outline-secondary ui-icon-control" type="button" id="workspaceTelemetryResetWindow" title="Сбросить окно" aria-label="Сбросить окно"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i><span class="visually-hidden">Сбросить окно</span></button>
 
-						<button class="btn btn-sm btn-outline-primary"
-								type="button"
-								id="workspaceTelemetryRefresh">
-							Обновить
-						</button>
+						<button class="btn btn-sm btn-outline-primary ui-icon-control" type="button" id="workspaceTelemetryRefresh" title="Обновить guardrails" aria-label="Обновить guardrails"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i><span class="visually-hidden">Обновить</span></button>
 
-						<button class="btn btn-sm btn-outline-secondary"
-								type="button"
-								id="workspaceTelemetryExportCsv">
-							CSV guardrails
-						</button>
+						<button class="btn btn-sm btn-outline-secondary ui-icon-control" type="button" id="workspaceTelemetryExportCsv" title="Экспортировать guardrails CSV" aria-label="Экспортировать guardrails CSV"><i class="bi bi-download" aria-hidden="true"></i><span class="visually-hidden">CSV guardrails</span></button>
 					</div>
 				</div>
                 <div class="card-body">
-                    <div class="row g-3 mb-3" id="workspaceTelemetryMetrics">
+                    <div id="workspaceTelemetryMetrics" class="analytics-metrics-stack mb-3">
+                        <div class="row g-2 analytics-primary-metrics">
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">События</div><div class="h5 mb-0" data-metric="events">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Render error</div><div class="h5 mb-0" data-metric="render_errors">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Fallbacks</div><div class="h5 mb-0" data-metric="fallbacks">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Abandon</div><div class="h5 mb-0" data-metric="abandons">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Slow open</div><div class="h5 mb-0" data-metric="slow_open_events">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Avg open ms</div><div class="h5 mb-0" data-metric="avg_open_ms">—</div></div></div>
+                        </div>
+                        <details class="analytics-progressive-disclosure analytics-metrics-details">
+                            <summary>
+                                <span><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> Дополнительные KPI и readiness</span>
+                                <small>19 показателей</small>
+                            </summary>
+                            <div class="analytics-progressive-disclosure__body">
+                                <div class="row g-2 analytics-secondary-metrics">
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">KPI FRT events</div><div class="h5 mb-0" data-metric="kpi_frt_events">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">KPI TTR events</div><div class="h5 mb-0" data-metric="kpi_ttr_events">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">KPI SLA breach events</div><div class="h5 mb-0" data-metric="kpi_sla_breach_events">—</div></div></div>
@@ -478,6 +498,9 @@
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Policy ready %</div><div class="h5 mb-0" data-metric="context_attribute_policy_ready_rate">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Blocks ready %</div><div class="h5 mb-0" data-metric="context_block_ready_rate">—</div></div></div>
                         <div class="col-6 col-lg-2"><div class="analytics-metric-card h-100"><div class="text-muted small">Parity ready %</div><div class="h5 mb-0" data-metric="workspace_parity_ready_rate">—</div></div></div>
+                                </div>
+                            </div>
+                        </details>
                     </div>
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <span class="badge text-bg-success d-none" id="workspaceTelemetryGuardrailsOk">Guardrails: OK</span>
@@ -554,7 +577,10 @@
                                         <div class="text-muted small">Weekly review</div>
                                         <div class="fw-semibold" id="workspaceTelemetryPacketReviewState">—</div>
                                         <div class="small text-muted" id="workspaceTelemetryPacketReviewMeta"></div>
-                                        <div class="mt-2">
+                                        <details class="analytics-governance-edit">
+                                            <summary>Review и rollout decision</summary>
+                                            <div class="analytics-governance-edit__body">
+                                                <div class="mt-2">
                                             <label for="workspaceTelemetryReviewBy" class="form-label form-label-sm mb-1">Reviewed by</label>
                                             <input type="text" class="form-control form-control-sm" id="workspaceTelemetryReviewBy" placeholder="operator@example">
                                         </div>
@@ -591,7 +617,9 @@
                                             <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryReviewConfirm">Подтвердить review</button>
                                             <small class="text-muted" id="workspaceTelemetryReviewActionState"></small>
                                         </div>
-                                    </div>
+
+                                            </div>
+                                        </details></div>
                                 </div>
                                 <div class="col-12 col-lg-4">
                                     <div class="analytics-governance-card h-100">
@@ -605,7 +633,10 @@
                                         <div class="text-muted small">Legacy-only scenarios</div>
                                         <div class="fw-semibold" id="workspaceTelemetryPacketLegacyState">—</div>
                                         <div class="small text-muted" id="workspaceTelemetryPacketLegacyMeta"></div>
-                                        <div class="mt-2">
+                                        <details class="analytics-governance-edit">
+                                            <summary>Legacy-only review</summary>
+                                            <div class="analytics-governance-edit__body">
+                                                <div class="mt-2">
                                             <label for="workspaceTelemetryLegacyScenarios" class="form-label form-label-sm mb-1">Scenarios (CSV)</label>
                                             <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyScenarios" placeholder="attachments_edit, inline_reopen">
                                         </div>
@@ -631,7 +662,9 @@
                                             <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryLegacySave">Сохранить inventory</button>
                                             <small class="text-muted" id="workspaceTelemetryLegacyActionState"></small>
                                         </div>
-                                    </div>
+
+                                            </div>
+                                        </details></div>
                                 </div>
     <div class="col-12 col-lg-4">
     <div class="analytics-governance-card h-100">
@@ -833,7 +866,9 @@
                             </div>
                             <div class="alert alert-warning d-none mb-3" id="workspaceTelemetrySlaPolicyAuditIssueSummary"></div>
                             <div class="small text-muted mb-3" id="workspaceTelemetrySlaPolicyAuditSummaryCompact"></div>
-                            <div class="analytics-review-panel mb-3" id="workspaceTelemetrySlaPolicyReviewForm">
+                            <details class="analytics-review-panel analytics-review-disclosure mb-3" id="workspaceTelemetrySlaPolicyReviewForm">
+                                <summary><span>SLA governance review</span><small>открыть для изменения</small></summary>
+                                <div class="analytics-review-disclosure__body">
                                 <div class="small text-muted mb-2">Governance review checkpoint (UTC)</div>
                                 <div class="row g-2">
                                     <div class="col-12 col-lg-3">
@@ -866,7 +901,9 @@
                                     <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetrySlaPolicySaveReview">Сохранить SLA review</button>
                                     <small class="text-muted" id="workspaceTelemetrySlaPolicyActionState"></small>
                                 </div>
-                            </div>
+
+                                </div>
+                            </details>
                             <div class="row g-3">
                                 <div class="col-12 col-xl-5">
                                     <div class="table-responsive">
@@ -949,7 +986,9 @@
                             </div>
                             <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryMacroGovernanceIssueSummary"></div>
                             <div class="small text-muted mb-3" id="workspaceTelemetryMacroGovernanceSummaryCompact"></div>
-                            <div class="analytics-review-panel mb-3" id="workspaceTelemetryMacroGovernanceReviewForm">
+                            <details class="analytics-review-panel analytics-review-disclosure mb-3" id="workspaceTelemetryMacroGovernanceReviewForm">
+                                <summary><span>Macro governance review</span><small>открыть для изменения</small></summary>
+                                <div class="analytics-review-disclosure__body">
                                 <div class="small text-muted mb-2">Governance review checkpoint (UTC)</div>
                                 <div class="row g-2">
                                     <div class="col-12 col-lg-3">
@@ -981,8 +1020,12 @@
                                     <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryMacroGovernanceSaveReview">Сохранить macro review</button>
                                     <small class="text-muted" id="workspaceTelemetryMacroGovernanceActionState"></small>
                                 </div>
-                            </div>
-                            <div class="analytics-review-panel mb-3" id="workspaceTelemetryMacroExternalCatalogPolicyForm">
+
+                                </div>
+                            </details>
+                            <details class="analytics-review-panel analytics-review-disclosure mb-3" id="workspaceTelemetryMacroExternalCatalogPolicyForm">
+                                <summary><span>External catalog policy</span><small>открыть для изменения</small></summary>
+                                <div class="analytics-review-disclosure__body">
                                 <div class="small text-muted mb-2">External catalog compatibility checkpoint (UTC)</div>
                                 <div class="row g-2">
                                     <div class="col-12 col-lg-3">
@@ -1022,8 +1065,12 @@
                                     <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryMacroExternalCatalogSavePolicy">Сохранить external catalog policy</button>
                                     <small class="text-muted" id="workspaceTelemetryMacroExternalCatalogActionState"></small>
                                 </div>
-                            </div>
-                            <div class="analytics-review-panel mb-3" id="workspaceTelemetryMacroDeprecationPolicyForm">
+
+                                </div>
+                            </details>
+                            <details class="analytics-review-panel analytics-review-disclosure mb-3" id="workspaceTelemetryMacroDeprecationPolicyForm">
+                                <summary><span>Deprecation policy</span><small>открыть для изменения</small></summary>
+                                <div class="analytics-review-disclosure__body">
                                 <div class="small text-muted mb-2">Deprecation policy checkpoint (UTC)</div>
                                 <div class="row g-2">
                                     <div class="col-12 col-lg-3">
@@ -1059,7 +1106,9 @@
                                     <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryMacroDeprecationSavePolicy">Сохранить deprecation policy</button>
                                     <small class="text-muted" id="workspaceTelemetryMacroDeprecationActionState"></small>
                                 </div>
-                            </div>
+
+                                </div>
+                            </details>
                             <div class="row g-3">
                                 <div class="col-12 col-xl-5">
                                     <div class="table-responsive">

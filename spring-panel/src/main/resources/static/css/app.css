@@ -9852,6 +9852,381 @@ body.passport-photo-viewer-open {
   background: var(--surface-card);
 }
 
+/* 01-272 S9 analytics readability */
+[data-ui-page=analytics] .analytics-page-header--compact {
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.95rem;
+}
+
+[data-ui-page=analytics] .analytics-page-heading {
+  min-width: 14rem;
+  flex: 0 1 24rem;
+}
+
+[data-ui-page=analytics] .analytics-page-heading .page-title {
+  margin-bottom: 0;
+}
+
+[data-ui-page=analytics] .analytics-page-actions {
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+[data-ui-page=analytics] .analytics-route-strip {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.22rem 0.3rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-raised) 74%, transparent);
+}
+
+[data-ui-page=analytics] .analytics-route-strip__label {
+  flex: 0 0 auto;
+  padding: 0 0.35rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+[data-ui-page=analytics] .analytics-route-strip__links {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.12rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+[data-ui-page=analytics] .analytics-route-link {
+  min-height: 1.9rem;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 0.46rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+[data-ui-page=analytics] .analytics-route-link:hover,
+[data-ui-page=analytics] .analytics-route-link:focus-visible {
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--color-text);
+  outline: none;
+}
+
+[data-ui-page=analytics] .analytics-route-link:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+[data-ui-page=analytics] .analytics-export-form {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+[data-ui-page=analytics] .analytics-jump-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0 0 0.75rem;
+  padding: 0 0 0.55rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border);
+  scrollbar-width: thin;
+}
+
+[data-ui-page=analytics] .analytics-jump-nav__link {
+  min-height: 1.9rem;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 0.58rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 680;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+[data-ui-page=analytics] .analytics-jump-nav__link:hover,
+[data-ui-page=analytics] .analytics-jump-nav__link:focus-visible {
+  border-color: var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  outline: none;
+}
+
+[data-ui-page=analytics] .analytics-section-card {
+  margin-bottom: 0.8rem !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+[data-ui-page=analytics] .analytics-section-header {
+  padding: 0.65rem 0.8rem;
+}
+
+[data-ui-page=analytics] .analytics-section-card > .card-body {
+  padding: 0.75rem 0.8rem;
+}
+
+[data-ui-page=analytics] .analytics-section-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+[data-ui-page=analytics] .analytics-section-title-row .content-disclosure {
+  margin-top: 0;
+}
+
+[data-ui-page=analytics] .analytics-section-title-row .page-header-info__toggle {
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.7rem;
+}
+
+[data-ui-page=analytics] .analytics-section-help {
+  max-width: 38rem;
+  font-size: var(--font-size-xs);
+}
+
+[data-ui-page=analytics] .analytics-section-card > .card-body > .row.g-3.mb-3 {
+  --bs-gutter-x: 0.48rem;
+  --bs-gutter-y: 0.48rem;
+  margin-bottom: 0.7rem !important;
+}
+
+[data-ui-page=analytics] .analytics-metric-card {
+  padding: 0.5rem 0.58rem;
+  border-color: color-mix(in srgb, var(--color-border) 72%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-raised) 44%, transparent);
+}
+
+[data-ui-page=analytics] .analytics-metric-card .text-muted {
+  font-size: 0.68rem;
+  font-weight: 580;
+}
+
+[data-ui-page=analytics] .analytics-metric-card .h5 {
+  margin-top: 0.08rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+[data-ui-page=analytics] .analytics-scroll-area {
+  max-height: 380px;
+}
+
+[data-ui-page=analytics] .analytics-table-shell .table > :not(caption) > * > * {
+  padding: 0.36rem 0.5rem;
+  font-size: 0.79rem;
+  vertical-align: middle;
+}
+
+[data-ui-page=analytics] .analytics-table-shell thead th {
+  font-size: 0.68rem;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+}
+
+[data-ui-page=analytics] .analytics-filter-bar {
+  gap: 0.35rem;
+  padding: 0.45rem;
+  border-radius: var(--radius-md);
+}
+
+[data-ui-page=analytics] .analytics-filter-bar .form-control,
+[data-ui-page=analytics] .analytics-filter-bar .form-select {
+  min-height: 2rem;
+  font-size: 0.78rem;
+}
+
+[data-ui-page=analytics] .analytics-control-sm {
+  max-width: 170px;
+}
+
+[data-ui-page=analytics] .analytics-control-md {
+  max-width: 180px;
+}
+
+[data-ui-page=analytics] .analytics-control-lg {
+  max-width: 195px;
+}
+
+[data-ui-page=analytics] .analytics-section-header .btn.btn-sm:not(.ui-icon-control) {
+  min-height: 2rem;
+  padding: 0.3rem 0.55rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 991.98px) {
+  [data-ui-page=analytics] .analytics-page-header--compact {
+    align-items: stretch;
+  }
+  [data-ui-page=analytics] .analytics-page-heading {
+    flex-basis: auto;
+  }
+  [data-ui-page=analytics] .analytics-page-actions,
+  [data-ui-page=analytics] .analytics-route-strip {
+    width: 100%;
+  }
+  [data-ui-page=analytics] .analytics-page-actions {
+    flex-wrap: nowrap;
+  }
+}
+@media (max-width: 575.98px) {
+  [data-ui-page=analytics] .analytics-route-strip__label {
+    display: none;
+  }
+  [data-ui-page=analytics] .analytics-jump-nav {
+    margin-bottom: 0.6rem;
+  }
+}
+/* 01-272 S9 R2 progressive disclosure */
+[data-ui-page=analytics] .analytics-progressive-disclosure {
+  margin-top: 0.65rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-raised) 38%, transparent);
+}
+
+[data-ui-page=analytics] .analytics-progressive-disclosure > summary,
+[data-ui-page=analytics] .analytics-review-disclosure > summary {
+  min-height: 2.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: 680;
+  cursor: pointer;
+  user-select: none;
+}
+
+[data-ui-page=analytics] .analytics-progressive-disclosure > summary small,
+[data-ui-page=analytics] .analytics-review-disclosure > summary small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 560;
+}
+
+[data-ui-page=analytics] .analytics-progressive-disclosure > summary:hover,
+[data-ui-page=analytics] .analytics-progressive-disclosure > summary:focus-visible,
+[data-ui-page=analytics] .analytics-review-disclosure > summary:hover,
+[data-ui-page=analytics] .analytics-review-disclosure > summary:focus-visible {
+  background: var(--surface-selected);
+  outline: none;
+}
+
+[data-ui-page=analytics] .analytics-progressive-disclosure > summary:focus-visible,
+[data-ui-page=analytics] .analytics-review-disclosure > summary:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+
+[data-ui-page=analytics] .analytics-progressive-disclosure__body {
+  padding: 0.6rem;
+  border-top: 1px solid var(--color-border);
+}
+
+[data-ui-page=analytics] .analytics-transport-diagnostics {
+  margin-top: 0.6rem;
+}
+
+[data-ui-page=analytics] .analytics-transport-diagnostics .analytics-progressive-disclosure__body > .row {
+  margin-top: 0;
+}
+
+[data-ui-page=analytics] .analytics-metrics-stack {
+  display: grid;
+  gap: 0.5rem;
+}
+
+[data-ui-page=analytics] .analytics-primary-metrics,
+[data-ui-page=analytics] .analytics-secondary-metrics {
+  --bs-gutter-x: 0.48rem;
+  --bs-gutter-y: 0.48rem;
+}
+
+[data-ui-page=analytics] .analytics-metrics-details {
+  margin-top: 0;
+}
+
+[data-ui-page=analytics] .analytics-review-disclosure {
+  padding: 0 !important;
+}
+
+[data-ui-page=analytics] .analytics-review-disclosure__body {
+  padding: 0.7rem;
+  border-top: 1px solid var(--color-border);
+}
+
+[data-ui-page=analytics] .analytics-review-disclosure__body > .small.text-muted:first-child {
+  margin-top: 0;
+}
+
+[data-ui-page=analytics] .analytics-governance-edit {
+  margin-top: 0.55rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+[data-ui-page=analytics] .analytics-governance-edit > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.9rem;
+  padding: 0.2rem 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 680;
+  cursor: pointer;
+}
+
+[data-ui-page=analytics] .analytics-governance-edit > summary:hover,
+[data-ui-page=analytics] .analytics-governance-edit > summary:focus-visible {
+  color: var(--color-text);
+  outline: none;
+}
+
+[data-ui-page=analytics] .analytics-governance-edit__body {
+  padding-top: 0.15rem;
+}
+
+[data-ui-page=analytics] .analytics-governance-edit__body > .mt-2:first-child {
+  margin-top: 0.35rem !important;
+}
+
+@media (max-width: 575.98px) {
+  [data-ui-page=analytics] .analytics-progressive-disclosure > summary,
+  [data-ui-page=analytics] .analytics-review-disclosure > summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+}
 /* Analytics telemetry + monitoring semantic pass */
 [data-ui-page=analytics] .analytics-telemetry-header {
   display: grid;
@@ -10011,10 +10386,10 @@ body.passport-photo-viewer-open {
   }
 }
 @media (max-width: 575.98px) {
-  [data-ui-page=analytics] .analytics-page-actions .btn,
-  [data-ui-page=analytics] .analytics-page-actions form,
-  [data-ui-page=analytics] .analytics-page-actions form .btn {
-    width: 100%;
+  [data-ui-page=analytics] .analytics-page-actions .analytics-export-form,
+  [data-ui-page=analytics] .analytics-page-actions .analytics-export-action {
+    width: auto;
+    flex: 0 0 auto;
   }
   [data-ui-page=analytics] .analytics-filter-bar .btn {
     flex-basis: 100%;
