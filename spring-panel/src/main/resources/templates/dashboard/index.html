@@ -78,7 +78,7 @@
 
     <div class="tab-content">
       <div class="tab-pane fade show active" id="reports-dashboard" role="tabpanel">
-        <section class="dashboard-overview-grid">
+        <section class="dashboard-overview-grid reports-overview-unified">
           <div class="filter-panel control-panel ops-panel">
             <div class="panel-head">
               <div>
@@ -91,7 +91,6 @@
                   </button>
                 </div>
               </div>
-              <span class="section-chip">Live query</span>
             </div>
             <div class="filter-grid">
               <div class="filter-block filter-block--period">
@@ -137,10 +136,6 @@
                 </div>
               </div>
             </div>
-            <div class="metrics-headline">
-              <span class="metrics-headline__chip">Realtime review</span>
-              <span class="metrics-headline__meta">Метрики обновляются после применения фильтров и держат акцент на текущем срезе.</span>
-            </div>
             <div class="metrics-grid">
               <article class="metric-card metric-card--primary">
                 <span class="metric-label">Всего заявок</span>
@@ -165,10 +160,6 @@
                 <span class="metric-label">Нагрузка в час</span>
                 <strong class="metric-value" id="hourlyLoadValue">0</strong>
                 <span class="metric-foot" id="hourlyLoadFoot">Нет данных по активности за выбранный период.</span>
-              </article>
-              <article class="metric-card metric-card--note">
-                <span class="metric-label">Фокус панели</span>
-                <p class="metric-note-text">Слева собран срез, справа ключевые KPI, ниже аналитика по команде, каналам и структуре сети.</p>
               </article>
             </div>
           </div>
@@ -405,12 +396,18 @@
       </div>
 
       <div class="tab-pane fade" id="reports-managers" role="tabpanel">
-			<div class="reports-subpanel ops-panel">
+			<div class="reports-subpanel reports-manager-workspace ops-panel">
 
 				<div class="reports-subpanel-head">
 					<div>
 						<span class="section-kicker">Управляющие</span>
-						<h2 class="reports-subpanel-title">Отчёт по управляющим</h2>
+						<div class="panel-title-row reports-title-row">
+                  <h2 class="reports-subpanel-title">Отчёт по управляющим</h2>
+                  <button type="button" class="panel-info-button" aria-label="Описание отчёта по управляющим">
+                    i
+                    <span class="panel-info-tooltip">Период, распределение обращений и сводка по руководителям управляющих.</span>
+                  </button>
+                </div>
 						<p class="reports-subpanel-copy">
 							Период, распределение обращений и сводка
 							по руководителям управляющих.
@@ -434,16 +431,15 @@
             </div>
           </div>
         </div>
-        <div class="card reports-summary-card">
+        <div class="card reports-summary-card" id="managerSupervisorSummaryCard" hidden>
 			<div class="card-body">
-				<span class="section-kicker">Руководители</span>
 				<h3 class="reports-card-title">
 					Срез по руководителям управляющих
 				</h3>
 
 				<div id="supervisorSummary"
-					 class="reports-summary-content text-muted">
-					Нет данных
+					 class="reports-summary-content ui-inline-state" data-tone="neutral">
+					<i class="bi bi-inbox" aria-hidden="true"></i><span>Нет данных по руководителям за выбранный период.</span>
 				</div>
 			</div>
 		</div>
@@ -452,49 +448,110 @@
       </div>
 
       <div class="tab-pane fade" id="reports-olap" role="tabpanel">
-		<div class="reports-subpanel ops-panel">
-
-			<div class="reports-subpanel-head">
-				<div>
-					<span class="section-kicker">OLAP</span>
-					<h2 class="reports-subpanel-title">Конструктор отчётов</h2>
-					<p class="reports-subpanel-copy">
-						Выберите измерение и источники данных,
-						чтобы собрать агрегированный срез.
-					</p>
-				</div>
-			</div>
-
-			<div class="card reports-builder-card">
-          <div class="card-body">
-            <div class="row g-3 align-items-end">
-              <div class="col-md-4">
-                <label class="form-label">Измерение</label>
-                <select class="form-select" id="olapDimension">
-                  <option value="location">Локация</option>
-                  <option value="city">Город</option>
-                  <option value="category">Категория</option>
-                  <option value="responsible">Ответственный</option>
-                </select>
+        <div class="reports-subpanel reports-olap-workspace ops-panel">
+          <div class="reports-subpanel-head reports-olap-head">
+            <div>
+              <div class="panel-title-row reports-title-row">
+                <h2 class="reports-subpanel-title">Конструктор отчётов</h2>
+                <button type="button" class="panel-info-button" aria-label="Описание конструктора отчётов">
+                  i
+                  <span class="panel-info-tooltip">Соберите агрегированный срез из доступных группировок и показателей. Текущие фильтры дашборда применяются автоматически.</span>
+                </button>
               </div>
-              <div class="col-md-6">
-                <label class="form-label d-block">Источники данных</label>
-                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="olapAppeals" checked><label class="form-check-label" for="olapAppeals">Обращения</label></div>
-                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="olapTasks" checked><label class="form-check-label" for="olapTasks">Задачи</label></div>
-                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="olapChanges" checked><label class="form-check-label" for="olapChanges">Изменения системы</label></div>
-              </div>
-              <div class="col-md-2">
-                <button class="btn btn-primary w-100" id="buildOlap">Собрать</button>
-              </div>
+              <p class="reports-subpanel-copy">
+                Соберите агрегированный срез из доступных группировок и показателей.
+                Текущие фильтры дашборда применяются автоматически.
+              </p>
             </div>
-            <div class="table-responsive reports-table-shell mt-3 ops-table-shell">
-				<table class="table table-sm align-middle mb-0 reports-table">
-                <thead><tr><th>Измерение</th><th>Обращения</th><th>Задачи</th><th>Изменения системы</th></tr></thead>
-                <tbody id="olapTableBody"><tr><td colspan="4" class="text-muted">Нет данных</td></tr></tbody>
-              </table>
+            <div class="reports-olap-context" aria-live="polite">
+              <span class="reports-olap-context__label">Текущий срез</span>
+              <strong id="olapContextPeriod">Период: —</strong>
+              <span id="olapContextRestaurants" title="">Все рестораны</span>
             </div>
           </div>
-        </div>
+
+          <div class="reports-builder-card reports-olap-builder">
+            <section class="reports-olap-step reports-olap-step--dimension" aria-labelledby="olapDimensionLabel">
+              <div class="reports-olap-step__head">
+                <span class="reports-olap-step__index" aria-hidden="true">1</span>
+                <div>
+                  <span class="reports-olap-step__eyebrow">Группировка</span>
+                  <strong id="olapDimensionLabel">Как собрать строки</strong>
+                </div>
+              </div>
+              <select class="form-select" id="olapDimension" aria-label="Группировка отчёта">
+                <option value="location">Локация</option>
+                <option value="city">Город</option>
+                <option value="category">Категория</option>
+                <option value="responsible">Ответственный</option>
+              </select>
+            </section>
+
+            <section class="reports-olap-step reports-olap-step--metrics" aria-labelledby="olapMetricsLabel">
+              <div class="reports-olap-step__head">
+                <span class="reports-olap-step__index" aria-hidden="true">2</span>
+                <div>
+                  <span class="reports-olap-step__eyebrow">Показатели</span>
+                  <strong id="olapMetricsLabel">Что посчитать</strong>
+                </div>
+              </div>
+              <div class="reports-olap-metrics" role="group" aria-label="Показатели отчёта">
+                <label class="reports-olap-metric-option" for="olapAppeals">
+                  <input class="form-check-input" type="checkbox" id="olapAppeals" checked>
+                  <span><i class="bi bi-chat-square-text" aria-hidden="true"></i>Обращения</span>
+                </label>
+                <label class="reports-olap-metric-option" for="olapTasks">
+                  <input class="form-check-input" type="checkbox" id="olapTasks" checked>
+                  <span><i class="bi bi-check2-square" aria-hidden="true"></i>Задачи</span>
+                </label>
+                <label class="reports-olap-metric-option" for="olapChanges">
+                  <input class="form-check-input" type="checkbox" id="olapChanges" checked>
+                  <span><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Изменения системы</span>
+                </label>
+              </div>
+            </section>
+
+            <section class="reports-olap-step reports-olap-step--build" aria-labelledby="olapBuildLabel">
+              <div class="reports-olap-step__head">
+                <span class="reports-olap-step__index" aria-hidden="true">3</span>
+                <div>
+                  <span class="reports-olap-step__eyebrow">Построение</span>
+                  <strong id="olapBuildLabel">Проверить срез</strong>
+                </div>
+              </div>
+              <div class="reports-olap-build-summary" id="olapSelectionSummary">Локация · 3 показателя</div>
+              <button class="btn btn-primary reports-olap-build" id="buildOlap" type="button">
+                <span class="spinner-border spinner-border-sm" data-olap-spinner aria-hidden="true" hidden></span>
+                <span data-olap-build-label>Собрать</span>
+              </button>
+            </section>
+          </div>
+
+          <section class="reports-olap-result" aria-labelledby="olapResultTitle">
+            <div class="reports-olap-result__head">
+              <div>
+                <span class="section-kicker">Результат</span>
+                <h3 class="reports-card-title" id="olapResultTitle">Агрегированный срез</h3>
+                <p class="reports-olap-result__copy" id="olapResultDescription">Локация · Обращения, Задачи, Изменения системы</p>
+              </div>
+              <span class="reports-olap-result__meta" id="olapResultMeta" data-tone="neutral" aria-live="polite">Готов к построению</span>
+            </div>
+            <div class="table-responsive reports-table-shell ops-table-shell">
+              <table class="table table-sm align-middle mb-0 reports-table reports-olap-table">
+                <thead>
+                  <tr>
+                    <th>Измерение</th>
+                    <th data-olap-column="appeals">Обращения</th>
+                    <th data-olap-column="tasks">Задачи</th>
+                    <th data-olap-column="system_changes">Изменения системы</th>
+                  </tr>
+                </thead>
+                <tbody id="olapTableBody">
+                  <tr class="reports-olap-empty-row"><td colspan="4"><div class="ui-inline-state" data-tone="neutral"><i class="bi bi-table" aria-hidden="true"></i><span>Нажмите «Собрать», чтобы получить текущий срез.</span></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -1523,9 +1580,17 @@
         }
       });
       document.getElementById('resetDashboardLayout')?.addEventListener('click', resetDashboardPanelLayout);
+      decorateReportsCompactControls();
       document.getElementById('buildOlap')?.addEventListener('click', buildOlapReport);
+      ['olapDimension', 'olapAppeals', 'olapTasks', 'olapChanges'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('change', updateOlapBuilderSummary);
+      });
       document.getElementById('tab-managers')?.addEventListener('shown.bs.tab', () => loadManagerReport(true));
-      document.getElementById('tab-olap')?.addEventListener('shown.bs.tab', buildOlapReport);
+      document.getElementById('tab-olap')?.addEventListener('shown.bs.tab', () => {
+        updateOlapContext();
+        updateOlapBuilderSummary();
+        buildOlapReport();
+      });
     });
 
     // Установка периода по пресету
@@ -1588,7 +1653,8 @@
 async function loadManagerReport(showError = false) {
   const accordion = document.getElementById('managerAccordion');
   const supervisor = document.getElementById('supervisorSummary');
-  if (!accordion || !supervisor) {
+  const supervisorCard = document.getElementById('managerSupervisorSummaryCard');
+  if (!accordion || !supervisor || !supervisorCard) {
     return;
   }
 
@@ -1608,10 +1674,18 @@ async function loadManagerReport(showError = false) {
     }
 
     const supervisorRows = Object.entries(data.supervisors || {}).map(([name, total]) => `${name}: ${total}`).join(' · ');
-    supervisor.textContent = supervisorRows || 'Нет данных';
+    if (supervisorRows) {
+      supervisorCard.hidden = false;
+      supervisor.classList.remove('ui-inline-state');
+      supervisor.removeAttribute('data-tone');
+      supervisor.textContent = supervisorRows;
+    } else {
+      supervisorCard.hidden = true;
+      supervisor.textContent = '';
+    }
     const managers = Array.isArray(data.managers) ? data.managers : [];
     if (!managers.length) {
-      accordion.innerHTML = '<div class="text-muted">Нет данных по управляющим за выбранный период.</div>';
+      accordion.innerHTML = '<div class="ui-inline-state" data-tone="neutral"><i class="bi bi-inbox" aria-hidden="true"></i><span>Нет данных по управляющим за выбранный период.</span></div>';
       return;
     }
 
@@ -1621,36 +1695,183 @@ async function loadManagerReport(showError = false) {
     }).join('');
   } catch (error) {
     console.error('Ошибка загрузки отчёта по управляющим:', error);
-    accordion.innerHTML = '<div class="text-danger">Не удалось загрузить отчёт по управляющим.</div>';
+    supervisorCard.hidden = true;
+    supervisor.textContent = '';
+    accordion.innerHTML = '<div class="ui-inline-state" data-tone="danger"><i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>Не удалось загрузить отчёт по управляющим.</span></div>';
     if (showError) {
       showNotification('Ошибка отчёта по управляющим: ' + error.message, 'error');
     }
   }
 }
 
-async function buildOlapReport() {
-  const response = await fetch('/api/dashboard/olap-preview', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      filters: { startDate: currentFilters.startDate, endDate: currentFilters.endDate, restaurants: currentFilters.restaurants || [] },
-      olap: {
-        dimension: document.getElementById('olapDimension')?.value || 'location',
-        includeAppeals: document.getElementById('olapAppeals')?.checked !== false,
-        includeTasks: document.getElementById('olapTasks')?.checked !== false,
-        includeSystemChanges: document.getElementById('olapChanges')?.checked !== false,
-      }
-    })
+const OLAP_METRICS = [
+  { id: 'olapAppeals', key: 'appeals', label: 'Обращения' },
+  { id: 'olapTasks', key: 'tasks', label: 'Задачи' },
+  { id: 'olapChanges', key: 'system_changes', label: 'Изменения системы' },
+];
+
+function escapeOlapHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function selectedOlapMetrics() {
+  return OLAP_METRICS.filter((metric) => document.getElementById(metric.id)?.checked !== false);
+}
+
+function olapDimensionLabel() {
+  const select = document.getElementById('olapDimension');
+  return select?.selectedOptions?.[0]?.textContent?.trim() || 'Локация';
+}
+
+function formatOlapDate(value) {
+  if (!value) return '';
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ru-RU').format(date);
+}
+
+function updateOlapContext() {
+  const period = document.getElementById('olapContextPeriod');
+  const restaurants = document.getElementById('olapContextRestaurants');
+  if (period) {
+    const start = formatOlapDate(currentFilters.startDate);
+    const end = formatOlapDate(currentFilters.endDate);
+    period.textContent = start && end ? `Период: ${start} — ${end}` : 'Период: за всё время';
+  }
+  if (restaurants) {
+    const values = Array.isArray(currentFilters.restaurants) ? currentFilters.restaurants.filter(Boolean) : [];
+    const full = values.length ? values.join(', ') : 'Все рестораны';
+    restaurants.textContent = values.length > 2 ? `${values.slice(0, 2).join(", ")} + ещё ${values.length - 2}` : full;
+    restaurants.title = full;
+  }
+}
+
+function syncOlapMetricColumns(metrics) {
+  const enabled = new Set(metrics.map((metric) => metric.key));
+  document.querySelectorAll('[data-olap-column]').forEach((node) => {
+    node.hidden = !enabled.has(node.dataset.olapColumn);
   });
-  const data = await response.json();
+}
+
+function updateOlapBuilderSummary() {
+  const metrics = selectedOlapMetrics();
+  const dimension = olapDimensionLabel();
+  const summary = document.getElementById('olapSelectionSummary');
+  const description = document.getElementById('olapResultDescription');
+  if (summary) summary.textContent = `${dimension} · ${metrics.length} ${metrics.length === 1 ? "показатель" : metrics.length > 1 && metrics.length < 5 ? "показателя" : "показателей"}`;
+  if (description) description.textContent = metrics.length ? `${dimension} · ${metrics.map((metric) => metric.label).join(", ")}` : `${dimension} · показатели не выбраны`;
+  syncOlapMetricColumns(metrics);
+}
+
+function setOlapBuildLoading(loading) {
+  const button = document.getElementById('buildOlap');
+  const spinner = button?.querySelector('[data-olap-spinner]');
+  const label = button?.querySelector('[data-olap-build-label]');
+  if (button) button.disabled = loading;
+  if (spinner) spinner.hidden = !loading;
+  if (label) label.textContent = loading ? 'Собираем…' : 'Собрать';
+}
+
+function setOlapResultMeta(text, tone = 'neutral') {
+  const meta = document.getElementById('olapResultMeta');
+  if (!meta) return;
+  meta.textContent = text;
+  meta.dataset.tone = tone;
+}
+
+async function buildOlapReport() {
   const tbody = document.getElementById('olapTableBody');
   if (!tbody) return;
-  if (!response.ok || data.success === false) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-danger">Ошибка загрузки</td></tr>';
+  updateOlapContext();
+  updateOlapBuilderSummary();
+  const metrics = selectedOlapMetrics();
+  const colspan = metrics.length + 1;
+  if (!metrics.length) {
+    tbody.innerHTML = `<tr class="reports-olap-empty-row"><td colspan="1"><div class="ui-inline-state" data-tone="warning"><i class="bi bi-info-circle" aria-hidden="true"></i><span>Выберите хотя бы один показатель.</span></div></td></tr>`;
+    setOlapResultMeta('Нужен показатель', 'warning');
     return;
   }
-  const rows = Array.isArray(data.rows) ? data.rows : [];
-  tbody.innerHTML = rows.map((row) => `<tr><td>${row.dimension}</td><td>${row.appeals ?? 0}</td><td>${row.tasks ?? 0}</td><td>${row.system_changes ?? 0}</td></tr>`).join('');
+
+  setOlapBuildLoading(true);
+  setOlapResultMeta('Собираем…', 'neutral');
+  tbody.innerHTML = `<tr class="reports-olap-empty-row"><td colspan="${colspan}"><div class="ui-inline-state" data-tone="neutral"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Загружаем данные…</span></div></td></tr>`;
+  try {
+    const response = await fetch('/api/dashboard/olap-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filters: { startDate: currentFilters.startDate, endDate: currentFilters.endDate, restaurants: currentFilters.restaurants || [] },
+        olap: {
+          dimension: document.getElementById('olapDimension')?.value || 'location',
+          includeAppeals: document.getElementById('olapAppeals')?.checked !== false,
+          includeTasks: document.getElementById('olapTasks')?.checked !== false,
+          includeSystemChanges: document.getElementById('olapChanges')?.checked !== false,
+        }
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || data.success === false) {
+      throw new Error(data.error || 'Не удалось собрать отчёт');
+    }
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+    if (!rows.length) {
+      tbody.innerHTML = `<tr class="reports-olap-empty-row"><td colspan="${colspan}"><div class="ui-inline-state" data-tone="neutral"><i class="bi bi-inbox" aria-hidden="true"></i><span>Нет данных для текущего среза.</span></div></td></tr>`;
+      setOlapResultMeta('0 строк', 'neutral');
+      return;
+    }
+    tbody.innerHTML = rows.map((row) => `<tr>
+      <td class="reports-olap-dimension-cell" title="${escapeOlapHtml(row.dimension)}">${escapeOlapHtml(row.dimension)}</td>
+      <td data-olap-column="appeals">${row.appeals ?? 0}</td>
+      <td data-olap-column="tasks">${row.tasks ?? 0}</td>
+      <td data-olap-column="system_changes">${row.system_changes ?? 0}</td>
+    </tr>`).join('');
+    syncOlapMetricColumns(metrics);
+    setOlapResultMeta(`${rows.length} ${rows.length === 1 ? "строка" : rows.length > 1 && rows.length < 5 ? "строки" : "строк"}`, 'success');
+  } catch (error) {
+    tbody.innerHTML = `<tr class="reports-olap-empty-row is-error"><td colspan="${colspan}"><div class="ui-inline-state" data-tone="danger"><i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>Не удалось загрузить отчёт.</span></div></td></tr>`;
+    setOlapResultMeta('Ошибка', 'danger');
+    console.error('Ошибка построения OLAP-отчёта:', error);
+  } finally {
+    setOlapBuildLoading(false);
+  }
+}
+
+function decorateReportsCompactControls() {
+  const shortcuts = new Map([
+    ['Текущая неделя', 'W'],
+    ['Текущий месяц', 'M'],
+    ['Текущий квартал', 'Q'],
+    ['Текущий год', 'Y'],
+    ['За всё время', '∞'],
+  ]);
+  const actions = new Map([
+    ['Применить', { icon: 'bi-check2', label: 'Применить фильтры' }],
+    ['Применить период', { icon: 'bi-check2', label: 'Применить период' }],
+    ['Сбросить', { icon: 'bi-arrow-counterclockwise', label: 'Сбросить фильтры' }],
+  ]);
+  document.querySelectorAll('button').forEach((button) => {
+    const label = (button.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!label) return;
+    const shortcut = shortcuts.get(label);
+    if (shortcut) {
+      button.classList.add('ui-shortcut-control');
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.innerHTML = `<span class="ui-shortcut-control__glyph" aria-hidden="true">${shortcut}</span><span class="visually-hidden">${label}</span>`;
+      return;
+    }
+    const action = actions.get(label);
+    if (action) {
+      button.classList.add('ui-icon-control');
+      button.title = action.label;
+      button.setAttribute('aria-label', action.label);
+      button.innerHTML = `<i class="bi ${action.icon}" aria-hidden="true"></i><span class="visually-hidden">${action.label}</span>`;
+    }
+  });
 }
 
 async function loadDashboardData() {

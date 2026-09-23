@@ -10677,6 +10677,102 @@ body.passport-photo-viewer-open {
     gap: 0.25rem;
   }
 }
+/* 01-272 shared compact icon controls */
+.ui-icon-control,
+.ui-shortcut-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+.ui-icon-control {
+  width: 2.45rem !important;
+  min-width: 2.45rem;
+  height: 2.45rem;
+  min-height: 2.45rem;
+  padding: 0 !important;
+  border-radius: var(--radius-md);
+}
+
+.ui-icon-control .bi {
+  font-size: 1.05rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.ui-shortcut-control {
+  width: 2.45rem !important;
+  min-width: 2.45rem;
+  max-width: 2.45rem;
+  height: 2.45rem;
+  min-height: 2.45rem;
+  flex: 0 0 2.45rem;
+  padding: 0 !important;
+  border-radius: var(--radius-pill);
+}
+
+.ui-shortcut-control__glyph {
+  font-size: 1rem;
+  font-weight: 720;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.ui-icon-control:hover,
+.ui-icon-control:focus-visible,
+.ui-shortcut-control:hover,
+.ui-shortcut-control:focus-visible,
+.ui-shortcut-control.active {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--color-text);
+}
+
+.ui-icon-control:focus-visible,
+.ui-shortcut-control:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* 01-272 shared inline states */
+.ui-inline-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  max-width: 100%;
+  min-height: 2rem;
+  padding: 0.42rem 0.58rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+}
+
+.ui-inline-state .bi,
+.ui-inline-state .spinner-border {
+  flex: 0 0 auto;
+  font-size: 0.92rem;
+}
+
+.ui-inline-state[data-tone=warning] {
+  border-color: color-mix(in srgb, var(--state-warning) 30%, var(--color-border));
+  background: color-mix(in srgb, var(--state-warning-bg) 45%, var(--surface-card));
+  color: var(--state-warning-text);
+}
+
+.ui-inline-state[data-tone=danger] {
+  border-color: color-mix(in srgb, var(--state-danger) 30%, var(--color-border));
+  background: color-mix(in srgb, var(--state-danger-bg) 42%, var(--surface-card));
+  color: var(--state-danger-text);
+}
+
 /* Reports / Dashboard workspace */
 body[data-ui-page=dashboard] {
   padding-top: 0;
@@ -10687,6 +10783,10 @@ body[data-ui-page=dashboard] {
   /* Manager accordion */
   /* Select2 */
   /* Flatpickr */
+  /* 01-272 S8: compact OLAP builder UX */
+  /* 01-272 S8 R2: calm reports visual system */
+  /* 01-272 S8 R4/R7: compact controls consume shared UI-kit rules */
+  /* 01-272 S8 R8: reports refinement and shared states */
 }
 body[data-ui-page=dashboard] .reports-shell {
   padding: 1.35rem 0 1.8rem;
@@ -12092,6 +12192,679 @@ body[data-ui-page=dashboard] .flatpickr-calendar.arrowTop::after {
 }
 body[data-ui-page=dashboard] .flatpickr-calendar.arrowBottom::after {
   border-top-color: var(--surface-card);
+}
+body[data-ui-page=dashboard] .reports-olap-workspace {
+  display: grid;
+  gap: 0.9rem;
+}
+body[data-ui-page=dashboard] .reports-olap-head {
+  align-items: flex-end;
+  padding-bottom: 0;
+}
+body[data-ui-page=dashboard] .reports-olap-context {
+  display: grid;
+  min-width: min(320px, 100%);
+  gap: 0.14rem;
+  padding: 0.58rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+body[data-ui-page=dashboard] .reports-olap-context__label {
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+body[data-ui-page=dashboard] .reports-olap-context strong {
+  color: var(--color-text);
+  font-size: 0.8rem;
+}
+body[data-ui-page=dashboard] .reports-olap-context span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body[data-ui-page=dashboard] .reports-builder-card.reports-olap-builder {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.85fr) minmax(360px, 1.65fr) minmax(180px, 0.7fr);
+  gap: 0;
+  overflow: visible;
+  padding: 0;
+}
+body[data-ui-page=dashboard] .reports-olap-step {
+  display: grid;
+  align-content: start;
+  gap: 0.62rem;
+  min-width: 0;
+  padding: 0.78rem 0.85rem;
+}
+body[data-ui-page=dashboard] .reports-olap-step + .reports-olap-step {
+  border-left: 1px solid var(--color-border);
+}
+body[data-ui-page=dashboard] .reports-olap-step__head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+body[data-ui-page=dashboard] .reports-olap-step__head > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.06rem;
+}
+body[data-ui-page=dashboard] .reports-olap-step__index {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--color-border));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-card));
+  color: var(--primary);
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+body[data-ui-page=dashboard] .reports-olap-step__eyebrow {
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+body[data-ui-page=dashboard] .reports-olap-step__head strong {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body[data-ui-page=dashboard] .reports-olap-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+body[data-ui-page=dashboard] .reports-olap-metric-option {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+body[data-ui-page=dashboard] .reports-olap-metric-option:has(input:checked) {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--color-border));
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface-card));
+  color: var(--color-text);
+}
+body[data-ui-page=dashboard] .reports-olap-metric-option .form-check-input {
+  flex: 0 0 auto;
+  margin: 0;
+}
+body[data-ui-page=dashboard] .reports-olap-metric-option > span {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.38rem;
+}
+body[data-ui-page=dashboard] .reports-olap-metric-option i {
+  color: var(--primary);
+  font-size: 0.82rem;
+}
+body[data-ui-page=dashboard] .reports-olap-step--build {
+  grid-template-rows: auto 1fr auto;
+}
+body[data-ui-page=dashboard] .reports-olap-build-summary {
+  align-self: center;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body[data-ui-page=dashboard] .reports-olap-build {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 38px;
+  width: 100%;
+}
+body[data-ui-page=dashboard] .reports-olap-result {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-card);
+}
+body[data-ui-page=dashboard] .reports-olap-result__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--surface-raised);
+}
+body[data-ui-page=dashboard] .reports-olap-result__head .reports-card-title {
+  margin-top: 0.22rem;
+}
+body[data-ui-page=dashboard] .reports-olap-result__copy {
+  margin: 0.16rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+body[data-ui-page=dashboard] .reports-olap-result__meta {
+  flex: 0 0 auto;
+  max-width: 180px;
+  padding: 0.22rem 0.48rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  color: var(--color-text-muted);
+  font-size: 0.69rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body[data-ui-page=dashboard] .reports-olap-result__meta[data-tone=success] {
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+}
+body[data-ui-page=dashboard] .reports-olap-result__meta[data-tone=warning] {
+  border-color: var(--state-warning-border);
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+}
+body[data-ui-page=dashboard] .reports-olap-result__meta[data-tone=danger] {
+  border-color: var(--state-danger-border);
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
+}
+body[data-ui-page=dashboard] .reports-olap-result .reports-table-shell {
+  border: 0;
+  border-radius: 0;
+}
+body[data-ui-page=dashboard] .reports-olap-table thead th {
+  padding-top: 0.48rem;
+  padding-bottom: 0.48rem;
+  font-size: 0.72rem;
+}
+body[data-ui-page=dashboard] .reports-olap-table tbody td {
+  padding-top: 0.46rem;
+  padding-bottom: 0.46rem;
+}
+body[data-ui-page=dashboard] .reports-olap-dimension-cell {
+  max-width: 420px;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body[data-ui-page=dashboard] .reports-olap-empty-row td {
+  padding: 1.15rem 0.9rem !important;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+body[data-ui-page=dashboard] .reports-olap-empty-row.is-error td {
+  color: var(--state-danger-text);
+}
+@media (max-width: 991.98px) {
+  body[data-ui-page=dashboard] .reports-builder-card.reports-olap-builder {
+    grid-template-columns: 1fr;
+  }
+  body[data-ui-page=dashboard] .reports-olap-step + .reports-olap-step {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+}
+@media (max-width: 767.98px) {
+  body[data-ui-page=dashboard] .reports-olap-head,
+  body[data-ui-page=dashboard] .reports-olap-result__head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  body[data-ui-page=dashboard] .reports-olap-context {
+    width: 100%;
+  }
+  body[data-ui-page=dashboard] .reports-olap-metrics {
+    grid-template-columns: 1fr;
+  }
+  body[data-ui-page=dashboard] .reports-olap-result__meta {
+    max-width: 100%;
+    align-self: flex-start;
+  }
+}
+body[data-ui-page=dashboard] .section-kicker {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.69rem;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: 0.055em;
+}
+body[data-ui-page=dashboard] .section-chip {
+  min-height: 24px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.67rem;
+  letter-spacing: 0.055em;
+}
+body[data-ui-page=dashboard] .chart-panel,
+body[data-ui-page=dashboard] .filter-panel,
+body[data-ui-page=dashboard] .metrics-panel {
+  box-shadow: none;
+}
+body[data-ui-page=dashboard] .chart-panel {
+  padding: 0.86rem 0.9rem;
+}
+body[data-ui-page=dashboard] .chart-panel-head,
+body[data-ui-page=dashboard] .panel-head {
+  margin-bottom: 0.62rem;
+}
+body[data-ui-page=dashboard] .chart-panel-title,
+body[data-ui-page=dashboard] .panel-head h3 {
+  margin-top: 0.14rem;
+  font-size: 1.04rem;
+  letter-spacing: -0.018em;
+}
+body[data-ui-page=dashboard] .reports-overview-unified {
+  grid-template-columns: minmax(0, 1.15fr) minmax(410px, 0.85fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--surface-card);
+}
+body[data-ui-page=dashboard] .reports-overview-unified > .filter-panel,
+body[data-ui-page=dashboard] .reports-overview-unified > .metrics-panel {
+  padding: 0.82rem 0.9rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text);
+}
+body[data-ui-page=dashboard] .reports-overview-unified > .metrics-panel {
+  border-left: 1px solid var(--color-border);
+}
+body[data-ui-page=dashboard] .reports-overview-unified .metrics-panel .section-kicker,
+body[data-ui-page=dashboard] .reports-overview-unified .metrics-panel .panel-head p,
+body[data-ui-page=dashboard] .reports-overview-unified .metrics-panel .metric-label,
+body[data-ui-page=dashboard] .reports-overview-unified .metrics-panel .metric-foot,
+body[data-ui-page=dashboard] .reports-overview-unified .metrics-panel .metric-mini-label,
+body[data-ui-page=dashboard] .reports-overview-unified .metrics-panel .metric-note-text {
+  color: var(--color-text-muted);
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-grid {
+  grid-template-columns: minmax(220px, 1fr) minmax(250px, 1fr) auto;
+  gap: 0.6rem;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-block--period {
+  grid-column: auto;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-block--restaurants {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-block--restaurants.is-focused,
+body[data-ui-page=dashboard] .reports-overview-unified .filter-block--restaurants.has-selection {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-block__header {
+  margin-bottom: 0.3rem;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-block__hint {
+  display: none;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .restaurant-filter-count {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .period-presets {
+  gap: 0.28rem;
+  margin-top: 0.42rem;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .period-preset-btn {
+  padding: 0.3rem 0.5rem;
+  background: transparent;
+  font-size: 0.7rem;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .period-preset-btn.active {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--color-text);
+}
+body[data-ui-page=dashboard] .reports-overview-unified .metrics-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--color-border);
+}
+body[data-ui-page=dashboard] .reports-overview-unified .metric-card,
+body[data-ui-page=dashboard] .reports-overview-unified .metric-card--primary,
+body[data-ui-page=dashboard] .reports-overview-unified .metric-card--spotlight {
+  min-height: 94px;
+  padding: 0.68rem 0.72rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text);
+  box-shadow: none;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .metric-card + .metric-card {
+  border-left: 1px solid var(--color-border);
+}
+body[data-ui-page=dashboard] .reports-overview-unified .metric-value {
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: clamp(1.5rem, 2vw, 2rem);
+  letter-spacing: -0.035em;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .metric-label,
+body[data-ui-page=dashboard] .reports-overview-unified .metric-mini-label {
+  letter-spacing: 0.055em;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .metric-mini-value {
+  color: var(--color-text);
+}
+body[data-ui-page=dashboard] .reports-subpanel.reports-manager-workspace,
+body[data-ui-page=dashboard] .reports-subpanel.reports-olap-workspace {
+  gap: 0;
+  padding: 0.9rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--ui-panel-radius);
+  background: var(--surface-card);
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-subpanel-head,
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-subpanel-head {
+  align-items: flex-start;
+  padding: 0 0 0.72rem;
+  border-bottom: 1px solid var(--color-border);
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-tool-card,
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-summary-card,
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-builder-card,
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-result {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-tool-card .card-body,
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-summary-card .card-body {
+  padding: 0.72rem 0;
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-summary-card {
+  border-top: 1px solid var(--color-border);
+}
+body[data-ui-page=dashboard] .reports-manager-workspace #managerAccordion {
+  padding-top: 0.72rem;
+  margin-top: 0 !important;
+  border-top: 1px solid var(--color-border);
+}
+body[data-ui-page=dashboard] .reports-manager-workspace #managerAccordion .accordion-item {
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-context {
+  min-width: min(300px, 100%);
+  padding: 0.08rem 0 0.08rem 0.72rem;
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+}
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-builder {
+  border-bottom: 1px solid var(--color-border);
+}
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-step {
+  padding: 0.72rem 0.68rem;
+}
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-result__head {
+  padding: 0.72rem 0 0.55rem;
+  background: transparent;
+}
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-result .reports-table-shell {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+body[data-ui-page=dashboard] .reports-olap-table {
+  table-layout: fixed;
+}
+body[data-ui-page=dashboard] .reports-olap-table thead th {
+  padding: 0.5rem 0.62rem;
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.71rem;
+  font-weight: 720;
+  letter-spacing: 0.015em;
+  text-transform: none;
+}
+body[data-ui-page=dashboard] .reports-olap-table tbody td {
+  padding: 0.48rem 0.62rem;
+  vertical-align: middle;
+}
+body[data-ui-page=dashboard] .reports-olap-table thead th:first-child,
+body[data-ui-page=dashboard] .reports-olap-table tbody td:first-child {
+  width: 52%;
+  text-align: left;
+}
+body[data-ui-page=dashboard] .reports-olap-table thead th:not(:first-child),
+body[data-ui-page=dashboard] .reports-olap-table tbody td:not(:first-child) {
+  width: 16%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+body[data-ui-page=dashboard] .reports-olap-table tbody tr:nth-child(even) > * {
+  background: color-mix(in srgb, var(--surface-raised) 48%, transparent);
+}
+body[data-ui-page=dashboard] .reports-olap-table tbody tr:hover > * {
+  background: var(--surface-interactive);
+}
+body[data-ui-page=dashboard] .reports-olap-dimension-cell {
+  font-weight: 620;
+}
+@media (max-width: 1199.98px) {
+  body[data-ui-page=dashboard] .reports-overview-unified {
+    grid-template-columns: 1fr;
+  }
+  body[data-ui-page=dashboard] .reports-overview-unified > .metrics-panel {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+}
+@media (max-width: 991.98px) {
+  body[data-ui-page=dashboard] .reports-overview-unified .filter-grid,
+  body[data-ui-page=dashboard] .reports-overview-unified .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  body[data-ui-page=dashboard] .reports-overview-unified .metric-card + .metric-card {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+}
+@media (max-width: 767.98px) {
+  body[data-ui-page=dashboard] .reports-subpanel.reports-manager-workspace,
+  body[data-ui-page=dashboard] .reports-subpanel.reports-olap-workspace {
+    padding: 0.72rem;
+  }
+  body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-context {
+    width: 100%;
+    padding: 0.55rem 0 0;
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-grid {
+  grid-template-columns: minmax(220px, 320px) minmax(240px, 1fr) auto;
+  align-items: start;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-block--period {
+  max-width: 320px;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-block--restaurants {
+  align-self: start;
+  margin-top: 0;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-buttons {
+  align-self: end;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .metric-value {
+  font-weight: 520;
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-tool-card .row {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) auto auto;
+  align-items: end;
+  gap: 0.6rem;
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-tool-card .row > [class*=col-] {
+  width: auto;
+  max-width: none;
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-title-row,
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-title-row {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+@media (max-width: 991.98px) {
+  body[data-ui-page=dashboard] .reports-overview-unified .filter-grid,
+  body[data-ui-page=dashboard] .reports-manager-workspace .reports-tool-card .row {
+    grid-template-columns: 1fr;
+  }
+  body[data-ui-page=dashboard] .reports-overview-unified .filter-block--period {
+    max-width: none;
+  }
+}
+body[data-ui-page=dashboard] .reports-overview-unified > .filter-panel,
+body[data-ui-page=dashboard] .reports-overview-unified > .metrics-panel {
+  padding: 0.7rem 0.78rem;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-grid {
+  grid-template-columns: minmax(210px, 300px) minmax(250px, 1fr) auto;
+  gap: 0.5rem;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-block--period {
+  max-width: 300px;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .period-presets {
+  gap: 0.34rem;
+  margin-top: 0.34rem;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .filter-buttons {
+  gap: 0.34rem;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .metric-card,
+body[data-ui-page=dashboard] .reports-overview-unified .metric-card--primary,
+body[data-ui-page=dashboard] .reports-overview-unified .metric-card--spotlight {
+  min-height: 86px;
+  padding: 0.58rem 0.64rem;
+}
+body[data-ui-page=dashboard] .reports-overview-unified .metric-value {
+  font-weight: 500;
+}
+body[data-ui-page=dashboard] .activity-heatmap-hour,
+body[data-ui-page=dashboard] .activity-heatmap-day {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+body[data-ui-page=dashboard] .activity-heatmap-cell--level-0 {
+  opacity: 0.58;
+  border-color: color-mix(in srgb, var(--color-border) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) 62%, transparent);
+}
+body[data-ui-page=dashboard] .activity-heatmap-cell--level-0:hover,
+body[data-ui-page=dashboard] .activity-heatmap-cell--level-0:focus-visible {
+  opacity: 0.86;
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-subpanel-copy,
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-subpanel-copy {
+  display: none;
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-tool-card .row {
+  grid-template-columns: minmax(220px, 360px) 2.45rem 2.45rem;
+  justify-content: start;
+  align-items: end;
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-summary-card .card-body {
+  padding-top: 0.62rem;
+  padding-bottom: 0.62rem;
+}
+body[data-ui-page=dashboard] .reports-manager-workspace .reports-summary-content.ui-inline-state,
+body[data-ui-page=dashboard] .reports-manager-workspace #managerAccordion > .ui-inline-state {
+  margin-top: 0.35rem;
+}
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-context {
+  min-width: min(230px, 100%);
+  max-width: 280px;
+  font-size: 0.74rem;
+}
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-step {
+  min-height: 104px;
+  padding: 0.64rem 0.62rem;
+}
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-step__head {
+  margin-bottom: 0.48rem;
+}
+body[data-ui-page=dashboard] .reports-olap-workspace .reports-olap-step--build .reports-olap-build {
+  width: auto;
+  min-width: 9rem;
+  max-width: 12rem;
+  align-self: flex-start;
+  padding-inline: 1rem;
+}
+body[data-ui-page=dashboard] .reports-olap-table thead th {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 82%, var(--color-text-muted));
+}
+body[data-ui-page=dashboard] .reports-olap-table tbody td {
+  border-bottom-color: color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+body[data-ui-page=dashboard] .reports-olap-empty-row td {
+  padding: 0.72rem;
+  background: transparent !important;
+}
+body[data-ui-page=dashboard] .reports-olap-empty-row .ui-inline-state {
+  width: 100%;
+  justify-content: flex-start;
+}
+@media (max-width: 991.98px) {
+  body[data-ui-page=dashboard] .reports-overview-unified .filter-grid,
+  body[data-ui-page=dashboard] .reports-manager-workspace .reports-tool-card .row {
+    grid-template-columns: 1fr;
+  }
+  body[data-ui-page=dashboard] .reports-overview-unified .filter-block--period {
+    max-width: none;
+  }
 }
 
 /* Reports — neutral KPI surface */

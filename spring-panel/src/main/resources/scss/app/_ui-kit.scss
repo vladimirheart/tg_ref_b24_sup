@@ -408,3 +408,99 @@
     gap: 0.25rem;
   }
 }
+
+/* 01-272 shared compact icon controls */
+.ui-icon-control,
+.ui-shortcut-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border);
+  background: var(--surface-raised);
+  color: var(--color-text);
+  box-shadow: none;
+}
+
+.ui-icon-control {
+  width: 2.45rem !important;
+  min-width: 2.45rem;
+  height: 2.45rem;
+  min-height: 2.45rem;
+  padding: 0 !important;
+  border-radius: var(--radius-md);
+}
+
+.ui-icon-control .bi {
+  font-size: 1.05rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.ui-shortcut-control {
+  width: 2.45rem !important;
+  min-width: 2.45rem;
+  max-width: 2.45rem;
+  height: 2.45rem;
+  min-height: 2.45rem;
+  flex: 0 0 2.45rem;
+  padding: 0 !important;
+  border-radius: var(--radius-pill);
+}
+
+.ui-shortcut-control__glyph {
+  font-size: 1rem;
+  font-weight: 720;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.ui-icon-control:hover,
+.ui-icon-control:focus-visible,
+.ui-shortcut-control:hover,
+.ui-shortcut-control:focus-visible,
+.ui-shortcut-control.active {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--color-border));
+  background: var(--surface-selected);
+  color: var(--color-text);
+}
+
+.ui-icon-control:focus-visible,
+.ui-shortcut-control:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* 01-272 shared inline states */
+.ui-inline-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  max-width: 100%;
+  min-height: 2rem;
+  padding: 0.42rem 0.58rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+}
+
+.ui-inline-state .bi,
+.ui-inline-state .spinner-border {
+  flex: 0 0 auto;
+  font-size: 0.92rem;
+}
+
+.ui-inline-state[data-tone='warning'] {
+  border-color: color-mix(in srgb, var(--state-warning) 30%, var(--color-border));
+  background: color-mix(in srgb, var(--state-warning-bg) 45%, var(--surface-card));
+  color: var(--state-warning-text);
+}
+
+.ui-inline-state[data-tone='danger'] {
+  border-color: color-mix(in srgb, var(--state-danger) 30%, var(--color-border));
+  background: color-mix(in srgb, var(--state-danger-bg) 42%, var(--surface-card));
+  color: var(--state-danger-text);
+}

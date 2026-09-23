@@ -37,7 +37,6 @@ public class Task {
     @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime dueAt;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime createdAt;
 
     @Convert(converter = LenientOffsetDateTimeConverter.class)

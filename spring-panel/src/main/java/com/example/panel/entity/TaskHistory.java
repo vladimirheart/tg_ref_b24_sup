@@ -1,7 +1,5 @@
 package com.example.panel.entity;
 
-import com.example.panel.converter.LenientOffsetDateTimeConverter;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -29,7 +27,6 @@ public class TaskHistory {
     @JoinColumn(name = "task_id")
     private Task task;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime at;
 
     private String text;
