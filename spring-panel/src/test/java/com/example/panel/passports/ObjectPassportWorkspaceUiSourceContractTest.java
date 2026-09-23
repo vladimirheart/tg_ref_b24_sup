@@ -19,6 +19,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         String html = read("src/main/resources/templates/passports/detail.html");
         String edit = read("src/main/resources/templates/passports/fragments/detail-edit.html");
         String media = read("src/main/resources/templates/passports/fragments/detail-media.html");
+        String equipmentMediaRuntime = read("src/main/resources/static/js/equipment-media-runtime.js");
         String coreRuntime = read("src/main/resources/static/js/passport-detail-core-runtime.js");
         String equipmentRuntime = read("src/main/resources/static/js/passport-detail-equipment-runtime.js");
         String editorRuntime = read("src/main/resources/static/js/passport-detail-editor-runtime.js");
@@ -40,11 +41,18 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(pageRuntime.contains("/api/object_passports/${passportId}/cases"));
         assertTrue(pageRuntime.contains("/api/object_passports/${passportId}/tasks"));
         assertTrue(pageRuntime.contains("/api/object_passports/${passportId}/incidents"));
-        assertTrue(html.contains("/js/passport-detail-core-runtime.js?v=20260916-01-260-p4a"));
+        assertTrue(html.contains("/js/equipment-media-runtime.js?v=20260922-01-272-s7"));
+        assertTrue(html.contains("/js/passport-detail-core-runtime.js?v=20260922-01-272-s7"));
+        assertTrue(equipmentMediaRuntime.contains("window.EquipmentMediaRuntime"));
+        assertTrue(equipmentMediaRuntime.contains("function coverUrl(raw)"));
         assertTrue(pageRuntime.contains("PassportDetailCoreRuntime"));
-        assertTrue(html.contains("/js/passport-detail-equipment-runtime.js?v=20260916-01-260-p4d"));
+        assertTrue(html.contains("/js/passport-detail-equipment-runtime.js?v=20260922-01-272-s7"));
         assertTrue(pageRuntime.contains("PassportDetailEquipmentRuntime"));
-        assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20260916-01-260-p4h"));
+        assertTrue(coreRuntime.contains("equipmentMediaRuntime.coverUrl"));
+        assertTrue(equipmentRuntime.contains("passport-asset-card__visual-placeholder"));
+        assertTrue(equipmentRuntime.contains("passport-asset-card__type-center"));
+        assertTrue(!equipmentRuntime.contains("media.photos.find"));
+        assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20260923-01-272-s7-r8"));
         assertTrue(html.contains("/js/passport-detail-page-runtime.js?v=20260916-01-260-p4i"));
         assertTrue(html.contains("PassportDetailPageRuntime"));
         assertTrue(pageRuntime.contains("PassportDetailEditorRuntime"));
@@ -117,7 +125,8 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("data-it-equipment-photo-delete"));
         assertTrue(runtime.contains("firstPhoto(item)"));
         assertTrue(settings.contains("/css/settings.css?v=20260909-01-259-r4-8"));
-        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260909-01-259-r4-8"));
+        assertTrue(settings.contains("/js/equipment-media-runtime.js?v=20260922-01-272-s7"));
+        assertTrue(settings.contains("/js/settings-it-equipment-runtime.js?v=20260922-01-272-s7"));
         assertTrue(settingsCatalogueScss.contains("Equipment catalogue media and lifecycle — 01-259 r4.4"));
     }
 

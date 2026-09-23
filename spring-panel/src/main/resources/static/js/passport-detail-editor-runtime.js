@@ -17,7 +17,7 @@
     if (!coreRuntime) {
       throw new Error('PassportDetailEditorRuntime requires coreRuntime');
     }
-    const { DAY_LABELS, text, escapeHtml, normalizeKey, first, isEquipmentArchived } = coreRuntime;
+    const { DAY_LABELS, text, escapeHtml, normalizeKey, first, isEquipmentArchived, catalogKey, equipmentCover } = coreRuntime;
     let editEquipmentDraft = [];
     let editScheduleDraft = [];
 
@@ -77,7 +77,7 @@
     function csrfHeaders(json = false) {
         const headers = {};
         if (json) headers['Content-Type'] = 'application/json';
-        if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
+        if (csrfToken) headers['X-XSRF-TOKEN'] = csrfToken;
         return headers;
     }
 
@@ -153,6 +153,38 @@
         </div>`).join('');
     }
 
+    function catalogMatch(item) {
+        const explicitId = Number(item && item.catalog_id);
+        if (Number.isFinite(explicitId) && explicitId > 0) {
+            const explicitItem = equipmentCatalog.find((entry) => Number(entry && entry.id) === explicitId);
+            if (explicitItem) return { id: explicitId, item: explicitItem, inferred: false };
+        }
+
+        const type = text(item && item.equipment_type);
+        const vendor = first(item && item.vendor, item && item.equipment_vendor);
+        const model = first(item && item.model, item && item.equipment_model);
+        if (!type || !vendor || !model) return null;
+        const key = catalogKey(type, vendor, model);
+        const matches = equipmentCatalog.filter((entry) => catalogKey(
+            entry && entry.equipment_type,
+            entry && entry.equipment_vendor,
+            entry && entry.equipment_model
+        ) === key);
+        if (matches.length !== 1) return null;
+        const id = Number(matches[0] && matches[0].id);
+        return Number.isFinite(id) && id > 0 ? { id, item: matches[0], inferred: true } : null;
+    }
+
+    function resolvedEquipmentDraft() {
+        return editEquipmentDraft.map((item) => {
+            if (!item || isEquipmentArchived(item)) return item;
+            const explicitId = Number(item.catalog_id);
+            if (Number.isFinite(explicitId) && explicitId > 0) return item;
+            const match = catalogMatch(item);
+            return match ? { ...item, catalog_id: match.id } : item;
+        });
+    }
+
     function catalogOptions(selectedId) {
         const options = ['<option value="">Без связи с каталогом</option>'];
         equipmentCatalog.forEach((item) => {
@@ -177,36 +209,72 @@
         const target = document.getElementById('passportEditEquipment');
         if (!target) return;
         if (!editEquipmentDraft.length) {
-            target.innerHTML = '<div class="passport-inline-empty">Оборудование не добавлено.</div>';
+            target.innerHTML = '<div class="passport-inline-empty">\u041e\u0431\u043e\u0440\u0443\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u043d\u0435 \u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u043e.</div>';
             return;
         }
         target.innerHTML = editEquipmentDraft.map((item, index) => {
             const archived = isEquipmentArchived(item);
             const archivedAt = text(item && item.archived_at);
+            const match = catalogMatch(item);
+            const selectedCatalogId = match ? match.id : Number(item && item.catalog_id);
+            const inferred = Boolean(match && match.inferred);
+            const type = text(item && item.equipment_type);
+            const vendor = first(item && item.vendor, item && item.equipment_vendor);
+            const model = first(item && item.model, item && item.equipment_model);
+            const cover = match && match.item ? equipmentCover(match.item.photo_url) : '';
+            const name = first(item && item.name, [vendor, model].filter(Boolean).join(' '), type, `\u042d\u043a\u0437\u0435\u043c\u043f\u043b\u044f\u0440 ${index + 1}`);
+            const ip = text(item && item.ip_address);
+            const serial = text(item && item.serial_number);
+            const statusValue = text(item && item.status);
+            const linkClass = match ? (inferred ? 'is-inferred' : 'is-linked') : 'is-unlinked';
+            const linkLabel = match
+                ? (inferred ? `\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435 #${match.id}` : `\u041a\u0430\u0442\u0430\u043b\u043e\u0433 #${match.id}`)
+                : '\u0411\u0435\u0437 \u0441\u0432\u044f\u0437\u0438';
             return `<article class="passport-edit-equipment-card ${archived ? 'is-archived' : ''}" data-edit-equipment-index="${index}">
-            <div class="passport-edit-equipment-card__head">
-                <label><span>Модель из каталога</span><select class="form-select form-select-sm" data-equipment-catalog${archived ? ' disabled' : ''}>${catalogOptions(item && item.catalog_id)}</select></label>
-                ${archived
-                    ? '<button type="button" class="btn btn-sm btn-outline-primary" data-equipment-restore>Восстановить</button>'
-                    : '<button type="button" class="btn btn-sm btn-outline-danger" data-equipment-remove>В архив</button>'}
-            </div>
-            ${archived ? `<div class="passport-edit-equipment-card__history">Историческая запись${archivedAt ? ` · ${escapeHtml(archivedAt)}` : ''}</div>` : ''}
-            <div class="passport-edit-equipment-fields">
-                ${equipmentInput(index, 'equipment_type', 'Тип', item && item.equipment_type, { disabled: archived })}
-                ${equipmentInput(index, 'vendor', 'Производитель', first(item && item.vendor, item && item.equipment_vendor), { disabled: archived })}
-                ${equipmentInput(index, 'model', 'Модель', first(item && item.model, item && item.equipment_model), { disabled: archived })}
-                ${equipmentInput(index, 'name', 'Имя устройства', item && item.name, { disabled: archived })}
-                ${equipmentInput(index, 'serial_number', 'Серийный номер', item && item.serial_number, { disabled: archived })}
-                ${equipmentInput(index, 'status', 'Статус', item && item.status, { disabled: archived })}
-                ${equipmentInput(index, 'ip_address', 'IP-адрес', item && item.ip_address, { disabled: archived })}
-                ${equipmentInput(index, 'connection_type', 'Тип подключения', item && item.connection_type, { disabled: archived })}
-                ${equipmentInput(index, 'connection_id', 'ID подключения', item && item.connection_id, { disabled: archived })}
-                ${equipmentInput(index, 'connection_password', 'Пароль подключения', item && item.connection_password, { type: 'password', disabled: archived })}
-                ${equipmentInput(index, 'description', 'Описание', item && item.description, { textarea: true, disabled: archived })}
-            </div>
-        </article>`;
+                <div class="passport-edit-equipment-card__summary">
+                    <div class="passport-edit-equipment-card__visual ${cover ? 'has-image' : ''}" title="${escapeHtml(match ? 'Фото модели из каталога' : 'Нет связи с каталогом')}">
+                        ${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(name)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
+                        <span class="passport-edit-equipment-card__visual-placeholder" aria-hidden="true"><i class="bi bi-image"></i></span>
+                    </div>
+                    <div class="passport-edit-equipment-card__identity">
+                        <strong title="${escapeHtml(name)}">${escapeHtml(name)}</strong>
+                        <div class="passport-edit-equipment-card__quick">
+                            ${ip ? `<span><small>IP</small>${escapeHtml(ip)}</span>` : ''}
+                            ${serial ? `<span><small>SN</small>${escapeHtml(serial)}</span>` : ''}
+                            ${statusValue ? `<span>${escapeHtml(statusValue)}</span>` : ''}
+                        </div>
+                    </div>
+                    <label class="passport-edit-equipment-card__catalog">
+                        <span>\u041a\u0430\u0442\u0430\u043b\u043e\u0433</span>
+                        <select class="form-select form-select-sm" data-equipment-catalog${archived ? ' disabled' : ''}>${catalogOptions(selectedCatalogId)}</select>
+                    </label>
+                    <span class="passport-edit-equipment-card__link-state ${linkClass}">${escapeHtml(linkLabel)}</span>
+                    ${archived
+                        ? '<button type="button" class="passport-edit-equipment-card__icon-action" data-equipment-restore aria-label="\u0412\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u044d\u043a\u0437\u0435\u043c\u043f\u043b\u044f\u0440" title="\u0412\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></button>'
+                        : '<button type="button" class="passport-edit-equipment-card__icon-action is-danger" data-equipment-remove aria-label="\u0423\u0431\u0440\u0430\u0442\u044c \u044d\u043a\u0437\u0435\u043c\u043f\u043b\u044f\u0440 \u0432 \u0430\u0440\u0445\u0438\u0432" title="\u0412 \u0430\u0440\u0445\u0438\u0432"><i class="bi bi-archive" aria-hidden="true"></i></button>'}
+                </div>
+                ${inferred ? '<div class="passport-edit-equipment-card__catalog-hint"><i class="bi bi-link-45deg" aria-hidden="true"></i><span>\u0422\u043e\u0447\u043d\u043e\u0435 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435 \u043f\u043e \u0442\u0438\u043f\u0443, \u043f\u0440\u043e\u0438\u0437\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044e \u0438 \u043c\u043e\u0434\u0435\u043b\u0438. \u041f\u0440\u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0438 \u0441\u0432\u044f\u0437\u044c \u0431\u0443\u0434\u0435\u0442 \u0437\u0430\u043a\u0440\u0435\u043f\u043b\u0435\u043d\u0430.</span></div>' : ''}
+                ${archived ? `<div class="passport-edit-equipment-card__history">\u0418\u0441\u0442\u043e\u0440\u0438\u0447\u0435\u0441\u043a\u0430\u044f \u0437\u0430\u043f\u0438\u0441\u044c${archivedAt ? ` \u00b7 ${escapeHtml(archivedAt)}` : ''}</div>` : ''}
+                <details class="passport-edit-equipment-card__details">
+                    <summary><i class="bi bi-pencil" aria-hidden="true"></i><span>\u041f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u044b \u044d\u043a\u0437\u0435\u043c\u043f\u043b\u044f\u0440\u0430</span></summary>
+                    <div class="passport-edit-equipment-fields">
+                        ${equipmentInput(index, 'equipment_type', '\u0422\u0438\u043f', item && item.equipment_type, { disabled: archived })}
+                        ${equipmentInput(index, 'vendor', '\u041f\u0440\u043e\u0438\u0437\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044c', first(item && item.vendor, item && item.equipment_vendor), { disabled: archived })}
+                        ${equipmentInput(index, 'model', '\u041c\u043e\u0434\u0435\u043b\u044c', first(item && item.model, item && item.equipment_model), { disabled: archived })}
+                        ${equipmentInput(index, 'name', '\u0418\u043c\u044f \u0443\u0441\u0442\u0440\u043e\u0439\u0441\u0442\u0432\u0430', item && item.name, { disabled: archived })}
+                        ${equipmentInput(index, 'serial_number', '\u0421\u0435\u0440\u0438\u0439\u043d\u044b\u0439 \u043d\u043e\u043c\u0435\u0440', item && item.serial_number, { disabled: archived })}
+                        ${equipmentInput(index, 'status', '\u0421\u0442\u0430\u0442\u0443\u0441', item && item.status, { disabled: archived })}
+                        ${equipmentInput(index, 'ip_address', 'IP-\u0430\u0434\u0440\u0435\u0441', item && item.ip_address, { disabled: archived })}
+                        ${equipmentInput(index, 'connection_type', '\u0422\u0438\u043f \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f', item && item.connection_type, { disabled: archived })}
+                        ${equipmentInput(index, 'connection_id', 'ID \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f', item && item.connection_id, { disabled: archived })}
+                        ${equipmentInput(index, 'connection_password', '\u041f\u0430\u0440\u043e\u043b\u044c \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f', item && item.connection_password, { type: 'password', disabled: archived })}
+                        ${equipmentInput(index, 'description', '\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435', item && item.description, { textarea: true, disabled: archived })}
+                    </div>
+                </details>
+            </article>`;
         }).join('');
     }
+
 
     function renderEditorPhotos() {
         const passport = resolvePassport();
@@ -273,7 +341,8 @@
         });
         if (JSON.stringify(editScheduleDraft) !== JSON.stringify(normalizedScheduleDraft())) payload.schedule = deepClone(editScheduleDraft);
         const currentEquipment = Array.isArray(passport.equipment) ? passport.equipment : [];
-        if (JSON.stringify(editEquipmentDraft) !== JSON.stringify(currentEquipment)) payload.equipment = deepClone(editEquipmentDraft);
+        const equipmentPayload = resolvedEquipmentDraft();
+        if (JSON.stringify(equipmentPayload) !== JSON.stringify(currentEquipment)) payload.equipment = deepClone(equipmentPayload);
         return payload;
     }
 

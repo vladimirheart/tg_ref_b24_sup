@@ -4,6 +4,11 @@
   }
 
   function createRuntime(options = {}) {
+    const equipmentMediaRuntime = options.equipmentMediaRuntime || window.EquipmentMediaRuntime;
+    if (!equipmentMediaRuntime || typeof equipmentMediaRuntime.parse !== 'function' || typeof equipmentMediaRuntime.coverUrl !== 'function') {
+      throw new Error('SettingsItEquipmentRuntime requires EquipmentMediaRuntime');
+    }
+
     const state = {
       items: [],
       query: '',
@@ -165,26 +170,7 @@
     }
 
     function parseEquipmentMedia(raw) {
-      const empty = { links: [], photos: [] };
-      if (Array.isArray(raw)) {
-        return { links: raw.map((item) => String(item || '').trim()).filter(Boolean), photos: [] };
-      }
-      if (raw && typeof raw === 'object') {
-        const links = Array.isArray(raw.links) ? raw.links.map((item) => String(item || '').trim()).filter(Boolean) : [];
-        const photos = Array.isArray(raw.photos) ? raw.photos.filter((item) => item && typeof item === 'object') : [];
-        return { links, photos };
-      }
-      if (typeof raw !== 'string') return empty;
-      const trimmed = raw.trim();
-      if (!trimmed) return empty;
-      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-        try {
-          return parseEquipmentMedia(JSON.parse(trimmed));
-        } catch (error) {
-          // fallback below
-        }
-      }
-      return { links: trimmed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean), photos: [] };
+      return equipmentMediaRuntime.parse(raw);
     }
 
     function parseEquipmentLinks(raw) {
@@ -318,10 +304,7 @@
     }
 
     function firstPhoto(item) {
-      const photos = parseEquipmentPhotos(item && item.photo_url);
-      const title = photos.find((photo) => normalize(photo && photo.category) === 'title');
-      const selected = title || photos[0] || null;
-      return selected && selected.url ? String(selected.url).trim() : '';
+      return equipmentMediaRuntime.coverUrl(item && item.photo_url);
     }
 
     function collectCatalogFilterValues(field) {

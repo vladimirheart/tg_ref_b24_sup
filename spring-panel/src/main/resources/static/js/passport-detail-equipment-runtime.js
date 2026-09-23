@@ -9,7 +9,7 @@
     if (!coreRuntime) {
       throw new Error('PassportDetailEquipmentRuntime requires coreRuntime');
     }
-    const { text, escapeHtml, normalizeKey, first, statusTone, parseCatalogMedia, isEquipmentArchived, findCatalogItem } = coreRuntime;
+    const { text, escapeHtml, normalizeKey, first, statusTone, parseCatalogMedia, equipmentCover, isEquipmentArchived, findCatalogItem } = coreRuntime;
 
     function resolvePassport() {
       const value = getPassport();
@@ -29,8 +29,7 @@
         const accessories = first(item && item.accessories, catalogItem && catalogItem.accessories, '');
         const media = parseCatalogMedia(catalogItem && catalogItem.photo_url);
         const links = media.links;
-        const titlePhoto = media.photos.find((photo) => normalizeKey(photo && photo.category) === 'title') || media.photos[0];
-        const cover = first(titlePhoto && titlePhoto.url, '');
+        const cover = equipmentCover(catalogItem && catalogItem.photo_url);
         const catalogId = catalogItem && catalogItem.id ? Number(catalogItem.id) : null;
         return { item, catalogItem, catalogId, type, vendor, model, name, status, ip, serial, accessories, links, cover, archived };
     }
@@ -65,8 +64,9 @@
             ].filter((pair) => text(pair[1]));
             return `<article class="passport-asset-card ${view.archived ? 'is-archived' : ''}" data-equipment-index="${index}">
                 <div class="passport-asset-card__visual ${view.cover ? 'has-image' : ''}">
+                    <span class="passport-asset-card__visual-placeholder" aria-hidden="true"><i class="bi bi-image"></i></span>
                     ${view.cover ? `<img src="${escapeHtml(view.cover)}" alt="${escapeHtml(view.name)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
-                    <span class="passport-asset-card__glyph">${escapeHtml((view.type || 'IT').slice(0, 2).toUpperCase())}</span>
+                    <span class="passport-asset-card__type-center">${escapeHtml(view.type)}</span>
                 </div>
                 <div class="passport-asset-card__body">
                     <div class="passport-asset-card__head">

@@ -5,6 +5,10 @@
 
   function createRuntime(options = {}) {
     const equipmentCatalog = Array.isArray(options.equipmentCatalog) ? options.equipmentCatalog : [];
+    const equipmentMediaRuntime = options.equipmentMediaRuntime || window.EquipmentMediaRuntime;
+    if (!equipmentMediaRuntime || typeof equipmentMediaRuntime.parse !== 'function' || typeof equipmentMediaRuntime.coverUrl !== 'function') {
+      throw new Error('PassportDetailCoreRuntime requires EquipmentMediaRuntime');
+    }
 
     const DAY_LABELS = {
         mon: 'Пн', tue: 'Вт', wed: 'Ср', thu: 'Чт', fri: 'Пт', sat: 'Сб', sun: 'Вс'
@@ -65,20 +69,11 @@
     }
 
     function parseCatalogMedia(raw) {
-        const empty = { links: [], photos: [] };
-        if (Array.isArray(raw)) return { links: raw.map(text).filter(Boolean), photos: [] };
-        if (raw && typeof raw === 'object') {
-            return {
-                links: Array.isArray(raw.links) ? raw.links.map(text).filter(Boolean) : [],
-                photos: Array.isArray(raw.photos) ? raw.photos.filter((photo) => photo && typeof photo === 'object') : []
-            };
-        }
-        const value = text(raw);
-        if (!value) return empty;
-        if (value.startsWith('[') || value.startsWith('{')) {
-            try { return parseCatalogMedia(JSON.parse(value)); } catch (error) { /* legacy fallback */ }
-        }
-        return { links: value.split(/\r?\n/).map(text).filter(Boolean), photos: [] };
+        return equipmentMediaRuntime.parse(raw);
+    }
+
+    function equipmentCover(raw) {
+        return equipmentMediaRuntime.coverUrl(raw);
     }
 
     function parseLinks(raw) {
@@ -122,6 +117,7 @@
       setStatus,
       renderProperties,
       parseCatalogMedia,
+      equipmentCover,
       parseLinks,
       isEquipmentArchived,
       catalogKey,

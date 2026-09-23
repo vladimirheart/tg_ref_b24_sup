@@ -17,13 +17,14 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
     @Test
     void equipmentPhotoWorkspaceSupportsAcceptanceFixesAndRetainsR46Integrity() throws Exception {
         String template = read("src/main/resources/templates/settings/index.html");
+        String equipmentTemplate = read("src/main/resources/templates/settings/fragments/it-equipment.html");
         String runtime = read("src/main/resources/static/js/settings-it-equipment-runtime.js");
         String shell = read("src/main/resources/static/js/settings-page-shell.js");
-        String scss = read("src/main/resources/scss/settings/_foundation.scss");
+        String scss = read("src/main/resources/scss/settings/foundation/_photo-workspace.scss");
         String equipmentService = read("src/main/java/com/example/panel/service/SettingsItEquipmentService.java");
         String photoService = read("src/main/java/com/example/panel/service/SettingsItEquipmentPhotoService.java");
 
-        assertThat(template)
+        assertThat(equipmentTemplate)
                 .contains("data-it-equipment-photo-tab")
                 .contains("data-it-equipment-photo-count")
                 .contains("data-it-equipment-photo-add-open")
@@ -40,13 +41,17 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("data-it-equipment-photo-edit-file-open")
                 .contains("data-it-equipment-photo-edit-paste")
                 .contains("class=\"visually-hidden\" id=\"itEquipmentPhotoAddFile\"")
-                .contains("class=\"visually-hidden\" id=\"itEquipmentPhotoEditFile\"")
+                .contains("class=\"visually-hidden\" id=\"itEquipmentPhotoEditFile\"");
+
+        assertThat(template)
                 .contains("settings.css?v=20260909-01-259-r4-8")
-                .contains("settings-it-equipment-runtime.js?v=20260909-01-259-r4-8")
+                .contains("equipment-media-runtime.js?v=20260922-01-272-s7")
+                .contains("settings-it-equipment-runtime.js?v=20260922-01-272-s7")
                 .contains("settings-page-shell.js?v=20260909-01-259-r4-6")
                 .doesNotContain("<div class=\"small text-muted\">Фото сохраняются сразу. Нажмите на превью для просмотра.</div>");
 
         assertThat(runtime)
+                .contains("equipmentMediaRuntime.coverUrl")
                 .contains("function openPhotoAddModal()")
                 .contains("data-it-equipment-photo-preview")
                 .contains("data-it-equipment-photo-edit")
