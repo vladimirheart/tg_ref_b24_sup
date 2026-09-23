@@ -50,36 +50,6 @@
         </div>
       </div>
 
-      <div class="col" th:if="${canManageUsers}">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="managerBindingsModal">
-          <div class="card-body">
-            <div class="settings-tile__head">
-              <div class="settings-tile__lead">
-                <div class="tile-icon"><i class="bi bi-diagram-3" aria-hidden="true"></i></div>
-                <h5 class="card-title">Привязка управляющих к локациям</h5>
-              </div>
-              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
-            </div>
-            <p class="card-text text-muted" data-manager-bindings-summary>Назначьте управляющих и руководителей с датами действия.</p>
-          </div>
-        </div>
-      </div>
-
-
-      <div class="col">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="backupSettingsModal">
-          <div class="card-body">
-            <div class="settings-tile__head">
-              <div class="settings-tile__lead">
-                <div class="tile-icon"><i class="bi bi-database-down" aria-hidden="true"></i></div>
-                <h5 class="card-title">Backup &amp; recovery</h5>
-              </div>
-              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
-            </div>
-            <p class="card-text text-muted">Путь, retention, critical/full расписания и состав recovery packages.</p>
-          </div>
-        </div>
-      </div>
       <div class="col">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="reportingModal">
           <div class="card-body">
@@ -95,45 +65,24 @@
         </div>
       </div>
 
-      <div class="col" th:if="${canRunStorageInventory}">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="storageInventoryModal">
-          <div class="card-body">
-            <div class="settings-tile__head">
-              <div class="settings-tile__lead">
-                <div class="tile-icon"><i class="bi bi-hdd-stack" aria-hidden="true"></i></div>
-                <h5 class="card-title">Storage inventory Iguana</h5>
-              </div>
-              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
-            </div>
-            <p class="card-text text-muted">Запускайте инвентаризацию storage roots, SQLite и attachment references прямо из админки.</p>
-          </div>
-        </div>
-      </div>
-
       <div class="col">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="productionReadinessModal">
+        <div
+          class="card settings-tile settings-tile--accent h-100"
+          role="button"
+          tabindex="0"
+          data-settings-overview-target="inputFormattingModal"
+        >
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
-                <div class="tile-icon"><i class="bi bi-activity" aria-hidden="true"></i></div>
-                <h5 class="card-title">Production readiness</h5>
+                <div class="tile-icon"><i class="bi bi-input-cursor-text"></i></div>
+                <h5 class="card-title">Настройка вводимых данных</h5>
               </div>
               <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
             </div>
-            <p class="card-text text-muted">Проверьте PostgreSQL, Redis, RabbitMQ, MinIO/S3 и контур incident delivery.</p>
-          </div>
-        </div>
-      </div>      <div class="col">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="panelDesignSettingsModal">
-          <div class="card-body">
-            <div class="settings-tile__head">
-              <div class="settings-tile__lead">
-                <div class="tile-icon"><i class="bi bi-palette2" aria-hidden="true"></i></div>
-                <h5 class="card-title">Настройки оформления панели</h5>
-              </div>
-              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
-            </div>
-            <p class="card-text text-muted">Управляйте темой интерфейса, статусами клиентов и метками бизнесов.</p>
+            <p class="card-text text-muted">
+              Централизуйте требования для телефонов, e-mail и адресов.
+            </p>
           </div>
         </div>
       </div>
@@ -149,6 +98,21 @@
               <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
             </div>
             <p class="card-text text-muted">Управляйте шаблонами категорий, вопросов и действий.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="panelDesignSettingsModal">
+          <div class="card-body">
+            <div class="settings-tile__head">
+              <div class="settings-tile__lead">
+                <div class="tile-icon"><i class="bi bi-palette2" aria-hidden="true"></i></div>
+                <h5 class="card-title">Настройки оформления панели</h5>
+              </div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
+            <p class="card-text text-muted">Управляйте темой интерфейса, статусами клиентов и метками бизнесов.</p>
           </div>
         </div>
       </div>
@@ -198,6 +162,21 @@
         </div>
       </div>
 
+      <div class="col" th:if="${canManageUsers}">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="managerBindingsModal">
+          <div class="card-body">
+            <div class="settings-tile__head">
+              <div class="settings-tile__lead">
+                <div class="tile-icon"><i class="bi bi-diagram-3" aria-hidden="true"></i></div>
+                <h5 class="card-title">Привязка управляющих к локациям</h5>
+              </div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
+            <p class="card-text text-muted" data-manager-bindings-summary>Назначьте управляющих и руководителей с датами действия.</p>
+          </div>
+        </div>
+      </div>
+
       <div class="col">
         <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="locationsModal">
           <div class="card-body">
@@ -229,23 +208,46 @@
       </div>
 
       <div class="col">
-        <div
-          class="card settings-tile settings-tile--accent h-100"
-          role="button"
-          tabindex="0"
-          data-settings-overview-target="inputFormattingModal"
-        >
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="backupSettingsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
-                <div class="tile-icon"><i class="bi bi-input-cursor-text"></i></div>
-                <h5 class="card-title">Настройка вводимых данных</h5>
+                <div class="tile-icon"><i class="bi bi-database-down" aria-hidden="true"></i></div>
+                <h5 class="card-title">Backup &amp; recovery</h5>
               </div>
               <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
             </div>
-            <p class="card-text text-muted">
-              Централизуйте требования для телефонов, e-mail и адресов.
-            </p>
+            <p class="card-text text-muted">Путь, retention, critical/full расписания и состав recovery packages.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="productionReadinessModal">
+          <div class="card-body">
+            <div class="settings-tile__head">
+              <div class="settings-tile__lead">
+                <div class="tile-icon"><i class="bi bi-activity" aria-hidden="true"></i></div>
+                <h5 class="card-title">Production readiness</h5>
+              </div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
+            <p class="card-text text-muted">Проверьте PostgreSQL, Redis, RabbitMQ, MinIO/S3 и контур incident delivery.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col" th:if="${canRunStorageInventory}">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="storageInventoryModal">
+          <div class="card-body">
+            <div class="settings-tile__head">
+              <div class="settings-tile__lead">
+                <div class="tile-icon"><i class="bi bi-hdd-stack" aria-hidden="true"></i></div>
+                <h5 class="card-title">Storage inventory Iguana</h5>
+              </div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
+            <p class="card-text text-muted">Запускайте инвентаризацию storage roots, SQLite и attachment references прямо из админки.</p>
           </div>
         </div>
       </div>
