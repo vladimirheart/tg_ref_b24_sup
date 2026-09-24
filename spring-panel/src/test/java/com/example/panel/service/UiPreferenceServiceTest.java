@@ -125,4 +125,20 @@ class UiPreferenceServiceTest {
         assertEquals("sla_priority", triage.get("sort_mode"));
         assertEquals("all", triage.get("page_size"));
     }
+
+    @Test
+    void saveForUserPersistsDialogColumnWidthsIndependentlyPerUser() {
+        service.saveForUser("wide-client", Map.of(
+                "dialogsColumnWidths", Map.of("client", 320, "problem", 520)
+        ));
+        service.saveForUser("wide-status", Map.of(
+                "dialogsColumnWidths", Map.of("client", 180, "status", 360)
+        ));
+
+        assertEquals(Map.of("client", 320, "problem", 520),
+                service.loadForUser("wide-client").get("dialogsColumnWidths"));
+        assertEquals(Map.of("client", 180, "status", 360),
+                service.loadForUser("wide-status").get("dialogsColumnWidths"));
+    }
+
 }

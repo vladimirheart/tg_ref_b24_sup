@@ -316,3 +316,54 @@ body[data-ui-page='dialogs'] .dialog-channel-pill {
 }
 
 body[data-ui-page='dialogs'] .dialog-table .small { line-height: 1.08; }
+
+/* 01-273 R8: dialogs per-user independent column resizing */
+body[data-ui-page='dialogs'] .dialog-table th[data-column-key] {
+  position: relative;
+}
+
+body[data-ui-page='dialogs'] .dialog-table th[data-column-key] > .resize-handle {
+  position: absolute;
+  top: 0;
+  right: -0.34rem;
+  z-index: 8;
+  width: 0.68rem;
+  height: 100%;
+  background: transparent;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+body[data-ui-page='dialogs'] .dialog-table th[data-column-key] > .resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0.18rem;
+  bottom: 0.18rem;
+  left: 50%;
+  width: 1px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-border) 72%, var(--color-text-muted));
+  opacity: 0.72;
+  transform: translateX(-50%);
+  transition: width 0.14s ease, background-color 0.14s ease, opacity 0.14s ease;
+}
+
+body[data-ui-page='dialogs'] .dialog-table th[data-column-key] > .resize-handle:hover::after,
+body[data-ui-page='dialogs'] .dialog-table th[data-column-key] > .resize-handle:focus-visible::after,
+body[data-ui-page='dialogs'] .dialog-table th[data-column-key] > .resize-handle.is-dragging::after {
+  width: 3px;
+  background: var(--primary);
+  opacity: 1;
+}
+
+body[data-ui-page='dialogs'] .dialog-table th[data-column-key] > .resize-handle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+html.resizing,
+html.resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}

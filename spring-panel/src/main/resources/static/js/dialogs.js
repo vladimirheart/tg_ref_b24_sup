@@ -419,7 +419,6 @@
   const STORAGE_COLUMNS_SCHEMA_VERSION = 'iguana:dialogs:columns-schema-version';
   const STORAGE_COLUMN_ORDER_SCHEMA_VERSION = 'iguana:dialogs:column-order-schema-version';
   const DIALOG_COLUMNS_SCHEMA_VERSION = '2';
-  const STORAGE_WIDTHS = 'iguana:dialogs:column-widths';
   const STORAGE_TASK = 'iguana:dialogs:create-task';
   const STORAGE_PAGE_SIZE = 'iguana:dialogs:page-size';
   const STORAGE_DIALOG_FONT = 'iguana:dialogs:font-size';
@@ -1367,7 +1366,6 @@
       columnsVersion: STORAGE_COLUMNS_SCHEMA_VERSION,
       columnOrderVersion: STORAGE_COLUMN_ORDER_SCHEMA_VERSION,
       columnSchemaVersion: DIALOG_COLUMNS_SCHEMA_VERSION,
-      widths: STORAGE_WIDTHS,
       task: STORAGE_TASK,
     },
     getColumnMeta: () => columnMeta,

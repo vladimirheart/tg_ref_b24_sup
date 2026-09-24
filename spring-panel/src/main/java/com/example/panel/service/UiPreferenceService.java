@@ -140,6 +140,7 @@ public class UiPreferenceService {
         mergeField(target, normalized, requestPayload, "sidebarNavOrder");
         mergeField(target, normalized, requestPayload, "dashboardPanelLayout");
         mergeField(target, normalized, requestPayload, "pageFontScales");
+        mergeField(target, normalized, requestPayload, "dialogsColumnWidths");
     }
 
     private void mergeField(Map<String, Object> target,
@@ -192,6 +193,10 @@ public class UiPreferenceService {
         if (dashboardPanelLayout != null && !dashboardPanelLayout.isEmpty()) {
             normalized.put("dashboardPanelLayout", dashboardPanelLayout);
         }
+        Map<String, Integer> dialogsColumnWidths = normalizeDialogsColumnWidths(payload.get("dialogsColumnWidths"));
+        if (!dialogsColumnWidths.isEmpty()) {
+            normalized.put("dialogsColumnWidths", dialogsColumnWidths);
+        }
         Map<String, Integer> pageFontScales = normalizePageFontScales(payload.get("pageFontScales"));
         if (!pageFontScales.isEmpty()) {
             normalized.put("pageFontScales", pageFontScales);
@@ -199,6 +204,28 @@ public class UiPreferenceService {
         Map<String, Object> dialogsTriage = normalizeDialogsTriage(payload.get("dialogsTriage"));
         if (!dialogsTriage.isEmpty()) {
             normalized.put("dialogsTriage", dialogsTriage);
+        }
+        return normalized;
+    }
+
+    private Map<String, Integer> normalizeDialogsColumnWidths(Object rawValue) {
+        if (!(rawValue instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        List<String> allowedKeys = List.of(
+            "actions", "select", "ticket", "client", "status", "channel", "business",
+            "problem", "location", "categories", "responsible", "created", "sla"
+        );
+        Map<String, Integer> normalized = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = entry.getKey() == null ? "" : String.valueOf(entry.getKey()).trim();
+            if (!allowedKeys.contains(key)) {
+                continue;
+            }
+            Integer width = parseIntegerFlexible(entry.getValue());
+            if (width != null && width >= 32 && width <= 1200) {
+                normalized.put(key, width);
+            }
         }
         return normalized;
     }

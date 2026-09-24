@@ -530,6 +530,7 @@
           });
         });
       });
+      restoreColumnWidths();
     }
 
     // Dialog column personalization v8
@@ -722,85 +723,200 @@
         });
       }
     }
-    function saveColumnWidths() {
-      const storageKey = resolveStorageKey(options.storage?.widths);
-      if (!storageKey) return;
-      const widths = {};
-      getHeaderCells().forEach((cell) => {
-        const key = cell?.dataset?.columnKey;
-        if (!key || !cell.style.width) return;
-        widths[key] = cell.style.width;
+    const DIALOG_COLUMN_WIDTHS_PREFERENCE = 'dialogsColumnWidths';
+    const DIALOG_COLUMN_WIDTHS_MAX = 1200;
+    const DIALOG_COLUMN_WIDTHS_MIN = Object.freeze({
+      actions: 38,
+      select: 52,
+      ticket: 72,
+      client: 96,
+      status: 84,
+      channel: 72,
+      business: 80,
+      problem: 110,
+      location: 90,
+      categories: 100,
+      responsible: 96,
+      created: 82,
+      sla: 80,
+    });
+    let dialogColumnWidthsBootstrapResolved = false;
+
+    function getUiPreferenceApi() {
+      const api = window.iguanaUiPreferences;
+      return api && typeof api.get === 'function' && typeof api.set === 'function' ? api : null;
+    }
+
+    function normalizeDialogColumnWidths(value) {
+      const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+      const allowed = new Set(getColumnKeys());
+      const result = {};
+      Object.entries(source).forEach(([rawKey, rawWidth]) => {
+        const key = String(rawKey || '').trim();
+        const width = Number.parseInt(rawWidth, 10);
+        if (!allowed.has(key) || !Number.isFinite(width)) return;
+        const minWidth = DIALOG_COLUMN_WIDTHS_MIN[key] || 64;
+        result[key] = Math.max(minWidth, Math.min(DIALOG_COLUMN_WIDTHS_MAX, width));
       });
-      localStorage.setItem(storageKey, JSON.stringify(widths));
+      return result;
+    }
+
+    function readPersistedColumnWidths() {
+      const api = getUiPreferenceApi();
+      if (!api) return {};
+      if (!dialogColumnWidthsBootstrapResolved) {
+        const bootstrap = window.__IGUANA_UI_PREFS_BOOTSTRAP__;
+        const hasServerValue = bootstrap && typeof bootstrap === 'object'
+          && Object.prototype.hasOwnProperty.call(bootstrap, DIALOG_COLUMN_WIDTHS_PREFERENCE);
+        if (!hasServerValue && typeof api.remove === 'function') {
+          api.remove(DIALOG_COLUMN_WIDTHS_PREFERENCE, 'server');
+        }
+        dialogColumnWidthsBootstrapResolved = true;
+      }
+      return normalizeDialogColumnWidths(api.get(DIALOG_COLUMN_WIDTHS_PREFERENCE));
+    }
+
+    function applyColumnWidth(key, width) {
+      const table = options.elements?.table;
+      if (!table || !key) return null;
+      const header = table.querySelector('th[data-column-key="' + key + '"]');
+      if (!header) return null;
+      const parsed = Number.parseInt(width, 10);
+      if (!Number.isFinite(parsed)) return null;
+      const minWidth = DIALOG_COLUMN_WIDTHS_MIN[key] || 64;
+      const nextWidth = Math.max(minWidth, Math.min(DIALOG_COLUMN_WIDTHS_MAX, parsed));
+      const widthValue = nextWidth + 'px';
+      header.style.width = widthValue;
+      header.style.minWidth = widthValue;
+      const handle = header.querySelector('.resize-handle');
+      if (handle) handle.setAttribute('aria-valuenow', String(nextWidth));
+      const index = header.cellIndex;
+      getRows().forEach((row) => {
+        const cell = row.children[index];
+        if (!cell) return;
+        cell.style.width = widthValue;
+        cell.style.minWidth = widthValue;
+      });
+      return nextWidth;
+    }
+
+    function syncDialogTableWidth() {
+      const table = options.elements?.table;
+      if (!table) return;
+      let total = 0;
+      getHeaderCells().forEach((header) => {
+        if (!header || header.classList.contains('d-none')) return;
+        const width = Number.parseFloat(header.style.width) || header.getBoundingClientRect().width;
+        if (Number.isFinite(width) && width > 0) total += width;
+      });
+      if (total > 0) {
+        const widthValue = Math.ceil(total) + 'px';
+        table.style.width = widthValue;
+        table.style.minWidth = widthValue;
+      }
+    }
+
+    function freezeVisibleColumnWidths() {
+      const frozen = {};
+      getHeaderCells().forEach((header) => {
+        const key = String(header?.dataset?.columnKey || '').trim();
+        if (!key || header.classList.contains('d-none')) return;
+        const measured = Math.round(header.getBoundingClientRect().width);
+        const applied = applyColumnWidth(key, measured);
+        if (applied != null) frozen[key] = applied;
+      });
+      syncDialogTableWidth();
+      return frozen;
+    }
+
+    function saveColumnWidths() {
+      const api = getUiPreferenceApi();
+      if (!api) return;
+      const widths = { ...readPersistedColumnWidths() };
+      getHeaderCells().forEach((cell) => {
+        const key = String(cell?.dataset?.columnKey || '').trim();
+        const width = Number.parseInt(cell?.style?.width || '', 10);
+        if (!key || !Number.isFinite(width)) return;
+        widths[key] = width;
+      });
+      api.set(DIALOG_COLUMN_WIDTHS_PREFERENCE, widths, 'dialogs-column-widths');
+      if (typeof api.flush === 'function') {
+        void api.flush();
+      }
     }
 
     function restoreColumnWidths() {
-      const storageKey = resolveStorageKey(options.storage?.widths);
-      const table = options.elements?.table;
-      if (!storageKey || !table) return;
-      try {
-        const raw = localStorage.getItem(storageKey);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object') return;
-        Object.entries(parsed).forEach(([key, width]) => {
-          if (!width) return;
-          const header = table.querySelector(`th[data-column-key="${key}"]`);
-          if (!header) return;
-          header.style.width = width;
-          const index = header.cellIndex;
-          getRows().forEach((row) => {
-            const cell = row.children[index];
-            if (cell) cell.style.width = width;
-          });
-        });
-      } catch (_error) {
-        // ignore restore errors
-      }
+      const widths = readPersistedColumnWidths();
+      const entries = Object.entries(widths);
+      if (!entries.length) return;
+      entries.forEach(([key, width]) => applyColumnWidth(key, width));
+      syncDialogTableWidth();
     }
 
     function initColumnResize() {
       getHeaderCells().forEach((header) => {
-        if (header?.dataset?.resizable !== 'true') return;
+        const key = String(header?.dataset?.columnKey || '').trim();
+        if (!key) return;
         const oldHandle = header.querySelector('.resize-handle');
         if (oldHandle) oldHandle.remove();
+        const label = String(header.textContent || key).trim() || key;
         const handle = document.createElement('div');
         handle.className = 'resize-handle';
+        handle.tabIndex = 0;
+        handle.setAttribute('role', 'separator');
+        handle.setAttribute('aria-orientation', 'vertical');
+        handle.setAttribute('aria-label', 'Изменить ширину колонки «' + label + '»');
+        handle.setAttribute('aria-valuemin', String(DIALOG_COLUMN_WIDTHS_MIN[key] || 64));
+        handle.setAttribute('aria-valuemax', String(DIALOG_COLUMN_WIDTHS_MAX));
+        handle.setAttribute('aria-valuenow', String(Math.round(header.getBoundingClientRect().width)));
+        handle.title = 'Потяните, чтобы изменить ширину колонки';
         header.appendChild(handle);
 
-        handle.addEventListener('mousedown', (event) => {
-          const computed = getComputedStyle(header).width;
-          header.style.width = computed;
-          const index = header.cellIndex;
-          getRows().forEach((row) => {
-            const cell = row.children[index];
-            if (cell) cell.style.width = computed;
-          });
+        let drag = null;
 
-          const startX = event.pageX;
-          const startWidth = parseFloat(computed);
+        function updateWidth(nextWidth) {
+          const applied = applyColumnWidth(key, nextWidth);
+          if (applied == null) return;
+          syncDialogTableWidth();
+        }
+
+        handle.addEventListener('pointerdown', (event) => {
+          if (event.pointerType === 'mouse' && event.button !== 0) return;
+          freezeVisibleColumnWidths();
+          const current = Math.round(header.getBoundingClientRect().width);
+          drag = { pointerId: event.pointerId, startX: event.clientX, startWidth: current };
+          handle.setPointerCapture?.(event.pointerId);
+          handle.classList.add('is-dragging');
           document.documentElement.classList.add('resizing');
-
-          function onMouseMove(moveEvent) {
-            const next = startWidth + (moveEvent.pageX - startX);
-            if (next < 80) return;
-            header.style.width = `${next}px`;
-            getRows().forEach((row) => {
-              const cell = row.children[index];
-              if (cell) cell.style.width = `${next}px`;
-            });
-          }
-
-          function onMouseUp() {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.documentElement.classList.remove('resizing');
-            saveColumnWidths();
-          }
-
-          document.addEventListener('mousemove', onMouseMove);
-          document.addEventListener('mouseup', onMouseUp);
           event.preventDefault();
+          event.stopPropagation();
+        });
+
+        handle.addEventListener('pointermove', (event) => {
+          if (!drag || event.pointerId !== drag.pointerId) return;
+          updateWidth(drag.startWidth + (event.clientX - drag.startX));
+        });
+
+        function finishDrag(event) {
+          if (!drag || event.pointerId !== drag.pointerId) return;
+          const pointerId = drag.pointerId;
+          drag = null;
+          handle.classList.remove('is-dragging');
+          document.documentElement.classList.remove('resizing');
+          if (handle.hasPointerCapture?.(pointerId)) handle.releasePointerCapture(pointerId);
+          saveColumnWidths();
+        }
+
+        handle.addEventListener('pointerup', finishDrag);
+        handle.addEventListener('pointercancel', finishDrag);
+
+        handle.addEventListener('keydown', (event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          event.preventDefault();
+          freezeVisibleColumnWidths();
+          const delta = event.key === 'ArrowLeft' ? -8 : 8;
+          updateWidth(Math.round(header.getBoundingClientRect().width) + delta);
+          saveColumnWidths();
         });
       });
     }

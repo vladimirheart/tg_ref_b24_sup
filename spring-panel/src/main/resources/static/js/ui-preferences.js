@@ -92,6 +92,24 @@
     return JSON.stringify(normalized.slice(0, 64));
   }
 
+  function normalizeDialogsColumnWidths(value) {
+    let source = value;
+    if (typeof source === 'string') {
+      try { source = JSON.parse(source); }
+      catch (_error) { source = {}; }
+    }
+    if (!source || typeof source !== 'object' || Array.isArray(source)) source = {};
+    const allowed = new Set(['actions', 'select', 'ticket', 'client', 'status', 'channel', 'business', 'problem', 'location', 'categories', 'responsible', 'created', 'sla']);
+    const result = {};
+    Object.entries(source).forEach(([rawKey, rawWidth]) => {
+      const key = String(rawKey || '').trim();
+      const width = Number.parseInt(rawWidth, 10);
+      if (!allowed.has(key) || !Number.isFinite(width) || width < 32 || width > 1200) return;
+      result[key] = width;
+    });
+    return JSON.stringify(result);
+  }
+
   function normalizePageFontScales(value) {
     let source = value;
     if (typeof source === 'string') {
@@ -159,6 +177,21 @@
         }
       },
     }),
+    dialogsColumnWidths: Object.freeze({
+      storageKey: 'iguana:dialogs:column-widths-v2',
+      fallback: '{}',
+      normalize: normalizeDialogsColumnWidths,
+      parse(value) {
+        if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+        if (typeof value !== 'string' || !value.trim()) return {};
+        try {
+          const parsed = JSON.parse(value);
+          return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        } catch (_error) {
+          return {};
+        }
+      },
+    }),
     pageFontScales: Object.freeze({
       storageKey: 'iguana:page-font-scales-v1',
       fallback: '{}',
@@ -216,6 +249,7 @@
       await fetch(syncEndpoint, {
         method: 'PUT',
         credentials: 'same-origin',
+        keepalive: true,
         headers,
         body: JSON.stringify(snapshot()),
       });
@@ -381,12 +415,21 @@
     });
   }
 
+  async function flushRemoteSyncNow() {
+    if (syncTimer) {
+      clearTimeout(syncTimer);
+      syncTimer = null;
+    }
+    await flushRemoteSync();
+  }
+
   root.iguanaUiPreferences = Object.freeze({
     get,
     set,
     remove,
     snapshot,
     getStorageKey,
+    flush: flushRemoteSyncNow,
     registry: REGISTRY,
   });
 
