@@ -426,7 +426,7 @@
     if (taskEvents) taskEvents.innerHTML = '<div class="text-muted small">События появятся после сохранения.</div>';
     if (taskHistory) taskHistory.innerHTML = '<div class="text-muted small">История появится после сохранения.</div>';
     if (deleteTaskBtn) deleteTaskBtn.hidden = true;
-    setSelectedProjects(state.projectId ? [{ id: state.projectId }] : []);
+    setSelectedProjects([]);
     syncStatus('Новая');
     updateTaskTime(null);
     setEditorMode(true);

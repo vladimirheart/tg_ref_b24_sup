@@ -4,10 +4,12 @@ import com.example.panel.entity.Task;
 import com.example.panel.entity.TaskComment;
 import com.example.panel.entity.TaskHistory;
 import com.example.panel.entity.TaskPerson;
+import com.example.panel.entity.TaskSequence;
 import com.example.panel.repository.TaskCommentRepository;
 import com.example.panel.repository.TaskHistoryRepository;
 import com.example.panel.repository.TaskPersonRepository;
 import com.example.panel.repository.TaskRepository;
+import com.example.panel.repository.TaskSequenceRepository;
 import com.example.panel.service.IncidentService;
 import com.example.panel.service.NotificationRoutingService;
 import com.example.panel.service.TaskDomainFoundationService;
@@ -51,8 +53,10 @@ public class TaskApiController {
 
     private static final Logger log = LoggerFactory.getLogger(TaskApiController.class);
     private static final DateTimeFormatter LOCAL_DT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+    private static final int TASK_SEQUENCE_ROW_ID = 1;
 
     private final TaskRepository taskRepository;
+    private final TaskSequenceRepository taskSequenceRepository;
     private final TaskCommentRepository commentRepository;
     private final TaskHistoryRepository historyRepository;
     private final TaskPersonRepository taskPersonRepository;
@@ -62,6 +66,7 @@ public class TaskApiController {
     private final TaskQueryService taskQueryService;
 
     public TaskApiController(TaskRepository taskRepository,
+                             TaskSequenceRepository taskSequenceRepository,
                              TaskCommentRepository commentRepository,
                              TaskHistoryRepository historyRepository,
                              TaskPersonRepository taskPersonRepository,
@@ -70,6 +75,7 @@ public class TaskApiController {
                              TaskDomainFoundationService taskDomainFoundationService,
                              TaskQueryService taskQueryService) {
         this.taskRepository = taskRepository;
+        this.taskSequenceRepository = taskSequenceRepository;
         this.commentRepository = commentRepository;
         this.historyRepository = historyRepository;
         this.taskPersonRepository = taskPersonRepository;
@@ -152,12 +158,11 @@ public class TaskApiController {
             task.setCreatedAt(OffsetDateTime.now());
         }
         task.setLastActivityAt(OffsetDateTime.now());
+        if (isNew && task.getSeq() == null) {
+            task.setSeq(nextSequenceValue());
+        }
 
         Task saved = taskRepository.save(task);
-        if (saved.getSeq() == null) {
-            saved.setSeq(saved.getId());
-            saved = taskRepository.save(saved);
-        }
         syncTaskPeople(saved, co, watchers);
         String actor = resolveActor(authentication, saved.getCreator());
         String normalizedTagsInput = tags != null ? tags : tag;
@@ -172,6 +177,20 @@ public class TaskApiController {
         log.info("Task {} saved (id={}, creator={}, assignee={}, status={})",
                 saved.getSeq(), saved.getId(), saved.getCreator(), saved.getAssignee(), saved.getStatus());
         return Map.of("ok", true, "id", saved.getId());
+    }
+
+    private long nextSequenceValue() {
+        TaskSequence sequence = taskSequenceRepository.findById(TASK_SEQUENCE_ROW_ID)
+            .orElseGet(() -> {
+                TaskSequence seed = new TaskSequence();
+                seed.setId(TASK_SEQUENCE_ROW_ID);
+                seed.setVal(0L);
+                return taskSequenceRepository.save(seed);
+            });
+        long current = sequence.getVal() != null ? sequence.getVal() : 0L;
+        sequence.setVal(current + 1L);
+        taskSequenceRepository.save(sequence);
+        return current + 1L;
     }
 
     @DeleteMapping("/{id}")
