@@ -39,6 +39,7 @@ public class PanelTaskService {
     private final TaskLinkRepository taskLinkRepository;
     private final NotificationRepository notificationRepository;
     private final TicketRepository ticketRepository;
+    private final TaskDomainFoundationService taskDomainFoundationService;
 
     public PanelTaskService(TaskRepository taskRepository,
                             TaskSequenceRepository taskSequenceRepository,
@@ -46,7 +47,8 @@ public class PanelTaskService {
                             TaskHistoryRepository taskHistoryRepository,
                             TaskLinkRepository taskLinkRepository,
                             NotificationRepository notificationRepository,
-                            TicketRepository ticketRepository) {
+                            TicketRepository ticketRepository,
+                            TaskDomainFoundationService taskDomainFoundationService) {
         this.taskRepository = taskRepository;
         this.taskSequenceRepository = taskSequenceRepository;
         this.taskPersonRepository = taskPersonRepository;
@@ -54,6 +56,7 @@ public class PanelTaskService {
         this.taskLinkRepository = taskLinkRepository;
         this.notificationRepository = notificationRepository;
         this.ticketRepository = ticketRepository;
+        this.taskDomainFoundationService = taskDomainFoundationService;
     }
 
     @Transactional
@@ -64,6 +67,7 @@ public class PanelTaskService {
         task.setSeq(nextSequenceValue());
         applyPayload(task, payload, now);
         taskRepository.save(task);
+        taskDomainFoundationService.recordCreated(task, payload.creator(), payload.tag());
 
         savePeople(task, "co", payload.coExecutors());
         savePeople(task, "watcher", payload.watchers());

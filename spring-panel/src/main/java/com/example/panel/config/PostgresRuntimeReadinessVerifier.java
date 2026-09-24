@@ -80,6 +80,7 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
             verifyBooleanRuntimeSchema();
             verifyTransportSchema();
             verifyIncidentSchema();
+            verifyTaskPlanningSchema();
             counts = loadRuntimeCounts();
             verifyRecoveredBusinessData(counts);
         } catch (RuntimeException ex) {
@@ -272,6 +273,24 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
               FROM incident_route_delivery_outbox
              WHERE 1 = 0
             """
+        );
+    }
+
+    private void verifyTaskPlanningSchema() {
+        jdbcTemplate.queryForList(
+            "SELECT id, project_key, name, status, lead_identity FROM projects WHERE 1 = 0"
+        );
+        jdbcTemplate.queryForList(
+            "SELECT task_id, project_id, added_at, added_by FROM task_project_memberships WHERE 1 = 0"
+        );
+        jdbcTemplate.queryForList(
+            "SELECT id, name, normalized_name, color FROM tags WHERE 1 = 0"
+        );
+        jdbcTemplate.queryForList(
+            "SELECT task_id, tag_id, added_at, added_by FROM task_tags WHERE 1 = 0"
+        );
+        jdbcTemplate.queryForList(
+            "SELECT task_id, project_id, event_type, actor, occurred_at, field_name FROM task_events WHERE 1 = 0"
         );
     }
 

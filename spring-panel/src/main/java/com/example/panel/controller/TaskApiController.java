@@ -10,6 +10,7 @@ import com.example.panel.repository.TaskPersonRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.service.IncidentService;
 import com.example.panel.service.NotificationRoutingService;
+import com.example.panel.service.TaskDomainFoundationService;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,19 +57,22 @@ public class TaskApiController {
     private final TaskPersonRepository taskPersonRepository;
     private final NotificationRoutingService notificationRoutingService;
     private final IncidentService incidentService;
+    private final TaskDomainFoundationService taskDomainFoundationService;
 
     public TaskApiController(TaskRepository taskRepository,
                              TaskCommentRepository commentRepository,
                              TaskHistoryRepository historyRepository,
                              TaskPersonRepository taskPersonRepository,
                              NotificationRoutingService notificationRoutingService,
-                             IncidentService incidentService) {
+                             IncidentService incidentService,
+                             TaskDomainFoundationService taskDomainFoundationService) {
         this.taskRepository = taskRepository;
         this.commentRepository = commentRepository;
         this.historyRepository = historyRepository;
         this.taskPersonRepository = taskPersonRepository;
         this.notificationRoutingService = notificationRoutingService;
         this.incidentService = incidentService;
+        this.taskDomainFoundationService = taskDomainFoundationService;
     }
 
     @GetMapping
@@ -119,11 +123,16 @@ public class TaskApiController {
                                     @RequestParam(required = false) String co,
                                     @RequestParam(required = false) String watchers,
                                     @RequestParam(required = false) String tag,
+                                    @RequestParam(name = "tags", required = false) String tags,
+                                    @RequestParam(name = "project_ids", required = false) String projectIds,
                                     @RequestParam(name = "due_at", required = false) String dueAt,
                                     @RequestParam(required = false) String status,
                                     Authentication authentication) {
         boolean isNew = id == null || taskRepository.findById(id).isEmpty();
         Task task = id != null ? taskRepository.findById(id).orElse(new Task()) : new Task();
+        TaskDomainFoundationService.TaskMutationSnapshot before = isNew
+                ? null
+                : taskDomainFoundationService.snapshot(task);
         task.setTitle(title);
         task.setBodyHtml(bodyHtml);
         task.setCreator(creator);
@@ -143,6 +152,8 @@ public class TaskApiController {
         }
         syncTaskPeople(saved, co, watchers);
         String actor = resolveActor(authentication, saved.getCreator());
+        String normalizedTagsInput = tags != null ? tags : tag;
+        taskDomainFoundationService.recordSaved(saved, before, isNew, actor, normalizedTagsInput, projectIds);
         Set<String> recipients = resolveTaskRecipients(saved, co, watchers);
         String displayNo = saved.getSeq() != null ? "DL_" + saved.getSeq() : "DL_" + saved.getId();
         String safeTitle = StringUtils.hasText(saved.getTitle()) ? saved.getTitle().trim() : "без названия";
@@ -188,6 +199,7 @@ public class TaskApiController {
                 "created_at", formatDate(saved.getCreatedAt())
         );
         String actor = resolveActor(authentication, saved.getAuthor());
+        taskDomainFoundationService.recordCommentAdded(task, actor, saved.getId());
         Set<String> recipients = resolveTaskRecipients(task, null, null);
         String displayNo = task.getSeq() != null ? "DL_" + task.getSeq() : "DL_" + task.getId();
         String safeAuthor = StringUtils.hasText(saved.getAuthor()) ? saved.getAuthor().trim() : "оператор";
@@ -260,6 +272,9 @@ public class TaskApiController {
                 })
                 .toList();
         dto.put("history", history);
+        dto.put("tags", taskDomainFoundationService.listTags(task.getId()));
+        dto.put("projects", taskDomainFoundationService.listProjects(task.getId()));
+        dto.put("events", taskDomainFoundationService.listEvents(task.getId()));
         dto.put("incidents", incidentService.listIncidentSummariesForTask(task.getId()));
         return dto;
     }

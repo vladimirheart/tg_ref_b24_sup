@@ -64,6 +64,11 @@ class PostgresRuntimeReadinessVerifierTest {
         verify(jdbcTemplate).queryForList("SELECT incident_id, event_type, actor, created_at FROM incident_events WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT incident_id, watcher_identity, added_at FROM incident_watchers WHERE 1 = 0");
         verify(jdbcTemplate).queryForList("SELECT incident_id, route_type, route_target, route_status, updated_at FROM incident_routes WHERE 1 = 0");
+        verify(jdbcTemplate).queryForList("SELECT id, project_key, name, status, lead_identity FROM projects WHERE 1 = 0");
+        verify(jdbcTemplate).queryForList("SELECT task_id, project_id, added_at, added_by FROM task_project_memberships WHERE 1 = 0");
+        verify(jdbcTemplate).queryForList("SELECT id, name, normalized_name, color FROM tags WHERE 1 = 0");
+        verify(jdbcTemplate).queryForList("SELECT task_id, tag_id, added_at, added_by FROM task_tags WHERE 1 = 0");
+        verify(jdbcTemplate).queryForList("SELECT task_id, project_id, event_type, actor, occurred_at, field_name FROM task_events WHERE 1 = 0");
     }
 
     @Test
