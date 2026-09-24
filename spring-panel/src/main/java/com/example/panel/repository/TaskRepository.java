@@ -11,5 +11,7 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
 
     List<Task> findTop50ByOrderByCreatedAtDesc();
 
+    List<Task> findByAssigneeIgnoreCaseOrderByIdAsc(String assignee);
+
     long countByCreatedAtBetween(OffsetDateTime from, OffsetDateTime to);
 }

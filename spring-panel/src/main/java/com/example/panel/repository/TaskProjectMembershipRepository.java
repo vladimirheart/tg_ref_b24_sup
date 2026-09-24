@@ -8,5 +8,7 @@ public interface TaskProjectMembershipRepository extends JpaRepository<TaskProje
 
     List<TaskProjectMembership> findByTask_IdOrderByAddedAtAsc(Long taskId);
 
+    List<TaskProjectMembership> findByProject_IdOrderByTask_IdAsc(Long projectId);
+
     long countByProject_Id(Long projectId);
 }
