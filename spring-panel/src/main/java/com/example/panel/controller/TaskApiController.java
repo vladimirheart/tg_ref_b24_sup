@@ -142,6 +142,7 @@ public class TaskApiController {
                                     @RequestParam(name = "due_at", required = false) String dueAt,
                                     @RequestParam(required = false) String status,
                                     Authentication authentication) {
+        validateTaskRequiredFields(title, bodyHtml, assignee);
         boolean isNew = id == null || taskRepository.findById(id).isEmpty();
         Task task = id != null ? taskRepository.findById(id).orElse(new Task()) : new Task();
         TaskDomainFoundationService.TaskMutationSnapshot before = isNew
@@ -177,6 +178,32 @@ public class TaskApiController {
         log.info("Task {} saved (id={}, creator={}, assignee={}, status={})",
                 saved.getSeq(), saved.getId(), saved.getCreator(), saved.getAssignee(), saved.getStatus());
         return Map.of("ok", true, "id", saved.getId());
+    }
+
+    private void validateTaskRequiredFields(String title, String bodyHtml, String assignee) {
+        if (!StringUtils.hasText(title)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Название задачи обязательно");
+        }
+        if (!hasMeaningfulTaskDescription(bodyHtml)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Описание задачи обязательно");
+        }
+        if (!StringUtils.hasText(assignee)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ответственный обязателен");
+        }
+    }
+
+    private boolean hasMeaningfulTaskDescription(String html) {
+        if (!StringUtils.hasText(html)) {
+            return false;
+        }
+        String plain = html
+            .replaceAll("(?is)<br\\s*/?>", " ")
+            .replaceAll("(?is)<[^>]+>", " ")
+            .replace("&nbsp;", " ")
+            .replace("&#160;", " ")
+            .replace('\u00A0', ' ')
+            .trim();
+        return StringUtils.hasText(plain);
     }
 
     private long nextSequenceValue() {

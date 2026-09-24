@@ -25,6 +25,7 @@
   const taskNumber = document.getElementById('taskNumber');
   const taskBody = document.getElementById('bodyEditor');
   const taskProjects = document.getElementById('taskProjectsSelect');
+  const clearTaskProjectsBtn = document.getElementById('clearTaskProjectsBtn');
   const taskEvents = document.getElementById('taskEvents');
   const taskHistory = document.getElementById('history');
   const commentsBlock = document.getElementById('commentsBlock');
@@ -474,8 +475,17 @@
     }
   }
 
+  function taskDescriptionText() {
+    return String(taskBody?.innerText || taskBody?.textContent || '').replace(/\u00a0/g, ' ').trim();
+  }
+
   async function saveTask() {
     if (!taskForm || !taskForm.reportValidity()) return;
+    if (!taskDescriptionText()) {
+      showError('Не удалось сохранить задачу', new Error('Описание задачи обязательно'));
+      taskBody?.focus();
+      return;
+    }
     const data = new FormData();
     const id = String(taskId?.value || '').trim();
     const tags = String(taskForm.elements.namedItem('tags')?.value || '').trim();
@@ -652,6 +662,11 @@
   });
   editTaskBtn?.addEventListener('click', () => setEditorMode(true));
   saveTaskBtn?.addEventListener('click', saveTask);
+  clearTaskProjectsBtn?.addEventListener('click', () => {
+    setSelectedProjects([]);
+    dirty = true;
+    taskProjects?.focus();
+  });
   sendCommentBtn?.addEventListener('click', addComment);
   deleteTaskBtn?.addEventListener('click', deleteTask);
 

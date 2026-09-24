@@ -142,11 +142,11 @@
               <input type="hidden" id="taskId">
               <input type="hidden" name="creator">
               <section class="tasks-task-primary">
-                <label class="form-label" for="taskTitle">Название</label>
+                <label class="form-label" for="taskTitle">Название <span class="text-danger" aria-hidden="true">*</span></label>
                 <input id="taskTitle" type="text" name="title" class="form-control tasks-title-input" placeholder="Название задачи" required>
 
-                <label class="form-label mt-3" for="bodyEditor">Описание</label>
-                <div id="bodyEditor" class="tasks-editor-panel" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Опишите задачу, контекст и ожидаемый результат"></div>
+                <label class="form-label mt-3" for="bodyEditor">Описание <span class="text-danger" aria-hidden="true">*</span></label>
+                <div id="bodyEditor" class="tasks-editor-panel" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" data-placeholder="Опишите задачу, контекст и ожидаемый результат"></div>
 
                 <section id="commentsBlock" class="tasks-conversation mt-4" hidden>
                   <div class="tasks-section-head"><h6>Комментарии</h6></div>
@@ -168,13 +168,16 @@
                   <select name="status" class="form-select"><option>Новая</option><option>В работе</option><option>Ожидание</option><option>Завершена</option><option>Отменена</option></select>
                 </div>
                 <div class="tasks-property-group">
-                  <label class="form-label">Исполнитель</label>
-                  <select name="assignee" class="form-select"><option value="">Не выбрано</option><option th:each="u : ${users}" th:text="${u.username}" th:value="${u.username}"></option></select>
+                  <label class="form-label">Ответственный <span class="text-danger" aria-hidden="true">*</span></label>
+                  <select name="assignee" class="form-select" required><option value="">Не выбрано</option><option th:each="u : ${users}" th:text="${u.username}" th:value="${u.username}"></option></select>
                 </div>
                 <div class="tasks-property-group">
-                  <label class="form-label" for="taskProjectsSelect">Проекты</label>
-                  <select id="taskProjectsSelect" name="project_ids_ui" class="form-select" multiple size="4" aria-describedby="taskProjectsHelp"></select>
-                  <div id="taskProjectsHelp" class="form-text">Ctrl/Cmd — выбрать несколько.</div>
+                  <div class="d-flex align-items-center justify-content-between gap-2">
+                    <label class="form-label mb-0" for="taskProjectsSelect">Проекты</label>
+                    <button id="clearTaskProjectsBtn" class="btn btn-sm btn-link px-0 text-decoration-none" type="button">Без проекта</button>
+                  </div>
+                  <select id="taskProjectsSelect" name="project_ids_ui" class="form-select mt-1" multiple size="4" aria-describedby="taskProjectsHelp"></select>
+                  <div id="taskProjectsHelp" class="form-text">Можно выбрать несколько проектов. «Без проекта» снимает весь выбор.</div>
                 </div>
                 <div class="tasks-property-group"><label class="form-label">Теги</label><input type="text" name="tags" class="form-control" placeholder="backend, iiko, ui"><div class="form-text">Несколько тегов — через запятую.</div></div>
                 <div class="tasks-property-group"><label class="form-label">Соисполнители</label><input type="text" name="co" class="form-control" list="usersList" placeholder="через запятую"></div>
@@ -200,7 +203,7 @@
   <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script th:src="@{/js/modal-helpers.js}"></script>
   <script th:src="@{/js/sidebar.js}"></script>
-  <script th:src="@{/js/tasks.js?v=20260924-01-274-task-create-r15}"></script>
+  <script th:src="@{/js/tasks.js?v=20260924-01-274-task-create-r23}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>
 </body>
 </html>

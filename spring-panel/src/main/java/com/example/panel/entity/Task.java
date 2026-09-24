@@ -1,7 +1,5 @@
 package com.example.panel.entity;
 
-import com.example.panel.converter.LenientOffsetDateTimeConverter;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -34,15 +32,12 @@ public class Task {
 
     private String status;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime dueAt;
 
     private OffsetDateTime createdAt;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime closedAt;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime lastActivityAt;
 
     public Long getId() {
