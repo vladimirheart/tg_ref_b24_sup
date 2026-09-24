@@ -52,6 +52,18 @@
   let dirty = false;
   let forcedClose = false;
 
+  const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
+  const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-XSRF-TOKEN';
+
+  function requestOptions(options = {}) {
+    const merged = { credentials: 'same-origin', ...options };
+    const method = String(merged.method || 'GET').toUpperCase();
+    if (['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method) || !csrfToken) return merged;
+    const headers = new Headers(merged.headers || {});
+    headers.set(csrfHeader, csrfToken);
+    return { ...merged, headers };
+  }
+
   function escapeHtml(value) {
     return String(value ?? '')
       .replace(/&/g, '&amp;')
@@ -93,7 +105,7 @@
   }
 
   async function httpJson(url, options = {}) {
-    const response = await fetch(url, { credentials: 'same-origin', ...options });
+    const response = await fetch(url, requestOptions(options));
     if (response.status === 401) {
       window.location.href = '/login';
       throw new Error('Unauthorized');

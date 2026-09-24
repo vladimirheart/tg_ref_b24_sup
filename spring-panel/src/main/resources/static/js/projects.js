@@ -14,6 +14,18 @@
   const meta = document.getElementById('projectModalMeta');
   let items = [];
 
+  const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
+  const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-XSRF-TOKEN';
+
+  function requestOptions(options = {}) {
+    const merged = { credentials: 'same-origin', ...options };
+    const method = String(merged.method || 'GET').toUpperCase();
+    if (['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method) || !csrfToken) return merged;
+    const headers = new Headers(merged.headers || {});
+    headers.set(csrfHeader, csrfToken);
+    return { ...merged, headers };
+  }
+
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[ch]));
@@ -21,7 +33,7 @@
   const modal = () => bootstrap.Modal.getOrCreateInstance(modalEl);
 
   async function request(url, options = {}) {
-    const response = await fetch(url, { credentials: 'same-origin', ...options });
+    const response = await fetch(url, requestOptions(options));
     if (response.status === 401) {
       window.location.href = '/login';
       throw new Error('Unauthorized');

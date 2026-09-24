@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}" />
+  <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : 'X-XSRF-TOKEN'}" />
   <title>Проекты — iguana</title>
   <link rel="icon" type="image/png" sizes="32x32" th:href="@{/favicon-32x32.png?v=2}">
   <link href="/vendor/bootstrap/5.3.3/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
@@ -76,7 +78,7 @@
   <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script th:src="@{/js/modal-helpers.js}"></script>
   <script th:src="@{/js/sidebar.js}"></script>
-  <script th:src="@{/js/projects.js?v=20260924-01-274-b1}"></script>
+  <script th:src="@{/js/projects.js?v=20260924-01-274-csrf-r1}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>
 </body>
 </html>
