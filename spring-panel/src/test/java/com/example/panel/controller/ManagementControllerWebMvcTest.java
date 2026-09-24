@@ -310,6 +310,19 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
+    void projectsPageUsesTaskPermissionAndExplicitPagePreset() throws Exception {
+        stubNavigationDefaults();
+        when(panelUserRepository.findAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/projects").with(user("operator").authorities(() -> "PAGE_TASKS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("projects/index"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"projects\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/projects.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Создать проект")));
+    }
+
+    @Test
     void channelsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         stubNavigationDefaults();
         when(channelRepository.findAll()).thenReturn(List.of());

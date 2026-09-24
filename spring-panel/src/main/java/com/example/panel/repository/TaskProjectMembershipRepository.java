@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface TaskProjectMembershipRepository extends JpaRepository<TaskProjectMembership, Long> {
 
     List<TaskProjectMembership> findByTask_IdOrderByAddedAtAsc(Long taskId);
+
+    long countByProject_Id(Long projectId);
 }

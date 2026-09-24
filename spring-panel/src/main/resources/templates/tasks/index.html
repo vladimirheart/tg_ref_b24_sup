@@ -4,104 +4,60 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Задачи — iguana</title>
-  <link rel="icon"
-      type="image/png"
-      sizes="32x32"
-      th:href="@{/favicon-32x32.png?v=2}">
-
-	<link rel="icon"
-      type="image/png"
-      sizes="16x16"
-      th:href="@{/favicon-16x16.png?v=2}">
-
-	<link rel="shortcut icon"
-      type="image/x-icon"
-      th:href="@{/favicon.ico?v=2}">
-
-	<link rel="apple-touch-icon"
-      sizes="180x180"
-      th:href="@{/favicon-180x180.png?v=2}">
-  <link href="/vendor/bootstrap/5.3.3/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-      crossorigin="anonymous">
-
-<th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
-
-<link th:href="@{/css/style.css}" rel="stylesheet">
-<link th:href="@{/css/app.css}" rel="stylesheet">
-<link th:href="@{/css/sidebar.css}" rel="stylesheet">
+  <link rel="icon" type="image/png" sizes="32x32" th:href="@{/favicon-32x32.png?v=2}">
+  <link rel="icon" type="image/png" sizes="16x16" th:href="@{/favicon-16x16.png?v=2}">
+  <link rel="shortcut icon" type="image/x-icon" th:href="@{/favicon.ico?v=2}">
+  <link rel="apple-touch-icon" sizes="180x180" th:href="@{/favicon-180x180.png?v=2}">
+  <link href="/vendor/bootstrap/5.3.3/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+  <link th:href="@{/css/style.css}" rel="stylesheet">
+  <link th:href="@{/css/app.css}" rel="stylesheet">
+  <link th:href="@{/css/sidebar.css}" rel="stylesheet">
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="tasks">
   <div th:replace="~{fragments/navbar :: navbar('tasks')}"></div>
-  <datalist id="usersList">
-  <option th:each="u : ${users}" th:value="${u.username}"></option>
-</datalist>
+  <datalist id="usersList"><option th:each="u : ${users}" th:value="${u.username}"></option></datalist>
 
   <main class="main-content container-fluid py-4 page-shell tasks-page-shell ops-page-shell">
-
     <div class="page-header-card tasks-sticky-bar ops-list-shell">
       <div class="tasks-header-row ops-page-head">
         <div>
-          <span class="page-kicker">Операционный backlog</span>
+          <span class="page-kicker">Рабочий контур</span>
           <h1 class="page-title">Задачи</h1>
-          <p class="page-subtitle mb-0">
-            Планирование, исполнители, дедлайны и операционный контроль задач команды.
-          </p>
+          <p class="page-subtitle mb-0">Единый список задач команды, личный scope и задачи выбранного проекта.</p>
         </div>
-
         <div class="tasks-page-actions ops-page-actions">
-          <button id="filtersBtn"
-                  class="btn btn-outline-secondary"
-                  type="button">
-            Фильтры
-          </button>
-
-          <button id="createTaskBtn"
-                  class="btn btn-primary"
-                  type="button">
-            Создать задачу
-          </button>
-
-          <a id="exportBtn"
-             class="btn btn-outline-secondary"
-             href="#">
-            Выгрузить в Excel
-          </a>
+          <button id="filtersBtn" class="btn btn-outline-secondary" type="button"><i class="bi bi-funnel" aria-hidden="true"></i><span>Фильтры</span></button>
+          <a class="btn btn-outline-secondary" th:href="@{/projects}"><i class="bi bi-kanban" aria-hidden="true"></i><span>Проекты</span></a>
+          <button id="createTaskBtn" class="btn btn-primary" type="button"><i class="bi bi-plus-lg" aria-hidden="true"></i><span>Создать задачу</span></button>
         </div>
       </div>
 
-      <div class="tasks-metrics-row ops-list-toolbar">
-        <div class="tasks-metrics">
-          <span class="tasks-metric-chip tasks-metric-chip--primary">
-            Всего задач:
-            <strong id="tasksTotal"
-                    th:text="${#lists.size(tasks)}">0</strong>
-          </span>
+      <nav class="work-management-tabs" aria-label="Раздел задач">
+        <a class="work-management-tab active" th:href="@{/tasks}" aria-current="page">Список</a>
+        <span class="work-management-tab is-upcoming" title="Будет добавлено в Kanban phase">Доска</span>
+        <span class="work-management-tab is-upcoming" title="Будет добавлено в Analytics phase">Аналитика</span>
+      </nav>
 
-          <span class="tasks-metric-chip">
-            На странице:
-            <strong id="tasksShown"
-                    th:text="${#lists.size(tasks)}">0</strong>
-          </span>
-
-          <span id="tasksSummary"
-                class="text-muted small"
-                th:text="${#lists.isEmpty(tasks)}
-                    ? 'Показано 0 из 0 · Страница 1/1'
-                    : 'Показано ' + ${#lists.size(tasks)} + ' из ' + ${#lists.size(tasks)}">
-            Показано 0 из 0 · Страница 1/1
-          </span>
+      <div class="tasks-scope-row ops-list-toolbar">
+        <div class="tasks-scope-switch" role="group" aria-label="Область задач">
+          <button class="tasks-scope-btn active" type="button" data-task-scope="all">Все задачи</button>
+          <button class="tasks-scope-btn" type="button" data-task-scope="mine">Мои задачи</button>
         </div>
-
+        <div class="tasks-project-scope">
+          <label for="taskProjectScope" class="visually-hidden">Проект</label>
+          <select id="taskProjectScope" class="form-select form-select-sm">
+            <option value="">Все проекты</option>
+          </select>
+        </div>
+        <div class="tasks-metrics ms-auto">
+          <span class="tasks-metric-chip tasks-metric-chip--primary">Всего <strong id="tasksTotal">0</strong></span>
+          <span class="tasks-metric-chip">На странице <strong id="tasksShown">0</strong></span>
+          <span id="tasksSummary" class="text-muted small">Загрузка…</span>
+        </div>
         <div class="tasks-page-size">
-          <label for="pageSizeSel"
-                 class="form-label m-0 text-muted small">
-            На странице
-          </label>
-
-          <select id="pageSizeSel"
-                  class="form-select form-select-sm tasks-page-size-select">
+          <label for="pageSizeSel" class="text-muted small">На странице</label>
+          <select id="pageSizeSel" class="form-select form-select-sm tasks-page-size-select">
             <option value="10">10</option>
             <option value="20" selected>20</option>
             <option value="50">50</option>
@@ -111,349 +67,138 @@
       </div>
     </div>
 
-    <!-- Фильтры как на аналитике: сворачиваемый блок -->
-  <div class="modal fade ops-task-modal" tabindex="-1" id="filtersModal">
-          <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                  <div class="modal-header">
-                        <h5 class="modal-title">Фильтры</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                  </div>
-                  <div class="modal-body">
-                        <form id="filters" class="row g-2 align-items-end">
-                          <div class="col-md-4">
-                                <label class="form-label">Номер</label>
-                                <input type="text" name="num" class="form-control" placeholder="DL_12 или 15">
-                          </div>
-                          <div class="col-md-4">
-                                <label class="form-label">Название</label>
-                                <input type="text" name="title" class="form-control">
-                          </div>
-                          <div class="col-md-4">
-                                <label class="form-label">Исполнитель</label>
-                                <input type="text" name="assignee" class="form-control" list="usersList" placeholder="email/логин/имя">
-                          </div>
-
-                          <div class="col-md-4">
-                                <label class="form-label">Тег</label>
-                                <input type="text" name="tag" class="form-control">
-                          </div>
-                          <div class="col-md-4">
-                                <label class="form-label">Статус</label>
-                                <select name="status" class="form-select">
-                                  <option value="">Любой</option>
-                                  <option>Новая</option>
-                                  <option>В работе</option>
-                                  <option>Ожидание</option>
-                                  <option>Завершена</option>
-                                  <option>Отменена</option>
-                                </select>
-                          </div>
-
-                          <div class="col-md-6">
-                                <label class="form-label">Период создания</label>
-                                <div class="d-flex gap-1">
-                                  <input type="date" name="created_from" class="form-control">
-                                  <input type="date" name="created_to" class="form-control">
-                                </div>
-                          </div>
-
-                          <div class="col-md-6">
-                                <label class="form-label">Период дедлайна</label>
-                                <div class="d-flex gap-1">
-                                  <input type="date" name="due_from" class="form-control">
-                                  <input type="date" name="due_to" class="form-control">
-                                </div>
-                          </div>
-                        </form>
-                  </div>
-                  <div class="modal-footer">
-                        <button id="resetFiltersBtn" class="btn btn-outline-secondary me-auto">Сбросить</button>
-                        <button id="applyFiltersBtn" class="btn btn-primary">Применить</button>
-                  </div>
-                </div>
-          </div>
-    </div>
-
-    <div class="card tasks-table-card ops-table-card">
-	  <div class="table-responsive tasks-table-shell">
-		<table class="table align-middle mb-0" id="tasksTable">
-		  <thead>
-			<tr>
-				<th scope="col"
-					class="sortable"
-					data-sort="num"
-					tabindex="0">
-					Номер <span class="sort-ind">↕</span>
-				</th>
-
-				<th scope="col"
-					class="sortable"
-					data-sort="title"
-					tabindex="0">
-					Название <span class="sort-ind">↕</span>
-				</th>
-
-				<th scope="col"
-					class="sortable"
-					data-sort="assignee"
-					tabindex="0">
-					Исполнитель <span class="sort-ind">↕</span>
-				</th>
-
-				<th scope="col"
-					class="sortable"
-					data-sort="due_at"
-					tabindex="0">
-					Дедлайн <span class="sort-ind">↕</span>
-				</th>
-
-				<th scope="col"
-					class="sortable"
-					data-sort="last_activity_at"
-					tabindex="0">
-					Последняя активность <span class="sort-ind">↕</span>
-				</th>
-
-				<th scope="col">
-					Создано
-				</th>
-
-				<th scope="col">
-					Закрыто
-				</th>
-
-				<th scope="col"
-					class="sortable"
-					data-sort="tag"
-					tabindex="0">
-					Тег <span class="sort-ind">↕</span>
-				</th>
-
-				<th scope="col"
-					class="sortable"
-					data-sort="status"
-					tabindex="0">
-					Статус <span class="sort-ind">↕</span>
-				</th>
-
-				<th scope="col" class="text-end">
-					Действия
-				</th>
-			</tr>
-			</thead>
-
-		  <tbody id="tasksBody">
-			<tr class="ops-empty-state-row" th:if="${#lists.isEmpty(tasks)}">
-			  <td colspan="10"
-				  class="text-center text-muted py-4">
-				Задачи не загружены
-			  </td>
-			</tr>
-
-			<tr th:each="task : ${tasks}"
-				class="server-rendered tasks-row">
-			  <td th:text="${task.seq != null ? 'DL_' + task.seq : 'DL_' + task.id}">
-			  </td>
-
-			  <td>
-				<div class="fw-semibold"
-					 th:text="${task.title} ?: 'Без названия'">
-				</div>
-			  </td>
-
-			  <td th:text="${task.assignee} ?: '—'"></td>
-
-			  <td th:text="${task.dueAt} ?: '—'"></td>
-
-			  <td class="text-muted">—</td>
-
-			  <td class="text-muted">—</td>
-
-			  <td class="text-muted">—</td>
-
-			  <td th:text="${task.tag} ?: '—'"></td>
-
-			  <td>
-				<span class="badge task-status-badge"
-					  th:attr="data-task-status=${task.status}"
-					  th:text="${task.status} ?: '—'">
-				</span>
-			  </td>
-
-			  <td class="text-end text-muted small">
-				Загрузка...
-			  </td>
-			</tr>
-		  </tbody>
-		</table>
-	  </div>
-	</div>
-
-    <div class="d-flex justify-content-between align-items-center mt-3">
-      <div id="paginationInfo" class="text-muted"></div>
-      <nav>
-        <ul class="pagination mb-0" id="pagination"></ul>
-      </nav>
-    </div>
-
-    <!-- Modal -->
-    <div class="modal fade ops-editor-modal" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content tasks-modal-content">
+    <div class="modal fade ops-task-modal" tabindex="-1" id="filtersModal" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
           <div class="modal-header">
-            <div>
-              <h5 class="modal-title" id="taskModalLabel">Задача</h5>
-              <small id="taskMeta" class="text-muted"></small>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" data-task-close></button>
+            <h5 class="modal-title">Фильтры задач</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <div class="alert alert-warning d-none" id="taskAlert"></div>
-            <form id="taskForm" class="row g-3">
-              <input type="hidden" id="taskId" />
-              <div class="col-md-7 tasks-task-primary">
-                <label class="form-label">Название</label>
-                <div class="input-group mb-3">
-                  <span class="input-group-text">№</span>
-                  <input type="text" name="num" class="form-control" placeholder="DL_" />
-                  <input type="text" name="title" class="form-control" placeholder="Название задачи" required />
-                </div>
-
-                <label class="form-label">Описание</label>
-                <div class="tasks-editor-panel mb-3">
-				  <textarea name="description"
-							class="form-control tasks-description-input"
-							rows="8"
-							placeholder="Детали задачи..."></textarea>
-				</div>
-
-                <details class="tasks-history-panel mb-3 ui-disclosure-native"
-						 id="historyDetails">
-				  <summary class="text-muted small">
-					История изменений
-				  </summary>
-
-				  <div id="taskHistory"
-					   class="task-history-content">
-					Пусто
-				  </div>
-				</details>
-
-                <label class="form-label">Комментарий</label>
-                <div class="input-group mb-3">
-                  <select name="status" class="form-select tasks-status-select">
-                    <option>Новая</option>
-                    <option>В работе</option>
-                    <option>Ожидание</option>
-                    <option>Завершена</option>
-                    <option>Отменена</option>
-                  </select>
-                  <textarea name="comment" class="form-control" placeholder="Комментарий к изменению"></textarea>
-                </div>
-
-                <label class="form-label">Добавить вложения</label>
-                <div class="tasks-placeholder-panel mb-3">
-					  Пока заглушка — прикрепите файл ссылкой в описании
-					</div>
-              </div>
-
-              <div class="col-md-5 tasks-task-aside">
-                <label class="form-label">Назначить</label>
-                <select name="assignee" class="form-select" list="usersList">
-                  <option value="" selected>Не выбрано</option>
-                  <option th:each="u : ${users}" th:text="${u.username}" th:value="${u.username}"></option>
-                </select>
-
-                <label class="form-label mt-2">Клиент</label>
-                <input type="text" name="customer" class="form-control" placeholder="Ссылка или имя клиента">
-
-                <label class="form-label mt-2">Доступ и ссылки</label>
-                <textarea name="access_data" class="form-control" rows="3" placeholder="URL, токены и т.д."></textarea>
-
-                <label class="form-label mt-2">Соисполнители</label>
-                <input type="text" name="co" class="form-control" list="usersList" placeholder="через запятую">
-
-                <label class="form-label mt-2">Наблюдатели</label>
-                <input type="text" name="watchers" class="form-control" list="usersList" placeholder="через запятую">
-
-                <label class="form-label mt-2">Тег</label>
-                <input type="text" name="tag" class="form-control" placeholder="#backend, #ui...">
-
-                <div class="mt-3">
-                  <label class="form-label">Крайний срок</label>
-                  <input type="datetime-local" name="due_at" class="form-control">
-                  <div class="form-text">
-                    Осталось: <span id="timeLeft">—</span><br>
-                    Создано: <span id="createdAt">—</span>
-                  </div>
-                </div>
-              </div>
+            <form id="filters" class="row g-3 align-items-end">
+              <div class="col-md-4"><label class="form-label">Номер</label><input type="text" name="num" class="form-control" placeholder="DL_12"></div>
+              <div class="col-md-4"><label class="form-label">Название</label><input type="text" name="title" class="form-control"></div>
+              <div class="col-md-4"><label class="form-label">Исполнитель</label><input type="text" name="assignee" class="form-control" list="usersList"></div>
+              <div class="col-md-4"><label class="form-label">Тег</label><input type="text" name="tag" class="form-control" placeholder="backend"></div>
+              <div class="col-md-4"><label class="form-label">Статус</label><select name="status" class="form-select"><option value="">Любой</option><option>Новая</option><option>В работе</option><option>Ожидание</option><option>Завершена</option><option>Отменена</option></select></div>
+              <div class="col-md-6"><label class="form-label">Период создания</label><div class="d-flex gap-2"><input type="date" name="created_from" class="form-control"><input type="date" name="created_to" class="form-control"></div></div>
+              <div class="col-md-6"><label class="form-label">Период дедлайна</label><div class="d-flex gap-2"><input type="date" name="due_from" class="form-control"><input type="date" name="due_to" class="form-control"></div></div>
             </form>
           </div>
-
           <div class="modal-footer">
-            <button id="deleteTaskBtn" class="btn btn-outline-danger me-auto" hidden>Удалить</button>
-            <button type="button"
-					class="btn btn-outline-secondary"
-					data-task-close>
-			  Закрыть
-			</button>
-            <button id="saveTaskBtn" class="btn btn-primary">Сохранить</button>
+            <button id="resetFiltersBtn" class="btn btn-outline-secondary me-auto" type="button">Сбросить</button>
+            <button id="applyFiltersBtn" class="btn btn-primary" type="button">Применить</button>
           </div>
         </div>
       </div>
     </div>
 
+    <div class="card tasks-table-card ops-table-card">
+      <div class="table-responsive tasks-table-shell">
+        <table class="table align-middle mb-0" id="tasksTable">
+          <thead>
+            <tr>
+              <th class="sortable" data-sort="num" tabindex="0">№ <span class="sort-ind">↕</span></th>
+              <th class="sortable" data-sort="title" tabindex="0">Задача <span class="sort-ind">↕</span></th>
+              <th>Проект</th>
+              <th class="sortable" data-sort="assignee" tabindex="0">Исполнитель <span class="sort-ind">↕</span></th>
+              <th class="sortable" data-sort="due_at" tabindex="0">Дедлайн <span class="sort-ind">↕</span></th>
+              <th>Теги</th>
+              <th class="sortable" data-sort="status" tabindex="0">Статус <span class="sort-ind">↕</span></th>
+              <th class="sortable" data-sort="last_activity_at" tabindex="0">Активность <span class="sort-ind">↕</span></th>
+              <th class="text-end">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="tasksBody">
+            <tr class="ops-empty-state-row"><td colspan="9" class="text-center text-muted py-4">Загрузка задач…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <div id="paginationInfo" class="text-muted"></div>
+      <nav><ul class="pagination mb-0" id="pagination"></ul></nav>
+    </div>
+
+    <div class="modal fade task-side-sheet" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content tasks-modal-content">
+          <div class="modal-header tasks-sheet-header">
+            <div class="tasks-sheet-heading">
+              <span id="taskNumber" class="tasks-sheet-number">Новая задача</span>
+              <h5 class="modal-title" id="taskModalLabel">Карточка задачи</h5>
+            </div>
+            <div class="tasks-sheet-header-actions">
+              <button id="editToggleBtn" class="btn btn-sm btn-outline-secondary" type="button" title="Редактировать описание" aria-label="Редактировать описание"><i class="bi bi-pencil"></i></button>
+              <button type="button" class="btn-close" data-task-close aria-label="Закрыть"></button>
+            </div>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-warning d-none" id="taskAlert"></div>
+            <form id="taskForm" class="tasks-task-sheet-grid">
+              <input type="hidden" id="taskId">
+              <input type="hidden" name="creator">
+              <section class="tasks-task-primary">
+                <label class="form-label" for="taskTitle">Название</label>
+                <input id="taskTitle" type="text" name="title" class="form-control tasks-title-input" placeholder="Название задачи" required>
+
+                <label class="form-label mt-3" for="bodyEditor">Описание</label>
+                <div id="bodyEditor" class="tasks-editor-panel" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Опишите задачу, контекст и ожидаемый результат"></div>
+
+                <section id="commentsBlock" class="tasks-conversation mt-4" hidden>
+                  <div class="tasks-section-head"><h6>Комментарии</h6></div>
+                  <div id="comments" class="tasks-comments-list"></div>
+                  <div id="commentEditor" class="tasks-comment-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Добавить комментарий"></div>
+                  <div class="text-end mt-2"><button id="sendCommentBtn" class="btn btn-sm btn-outline-primary" type="button">Отправить</button></div>
+                </section>
+
+                <details class="tasks-history-panel mt-4 ui-disclosure-native" open>
+                  <summary>Активность</summary>
+                  <div id="taskEvents" class="task-history-content"></div>
+                  <div id="history" class="task-history-content task-history-legacy"></div>
+                </details>
+              </section>
+
+              <aside class="tasks-task-aside">
+                <div class="tasks-property-group">
+                  <label class="form-label">Статус</label>
+                  <select name="status" class="form-select"><option>Новая</option><option>В работе</option><option>Ожидание</option><option>Завершена</option><option>Отменена</option></select>
+                </div>
+                <div class="tasks-property-group">
+                  <label class="form-label">Исполнитель</label>
+                  <select name="assignee" class="form-select"><option value="">Не выбрано</option><option th:each="u : ${users}" th:text="${u.username}" th:value="${u.username}"></option></select>
+                </div>
+                <div class="tasks-property-group">
+                  <label class="form-label" for="taskProjectsSelect">Проекты</label>
+                  <select id="taskProjectsSelect" name="project_ids_ui" class="form-select" multiple size="4" aria-describedby="taskProjectsHelp"></select>
+                  <div id="taskProjectsHelp" class="form-text">Ctrl/Cmd — выбрать несколько.</div>
+                </div>
+                <div class="tasks-property-group"><label class="form-label">Теги</label><input type="text" name="tags" class="form-control" placeholder="backend, iiko, ui"><div class="form-text">Несколько тегов — через запятую.</div></div>
+                <div class="tasks-property-group"><label class="form-label">Соисполнители</label><input type="text" name="co" class="form-control" list="usersList" placeholder="через запятую"></div>
+                <div class="tasks-property-group"><label class="form-label">Наблюдатели</label><input type="text" name="watchers" class="form-control" list="usersList" placeholder="через запятую"></div>
+                <div class="tasks-property-group">
+                  <label class="form-label">Крайний срок</label>
+                  <input type="datetime-local" name="due_at" class="form-control">
+                  <div class="tasks-due-meta"><span>Осталось <strong id="timeLeft">—</strong></span><span>Создано <strong id="createdAt">—</strong></span></div>
+                </div>
+              </aside>
+            </form>
+          </div>
+          <div class="modal-footer tasks-sheet-footer">
+            <button id="deleteTaskBtn" class="btn btn-outline-danger me-auto" type="button" hidden><i class="bi bi-trash"></i><span>Удалить</span></button>
+            <button type="button" class="btn btn-outline-secondary" data-task-close>Закрыть</button>
+            <button id="saveTaskBtn" class="btn btn-primary" type="button">Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script th:src="@{/js/modal-helpers.js}"></script>
   <script th:src="@{/js/sidebar.js}"></script>
-  <script th:src="@{/js/tasks.js}"></script>
-  <script>
-    (() => {
-      const createBtn = document.getElementById('createTaskBtn');
-      const modalEl = document.getElementById('taskModal');
-      const saveBtn = document.getElementById('saveTaskBtn');
-      const form = document.getElementById('taskForm');
-
-      if (createBtn && modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-        createBtn.addEventListener('click', () => {
-          if (window.__tasksPrimaryReady) return;
-          bootstrap.Modal.getOrCreateInstance(modalEl).show();
-        }, { capture: true });
-      }
-
-      if (saveBtn && form) {
-        saveBtn.addEventListener('click', async (event) => {
-          if (window.__tasksPrimaryReady) return;
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          const fd = new FormData();
-          fd.append('id', String(document.getElementById('taskId')?.value || '').trim());
-          fd.append('title', String(form.querySelector('[name="title"]')?.value || '').trim());
-          fd.append('body_html', String(form.querySelector('[name="description"]')?.value || '').trim());
-          fd.append('assignee', String(form.querySelector('[name="assignee"]')?.value || '').trim());
-          fd.append('co', String(form.querySelector('[name="co"]')?.value || '').trim());
-          fd.append('watchers', String(form.querySelector('[name="watchers"]')?.value || '').trim());
-          fd.append('tag', String(form.querySelector('[name="tag"]')?.value || '').trim());
-          fd.append('due_at', String(form.querySelector('[name="due_at"]')?.value || '').trim());
-          fd.append('status', String(form.querySelector('[name="status"]')?.value || '').trim() || 'Новая');
-          try {
-            const resp = await fetch('/api/tasks', { method: 'POST', credentials: 'same-origin', body: fd });
-            const data = await resp.json().catch(() => ({}));
-            if (!resp.ok || data?.ok === false) {
-              throw new Error(data?.error || `HTTP ${resp.status}`);
-            }
-            window.location.reload();
-          } catch (error) {
-            console.error(`Не удалось создать задачу: ${error.message || 'unknown_error'}`);
-          }
-        }, { capture: true });
-      }
-    })();
-  </script>
+  <script th:src="@{/js/tasks.js?v=20260924-01-274-b1}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.entity.Project;
 import com.example.panel.repository.ProjectRepository;
+import com.example.panel.repository.TaskProjectMembershipRepository;
 import jakarta.transaction.Transactional;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
@@ -21,9 +22,12 @@ public class ProjectService {
     private static final Set<String> STATUSES = Set.of("active", "paused", "done", "archived");
 
     private final ProjectRepository projectRepository;
+    private final TaskProjectMembershipRepository taskProjectMembershipRepository;
 
-    public ProjectService(ProjectRepository projectRepository) {
+    public ProjectService(ProjectRepository projectRepository,
+                          TaskProjectMembershipRepository taskProjectMembershipRepository) {
         this.projectRepository = projectRepository;
+        this.taskProjectMembershipRepository = taskProjectMembershipRepository;
     }
 
     public Map<String, Object> list(boolean includeArchived) {
@@ -177,6 +181,7 @@ public class ProjectService {
         dto.put("created_at", project.getCreatedAt() != null ? project.getCreatedAt().toString() : null);
         dto.put("updated_at", project.getUpdatedAt() != null ? project.getUpdatedAt().toString() : null);
         dto.put("archived_at", project.getArchivedAt() != null ? project.getArchivedAt().toString() : null);
+        dto.put("task_count", project.getId() != null ? taskProjectMembershipRepository.countByProject_Id(project.getId()) : 0L);
         return dto;
     }
 }

@@ -67,6 +67,12 @@
       shell: 'default',
       panel: 'surface',
     }),
+    projects: Object.freeze({
+      density: 'comfortable',
+      hero: 'workspace',
+      shell: 'default',
+      panel: 'surface',
+    }),
     passports: Object.freeze({
       density: 'comfortable',
       hero: 'workspace',
@@ -105,6 +111,7 @@
     if (path.startsWith('/knowledge-base')) return 'knowledge';
     if (path.startsWith('/channels')) return 'channels';
     if (path.startsWith('/users')) return 'users';
+    if (path.startsWith('/projects')) return 'projects';
     if (path.startsWith('/tasks')) return 'tasks';
     if (path.startsWith('/object-passports')) return 'passports';
     if (path.startsWith('/public')) return 'public';

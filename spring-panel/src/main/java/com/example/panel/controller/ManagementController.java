@@ -57,6 +57,14 @@ public class ManagementController {
         return "tasks/index";
     }
 
+    @GetMapping("/projects")
+    @PreAuthorize("hasAuthority('PAGE_TASKS')")
+    public String projects(Authentication authentication, Model model) {
+        navigationService.enrich(model, authentication);
+        model.addAttribute("users", panelUserRepository.findAll());
+        return "projects/index";
+    }
+
     @GetMapping("/channels")
     @PreAuthorize("hasAuthority('PAGE_CHANNELS')")
     public String channels(Authentication authentication, Model model) {

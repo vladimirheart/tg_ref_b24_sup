@@ -1,924 +1,697 @@
-// panel/static/tasks.js
 (function () {
-  // если таблицы задач на странице нет — выходим молча
   const table = document.getElementById('tasksTable');
   if (!table) return;
 
-  const tbody = table.querySelector('tbody');
+  const tbody = document.getElementById('tasksBody') || table.querySelector('tbody');
   const filters = document.getElementById('filters');
   const filtersModalEl = document.getElementById('filtersModal');
-  const exportBtn = document.getElementById('exportBtn');
+  const filtersModal = (filtersModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal)
+    ? bootstrap.Modal.getOrCreateInstance(filtersModalEl)
+    : null;
   const pageSizeSel = document.getElementById('pageSizeSel');
-  const pager = document.getElementById('pager') || document.getElementById('pagination');
-  const modalEl = document.getElementById('taskModal');
-  const form = document.getElementById('taskForm');
-  const taskIdInput = document.getElementById('taskId');
-  const bodyEditor = document.getElementById('bodyEditor');
-  const deleteBtn = document.getElementById('deleteTaskBtn');
+  const pager = document.getElementById('pagination');
   const totalCounter = document.getElementById('tasksTotal');
   const shownCounter = document.getElementById('tasksShown');
   const summaryEl = document.getElementById('tasksSummary');
-  const taskNumberEl = document.getElementById('taskNumber');
+  const projectScope = document.getElementById('taskProjectScope');
+  const scopeButtons = Array.from(document.querySelectorAll('[data-task-scope]'));
 
-  // элементы могут отсутствовать — страхуемся
-  const filtersModal = (typeof bootstrap !== 'undefined' && filtersModalEl)
-    ? new bootstrap.Modal(filtersModalEl)
+  const taskModalEl = document.getElementById('taskModal');
+  const taskModal = (taskModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal)
+    ? bootstrap.Modal.getOrCreateInstance(taskModalEl)
     : null;
-  let fallbackTaskModalBackdrop = null;
+  const taskForm = document.getElementById('taskForm');
+  const taskId = document.getElementById('taskId');
+  const taskNumber = document.getElementById('taskNumber');
+  const taskBody = document.getElementById('bodyEditor');
+  const taskProjects = document.getElementById('taskProjectsSelect');
+  const taskEvents = document.getElementById('taskEvents');
+  const taskHistory = document.getElementById('history');
+  const commentsBlock = document.getElementById('commentsBlock');
+  const comments = document.getElementById('comments');
+  const commentEditor = document.getElementById('commentEditor');
+  const sendCommentBtn = document.getElementById('sendCommentBtn');
+  const saveTaskBtn = document.getElementById('saveTaskBtn');
+  const deleteTaskBtn = document.getElementById('deleteTaskBtn');
+  const editTaskBtn = document.getElementById('editToggleBtn');
+  const timeLeft = document.getElementById('timeLeft');
+  const createdAt = document.getElementById('createdAt');
 
   const FINAL_STATUSES = new Set(['завершена', 'отменена']);
-
-  // ===== состояние таблицы
-  let state = {
+  const state = {
     page: 1,
-    page_size: pageSizeSel ? (parseInt(pageSizeSel.value, 10) || 20) : 20,
-    sort_by: 'last_activity_at',
-    sort_dir: 'desc',
-    total: 0
+    pageSize: pageSizeSel ? (Number.parseInt(pageSizeSel.value, 10) || 20) : 20,
+    sortBy: 'last_activity_at',
+    sortDir: 'desc',
+    total: 0,
+    mine: false,
+    projectId: '',
+    projects: [],
   };
 
-  // ===== utils
-  function qs(formEl) {
-    const p = new URLSearchParams(formEl ? new FormData(formEl) : undefined);
-    p.set('page', state.page);
-    p.set('page_size', state.page_size);
-    p.set('sort_by', state.sort_by);
-    p.set('sort_dir', state.sort_dir);
-    return p.toString();
-  }
-  function fmtDT(s) {
-    if (!s) return '—';
-    const d = new Date(s);
-    return d.toLocaleString();
-  }
-  function escapeAttr(value) {
+  let dirty = false;
+  let forcedClose = false;
+
+  function escapeHtml(value) {
     return String(value ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-    function isFinalStatus(status) {
-    return FINAL_STATUSES.has(String(status || '').trim().toLowerCase());
-  }
-// ===== utils
-        function humanLeft(ms) {
-          if (ms == null) return '—';
-          const sec = Math.floor(ms / 1000);
-	  
-	  if (sec < 0) {
-		// Просрочено - отрицательные значения
-		const absSec = Math.abs(sec);
-		
-		if (absSec < 3600) {
-		  // Меньше 1 часа - минуты
-		  return `-${Math.floor(absSec / 60)} мин`;
-		} else if (absSec < 86400) {
-		  // Меньше 24 часов - часы
-		  return `-${Math.floor(absSec / 3600)} ч`;
-		} else if (absSec < 604800) {
-		  // Меньше 7 дней - дни
-		  return `-${Math.floor(absSec / 86400)} дн`;
-		} else if (absSec < 2592000) {
-		  // Меньше 30 дней (примерно 1 месяц) - недели
-		  return `-${Math.floor(absSec / 604800)} нед`;
-		} else if (absSec < 31536000) {
-		  // Меньше 1 года - месяцы
-		  return `-${Math.floor(absSec / 2592000)} мес`;
-		} else {
-		  // Больше 1 года - годы
-		  return `-${Math.floor(absSec / 31536000)} г`;
-		}
-	  } else {
-		// Не просрочено - положительные значения (старая логика)
-		const day = 86400, week = 7 * day, month = 30 * day, year = 365 * day;
-		if (sec < day) return `${Math.floor(sec / 3600)} ч`;
-		if (sec < week) return `${Math.floor(sec / day)} дн`;
-		if (sec < month) return `${Math.floor(sec / week)} нед`;
-		if (sec < year) return `${Math.floor(sec / month)} мес`;
-		return `${Math.floor(sec / year)} г`;
-        }
-        }
-
-  function formatDurationAbs(ms) {
-    const sec = Math.floor(Math.abs(ms) / 1000);
-    if (sec < 60) return `${sec} сек`;
-    if (sec < 3600) return `${Math.floor(sec / 60)} мин`;
-    if (sec < 86400) return `${Math.floor(sec / 3600)} ч`;
-    if (sec < 604800) return `${Math.floor(sec / 86400)} дн`;
-    if (sec < 2592000) return `${Math.floor(sec / 604800)} нед`;
-    if (sec < 31536000) return `${Math.floor(sec / 2592000)} мес`;
-    return `${Math.floor(sec / 31536000)} г`;
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
-  function describeFinalOverdue(dueAt, closedAt) {
-    if (!dueAt) return { text: '', overdue: false };
-    const dueTs = new Date(dueAt).getTime();
-    const closedTs = closedAt ? new Date(closedAt).getTime() : Date.now();
-    if (Number.isNaN(dueTs) || Number.isNaN(closedTs)) {
-      return { text: '', overdue: false };
+  function fmtDateTime(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
+  }
+
+  function toLocalDateTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  }
+
+  function isFinalStatus(value) {
+    return FINAL_STATUSES.has(String(value || '').trim().toLowerCase());
+  }
+
+  function humanLeft(ms) {
+    if (!Number.isFinite(ms)) return '—';
+    const overdue = ms < 0;
+    let seconds = Math.floor(Math.abs(ms) / 1000);
+    let value;
+    if (seconds < 3600) value = `${Math.max(1, Math.floor(seconds / 60))} мин`;
+    else if (seconds < 86400) value = `${Math.floor(seconds / 3600)} ч`;
+    else if (seconds < 604800) value = `${Math.floor(seconds / 86400)} дн`;
+    else if (seconds < 2592000) value = `${Math.floor(seconds / 604800)} нед`;
+    else value = `${Math.floor(seconds / 2592000)} мес`;
+    return overdue ? `-${value}` : value;
+  }
+
+  async function httpJson(url, options = {}) {
+    const response = await fetch(url, { credentials: 'same-origin', ...options });
+    if (response.status === 401) {
+      window.location.href = '/login';
+      throw new Error('Unauthorized');
     }
-    const diff = closedTs - dueTs;
-    if (diff > 0) {
-      return { text: `Просрочено на ${formatDurationAbs(diff)}`, overdue: true };
+    if (!response.ok) {
+      let message = `HTTP ${response.status}`;
+      try {
+        const payload = await response.json();
+        message = payload?.message || payload?.error || payload?.detail || message;
+      } catch (_error) {
+        // keep HTTP fallback
+      }
+      throw new Error(message);
     }
-    if (diff === 0) {
-      return { text: 'Завершена в срок', overdue: false };
-    }
-    return { text: 'Завершена досрочно', overdue: false };
+    return response;
   }
 
-  function ensureTaskModalBackdrop() {
-    if (fallbackTaskModalBackdrop && document.body.contains(fallbackTaskModalBackdrop)) {
-      return fallbackTaskModalBackdrop;
+  function showError(title, error) {
+    const message = error instanceof Error ? error.message : String(error || 'Неизвестная ошибка');
+    if (typeof showAppModalMessage === 'function') {
+      showAppModalMessage({ title, message, variant: 'danger' });
+    } else {
+      console.error(title, message);
     }
-    const backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop fade show';
-    backdrop.dataset.fallbackTaskModalBackdrop = 'true';
-    document.body.appendChild(backdrop);
-    fallbackTaskModalBackdrop = backdrop;
-    return backdrop;
   }
 
-  function getTaskIdValue() {
-    if (!taskIdInput) return '';
-    return String(taskIdInput.value || '').trim();
+  function activeFiltersQuery() {
+    const query = new URLSearchParams(filters ? new FormData(filters) : undefined);
+    query.set('page', String(state.page));
+    query.set('page_size', String(state.pageSize));
+    query.set('sort_by', state.sortBy);
+    query.set('sort_dir', state.sortDir);
+    if (state.mine) query.set('mine', 'true');
+    if (state.projectId) query.set('project_id', state.projectId);
+    return query;
   }
 
-  function setTaskIdValue(value) {
-    if (!taskIdInput) return;
-    taskIdInput.value = String(value || '').trim();
+  function renderProjectChips(projects) {
+    const list = Array.isArray(projects) ? projects : [];
+    if (!list.length) return '<span class="text-muted">—</span>';
+    const shown = list.slice(0, 2).map(project => (
+      `<span class="tasks-project-chip" title="${escapeHtml(project.project_key || '')}">${escapeHtml(project.name || project.project_key || 'Проект')}</span>`
+    ));
+    if (list.length > 2) shown.push(`<span class="tasks-project-chip tasks-project-chip--more">+${list.length - 2}</span>`);
+    return shown.join(' ');
   }
 
-  function removeTaskModalBackdrop() {
-    if (fallbackTaskModalBackdrop && document.body.contains(fallbackTaskModalBackdrop)) {
-      fallbackTaskModalBackdrop.remove();
+  function renderTagChips(tags) {
+    const list = Array.isArray(tags) ? tags : [];
+    if (!list.length) return '<span class="text-muted">—</span>';
+    const shown = list.slice(0, 3).map(tag => `<span class="tasks-tag-chip">${escapeHtml(tag.name || '')}</span>`);
+    if (list.length > 3) shown.push(`<span class="tasks-tag-chip tasks-tag-chip--more">+${list.length - 3}</span>`);
+    return shown.join(' ');
+  }
+
+  function deadlineState(task) {
+    if (!task?.due_at) return { rowClass: '', text: '—', meta: '' };
+    const due = new Date(task.due_at).getTime();
+    if (!Number.isFinite(due)) return { rowClass: '', text: '—', meta: '' };
+    if (isFinalStatus(task.status)) {
+      const closed = task.closed_at ? new Date(task.closed_at).getTime() : Date.now();
+      const late = Number.isFinite(closed) && closed > due;
+      return {
+        rowClass: late ? 'overdue' : '',
+        text: fmtDateTime(task.due_at),
+        meta: late ? `Просрочено на ${humanLeft(-(closed - due)).replace('-', '')}` : 'Завершена в срок',
+      };
     }
-    fallbackTaskModalBackdrop = null;
-  }
-
-  function getModalInstance() {
-    if (!modalEl) return null;
-    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-      return bootstrap.Modal.getOrCreateInstance(modalEl);
-    }
+    const diff = due - Date.now();
     return {
-      show() {
-        modalEl.style.display = 'block';
-        modalEl.classList.add('show');
-        modalEl.removeAttribute('aria-hidden');
-        modalEl.setAttribute('aria-modal', 'true');
-        document.body.classList.add('modal-open');
-        ensureTaskModalBackdrop();
-        modalEl.dispatchEvent(new Event('shown.bs.modal'));
-      },
-      hide() {
-        const hideEvent = new Event('hide.bs.modal', { cancelable: true });
-        modalEl.dispatchEvent(hideEvent);
-        if (hideEvent.defaultPrevented) return;
-        modalEl.classList.remove('show');
-        modalEl.style.display = 'none';
-        modalEl.setAttribute('aria-hidden', 'true');
-        modalEl.removeAttribute('aria-modal');
-        document.body.classList.remove('modal-open');
-        removeTaskModalBackdrop();
-        modalEl.dispatchEvent(new Event('hidden.bs.modal'));
-      },
+      rowClass: diff < 0 ? 'overdue' : (diff < 86400000 ? 'warn' : ''),
+      text: fmtDateTime(task.due_at),
+      meta: humanLeft(diff),
     };
   }
 
-  let skipDirtyConfirm = false;
-  function hideTaskModal(force = false) {
-    const inst = getModalInstance();
-    if (!inst) return;
-    if (force) skipDirtyConfirm = true;
-    inst.hide();
-  }
-
-    function requestModalClose() {
-      if (!isDirty) {
-        hideTaskModal(true);
-        return;
-      }
-      showConfirmActionModal({
-        title: 'Закрыть задачу',
-        message: 'Есть несохранённые изменения. Закрыть без сохранения?',
-        confirmText: 'Закрыть',
-        confirmVariant: 'warning',
-        icon: '⚠️',
-        onConfirm: () => hideTaskModal(true),
-      });
-    }
-
-  function syncStatusButtons(value) {
-    if (!form) return;
-    const normalized = String(value || '').trim();
-    const target = normalized || 'Новая';
-    form.dataset.status = target;
-    document.querySelectorAll('.task-status').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.st === target);
-    });
-  }
-
-  async function httpJson(url, opts = {}) {
-    const r = await fetch(url, { credentials: 'same-origin', ...opts });
-      if (r.status === 401) {
-        let msg = 'Сессия истекла или нет доступа. Пожалуйста, войдите заново.';
-        try { const data = await r.json(); if (data && data.message) msg = 'Сессия истекла. Пожалуйста, войдите заново.'; } catch {}
-        if (!location.pathname.includes('/login')) {
-          const redirect = () => { window.location.href = '/login'; };
-          const shown = showAppModalMessage({
-            title: 'Требуется вход',
-            message: msg,
-            variant: 'warning',
-            onHidden: redirect,
-          });
-          if (!shown) {
-            redirect();
-          }
-        }
-        throw new Error('Unauthorized');
-      }
-    return r;
-  }
-
-  // ===== таблица
-  async function load() {
-    const q = qs(filters);
-    const r = await httpJson('/api/tasks?' + q);
-    const data = await r.json();
-    state.total = data.total || 0;
-    const pageFromServer = parseInt(data.page, 10);
-    if (!Number.isNaN(pageFromServer) && pageFromServer > 0) state.page = pageFromServer;
-    const sizeFromServer = parseInt(data.page_size, 10);
-    if (!Number.isNaN(sizeFromServer) && sizeFromServer > 0) state.page_size = sizeFromServer;
-    const items = data.items || [];
-    if (pageSizeSel) {
-      const valueStr = String(state.page_size);
-      if (![...pageSizeSel.options].some(o => o.value === valueStr)) {
-        const opt = document.createElement('option');
-        opt.value = valueStr;
-        opt.textContent = valueStr;
-        pageSizeSel.appendChild(opt);
-      }
-      pageSizeSel.value = valueStr;
-    }
-
+  function renderRows(items) {
     tbody.innerHTML = '';
-    for (const t of items) {
-      const tr = document.createElement('tr');
-
-      const final = isFinalStatus(t.status);
-      const dueAtValue = t.due_at || '';
-      const closedAtValue = t.closed_at || '';
-      tr.dataset.status = t.status || '';
-      tr.dataset.dueAt = dueAtValue;
-      tr.dataset.closedAt = closedAtValue;
-      tr.dataset.id = t.id || '';
-      tr.className = 'tasks-row';
-      let timeLeftText = '';
-      let timeLeftClass = 'text-muted';
-      let finalOverdue = false;
-      if (dueAtValue) {
-        if (final) {
-          const info = describeFinalOverdue(dueAtValue, closedAtValue);
-          timeLeftText = info.text;
-          finalOverdue = info.overdue;
-          timeLeftClass = info.overdue ? 'text-danger fw-semibold' : 'text-muted';
-          if (info.overdue) {
-            tr.classList.add('overdue');
-          }
-        } else {
-          const left = new Date(dueAtValue).getTime() - Date.now();
-          timeLeftText = humanLeft(left);
-          if (left < 0) {
-            tr.classList.add('overdue');
-            timeLeftClass = 'pulsating';
-          } else if (left < 86400000) {
-            tr.classList.add('warn');
-          }
-        }
-      }
-      const safeStatusAttr = escapeAttr(t.status);
-      tr.innerHTML = `
-	  <td class="tasks-cell-number">
-		${escapeAttr(t.display_no || '')}
-	  </td>
-
-	  <td class="tasks-cell-title">
-		<div class="fw-semibold">
-		  ${escapeAttr(t.title || 'Без названия')}
-		</div>
-	  </td>
-
-	  <td>
-		${escapeAttr(t.assignee || '—')}
-	  </td>
-
-	  <td>
-		${dueAtValue ? fmtDT(dueAtValue) : '—'}
-
-		<div class="small ${timeLeftClass} time-left"
-			 data-due="${escapeAttr(dueAtValue)}"
-			 data-status="${safeStatusAttr}"
-			 data-final="${final ? '1' : '0'}"
-			 data-overdue="${finalOverdue ? '1' : '0'}">
-		  ${escapeAttr(timeLeftText)}
-		</div>
-	  </td>
-
-	  <td>
-		${fmtDT(t.last_activity_at)}
-	  </td>
-
-	  <td>
-		${fmtDT(t.created_at)}
-	  </td>
-
-	  <td>
-		${fmtDT(t.closed_at)}
-	  </td>
-
-	  <td>
-		${escapeAttr(t.tag || '—')}
-	  </td>
-
-	  <td>
-		<span class="badge task-status-badge"
-			  data-task-status="${safeStatusAttr}">
-		  ${escapeAttr(t.status || '—')}
-		</span>
-	  </td>
-
-	  <td class="text-end">
-		<button class="btn btn-sm btn-outline-primary edit-btn"
-				type="button"
-				data-id="${escapeAttr(t.id)}">
-		  Открыть
-		</button>
-	  </td>
-	`;
-      tbody.appendChild(tr);
-    }
-
     if (!items.length) {
-      const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td class="text-center text-muted" colspan="10">Задачи не найдены. Попробуйте изменить фильтры или создать новую задачу.</td>';
-      tbody.appendChild(emptyRow);
+      const row = document.createElement('tr');
+      row.className = 'ops-empty-state-row';
+      row.innerHTML = '<td colspan="9" class="text-center text-muted py-4">Задачи не найдены. Измените условия или создайте новую задачу.</td>';
+      tbody.appendChild(row);
+      return;
     }
 
-    if (totalCounter) totalCounter.textContent = state.total;
-    if (shownCounter) shownCounter.textContent = items.length;
-    const totalPages = Math.max(1, Math.ceil(Math.max(state.total, 1) / state.page_size));
-    if (state.page > totalPages) state.page = totalPages;
-    if (summaryEl) {
-      summaryEl.textContent = state.total
-        ? `Показано ${items.length} из ${state.total} · Страница ${state.page}/${totalPages}`
-        : 'Нет задач, подходящих под условия фильтра.';
+    for (const task of items) {
+      const deadline = deadlineState(task);
+      const row = document.createElement('tr');
+      row.className = `tasks-row ${deadline.rowClass}`.trim();
+      row.dataset.id = task.id || '';
+      row.innerHTML = `
+        <td class="tasks-cell-number">${escapeHtml(task.display_no || '')}</td>
+        <td class="tasks-cell-title">
+          <button class="tasks-title-button" type="button" data-open-task="${escapeHtml(task.id)}">
+            ${escapeHtml(task.title || 'Без названия')}
+          </button>
+        </td>
+        <td><div class="tasks-chip-stack">${renderProjectChips(task.projects)}</div></td>
+        <td>${escapeHtml(task.assignee || '—')}</td>
+        <td>
+          <div>${deadline.text}</div>
+          <div class="small ${deadline.rowClass === 'overdue' ? 'text-danger fw-semibold' : 'text-muted'}">${escapeHtml(deadline.meta)}</div>
+        </td>
+        <td><div class="tasks-chip-stack">${renderTagChips(task.tags)}</div></td>
+        <td><span class="badge task-status-badge" data-task-status="${escapeHtml(task.status || '')}">${escapeHtml(task.status || '—')}</span></td>
+        <td class="text-muted small">${fmtDateTime(task.last_activity_at)}</td>
+        <td class="text-end"><button class="btn btn-sm btn-outline-secondary tasks-row-open" type="button" data-open-task="${escapeHtml(task.id)}" aria-label="Открыть задачу"><i class="bi bi-chevron-right" aria-hidden="true"></i></button></td>
+      `;
+      tbody.appendChild(row);
     }
-    updateOverdueTasks();
-    renderPager();
-    markSortHeader();
   }
 
-function updateOverdueTasks() {
-  const now = Date.now();
-  document.querySelectorAll('#tasksTable tbody tr').forEach(row => {
-    const status = row.dataset.status || '';
-    const dueAt = row.dataset.dueAt || '';
-    const timeEl = row.querySelector('.time-left');
-    const final = isFinalStatus(status);
-    if (!timeEl) return;
-
-    if (!dueAt) {
-      row.classList.remove('overdue', 'warn');
-      timeEl.classList.remove('pulsating');
-      timeEl.classList.add('text-muted');
-      timeEl.textContent = '';
-      return;
-    }
-
-    if (final) {
-      const isFinalOverdue = timeEl.dataset.overdue === '1';
-      row.classList.toggle('overdue', isFinalOverdue);
-      row.classList.remove('warn');
-      timeEl.classList.remove('pulsating');
-      timeEl.classList.toggle('text-danger', isFinalOverdue);
-      timeEl.classList.toggle('fw-semibold', isFinalOverdue);
-      timeEl.classList.toggle('text-muted', !isFinalOverdue);
-      return;
-    }
-
-    const diff = new Date(dueAt).getTime() - now;
-    const isOverdue = diff < 0;
-    const isWarn = !isOverdue && diff < 86400000;
-
-    row.classList.toggle('overdue', isOverdue);
-    row.classList.toggle('warn', isWarn);
-    timeEl.classList.toggle('pulsating', isOverdue);
-    timeEl.classList.toggle('text-muted', !isOverdue);
-    timeEl.textContent = humanLeft(diff);
-  });
-}
-
-// Обновлять каждую минуту
-setInterval(updateOverdueTasks, 60000);
-
-  function renderPager() {
-    const totalPages = Math.max(1, Math.ceil(state.total / state.page_size));
+  function renderPagination() {
     if (!pager) return;
     pager.innerHTML = '';
+    const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
     if (totalPages <= 1) return;
-    const mkItem = (p, label, disabled = false, active = false) => {
-      const li = document.createElement('li');
-      li.className = `page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}`;
-      li.innerHTML = `<a class="page-link" href="#">${label}</a>`;
-      li.addEventListener('click', (e) => { e.preventDefault(); if (!disabled) { state.page = p; load(); } });
-      return li;
+
+    const append = (page, label, disabled, active) => {
+      const item = document.createElement('li');
+      item.className = `page-item${disabled ? ' disabled' : ''}${active ? ' active' : ''}`;
+      const link = document.createElement('button');
+      link.type = 'button';
+      link.className = 'page-link';
+      link.textContent = label;
+      link.disabled = disabled;
+      link.addEventListener('click', () => {
+        if (disabled) return;
+        state.page = page;
+        loadTasks();
+      });
+      item.appendChild(link);
+      pager.appendChild(item);
     };
-    pager.appendChild(mkItem(Math.max(1, state.page - 1), '«', state.page === 1));
+
+    append(Math.max(1, state.page - 1), '‹', state.page <= 1, false);
     const start = Math.max(1, state.page - 2);
     const end = Math.min(totalPages, start + 4);
-    for (let p = start; p <= end; p++) pager.appendChild(mkItem(p, String(p), false, p === state.page));
-    pager.appendChild(mkItem(Math.min(totalPages, state.page + 1), '»', state.page === totalPages));
+    for (let page = start; page <= end; page += 1) append(page, String(page), false, page === state.page);
+    append(Math.min(totalPages, state.page + 1), '›', state.page >= totalPages, false);
   }
 
-  function markSortHeader() {
-    table.querySelectorAll('thead th.sortable').forEach(th => {
-        const key = th.dataset.sort;
-        const active = state.sort_by === key;
-        const ind = th.querySelector('.sort-ind');
-
-        if (ind) {
-            ind.textContent = active
-                ? (state.sort_dir === 'asc' ? '↑' : '↓')
-                : '↕';
-        }
-
-        if (active) {
-            th.setAttribute(
-                'aria-sort',
-                state.sort_dir === 'asc'
-                    ? 'ascending'
-                    : 'descending'
-            );
-        } else {
-            th.removeAttribute('aria-sort');
-        }
+  function markSort() {
+    table.querySelectorAll('th.sortable').forEach(header => {
+      const active = header.dataset.sort === state.sortBy;
+      const indicator = header.querySelector('.sort-ind');
+      if (indicator) indicator.textContent = active ? (state.sortDir === 'asc' ? '↑' : '↓') : '↕';
+      if (active) header.setAttribute('aria-sort', state.sortDir === 'asc' ? 'ascending' : 'descending');
+      else header.removeAttribute('aria-sort');
     });
-}
+  }
 
-function activateSortHeader(th) {
-    const key = th.dataset.sort;
-
-    if (state.sort_by === key) {
-        state.sort_dir =
-            state.sort_dir === 'asc'
-                ? 'desc'
-                : 'asc';
-    } else {
-        state.sort_by = key;
-        state.sort_dir = 'asc';
+  async function loadTasks() {
+    try {
+      const response = await httpJson(`/api/tasks?${activeFiltersQuery().toString()}`);
+      const payload = await response.json();
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      state.total = Number(payload.total || 0);
+      state.page = Number(payload.page || state.page || 1);
+      state.pageSize = Number(payload.page_size || state.pageSize || 20);
+      if (pageSizeSel) pageSizeSel.value = String(state.pageSize);
+      renderRows(items);
+      renderPagination();
+      markSort();
+      if (totalCounter) totalCounter.textContent = String(state.total);
+      if (shownCounter) shownCounter.textContent = String(items.length);
+      if (summaryEl) {
+        const pages = Math.max(1, Math.ceil(Math.max(state.total, 1) / state.pageSize));
+        summaryEl.textContent = state.total
+          ? `Показано ${items.length} из ${state.total} · Страница ${state.page}/${pages}`
+          : 'Нет задач, подходящих под текущий срез.';
+      }
+    } catch (error) {
+      showError('Не удалось загрузить задачи', error);
     }
-
-    state.page = 1;
-    load();
-}
-
-table.querySelectorAll('thead th.sortable').forEach(th => {
-    th.addEventListener('click', () => {
-        activateSortHeader(th);
-    });
-
-    th.addEventListener('keydown', (event) => {
-        if (
-            event.key !== 'Enter' &&
-            event.key !== ' '
-        ) {
-            return;
-        }
-
-        event.preventDefault();
-        activateSortHeader(th);
-    });
-});
-
-  // фильтры
-  if (filters) {
-    filters.addEventListener('submit', (e) => { e.preventDefault(); state.page = 1; load().then(() => filtersModal && filtersModal.hide()); });
-    const reset = document.getElementById('resetFilters') || document.getElementById('resetFiltersBtn');
-    const apply = document.getElementById('applyFiltersBtn');
-    if (reset) reset.addEventListener('click', () => { filters.reset(); state.page = 1; load().then(() => filtersModal && filtersModal.hide()); });
-    if (apply) apply.addEventListener('click', () => { state.page = 1; load().then(() => filtersModal && filtersModal.hide()); });
-    const filtersBtn = document.getElementById('filtersBtn');
-    if (filtersBtn && filtersModal) filtersBtn.addEventListener('click', () => filtersModal.show());
   }
-  if (pageSizeSel) pageSizeSel.addEventListener('change', () => { state.page_size = parseInt(pageSizeSel.value, 10) || 20; state.page = 1; load(); });
 
-  // экспорт
-  if (exportBtn) {
-    exportBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const p = new URLSearchParams(filters ? new FormData(filters) : undefined);
-      p.set('sort_by', state.sort_by);
-      p.set('sort_dir', state.sort_dir);
-      window.location.href = '/api/tasks/export?' + p.toString();
+  function updateScopeUi() {
+    scopeButtons.forEach(button => {
+      const active = button.dataset.taskScope === (state.mine ? 'mine' : 'all');
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
   }
 
-  // ===== модал / черновик / подтверждение закрытия
-  const commentsBlock = document.getElementById('commentsBlock');
-  const commentEditor = document.getElementById('commentEditor');
-  const sendCommentBtn = document.getElementById('sendCommentBtn');
-
-  function handleCommentPaste(e) {
-    if (!commentEditor) return;
-    const items = (e.clipboardData || e.originalEvent?.clipboardData || {}).items || [];
-    let handledImage = false;
-    for (const it of items) {
-      if (it.type && it.type.indexOf('image') === 0) {
-        if (!handledImage) {
-          e.preventDefault();
-          handledImage = true;
-        }
-        const file = it.getAsFile();
-        const reader = new FileReader();
-        reader.onload = function (evt) {
-          const img = new Image();
-          img.src = evt.target.result;
-          img.style.maxWidth = '100%';
-          commentEditor.appendChild(img);
-        };
-        reader.readAsDataURL(file);
+  function populateProjectControls() {
+    if (projectScope) {
+      const previous = state.projectId;
+      projectScope.innerHTML = '<option value="">Все проекты</option>';
+      for (const project of state.projects) {
+        const option = document.createElement('option');
+        option.value = String(project.id);
+        option.textContent = `${project.project_key || ''} ${project.name || ''}`.trim();
+        projectScope.appendChild(option);
+      }
+      projectScope.value = previous;
+    }
+    if (taskProjects) {
+      taskProjects.innerHTML = '';
+      for (const project of state.projects) {
+        const option = document.createElement('option');
+        option.value = String(project.id);
+        option.textContent = `${project.project_key || ''} · ${project.name || ''}`.replace(/^ · /, '');
+        taskProjects.appendChild(option);
       }
     }
   }
 
-  let isDirty = false;
-  const DRAFT_NEW_KEY = 'taskDraft_new';
-  function setDirty() { isDirty = true; }
-  ['title', 'creator', 'assignee', 'co', 'watchers', 'tag', 'due_at'].forEach(n => {
-    if (form[n]) form[n].addEventListener('input', setDirty);
-  });
-  if (bodyEditor) bodyEditor.addEventListener('input', setDirty);
-  const filesInput = document.getElementById('filesInput');
-  if (filesInput) filesInput.addEventListener('change', setDirty);
-
-  function saveDraft() {
-    const data = {
-      title: form.title?.value || '',
-      body_html: bodyEditor?.innerHTML || '',
-      creator: form.creator?.value || '',
-      assignee: form.assignee?.value || '',
-      co: form.co?.value || '',
-      watchers: form.watchers?.value || '',
-      tag: form.tag?.value || '',
-      due_at: form.due_at?.value || '',
-      status: form.dataset.status || ''
-    };
-    const currentTaskId = getTaskIdValue();
-    if (!currentTaskId) localStorage.setItem(DRAFT_NEW_KEY, JSON.stringify(data));
-    else localStorage.setItem('taskDraft_' + currentTaskId, JSON.stringify(data));
-  }
-  function loadDraft(taskId) {
-    const key = taskId ? ('taskDraft_' + taskId) : DRAFT_NEW_KEY;
-    const raw = localStorage.getItem(key);
-    if (!raw) return;
+  async function loadProjects() {
     try {
-      const d = JSON.parse(raw);
-      if (form.title) form.title.value = d.title || '';
-      if (bodyEditor) bodyEditor.innerHTML = d.body_html || '';
-      if (form.creator) form.creator.value = d.creator || form.creator.value || '';
-      if (form.assignee) form.assignee.value = d.assignee || form.assignee.value || '';
-      if (form.co) form.co.value = d.co || '';
-      if (form.watchers) form.watchers.value = d.watchers || '';
-      if (form.tag) form.tag.value = d.tag || '';
-      if (form.due_at) form.due_at.value = d.due_at || '';
-      form.dataset.status = d.status || '';
-    } catch { }
-    syncStatusButtons(form.dataset.status);
-  }
-  if (modalEl) setInterval(() => { if (modalEl.classList.contains('show')) saveDraft(); }, 2000);
-
-  if (modalEl) {
-      modalEl.addEventListener('hide.bs.modal', (e) => {
-        if (skipDirtyConfirm) { skipDirtyConfirm = false; return; }
-        if (isDirty) {
-          e.preventDefault();
-          showConfirmActionModal({
-            title: 'Закрыть задачу',
-            message: 'Есть несохранённые изменения. Закрыть без сохранения?',
-            confirmText: 'Закрыть',
-            confirmVariant: 'warning',
-            icon: '⚠️',
-            onConfirm: () => {
-              hideTaskModal(true);
-            },
-          });
-        }
-      });
-    modalEl.addEventListener('hidden.bs.modal', () => { skipDirtyConfirm = false; });
-    modalEl.querySelectorAll('[data-task-close]').forEach(btn => {
-      btn.addEventListener('click', (ev) => { ev.preventDefault(); requestModalClose(); });
-    });
+      const response = await httpJson('/api/projects');
+      const payload = await response.json();
+      state.projects = Array.isArray(payload.items) ? payload.items : [];
+      const params = new URLSearchParams(window.location.search);
+      const requestedProject = params.get('project');
+      if (requestedProject && state.projects.some(project => String(project.id) === requestedProject)) {
+        state.projectId = requestedProject;
+      }
+      populateProjectControls();
+    } catch (error) {
+      showError('Не удалось загрузить проекты', error);
+    }
   }
 
-  document.querySelectorAll('.task-status').forEach(b => {
-    b.addEventListener('click', (e) => {
-      e.preventDefault();
-      syncStatusButtons(b.dataset.st);
-      setDirty();
-    });
-  });
-  if (form) syncStatusButtons(form.dataset.status || '');
+  function selectedProjectIds() {
+    if (!taskProjects) return '';
+    return Array.from(taskProjects.selectedOptions).map(option => option.value).filter(Boolean).join(',');
+  }
 
-  // создать новую
-  const createBtn = document.getElementById('createTaskBtn');
-  if (createBtn) createBtn.addEventListener('click', () => {
-    form.reset();
-    setTaskIdValue('');
-    if (bodyEditor) bodyEditor.innerHTML = '';
-    if (deleteBtn) deleteBtn.hidden = true;
-    if (form.title) form.title.readOnly = false;
-    if (bodyEditor) bodyEditor.setAttribute('contenteditable', 'true');
+  function setSelectedProjects(projects) {
+    const desired = new Set((Array.isArray(projects) ? projects : []).map(project => String(project.id)));
+    if (!taskProjects) return;
+    Array.from(taskProjects.options).forEach(option => { option.selected = desired.has(option.value); });
+  }
 
-    // в новой задаче блок комментариев скрыт
+  function syncStatus(value) {
+    if (!taskForm) return;
+    const status = String(value || 'Новая').trim() || 'Новая';
+    taskForm.dataset.status = status;
+    const select = taskForm.elements.namedItem('status');
+    if (select) select.value = status;
+  }
+
+  function setEditorMode(editing) {
+    if (!taskForm) return;
+    const title = taskForm.elements.namedItem('title');
+    if (title) title.readOnly = !editing;
+    if (taskBody) taskBody.setAttribute('contenteditable', editing ? 'true' : 'false');
+    taskForm.classList.toggle('is-editing', editing);
+    if (editTaskBtn) {
+      editTaskBtn.hidden = editing || !taskId?.value;
+    }
+  }
+
+  function renderComments(items) {
+    if (!comments) return;
+    const list = Array.isArray(items) ? items : [];
+    comments.innerHTML = list.length ? list.map(item => `
+      <article class="tasks-comment">
+        <div class="tasks-comment-meta">${escapeHtml(item.author || '—')} · ${escapeHtml(fmtDateTime(item.created_at))}</div>
+        <div class="tasks-comment-body">${item.html || ''}</div>
+      </article>
+    `).join('') : '<div class="text-muted small">Комментариев пока нет.</div>';
+  }
+
+  function eventText(event) {
+    const field = event.field_name ? ` · ${event.field_name}` : '';
+    if (event.event_type === 'FIELD_CHANGED') return `Изменено${field}`;
+    if (event.event_type === 'TAG_ADDED') return `Добавлен тег ${event.new_value || ''}`.trim();
+    if (event.event_type === 'TAG_REMOVED') return `Удалён тег ${event.old_value || ''}`.trim();
+    if (event.event_type === 'PROJECT_ADDED') return `Добавлен проект ${event.new_value || ''}`.trim();
+    if (event.event_type === 'PROJECT_REMOVED') return `Удалён проект ${event.old_value || ''}`.trim();
+    if (event.event_type === 'COMMENT_ADDED') return 'Добавлен комментарий';
+    if (event.event_type === 'TASK_CREATED') return 'Задача создана';
+    return String(event.event_type || 'Событие');
+  }
+
+  function renderEvents(items) {
+    if (!taskEvents) return;
+    const list = Array.isArray(items) ? items : [];
+    taskEvents.innerHTML = list.length ? list.map(event => `
+      <div class="tasks-event-row">
+        <span class="tasks-event-dot" aria-hidden="true"></span>
+        <span class="tasks-event-copy">
+          <strong>${escapeHtml(eventText(event))}</strong>
+          <span>${escapeHtml(event.actor || 'system')} · ${escapeHtml(fmtDateTime(event.occurred_at))}</span>
+        </span>
+      </div>
+    `).join('') : '<div class="text-muted small">Структурированных событий пока нет.</div>';
+  }
+
+  function renderLegacyHistory(items) {
+    if (!taskHistory) return;
+    const list = Array.isArray(items) ? items : [];
+    taskHistory.innerHTML = list.length ? list.map(item => `
+      <div class="tasks-history-row"><span>${escapeHtml(fmtDateTime(item.at))}</span>${escapeHtml(item.text || '')}</div>
+    `).join('') : '<div class="text-muted small">Legacy history пуст.</div>';
+  }
+
+  function updateTaskTime(task) {
+    if (createdAt) createdAt.textContent = fmtDateTime(task?.created_at);
+    if (!timeLeft) return;
+    if (!task?.due_at || isFinalStatus(task.status)) {
+      timeLeft.textContent = '—';
+      return;
+    }
+    timeLeft.textContent = humanLeft(new Date(task.due_at).getTime() - Date.now());
+  }
+
+  function resetTaskForm() {
+    taskForm?.reset();
+    if (taskId) taskId.value = '';
+    if (taskBody) taskBody.innerHTML = '';
+    if (taskNumber) taskNumber.textContent = 'Новая задача';
     if (commentsBlock) commentsBlock.hidden = true;
-
-    // авто-подстановка автора/исполнителя (если шаблон подставил — оставим)
-    if (form.creator && !form.creator.value) form.creator.value = (document.body.dataset.userEmail || '');
-    const creatorValue = form.creator ? (form.creator.value || '') : '';
-    if (form.assignee && !form.assignee.value) form.assignee.value = creatorValue;
-
-    if (taskNumberEl) taskNumberEl.textContent = 'Новая задача';
-    const createdAt = document.getElementById('createdAt');
-    if (createdAt) createdAt.textContent = '—';
-    const timeLeft = document.getElementById('timeLeft');
-    if (timeLeft) timeLeft.textContent = '—';
-
-    form.dataset.status = 'Новая';
-    loadDraft(null);
-    syncStatusButtons(form.dataset.status);
-    isDirty = false;
-    const inst = getModalInstance();
-    if (inst) inst.show();
-  });
-
-  function openCreateTaskFromDialogContext(context) {
-    if (!createBtn || !context || !context.ticketId) return;
-    createBtn.click();
-    const ticketId = String(context.ticketId || '').trim();
-    const client = String(context.client || '').trim();
-    if (!ticketId) return;
-    if (form && form.title && !String(form.title.value || '').trim()) {
-      const suffix = client ? `: ${client}` : '';
-      form.title.value = `Обращение #${ticketId}${suffix}`;
-    }
-    if (form && form.tag && !String(form.tag.value || '').trim()) {
-      form.tag.value = 'dialog';
-    }
-    if (bodyEditor && !String(bodyEditor.textContent || '').trim()) {
-      const safeClient = client ? `, клиент: ${client}` : '';
-      bodyEditor.innerHTML = `<p>Создано из диалога #${ticketId}${safeClient}.</p>`;
-    }
-    if (form && form.assignee && !String(form.assignee.value || '').trim() && form.creator) {
-      form.assignee.value = form.creator.value || '';
-    }
-    setDirty();
+    if (comments) comments.innerHTML = '';
+    if (taskEvents) taskEvents.innerHTML = '<div class="text-muted small">События появятся после сохранения.</div>';
+    if (taskHistory) taskHistory.innerHTML = '<div class="text-muted small">История появится после сохранения.</div>';
+    if (deleteTaskBtn) deleteTaskBtn.hidden = true;
+    setSelectedProjects(state.projectId ? [{ id: state.projectId }] : []);
+    syncStatus('Новая');
+    updateTaskTime(null);
+    setEditorMode(true);
+    dirty = false;
   }
 
-  function consumeDialogCreateContext() {
-    const context = {};
+  function showTaskModal() {
+    if (taskModal) taskModal.show();
+  }
+
+  function hideTaskModal(force = false) {
+    if (!taskModal) return;
+    forcedClose = force;
+    taskModal.hide();
+  }
+
+  async function openTask(id) {
+    if (!id) return;
     try {
-      const params = new URLSearchParams(window.location.search || '');
-      if (params.get('create') === '1') {
-        context.ticketId = params.get('ticketId') || '';
-        context.client = params.get('client') || '';
-        const next = new URL(window.location.href);
-        next.searchParams.delete('create');
-        next.searchParams.delete('ticketId');
-        next.searchParams.delete('client');
-        window.history.replaceState({}, '', `${next.pathname}${next.search}${next.hash}`);
-      }
-    } catch (_error) {
-      // ignore URL parsing issues
-    }
-    if (context.ticketId) return context;
-    try {
-      const raw = localStorage.getItem('iguana:dialogs:create-task');
-      if (!raw) return null;
-      localStorage.removeItem('iguana:dialogs:create-task');
-      const parsed = JSON.parse(raw);
-      return {
-        ticketId: String(parsed?.ticketId || '').trim(),
-        client: String(parsed?.client || '').trim(),
-      };
-    } catch (_error) {
-      return null;
+      const response = await httpJson(`/api/tasks/${encodeURIComponent(id)}`);
+      const task = await response.json();
+      if (taskId) taskId.value = String(task.id || '');
+      if (taskNumber) taskNumber.textContent = task.display_no || `DL_${task.id}`;
+      if (taskForm?.elements.namedItem('title')) taskForm.elements.namedItem('title').value = task.title || '';
+      if (taskForm?.elements.namedItem('creator')) taskForm.elements.namedItem('creator').value = task.creator || '';
+      if (taskForm?.elements.namedItem('assignee')) taskForm.elements.namedItem('assignee').value = task.assignee || '';
+      if (taskForm?.elements.namedItem('co')) taskForm.elements.namedItem('co').value = (task.co || []).join(', ');
+      if (taskForm?.elements.namedItem('watchers')) taskForm.elements.namedItem('watchers').value = (task.watchers || []).join(', ');
+      if (taskForm?.elements.namedItem('tags')) taskForm.elements.namedItem('tags').value = (task.tags || []).map(tag => tag.name).join(', ');
+      if (taskForm?.elements.namedItem('due_at')) taskForm.elements.namedItem('due_at').value = toLocalDateTime(task.due_at);
+      if (taskBody) taskBody.innerHTML = task.body_html || '';
+      setSelectedProjects(task.projects || []);
+      syncStatus(task.status || 'Новая');
+      renderComments(task.comments || []);
+      renderEvents(task.events || []);
+      renderLegacyHistory(task.history || []);
+      if (commentsBlock) commentsBlock.hidden = false;
+      if (deleteTaskBtn) deleteTaskBtn.hidden = false;
+      updateTaskTime(task);
+      setEditorMode(false);
+      dirty = false;
+      showTaskModal();
+    } catch (error) {
+      showError('Не удалось открыть задачу', error);
     }
   }
 
-  // открыть существующую
-  async function openTaskModal(taskId) {
-    if (!taskId) return;
-
-    if (form.title) form.title.readOnly = true;
-    if (bodyEditor) bodyEditor.setAttribute('contenteditable', 'false');
-    const toggle = document.getElementById('editToggleBtn');
-    if (toggle) toggle.onclick = (ev) => {
-      ev.preventDefault();
-      const ro = form.title.readOnly;
-      form.title.readOnly = !ro;
-      bodyEditor.setAttribute('contenteditable', ro ? 'true' : 'false');
-    };
-
-    const res = await httpJson(`/api/tasks/${taskId}`);
-    const t = await res.json();
-
-    setTaskIdValue(t.id);
-    if (form.title) form.title.value = t.title || '';
-    if (bodyEditor) bodyEditor.innerHTML = t.body_html || '';
-    if (form.creator) form.creator.value = t.creator || (document.body.dataset.userEmail || '');
-    if (form.assignee) form.assignee.value = t.assignee || form.creator.value;
-    if (form.co) form.co.value = (t.co || []).join(', ');
-    if (form.watchers) form.watchers.value = (t.watchers || []).join(', ');
-    if (form.tag) form.tag.value = t.tag || '';
-    if (form.due_at) form.due_at.value = t.due_at ? t.due_at.replace('Z', '') : '';
-    if (taskNumberEl) taskNumberEl.textContent = t.display_no ? `№${t.display_no}` : (t.id ? `№DL_${t.id}` : '');
-    const createdAt = document.getElementById('createdAt');
-    if (createdAt) createdAt.textContent = t.created_at ? (new Date(t.created_at)).toLocaleString() : '—';
-    const timeLeft = document.getElementById('timeLeft');
-    const isFinal = isFinalStatus(t.status);
-    if (timeLeft) timeLeft.textContent = t.due_at ? (isFinal ? '—' : humanLeft(new Date(t.due_at) - Date.now())) : '—';
-
-    syncStatusButtons(t.status || '');
-
-    const comm = document.getElementById('comments');
-    if (comm) {
-      comm.innerHTML = (t.comments || []).map(c => `
-        <div class="mb-2">
-          <div class="small text-muted">${new Date(c.created_at).toLocaleString()} • ${c.author || ''}</div>
-          <div>${c.html || ''}</div>
-        </div>`).join('');
-    }
-    const hist = document.getElementById('history');
-    if (hist) {
-      hist.innerHTML = (t.history || []).map(h => `
-        <div class="mb-1 small text-muted">${new Date(h.at).toLocaleString()} — ${h.text}</div>
-      `).join('');
-    }
-
-    if (commentsBlock) commentsBlock.hidden = false;
-    if (sendCommentBtn && commentEditor) {
-      sendCommentBtn.onclick = async (ev) => {
-        ev.preventDefault();
-        const html = commentEditor.innerHTML.trim();
-        if (!html) return;
-        const fd = new FormData();
-        fd.append('html', html);
-        const taskId = getTaskIdValue();
-        if (!taskId) return;
-        const r = await httpJson(`/api/tasks/${taskId}/comments`, { method: 'POST', body: fd });
-        const data = await r.json();
-        if (data && data.ok) {
-          commentEditor.innerHTML = '';
-          const c = data.item;
-          const wrap = document.createElement('div');
-          wrap.className = 'mb-2';
-          wrap.innerHTML = `
-            <div class="small text-muted">${new Date(c.created_at).toLocaleString()} • ${c.author || ''}</div>
-            <div>${c.html || ''}</div>
-          `;
-          document.getElementById('comments').appendChild(wrap);
-        }
-      };
-      if (!commentEditor.dataset.pasteHandlerAttached) {
-        commentEditor.addEventListener('paste', handleCommentPaste);
-        commentEditor.dataset.pasteHandlerAttached = '1';
-      }
-    }
-
-    loadDraft(t.id);
-    syncStatusButtons(form.dataset.status || t.status || '');
-    if (deleteBtn) deleteBtn.hidden = false;
-    isDirty = false;
-    const inst = getModalInstance();
-    if (inst) inst.show();
-  }
-
-  // открыть существующую
-  document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.edit-btn');
-    if (!btn) return;
-    await openTaskModal(btn.dataset.id);
-  });
-
-  // вставка картинок в тело задачи из буфера
-  if (bodyEditor) bodyEditor.addEventListener('paste', (e) => {
-    const items = (e.clipboardData || e.originalEvent?.clipboardData || {}).items || [];
-    let handledImage = false;
-    for (const it of items) {
-      if (it.type && it.type.indexOf("image") === 0) {
-        if (!handledImage) {
-          e.preventDefault();
-          handledImage = true;
-        }
-        const file = it.getAsFile();
-        const reader = new FileReader();
-        reader.onload = function (evt) {
-          const img = new Image();
-          img.src = evt.target.result;
-          img.style.maxWidth = '100%';
-          bodyEditor.appendChild(img);
-          setDirty();
-        };
-        reader.readAsDataURL(file);
-      }
-    }
-  });
-
-  // сохранить
-  const saveBtn = document.getElementById('saveTaskBtn');
-  if (saveBtn) saveBtn.addEventListener('click', async () => {
-    const fd = new FormData();
-    const taskId = getTaskIdValue();
-    fd.append('id', taskId);
-    fd.append('title', form.title?.value || '');
-    fd.append('body_html', bodyEditor?.innerHTML || '');
-    fd.append('creator', form.creator?.value || '');
-    fd.append('assignee', form.assignee?.value || '');
-    fd.append('co', form.co?.value || '');
-    fd.append('watchers', form.watchers?.value || '');
-    fd.append('tag', form.tag?.value || '');
-    fd.append('due_at', form.due_at?.value || '');
-    fd.append('status', form.dataset.status || '');
-
-    const files = filesInput?.files || [];
-    for (let i = 0; i < files.length; i++) fd.append('files', files[i]);
+  async function saveTask() {
+    if (!taskForm || !taskForm.reportValidity()) return;
+    const data = new FormData();
+    const id = String(taskId?.value || '').trim();
+    const tags = String(taskForm.elements.namedItem('tags')?.value || '').trim();
+    data.append('id', id);
+    data.append('title', String(taskForm.elements.namedItem('title')?.value || '').trim());
+    data.append('body_html', taskBody?.innerHTML || '');
+    data.append('creator', String(taskForm.elements.namedItem('creator')?.value || '').trim());
+    data.append('assignee', String(taskForm.elements.namedItem('assignee')?.value || '').trim());
+    data.append('co', String(taskForm.elements.namedItem('co')?.value || '').trim());
+    data.append('watchers', String(taskForm.elements.namedItem('watchers')?.value || '').trim());
+    data.append('tags', tags);
+    data.append('tag', tags);
+    data.append('project_ids', selectedProjectIds());
+    data.append('due_at', String(taskForm.elements.namedItem('due_at')?.value || '').trim());
+    data.append('status', String(taskForm.dataset.status || 'Новая'));
 
     try {
-      const r = await httpJson('/api/tasks', { method: 'POST', body: fd });
-      const data = await r.json();
-        if (data && data.ok) {
-          localStorage.removeItem('taskDraft_' + (taskId || 'new'));
-          isDirty = false;
-          hideTaskModal(true);
-          await load();
-        } else {
-          showAppModalMessage({
-            title: 'Ошибка сохранения',
-            message: data?.error || 'Ошибка сохранения',
-            variant: 'danger',
-          });
-        }
-    } catch (e) {
-      // httpJson сам обработает 401
-    }
-  });
-
-  // удаление
-  if (deleteBtn) deleteBtn.addEventListener('click', async () => {
-      const taskId = getTaskIdValue();
-      if (!taskId) return;
-      const confirmed = await showConfirmActionModal({
-        title: 'Удаление задачи',
-        message: 'Удалить задачу?',
-        confirmText: 'Удалить',
-        confirmVariant: 'danger',
-        icon: '🗑️',
-      });
-      if (!confirmed) return;
-    const r = await httpJson('/api/tasks/' + taskId, { method: 'DELETE' });
-    const data = await r.json();
-    if (data && data.ok) {
-      localStorage.removeItem('taskDraft_' + taskId);
-      isDirty = false;
+      const response = await httpJson('/api/tasks', { method: 'POST', body: data });
+      const payload = await response.json();
+      if (payload?.ok === false) throw new Error(payload.error || 'Ошибка сохранения');
+      dirty = false;
       hideTaskModal(true);
-      load();
-      } else {
-        showAppModalMessage({
-          title: 'Ошибка удаления',
-          message: data?.error || 'Не удалось удалить задачу',
-          variant: 'danger',
-        });
+      await loadTasks();
+    } catch (error) {
+      showError('Не удалось сохранить задачу', error);
+    }
+  }
+
+  async function addComment() {
+    const id = String(taskId?.value || '').trim();
+    const html = String(commentEditor?.innerHTML || '').trim();
+    if (!id || !html) return;
+    const data = new FormData();
+    data.append('html', html);
+    try {
+      await httpJson(`/api/tasks/${encodeURIComponent(id)}/comments`, { method: 'POST', body: data });
+      if (commentEditor) commentEditor.innerHTML = '';
+      await openTask(id);
+    } catch (error) {
+      showError('Не удалось добавить комментарий', error);
+    }
+  }
+
+  async function deleteTask() {
+    const id = String(taskId?.value || '').trim();
+    if (!id) return;
+    const confirmed = typeof showConfirmActionModal === 'function'
+      ? await showConfirmActionModal({
+          title: 'Удалить задачу',
+          message: 'Задача и её комментарии будут удалены. Продолжить?',
+          confirmText: 'Удалить',
+          confirmVariant: 'danger',
+        })
+      : window.confirm('Удалить задачу?');
+    if (!confirmed) return;
+    try {
+      await httpJson(`/api/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      dirty = false;
+      hideTaskModal(true);
+      await loadTasks();
+    } catch (error) {
+      showError('Не удалось удалить задачу', error);
+    }
+  }
+
+  function openCreateFromDialogContext() {
+    let context = null;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('create') === '1' && params.get('ticketId')) {
+        context = { ticketId: params.get('ticketId'), client: params.get('client') || '' };
+        params.delete('create');
+        params.delete('ticketId');
+        params.delete('client');
+        const suffix = params.toString();
+        window.history.replaceState({}, '', `${window.location.pathname}${suffix ? `?${suffix}` : ''}${window.location.hash}`);
       }
+    } catch (_error) {
+      // ignore malformed location state
+    }
+    if (!context) {
+      try {
+        const raw = localStorage.getItem('iguana:dialogs:create-task');
+        if (raw) {
+          localStorage.removeItem('iguana:dialogs:create-task');
+          context = JSON.parse(raw);
+        }
+      } catch (_error) {
+        // ignore stale client context
+      }
+    }
+    if (!context?.ticketId) return;
+    resetTaskForm();
+    const title = taskForm?.elements.namedItem('title');
+    if (title) title.value = `Обращение #${context.ticketId}${context.client ? `: ${context.client}` : ''}`;
+    const tags = taskForm?.elements.namedItem('tags');
+    if (tags) tags.value = 'dialog';
+    if (taskBody) taskBody.innerHTML = `<p>Создано из диалога #${escapeHtml(context.ticketId)}${context.client ? `, клиент: ${escapeHtml(context.client)}` : ''}.</p>`;
+    dirty = true;
+    showTaskModal();
+  }
+
+  document.getElementById('filtersBtn')?.addEventListener('click', () => filtersModal?.show());
+  document.getElementById('applyFiltersBtn')?.addEventListener('click', () => {
+    state.page = 1;
+    filtersModal?.hide();
+    loadTasks();
+  });
+  document.getElementById('resetFiltersBtn')?.addEventListener('click', () => {
+    filters?.reset();
+    state.page = 1;
+    filtersModal?.hide();
+    loadTasks();
+  });
+  filters?.addEventListener('submit', event => {
+    event.preventDefault();
+    state.page = 1;
+    filtersModal?.hide();
+    loadTasks();
   });
 
-  // открыть задачу из hash: #task=123
-  async function openFromHash() {
-    const m = (location.hash || '').match(/#task=(\d+)/);
-    if (!m) return;
-    await openTaskModal(m[1]);
-  }
-  window.addEventListener('hashchange', openFromHash);
-  openFromHash();
-  const createContext = consumeDialogCreateContext();
-  if (createContext && createContext.ticketId) {
-    openCreateTaskFromDialogContext(createContext);
-  }
+  pageSizeSel?.addEventListener('change', () => {
+    state.pageSize = Number.parseInt(pageSizeSel.value, 10) || 20;
+    state.page = 1;
+    loadTasks();
+  });
+
+  projectScope?.addEventListener('change', () => {
+    state.projectId = projectScope.value || '';
+    state.page = 1;
+    const url = new URL(window.location.href);
+    if (state.projectId) url.searchParams.set('project', state.projectId);
+    else url.searchParams.delete('project');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    loadTasks();
+  });
+
+  scopeButtons.forEach(button => button.addEventListener('click', () => {
+    state.mine = button.dataset.taskScope === 'mine';
+    state.page = 1;
+    updateScopeUi();
+    loadTasks();
+  }));
+
+  table.querySelectorAll('th.sortable').forEach(header => {
+    const activate = () => {
+      const key = header.dataset.sort;
+      if (!key) return;
+      if (state.sortBy === key) state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+      else {
+        state.sortBy = key;
+        state.sortDir = 'asc';
+      }
+      state.page = 1;
+      loadTasks();
+    };
+    header.addEventListener('click', activate);
+    header.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      activate();
+    });
+  });
+
+  document.addEventListener('click', event => {
+    const opener = event.target.closest('[data-open-task]');
+    if (!opener) return;
+    openTask(opener.dataset.openTask);
+  });
+
+  document.getElementById('createTaskBtn')?.addEventListener('click', () => {
+    resetTaskForm();
+    showTaskModal();
+  });
+  editTaskBtn?.addEventListener('click', () => setEditorMode(true));
+  saveTaskBtn?.addEventListener('click', saveTask);
+  sendCommentBtn?.addEventListener('click', addComment);
+  deleteTaskBtn?.addEventListener('click', deleteTask);
+
+  taskForm?.addEventListener('input', () => { dirty = true; });
+  taskForm?.addEventListener('change', () => { dirty = true; });
+  taskBody?.addEventListener('input', () => { dirty = true; });
+
+  taskModalEl?.addEventListener('hide.bs.modal', event => {
+    if (forcedClose) {
+      forcedClose = false;
+      return;
+    }
+    if (!dirty) return;
+    event.preventDefault();
+    const confirm = typeof showConfirmActionModal === 'function'
+      ? showConfirmActionModal({
+          title: 'Закрыть задачу',
+          message: 'Есть несохранённые изменения. Закрыть без сохранения?',
+          confirmText: 'Закрыть',
+          confirmVariant: 'warning',
+        })
+      : Promise.resolve(window.confirm('Закрыть без сохранения?'));
+    Promise.resolve(confirm).then(accepted => {
+      if (accepted) {
+        dirty = false;
+        hideTaskModal(true);
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-task-close]').forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    if (!taskModal) return;
+    if (!dirty) hideTaskModal(true);
+    else taskModalEl?.dispatchEvent(new Event('hide.bs.modal', { cancelable: true }));
+  }));
+
+  window.addEventListener('hashchange', () => {
+    const match = window.location.hash.match(/^#task=(\d+)$/);
+    if (match) openTask(match[1]);
+  });
+
+  updateScopeUi();
+  Promise.resolve()
+    .then(loadProjects)
+    .then(loadTasks)
+    .then(() => {
+      const match = window.location.hash.match(/^#task=(\d+)$/);
+      if (match) return openTask(match[1]);
+      openCreateFromDialogContext();
+      return null;
+    });
+
   window.__tasksPrimaryReady = true;
-
-  // стартовая загрузка
-  load();
-
 })();

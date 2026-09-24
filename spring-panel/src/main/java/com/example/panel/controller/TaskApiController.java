@@ -11,6 +11,7 @@ import com.example.panel.repository.TaskRepository;
 import com.example.panel.service.IncidentService;
 import com.example.panel.service.NotificationRoutingService;
 import com.example.panel.service.TaskDomainFoundationService;
+import com.example.panel.service.TaskQueryService;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +59,7 @@ public class TaskApiController {
     private final NotificationRoutingService notificationRoutingService;
     private final IncidentService incidentService;
     private final TaskDomainFoundationService taskDomainFoundationService;
+    private final TaskQueryService taskQueryService;
 
     public TaskApiController(TaskRepository taskRepository,
                              TaskCommentRepository commentRepository,
@@ -65,7 +67,8 @@ public class TaskApiController {
                              TaskPersonRepository taskPersonRepository,
                              NotificationRoutingService notificationRoutingService,
                              IncidentService incidentService,
-                             TaskDomainFoundationService taskDomainFoundationService) {
+                             TaskDomainFoundationService taskDomainFoundationService,
+                             TaskQueryService taskQueryService) {
         this.taskRepository = taskRepository;
         this.commentRepository = commentRepository;
         this.historyRepository = historyRepository;
@@ -73,30 +76,35 @@ public class TaskApiController {
         this.notificationRoutingService = notificationRoutingService;
         this.incidentService = incidentService;
         this.taskDomainFoundationService = taskDomainFoundationService;
+        this.taskQueryService = taskQueryService;
     }
 
     @GetMapping
     public Map<String, Object> list(@RequestParam(name = "page", defaultValue = "1") int page,
                                     @RequestParam(name = "page_size", defaultValue = "20") int pageSize,
                                     @RequestParam(name = "sort_by", defaultValue = "last_activity_at") String sortBy,
-                                    @RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir) {
-        int safePage = Math.max(page, 1) - 1;
-        int safeSize = Math.min(Math.max(pageSize, 1), 200);
-
-        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(resolveSortField(sortBy)).ascending()
-                : Sort.by(resolveSortField(sortBy)).descending();
-        Pageable pageable = PageRequest.of(safePage, safeSize, sort);
-
-        Page<Task> result = taskRepository.findAll(pageable);
-        List<Map<String, Object>> items = result.stream().map(this::toSummaryDto).toList();
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("items", items);
-        response.put("total", result.getTotalElements());
-        response.put("page", result.getNumber() + 1);
-        response.put("page_size", result.getSize());
-        log.info("Tasks list requested: page={}, size={}, sort={} {}, returned {} items of {}", page, pageSize,
-                sortBy, sortDir, items.size(), result.getTotalElements());
+                                    @RequestParam(name = "sort_dir", defaultValue = "desc") String sortDir,
+                                    @RequestParam(name = "num", required = false) String number,
+                                    @RequestParam(name = "title", required = false) String title,
+                                    @RequestParam(name = "assignee", required = false) String assignee,
+                                    @RequestParam(name = "tag", required = false) String tag,
+                                    @RequestParam(name = "status", required = false) String status,
+                                    @RequestParam(name = "created_from", required = false) String createdFrom,
+                                    @RequestParam(name = "created_to", required = false) String createdTo,
+                                    @RequestParam(name = "due_from", required = false) String dueFrom,
+                                    @RequestParam(name = "due_to", required = false) String dueTo,
+                                    @RequestParam(name = "project_id", required = false) Long projectId,
+                                    @RequestParam(name = "mine", defaultValue = "false") boolean mine,
+                                    Authentication authentication) {
+        String currentUser = authentication != null ? authentication.getName() : null;
+        Map<String, Object> response = taskQueryService.list(
+            page, pageSize, sortBy, sortDir, number, title, assignee, tag, status,
+            createdFrom, createdTo, dueFrom, dueTo, projectId, mine, currentUser
+        );
+        log.info(
+            "Tasks list requested: page={}, size={}, project={}, mine={}, user={}",
+            page, pageSize, projectId, mine, currentUser
+        );
         return response;
     }
 

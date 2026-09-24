@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.example.panel.entity.Project;
 import com.example.panel.repository.ProjectRepository;
+import com.example.panel.repository.TaskProjectMembershipRepository;
 import com.example.panel.service.ProjectService;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +26,8 @@ class ProjectServiceTest {
             return project;
         });
 
-        ProjectService service = new ProjectService(repository);
+        TaskProjectMembershipRepository membershipRepository = mock(TaskProjectMembershipRepository.class);
+        ProjectService service = new ProjectService(repository, membershipRepository);
         Map<String, Object> created = service.create(Map.of("name", "Operations"), "operator");
 
         assertThat(created.get("id")).isEqualTo(7L);
@@ -43,7 +45,8 @@ class ProjectServiceTest {
             return project;
         });
 
-        ProjectService service = new ProjectService(repository);
+        TaskProjectMembershipRepository membershipRepository = mock(TaskProjectMembershipRepository.class);
+        ProjectService service = new ProjectService(repository, membershipRepository);
         Map<String, Object> created = service.create(
             Map.of("name", "Support", "project_key", "support ops"),
             "operator"

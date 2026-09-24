@@ -94,6 +94,15 @@
                         <span class="nav-label-sub">Операционный backlog команды</span>
                     </span>
                 </a>
+                <a class="nav-link" data-page-key="projects" data-nav-group="workspace" th:if="${canManageTasks}"
+                   th:classappend="${active}=='projects' ? ' active'"
+                   th:href="@{/projects}">
+                    <span class="icon" aria-hidden="true">📋</span>
+                    <span class="label">
+                        <span class="nav-label-main">Проекты</span>
+                        <span class="nav-label-sub">Проектные задачи и рабочие контуры</span>
+                    </span>
+                </a>
                 <a class="nav-link" data-page-key="incidents" data-nav-group="workspace" th:if="${canViewIncidents}"
                    th:classappend="${active}=='incidents' ? ' active'"
                    th:href="@{/incidents}">

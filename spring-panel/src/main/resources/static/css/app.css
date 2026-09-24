@@ -9374,29 +9374,29 @@ body.passport-photo-viewer-open {
   font-weight: 700;
 }
 
-/* Tasks workspace */
+/* Tasks workspace — 01-274 Phase B */
 [data-ui-page=tasks] .main-content {
   background: var(--surface-page);
   color: var(--color-text);
 }
 
 [data-ui-page=tasks] .tasks-page-shell {
-  max-width: 1600px;
+  max-width: 1680px;
 }
 
-/* Header */
 [data-ui-page=tasks] .tasks-sticky-bar {
   position: sticky;
   top: 0.75rem;
   z-index: 20;
   display: grid;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
   background: var(--surface-card) !important;
   box-shadow: none !important;
 }
 
 [data-ui-page=tasks] .tasks-header-row,
+[data-ui-page=tasks] .tasks-toolbar-row,
 [data-ui-page=tasks] .tasks-metrics-row {
   display: flex;
   align-items: center;
@@ -9404,21 +9404,111 @@ body.passport-photo-viewer-open {
   gap: 1rem;
 }
 
-[data-ui-page=tasks] .tasks-header-row {
-  align-items: flex-end;
-}
-
-[data-ui-page=tasks] .tasks-page-actions,
-[data-ui-page=tasks] .tasks-metrics,
-[data-ui-page=tasks] .tasks-page-size {
+[data-ui-page=tasks] .work-management-tabs,
+[data-ui-page=tasks] .tasks-scope-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
 }
 
+[data-ui-page=tasks] .work-management-tabs {
+  flex-wrap: wrap;
+}
+
+[data-ui-page=tasks] .work-management-tab {
+  padding: 0.34rem 0.65rem;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+[data-ui-page=tasks] .work-management-tab.active {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+[data-ui-page=tasks] .work-management-tab.is-upcoming {
+  cursor: default;
+  opacity: 0.52;
+}
+
+[data-ui-page=tasks] .tasks-scope-row {
+  flex-wrap: wrap;
+}
+
+[data-ui-page=tasks] .tasks-page-actions,
+[data-ui-page=tasks] .tasks-toolbar-left,
+[data-ui-page=tasks] .tasks-scope-switch,
+[data-ui-page=tasks] .tasks-view-switch,
+[data-ui-page=tasks] .tasks-metrics,
+[data-ui-page=tasks] .tasks-page-size {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+[data-ui-page=tasks] .tasks-page-actions,
 [data-ui-page=tasks] .tasks-metrics {
-  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+[data-ui-page=tasks] .tasks-view-switch {
+  padding: 0.22rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+[data-ui-page=tasks] .tasks-view-item {
+  min-height: 32px;
+  padding: 0.35rem 0.7rem;
+  border-radius: calc(var(--radius-lg) - 0.2rem);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+[data-ui-page=tasks] .tasks-view-item.active {
+  background: var(--surface-card);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+}
+
+[data-ui-page=tasks] .tasks-view-item.is-upcoming {
+  cursor: default;
+  opacity: 0.56;
+}
+
+[data-ui-page=tasks] .tasks-scope-switch {
+  padding: 0.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+}
+
+[data-ui-page=tasks] .tasks-scope-btn {
+  min-height: 30px;
+  padding: 0.28rem 0.68rem;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+}
+
+[data-ui-page=tasks] .tasks-scope-btn:hover,
+[data-ui-page=tasks] .tasks-scope-btn:focus-visible,
+[data-ui-page=tasks] .tasks-scope-btn.active {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+[data-ui-page=tasks] .tasks-project-scope {
+  min-width: 210px;
 }
 
 [data-ui-page=tasks] .tasks-page-size {
@@ -9430,17 +9520,12 @@ body.passport-photo-viewer-open {
   min-width: 82px;
 }
 
-[data-ui-page=tasks] .tasks-status-select {
-  max-width: 160px;
-}
-
-/* Metrics */
 [data-ui-page=tasks] .tasks-metric-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  min-height: 30px;
-  padding: 0.3rem 0.7rem;
+  min-height: 28px;
+  padding: 0.26rem 0.62rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: var(--surface-raised);
@@ -9454,7 +9539,7 @@ body.passport-photo-viewer-open {
 }
 
 [data-ui-page=tasks] .tasks-metric-chip--primary {
-  border-color: color-mix(in srgb, var(--primary) 32%, var(--color-border));
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
   background: var(--surface-selected);
   color: var(--primary);
 }
@@ -9463,7 +9548,6 @@ body.passport-photo-viewer-open {
   color: var(--primary);
 }
 
-/* Table */
 [data-ui-page=tasks] .tasks-table-card {
   overflow: hidden;
   border: 1px solid var(--color-border) !important;
@@ -9477,7 +9561,7 @@ body.passport-photo-viewer-open {
 }
 
 [data-ui-page=tasks] .tasks-table-card .table {
-  min-width: 1120px;
+  min-width: 1140px;
   margin-bottom: 0;
   --bs-table-bg: var(--surface-card);
   --bs-table-color: var(--color-text);
@@ -9485,14 +9569,19 @@ body.passport-photo-viewer-open {
 }
 
 [data-ui-page=tasks] .tasks-table-card thead th {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
   background: var(--surface-raised) !important;
   color: var(--color-text-muted) !important;
-  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
   white-space: nowrap;
 }
 
 [data-ui-page=tasks] .tasks-table-card tbody td {
+  padding: 0.68rem 0.75rem;
   border-color: var(--color-border);
+  vertical-align: middle;
 }
 
 [data-ui-page=tasks] .tasks-row {
@@ -9503,73 +9592,83 @@ body.passport-photo-viewer-open {
   background: color-mix(in srgb, var(--primary) 4%, var(--surface-card));
 }
 
-[data-ui-page=tasks] .tasks-cell-number {
-  white-space: nowrap;
-  color: var(--color-text-muted);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-[data-ui-page=tasks] .tasks-cell-title {
-  min-width: 220px;
-}
-
-[data-ui-page=tasks] .table thead th.sortable {
-  cursor: pointer;
-  user-select: none;
-}
-
-[data-ui-page=tasks] .table thead th.sortable .sort-ind {
-  margin-left: 0.25rem;
-  color: var(--color-text-muted);
-  font-size: 0.85em;
-  opacity: 0.55;
-}
-
-[data-ui-page=tasks] .table thead th.sortable:hover,
-[data-ui-page=tasks] .table thead th.sortable:focus-visible {
-  color: var(--primary) !important;
-}
-
-[data-ui-page=tasks] .table thead th.sortable:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: -2px;
-}
-
-[data-ui-page=tasks] .table thead th.sortable:hover .sort-ind,
-[data-ui-page=tasks] .table thead th.sortable:focus-visible .sort-ind {
-  color: var(--primary);
-  opacity: 1;
-}
-
-/* Deadline states */
 [data-ui-page=tasks] .tasks-row.overdue > td {
-  background: var(--state-danger-bg) !important;
+  background: color-mix(in srgb, var(--state-danger-bg) 54%, var(--surface-card)) !important;
 }
 
 [data-ui-page=tasks] .tasks-row.warn > td {
-  background: var(--state-warning-bg) !important;
+  background: color-mix(in srgb, var(--state-warning-bg) 42%, var(--surface-card)) !important;
 }
 
-[data-ui-page=tasks] .overdue .pulsating {
-  color: var(--state-danger-text);
+[data-ui-page=tasks] .tasks-cell-number {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+[data-ui-page=tasks] .tasks-cell-title {
+  min-width: 250px;
+}
+
+[data-ui-page=tasks] .tasks-title-button {
+  max-width: 440px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
   font-weight: 700;
-  animation: tasks-pulse 2s infinite;
+  text-align: left;
 }
 
-@keyframes tasks-pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+[data-ui-page=tasks] .tasks-title-button:hover,
+[data-ui-page=tasks] .tasks-title-button:focus-visible {
+  color: var(--primary);
 }
-/* Status */
+
+[data-ui-page=tasks] .tasks-chip-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+[data-ui-page=tasks] .tasks-project-chip,
+[data-ui-page=tasks] .tasks-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 170px;
+  padding: 0.16rem 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-ui-page=tasks] .tasks-project-chip {
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--color-border));
+  background: color-mix(in srgb, var(--surface-selected) 70%, var(--surface-card));
+  color: var(--primary);
+}
+
+[data-ui-page=tasks] .tasks-project-chip--more,
+[data-ui-page=tasks] .tasks-tag-chip--more {
+  min-width: 28px;
+  justify-content: center;
+  padding-inline: 0.38rem;
+}
+
 [data-ui-page=tasks] .task-status-badge {
   border: 1px solid var(--state-neutral-border);
   background: var(--state-neutral-bg);
   color: var(--color-text);
+  font-weight: 650;
 }
 
 [data-ui-page=tasks] .task-status-badge[data-task-status=Новая] {
@@ -9579,7 +9678,7 @@ body.passport-photo-viewer-open {
 }
 
 [data-ui-page=tasks] .task-status-badge[data-task-status="В работе"] {
-  border-color: color-mix(in srgb, var(--primary) 32%, var(--color-border));
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--color-border));
   background: var(--surface-selected);
   color: var(--primary);
 }
@@ -9596,94 +9695,233 @@ body.passport-photo-viewer-open {
   color: var(--state-success-text);
 }
 
-[data-ui-page=tasks] .task-status-badge[data-task-status=Отменена] {
-  border-color: var(--state-neutral-border);
-  background: var(--state-neutral-bg);
-  color: var(--color-text);
+[data-ui-page=tasks] .tasks-row-open {
+  width: 34px;
+  height: 32px;
+  padding: 0;
 }
 
-/* Task editor */
-[data-ui-page=tasks] #taskModal .modal-dialog {
-  width: calc(100vw - 2rem);
-  max-width: 1180px;
-  margin: 1rem auto;
+[data-ui-page=tasks] .table thead th.sortable {
+  cursor: pointer;
+  user-select: none;
 }
 
-[data-ui-page=tasks] #taskModal .tasks-modal-content {
-  min-height: min(88vh, 900px);
+[data-ui-page=tasks] .table thead th.sortable .sort-ind {
+  margin-left: 0.2rem;
+  opacity: 0.55;
+}
+
+[data-ui-page=tasks] .table thead th.sortable:hover,
+[data-ui-page=tasks] .table thead th.sortable:focus-visible {
+  color: var(--primary) !important;
+}
+
+/* Task side sheet */
+[data-ui-page=tasks] #taskModal.task-side-sheet {
+  padding-right: 0 !important;
+}
+
+[data-ui-page=tasks] #taskModal.task-side-sheet .modal-dialog {
+  width: min(900px, 100vw - 1.5rem);
+  max-width: none;
+  height: 100vh;
+  margin: 0 0 0 auto;
+}
+
+[data-ui-page=tasks] #taskModal.task-side-sheet .modal-content {
+  height: 100vh;
+  border-width: 0 0 0 1px;
+  border-color: var(--color-border);
+  border-radius: 0;
+  background: var(--surface-card);
+  box-shadow: -18px 0 50px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+}
+
+[data-ui-page=tasks] .tasks-sheet-header,
+[data-ui-page=tasks] .tasks-sheet-footer {
+  border-color: var(--color-border);
+  background: var(--surface-card);
+}
+
+[data-ui-page=tasks] .tasks-sheet-heading {
+  min-width: 0;
+}
+
+[data-ui-page=tasks] .tasks-sheet-number {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+}
+
+[data-ui-page=tasks] .tasks-sheet-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+[data-ui-page=tasks] .tasks-task-sheet-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 1.5rem;
 }
 
 [data-ui-page=tasks] .tasks-task-primary {
-  padding-right: 1.25rem;
-  border-right: 1px solid var(--color-border);
+  min-width: 0;
 }
 
 [data-ui-page=tasks] .tasks-task-aside {
   padding-left: 1.25rem;
+  border-left: 1px solid var(--color-border);
+}
+
+[data-ui-page=tasks] .tasks-title-input {
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  padding-inline: 0;
+  background: transparent;
+  font-size: 1.18rem;
+  font-weight: 750;
+}
+
+[data-ui-page=tasks] .tasks-title-input:focus {
+  border-color: var(--primary);
+  box-shadow: none;
 }
 
 [data-ui-page=tasks] .tasks-editor-panel,
-[data-ui-page=tasks] .tasks-history-panel,
-[data-ui-page=tasks] .tasks-placeholder-panel {
+[data-ui-page=tasks] .tasks-comment-editor {
+  min-height: 180px;
+  padding: 0.85rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--surface-raised);
   color: var(--color-text);
+  outline: none;
 }
 
-[data-ui-page=tasks] .tasks-editor-panel {
-  overflow: hidden;
+[data-ui-page=tasks] .tasks-comment-editor {
+  min-height: 80px;
 }
 
-[data-ui-page=tasks] .tasks-description-input {
-  min-height: 14rem;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  color: var(--color-text);
+[data-ui-page=tasks] .tasks-editor-panel:empty::before,
+[data-ui-page=tasks] .tasks-comment-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-muted);
+  pointer-events: none;
 }
 
-[data-ui-page=tasks] .tasks-description-input:focus {
-  box-shadow: none;
+[data-ui-page=tasks] .tasks-editor-panel[contenteditable=false] {
+  border-color: transparent;
+  background: transparent;
+}
+
+[data-ui-page=tasks] .tasks-property-group + .tasks-property-group {
+  margin-top: 1rem;
+}
+
+[data-ui-page=tasks] .tasks-property-group .form-label {
+  margin-bottom: 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+[data-ui-page=tasks] .tasks-due-meta {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.45rem;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+}
+
+[data-ui-page=tasks] .tasks-comments-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+[data-ui-page=tasks] .tasks-comment {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+[data-ui-page=tasks] .tasks-comment-meta {
+  margin-bottom: 0.3rem;
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+}
+
+[data-ui-page=tasks] .tasks-comment-body > :last-child {
+  margin-bottom: 0;
 }
 
 [data-ui-page=tasks] .tasks-history-panel {
-  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
 }
 
 [data-ui-page=tasks] .tasks-history-panel > summary {
-  cursor: pointer;
+  padding: 0.7rem 0.8rem;
   font-weight: 700;
 }
 
 [data-ui-page=tasks] .task-history-content {
-  max-height: 16rem;
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  overflow: auto;
+  padding: 0 0.8rem 0.8rem;
+}
+
+[data-ui-page=tasks] .task-history-legacy {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
   border-top: 1px solid var(--color-border);
-  color: var(--color-text-muted);
 }
 
-[data-ui-page=tasks] .tasks-placeholder-panel {
-  padding: 0.85rem;
-  color: var(--color-text-muted);
+[data-ui-page=tasks] .tasks-event-row {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
 }
 
-/* Filter modal */
+[data-ui-page=tasks] .tasks-event-dot {
+  width: 7px;
+  height: 7px;
+  margin-top: 0.45rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+[data-ui-page=tasks] .tasks-event-copy {
+  display: grid;
+  gap: 0.08rem;
+}
+
+[data-ui-page=tasks] .tasks-event-copy strong {
+  font-size: 0.82rem;
+}
+
+[data-ui-page=tasks] .tasks-event-copy span,
+[data-ui-page=tasks] .tasks-history-row {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+[data-ui-page=tasks] .tasks-history-row {
+  display: grid;
+  grid-template-columns: 145px 1fr;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
 [data-ui-page=tasks] #filtersModal .modal-content {
   background: var(--surface-card);
 }
 
-[data-ui-page=tasks] #filtersModal .modal-header {
-  border-bottom-color: var(--color-border);
-}
-
-[data-ui-page=tasks] #filtersModal .modal-footer {
-  border-top-color: var(--color-border);
-}
-
-/* Pagination */
 [data-ui-page=tasks] .pagination .page-link {
   border-color: var(--color-border);
   background: var(--surface-card);
@@ -9696,34 +9934,32 @@ body.passport-photo-viewer-open {
   color: var(--primary-foreground);
 }
 
-/* Responsive */
 @media (max-width: 991.98px) {
   [data-ui-page=tasks] .tasks-sticky-bar {
     position: static;
   }
   [data-ui-page=tasks] .tasks-header-row,
+  [data-ui-page=tasks] .tasks-toolbar-row,
   [data-ui-page=tasks] .tasks-metrics-row {
     align-items: stretch;
     flex-direction: column;
   }
-  [data-ui-page=tasks] .tasks-page-actions,
-  [data-ui-page=tasks] .tasks-page-size {
-    width: 100%;
+  [data-ui-page=tasks] .tasks-toolbar-left {
+    flex-wrap: wrap;
   }
-  [data-ui-page=tasks] .tasks-page-size {
-    justify-content: space-between;
+  [data-ui-page=tasks] .tasks-project-scope {
+    flex: 1 1 220px;
   }
 }
 @media (max-width: 767.98px) {
-  [data-ui-page=tasks] .tasks-task-primary {
-    padding-right: calc(var(--bs-gutter-x) * 0.5);
-    padding-bottom: 1rem;
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
+  [data-ui-page=tasks] .tasks-task-sheet-grid {
+    grid-template-columns: 1fr;
   }
   [data-ui-page=tasks] .tasks-task-aside {
-    padding-top: 0.25rem;
-    padding-left: calc(var(--bs-gutter-x) * 0.5);
+    padding-top: 1rem;
+    padding-left: 0;
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
   }
 }
 @media (max-width: 575.98px) {
@@ -9731,27 +9967,197 @@ body.passport-photo-viewer-open {
   [data-ui-page=tasks] .tasks-page-actions a {
     width: 100%;
   }
-  [data-ui-page=tasks] .tasks-metric-chip {
-    justify-content: space-between;
+  [data-ui-page=tasks] #taskModal.task-side-sheet .modal-dialog {
     width: 100%;
-  }
-  [data-ui-page=tasks] #taskModal .modal-dialog {
-    width: 100%;
-    max-width: none;
-    margin: 0;
-  }
-  [data-ui-page=tasks] #taskModal .tasks-modal-content {
-    min-height: 100vh;
-    min-height: 100dvh;
-    border-radius: 0 !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-ui-page=tasks] .overdue .pulsating {
-    animation: none;
-  }
   [data-ui-page=tasks] .tasks-row {
     transition: none;
+  }
+}
+/* Projects catalog — 01-274 Phase B */
+[data-ui-page=projects] .main-content {
+  background: var(--surface-page);
+  color: var(--color-text);
+}
+
+[data-ui-page=projects] .projects-page-shell {
+  max-width: 1500px;
+}
+
+[data-ui-page=projects] .projects-header-row,
+[data-ui-page=projects] .projects-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+[data-ui-page=projects] .projects-header-row {
+  margin-bottom: 1rem;
+}
+
+[data-ui-page=projects] .ops-page-actions,
+[data-ui-page=projects] .projects-metrics-row,
+[data-ui-page=projects] .work-management-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+[data-ui-page=projects] .projects-toolbar {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-card);
+}
+
+[data-ui-page=projects] .work-management-tab {
+  padding: 0.34rem 0.65rem;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+[data-ui-page=projects] .work-management-tab.active,
+[data-ui-page=projects] .work-management-tab:hover {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+[data-ui-page=projects] .projects-metric-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-height: 28px;
+  padding: 0.26rem 0.58rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+[data-ui-page=projects] .projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 0.8rem;
+}
+
+[data-ui-page=projects] .project-card {
+  display: grid;
+  gap: 0.8rem;
+  min-height: 190px;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+
+[data-ui-page=projects] .project-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
+}
+
+[data-ui-page=projects] .project-card-head,
+[data-ui-page=projects] .project-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+[data-ui-page=projects] .project-code {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+}
+
+[data-ui-page=projects] .project-status {
+  padding: 0.18rem 0.5rem;
+  border: 1px solid var(--state-neutral-border);
+  border-radius: var(--radius-pill);
+  background: var(--state-neutral-bg);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+[data-ui-page=projects] .project-status[data-project-status=active] {
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+}
+
+[data-ui-page=projects] .project-status[data-project-status=paused] {
+  border-color: var(--state-warning-border);
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+}
+
+[data-ui-page=projects] .project-card-main h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+[data-ui-page=projects] .project-card-main p {
+  display: -webkit-box;
+  min-height: 2.8em;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+[data-ui-page=projects] .project-card-meta {
+  display: grid;
+  gap: 0.28rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+[data-ui-page=projects] .project-card-actions {
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--color-border);
+}
+
+[data-ui-page=projects] .project-card-meta {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+[data-ui-page=projects] .project-card-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+[data-ui-page=projects] .projects-empty-state {
+  grid-column: 1/-1;
+  padding: 3rem 1rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-xl);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+[data-ui-page=projects] #projectModal .modal-content {
+  background: var(--surface-card);
+}
+
+@media (max-width: 767.98px) {
+  [data-ui-page=projects] .projects-header-row,
+  [data-ui-page=projects] .projects-toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 /* Analytics workspace */

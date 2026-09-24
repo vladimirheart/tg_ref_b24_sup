@@ -1,0 +1,185 @@
+/* Projects catalog — 01-274 Phase B */
+
+[data-ui-page='projects'] .main-content {
+  background: var(--surface-page);
+  color: var(--color-text);
+}
+
+[data-ui-page='projects'] .projects-page-shell {
+  max-width: 1500px;
+}
+
+[data-ui-page='projects'] .projects-header-row,
+[data-ui-page='projects'] .projects-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+[data-ui-page='projects'] .projects-header-row {
+  margin-bottom: 1rem;
+}
+
+[data-ui-page='projects'] .ops-page-actions,
+[data-ui-page='projects'] .projects-metrics-row,
+[data-ui-page='projects'] .work-management-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+[data-ui-page='projects'] .projects-toolbar {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-card);
+}
+
+[data-ui-page='projects'] .work-management-tab {
+  padding: 0.34rem 0.65rem;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+[data-ui-page='projects'] .work-management-tab.active,
+[data-ui-page='projects'] .work-management-tab:hover {
+  background: var(--surface-selected);
+  color: var(--primary);
+}
+
+[data-ui-page='projects'] .projects-metric-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-height: 28px;
+  padding: 0.26rem 0.58rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+[data-ui-page='projects'] .projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 0.8rem;
+}
+
+[data-ui-page='projects'] .project-card {
+  display: grid;
+  gap: 0.8rem;
+  min-height: 190px;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+
+[data-ui-page='projects'] .project-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--color-border));
+}
+
+[data-ui-page='projects'] .project-card-head,
+[data-ui-page='projects'] .project-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+[data-ui-page='projects'] .project-code {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+}
+
+[data-ui-page='projects'] .project-status {
+  padding: 0.18rem 0.5rem;
+  border: 1px solid var(--state-neutral-border);
+  border-radius: var(--radius-pill);
+  background: var(--state-neutral-bg);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+[data-ui-page='projects'] .project-status[data-project-status='active'] {
+  border-color: var(--state-success-border);
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+}
+
+[data-ui-page='projects'] .project-status[data-project-status='paused'] {
+  border-color: var(--state-warning-border);
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+}
+
+[data-ui-page='projects'] .project-card-main h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+[data-ui-page='projects'] .project-card-main p {
+  display: -webkit-box;
+  min-height: 2.8em;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+[data-ui-page='projects'] .project-card-meta {
+  display: grid;
+  gap: 0.28rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+[data-ui-page='projects'] .project-card-actions {
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--color-border);
+}
+
+[data-ui-page='projects'] .project-card-meta {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+[data-ui-page='projects'] .project-card-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+[data-ui-page='projects'] .projects-empty-state {
+  grid-column: 1 / -1;
+  padding: 3rem 1rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-xl);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+[data-ui-page='projects'] #projectModal .modal-content {
+  background: var(--surface-card);
+}
+
+@media (max-width: 767.98px) {
+  [data-ui-page='projects'] .projects-header-row,
+  [data-ui-page='projects'] .projects-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

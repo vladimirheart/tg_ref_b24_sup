@@ -58,7 +58,8 @@ class TaskProjectFoundationSourceContractTest {
 
         assertThat(tasksTemplate)
             .contains("name=\"tag\"")
-            .doesNotContain("project_ids");
+            .contains("name=\"project_ids_ui\"")
+            .doesNotContain("name=\"project_ids\"");
     }
 
     private String read(String relative) throws IOException {

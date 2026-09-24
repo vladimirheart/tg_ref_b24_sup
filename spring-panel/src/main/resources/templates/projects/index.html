@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проекты — iguana</title>
+  <link rel="icon" type="image/png" sizes="32x32" th:href="@{/favicon-32x32.png?v=2}">
+  <link href="/vendor/bootstrap/5.3.3/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+  <link th:href="@{/css/style.css}" rel="stylesheet">
+  <link th:href="@{/css/app.css}" rel="stylesheet">
+  <link th:href="@{/css/sidebar.css}" rel="stylesheet">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="projects">
+  <div th:replace="~{fragments/navbar :: navbar('projects')}"></div>
+  <datalist id="projectUsersList"><option th:each="u : ${users}" th:value="${u.username}"></option></datalist>
+
+  <main class="main-content container-fluid py-4 page-shell projects-page-shell ops-page-shell">
+    <div class="page-header-card projects-header-card ops-list-shell">
+      <div class="projects-header-row ops-page-head">
+        <div>
+          <span class="page-kicker">Рабочий контур</span>
+          <h1 class="page-title">Проекты</h1>
+          <p class="page-subtitle mb-0">Контейнеры для задач: создавайте проект, назначайте руководителя и открывайте его task scope.</p>
+        </div>
+        <div class="ops-page-actions">
+          <a class="btn btn-outline-secondary" th:href="@{/tasks}"><i class="bi bi-list-task"></i><span>Задачи</span></a>
+          <button id="createProjectBtn" class="btn btn-primary" type="button"><i class="bi bi-plus-lg"></i><span>Создать проект</span></button>
+        </div>
+      </div>
+
+      <nav class="work-management-tabs" aria-label="Раздел задач">
+        <a class="work-management-tab" th:href="@{/tasks}">Список задач</a>
+        <a class="work-management-tab active" th:href="@{/projects}" aria-current="page">Проекты</a>
+      </nav>
+
+      <div class="projects-metrics-row">
+        <span class="projects-metric-chip projects-metric-chip--primary">Всего <strong id="projectsTotal">0</strong></span>
+        <span class="projects-metric-chip">Активные <strong id="projectsActive">0</strong></span>
+        <span class="projects-metric-chip">На паузе <strong id="projectsPaused">0</strong></span>
+        <label class="projects-archive-toggle"><input id="includeArchivedProjects" type="checkbox"> Показать архивные</label>
+      </div>
+    </div>
+
+    <div id="projectsGrid" class="projects-grid" aria-live="polite">
+      <div class="projects-empty-state">Загрузка проектов…</div>
+    </div>
+
+    <div class="modal fade" id="projectModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div><span id="projectModalMeta" class="text-muted small">Новый проект</span><h5 class="modal-title">Проект</h5></div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body">
+            <form id="projectForm" class="row g-3">
+              <input type="hidden" name="id">
+              <div class="col-12"><label class="form-label">Название</label><input class="form-control" name="name" required></div>
+              <div class="col-md-6"><label class="form-label">Код</label><input class="form-control" name="project_key" placeholder="автоматически PRJ_…"></div>
+              <div class="col-md-6"><label class="form-label">Статус</label><select class="form-select" name="status"><option value="active">Активный</option><option value="paused">Пауза</option><option value="done">Завершён</option></select></div>
+              <div class="col-12"><label class="form-label">Руководитель</label><input class="form-control" name="lead_identity" list="projectUsersList" placeholder="логин пользователя"></div>
+              <div class="col-12"><label class="form-label">Описание</label><textarea class="form-control" name="description" rows="4"></textarea></div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button id="archiveProjectBtn" class="btn btn-outline-danger me-auto" type="button" hidden>Архивировать</button>
+            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Закрыть</button>
+            <button id="saveProjectBtn" class="btn btn-primary" type="button">Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script th:src="@{/js/modal-helpers.js}"></script>
+  <script th:src="@{/js/sidebar.js}"></script>
+  <script th:src="@{/js/projects.js?v=20260924-01-274-b1}"></script>
+  <script th:src="@{/js/modal-transitions.js}"></script>
+</body>
+</html>
