@@ -198,20 +198,26 @@ public class NotificationService {
         if (userColumns.isEmpty() || !userColumns.contains("username")) {
             return Set.of();
         }
-        StringBuilder sql = new StringBuilder("""
-                SELECT username
-                  FROM users
-                 WHERE 1 = 1
-                """);
-        if (userColumns.contains("enabled")) {
-            sql.append(" AND COALESCE(enabled, 1) = 1");
+        boolean hasEnabled = userColumns.contains("enabled");
+        boolean hasBlocked = userColumns.contains("is_blocked");
+        StringBuilder sql = new StringBuilder("SELECT username");
+        if (hasEnabled) {
+            sql.append(", enabled");
         }
-        if (userColumns.contains("is_blocked")) {
-            sql.append(" AND COALESCE(is_blocked, 0) = 0");
+        if (hasBlocked) {
+            sql.append(", is_blocked");
         }
+        sql.append(" FROM users");
+
         Set<String> recipients = new LinkedHashSet<>();
         try {
             source.query(sql.toString(), (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                if (hasEnabled && !coerceBooleanFlag(rs.getObject("enabled"), true)) {
+                    return;
+                }
+                if (hasBlocked && coerceBooleanFlag(rs.getObject("is_blocked"), false)) {
+                    return;
+                }
                 String username = normalizeRecipient(rs.getString("username"));
                 if (StringUtils.hasText(username)) {
                     recipients.add(username);
@@ -221,6 +227,27 @@ public class NotificationService {
             return Set.of();
         }
         return recipients;
+    }
+
+    static boolean coerceBooleanFlag(Object raw, boolean defaultValue) {
+        if (raw == null) {
+            return defaultValue;
+        }
+        if (raw instanceof Boolean value) {
+            return value;
+        }
+        if (raw instanceof Number value) {
+            return value.longValue() != 0L;
+        }
+        String text = raw.toString().trim().toLowerCase(Locale.ROOT);
+        if (text.isEmpty()) {
+            return defaultValue;
+        }
+        return switch (text) {
+            case "1", "true", "t", "yes", "y", "on" -> true;
+            case "0", "false", "f", "no", "n", "off" -> false;
+            default -> defaultValue;
+        };
     }
 
     private Set<String> loadUsersTableColumns(JdbcTemplate source) {
