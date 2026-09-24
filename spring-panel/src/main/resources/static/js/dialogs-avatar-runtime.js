@@ -36,7 +36,7 @@
       return `
       <div class="dialog-responsible-cell">
         ${avatarMarkup}
-        <span class="dialog-responsible-name">${escapeHtml(spec.label)}</span>
+        <span class="dialog-responsible-name" data-ui-ellipsis-reveal tabindex="0">${escapeHtml(spec.label)}</span>
       </div>
     `;
     }

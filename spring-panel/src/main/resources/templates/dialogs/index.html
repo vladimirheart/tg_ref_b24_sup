@@ -516,7 +516,7 @@
                                     <span class="avatar-circle" data-avatar-initial th:text="${dialog.avatarInitial()}">—</span>
                                 </div>
                                 <div class="dialog-client-meta">
-                                    <div class="fw-semibold" th:text="${dialog.displayClientName()}">Клиент</div>
+                                    <div class="fw-semibold" data-ui-ellipsis-reveal tabindex="0" th:text="${dialog.displayClientName()}">Клиент</div>
                                     <div class="small text-muted" th:text="${dialog.clientStatusLabel()}">статус</div>
                                 </div>
                             </div>
@@ -542,7 +542,7 @@
                             </div>
                         </td>
                         <td data-column-key="problem">
-                            <span class="text-truncate dialog-problem-cell d-block" th:text="${dialog.problemSafe()}">—</span>
+                            <span class="text-truncate dialog-problem-cell d-block" data-ui-ellipsis-reveal tabindex="0" th:text="${dialog.problemSafe()}">—</span>
                         </td>
                         <td data-column-key="location" th:text="${dialog.location()} ?: '—'">—</td>
                         <td data-column-key="categories" th:text="${dialog.categoriesSafe()}">—</td>
@@ -557,7 +557,7 @@
                                     <span th:if="${dialog.responsibleAvatarUrl() == null or #strings.isEmpty(dialog.responsibleAvatarUrl())}"
                                           th:text="${dialog.responsibleAvatarInitial()}">—</span>
                                 </span>
-                                <span class="dialog-responsible-name" th:text="${dialog.responsible()}">—</span>
+                                <span class="dialog-responsible-name" data-ui-ellipsis-reveal tabindex="0" th:text="${dialog.responsible()}">—</span>
                             </div>
                             <span class="text-muted" th:if="${dialog.responsible() == null or #strings.isEmpty(dialog.responsible())}">—</span>
                         </td>

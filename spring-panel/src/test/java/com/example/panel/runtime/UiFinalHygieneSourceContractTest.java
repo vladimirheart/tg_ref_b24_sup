@@ -122,6 +122,45 @@ class UiFinalHygieneSourceContractTest {
             .contains("<td class=\"dialog-select-column d-none\" data-column-key=\"select\">");
     }
 
+    @Test
+    void ellipsisFullValueAccessUsesSharedRuntimeAcrossDenseOperationalSurfaces() throws IOException {
+        String uiHead = read(Path.of("src/main/resources/templates/fragments/ui-head.html"));
+        String runtime = read(Path.of("src/main/resources/static/js/ellipsis-reveal.js"));
+        String core = read(CORE_SCSS);
+        String dialogs = read(Path.of("src/main/resources/templates/dialogs/index.html"));
+        String dialogsJs = read(Path.of("src/main/resources/static/js/dialogs.js"));
+        String responsibleRuntime = read(Path.of("src/main/resources/static/js/dialogs-avatar-runtime.js"));
+        String reports = read(Path.of("src/main/resources/templates/dashboard/index.html"));
+        String channels = read(Path.of("src/main/resources/static/js/settings-channels-catalog-runtime.js"));
+        String channelWorkspace = read(Path.of("src/main/resources/templates/settings/fragments/channels-workspace.html"));
+        String passport = read(Path.of("src/main/resources/templates/passports/detail.html"));
+        String passportActivity = read(Path.of("src/main/resources/static/js/passport-detail-activity-runtime.js"));
+
+        assertThat(uiHead).contains("/js/ellipsis-reveal.js(v='20260924-01-272-s12')");
+        assertThat(runtime)
+            .contains("const SELECTOR = '[data-ui-ellipsis-reveal]';")
+            .contains("target.scrollWidth > target.clientWidth + 1")
+            .contains("document.addEventListener('pointerover'")
+            .contains("document.addEventListener('focusin'");
+        assertThat(core)
+            .contains(".ui-ellipsis-tooltip")
+            .contains("[data-ui-ellipsis-reveal]:focus-visible");
+
+        assertThat(dialogs).contains("dialog-problem-cell d-block\" data-ui-ellipsis-reveal");
+        assertThat(dialogsJs).contains("dialog-problem-cell d-block\" data-ui-ellipsis-reveal");
+        assertThat(responsibleRuntime).contains("dialog-responsible-name\" data-ui-ellipsis-reveal");
+        assertThat(reports).contains("staff-time-name\" data-ui-ellipsis-reveal");
+        assertThat(channels)
+            .contains("channels-channel-name\" data-ui-ellipsis-reveal")
+            .contains("data-channel-bot-runtime-status=")
+            .contains("data-ui-ellipsis-reveal tabindex=\"0\"");
+        assertThat(channelWorkspace).contains("channels-manage-runtime-info\" id=\"channelsBotStatusesInfo\" data-ui-ellipsis-reveal");
+        assertThat(passport)
+            .contains("passport-workspace-title\" data-ui-ellipsis-reveal")
+            .contains("passport-workspace-subtitle\" data-ui-ellipsis-reveal");
+        assertThat(passportActivity).contains("<strong data-ui-ellipsis-reveal tabindex=\"0\">");
+    }
+
     private String read(Path path) throws IOException {
         return Files.readString(path, StandardCharsets.UTF_8)
             .replace("\r\n", "\n")

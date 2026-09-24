@@ -2343,7 +2343,7 @@
               <span class="avatar-circle" data-avatar-initial>${escapeHtml(avatarInitial(clientName))}</span>
             </div>
             <div class="dialog-client-meta">
-              <div class="fw-semibold">${escapeHtml(clientName)}</div>
+              <div class="fw-semibold" data-ui-ellipsis-reveal tabindex="0">${escapeHtml(clientName)}</div>
               <div class="small text-muted">${escapeHtml(clientStatus)}</div>
             </div>
           </div>
@@ -2363,7 +2363,7 @@
           </div>
         </td>
         <td data-column-key="problem">
-          <span class="text-truncate dialog-problem-cell d-block">${escapeHtml(problemLabel)}</span>
+          <span class="text-truncate dialog-problem-cell d-block" data-ui-ellipsis-reveal tabindex="0">${escapeHtml(problemLabel)}</span>
         </td>
         <td data-column-key="location">${escapeHtml(locationLabel)}</td>
         <td data-column-key="categories">${escapeHtml(categories)}</td>

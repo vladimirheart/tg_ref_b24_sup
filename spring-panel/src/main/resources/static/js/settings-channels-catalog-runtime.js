@@ -377,18 +377,18 @@
           <td class="channels-channel-name-cell">
             <div class="channels-channel-name-line">
               <span class="channels-channel-state-icon ${channelStateTone}" role="img" aria-label="${escapeHtml(channelStateLabel)}" title="${escapeHtml(channelStateLabel)}"><i class="bi ${channelStateIcon}" aria-hidden="true"></i></span>
-              <div class="fw-medium channels-channel-name">${escapeHtml(prepared.channel_name || '—')}</div>
+              <div class="fw-medium channels-channel-name" data-ui-ellipsis-reveal tabindex="0">${escapeHtml(prepared.channel_name || '—')}</div>
             </div>
-            <div class="text-muted small channels-channel-bot-label">Бот: ${escapeHtml(botLabel)}</div>
+            <div class="text-muted small channels-channel-bot-label" data-ui-ellipsis-reveal tabindex="0">Бот: ${escapeHtml(botLabel)}</div>
           </td>
           <td class="align-top channels-platform-cell">
             <div class="d-flex align-items-start gap-2 channels-platform-summary-wrap" title="${escapeHtml(platformHoverText)}">
               <div class="flex-grow-1 channels-platform-summary-content">
                 <div class="d-flex align-items-center gap-2 small channels-platform-meta-line">
                   <span class="badge bg-secondary-subtle text-uppercase flex-shrink-0">${escapeHtml(platformLabel)}</span>
-                  <span class="channels-platform-meta">${escapeHtml(platformMetaParts.join(' • '))}</span>
+                  <span class="channels-platform-meta" data-ui-ellipsis-reveal tabindex="0">${escapeHtml(platformMetaParts.join(' • '))}</span>
                 </div>
-                <div class="small text-muted mt-1 channels-platform-template-summary">${escapeHtml(templateSummary)}</div>
+                <div class="small text-muted mt-1 channels-platform-template-summary" data-ui-ellipsis-reveal tabindex="0">${escapeHtml(templateSummary)}</div>
               </div>
               <button
                 type="button"
@@ -414,7 +414,7 @@
           </td>
           <td class="text-center align-top channels-status-cell">
             <div class="channels-runtime-control-row">
-              <span class="badge bg-light text-secondary border border-secondary-subtle" data-channel-bot-runtime-status="${prepared.id}">Процесс: проверка…</span>
+              <span class="badge bg-light text-secondary border border-secondary-subtle" data-channel-bot-runtime-status="${prepared.id}" data-ui-ellipsis-reveal tabindex="0">Процесс: проверка…</span>
               <div class="d-flex justify-content-center channels-channel-actions">
                 <button type="button" class="btn btn-sm btn-outline-success channels-icon-button" data-channel-start="${prepared.id}" aria-label="Запустить" title="Запустить" disabled><i class="bi bi-play-fill" aria-hidden="true"></i></button>
                 <button type="button" class="btn btn-sm btn-outline-danger channels-icon-button" data-channel-stop="${prepared.id}" aria-label="Остановить" title="Остановить" hidden><i class="bi bi-stop-fill" aria-hidden="true"></i></button>

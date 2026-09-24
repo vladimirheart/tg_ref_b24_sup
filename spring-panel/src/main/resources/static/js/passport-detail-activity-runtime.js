@@ -25,7 +25,7 @@
         const date = first(item && item.created_at, item && item.createdAt, item && item.updated_at, item && item.date, '');
         const meta = [id ? `#${id}` : '', date].filter(Boolean).join(' · ');
         return `<div class="passport-record-card">
-            <div><strong>${escapeHtml(title)}</strong>${meta ? `<span>${escapeHtml(meta)}</span>` : ''}</div>
+            <div><strong data-ui-ellipsis-reveal tabindex="0">${escapeHtml(title)}</strong>${meta ? `<span>${escapeHtml(meta)}</span>` : ''}</div>
             ${status ? `<span class="passport-record-status" data-tone="${statusTone(status)}">${escapeHtml(status)}</span>` : ''}
         </div>`;
     }
