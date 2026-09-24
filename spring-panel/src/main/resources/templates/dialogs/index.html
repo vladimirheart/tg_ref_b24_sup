@@ -428,7 +428,7 @@
                     <thead>
                     <tr>
                         <th data-column-key="actions" class="dialog-actions-head"><span class="visually-hidden">Действия</span></th>
-                        <th class="dialog-select-column" data-column-key="select">
+                        <th class="dialog-select-column d-none" data-column-key="select">
                             <input class="form-check-input" type="checkbox" id="dialogSelectAll" aria-label="Выбрать все видимые диалоги">
                         </th>
                         <th data-column-key="ticket">№ обращения</th>
@@ -504,7 +504,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="dialog-select-column" data-column-key="select">
+                        <td class="dialog-select-column d-none" data-column-key="select">
                             <input class="form-check-input dialog-row-select" type="checkbox" th:data-ticket-id="${dialog.ticketId}" aria-label="Выбрать диалог">
                         </td>
                         <td data-column-key="ticket" th:text="${dialog.displayTicketNumber()}">—</td>

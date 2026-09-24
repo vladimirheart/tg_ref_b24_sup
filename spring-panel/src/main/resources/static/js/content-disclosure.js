@@ -443,6 +443,8 @@ function buildHeaderInfoDisclosure(element) {
         variantClass: 'content-disclosure--inline',
       });
     });
+
+    document.documentElement.classList.remove('iguana-ui-first-paint');
   }
 
   if (document.readyState === 'loading') {

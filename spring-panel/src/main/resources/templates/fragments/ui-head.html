@@ -19,6 +19,50 @@
 
     <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css}">
 
+    <style data-ui-first-paint-critical>
+        .page-header-title-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            min-width: 0;
+        }
+        .page-header-title-row .page-title { min-width: 0; }
+        .page-header-title-row .page-kicker,
+        .page-header-title-row .page-title { margin-top: 0; margin-bottom: 0; }
+
+        html.iguana-ui-first-paint .page-header-card .page-subtitle:not([data-no-disclosure]) {
+            display: none !important;
+        }
+
+        @supports selector(.page-header-card:has(> .page-title)) {
+            html.iguana-ui-first-paint .page-header-card:has(> .page-kicker):has(> .page-title),
+            html.iguana-ui-first-paint .page-header-card :not(.page-header-title-row):has(> .page-kicker):has(> .page-title) {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                column-gap: 0.45rem;
+                row-gap: 0.2rem;
+                min-width: 0;
+            }
+
+            html.iguana-ui-first-paint .page-header-card:has(> .page-kicker):has(> .page-title) > .page-kicker,
+            html.iguana-ui-first-paint .page-header-card:has(> .page-kicker):has(> .page-title) > .page-title,
+            html.iguana-ui-first-paint .page-header-card :not(.page-header-title-row):has(> .page-kicker):has(> .page-title) > .page-kicker,
+            html.iguana-ui-first-paint .page-header-card :not(.page-header-title-row):has(> .page-kicker):has(> .page-title) > .page-title {
+                margin-top: 0;
+                margin-bottom: 0;
+            }
+        }
+
+        html.dialog-list-only-prepaint body[data-ui-page='dialogs'] .dialogs-extra-section {
+            display: none !important;
+        }
+    </style>
+    <script>
+        document.documentElement.classList.add('iguana-ui-first-paint');
+    </script>
+
     <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}">
     <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : 'X-CSRF-TOKEN'}">
     <script th:inline="javascript">

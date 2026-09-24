@@ -2331,7 +2331,7 @@
             </div>
           </div>
         </td>
-        <td class="dialog-select-column" data-column-key="select">
+        <td class="dialog-select-column d-none" data-column-key="select">
           <input class="form-check-input dialog-row-select" type="checkbox" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Выбрать диалог">
         </td>
         <td data-column-key="ticket">${escapeHtml(displayNumber)}</td>

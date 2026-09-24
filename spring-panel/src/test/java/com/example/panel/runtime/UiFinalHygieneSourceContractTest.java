@@ -14,6 +14,7 @@ class UiFinalHygieneSourceContractTest {
     private static final Path CORE_SCSS = Path.of("src/main/resources/scss/app/_core.scss");
     private static final Path CLIENT_PROFILE = Path.of("src/main/resources/templates/clients/profile.html");
     private static final Path PASSPORT_EDITOR = Path.of("src/main/resources/templates/passports/new.html");
+    private static final Path UI_HEAD = Path.of("src/main/resources/templates/fragments/ui-head.html");
 
     @Test
     void sharedHeaderContractKeepsStaticHelpCompactAndDynamicIdentityVisible() throws IOException {
@@ -85,6 +86,40 @@ class UiFinalHygieneSourceContractTest {
             .contains("document.body.classList.toggle('dialog-list-only-mode', active);");
         assertThat(dialogsScss)
             .contains("html.dialog-list-only-prepaint body[data-ui-page='dialogs'] .dialogs-extra-section");
+    }
+
+    @Test
+    void criticalFirstPaintContractIsInlineAndIndependentOfAppCssCache() throws IOException {
+        String uiHead = read(UI_HEAD);
+        String disclosure = read(DISCLOSURE);
+
+        assertThat(uiHead)
+            .contains("data-ui-first-paint-critical")
+            .contains("document.documentElement.classList.add('iguana-ui-first-paint');")
+            .contains("html.iguana-ui-first-paint .page-header-card .page-subtitle:not([data-no-disclosure])")
+            .contains("html.dialog-list-only-prepaint body[data-ui-page='dialogs'] .dialogs-extra-section")
+            .contains(".page-header-title-row .page-kicker,")
+            .contains("@supports selector(.page-header-card:has(> .page-title))");
+
+        assertThat(disclosure)
+            .contains("document.documentElement.classList.remove('iguana-ui-first-paint');");
+    }
+
+    @Test
+    void reportsHelpAndDefaultDialogSelectionColumnAreStableBeforeHydration() throws IOException {
+        String dashboard = read(Path.of("src/main/resources/templates/dashboard/index.html"));
+        String dialogsTemplate = read(Path.of("src/main/resources/templates/dialogs/index.html"));
+        String dialogsJs = read(Path.of("src/main/resources/static/js/dialogs.js"));
+
+        assertThat(dashboard)
+            .contains("<p class=\"page-subtitle\" hidden data-disclosure-pending>");
+
+        assertThat(dialogsTemplate)
+            .contains("<th class=\"dialog-select-column d-none\" data-column-key=\"select\">")
+            .contains("<td class=\"dialog-select-column d-none\" data-column-key=\"select\">");
+
+        assertThat(dialogsJs)
+            .contains("<td class=\"dialog-select-column d-none\" data-column-key=\"select\">");
     }
 
     private String read(Path path) throws IOException {
