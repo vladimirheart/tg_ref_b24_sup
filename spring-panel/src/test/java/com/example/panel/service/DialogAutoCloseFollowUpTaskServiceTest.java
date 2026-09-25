@@ -9,8 +9,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.entity.Message;
+import com.example.panel.entity.Project;
 import com.example.panel.entity.TicketResponsible;
 import com.example.panel.repository.MessageRepository;
+import com.example.panel.repository.ProjectRepository;
 import com.example.panel.repository.TicketResponsibleRepository;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +33,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         PanelTaskService panelTaskService = mock(PanelTaskService.class);
         TicketResponsibleRepository responsibleRepository = mock(TicketResponsibleRepository.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
+        ProjectRepository projectRepository = mock(ProjectRepository.class);
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
 
         TicketResponsible responsible = new TicketResponsible();
@@ -49,16 +52,28 @@ class DialogAutoCloseFollowUpTaskServiceTest {
 
         when(jdbcTemplate.query(any(String.class), any(RowMapper.class), eq("T-100")))
             .thenReturn(List.of("owner", "helper", "HELPER", "reviewer"));
+        Project project = new Project();
+        project.setId(42L);
+        project.setName("Auto-close follow-up");
+        when(projectRepository.findById(42L)).thenReturn(Optional.of(project));
 
         DialogAutoCloseFollowUpTaskService service = new DialogAutoCloseFollowUpTaskService(
             panelTaskService,
             responsibleRepository,
             messageRepository,
+            projectRepository,
+            new AutoCloseConfigNormalizer(),
             jdbcTemplate,
             transactionManager()
         );
 
-        service.createTaskForAutoClosedDialog("T-100");
+        service.createTaskForAutoClosedDialog("T-100", java.util.Map.of(
+            "auto_close_config", java.util.Map.of(
+                "templates", List.of(java.util.Map.of("id", "default", "hours", 24)),
+                "active_template_id", "default",
+                "follow_up_project_id", 42L
+            )
+        ));
 
         ArgumentCaptor<PanelTaskService.TaskPayload> payloadCaptor = ArgumentCaptor.forClass(PanelTaskService.TaskPayload.class);
         verify(panelTaskService).createTask(payloadCaptor.capture());
@@ -69,6 +84,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         assertThat(payload.source()).isEqualTo("dialog_auto_close");
         assertThat(payload.ticketIds()).containsExactly("T-100");
         assertThat(payload.coExecutors()).containsExactly("helper", "reviewer");
+        assertThat(payload.projectIds()).containsExactly(42L);
         assertThat(payload.bodyHtml()).contains("/dialogs/T-100");
         assertThat(payload.bodyHtml()).contains("Иван");
         assertThat(payload.title()).contains("T-100");
@@ -85,6 +101,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         PanelTaskService panelTaskService = mock(PanelTaskService.class);
         TicketResponsibleRepository responsibleRepository = mock(TicketResponsibleRepository.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
+        ProjectRepository projectRepository = mock(ProjectRepository.class);
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         when(responsibleRepository.findById("T-101")).thenReturn(Optional.empty());
 
@@ -92,6 +109,8 @@ class DialogAutoCloseFollowUpTaskServiceTest {
             panelTaskService,
             responsibleRepository,
             messageRepository,
+            projectRepository,
+            new AutoCloseConfigNormalizer(),
             jdbcTemplate,
             transactionManager()
         );

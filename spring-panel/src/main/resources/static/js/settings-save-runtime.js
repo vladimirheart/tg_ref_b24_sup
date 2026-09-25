@@ -105,9 +105,15 @@
       const activeTemplate = autoCloseState.templates.find(
         (template) => template.id === autoCloseState.active_template_id
       ) || autoCloseState.templates[0];
+      const projectSelect = document.getElementById('autoCloseFollowUpProject');
+      const rawProjectId = Number(projectSelect?.value || 0);
+      const followUpProjectId = Number.isSafeInteger(rawProjectId) && rawProjectId > 0
+        ? rawProjectId
+        : null;
       return {
         templates: autoCloseState.templates,
         active_template_id: autoCloseState.active_template_id || activeTemplate?.id || null,
+        follow_up_project_id: followUpProjectId,
       };
     }
 

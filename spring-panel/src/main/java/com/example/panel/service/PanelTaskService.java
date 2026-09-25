@@ -67,7 +67,14 @@ public class PanelTaskService {
         task.setSeq(nextSequenceValue());
         applyPayload(task, payload, now);
         taskRepository.save(task);
-        taskDomainFoundationService.recordCreated(task, payload.creator(), payload.tag());
+        taskDomainFoundationService.recordSaved(
+            task,
+            null,
+            true,
+            payload.creator(),
+            payload.tag(),
+            serializeProjectIds(payload.projectIds())
+        );
 
         savePeople(task, "co", payload.coExecutors());
         savePeople(task, "watcher", payload.watchers());
@@ -180,6 +187,19 @@ public class PanelTaskService {
         return current + 1;
     }
 
+    private String serializeProjectIds(List<Long> projectIds) {
+        if (projectIds == null || projectIds.isEmpty()) {
+            return null;
+        }
+        Set<String> values = new LinkedHashSet<>();
+        for (Long projectId : projectIds) {
+            if (projectId != null && projectId > 0L) {
+                values.add(Long.toString(projectId));
+            }
+        }
+        return values.isEmpty() ? null : String.join(",", values);
+    }
+
     private Set<String> sanitizeValues(List<String> people) {
         if (people == null) {
             return Set.of();
@@ -225,6 +245,7 @@ public class PanelTaskService {
                               String source,
                               List<String> coExecutors,
                               List<String> watchers,
-                              List<String> ticketIds) {
+                              List<String> ticketIds,
+                              List<Long> projectIds) {
     }
 }

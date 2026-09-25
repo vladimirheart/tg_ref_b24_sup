@@ -6,7 +6,7 @@
   flex-direction: column;
   gap: 8px;
 
-  padding: 10px;
+  padding: 6px 10px 10px;
 
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -740,8 +740,9 @@
 /* Sidebar account calm refinement — 01-259 r4.2 */
 .sidebar-footer {
   gap: 6px;
-  padding: 8px;
-  border-radius: var(--radius-lg);
+  padding: 6px;
+  border-color: color-mix(in srgb, var(--color-border) 72%, transparent);
+  border-radius: 12px;
 }
 
 .sidebar-footer-main {
@@ -756,7 +757,7 @@
 .sidebar-user-card {
   gap: 8px;
   min-height: 44px;
-  padding: 5px 6px;
+  padding: 4px 5px;
   border: 0;
   border-radius: 12px;
   background: transparent;

@@ -42,6 +42,12 @@ public class AutoCloseConfigNormalizer {
         } else {
             config.remove("active_template_id");
         }
+        Long followUpProjectId = parsePositiveLong(config.get("follow_up_project_id"));
+        if (followUpProjectId != null) {
+            config.put("follow_up_project_id", followUpProjectId);
+        } else {
+            config.remove("follow_up_project_id");
+        }
         return config;
     }
 
@@ -56,6 +62,11 @@ public class AutoCloseConfigNormalizer {
             return activeHours;
         }
         return DEFAULT_FALLBACK_HOURS;
+    }
+
+    public Long resolveFollowUpProjectId(Object rawConfig) {
+        Map<String, Object> normalized = normalize(rawConfig);
+        return parsePositiveLong(normalized.get("follow_up_project_id"));
     }
 
     private List<Map<String, Object>> normalizeTemplates(Object rawTemplates) {
@@ -122,6 +133,23 @@ public class AutoCloseConfigNormalizer {
         }
         try {
             return Integer.parseInt(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private Long parsePositiveLong(Object rawValue) {
+        if (rawValue instanceof Number number) {
+            long value = number.longValue();
+            return value > 0L ? value : null;
+        }
+        String value = stringValue(rawValue);
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            long parsed = Long.parseLong(value);
+            return parsed > 0L ? parsed : null;
         } catch (NumberFormatException ignored) {
             return null;
         }

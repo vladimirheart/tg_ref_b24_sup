@@ -3,6 +3,7 @@ package com.example.panel.settings;
 import com.example.panel.entity.AppSetting;
 import com.example.panel.entity.SettingsParameter;
 import com.example.panel.repository.AppSettingRepository;
+import com.example.panel.repository.ProjectRepository;
 import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.service.AutoCloseConfigNormalizer;
 import com.example.panel.service.BotSettingsPayloadNormalizer;
@@ -30,6 +31,7 @@ public class SettingsPageController {
     private static final Logger log = LoggerFactory.getLogger(SettingsPageController.class);
     private final NavigationService navigationService;
     private final AppSettingRepository appSettingRepository;
+    private final ProjectRepository projectRepository;
     private final SettingsParameterRepository settingsParameterRepository;
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
@@ -40,6 +42,7 @@ public class SettingsPageController {
 
     public SettingsPageController(NavigationService navigationService,
                                   AppSettingRepository appSettingRepository,
+                                  ProjectRepository projectRepository,
                                   SettingsParameterRepository settingsParameterRepository,
                                   SharedConfigService sharedConfigService,
                                   SettingsCatalogService settingsCatalogService,
@@ -49,6 +52,7 @@ public class SettingsPageController {
                                   BotSettingsPayloadNormalizer botSettingsPayloadNormalizer) {
         this.navigationService = navigationService;
         this.appSettingRepository = appSettingRepository;
+        this.projectRepository = projectRepository;
         this.settingsParameterRepository = settingsParameterRepository;
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
@@ -68,12 +72,17 @@ public class SettingsPageController {
             model.addAttribute("appSettings", appSettings);
             model.addAttribute("systemParameters", systemParameters);
             Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
-            settings.put("auto_close_config", autoCloseConfigNormalizer.normalize(settings.get("auto_close_config")));
+            Map<String, Object> normalizedAutoCloseConfig = autoCloseConfigNormalizer.normalize(settings.get("auto_close_config"));
+            settings.put("auto_close_config", normalizedAutoCloseConfig);
             settings.put("bot_settings", botSettingsPayloadNormalizer.normalize(settings.get("bot_settings")));
             settings.remove("unblock_request_cooldown_minutes");
             model.addAttribute("settingsPayload", settings);
             model.addAttribute("autoCloseFallbackHours",
-                    autoCloseConfigNormalizer.resolveFallbackHours(settings.get("auto_close_config")));
+                    autoCloseConfigNormalizer.resolveFallbackHours(normalizedAutoCloseConfig));
+            model.addAttribute("autoCloseFollowUpProjectId",
+                    autoCloseConfigNormalizer.resolveFollowUpProjectId(normalizedAutoCloseConfig));
+            model.addAttribute("autoCloseProjectOptions",
+                    projectRepository.findAllByArchivedAtIsNullOrderByNameAsc());
             model.addAttribute("dialogLegacyQuestionTemplateAudit",
                     buildDialogLegacyQuestionTemplateAudit(settings));
             IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();

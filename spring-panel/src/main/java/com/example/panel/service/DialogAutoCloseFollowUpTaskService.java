@@ -1,13 +1,16 @@
 package com.example.panel.service;
 
 import com.example.panel.entity.Message;
+import com.example.panel.entity.Project;
 import com.example.panel.entity.TicketResponsible;
 import com.example.panel.repository.MessageRepository;
+import com.example.panel.repository.ProjectRepository;
 import com.example.panel.repository.TicketResponsibleRepository;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -34,29 +37,42 @@ public class DialogAutoCloseFollowUpTaskService {
     private final PanelTaskService panelTaskService;
     private final TicketResponsibleRepository ticketResponsibleRepository;
     private final MessageRepository messageRepository;
+    private final ProjectRepository projectRepository;
+    private final AutoCloseConfigNormalizer autoCloseConfigNormalizer;
     private final JdbcTemplate jdbcTemplate;
     private final TransactionOperations isolatedTransactionOperations;
 
     public DialogAutoCloseFollowUpTaskService(PanelTaskService panelTaskService,
                                               TicketResponsibleRepository ticketResponsibleRepository,
                                               MessageRepository messageRepository,
+                                              ProjectRepository projectRepository,
+                                              AutoCloseConfigNormalizer autoCloseConfigNormalizer,
                                               JdbcTemplate jdbcTemplate,
                                               PlatformTransactionManager transactionManager) {
         this.panelTaskService = panelTaskService;
         this.ticketResponsibleRepository = ticketResponsibleRepository;
         this.messageRepository = messageRepository;
+        this.projectRepository = projectRepository;
+        this.autoCloseConfigNormalizer = autoCloseConfigNormalizer;
         this.jdbcTemplate = jdbcTemplate;
         this.isolatedTransactionOperations = buildRequiresNewTransactionOperations(transactionManager);
     }
 
     public void createTaskForAutoClosedDialog(String ticketId) {
+        createTaskForAutoClosedDialog(ticketId, Map.of());
+    }
+
+    public void createTaskForAutoClosedDialog(String ticketId, Map<String, Object> settings) {
         String normalizedTicketId = trimToNull(ticketId);
         if (normalizedTicketId == null) {
             return;
         }
+        Long configuredProjectId = autoCloseConfigNormalizer.resolveFollowUpProjectId(
+            settings != null ? settings.get("auto_close_config") : null
+        );
         try {
             isolatedTransactionOperations.execute(status -> {
-                createTaskTransactional(normalizedTicketId);
+                createTaskTransactional(normalizedTicketId, configuredProjectId);
                 return null;
             });
         } catch (Exception ex) {
@@ -65,7 +81,7 @@ public class DialogAutoCloseFollowUpTaskService {
         }
     }
 
-    private void createTaskTransactional(String ticketId) {
+    private void createTaskTransactional(String ticketId, Long configuredProjectId) {
         String responsible = resolveResponsible(ticketId);
         if (responsible == null) {
             log.debug("Skipping auto-close follow-up task for ticket {} because no responsible is assigned", ticketId);
@@ -74,6 +90,7 @@ public class DialogAutoCloseFollowUpTaskService {
 
         Message message = messageRepository.findByTicketId(ticketId).orElse(null);
         List<String> coExecutors = loadCoExecutors(ticketId, responsible);
+        List<Long> payloadProjectIds = resolveConfiguredProjectIds(configuredProjectId);
 
         panelTaskService.createTask(new PanelTaskService.TaskPayload(
             buildTitle(ticketId, message),
@@ -86,8 +103,27 @@ public class DialogAutoCloseFollowUpTaskService {
             TASK_SOURCE,
             coExecutors,
             List.of(),
-            List.of(ticketId)
+            List.of(ticketId),
+            payloadProjectIds
         ));
+    }
+
+    private List<Long> resolveConfiguredProjectIds(Long configuredProjectId) {
+        if (configuredProjectId == null || configuredProjectId <= 0L) {
+            return List.of();
+        }
+        try {
+            Optional<Project> project = projectRepository.findById(configuredProjectId);
+            if (project.isPresent() && project.get().getArchivedAt() == null) {
+                return List.of(configuredProjectId);
+            }
+            log.warn("Configured auto-close follow-up project {} is missing or archived; creating task without project",
+                configuredProjectId);
+        } catch (RuntimeException ex) {
+            log.warn("Unable to resolve configured auto-close follow-up project {}; creating task without project: {}",
+                configuredProjectId, ex.getMessage());
+        }
+        return List.of();
     }
 
     private static TransactionOperations buildRequiresNewTransactionOperations(PlatformTransactionManager transactionManager) {

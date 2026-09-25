@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -96,7 +97,7 @@ class DialogAutoCloseSchedulerServiceTest {
         verify(ticketActiveRepository).deleteById("T-900");
         verify(chatHistoryRepository).save(any());
         verify(uiEventOutboxAppendService).publishTicketClosed(eq("T-900"), eq(18L), any(), eq(true));
-        verify(followUpTaskService).createTaskForAutoClosedDialog("T-900");
+        verify(followUpTaskService).createTaskForAutoClosedDialog(eq("T-900"), anyMap());
         verify(jdbcTemplate).update(eq("""
                 UPDATE pending_feedback_requests
                    SET expires_at = ?, source = ?
