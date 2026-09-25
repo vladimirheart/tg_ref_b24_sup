@@ -38,9 +38,11 @@ public class ClientAvatarHistory {
     private Integer fileSize;
 
     @Column(name = "fetched_at")
+    @Convert(disableConversion = true)
     private OffsetDateTime fetchedAt;
 
     @Column(name = "last_seen_at")
+    @Convert(disableConversion = true)
     private OffsetDateTime lastSeenAt;
 
     private String metadata;
