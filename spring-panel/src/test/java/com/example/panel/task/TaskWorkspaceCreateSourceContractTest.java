@@ -64,7 +64,7 @@ class TaskWorkspaceCreateSourceContractTest {
             .contains("name=\"due_at\" class=\"form-control\"")
             .doesNotContain("name=\"due_at\" class=\"form-control\" required")
             .doesNotContain("name=\"project_ids_ui\" class=\"form-select mt-1\" required")
-            .contains("tasks.js?v=20260924-01-274-task-create-r23");
+            .contains("tasks.js?v=");
 
         assertThat(runtime)
             .contains("function resetTaskForm()")

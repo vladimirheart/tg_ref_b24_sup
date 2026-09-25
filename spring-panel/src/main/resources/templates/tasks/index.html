@@ -36,12 +36,12 @@
       </div>
 
       <nav class="work-management-tabs" aria-label="Раздел задач">
-        <a class="work-management-tab active" th:href="@{/tasks}" aria-current="page">Список</a>
-        <span class="work-management-tab is-upcoming" title="Будет добавлено в Kanban phase">Доска</span>
+        <button class="work-management-tab active" type="button" data-task-view="list" aria-pressed="true">Список</button>
+        <button class="work-management-tab" type="button" data-task-view="board" aria-pressed="false">Доска</button>
         <span class="work-management-tab is-upcoming" title="Будет добавлено в Analytics phase">Аналитика</span>
       </nav>
 
-      <div class="tasks-scope-row ops-list-toolbar">
+      <div id="taskListControls" class="tasks-scope-row ops-list-toolbar">
         <div class="tasks-scope-switch" role="group" aria-label="Область задач">
           <button class="tasks-scope-btn active" type="button" data-task-scope="all">Все задачи</button>
           <button class="tasks-scope-btn" type="button" data-task-scope="mine">Мои задачи</button>
@@ -95,6 +95,7 @@
       </div>
     </div>
 
+    <section id="taskListView">
     <div class="card tasks-table-card ops-table-card">
       <div class="table-responsive tasks-table-shell">
         <table class="table align-middle mb-0" id="tasksTable">
@@ -122,6 +123,25 @@
       <div id="paginationInfo" class="text-muted"></div>
       <nav><ul class="pagination mb-0" id="pagination"></ul></nav>
     </div>
+    </section>
+
+    <section id="taskBoardView" class="tasks-board-view" hidden>
+      <div class="tasks-board-toolbar">
+        <div class="tasks-board-scope">
+          <label for="taskBoardScope" class="form-label mb-1">Область доски</label>
+          <select id="taskBoardScope" class="form-select form-select-sm">
+            <option value="mine">Мои задачи</option>
+          </select>
+        </div>
+        <div class="tasks-board-heading">
+          <strong id="taskBoardTitle">Доска</strong>
+          <span id="taskBoardMeta">Загрузка…</span>
+        </div>
+        <button id="taskBoardAddColumnBtn" class="btn btn-sm btn-outline-secondary ms-auto" type="button"><i class="bi bi-plus-lg" aria-hidden="true"></i><span>Колонка</span></button>
+      </div>
+      <div id="taskBoardAlert" class="alert alert-danger d-none" role="alert"></div>
+      <div id="taskKanban" class="tasks-kanban" aria-live="polite"></div>
+    </section>
 
     <div class="modal fade task-side-sheet" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-scrollable">
@@ -203,7 +223,8 @@
   <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script th:src="@{/js/modal-helpers.js}"></script>
   <script th:src="@{/js/sidebar.js}"></script>
-  <script th:src="@{/js/tasks.js?v=20260924-01-274-task-create-r23}"></script>
+  <script th:src="@{/js/tasks.js?v=20260925-01-274-kanban-ui-r38}"></script>
+  <script th:src="@{/js/tasks-board.js?v=20260925-01-274-kanban-ui-r38}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>
 </body>
 </html>

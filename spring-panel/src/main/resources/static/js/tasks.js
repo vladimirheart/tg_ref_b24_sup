@@ -381,6 +381,7 @@
     if (event.event_type === 'PROJECT_ADDED') return `Добавлен проект ${event.new_value || ''}`.trim();
     if (event.event_type === 'PROJECT_REMOVED') return `Удалён проект ${event.old_value || ''}`.trim();
     if (event.event_type === 'COMMENT_ADDED') return 'Добавлен комментарий';
+    if (event.event_type === 'BOARD_CARD_MOVED') return 'Карточка перемещена на доске';
     if (event.event_type === 'TASK_CREATED') return 'Задача создана';
     return String(event.event_type || 'Событие');
   }
