@@ -3,6 +3,7 @@ package com.example.supportbot.max;
 import com.example.supportbot.config.MaxBotProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -15,6 +16,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -25,6 +27,7 @@ public class MaxApiClient {
     private static final Logger log = LoggerFactory.getLogger(MaxApiClient.class);
     private static final String API_BASE = "https://platform-api2.max.ru";
     private static final long MAX_INCOMING_ATTACHMENT_BYTES = 256L * 1024L * 1024L;
+    private static final long MAX_AVATAR_BYTES = 8L * 1024L * 1024L;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
@@ -89,6 +92,107 @@ public class MaxApiClient {
             log.warn("Failed to fetch MAX updates: {}", ex.getMessage());
             return PollBatch.empty(marker);
         }
+    }
+
+    public Optional<MaxDialogUser> fetchDialogUser(Long chatId) {
+        String token = properties.getToken();
+        if (chatId == null || chatId <= 0 || token == null || token.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(API_BASE + "/chats/" + chatId))
+                .header("Authorization", token)
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("MAX chat profile returned status {} for chat {}", response.statusCode(), chatId);
+                return Optional.empty();
+            }
+            return parseDialogUser(objectMapper.readTree(response.body()));
+        } catch (Exception ex) {
+            log.warn("Failed to fetch MAX dialog user for chat {}: {}", chatId, ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    Optional<MaxDialogUser> parseDialogUser(JsonNode root) {
+        if (root == null) {
+            return Optional.empty();
+        }
+        JsonNode user = root.path("dialog_with_user");
+        if (!user.isObject() || !user.path("user_id").canConvertToLong()) {
+            return Optional.empty();
+        }
+        return Optional.of(new MaxDialogUser(
+            user.path("user_id").longValue(),
+            textOrNull(user, "avatar_url"),
+            textOrNull(user, "full_avatar_url")
+        ));
+    }
+
+    private String textOrNull(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        if (!value.isTextual()) {
+            return null;
+        }
+        String text = value.asText().trim();
+        return text.isEmpty() ? null : text;
+    }
+
+    public DownloadedAvatar downloadAvatar(String rawUrl) throws IOException, InterruptedException {
+        URI uri = validateAttachmentUri(rawUrl);
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(uri)
+            .timeout(Duration.ofSeconds(20))
+            .GET()
+            .build();
+        HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            response.body().close();
+            throw new IOException("MAX avatar download returned HTTP " + response.statusCode());
+        }
+        long contentLength = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
+        if (contentLength > MAX_AVATAR_BYTES) {
+            response.body().close();
+            throw new IOException("MAX avatar exceeds the 8 MiB support limit");
+        }
+        String contentType = response.headers().firstValue("Content-Type").orElse(null);
+        String filename = filenameFromPath(uri.getPath());
+        if (contentType != null && !contentType.isBlank()
+                && !contentType.toLowerCase().startsWith("image/")
+                && !"application/octet-stream".equalsIgnoreCase(contentType.trim())) {
+            response.body().close();
+            throw new IOException("MAX avatar response is not an image");
+        }
+        byte[] bytes;
+        try (InputStream body = response.body()) {
+            bytes = readBounded(body, MAX_AVATAR_BYTES);
+        }
+        if (bytes.length == 0) {
+            throw new IOException("MAX avatar payload is empty");
+        }
+        return new DownloadedAvatar(bytes, contentType, filename);
+    }
+
+    private byte[] readBounded(InputStream inputStream, long limit) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        long total = 0;
+        int read;
+        while ((read = inputStream.read(buffer)) >= 0) {
+            if (read == 0) {
+                continue;
+            }
+            total += read;
+            if (total > limit) {
+                throw new IOException("MAX avatar exceeds the 8 MiB support limit");
+            }
+            output.write(buffer, 0, read);
+        }
+        return output.toByteArray();
     }
 
     public DownloadedAttachment downloadAttachment(String rawUrl) throws IOException, InterruptedException {
@@ -163,6 +267,12 @@ public class MaxApiClient {
             log.error("Failed to send MAX message", ex);
             return false;
         }
+    }
+
+    public record MaxDialogUser(long userId, String avatarUrl, String fullAvatarUrl) {
+    }
+
+    public record DownloadedAvatar(byte[] bytes, String contentType, String filename) {
     }
 
     public record PollBatch(List<JsonNode> updates, String marker) {

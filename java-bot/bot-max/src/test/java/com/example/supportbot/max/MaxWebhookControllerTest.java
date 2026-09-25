@@ -49,6 +49,7 @@ class MaxWebhookControllerTest {
     private BotSettingsService botSettingsService;
     private BotIngressCoordinationService ingressCoordinationService;
     private BotWebhookDeliveryGuardService webhookDeliveryGuardService;
+    private MaxClientAvatarSyncService maxClientAvatarSyncService;
     private MaxWebhookController controller;
 
     @BeforeEach
@@ -67,6 +68,7 @@ class MaxWebhookControllerTest {
         botSettingsService = mock(BotSettingsService.class);
         ingressCoordinationService = mock(BotIngressCoordinationService.class);
         webhookDeliveryGuardService = mock(BotWebhookDeliveryGuardService.class);
+        maxClientAvatarSyncService = mock(MaxClientAvatarSyncService.class);
         BotSessionStoreService sessionStoreService = mock(BotSessionStoreService.class);
         RuntimeConfigService runtimeConfigService = mock(RuntimeConfigService.class);
 
@@ -85,6 +87,7 @@ class MaxWebhookControllerTest {
                 runtimeConfigService,
                 mock(AttachmentService.class),
                 mock(MaxApiClient.class),
+                maxClientAvatarSyncService,
                 objectMapper
         );
     }
@@ -143,6 +146,7 @@ class MaxWebhookControllerTest {
 
         ArgumentCaptor<ActiveInboundClientMessageCommand> command = ArgumentCaptor.forClass(ActiveInboundClientMessageCommand.class);
         verify(ticketService).recordActiveClientMessage(command.capture());
+        verify(maxClientAvatarSyncService).schedule(1001L, 2002L);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(command.getValue().text()).isEqualTo("Текст от другого пользователя");
         assertThat(command.getValue().forwardedFrom()).isEqualTo("Алексей (@alexey)");

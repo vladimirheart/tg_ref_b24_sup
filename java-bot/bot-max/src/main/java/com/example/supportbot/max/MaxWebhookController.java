@@ -78,6 +78,7 @@ public class MaxWebhookController {
     private final RuntimeConfigService runtimeConfigService;
     private final AttachmentService attachmentService;
     private final MaxApiClient maxApiClient;
+    private final MaxClientAvatarSyncService maxClientAvatarSyncService;
     private final ObjectMapper objectMapper;
 
     private static String defaultFirstResponseTimeoutMessage() {
@@ -103,6 +104,7 @@ public class MaxWebhookController {
                                 RuntimeConfigService runtimeConfigService,
                                 AttachmentService attachmentService,
                                 MaxApiClient maxApiClient,
+                                MaxClientAvatarSyncService maxClientAvatarSyncService,
                                 ObjectMapper objectMapper) {
         this.properties = properties;
         this.blacklistService = blacklistService;
@@ -118,6 +120,7 @@ public class MaxWebhookController {
         this.runtimeConfigService = runtimeConfigService;
         this.attachmentService = attachmentService;
         this.maxApiClient = maxApiClient;
+        this.maxClientAvatarSyncService = maxClientAvatarSyncService;
         this.objectMapper = objectMapper;
     }
 
@@ -192,6 +195,7 @@ public class MaxWebhookController {
                 return completeDelivery(claim, ResponseEntity.ok(Map.of("ok", true, "ignored", "missing-user-or-text")));
             }
 
+            maxClientAvatarSyncService.schedule(userId, chatId);
             Channel channel = getChannel();
             BlacklistService.ResolvedBlacklistStatus resolvedBlacklist = blacklistService.resolveStatus(
                     userId,

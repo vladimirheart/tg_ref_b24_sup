@@ -12,6 +12,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
@@ -24,6 +25,8 @@ import java.nio.file.StandardCopyOption;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -32,6 +35,7 @@ public class AttachmentService {
     private static final Logger log = LoggerFactory.getLogger(AttachmentService.class);
     private static final DateTimeFormatter DATE_PREFIX = DateTimeFormatter.ofPattern("yyyy/MM/dd");
     private static final HexFormat HEX = HexFormat.of();
+    private static final Set<String> AVATAR_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
 
     private final Path attachmentsRoot;
     private final ObjectStorageProperties objectStorageProperties;
@@ -65,7 +69,7 @@ public class AttachmentService {
             s3Client().putObject(
                     PutObjectRequest.builder()
                             .bucket(requiredBucket())
-                            .key(objectKey(storageKey))
+                            .key(objectKey("attachments", storageKey))
                             .build(),
                     RequestBody.fromFile(tempFile)
             );
@@ -92,7 +96,7 @@ public class AttachmentService {
         try (ResponseInputStream<GetObjectResponse> response = s3Client().getObject(
                 GetObjectRequest.builder()
                         .bucket(requiredBucket())
-                        .key(objectKey(normalized))
+                        .key(objectKey("attachments", normalized))
                         .build()
         )) {
             Files.copy(response, tempFile, StandardCopyOption.REPLACE_EXISTING);
@@ -105,6 +109,86 @@ public class AttachmentService {
             return;
         }
         Files.deleteIfExists(path);
+    }
+
+    public StoredAvatar storeClientAvatar(long userId,
+                                          boolean full,
+                                          String extension,
+                                          String contentType,
+                                          InputStream dataStream) throws IOException {
+        if (userId <= 0 || dataStream == null) {
+            throw new IllegalArgumentException("Invalid client avatar payload");
+        }
+        String normalizedExtension = normalizeAvatarExtension(extension);
+        String storedName = userId + (full ? "_full" : "") + normalizedExtension;
+        Path avatarsRoot = attachmentsRoot.resolve("avatars").normalize();
+        Path localPath = null;
+
+        if (!objectStorageProperties.isS3Mode()) {
+            Path target = avatarsRoot.resolve(storedName).normalize();
+            if (!target.startsWith(avatarsRoot)) {
+                throw new IllegalArgumentException("Invalid client avatar storage key");
+            }
+            Files.createDirectories(avatarsRoot);
+            try (InputStream in = dataStream) {
+                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+            localPath = target;
+        } else {
+            Path tempFile = Files.createTempFile("iguana-client-avatar-", normalizedExtension);
+            try (InputStream in = dataStream) {
+                Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
+                PutObjectRequest.Builder request = PutObjectRequest.builder()
+                        .bucket(requiredBucket())
+                        .key(objectKey("avatars", storedName));
+                if (StringUtils.hasText(contentType)) {
+                    request.contentType(contentType.trim());
+                }
+                s3Client().putObject(request.build(), RequestBody.fromFile(tempFile));
+            } finally {
+                Files.deleteIfExists(tempFile);
+            }
+        }
+
+        removeObsoleteClientAvatarVariants(userId, full, storedName, avatarsRoot);
+        log.info("Saved client avatar {} using {} storage", storedName, objectStorageProperties.isS3Mode() ? "s3" : "local_fs");
+        return new StoredAvatar(storedName, objectStorageProperties.isS3Mode() ? "s3" : "local_fs", localPath);
+    }
+
+    private String normalizeAvatarExtension(String extension) {
+        String normalized = extension == null ? "" : extension.trim().toLowerCase(Locale.ROOT);
+        if (!normalized.startsWith(".")) {
+            normalized = "." + normalized;
+        }
+        if (!AVATAR_EXTENSIONS.contains(normalized)) {
+            throw new IllegalArgumentException("Unsupported client avatar extension: " + extension);
+        }
+        return normalized;
+    }
+
+    private void removeObsoleteClientAvatarVariants(long userId, boolean full, String keepStoredName, Path avatarsRoot) {
+        String prefix = userId + (full ? "_full" : "");
+        for (String extension : AVATAR_EXTENSIONS) {
+            String candidate = prefix + extension;
+            if (candidate.equals(keepStoredName)) {
+                continue;
+            }
+            try {
+                if (!objectStorageProperties.isS3Mode()) {
+                    Path target = avatarsRoot.resolve(candidate).normalize();
+                    if (target.startsWith(avatarsRoot)) {
+                        Files.deleteIfExists(target);
+                    }
+                } else {
+                    s3Client().deleteObject(DeleteObjectRequest.builder()
+                            .bucket(requiredBucket())
+                            .key(objectKey("avatars", candidate))
+                            .build());
+                }
+            } catch (Exception ex) {
+                log.debug("Unable to remove obsolete client avatar variant {}: {}", candidate, ex.getMessage());
+            }
+        }
     }
 
     private String buildFileName(String extension) {
@@ -127,13 +211,14 @@ public class AttachmentService {
         return objectStorageProperties.getBucket().trim();
     }
 
-    private String objectKey(String storageKey) {
+    private String objectKey(String domain, String storageKey) {
         StringBuilder builder = new StringBuilder();
         if (StringUtils.hasText(objectStorageProperties.getKeyPrefix())) {
             builder.append(objectStorageProperties.getKeyPrefix().trim().replace('\\', '/').replaceAll("/+$", ""));
             builder.append('/');
         }
-        builder.append("attachments/");
+        builder.append(domain);
+        builder.append('/');
         builder.append(storageKey.trim().replace('\\', '/').replaceAll("^/+", ""));
         return builder.toString();
     }
@@ -170,5 +255,10 @@ public class AttachmentService {
     public record StoredAttachment(String storageKey,
                                    String storageProvider,
                                    Path localPath) {
+    }
+
+    public record StoredAvatar(String storedName,
+                               String storageProvider,
+                               Path localPath) {
     }
 }
