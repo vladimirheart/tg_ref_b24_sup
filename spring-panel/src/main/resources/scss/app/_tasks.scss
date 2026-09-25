@@ -801,3 +801,16 @@
 [data-ui-page='tasks'] .tasks-analytics-note ul { margin: 0.45rem 0 0; padding-left: 1.1rem; }
 @media (max-width: 991.98px) { [data-ui-page='tasks'] .tasks-analytics-filters, [data-ui-page='tasks'] .tasks-analytics-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 767.98px) { [data-ui-page='tasks'] .tasks-analytics-grid, [data-ui-page='tasks'] .tasks-analytics-filters, [data-ui-page='tasks'] .tasks-analytics-metrics { grid-template-columns: 1fr; } }
+
+/* 01-274 Phase D saved views/export/event contract R50 */
+[data-ui-page='tasks'] .tasks-analytics-saved-views { display: flex; align-items: center; gap: 0.45rem; }
+[data-ui-page='tasks'] .tasks-analytics-saved-views .form-select { width: min(360px, 42vw); }
+[data-ui-page='tasks'] .tasks-analytics-breakdown-row--hours { grid-template-columns: minmax(90px, 1fr) minmax(100px, 2fr) 72px minmax(100px, auto); }
+[data-ui-page='tasks'] .tasks-analytics-breakdown-row--hours small { color: var(--color-text-muted); font-size: 0.7rem; white-space: nowrap; }
+@media (max-width: 767.98px) {
+  [data-ui-page='tasks'] .tasks-analytics-saved-views { align-items: stretch; flex-direction: column; }
+  [data-ui-page='tasks'] .tasks-analytics-saved-views .form-select { width: 100%; }
+  [data-ui-page='tasks'] .tasks-analytics-saved-views .ms-auto { margin-left: 0 !important; }
+  [data-ui-page='tasks'] .tasks-analytics-breakdown-row--hours { grid-template-columns: minmax(80px, 1fr) minmax(80px, 1.5fr) 64px; }
+  [data-ui-page='tasks'] .tasks-analytics-breakdown-row--hours small { grid-column: 1 / -1; }
+}

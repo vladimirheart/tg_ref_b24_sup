@@ -145,6 +145,15 @@
 
     <section id="taskAnalyticsView" class="tasks-analytics-view" hidden>
       <div class="tasks-analytics-toolbar">
+        <div class="tasks-analytics-saved-views">
+          <label class="visually-hidden" for="taskAnalyticsSavedView">Сохранённое представление</label>
+          <select id="taskAnalyticsSavedView" class="form-select form-select-sm">
+            <option value="">Сохранённые представления</option>
+          </select>
+          <button id="taskAnalyticsSaveViewBtn" class="btn btn-sm btn-outline-secondary" type="button"><i class="bi bi-bookmark-plus" aria-hidden="true"></i><span>Сохранить</span></button>
+          <button id="taskAnalyticsDeleteViewBtn" class="btn btn-sm btn-outline-danger" type="button" disabled><i class="bi bi-trash" aria-hidden="true"></i><span>Удалить</span></button>
+          <button id="taskAnalyticsExportBtn" class="btn btn-sm btn-outline-secondary ms-auto" type="button"><i class="bi bi-download" aria-hidden="true"></i><span>CSV</span></button>
+        </div>
         <form id="taskAnalyticsFilters" class="tasks-analytics-filters">
           <div><label class="form-label" for="taskAnalyticsFrom">Период с</label><input id="taskAnalyticsFrom" name="from" type="date" class="form-control form-control-sm"></div>
           <div><label class="form-label" for="taskAnalyticsTo">по</label><input id="taskAnalyticsTo" name="to" type="date" class="form-control form-control-sm"></div>
@@ -165,6 +174,7 @@
         <section class="tasks-analytics-panel"><h6>По исполнителям</h6><div id="taskAnalyticsAssigneeBreakdown" class="tasks-analytics-breakdown"></div></section>
         <section class="tasks-analytics-panel"><h6>По источникам</h6><div id="taskAnalyticsSourceBreakdown" class="tasks-analytics-breakdown"></div></section>
         <section class="tasks-analytics-panel"><h6>События за период</h6><div id="taskAnalyticsEvents" class="tasks-analytics-breakdown"></div></section>
+        <section class="tasks-analytics-panel"><h6>Время в статусах</h6><div id="taskAnalyticsTimeInStatus" class="tasks-analytics-breakdown"></div></section>
       </div>
       <div class="tasks-analytics-note"><strong>Покрытие метрик</strong><ul id="taskAnalyticsNotes"></ul></div>
     </section>
@@ -251,7 +261,7 @@
   <script th:src="@{/js/sidebar.js}"></script>
   <script th:src="@{/js/tasks.js?v=20260925-01-274-kanban-ui-r38}"></script>
   <script th:src="@{/js/tasks-board.js?v=20260925-01-274-analytics-r45}"></script>
-  <script th:src="@{/js/tasks-analytics.js?v=20260925-01-274-analytics-r45}"></script>
+  <script th:src="@{/js/tasks-analytics.js?v=20260925-01-274-analytics-r50}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>
 </body>
 </html>

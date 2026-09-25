@@ -75,7 +75,16 @@ public class TaskDomainFoundationService {
         }
         String normalizedActor = clean(actor);
         if (isNew) {
-            appendEvent(task, null, "TASK_CREATED", normalizedActor, null, null, null, null);
+            appendEvent(
+                task,
+                null,
+                "TASK_CREATED",
+                normalizedActor,
+                "status",
+                null,
+                clean(task.getStatus()),
+                "{\"status_timeline\":\"v2\"}"
+            );
         } else if (before != null) {
             appendFieldChange(task, normalizedActor, "title", before.title(), task.getTitle());
             appendFieldChange(task, normalizedActor, "assignee", before.assignee(), task.getAssignee());

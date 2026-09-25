@@ -82,9 +82,12 @@ public class TaskAnalyticsService {
         long openTasks = 0L;
         long overdueOpen = 0L;
         long createdInPeriod = 0L;
+        long timelineEligibleTasks = 0L;
         Map<String, Long> statusBreakdown = new HashMap<>();
         Map<String, Long> assigneeBreakdown = new HashMap<>();
         Map<String, Long> sourceBreakdown = new HashMap<>();
+        Map<String, Double> timeInStatusHours = new HashMap<>();
+        Map<String, Long> timeInStatusIntervals = new HashMap<>();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         List<Double> leadHours = new ArrayList<>();
@@ -132,6 +135,17 @@ public class TaskAnalyticsService {
                     cycleHours.add(hoursBetween(firstStarted, firstCompleted));
                 }
             }
+
+            if (hasCompleteStatusTimeline(history)) {
+                timelineEligibleTasks++;
+                accumulateTimeInStatus(
+                    history,
+                    period,
+                    now,
+                    timeInStatusHours,
+                    timeInStatusIntervals
+                );
+            }
         }
 
         Map<String, Object> metrics = new LinkedHashMap<>();
@@ -146,6 +160,8 @@ public class TaskAnalyticsService {
         metrics.put("avg_cycle_hours", average(cycleHours));
         metrics.put("lead_samples", leadHours.size());
         metrics.put("cycle_samples", cycleHours.size());
+        metrics.put("time_in_status_eligible_tasks", timelineEligibleTasks);
+        metrics.put("time_in_status_total_tasks", tasks.size());
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("period", Map.of(
@@ -158,17 +174,45 @@ public class TaskAnalyticsService {
         response.put("assignee_breakdown", ranked(assigneeBreakdown));
         response.put("source_breakdown", ranked(sourceBreakdown));
         response.put("event_breakdown", ranked(eventBreakdown));
+        response.put("time_in_status_breakdown", rankedHours(timeInStatusHours, timeInStatusIntervals));
         response.put("notes", List.of(
             "Lead time считается от created_at до первого перехода в статус «Завершена».",
             "Cycle time считается от первого перехода в «В работе» до первого перехода в «Завершена».",
-            "Time-in-status не рассчитывается в этом slice: старые TASK_CREATED events не фиксировали начальный статус."
+            "Time-in-status считается только для задач с event-contract v2: TASK_CREATED содержит начальный status; старые неполные timelines исключаются из этой метрики."
         ));
         return response;
     }
 
+    public String exportCsv(String rawFrom,
+                            String rawTo,
+                            Long projectId,
+                            String tag,
+                            String status,
+                            String assignee,
+                            String source,
+                            String eventType) {
+        Period period = resolvePeriod(rawFrom, rawTo);
+        Filter filter = buildFilter(projectId, tag, status, assignee, source, eventType, period);
+        List<TaskRow> tasks = loadTasks(filter);
+        StringBuilder csv = new StringBuilder();
+        csv.append('\uFEFF');
+        csv.append("task_id,display_no,title,status,assignee,source,created_at,due_at\n");
+        for (TaskRow task : tasks) {
+            csv.append(csvCell(task.id())).append(',')
+                .append(csvCell(task.seq() != null ? "DL_" + task.seq() : "DL_" + task.id())).append(',')
+                .append(csvCell(task.title())).append(',')
+                .append(csvCell(task.status())).append(',')
+                .append(csvCell(task.assignee())).append(',')
+                .append(csvCell(task.source())).append(',')
+                .append(csvCell(task.createdAt())).append(',')
+                .append(csvCell(task.dueAt())).append('\n');
+        }
+        return csv.toString();
+    }
+
     private List<TaskRow> loadTasks(Filter filter) {
         String sql = """
-            SELECT t.id, t.status, t.assignee, t.source, t.created_at, t.due_at
+            SELECT t.id, t.seq, t.title, t.status, t.assignee, t.source, t.created_at, t.due_at
               FROM tasks t
              WHERE 1 = 1
             """ + filter.sql() + " ORDER BY t.id";
@@ -188,6 +232,8 @@ public class TaskAnalyticsService {
     private TaskRow mapTask(ResultSet rs, int rowNum) throws SQLException {
         return new TaskRow(
             rs.getLong("id"),
+            nullableLong(rs, "seq"),
+            rs.getString("title"),
             rs.getString("status"),
             rs.getString("assignee"),
             rs.getString("source"),
@@ -206,6 +252,11 @@ public class TaskAnalyticsService {
             rs.getString("new_value"),
             rs.getObject("occurred_at", OffsetDateTime.class)
         );
+    }
+
+    private Long nullableLong(ResultSet rs, String column) throws SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
     }
 
     private Filter buildFilter(Long projectId,
@@ -305,6 +356,66 @@ public class TaskAnalyticsService {
             .toList();
     }
 
+    private List<Map<String, Object>> rankedHours(Map<String, Double> totals,
+                                                   Map<String, Long> intervals) {
+        return totals.entrySet().stream()
+            .sorted(Map.Entry.<String, Double>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()))
+            .map(entry -> {
+                long samples = intervals.getOrDefault(entry.getKey(), 0L);
+                double total = roundHours(entry.getValue());
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("key", entry.getKey());
+                item.put("total_hours", total);
+                item.put("samples", samples);
+                item.put("avg_hours", samples > 0 ? roundHours(entry.getValue() / samples) : null);
+                return item;
+            })
+            .toList();
+    }
+
+    private boolean hasCompleteStatusTimeline(List<EventRow> history) {
+        return history.stream().anyMatch(this::isInitialStatusEvent);
+    }
+
+    private boolean isInitialStatusEvent(EventRow event) {
+        return "TASK_CREATED".equalsIgnoreCase(clean(event.eventType()))
+            && "status".equalsIgnoreCase(clean(event.fieldName()))
+            && clean(event.newValue()) != null
+            && event.occurredAt() != null;
+    }
+
+    private void accumulateTimeInStatus(List<EventRow> history,
+                                        Period period,
+                                        OffsetDateTime now,
+                                        Map<String, Double> totals,
+                                        Map<String, Long> intervals) {
+        List<StatusPoint> points = history.stream()
+            .filter(event -> isInitialStatusEvent(event) || isStatusChange(event))
+            .filter(event -> event.occurredAt() != null && clean(event.newValue()) != null)
+            .map(event -> new StatusPoint(event.occurredAt(), clean(event.newValue())))
+            .sorted(Comparator.comparing(StatusPoint::at))
+            .toList();
+        if (points.isEmpty()) {
+            return;
+        }
+        OffsetDateTime analysisEnd = now.isBefore(period.endExclusive()) ? now : period.endExclusive();
+        for (int index = 0; index < points.size(); index++) {
+            StatusPoint current = points.get(index);
+            OffsetDateTime rawEnd = index + 1 < points.size() ? points.get(index + 1).at() : analysisEnd;
+            if (rawEnd.isAfter(analysisEnd)) {
+                rawEnd = analysisEnd;
+            }
+            OffsetDateTime start = current.at().isAfter(period.start()) ? current.at() : period.start();
+            OffsetDateTime end = rawEnd.isBefore(period.endExclusive()) ? rawEnd : period.endExclusive();
+            if (!end.isAfter(start)) {
+                continue;
+            }
+            String status = label(current.status(), "Без статуса");
+            totals.merge(status, hoursBetween(start, end), Double::sum);
+            intervals.merge(status, 1L, Long::sum);
+        }
+    }
+
     private boolean inPeriod(OffsetDateTime value, Period period) {
         return value != null && !value.isBefore(period.start()) && value.isBefore(period.endExclusive());
     }
@@ -335,7 +446,21 @@ public class TaskAnalyticsService {
             return null;
         }
         double sum = values.stream().mapToDouble(Double::doubleValue).sum();
-        return Math.round((sum / values.size()) * 10.0d) / 10.0d;
+        return roundHours(sum / values.size());
+    }
+
+    private double roundHours(double value) {
+        return Math.round(value * 10.0d) / 10.0d;
+    }
+
+    private String csvCell(Object value) {
+        if (value == null) {
+            return "";
+        }
+        String text = String.valueOf(value);
+        boolean quote = text.indexOf(',') >= 0 || text.indexOf('"') >= 0 || text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0;
+        String escaped = text.replace("\"", "\"\"");
+        return quote ? "\"" + escaped + "\"" : escaped;
     }
 
     private String clean(String value) {
@@ -360,6 +485,8 @@ public class TaskAnalyticsService {
     }
 
     private record TaskRow(Long id,
+                           Long seq,
+                           String title,
                            String status,
                            String assignee,
                            String source,
@@ -374,5 +501,8 @@ public class TaskAnalyticsService {
                             String oldValue,
                             String newValue,
                             OffsetDateTime occurredAt) {
+    }
+
+    private record StatusPoint(OffsetDateTime at, String status) {
     }
 }

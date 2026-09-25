@@ -301,6 +301,9 @@ public class PostgresRuntimeReadinessVerifier implements ApplicationListener<App
         jdbcTemplate.queryForList(
             "SELECT board_id, column_id, task_id, position, updated_by FROM board_task_placements WHERE 1 = 0"
         );
+        jdbcTemplate.queryForList(
+            "SELECT id, owner_identity, name, filters_json, updated_at FROM task_analytics_views WHERE 1 = 0"
+        );
     }
 
     private RuntimeCounts loadRuntimeCounts() {
