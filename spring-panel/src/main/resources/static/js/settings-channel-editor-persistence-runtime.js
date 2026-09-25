@@ -10,6 +10,7 @@
       channelEditorQuestionSelect: document.getElementById('channelEditorQuestionTemplate'),
       channelEditorRatingSelect: document.getElementById('channelEditorRatingTemplate'),
       channelEditorAutoSelect: document.getElementById('channelEditorAutoTemplate'),
+      channelEditorAutoCloseFollowUpProjectInput: document.getElementById('channelEditorAutoCloseFollowUpProject'),
       channelEditorSupportChatInput: document.getElementById('channelEditorSupportChatId'),
       channelEditorBroadcastChannelInput: document.getElementById('channelEditorBroadcastChannelId'),
       channelEditorPanelNotifTargetModeInput: document.getElementById('channelEditorPanelNotifTargetMode'),
@@ -180,6 +181,10 @@
         schedule_simultaneous: elements.channelEditorScheduleSimultaneousInput?.checked ?? false,
         network_route: channelRoute,
         working_hours: workingHours,
+        auto_close_follow_up_project_id: (() => {
+          const value = Number.parseInt(elements.channelEditorAutoCloseFollowUpProjectInput?.value || '', 10);
+          return Number.isSafeInteger(value) && value > 0 ? value : null;
+        })(),
       };
 
       const currentPlatform = String(currentChannel?.platform || '').toLowerCase();

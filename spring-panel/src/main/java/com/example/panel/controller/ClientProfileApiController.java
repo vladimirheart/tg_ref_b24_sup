@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -275,6 +276,9 @@ public class ClientProfileApiController {
             if (updated) {
                 updatedChannels.add(payload);
             } else if (info != null) {
+                if (isMaxPlatform(channel.platform())) {
+                    payload.put("reason", "аватар синхронизируется по входящему сообщению MAX");
+                }
                 unchangedChannels.add(payload);
             } else {
                 missingChannels.add(channelToPayload(channel, "Нет данных в источнике"));
@@ -495,9 +499,15 @@ public class ClientProfileApiController {
         List<String> labels = new ArrayList<>();
         for (Map<String, Object> channel : channels) {
             String platform = channel.get("platform") != null ? channel.get("platform").toString() : "";
-            String platformLabel = "vk".equalsIgnoreCase(platform) ? "VK" : "Telegram";
+            String platformLabel = switch (platform.toLowerCase(Locale.ROOT)) {
+                case "vk" -> "VK";
+                case "max" -> "MAX";
+                default -> "Telegram";
+            };
             String channelName = channel.get("channel_name") != null ? channel.get("channel_name").toString() : "";
-            labels.add(StringUtils.hasText(channelName) ? platformLabel + " (" + channelName + ")" : platformLabel);
+            String label = StringUtils.hasText(channelName) ? platformLabel + " (" + channelName + ")" : platformLabel;
+            String reason = channel.get("reason") != null ? channel.get("reason").toString() : "";
+            labels.add(StringUtils.hasText(reason) ? label + " — " + reason : label);
         }
         return String.join(", ", labels);
     }
@@ -659,6 +669,10 @@ public class ClientProfileApiController {
 
     private boolean isTelegramPlatform(String platform) {
         return platform == null || platform.isBlank() || platform.equalsIgnoreCase("telegram");
+    }
+
+    private boolean isMaxPlatform(String platform) {
+        return platform != null && platform.equalsIgnoreCase("max");
     }
 
     private record TelegramProfilePhoto(byte[] thumbBytes, byte[] fullBytes) {

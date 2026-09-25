@@ -12,6 +12,7 @@
       channelEditorQuestionSelect: document.getElementById('channelEditorQuestionTemplate'),
       channelEditorRatingSelect: document.getElementById('channelEditorRatingTemplate'),
       channelEditorAutoSelect: document.getElementById('channelEditorAutoTemplate'),
+      channelEditorAutoCloseFollowUpProjectInput: document.getElementById('channelEditorAutoCloseFollowUpProject'),
       channelEditorSupportChatInput: document.getElementById('channelEditorSupportChatId'),
       channelEditorBroadcastChannelInput: document.getElementById('channelEditorBroadcastChannelId'),
       channelEditorPanelNotifFirstResponseOverdueInput: document.getElementById('channelEditorPanelNotifFirstResponseOverdue'),
@@ -438,6 +439,12 @@
       const supportChatValue = channel.support_chat_id ?? '';
       const deliverySettings = parseDeliverySettings(channel.delivery_settings);
       const workingHours = normalizeChannelWorkingHours(deliverySettings.working_hours);
+      if (elements.channelEditorAutoCloseFollowUpProjectInput) {
+        const projectId = Number.parseInt(deliverySettings.auto_close_follow_up_project_id, 10);
+        elements.channelEditorAutoCloseFollowUpProjectInput.value = Number.isSafeInteger(projectId) && projectId > 0
+          ? String(projectId)
+          : '';
+      }
       const panelNotifications = channel.questions_cfg?.panelNotifications || defaultChannelPanelNotifications();
       const assignmentRouting = channel.questions_cfg?.assignmentRouting || defaultChannelAssignmentRouting();
       const panelRouting = panelNotifications.routing || defaultChannelPanelNotifications().routing;

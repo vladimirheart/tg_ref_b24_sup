@@ -122,14 +122,14 @@ public class DialogAutoCloseSchedulerService {
             if (lastActivity == null || !lastActivity.isBefore(now.minus(selection.duration()))) {
                 continue;
             }
-            if (closeTicket(ticket, active, now, settings)) {
+            if (closeTicket(ticket, active, now)) {
                 closed++;
             }
         }
         return new AutoCloseRunResult(checked, closed);
     }
 
-    private boolean closeTicket(Ticket ticket, TicketActive active, OffsetDateTime now, Map<String, Object> settings) {
+    private boolean closeTicket(Ticket ticket, TicketActive active, OffsetDateTime now) {
         ticket.setStatus("closed");
         ticket.setResolvedAt(now);
         ticket.setResolvedBy(AUTO_CLOSE_RESOLVED_BY);
@@ -155,7 +155,7 @@ public class DialogAutoCloseSchedulerService {
             AUTO_CLOSE_TEXT,
             true);
         ensurePendingFeedbackRequest(ticket.getTicketId(), AUTO_CLOSE_RESOLVED_BY, now);
-        dialogAutoCloseFollowUpTaskService.createTaskForAutoClosedDialog(ticket.getTicketId(), settings);
+        dialogAutoCloseFollowUpTaskService.createTaskForAutoClosedDialog(ticket.getTicketId(), ticket.getChannel());
         return true;
     }
 

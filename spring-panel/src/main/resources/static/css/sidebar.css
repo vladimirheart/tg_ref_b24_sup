@@ -145,8 +145,8 @@ body.with-sidebar.sidebar-hovering {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px;
+  gap: 6px;
+  padding: 0 10px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--surface-card);
@@ -789,10 +789,14 @@ body.with-sidebar.sidebar-hovering {
 }
 
 /* Sidebar account calm refinement — 01-259 r4.2 */
+/* 01-275 S4 acceptance: remove the redundant outer account frame. */
 .sidebar-footer {
-  gap: 6px;
-  padding: 8px;
-  border-radius: var(--radius-lg);
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sidebar-footer-main {
@@ -805,19 +809,19 @@ body.with-sidebar.sidebar-hovering {
 }
 
 .sidebar-user-card {
-  gap: 8px;
-  min-height: 44px;
-  padding: 5px 6px;
+  gap: 7px;
+  min-height: 40px;
+  padding: 3px 4px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: transparent;
   box-shadow: none;
 }
 
 .sidebar-user-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
   box-shadow: none;
 }
 

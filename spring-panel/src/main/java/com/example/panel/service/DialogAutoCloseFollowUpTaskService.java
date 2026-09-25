@@ -1,16 +1,18 @@
 package com.example.panel.service;
 
+import com.example.panel.entity.Channel;
 import com.example.panel.entity.Message;
 import com.example.panel.entity.Project;
 import com.example.panel.entity.TicketResponsible;
 import com.example.panel.repository.MessageRepository;
 import com.example.panel.repository.ProjectRepository;
 import com.example.panel.repository.TicketResponsibleRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -38,7 +40,7 @@ public class DialogAutoCloseFollowUpTaskService {
     private final TicketResponsibleRepository ticketResponsibleRepository;
     private final MessageRepository messageRepository;
     private final ProjectRepository projectRepository;
-    private final AutoCloseConfigNormalizer autoCloseConfigNormalizer;
+    private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
     private final TransactionOperations isolatedTransactionOperations;
 
@@ -46,30 +48,28 @@ public class DialogAutoCloseFollowUpTaskService {
                                               TicketResponsibleRepository ticketResponsibleRepository,
                                               MessageRepository messageRepository,
                                               ProjectRepository projectRepository,
-                                              AutoCloseConfigNormalizer autoCloseConfigNormalizer,
+                                              ObjectMapper objectMapper,
                                               JdbcTemplate jdbcTemplate,
                                               PlatformTransactionManager transactionManager) {
         this.panelTaskService = panelTaskService;
         this.ticketResponsibleRepository = ticketResponsibleRepository;
         this.messageRepository = messageRepository;
         this.projectRepository = projectRepository;
-        this.autoCloseConfigNormalizer = autoCloseConfigNormalizer;
+        this.objectMapper = objectMapper;
         this.jdbcTemplate = jdbcTemplate;
         this.isolatedTransactionOperations = buildRequiresNewTransactionOperations(transactionManager);
     }
 
     public void createTaskForAutoClosedDialog(String ticketId) {
-        createTaskForAutoClosedDialog(ticketId, Map.of());
+        createTaskForAutoClosedDialog(ticketId, null);
     }
 
-    public void createTaskForAutoClosedDialog(String ticketId, Map<String, Object> settings) {
+    public void createTaskForAutoClosedDialog(String ticketId, Channel channel) {
         String normalizedTicketId = trimToNull(ticketId);
         if (normalizedTicketId == null) {
             return;
         }
-        Long configuredProjectId = autoCloseConfigNormalizer.resolveFollowUpProjectId(
-            settings != null ? settings.get("auto_close_config") : null
-        );
+        Long configuredProjectId = resolveFollowUpProjectId(channel);
         try {
             isolatedTransactionOperations.execute(status -> {
                 createTaskTransactional(normalizedTicketId, configuredProjectId);
@@ -106,6 +106,32 @@ public class DialogAutoCloseFollowUpTaskService {
             List.of(ticketId),
             payloadProjectIds
         ));
+    }
+
+    private Long resolveFollowUpProjectId(Channel channel) {
+        if (channel == null || !StringUtils.hasText(channel.getDeliverySettings())) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(channel.getDeliverySettings());
+            JsonNode raw = root.path("auto_close_follow_up_project_id");
+            if (raw.isMissingNode() || raw.isNull()) {
+                raw = root.path("autoCloseFollowUpProjectId");
+            }
+            if (raw.isIntegralNumber()) {
+                long value = raw.longValue();
+                return value > 0L ? value : null;
+            }
+            String text = raw.asText("").trim();
+            if (!text.isEmpty()) {
+                long value = Long.parseLong(text);
+                return value > 0L ? value : null;
+            }
+        } catch (Exception ex) {
+            log.warn("Unable to read auto-close follow-up project from channel {} delivery settings; creating task without project: {}",
+                channel.getId(), ex.getMessage());
+        }
+        return null;
     }
 
     private List<Long> resolveConfiguredProjectIds(Long configuredProjectId) {

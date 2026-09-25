@@ -8,12 +8,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.panel.entity.Channel;
 import com.example.panel.entity.Message;
 import com.example.panel.entity.Project;
 import com.example.panel.entity.TicketResponsible;
 import com.example.panel.repository.MessageRepository;
 import com.example.panel.repository.ProjectRepository;
 import com.example.panel.repository.TicketResponsibleRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -62,18 +64,15 @@ class DialogAutoCloseFollowUpTaskServiceTest {
             responsibleRepository,
             messageRepository,
             projectRepository,
-            new AutoCloseConfigNormalizer(),
+            new ObjectMapper(),
             jdbcTemplate,
             transactionManager()
         );
 
-        service.createTaskForAutoClosedDialog("T-100", java.util.Map.of(
-            "auto_close_config", java.util.Map.of(
-                "templates", List.of(java.util.Map.of("id", "default", "hours", 24)),
-                "active_template_id", "default",
-                "follow_up_project_id", 42L
-            )
-        ));
+        Channel channel = new Channel();
+        channel.setId(7L);
+        channel.setDeliverySettings("{\"auto_close_follow_up_project_id\":42}");
+        service.createTaskForAutoClosedDialog("T-100", channel);
 
         ArgumentCaptor<PanelTaskService.TaskPayload> payloadCaptor = ArgumentCaptor.forClass(PanelTaskService.TaskPayload.class);
         verify(panelTaskService).createTask(payloadCaptor.capture());
@@ -110,7 +109,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
             responsibleRepository,
             messageRepository,
             projectRepository,
-            new AutoCloseConfigNormalizer(),
+            new ObjectMapper(),
             jdbcTemplate,
             transactionManager()
         );

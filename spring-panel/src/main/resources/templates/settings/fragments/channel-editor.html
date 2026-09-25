@@ -91,6 +91,14 @@
                         <select class="form-select" id="channelEditorAutoTemplate"></select>
                         <div class="form-text small" data-channel-editor-keep-visible data-channel-editor-summary="auto_action_template_id">—</div>
                       </div>
+                      <div class="col-12">
+                        <label class="form-label" for="channelEditorAutoCloseFollowUpProject">Проект follow-up задач после автозакрытия</label>
+                        <select class="form-select" id="channelEditorAutoCloseFollowUpProject">
+                          <option value="">Без проекта</option>
+                          <option th:each="project : ${autoCloseProjectOptions}" th:value="${project.id}" th:text="${project.name}"></option>
+                        </select>
+                        <div class="form-text small">Настройка относится только к этому боту. Ответственный диалога остаётся исполнителем, приглашённые участники — соисполнителями.</div>
+                      </div>
                     </div>
                   </section>
                 </div>
