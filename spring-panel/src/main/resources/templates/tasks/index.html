@@ -38,7 +38,7 @@
       <nav class="work-management-tabs" aria-label="Раздел задач">
         <button class="work-management-tab active" type="button" data-task-view="list" aria-pressed="true">Список</button>
         <button class="work-management-tab" type="button" data-task-view="board" aria-pressed="false">Доска</button>
-        <span class="work-management-tab is-upcoming" title="Будет добавлено в Analytics phase">Аналитика</span>
+        <button class="work-management-tab" type="button" data-task-view="analytics" aria-pressed="false">Аналитика</button>
       </nav>
 
       <div id="taskListControls" class="tasks-scope-row ops-list-toolbar">
@@ -143,6 +143,32 @@
       <div id="taskKanban" class="tasks-kanban" aria-live="polite"></div>
     </section>
 
+    <section id="taskAnalyticsView" class="tasks-analytics-view" hidden>
+      <div class="tasks-analytics-toolbar">
+        <form id="taskAnalyticsFilters" class="tasks-analytics-filters">
+          <div><label class="form-label" for="taskAnalyticsFrom">Период с</label><input id="taskAnalyticsFrom" name="from" type="date" class="form-control form-control-sm"></div>
+          <div><label class="form-label" for="taskAnalyticsTo">по</label><input id="taskAnalyticsTo" name="to" type="date" class="form-control form-control-sm"></div>
+          <div><label class="form-label" for="taskAnalyticsProject">Проект</label><select id="taskAnalyticsProject" name="project_id" class="form-select form-select-sm"><option value="">Все проекты</option></select></div>
+          <div><label class="form-label" for="taskAnalyticsAssignee">Исполнитель</label><input id="taskAnalyticsAssignee" name="assignee" class="form-control form-control-sm" list="usersList"></div>
+          <div><label class="form-label" for="taskAnalyticsStatus">Статус</label><select id="taskAnalyticsStatus" name="status" class="form-select form-select-sm"><option value="">Любой</option><option>Новая</option><option>В работе</option><option>Ожидание</option><option>Завершена</option><option>Отменена</option></select></div>
+          <div><label class="form-label" for="taskAnalyticsTag">Тег</label><input id="taskAnalyticsTag" name="tag" class="form-control form-control-sm" placeholder="backend"></div>
+          <div><label class="form-label" for="taskAnalyticsSource">Источник</label><input id="taskAnalyticsSource" name="source" class="form-control form-control-sm" placeholder="manual"></div>
+          <div><label class="form-label" for="taskAnalyticsEventType">Событие</label><select id="taskAnalyticsEventType" name="event_type" class="form-select form-select-sm"><option value="">Любое</option><option>TASK_CREATED</option><option>FIELD_CHANGED</option><option>COMMENT_ADDED</option><option>TAG_ADDED</option><option>TAG_REMOVED</option><option>PROJECT_ADDED</option><option>PROJECT_REMOVED</option><option>BOARD_CARD_MOVED</option></select></div>
+          <div class="tasks-analytics-filter-actions"><button class="btn btn-sm btn-primary" type="submit">Применить</button><button id="taskAnalyticsResetBtn" class="btn btn-sm btn-outline-secondary" type="button">Сбросить</button></div>
+        </form>
+        <div id="taskAnalyticsSummary" class="tasks-analytics-summary">Загрузка…</div>
+      </div>
+      <div id="taskAnalyticsAlert" class="alert alert-danger d-none" role="alert"></div>
+      <div id="taskAnalyticsMetrics" class="tasks-analytics-metrics"></div>
+      <div class="tasks-analytics-grid">
+        <section class="tasks-analytics-panel"><h6>По статусам</h6><div id="taskAnalyticsStatusBreakdown" class="tasks-analytics-breakdown"></div></section>
+        <section class="tasks-analytics-panel"><h6>По исполнителям</h6><div id="taskAnalyticsAssigneeBreakdown" class="tasks-analytics-breakdown"></div></section>
+        <section class="tasks-analytics-panel"><h6>По источникам</h6><div id="taskAnalyticsSourceBreakdown" class="tasks-analytics-breakdown"></div></section>
+        <section class="tasks-analytics-panel"><h6>События за период</h6><div id="taskAnalyticsEvents" class="tasks-analytics-breakdown"></div></section>
+      </div>
+      <div class="tasks-analytics-note"><strong>Покрытие метрик</strong><ul id="taskAnalyticsNotes"></ul></div>
+    </section>
+
     <div class="modal fade task-side-sheet" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content tasks-modal-content">
@@ -224,7 +250,8 @@
   <script th:src="@{/js/modal-helpers.js}"></script>
   <script th:src="@{/js/sidebar.js}"></script>
   <script th:src="@{/js/tasks.js?v=20260925-01-274-kanban-ui-r38}"></script>
-  <script th:src="@{/js/tasks-board.js?v=20260925-01-274-kanban-ui-r38}"></script>
+  <script th:src="@{/js/tasks-board.js?v=20260925-01-274-analytics-r45}"></script>
+  <script th:src="@{/js/tasks-analytics.js?v=20260925-01-274-analytics-r45}"></script>
   <script th:src="@{/js/modal-transitions.js}"></script>
 </body>
 </html>

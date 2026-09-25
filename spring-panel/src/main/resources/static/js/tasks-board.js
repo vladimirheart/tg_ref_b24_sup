@@ -1,5 +1,6 @@
 (function () {
   const boardView = document.getElementById('taskBoardView');
+  const analyticsView = document.getElementById('taskAnalyticsView');
   const listView = document.getElementById('taskListView');
   const listControls = document.getElementById('taskListControls');
   const filtersBtn = document.getElementById('filtersBtn');
@@ -11,7 +12,7 @@
   const boardAlert = document.getElementById('taskBoardAlert');
   const addColumnBtn = document.getElementById('taskBoardAddColumnBtn');
   const listProjectScope = document.getElementById('taskProjectScope');
-  if (!boardView || !listView || !scopeSelect || !kanban) return;
+  if (!boardView || !analyticsView || !listView || !scopeSelect || !kanban) return;
 
   const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
   const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-XSRF-TOKEN';
@@ -96,7 +97,7 @@
 
   function updateUrl() {
     const url = new URL(window.location.href);
-    if (state.view === 'board') url.searchParams.set('view', 'board');
+    if (state.view === 'board' || state.view === 'analytics') url.searchParams.set('view', state.view);
     else url.searchParams.delete('view');
     const scope = boardScope();
     if (state.view === 'board' && scope.type === 'project') url.searchParams.set('project', scope.projectId);
@@ -105,12 +106,14 @@
   }
 
   function setView(view, load = true) {
-    state.view = view === 'board' ? 'board' : 'list';
+    state.view = ['board', 'analytics'].includes(view) ? view : 'list';
     const boardActive = state.view === 'board';
-    listView.hidden = boardActive;
+    const analyticsActive = state.view === 'analytics';
+    listView.hidden = boardActive || analyticsActive;
     boardView.hidden = !boardActive;
-    if (listControls) listControls.hidden = boardActive;
-    if (filtersBtn) filtersBtn.hidden = boardActive;
+    analyticsView.hidden = !analyticsActive;
+    if (listControls) listControls.hidden = boardActive || analyticsActive;
+    if (filtersBtn) filtersBtn.hidden = boardActive || analyticsActive;
     viewButtons.forEach(button => {
       const active = button.dataset.taskView === state.view;
       button.classList.toggle('active', active);
@@ -118,6 +121,7 @@
     });
     updateUrl();
     if (boardActive && load) loadBoard();
+    if (analyticsActive && load) window.dispatchEvent(new CustomEvent('tasks:analytics-activate'));
   }
 
   function populateScopes() {
@@ -329,7 +333,7 @@
     .then(loadProjects)
     .then(() => {
       const requestedView = new URLSearchParams(window.location.search).get('view');
-      setView(requestedView === 'board' ? 'board' : 'list');
+      setView(requestedView === 'board' ? 'board' : (requestedView === 'analytics' ? 'analytics' : 'list'));
     })
     .catch(showError);
 

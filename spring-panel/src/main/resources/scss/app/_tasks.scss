@@ -775,3 +775,29 @@
   [data-ui-page='tasks'] .tasks-board-scope { min-width: 0; }
   [data-ui-page='tasks'] .tasks-kanban-column { width: min(88vw, 310px); min-width: min(88vw, 310px); }
 }
+
+/* 01-274 Phase D analytics read model R45 */
+[data-ui-page='tasks'] .tasks-analytics-view { min-width: 0; }
+[data-ui-page='tasks'] .tasks-analytics-toolbar { display: grid; gap: 0.7rem; margin-bottom: 0.85rem; padding: 0.8rem; border: 1px solid var(--color-border); border-radius: var(--radius-xl); background: var(--surface-card); }
+[data-ui-page='tasks'] .tasks-analytics-filters { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 0.65rem; align-items: end; }
+[data-ui-page='tasks'] .tasks-analytics-filters .form-label { margin-bottom: 0.25rem; color: var(--color-text-muted); font-size: 0.76rem; font-weight: 700; }
+[data-ui-page='tasks'] .tasks-analytics-filter-actions { display: flex; gap: 0.4rem; align-items: center; }
+[data-ui-page='tasks'] .tasks-analytics-summary { color: var(--color-text-muted); font-size: var(--font-size-sm); }
+[data-ui-page='tasks'] .tasks-analytics-metrics { display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr)); gap: 0.7rem; margin-bottom: 0.85rem; }
+[data-ui-page='tasks'] .tasks-analytics-metric { display: grid; gap: 0.18rem; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-xl); background: var(--surface-card); }
+[data-ui-page='tasks'] .tasks-analytics-metric span, [data-ui-page='tasks'] .tasks-analytics-metric small { color: var(--color-text-muted); font-size: 0.74rem; }
+[data-ui-page='tasks'] .tasks-analytics-metric strong { color: var(--color-text); font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+[data-ui-page='tasks'] .tasks-analytics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+[data-ui-page='tasks'] .tasks-analytics-panel, [data-ui-page='tasks'] .tasks-analytics-note { padding: 0.8rem; border: 1px solid var(--color-border); border-radius: var(--radius-xl); background: var(--surface-card); }
+[data-ui-page='tasks'] .tasks-analytics-panel h6 { margin-bottom: 0.7rem; }
+[data-ui-page='tasks'] .tasks-analytics-breakdown { display: grid; gap: 0.45rem; }
+[data-ui-page='tasks'] .tasks-analytics-breakdown-row { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(100px, 2fr) 48px; gap: 0.55rem; align-items: center; font-size: 0.78rem; }
+[data-ui-page='tasks'] .tasks-analytics-breakdown-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-ui-page='tasks'] .tasks-analytics-breakdown-row > div { height: 7px; overflow: hidden; border-radius: var(--radius-pill); background: var(--surface-raised); }
+[data-ui-page='tasks'] .tasks-analytics-breakdown-row i { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
+[data-ui-page='tasks'] .tasks-analytics-breakdown-row strong { text-align: right; font-variant-numeric: tabular-nums; }
+[data-ui-page='tasks'] .tasks-analytics-empty { padding: 0.7rem 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
+[data-ui-page='tasks'] .tasks-analytics-note { margin-top: 0.75rem; color: var(--color-text-muted); font-size: 0.78rem; }
+[data-ui-page='tasks'] .tasks-analytics-note ul { margin: 0.45rem 0 0; padding-left: 1.1rem; }
+@media (max-width: 991.98px) { [data-ui-page='tasks'] .tasks-analytics-filters, [data-ui-page='tasks'] .tasks-analytics-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 767.98px) { [data-ui-page='tasks'] .tasks-analytics-grid, [data-ui-page='tasks'] .tasks-analytics-filters, [data-ui-page='tasks'] .tasks-analytics-metrics { grid-template-columns: 1fr; } }
