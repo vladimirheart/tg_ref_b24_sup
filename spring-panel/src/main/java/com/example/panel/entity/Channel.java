@@ -1,8 +1,6 @@
 package com.example.panel.entity;
 
 import jakarta.persistence.Column;
-import com.example.panel.converter.LenientOffsetDateTimeConverter;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -38,10 +36,10 @@ public class Channel {
     @Column(name = "is_active")
     private Boolean active;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
+    @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
-    @Convert(converter = LenientOffsetDateTimeConverter.class)
+    @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
     private String botUsername;
