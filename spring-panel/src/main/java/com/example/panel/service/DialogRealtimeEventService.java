@@ -59,10 +59,7 @@ public class DialogRealtimeEventService {
                 );
             }
         }
-        String channelLabel = channel != null && StringUtils.hasText(channel.getChannelName())
-                ? channel.getChannelName().trim()
-                : "Канал";
-        String text = "Новое обращение (" + channelLabel + "): " + trimPreview(previewText);
+        String text = notificationService.formatNewAppealText(normalizedTicketId);
         String url = notificationService.buildDialogUrl(normalizedTicketId);
         Set<String> routedRecipients = channel != null
                 ? alertQueueService.notifyQueueForNewPublicAppealRecipients(channel, normalizedTicketId, previewText)
@@ -80,19 +77,30 @@ public class DialogRealtimeEventService {
                                             String message,
                                             String messageType,
                                             String attachment) {
+        handleIncomingClientMessage(ticketId, channelId, message, messageType, attachment, true);
+    }
+
+    public void handleIncomingClientMessage(String ticketId,
+                                            Long channelId,
+                                            String message,
+                                            String messageType,
+                                            String attachment,
+                                            boolean notifyBell) {
         String normalizedTicketId = trimToNull(ticketId);
         if (normalizedTicketId == null) {
             return;
         }
         Channel channel = resolveChannel(channelId);
-        boolean handledByQueue = channel != null
-                && alertQueueService.notifyIncomingClientMessage(channel, normalizedTicketId, message);
-        if (!handledByQueue) {
-            String text = "Новое сообщение в обращении " + normalizedTicketId;
-            if (StringUtils.hasText(message)) {
-                text += ": " + trimPreview(message);
+        if (notifyBell) {
+            boolean handledByQueue = channel != null
+                    && alertQueueService.notifyIncomingClientMessage(channel, normalizedTicketId, message);
+            if (!handledByQueue) {
+                notificationService.notifyAllOperators(
+                        notificationService.formatIncomingClientMessageText(normalizedTicketId),
+                        notificationService.buildDialogUrl(normalizedTicketId),
+                        null
+                );
             }
-            notificationService.notifyAllOperators(text, notificationService.buildDialogUrl(normalizedTicketId), null);
         }
         uiEventStreamService.publishDialogsChanged("incoming_client_message", normalizedTicketId);
         uiEventStreamService.publishDialogHistoryChanged(normalizedTicketId, channelId, "incoming_client_message");
@@ -137,9 +145,7 @@ public class DialogRealtimeEventService {
             return;
         }
         Channel channel = resolveChannel(channelId);
-        String message = StringUtils.hasText(text)
-                ? text.trim()
-                : "Диалог " + normalizedTicketId + " автоматически закрыт из-за отсутствия активности.";
+        String message = notificationService.formatAutoCloseText(normalizedTicketId);
         Set<String> recipients = notificationService.findDialogRecipients(normalizedTicketId);
         if (recipients.isEmpty()) {
             notificationService.notifyAllOperators(message, notificationService.buildDialogUrl(normalizedTicketId), null);

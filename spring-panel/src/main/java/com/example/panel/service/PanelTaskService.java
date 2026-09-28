@@ -61,6 +61,11 @@ public class PanelTaskService {
 
     @Transactional
     public Task createTask(TaskPayload payload) {
+        return createTask(payload, true);
+    }
+
+    @Transactional
+    public Task createTask(TaskPayload payload, boolean notifyParticipants) {
         OffsetDateTime now = OffsetDateTime.now();
 
         Task task = new Task();
@@ -80,8 +85,10 @@ public class PanelTaskService {
         savePeople(task, "watcher", payload.watchers());
         appendHistory(task, "Задача создана");
         linkTickets(task, payload.ticketIds());
-        notifyParticipants(task, payload.coExecutors(), payload.watchers(),
-            "Новая задача «" + displayTitle(task) + "»", "/tasks", now);
+        if (notifyParticipants) {
+            notifyParticipants(task, payload.coExecutors(), payload.watchers(),
+                "Новая задача «" + displayTitle(task) + "»", "/tasks", now);
+        }
         return task;
     }
 

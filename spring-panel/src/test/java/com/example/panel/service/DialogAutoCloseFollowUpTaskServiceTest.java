@@ -75,7 +75,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         service.createTaskForAutoClosedDialog("T-100", channel);
 
         ArgumentCaptor<PanelTaskService.TaskPayload> payloadCaptor = ArgumentCaptor.forClass(PanelTaskService.TaskPayload.class);
-        verify(panelTaskService).createTask(payloadCaptor.capture());
+        verify(panelTaskService).createTask(payloadCaptor.capture(), eq(false));
         PanelTaskService.TaskPayload payload = payloadCaptor.getValue();
 
         assertThat(payload.assignee()).isEqualTo("owner");

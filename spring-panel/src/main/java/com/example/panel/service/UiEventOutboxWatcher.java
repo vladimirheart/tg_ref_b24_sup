@@ -66,6 +66,7 @@ public class UiEventOutboxWatcher {
                     }
                     try {
                         handleEvent(
+                                id,
                                 rs.getString("event_type"),
                                 rs.getString("ticket_id"),
                                 rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
@@ -104,7 +105,8 @@ public class UiEventOutboxWatcher {
         });
     }
 
-    private void handleEvent(String eventType,
+    private void handleEvent(long eventId,
+                             String eventType,
                              String ticketId,
                              Long channelId,
                              String messageText,
@@ -114,7 +116,17 @@ public class UiEventOutboxWatcher {
         String normalizedEventType = StringUtils.hasText(eventType) ? eventType.trim().toLowerCase() : "";
         switch (normalizedEventType) {
             case "ticket_created" -> dialogRealtimeEventService.handleTicketCreated(ticketId, channelId, messageText);
-            case "client_message_created" -> dialogRealtimeEventService.handleIncomingClientMessage(ticketId, channelId, messageText, messageType, attachment);
+            case "client_message_created" -> {
+                boolean initialClientMessage = isInitialClientMessageEvent(eventId, ticketId);
+                dialogRealtimeEventService.handleIncomingClientMessage(
+                        ticketId,
+                        channelId,
+                        messageText,
+                        messageType,
+                        attachment,
+                        !initialClientMessage
+                );
+            }
             case "client_message_edited" -> dialogRealtimeEventService.handleClientMessageEdited(ticketId, channelId);
             case "operator_message_edited" -> dialogRealtimeEventService.handleOperatorMessageEdited(ticketId, channelId);
             case "feedback_created" -> dialogRealtimeEventService.handleFeedbackCreated(ticketId, rating);
@@ -124,6 +136,34 @@ public class UiEventOutboxWatcher {
             default -> {
                 // ignore unknown event types
             }
+        }
+    }
+
+    private boolean isInitialClientMessageEvent(long eventId, String ticketId) {
+        if (eventId <= 0L || !StringUtils.hasText(ticketId)) {
+            return false;
+        }
+        try {
+            Boolean initial = jdbcTemplate.queryForObject("""
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1
+                          FROM ui_event_outbox created_event
+                         WHERE created_event.ticket_id = ?
+                           AND lower(COALESCE(created_event.event_type, '')) = 'ticket_created'
+                           AND created_event.id < ?
+                    ) AND NOT EXISTS (
+                        SELECT 1
+                          FROM ui_event_outbox previous_message
+                         WHERE previous_message.ticket_id = ?
+                           AND lower(COALESCE(previous_message.event_type, '')) = 'client_message_created'
+                           AND previous_message.id < ?
+                    ) THEN TRUE ELSE FALSE END
+                    """, Boolean.class, ticketId.trim(), eventId, ticketId.trim(), eventId);
+            return Boolean.TRUE.equals(initial);
+        } catch (RuntimeException ex) {
+            log.warn("Unable to resolve initial client-message ownership for ticket {} event {}: {}",
+                    ticketId, eventId, ex.getMessage());
+            return false;
         }
     }
 

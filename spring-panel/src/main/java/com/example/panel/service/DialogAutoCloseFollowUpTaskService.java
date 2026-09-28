@@ -105,7 +105,7 @@ public class DialogAutoCloseFollowUpTaskService {
             List.of(),
             List.of(ticketId),
             payloadProjectIds
-        ));
+        ), false);
     }
 
     private Long resolveFollowUpProjectId(Channel channel) {

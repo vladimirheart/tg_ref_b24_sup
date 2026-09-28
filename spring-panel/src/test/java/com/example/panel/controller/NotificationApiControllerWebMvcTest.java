@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.model.notification.NotificationDto;
+import com.example.panel.model.notification.NotificationPage;
 import com.example.panel.model.notification.NotificationSummary;
 import com.example.panel.service.NotificationService;
 import org.junit.jupiter.api.Test;
@@ -35,47 +36,66 @@ class NotificationApiControllerWebMvcTest {
     private NotificationService notificationService;
 
     @Test
-    void listReturnsNotificationsForUserDetailsPrincipal() throws Exception {
-        when(notificationService.findForUser("operator")).thenReturn(List.of(
-                new NotificationDto(
-                        101L,
-                        "Новое сообщение в обращении T-101",
-                        "/dialogs/T-101",
-                        false,
-                        OffsetDateTime.parse("2026-05-20T10:15:30+03:00")
+    void listReturnsCursorPageForUserDetailsPrincipal() throws Exception {
+        when(notificationService.findPageForUser("operator", null, 20)).thenReturn(new NotificationPage(
+                List.of(
+                        new NotificationDto(
+                                102L,
+                                "Обращение №20260928-2 автоматически закрыто",
+                                "/dialogs/T-102",
+                                true,
+                                OffsetDateTime.parse("2026-05-20T10:16:30+03:00")
+                        ),
+                        new NotificationDto(
+                                101L,
+                                "Новое сообщение в обращении №20260928-1",
+                                "/dialogs/T-101",
+                                false,
+                                OffsetDateTime.parse("2026-05-20T10:15:30+03:00")
+                        )
                 ),
-                new NotificationDto(
-                        102L,
-                        "Обращение T-102 закрыто",
-                        "/dialogs/T-102",
-                        true,
-                        OffsetDateTime.parse("2026-05-20T10:16:30+03:00")
-                )
+                "next-token",
+                true
         ));
 
-        mockMvc.perform(get("/api/notifications").principal(userDetailsAuthentication("operator")))
+        mockMvc.perform(get("/api/notifications")
+                        .param("limit", "20")
+                        .principal(userDetailsAuthentication("operator")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(101))
-                .andExpect(jsonPath("$[0].text").value("Новое сообщение в обращении T-101"))
-                .andExpect(jsonPath("$[0].url").value("/dialogs/T-101"))
-                .andExpect(jsonPath("$[0].read").value(false))
-                .andExpect(jsonPath("$[0].createdAt").isNotEmpty())
-                .andExpect(jsonPath("$[1].id").value(102))
-                .andExpect(jsonPath("$[1].read").value(true));
+                .andExpect(jsonPath("$.items[0].id").value(102))
+                .andExpect(jsonPath("$.items[0].read").value(true))
+                .andExpect(jsonPath("$.items[1].id").value(101))
+                .andExpect(jsonPath("$.items[1].read").value(false))
+                .andExpect(jsonPath("$.nextCursor").value("next-token"))
+                .andExpect(jsonPath("$.hasMore").value(true));
 
-        verify(notificationService).findForUser("operator");
+        verify(notificationService).findPageForUser("operator", null, 20);
     }
 
     @Test
-    void listFallsBackToAllIdentityWhenAuthenticationIsMissing() throws Exception {
-        when(notificationService.findForUser("all")).thenReturn(List.of());
+    void listPassesCursorAndFallsBackToAllIdentityWhenAuthenticationIsMissing() throws Exception {
+        when(notificationService.findPageForUser("all", "cursor-2", 20))
+                .thenReturn(new NotificationPage(List.of(), null, false));
 
-        mockMvc.perform(get("/api/notifications"))
+        mockMvc.perform(get("/api/notifications")
+                        .param("cursor", "cursor-2"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items").isEmpty())
+                .andExpect(jsonPath("$.hasMore").value(false));
 
-        verify(notificationService).findForUser("all");
+        verify(notificationService).findPageForUser("all", "cursor-2", 20);
+    }
+
+    @Test
+    void invalidCursorReturnsBadRequest() throws Exception {
+        when(notificationService.findPageForUser("operator", "bad", 20))
+                .thenThrow(new IllegalArgumentException("bad cursor"));
+
+        mockMvc.perform(get("/api/notifications")
+                        .param("cursor", "bad")
+                        .principal(userDetailsAuthentication("operator")))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

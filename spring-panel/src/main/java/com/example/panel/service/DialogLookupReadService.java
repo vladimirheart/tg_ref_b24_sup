@@ -280,6 +280,17 @@ public class DialogLookupReadService {
         return groupMyActiveDialogs(loadDialogs(currentOperator), currentOperator);
     }
 
+    public String resolveRequestNumber(String ticketId) {
+        String normalizedTicketId = trimToNull(ticketId);
+        if (normalizedTicketId == null) {
+            return null;
+        }
+        return findDialog(normalizedTicketId, "")
+                .map(DialogListItem::requestNumber)
+                .map(this::trimToNull)
+                .orElse(null);
+    }
+
     public DialogMyDialogs groupMyActiveDialogs(List<DialogListItem> dialogs, String currentOperator) {
         String normalizedOperator = normalizeIdentity(currentOperator);
         if (normalizedOperator == null || dialogs == null || dialogs.isEmpty()) {

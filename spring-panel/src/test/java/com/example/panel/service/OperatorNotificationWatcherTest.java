@@ -83,7 +83,7 @@ class OperatorNotificationWatcherTest {
 
         watcher.watch();
 
-        verify(alertQueueService).notifyIncomingClientMessage(channel, "T-101", "Клиент прислал лог");
+        verify(alertQueueService, never()).notifyIncomingClientMessage(channel, "T-101", "Клиент прислал лог");
         verify(notificationService, never()).notifyAllOperators(eq("Новое сообщение в обращении T-101: Клиент прислал лог"), eq("/dialogs/T-101"), isNull());
         verify(dialogAiAssistantService).processIncomingClientMessage("T-101", "Клиент прислал лог", "text", null);
     }
@@ -102,11 +102,11 @@ class OperatorNotificationWatcherTest {
 
         watcher.watch();
 
-        verify(alertQueueService).notifyIncomingClientMessage(channel, "T-102", "Есть уточнение");
-        verify(notificationService).notifyAllOperators(
-                "Новое сообщение в обращении T-102: Есть уточнение",
-                "/dialogs/T-102",
-                null
+        verify(alertQueueService, never()).notifyIncomingClientMessage(channel, "T-102", "Есть уточнение");
+        verify(notificationService, never()).notifyAllOperators(
+                eq("Новое сообщение в обращении T-102: Есть уточнение"),
+                eq("/dialogs/T-102"),
+                isNull()
         );
         verify(dialogAiAssistantService).processIncomingClientMessage("T-102", "Есть уточнение", "text", null);
     }

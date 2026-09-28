@@ -2,9 +2,11 @@ package com.example.panel.service;
 
 import com.example.panel.entity.Notification;
 import com.example.panel.model.notification.NotificationDto;
+import com.example.panel.model.notification.NotificationPage;
 import com.example.panel.model.notification.NotificationSummary;
 import com.example.panel.repository.NotificationRepository;
 import com.example.panel.support.JdbcSchemaInspector;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -56,6 +58,9 @@ public class NotificationService {
     private final JdbcTemplate usersJdbcTemplate;
     private final UiEventStreamService uiEventStreamService;
 
+    @Autowired
+    private DialogLookupReadService dialogLookupReadService;
+
     public NotificationService(NotificationRepository notificationRepository,
                                JdbcTemplate jdbcTemplate,
                                @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
@@ -72,6 +77,68 @@ public class NotificationService {
         return notificationRepository.findByUserIdentityOrderByCreatedAtDesc(identity).stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationPage findPageForUser(String userIdentity, String cursor, int requestedLimit) {
+        String identity = normalizeIdentity(userIdentity);
+        int limit = normalizeNotificationPageLimit(requestedLimit);
+        NotificationCursor decodedCursor = decodeNotificationCursor(cursor);
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, limit + 1);
+        List<Notification> rows = decodedCursor == null
+                ? notificationRepository.findByUserIdentityOrderByCreatedAtDescIdDesc(identity, pageable)
+                : notificationRepository.findPageBefore(
+                        identity,
+                        decodedCursor.createdAt(),
+                        decodedCursor.id(),
+                        pageable
+                );
+        boolean hasMore = rows.size() > limit;
+        List<Notification> visibleRows = hasMore ? rows.subList(0, limit) : rows;
+        String nextCursor = hasMore && !visibleRows.isEmpty()
+                ? encodeNotificationCursor(visibleRows.get(visibleRows.size() - 1))
+                : null;
+        return new NotificationPage(visibleRows.stream().map(this::toDto).toList(), nextCursor, hasMore);
+    }
+
+    private int normalizeNotificationPageLimit(int requestedLimit) {
+        if (requestedLimit <= 0) {
+            return 20;
+        }
+        return Math.min(requestedLimit, 20);
+    }
+
+    private String encodeNotificationCursor(Notification notification) {
+        if (notification == null || notification.getCreatedAt() == null || notification.getId() == null) {
+            throw new IllegalStateException("Notification cursor requires createdAt and id");
+        }
+        String raw = notification.getCreatedAt() + "|" + notification.getId();
+        return java.util.Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private NotificationCursor decodeNotificationCursor(String cursor) {
+        if (!StringUtils.hasText(cursor)) {
+            return null;
+        }
+        try {
+            String raw = new String(
+                    java.util.Base64.getUrlDecoder().decode(cursor.trim()),
+                    StandardCharsets.UTF_8
+            );
+            int separator = raw.lastIndexOf('|');
+            if (separator <= 0 || separator >= raw.length() - 1) {
+                throw new IllegalArgumentException("Malformed notification cursor");
+            }
+            OffsetDateTime createdAt = OffsetDateTime.parse(raw.substring(0, separator));
+            Long id = Long.valueOf(raw.substring(separator + 1));
+            return new NotificationCursor(createdAt, id);
+        } catch (RuntimeException ex) {
+            throw new IllegalArgumentException("Invalid notification cursor", ex);
+        }
+    }
+
+    private record NotificationCursor(OffsetDateTime createdAt, Long id) {
     }
 
     @Transactional(readOnly = true)
@@ -107,7 +174,8 @@ public class NotificationService {
         if (!StringUtils.hasText(identity) || !StringUtils.hasText(text)) {
             return;
         }
-        saveNotification(identity, text.trim(), normalizeUrl(url));
+        String safeUrl = normalizeUrl(url);
+        saveNotification(identity, normalizeNotificationText(text.trim(), safeUrl), safeUrl);
     }
 
     public void notifyUsers(Set<String> userIdentities, String text, String url) {
@@ -119,14 +187,95 @@ public class NotificationService {
             return;
         }
         String excluded = normalizeRecipient(excludedIdentity);
-        String safeText = text.trim();
         String safeUrl = normalizeUrl(url);
+        String safeText = normalizeNotificationText(text.trim(), safeUrl);
         Set<String> recipients = normalizeRecipients(userIdentities);
         for (String identity : recipients) {
             if (StringUtils.hasText(excluded) && excluded.equals(identity)) {
                 continue;
             }
             saveNotification(identity, safeText, safeUrl);
+        }
+    }
+
+    public String formatNewAppealText(String ticketId) {
+        return formatDialogText(ticketId, "Новое обращение №", "Новое обращение");
+    }
+
+    public String formatIncomingClientMessageText(String ticketId) {
+        return formatDialogText(ticketId, "Новое сообщение в обращении №", "Новое сообщение в обращении");
+    }
+
+    public String formatAutoCloseText(String ticketId) {
+        String requestNumber = resolveDialogRequestNumber(ticketId);
+        return StringUtils.hasText(requestNumber)
+                ? "Обращение №" + requestNumber + " автоматически закрыто из-за отсутствия активности."
+                : "Обращение автоматически закрыто из-за отсутствия активности.";
+    }
+
+    private String formatDialogText(String ticketId, String numberedPrefix, String fallback) {
+        String requestNumber = resolveDialogRequestNumber(ticketId);
+        return StringUtils.hasText(requestNumber) ? numberedPrefix + requestNumber : fallback;
+    }
+
+    private String resolveDialogRequestNumber(String ticketId) {
+        if (!StringUtils.hasText(ticketId) || dialogLookupReadService == null) {
+            return null;
+        }
+        try {
+            String requestNumber = dialogLookupReadService.resolveRequestNumber(ticketId.trim());
+            return StringUtils.hasText(requestNumber) ? requestNumber.trim() : null;
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private String normalizeNotificationText(String text, String url) {
+        String current = normalizeNotificationText(text);
+        String ticketId = extractNotificationDialogTicketId(url);
+        if (!StringUtils.hasText(current) || !StringUtils.hasText(ticketId)) {
+            return current;
+        }
+        String normalized = current.toLowerCase(Locale.ROOT);
+        if (normalized.startsWith("новое обращение")) {
+            return formatNewAppealText(ticketId);
+        }
+        if (normalized.startsWith("новое сообщение в обращении")) {
+            return formatIncomingClientMessageText(ticketId);
+        }
+        if (normalized.contains("автоматически закрыт")
+                && normalized.contains("отсутств")
+                && normalized.contains("активнос")) {
+            return formatAutoCloseText(ticketId);
+        }
+        return current;
+    }
+
+    private String extractNotificationDialogTicketId(String url) {
+        if (!StringUtils.hasText(url)) {
+            return null;
+        }
+        String value = url.trim();
+        int marker = value.indexOf("/dialogs/");
+        if (marker < 0) {
+            return null;
+        }
+        String candidate = value.substring(marker + "/dialogs/".length());
+        int end = candidate.length();
+        for (char delimiter : new char[]{'?', '#', '/'}) {
+            int index = candidate.indexOf(delimiter);
+            if (index >= 0 && index < end) {
+                end = index;
+            }
+        }
+        candidate = candidate.substring(0, end).trim();
+        if (candidate.isEmpty()) {
+            return null;
+        }
+        try {
+            return URLDecoder.decode(candidate, StandardCharsets.UTF_8).trim();
+        } catch (IllegalArgumentException ex) {
+            return candidate;
         }
     }
 

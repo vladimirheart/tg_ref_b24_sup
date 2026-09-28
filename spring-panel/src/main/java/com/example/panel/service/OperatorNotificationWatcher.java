@@ -152,14 +152,7 @@ public class OperatorNotificationWatcher {
                             continue;
                         }
                         if (isInactivityAutoCloseEvent(sender, messageType, message)) {
-                            String text = "Диалог " + ticketId + " автоматически закрыт из-за отсутствия активности.";
-                            Set<String> recipients = notificationService.findDialogRecipients(ticketId);
-                            if (recipients.isEmpty()) {
-                                notificationService.notifyAllOperators(text, notificationService.buildDialogUrl(ticketId), null);
-                            } else {
-                                notificationService.notifyUsers(recipients, text, notificationService.buildDialogUrl(ticketId));
-                            }
-                            notifySupportChat(channel, text);
+                            // Canonical auto-close bell/support-chat ownership lives in UiEventOutboxWatcher -> DialogRealtimeEventService.
                             publishDialogsChanged("dialog_auto_closed", ticketId);
                             continue;
                         }
@@ -169,7 +162,9 @@ public class OperatorNotificationWatcher {
                         if (!isExternalDialogEvent(sender, messageType)) {
                             continue;
                         }
-                        notifyIncomingClientMessage(ticketId, channel, message);
+                        // Canonical incoming-message bell/queue ownership lives in UiEventOutboxWatcher -> DialogRealtimeEventService.
+                        publishDialogsChanged("incoming_client_message", ticketId);
+                        publishDialogHistoryChanged(ticketId, channel == null ? null : channel.getId(), "incoming_client_message");
                         dialogAiAssistantService.processIncomingClientMessage(ticketId, message, messageType, attachment);
                     }
                     if (maxSeen > afterId) {
