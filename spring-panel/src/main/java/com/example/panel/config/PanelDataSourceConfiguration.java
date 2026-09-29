@@ -36,7 +36,7 @@ public class PanelDataSourceConfiguration {
         Optional<ExternalDatabaseSettings> externalDatabaseSettings = ExternalDatabaseSettingsResolver.resolve(environment);
         if (externalDatabaseSettings.isEmpty()) {
             throw new IllegalStateException(
-                "spring-panel requires an external datasource contract. Configure PostgreSQL or the supported external MySQL mode."
+                "spring-panel requires PostgreSQL. Configure spring.datasource.url or DATABASE_URL."
             );
         }
         ExternalDatabaseSettings settings = externalDatabaseSettings.get();

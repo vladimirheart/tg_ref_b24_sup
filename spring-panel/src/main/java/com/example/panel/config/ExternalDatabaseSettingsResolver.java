@@ -28,21 +28,14 @@ final class ExternalDatabaseSettingsResolver {
                                                       String springDatasourcePassword,
                                                       String springDatasourceDriver,
                                                       String databaseUrl) {
-        DatabaseMode requestedMode = DatabaseMode.from(modeValue);
+        DatabaseMode.from(modeValue);
         Optional<ExternalDatabaseSettings> explicitSettings = fromSpringDatasource(
             springDatasourceUrl,
             springDatasourceUsername,
             springDatasourcePassword,
             springDatasourceDriver
         );
-        Optional<ExternalDatabaseSettings> databaseUrlSettings = fromDatabaseUrl(databaseUrl);
-        Optional<ExternalDatabaseSettings> resolved = explicitSettings.isPresent() ? explicitSettings : databaseUrlSettings;
-
-        return switch (requestedMode) {
-            case AUTO -> resolved;
-            case POSTGRESQL -> Optional.of(requireVendor(resolved, DatabaseMode.POSTGRESQL, "postgresql"));
-            case MYSQL -> Optional.of(requireVendor(resolved, DatabaseMode.MYSQL, "mysql"));
-        };
+        return explicitSettings.isPresent() ? explicitSettings : fromDatabaseUrl(databaseUrl);
     }
 
     private static Optional<ExternalDatabaseSettings> fromSpringDatasource(String jdbcUrl,
@@ -52,18 +45,15 @@ final class ExternalDatabaseSettingsResolver {
         if (!StringUtils.hasText(jdbcUrl)) {
             return Optional.empty();
         }
-        DatabaseMode vendor = detectVendorFromJdbcUrl(jdbcUrl);
-        if (vendor == null) {
-            return Optional.empty();
-        }
+        requirePostgresqlJdbcUrl(jdbcUrl, "spring-panel datasource");
         return Optional.of(new ExternalDatabaseSettings(
             jdbcUrl,
             defaultString(username),
             defaultString(password),
-            StringUtils.hasText(driverClassName) ? driverClassName : defaultDriverClassName(vendor),
-            defaultHibernateDialect(vendor),
-            defaultFlywayLocation(vendor),
-            vendor
+            StringUtils.hasText(driverClassName) ? driverClassName : "org.postgresql.Driver",
+            "org.hibernate.dialect.PostgreSQLDialect",
+            "classpath:db/migration/postgresql",
+            DatabaseMode.POSTGRESQL
         ));
     }
 
@@ -72,18 +62,12 @@ final class ExternalDatabaseSettingsResolver {
             return Optional.empty();
         }
         if (rawDatabaseUrl.startsWith("jdbc:")) {
-            DatabaseMode vendor = detectVendorFromJdbcUrl(rawDatabaseUrl);
-            if (vendor == null) {
-                return Optional.empty();
-            }
+            requirePostgresqlJdbcUrl(rawDatabaseUrl, "spring-panel DATABASE_URL");
             return Optional.of(new ExternalDatabaseSettings(
-                rawDatabaseUrl,
-                "",
-                "",
-                defaultDriverClassName(vendor),
-                defaultHibernateDialect(vendor),
-                defaultFlywayLocation(vendor),
-                vendor
+                rawDatabaseUrl, "", "", "org.postgresql.Driver",
+                "org.hibernate.dialect.PostgreSQLDialect",
+                "classpath:db/migration/postgresql",
+                DatabaseMode.POSTGRESQL
             ));
         }
 
@@ -93,7 +77,7 @@ final class ExternalDatabaseSettingsResolver {
         }
         if (!normalized.startsWith("postgresql://")) {
             throw new IllegalArgumentException(
-                "Invalid DATABASE_URL format. Use a JDBC URL or a PostgreSQL URI like postgres://user:pass@host:5432/db."
+                "Invalid DATABASE_URL format. Only PostgreSQL JDBC URLs or postgres:// URIs are supported."
             );
         }
         try {
@@ -109,83 +93,25 @@ final class ExternalDatabaseSettingsResolver {
                 }
             }
             StringBuilder jdbc = new StringBuilder("jdbc:postgresql://");
-            if (uri.getHost() != null) {
-                jdbc.append(uri.getHost());
-            }
-            if (uri.getPort() > 0) {
-                jdbc.append(':').append(uri.getPort());
-            }
-            if (uri.getPath() != null) {
-                jdbc.append(uri.getPath());
-            }
-            if (StringUtils.hasText(uri.getQuery())) {
-                jdbc.append('?').append(uri.getQuery());
-            }
+            if (uri.getHost() != null) jdbc.append(uri.getHost());
+            if (uri.getPort() > 0) jdbc.append(':').append(uri.getPort());
+            if (uri.getPath() != null) jdbc.append(uri.getPath());
+            if (StringUtils.hasText(uri.getQuery())) jdbc.append('?').append(uri.getQuery());
             return Optional.of(new ExternalDatabaseSettings(
-                jdbc.toString(),
-                username,
-                password,
-                defaultDriverClassName(DatabaseMode.POSTGRESQL),
-                defaultHibernateDialect(DatabaseMode.POSTGRESQL),
-                defaultFlywayLocation(DatabaseMode.POSTGRESQL),
+                jdbc.toString(), username, password, "org.postgresql.Driver",
+                "org.hibernate.dialect.PostgreSQLDialect",
+                "classpath:db/migration/postgresql",
                 DatabaseMode.POSTGRESQL
             ));
         } catch (URISyntaxException ex) {
-            throw new IllegalArgumentException("Invalid DATABASE_URL format", ex);
+            throw new IllegalArgumentException("Invalid PostgreSQL DATABASE_URL format", ex);
         }
     }
 
-    private static ExternalDatabaseSettings requireVendor(Optional<ExternalDatabaseSettings> settings,
-                                                          DatabaseMode expectedVendor,
-                                                          String expectedName) {
-        ExternalDatabaseSettings resolved = settings.orElseThrow(() -> new IllegalStateException(
-            "External database mode '" + expectedName + "' requires spring.datasource.url or DATABASE_URL."
-        ));
-        if (resolved.vendor() != expectedVendor) {
-            throw new IllegalStateException(
-                "External database mode '" + expectedName + "' is incompatible with configured vendor '" +
-                    resolved.vendor().name().toLowerCase() + "'."
-            );
+    private static void requirePostgresqlJdbcUrl(String jdbcUrl, String source) {
+        if (!jdbcUrl.trim().toLowerCase().startsWith("jdbc:postgresql:")) {
+            throw new IllegalStateException(source + " supports only PostgreSQL JDBC URLs.");
         }
-        return resolved;
-    }
-
-    private static DatabaseMode detectVendorFromJdbcUrl(String jdbcUrl) {
-        if (!StringUtils.hasText(jdbcUrl)) {
-            return null;
-        }
-        String normalized = jdbcUrl.trim().toLowerCase();
-        if (normalized.startsWith("jdbc:postgresql:")) {
-            return DatabaseMode.POSTGRESQL;
-        }
-        if (normalized.startsWith("jdbc:mysql:")) {
-            return DatabaseMode.MYSQL;
-        }
-        return null;
-    }
-
-    private static String defaultDriverClassName(DatabaseMode vendor) {
-        return switch (vendor) {
-            case POSTGRESQL -> "org.postgresql.Driver";
-            case MYSQL -> "com.mysql.cj.jdbc.Driver";
-            default -> "";
-        };
-    }
-
-    private static String defaultHibernateDialect(DatabaseMode vendor) {
-        return switch (vendor) {
-            case POSTGRESQL -> "org.hibernate.dialect.PostgreSQLDialect";
-            case MYSQL -> "org.hibernate.dialect.MySQLDialect";
-            default -> "";
-        };
-    }
-
-    private static String defaultFlywayLocation(DatabaseMode vendor) {
-        return switch (vendor) {
-            case POSTGRESQL -> "classpath:db/migration/postgresql";
-            case MYSQL -> "classpath:db/migration/mysql";
-            default -> "";
-        };
     }
 
     private static String defaultString(String value) {

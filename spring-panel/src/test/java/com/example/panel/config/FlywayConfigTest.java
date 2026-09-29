@@ -14,61 +14,44 @@ class FlywayConfigTest {
     private final FlywayConfig flywayConfig = new FlywayConfig();
 
     @Test
-    void usesPostgresqlMigrationsForPostgresqlMode() {
-        assertLocation("postgresql", null, "classpath:db/migration/postgresql");
+    void alwaysUsesPostgresqlMigrationChainForCanonicalMode() {
+        assertLocation(new MockEnvironment().withProperty("app.datasource.mode", "postgresql"));
     }
 
     @Test
-    void usesMysqlMigrationsForMysqlMode() {
-        assertLocation("mysql", null, "classpath:db/migration/mysql");
+    void defaultModeAlsoUsesPostgresqlMigrationChain() {
+        assertLocation(new MockEnvironment());
     }
 
     @Test
-    void rejectsSqliteMode() {
-        MockEnvironment environment = new MockEnvironment()
-            .withProperty("app.datasource.mode", "sqlite");
-
-        FluentConfiguration configuration = Flyway.configure();
-        FlywayConfigurationCustomizer customizer = flywayConfig.databaseSpecificFlywayLocations(environment);
-
-        assertThatThrownBy(() -> customizer.customize(configuration))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("no longer supports SQLite runtime mode");
-    }
-
-    @Test
-    void detectsPostgresqlLocationInAutoMode() {
-        assertLocation("auto", "jdbc:postgresql://localhost:5432/iguana", "classpath:db/migration/postgresql");
-    }
-
-    @Test
-    void autoModeWithoutDatasourceFails() {
-        MockEnvironment environment = new MockEnvironment()
-            .withProperty("app.datasource.mode", "auto");
-
-        FluentConfiguration configuration = Flyway.configure();
-        FlywayConfigurationCustomizer customizer = flywayConfig.databaseSpecificFlywayLocations(environment);
-
-        assertThatThrownBy(() -> customizer.customize(configuration))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("without spring.datasource.url or DATABASE_URL");
-    }
-
-    private void assertLocation(String mode, String datasourceUrl, String expectedLocation) {
-        MockEnvironment environment = new MockEnvironment()
-            .withProperty("app.datasource.mode", mode);
-
-        if (datasourceUrl != null) {
-            environment.withProperty("spring.datasource.url", datasourceUrl);
+    void rejectsLegacyModes() {
+        for (String mode : new String[]{"sqlite", "mysql", "auto", "worker"}) {
+            MockEnvironment environment = new MockEnvironment().withProperty("app.datasource.mode", mode);
+            FluentConfiguration configuration = Flyway.configure();
+            FlywayConfigurationCustomizer customizer = flywayConfig.databaseSpecificFlywayLocations(environment);
+            assertThatThrownBy(() -> customizer.customize(configuration))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only postgresql");
         }
+    }
 
+    @Test
+    void rejectsNonPostgresqlDatasourceUrl() {
+        MockEnvironment environment = new MockEnvironment()
+            .withProperty("app.datasource.mode", "postgresql")
+            .withProperty("spring.datasource.url", "jdbc:mysql://localhost:3306/iguana");
         FluentConfiguration configuration = Flyway.configure();
         FlywayConfigurationCustomizer customizer = flywayConfig.databaseSpecificFlywayLocations(environment);
-        customizer.customize(configuration);
+        assertThatThrownBy(() -> customizer.customize(configuration))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Only PostgreSQL");
+    }
 
-        assertThat(configuration.getLocations())
-            .hasSize(1);
+    private void assertLocation(MockEnvironment environment) {
+        FluentConfiguration configuration = Flyway.configure();
+        flywayConfig.databaseSpecificFlywayLocations(environment).customize(configuration);
+        assertThat(configuration.getLocations()).hasSize(1);
         assertThat(configuration.getLocations()[0].getDescriptor())
-            .isEqualTo(expectedLocation);
+            .isEqualTo("classpath:db/migration/postgresql");
     }
 }

@@ -1,46 +1,34 @@
 package com.example.supportbot.config;
 
-import java.util.Optional;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 @Component
 public class BotDatabaseRuntimeMode {
 
-    private final boolean sqliteMode;
-    private final boolean workerMode;
-    private final String modeLabel;
+    private final ExternalDatabaseSettings externalSettings;
 
     public BotDatabaseRuntimeMode(Environment environment) {
-        DatabaseMode requestedMode = DatabaseMode.from(environment.getProperty("support-bot.database.mode"));
-        if (requestedMode == DatabaseMode.WORKER) {
-            this.sqliteMode = false;
-            this.workerMode = true;
-            this.modeLabel = "worker";
-            return;
-        }
-
-        Optional<ExternalDatabaseSettings> externalDatabaseSettings = ExternalDatabaseSettingsResolver.resolve(environment);
-        this.sqliteMode = externalDatabaseSettings.isEmpty();
-        this.workerMode = false;
-        this.modeLabel = externalDatabaseSettings
-                .map(ExternalDatabaseSettings::schemaPlatform)
-                .orElse("sqlite");
+        DatabaseMode.from(environment.getProperty("support-bot.database.mode"));
+        this.externalSettings = ExternalDatabaseSettingsResolver.resolve(environment)
+            .orElseThrow(() -> new IllegalStateException(
+                "java-bot runtime requires the canonical PostgreSQL datasource contract."
+            ));
     }
 
     public boolean isSqliteMode() {
-        return sqliteMode;
+        return false;
     }
 
     public boolean isWorkerMode() {
-        return workerMode;
+        return false;
     }
 
     public boolean isExternalMode() {
-        return !sqliteMode && !workerMode;
+        return true;
     }
 
     public String modeLabel() {
-        return modeLabel;
+        return externalSettings.schemaPlatform();
     }
 }

@@ -39,42 +39,6 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
-    void describeUsesExplicitJarContractWhenConfiguredArtifactExists() throws Exception {
-        Path botWorkingDir = tempDir.resolve("java-bot");
-        Path jar = botWorkingDir.resolve("dist").resolve("bot-telegram-runtime.jar");
-        Files.createDirectories(jar.getParent());
-        Files.writeString(jar, "fake");
-
-        BotRuntimeContractService service = createService(
-            "auto",
-            Map.of("bot-telegram", "dist/bot-telegram-runtime.jar"),
-            Map.of(),
-            Map.of(
-                "app.datasource.mode", "mysql",
-                "spring.datasource.url", "jdbc:mysql://db.example.local:3306/iguana",
-                "spring.datasource.username", "iguana",
-                "spring.datasource.password", "secret"
-            )
-        );
-        Channel channel = new Channel();
-        channel.setId(16L);
-        channel.setPlatform("telegram");
-
-        BotRuntimeContractService.BotRuntimeContract contract = service.describe(channel, botWorkingDir);
-
-        assertThat(contract.resolvedLauncherKind()).isEqualTo("jar");
-        assertThat(contract.artifactSource()).isEqualTo("explicit-config");
-        assertThat(contract.executableJarPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
-        assertThat(contract.warnings()).anyMatch(item -> item.contains("PostgreSQL external DB") && item.contains("mysql"));
-        assertThat(contract.production().readyForProduction()).isFalse();
-        assertThat(contract.production().blockingReasons())
-            .anyMatch(item -> item.contains("External DB vendor mysql"))
-            .anyMatch(item -> item.contains("app.integration.transport.mode=rabbitmq"));
-        assertThat(contract.production().recommendedArtifactPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
-        assertThat(contract.lifecycle().runningStatus()).isEqualTo("running");
-    }
-
-    @Test
     void describeMarksExplicitJarAsProductionReadyInExternalPostgresMode() throws Exception {
         Path botWorkingDir = tempDir.resolve("java-bot");
         Path jar = botWorkingDir.resolve("dist").resolve("bot-telegram-runtime.jar");
@@ -502,9 +466,9 @@ class BotRuntimeContractServiceTest {
             new com.example.panel.model.channel.BotCredential(13L, "tg", "telegram", "tg-token", true),
             tempDir.resolve("mysql-jdbc.log")
         ))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("supports only PostgreSQL")
-            .hasMessageContaining("mysql");
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Unsupported app.datasource.mode value 'mysql'")
+            .hasMessageContaining("Only postgresql");
     }
 
     @Test

@@ -66,36 +66,23 @@ public class FlywayConfig {
     }
 
     private String resolveFlywayLocation(Environment environment) {
-        DatabaseMode requestedMode = DatabaseMode.from(environment.getProperty("app.datasource.mode"));
-        if (requestedMode == DatabaseMode.POSTGRESQL) {
-            return "classpath:db/migration/postgresql";
-        }
-        if (requestedMode == DatabaseMode.MYSQL) {
-            return "classpath:db/migration/mysql";
-        }
-
+        DatabaseMode.from(environment.getProperty("app.datasource.mode"));
         String databaseUrl = environment.getProperty("spring.datasource.url");
         if (!StringUtils.hasText(databaseUrl)) {
             databaseUrl = environment.getProperty("DATABASE_URL");
         }
-        if (!StringUtils.hasText(databaseUrl)) {
-            throw new IllegalStateException(
-                "Unable to resolve Flyway migration location without spring.datasource.url or DATABASE_URL."
-            );
+        if (StringUtils.hasText(databaseUrl)) {
+            String normalized = databaseUrl.trim().toLowerCase(Locale.ROOT);
+            boolean postgresql = normalized.startsWith("jdbc:postgresql:")
+                || normalized.startsWith("postgresql:")
+                || normalized.startsWith("postgres:");
+            if (!postgresql) {
+                throw new IllegalStateException(
+                    "Only PostgreSQL datasource URLs are supported for Flyway: " + databaseUrl
+                );
+            }
         }
-
-        String normalized = databaseUrl.trim().toLowerCase(Locale.ROOT);
-        if (normalized.startsWith("jdbc:postgresql:")
-            || normalized.startsWith("postgresql:")
-            || normalized.startsWith("postgres:")) {
-            return "classpath:db/migration/postgresql";
-        }
-        if (normalized.startsWith("jdbc:mysql:") || normalized.startsWith("mysql:")) {
-            return "classpath:db/migration/mysql";
-        }
-        throw new IllegalStateException(
-            "Unsupported datasource URL for Flyway migration location resolution: " + databaseUrl
-        );
+        return "classpath:db/migration/postgresql";
     }
 
     private void normalizeSchemaHistory(Flyway flyway) {

@@ -21,8 +21,7 @@ spring:
         # Hibernate 6 detecting the dialect from the configured external DataSource.
 
   flyway:
-    # Main production runtime is PostgreSQL-first. FlywayConfig may select the
-    # supported external MySQL chain; legacy SQLite migrations are archive/test-only.
+    # PostgreSQL is the only supported runtime database and Flyway migration chain.
     locations:
       - classpath:db/migration/postgresql
     baseline-on-migrate: true

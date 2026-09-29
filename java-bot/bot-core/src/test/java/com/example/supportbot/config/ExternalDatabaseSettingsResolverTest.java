@@ -1,7 +1,6 @@
 package com.example.supportbot.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,13 +10,9 @@ import org.junit.jupiter.api.Test;
 class ExternalDatabaseSettingsResolverTest {
 
     @Test
-    void autoModeNormalizesPostgresDatabaseUrl() {
+    void postgresqlModeNormalizesPostgresDatabaseUrl() {
         Optional<ExternalDatabaseSettings> settings = ExternalDatabaseSettingsResolver.resolve(
-            "auto",
-            null,
-            null,
-            null,
-            null,
+            "postgresql", null, null, null, null,
             "postgres://iguana:secret@db.example.local:5432/iguana?sslmode=require"
         );
 
@@ -29,47 +24,36 @@ class ExternalDatabaseSettingsResolverTest {
     }
 
     @Test
-    void sqliteModeIgnoresExternalDatabaseSettings() {
+    void explicitPostgresqlJdbcSettingsAreAccepted() {
         Optional<ExternalDatabaseSettings> settings = ExternalDatabaseSettingsResolver.resolve(
-            "sqlite",
+            "postgresql",
             "jdbc:postgresql://db.example.local:5432/iguana",
             "iguana",
             "secret",
             null,
             null
         );
-
-        assertFalse(settings.isPresent());
+        assertTrue(settings.isPresent());
+        assertEquals("org.postgresql.Driver", settings.get().driverClassName());
     }
 
     @Test
-    void workerModeIgnoresInheritedExternalDatabaseSettingsBeforeParsingThem() {
-        Optional<ExternalDatabaseSettings> settings = ExternalDatabaseSettingsResolver.resolve(
-            "worker",
-            "jdbc:mysql://must-not-be-used.example.local:3306/iguana",
-            "root",
-            "secret",
-            null,
-            "postgres://also:ignored@db.example.local:5432/iguana"
-        );
-
-        assertFalse(settings.isPresent());
+    void nonPostgresqlModesAreRejected() {
+        for (String mode : new String[]{"sqlite", "worker", "auto", "mysql"}) {
+            assertThrows(IllegalArgumentException.class, () -> ExternalDatabaseSettingsResolver.resolve(
+                mode, "jdbc:postgresql://db.example.local:5432/iguana", "iguana", "secret", null, null
+            ));
+        }
     }
 
     @Test
-    void postgresqlModeRejectsNonPostgresJdbcUrl() {
+    void postgresqlModeRejectsNonPostgresqlJdbcUrl() {
         IllegalStateException error = assertThrows(
             IllegalStateException.class,
             () -> ExternalDatabaseSettingsResolver.resolve(
-                "postgresql",
-                "jdbc:mysql://db.example.local:3306/iguana",
-                "root",
-                "pw",
-                null,
-                null
+                "postgresql", "jdbc:mysql://db.example.local:3306/iguana", "root", "pw", null, null
             )
         );
-
         assertTrue(error.getMessage().contains("PostgreSQL"));
     }
 }

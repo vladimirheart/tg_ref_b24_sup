@@ -1,66 +1,45 @@
 package com.example.supportbot.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
 
 class BotDatabaseRuntimeModeTest {
 
     @Test
-    void defaultsToSqliteWithoutExternalDatasource() {
-        BotDatabaseRuntimeMode runtimeMode = new BotDatabaseRuntimeMode(new MockEnvironment());
-
-        assertThat(runtimeMode.isSqliteMode()).isTrue();
-        assertThat(runtimeMode.isExternalMode()).isFalse();
-        assertThat(runtimeMode.modeLabel()).isEqualTo("sqlite");
-    }
-
-    @Test
-    void resolvesPostgresWhenDatasourceUrlIsConfigured() {
-        MockEnvironment environment = new MockEnvironment();
-        environment.getPropertySources().addFirst(new MapPropertySource("test", Map.of(
-                "spring.datasource.url", "jdbc:postgresql://localhost:5432/supportbot",
-                "spring.datasource.username", "bot",
-                "spring.datasource.password", "secret"
-        )));
+    void resolvesCanonicalPostgresqlRuntime() {
+        MockEnvironment environment = new MockEnvironment()
+            .withProperty("support-bot.database.mode", "postgresql")
+            .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/supportbot")
+            .withProperty("spring.datasource.username", "bot")
+            .withProperty("spring.datasource.password", "secret");
 
         BotDatabaseRuntimeMode runtimeMode = new BotDatabaseRuntimeMode(environment);
 
         assertThat(runtimeMode.isSqliteMode()).isFalse();
+        assertThat(runtimeMode.isWorkerMode()).isFalse();
         assertThat(runtimeMode.isExternalMode()).isTrue();
         assertThat(runtimeMode.modeLabel()).isEqualTo("postgres");
     }
 
     @Test
-    void resolvesWorkerModeWithoutTreatingInheritedPostgresAsExternal() {
-        MockEnvironment environment = new MockEnvironment();
-        environment.getPropertySources().addFirst(new MapPropertySource("test", Map.of(
-                "support-bot.database.mode", "worker",
-                "spring.datasource.url", "jdbc:postgresql://localhost:5432/supportbot"
-        )));
-
-        BotDatabaseRuntimeMode runtimeMode = new BotDatabaseRuntimeMode(environment);
-
-        assertThat(runtimeMode.isSqliteMode()).isFalse();
-        assertThat(runtimeMode.isWorkerMode()).isTrue();
-        assertThat(runtimeMode.isExternalMode()).isFalse();
-        assertThat(runtimeMode.modeLabel()).isEqualTo("worker");
+    void missingPostgresqlContractFailsClosed() {
+        assertThatThrownBy(() -> new BotDatabaseRuntimeMode(new MockEnvironment()))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("PostgreSQL");
     }
 
     @Test
-    void keepsSqliteWhenModeExplicitlyForcesIt() {
-        MockEnvironment environment = new MockEnvironment();
-        environment.getPropertySources().addFirst(new MapPropertySource("test", Map.of(
-                "support-bot.database.mode", "sqlite",
-                "spring.datasource.url", "jdbc:postgresql://localhost:5432/supportbot"
-        )));
-
-        BotDatabaseRuntimeMode runtimeMode = new BotDatabaseRuntimeMode(environment);
-
-        assertThat(runtimeMode.isSqliteMode()).isTrue();
-        assertThat(runtimeMode.modeLabel()).isEqualTo("sqlite");
+    void legacyModesAreRejected() {
+        for (String mode : new String[]{"sqlite", "worker", "auto", "mysql"}) {
+            MockEnvironment environment = new MockEnvironment()
+                .withProperty("support-bot.database.mode", mode)
+                .withProperty("spring.datasource.url", "jdbc:postgresql://localhost:5432/supportbot");
+            assertThatThrownBy(() -> new BotDatabaseRuntimeMode(environment))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only postgresql");
+        }
     }
 }

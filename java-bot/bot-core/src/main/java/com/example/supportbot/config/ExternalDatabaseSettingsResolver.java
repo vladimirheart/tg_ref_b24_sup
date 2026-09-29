@@ -28,26 +28,14 @@ final class ExternalDatabaseSettingsResolver {
                                                       String springDatasourcePassword,
                                                       String springDatasourceDriver,
                                                       String databaseUrl) {
-        DatabaseMode requestedMode = DatabaseMode.from(modeValue);
-        if (requestedMode == DatabaseMode.SQLITE || requestedMode == DatabaseMode.WORKER) {
-            // Local compatibility/worker modes must ignore inherited canonical datasource credentials entirely.
-            return Optional.empty();
-        }
-
+        DatabaseMode.from(modeValue);
         Optional<ExternalDatabaseSettings> explicitSettings = fromSpringDatasource(
             springDatasourceUrl,
             springDatasourceUsername,
             springDatasourcePassword,
             springDatasourceDriver
         );
-        Optional<ExternalDatabaseSettings> databaseUrlSettings = fromDatabaseUrl(databaseUrl);
-        Optional<ExternalDatabaseSettings> resolved = explicitSettings.isPresent() ? explicitSettings : databaseUrlSettings;
-
-        return switch (requestedMode) {
-            case AUTO -> resolved;
-            case POSTGRESQL -> Optional.of(requirePostgresql(resolved));
-            case SQLITE, WORKER -> Optional.empty();
-        };
+        return explicitSettings.isPresent() ? explicitSettings : fromDatabaseUrl(databaseUrl);
     }
 
     private static Optional<ExternalDatabaseSettings> fromSpringDatasource(String jdbcUrl,
@@ -57,9 +45,7 @@ final class ExternalDatabaseSettingsResolver {
         if (!StringUtils.hasText(jdbcUrl)) {
             return Optional.empty();
         }
-        if (!jdbcUrl.trim().toLowerCase().startsWith("jdbc:postgresql:")) {
-            throw new IllegalStateException("support-bot external database mode supports only PostgreSQL JDBC URLs.");
-        }
+        requirePostgresqlJdbcUrl(jdbcUrl, "support-bot datasource");
         return Optional.of(new ExternalDatabaseSettings(
             jdbcUrl,
             defaultString(username),
@@ -75,9 +61,7 @@ final class ExternalDatabaseSettingsResolver {
             return Optional.empty();
         }
         if (rawDatabaseUrl.startsWith("jdbc:")) {
-            if (!rawDatabaseUrl.trim().toLowerCase().startsWith("jdbc:postgresql:")) {
-                throw new IllegalStateException("support-bot external DATABASE_URL supports only PostgreSQL.");
-            }
+            requirePostgresqlJdbcUrl(rawDatabaseUrl, "support-bot DATABASE_URL");
             return Optional.of(new ExternalDatabaseSettings(
                 rawDatabaseUrl,
                 "",
@@ -94,7 +78,7 @@ final class ExternalDatabaseSettingsResolver {
         }
         if (!normalized.startsWith("postgresql://")) {
             throw new IllegalArgumentException(
-                "Invalid DATABASE_URL format. Use a PostgreSQL JDBC URL or postgres://user:pass@host:5432/db."
+                "Invalid DATABASE_URL format. Only PostgreSQL JDBC URLs or postgres:// URIs are supported."
             );
         }
         try {
@@ -131,14 +115,14 @@ final class ExternalDatabaseSettingsResolver {
                 "postgres"
             ));
         } catch (URISyntaxException ex) {
-            throw new IllegalArgumentException("Invalid DATABASE_URL format", ex);
+            throw new IllegalArgumentException("Invalid PostgreSQL DATABASE_URL format", ex);
         }
     }
 
-    private static ExternalDatabaseSettings requirePostgresql(Optional<ExternalDatabaseSettings> settings) {
-        return settings.orElseThrow(() -> new IllegalStateException(
-            "support-bot external PostgreSQL mode requires spring.datasource.url or DATABASE_URL."
-        ));
+    private static void requirePostgresqlJdbcUrl(String jdbcUrl, String source) {
+        if (!jdbcUrl.trim().toLowerCase().startsWith("jdbc:postgresql:")) {
+            throw new IllegalStateException(source + " supports only PostgreSQL JDBC URLs.");
+        }
     }
 
     private static String defaultString(String value) {
