@@ -497,7 +497,7 @@
                                     <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn"
                                             th:data-ticket-id="${dialog.ticketId}"
                                             th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Закрыть</button>
-                                    <a th:href="@{/tasks(create=1,ticketId=${dialog.ticketId},client=${dialog.displayClientName()})}" class="btn btn-sm btn-outline-secondary dialog-task-btn"
+                                    <a th:href="@{/tasks(create=1,ticketId=${dialog.ticketId},requestNumber=${dialog.requestNumber()},client=${dialog.displayClientName()})}" class="btn btn-sm btn-outline-secondary dialog-task-btn"
                                        th:data-ticket-id="${dialog.ticketId}"
                                        th:data-client="${dialog.displayClientName()}">Задача</a>
                                     </div>
@@ -1275,7 +1275,7 @@
     in_work: Array.isArray(RAW_MY_IN_WORK_DIALOGS) ? RAW_MY_IN_WORK_DIALOGS : [],
   };
 </script>
-<th:block th:with="dialogsAssetVersion='20260924-01-273-r8'">
+<th:block th:with="dialogsAssetVersion='20260928-01-276-display-r53'">
 <script th:src="@{/js/dialogs-list-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-avatar-runtime.js(v=${dialogsAssetVersion})}"></script>

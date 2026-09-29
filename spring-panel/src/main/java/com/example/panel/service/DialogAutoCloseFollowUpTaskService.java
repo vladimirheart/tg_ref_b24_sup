@@ -40,6 +40,7 @@ public class DialogAutoCloseFollowUpTaskService {
     private final TicketResponsibleRepository ticketResponsibleRepository;
     private final MessageRepository messageRepository;
     private final ProjectRepository projectRepository;
+    private final DialogTaskDisplayService dialogTaskDisplayService;
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
     private final TransactionOperations isolatedTransactionOperations;
@@ -48,6 +49,7 @@ public class DialogAutoCloseFollowUpTaskService {
                                               TicketResponsibleRepository ticketResponsibleRepository,
                                               MessageRepository messageRepository,
                                               ProjectRepository projectRepository,
+                                              DialogTaskDisplayService dialogTaskDisplayService,
                                               ObjectMapper objectMapper,
                                               JdbcTemplate jdbcTemplate,
                                               PlatformTransactionManager transactionManager) {
@@ -55,6 +57,7 @@ public class DialogAutoCloseFollowUpTaskService {
         this.ticketResponsibleRepository = ticketResponsibleRepository;
         this.messageRepository = messageRepository;
         this.projectRepository = projectRepository;
+        this.dialogTaskDisplayService = dialogTaskDisplayService;
         this.objectMapper = objectMapper;
         this.jdbcTemplate = jdbcTemplate;
         this.isolatedTransactionOperations = buildRequiresNewTransactionOperations(transactionManager);
@@ -200,11 +203,10 @@ public class DialogAutoCloseFollowUpTaskService {
     }
 
     private String buildTitle(String ticketId, Message message) {
-        String problem = message != null ? trimToNull(message.getProblem()) : null;
-        if (problem == null) {
-            return "Проверить автозакрытый диалог #" + ticketId;
-        }
-        return "Проверить автозакрытый диалог #" + ticketId + ": " + abbreviate(problem, TITLE_PROBLEM_LIMIT);
+        return dialogTaskDisplayService.buildAutoCloseTitle(
+            ticketId,
+            message != null ? message.getProblem() : null
+        );
     }
 
     private String buildBodyHtml(String ticketId,
@@ -234,8 +236,8 @@ public class DialogAutoCloseFollowUpTaskService {
         }
         html.append("<p><a href=\"/dialogs/")
             .append(escapeHtml(ticketId))
-            .append("\">Открыть диалог #")
-            .append(escapeHtml(ticketId))
+            .append("\">Открыть ")
+            .append(escapeHtml(dialogTaskDisplayService.dialogReference(ticketId)))
             .append("</a></p>");
         return html.toString();
     }

@@ -61,6 +61,9 @@ public class NotificationService {
     @Autowired
     private DialogLookupReadService dialogLookupReadService;
 
+    @Autowired
+    private DialogTaskDisplayService dialogTaskDisplayService;
+
     public NotificationService(NotificationRepository notificationRepository,
                                JdbcTemplate jdbcTemplate,
                                @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
@@ -232,6 +235,12 @@ public class NotificationService {
 
     private String normalizeNotificationText(String text, String url) {
         String current = normalizeNotificationText(text);
+        if (dialogTaskDisplayService != null) {
+            current = dialogTaskDisplayService.normalizeNotificationText(current);
+        }
+        if (StringUtils.hasText(current) && current.contains("№")) {
+            return current;
+        }
         String ticketId = extractNotificationDialogTicketId(url);
         if (!StringUtils.hasText(current) || !StringUtils.hasText(ticketId)) {
             return current;
@@ -408,10 +417,11 @@ public class NotificationService {
     }
 
     private NotificationDto toDto(Notification entity) {
+        String safeUrl = normalizeUrl(entity.getUrl());
         return new NotificationDto(
                 entity.getId(),
-                normalizeNotificationText(entity.getText()),
-                normalizeUrl(entity.getUrl()),
+                normalizeNotificationText(entity.getText(), safeUrl),
+                safeUrl,
                 Boolean.TRUE.equals(entity.getIsRead()),
                 entity.getCreatedAt()
         );

@@ -557,9 +557,14 @@
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get('create') === '1' && params.get('ticketId')) {
-        context = { ticketId: params.get('ticketId'), client: params.get('client') || '' };
+        context = {
+          ticketId: params.get('ticketId'),
+          requestNumber: params.get('requestNumber') || '',
+          client: params.get('client') || '',
+        };
         params.delete('create');
         params.delete('ticketId');
+        params.delete('requestNumber');
         params.delete('client');
         const suffix = params.toString();
         window.history.replaceState({}, '', `${window.location.pathname}${suffix ? `?${suffix}` : ''}${window.location.hash}`);
@@ -580,11 +585,14 @@
     }
     if (!context?.ticketId) return;
     resetTaskForm();
+    const requestNumber = String(context.requestNumber || '').trim();
+    const displayTitle = requestNumber ? `Обращение №${requestNumber}` : 'Обращение';
+    const sourceLabel = requestNumber ? `обращения №${requestNumber}` : 'обращения';
     const title = taskForm?.elements.namedItem('title');
-    if (title) title.value = `Обращение #${context.ticketId}${context.client ? `: ${context.client}` : ''}`;
+    if (title) title.value = `${displayTitle}${context.client ? `: ${context.client}` : ''}`;
     const tags = taskForm?.elements.namedItem('tags');
     if (tags) tags.value = 'dialog';
-    if (taskBody) taskBody.innerHTML = `<p>Создано из диалога #${escapeHtml(context.ticketId)}${context.client ? `, клиент: ${escapeHtml(context.client)}` : ''}.</p>`;
+    if (taskBody) taskBody.innerHTML = `<p>Создано из ${escapeHtml(sourceLabel)}${context.client ? `, клиент: ${escapeHtml(context.client)}` : ''}.</p>`;
     dirty = true;
     showTaskModal();
   }

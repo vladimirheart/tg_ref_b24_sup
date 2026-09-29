@@ -59,6 +59,7 @@ public class TaskBoardService {
     private final TaskProjectMembershipRepository taskProjectMembershipRepository;
     private final TaskEventRepository taskEventRepository;
     private final TaskDomainFoundationService taskDomainFoundationService;
+    private final DialogTaskDisplayService dialogTaskDisplayService;
 
     public TaskBoardService(ProjectBoardRepository projectBoardRepository,
                             BoardColumnRepository boardColumnRepository,
@@ -68,7 +69,8 @@ public class TaskBoardService {
                             TaskPersonRepository taskPersonRepository,
                             TaskProjectMembershipRepository taskProjectMembershipRepository,
                             TaskEventRepository taskEventRepository,
-                            TaskDomainFoundationService taskDomainFoundationService) {
+                            TaskDomainFoundationService taskDomainFoundationService,
+                            DialogTaskDisplayService dialogTaskDisplayService) {
         this.projectBoardRepository = projectBoardRepository;
         this.boardColumnRepository = boardColumnRepository;
         this.boardTaskPlacementRepository = boardTaskPlacementRepository;
@@ -78,6 +80,7 @@ public class TaskBoardService {
         this.taskProjectMembershipRepository = taskProjectMembershipRepository;
         this.taskEventRepository = taskEventRepository;
         this.taskDomainFoundationService = taskDomainFoundationService;
+        this.dialogTaskDisplayService = dialogTaskDisplayService;
     }
 
     @Transactional
@@ -497,7 +500,7 @@ public class TaskBoardService {
         Map<String, Object> dto = new LinkedHashMap<>();
         dto.put("id", task.getId());
         dto.put("seq", task.getSeq());
-        dto.put("title", task.getTitle());
+        dto.put("title", dialogTaskDisplayService.normalizeTitle(task.getTitle()));
         dto.put("assignee", task.getAssignee());
         dto.put("status", task.getStatus());
         dto.put("due_at", task.getDueAt() != null ? task.getDueAt().toString() : null);

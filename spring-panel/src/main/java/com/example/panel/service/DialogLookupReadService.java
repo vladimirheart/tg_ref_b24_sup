@@ -288,7 +288,12 @@ public class DialogLookupReadService {
         return findDialog(normalizedTicketId, "")
                 .map(DialogListItem::requestNumber)
                 .map(this::trimToNull)
+                .filter(this::isCanonicalRequestNumber)
                 .orElse(null);
+    }
+
+    private boolean isCanonicalRequestNumber(String value) {
+        return value != null && value.matches("\\d{8}-\\d{3,}");
     }
 
     public DialogMyDialogs groupMyActiveDialogs(List<DialogListItem> dialogs, String currentOperator) {

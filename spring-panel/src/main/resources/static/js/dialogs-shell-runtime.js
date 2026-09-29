@@ -960,23 +960,26 @@
       localStorage.setItem(storageKey, JSON.stringify(payload));
     }
 
-    function buildTaskCreateUrl(ticketId, clientName) {
+    function buildTaskCreateUrl(ticketId, clientName, requestNumber) {
       const params = new URLSearchParams();
       params.set('create', '1');
       if (ticketId) params.set('ticketId', String(ticketId));
+      if (requestNumber) params.set('requestNumber', String(requestNumber));
       if (clientName) params.set('client', String(clientName));
       return `/tasks?${params.toString()}`;
     }
 
-    function openTaskCreateSurface(ticketId, clientName) {
+    function openTaskCreateSurface(ticketId, clientName, requestNumber) {
       const normalizedTicketId = String(ticketId || '').trim();
       if (!normalizedTicketId) return;
       const normalizedClientName = String(clientName || '').trim();
+      const normalizedRequestNumber = String(requestNumber || '').trim();
       setTaskDraft({
         ticketId: normalizedTicketId,
+        requestNumber: normalizedRequestNumber,
         client: normalizedClientName,
       });
-      window.location.href = buildTaskCreateUrl(normalizedTicketId, normalizedClientName);
+      window.location.href = buildTaskCreateUrl(normalizedTicketId, normalizedClientName, normalizedRequestNumber);
     }
 
     function openDialogSurface(ticketId, row, runtimeOptions = {}) {

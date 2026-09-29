@@ -59,11 +59,16 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         project.setName("Auto-close follow-up");
         when(projectRepository.findById(42L)).thenReturn(Optional.of(project));
 
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        when(dialogLookupReadService.resolveRequestNumber("T-100")).thenReturn("20260928-007");
+        DialogTaskDisplayService dialogTaskDisplayService = new DialogTaskDisplayService(dialogLookupReadService);
+
         DialogAutoCloseFollowUpTaskService service = new DialogAutoCloseFollowUpTaskService(
             panelTaskService,
             responsibleRepository,
             messageRepository,
             projectRepository,
+            dialogTaskDisplayService,
             new ObjectMapper(),
             jdbcTemplate,
             transactionManager()
@@ -85,8 +90,10 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         assertThat(payload.coExecutors()).containsExactly("helper", "reviewer");
         assertThat(payload.projectIds()).containsExactly(42L);
         assertThat(payload.bodyHtml()).contains("/dialogs/T-100");
+        assertThat(payload.bodyHtml()).contains("Открыть обращение №20260928-007");
+        assertThat(payload.bodyHtml()).doesNotContain("Открыть диалог #T-100");
         assertThat(payload.bodyHtml()).contains("Иван");
-        assertThat(payload.title()).contains("T-100");
+        assertThat(payload.title()).contains("№20260928-007").doesNotContain("T-100");
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbcTemplate).query(sqlCaptor.capture(), any(RowMapper.class), eq("T-100"));
@@ -109,6 +116,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
             responsibleRepository,
             messageRepository,
             projectRepository,
+            new DialogTaskDisplayService(mock(DialogLookupReadService.class)),
             new ObjectMapper(),
             jdbcTemplate,
             transactionManager()

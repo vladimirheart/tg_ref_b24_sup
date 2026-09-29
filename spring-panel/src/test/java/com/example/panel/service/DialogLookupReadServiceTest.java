@@ -99,6 +99,7 @@ class DialogLookupReadServiceTest {
         assertThat(dialog).isPresent();
         assertThat(dialog.orElseThrow().ticketId()).isEqualTo("T-100");
         assertThat(dialog.orElseThrow().requestNumber()).isEqualTo("20260421-001");
+        assertThat(service.resolveRequestNumber("T-100")).isEqualTo("20260421-001");
         assertThat(dialog.orElseThrow().categories()).isEqualTo("billing");
     }
 

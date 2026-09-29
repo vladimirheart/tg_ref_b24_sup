@@ -28,11 +28,14 @@ public class TaskQueryService {
 
     private final TaskRepository taskRepository;
     private final TaskDomainFoundationService taskDomainFoundationService;
+    private final DialogTaskDisplayService dialogTaskDisplayService;
 
     public TaskQueryService(TaskRepository taskRepository,
-                            TaskDomainFoundationService taskDomainFoundationService) {
+                            TaskDomainFoundationService taskDomainFoundationService,
+                            DialogTaskDisplayService dialogTaskDisplayService) {
         this.taskRepository = taskRepository;
         this.taskDomainFoundationService = taskDomainFoundationService;
+        this.dialogTaskDisplayService = dialogTaskDisplayService;
     }
 
     public Map<String, Object> list(int page,
@@ -208,7 +211,7 @@ public class TaskQueryService {
         Map<String, Object> dto = new HashMap<>();
         dto.put("id", task.getId());
         dto.put("display_no", task.getSeq() != null ? "DL_" + task.getSeq() : "DL_" + task.getId());
-        dto.put("title", task.getTitle());
+        dto.put("title", dialogTaskDisplayService.normalizeTitle(task.getTitle()));
         dto.put("assignee", task.getAssignee());
         dto.put("tag", task.getTag());
         dto.put("tags", taskDomainFoundationService.listTags(task.getId()));

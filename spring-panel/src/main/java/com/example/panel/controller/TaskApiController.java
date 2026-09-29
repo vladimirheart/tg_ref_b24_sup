@@ -10,6 +10,7 @@ import com.example.panel.repository.TaskHistoryRepository;
 import com.example.panel.repository.TaskPersonRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.repository.TaskSequenceRepository;
+import com.example.panel.service.DialogTaskDisplayService;
 import com.example.panel.service.IncidentService;
 import com.example.panel.service.NotificationRoutingService;
 import com.example.panel.service.TaskDomainFoundationService;
@@ -64,6 +65,7 @@ public class TaskApiController {
     private final IncidentService incidentService;
     private final TaskDomainFoundationService taskDomainFoundationService;
     private final TaskQueryService taskQueryService;
+    private final DialogTaskDisplayService dialogTaskDisplayService;
 
     public TaskApiController(TaskRepository taskRepository,
                              TaskSequenceRepository taskSequenceRepository,
@@ -73,7 +75,8 @@ public class TaskApiController {
                              NotificationRoutingService notificationRoutingService,
                              IncidentService incidentService,
                              TaskDomainFoundationService taskDomainFoundationService,
-                             TaskQueryService taskQueryService) {
+                             TaskQueryService taskQueryService,
+                             DialogTaskDisplayService dialogTaskDisplayService) {
         this.taskRepository = taskRepository;
         this.taskSequenceRepository = taskSequenceRepository;
         this.commentRepository = commentRepository;
@@ -83,6 +86,7 @@ public class TaskApiController {
         this.incidentService = incidentService;
         this.taskDomainFoundationService = taskDomainFoundationService;
         this.taskQueryService = taskQueryService;
+        this.dialogTaskDisplayService = dialogTaskDisplayService;
     }
 
     @GetMapping
@@ -273,7 +277,7 @@ public class TaskApiController {
         Map<String, Object> dto = new HashMap<>();
         dto.put("id", task.getId());
         dto.put("display_no", task.getSeq() != null ? "DL_" + task.getSeq() : "DL_" + task.getId());
-        dto.put("title", task.getTitle());
+        dto.put("title", dialogTaskDisplayService.normalizeTitle(task.getTitle()));
         dto.put("assignee", task.getAssignee());
         dto.put("tag", task.getTag());
         dto.put("status", task.getStatus());
@@ -286,7 +290,7 @@ public class TaskApiController {
 
     private Map<String, Object> toDetailedDto(Task task) {
         Map<String, Object> dto = toSummaryDto(task);
-        dto.put("body_html", task.getBodyHtml());
+        dto.put("body_html", dialogTaskDisplayService.normalizeBodyHtml(task.getBodyHtml()));
         dto.put("creator", task.getCreator());
 
         List<Map<String, Object>> comments = commentRepository.findByTaskIdOrderByCreatedAtAsc(task.getId()).stream()

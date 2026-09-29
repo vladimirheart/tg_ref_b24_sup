@@ -378,8 +378,16 @@
   }
 
 
-  function openTaskCreateSurface(ticketId, clientName) {
-    dialogsShellRuntime?.openTaskCreateSurface(ticketId, clientName);
+  function resolveTaskRequestNumber(ticketId) {
+    const normalizedTicketId = String(ticketId || '').trim();
+    if (!normalizedTicketId) return '';
+    const row = rowsList().find((candidate) => String(candidate?.dataset?.ticketId || '').trim() === normalizedTicketId);
+    return String(row?.dataset?.requestNumber || '').trim();
+  }
+
+  function openTaskCreateSurface(ticketId, clientName, requestNumber = '') {
+    const normalizedRequestNumber = String(requestNumber || '').trim() || resolveTaskRequestNumber(ticketId);
+    dialogsShellRuntime?.openTaskCreateSurface(ticketId, clientName, normalizedRequestNumber);
   }
 
   function loadColumnState() {
