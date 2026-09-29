@@ -36,7 +36,6 @@ class DockerProductionSharedConfigExternalizationSourceContractTest {
     @Test
     void backupRecoveryAndHostPolicyResolveTheSamePortableDirectory() throws IOException {
         String backup = read("docker-compose.production-backup.yml");
-        String legacy = read("docker-compose.legacy-sqlite-import.yml");
         String psPolicy = read("scripts/lib/backup-config.ps1");
         String shPolicy = read("scripts/lib/backup-config.sh");
         String productionUpPs = read("scripts/docker-production-up.ps1");
@@ -47,7 +46,6 @@ class DockerProductionSharedConfigExternalizationSourceContractTest {
             .contains(PORTABLE_DEFAULT)
             .contains("files-backup:\n    depends_on:\n      shared-config-check:\n        condition: service_completed_successfully")
             .doesNotContain(LEGACY_REPO_DEFAULT);
-        assertThat(legacy).contains(PORTABLE_DEFAULT).doesNotContain(LEGACY_REPO_DEFAULT);
         assertThat(psPolicy).contains("$configured = \"../iguana-runtime/tg_ref_b24_sup/shared-config\"");
         assertThat(shPolicy).contains("configured=\"../iguana-runtime/tg_ref_b24_sup/shared-config\"");
         assertThat(productionUpPs)

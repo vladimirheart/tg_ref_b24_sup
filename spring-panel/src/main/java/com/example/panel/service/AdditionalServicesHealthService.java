@@ -1,6 +1,5 @@
 package com.example.panel.service;
 
-import com.example.panel.config.BotProcessProperties;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,33 +20,9 @@ public class AdditionalServicesHealthService {
     private static final Set<String> TELEGRAM_MARKERS = Set.of("bot-telegram", "telegrambotapplication");
     private static final Set<String> VK_MARKERS = Set.of("bot-vk", "vkbotapplication");
 
-    private final BotProcessProperties botProcessProperties;
-
-    public AdditionalServicesHealthService(BotProcessProperties botProcessProperties) {
-        this.botProcessProperties = botProcessProperties;
-    }
-
     public void checkServices() {
-        checkBotDatabaseDir();
         checkBotRuntimeFiles();
         checkBotProcesses();
-    }
-
-    private void checkBotDatabaseDir() {
-        Path dir = botProcessProperties.resolveDatabaseDir();
-        if (!Files.exists(dir)) {
-            log.warn("Bot database directory does not exist: {}", dir);
-            return;
-        }
-        if (!Files.isDirectory(dir)) {
-            log.warn("Bot database path is not a directory: {}", dir);
-            return;
-        }
-        if (!Files.isReadable(dir) || !Files.isWritable(dir)) {
-            log.warn("Bot database directory is not readable/writable: {}", dir);
-            return;
-        }
-        log.info("Bot database directory is available: {}", dir);
     }
 
     private void checkBotRuntimeFiles() {

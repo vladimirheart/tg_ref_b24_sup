@@ -2,8 +2,6 @@ package com.example.panel.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -11,7 +9,6 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "app.bots")
 public class BotProcessProperties {
 
-    private String databaseDir = "../bot_databases";
     private String host = "127.0.0.1";
     private int maxBasePort = 18000;
     private String launchMode = "auto";
@@ -21,14 +18,6 @@ public class BotProcessProperties {
     private boolean autoStartEnabled = true;
     private Duration startupReadinessTimeout = Duration.ofSeconds(45);
     private Duration startupPollInterval = Duration.ofMillis(250);
-
-    public String getDatabaseDir() {
-        return databaseDir;
-    }
-
-    public void setDatabaseDir(String databaseDir) {
-        this.databaseDir = databaseDir;
-    }
 
     public String getHost() {
         return host;
@@ -100,31 +89,6 @@ public class BotProcessProperties {
 
     public void setAutoStartEnabled(boolean autoStartEnabled) {
         this.autoStartEnabled = autoStartEnabled;
-    }
-
-    public Path resolveDatabaseDir() {
-        String configuredValue = databaseDir == null || databaseDir.isBlank()
-            ? "../bot_databases"
-            : databaseDir.trim();
-        Path configuredPath = Paths.get(configuredValue);
-        if (configuredPath.isAbsolute()) {
-            return configuredPath.normalize();
-        }
-
-        Path workingDirectory = Paths.get("").toAbsolutePath().normalize();
-
-        // Older bootstrap-first-run.ps1 versions wrote APP_BOT_DATABASE_DIR=bot_databases
-        // into the repository-root .env, while spring-panel is launched with spring-panel
-        // as its working directory. Preserve those existing .env files by treating that
-        // exact legacy value as repository-root relative when launched from spring-panel.
-        if ("bot_databases".equalsIgnoreCase(configuredValue.replace('\\', '/'))
-                && workingDirectory.getFileName() != null
-                && "spring-panel".equalsIgnoreCase(workingDirectory.getFileName().toString())
-                && workingDirectory.getParent() != null) {
-            return workingDirectory.getParent().resolve("bot_databases").normalize();
-        }
-
-        return workingDirectory.resolve(configuredPath).normalize();
     }
 
     public int resolveMaxPort(Long channelId) {

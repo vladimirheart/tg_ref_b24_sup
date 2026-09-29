@@ -53,12 +53,7 @@ class RuntimeStartupOwnershipSourceContractTest {
     }
 
     @Test
-    void migrationAndLegacyStartupMutationsAreOwnedByMigratorOrCompatibilityRole() throws IOException {
-        assertMigrator("service/LegacySqliteImportService.java");
-        assertMigrator("service/PostgresImportedDataReconciliationService.java");
-        assertMigrator("service/PostgresLegacyCriticalDataRecoveryService.java");
-        assertMigrator("service/LegacyBotShardConsolidationService.java");
-        assertMigrator("service/LegacyMonitoringHistoryCompactionService.java");
+    void migrationStartupMutationsAreOwnedByMigratorRole() throws IOException {
         assertMigrator("service/RmsMonitoringSeedImportService.java");
         assertMigrator("service/LocationsSharedConfigRepairService.java");
     }

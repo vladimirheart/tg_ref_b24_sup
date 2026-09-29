@@ -27,8 +27,6 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     # PostgreSQL migrations are maintained as a strictly increasing chain.
-    # Legacy SQLite migration files remain only for recovery/tests and are not
-    # a selectable spring-panel runtime mode.
     out-of-order: false
     placeholders:
       autoIncrement: AUTOINCREMENT
@@ -67,16 +65,7 @@ app:
       channel: ${APP_UI_EVENT_FANOUT_CHANNEL:iguana:ui-events:v1}
   datasource:
     mode: ${APP_DB_MODE:postgresql}
-    # Legacy source paths below are archive/recovery inputs only. They do not
-    # create live spring-panel datasources.
-    sqlite:
-      path: ${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:panel_runtime.db}}
-    monitoring-sqlite:
-      path: ${APP_DB_MONITORING:monitoring.db}
-    bot-sqlite:
-      path: ${APP_DB_BOT_RUNTIME:${APP_DB_BOT:bot_runtime.db}}
   bots:
-    database-dir: ${APP_BOT_DATABASE_DIR:../bot_databases}
     launch-mode: ${APP_BOT_LAUNCH_MODE:auto} # auto -> prefer explicit/prebuilt jar, fallback to spring-boot:run in dev
     executable-jars:
       bot-telegram: ${APP_BOT_EXECUTABLE_JAR_TELEGRAM:}
