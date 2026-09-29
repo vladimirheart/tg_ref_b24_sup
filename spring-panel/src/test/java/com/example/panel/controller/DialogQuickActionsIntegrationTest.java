@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.support.PostgresqlIntegrationTestSupport;
 import com.example.panel.entity.Channel;
 import com.example.panel.service.DialogReplyTransportService;
 import com.example.panel.service.NotificationService;
@@ -51,62 +52,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-@ActiveProfiles("sqlite")
-@TestPropertySource(properties = {
-        "spring.flyway.locations=classpath:db/migration/sqlite"
-})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class DialogQuickActionsIntegrationTest {
+class DialogQuickActionsIntegrationTest extends PostgresqlIntegrationTestSupport {
 
     private static Path dbFile;
     private static Path usersDbFile;
     private static Path sharedConfigDir;
     private static Path attachmentsDir;
-
-    @DynamicPropertySource
-    static void sqlite(DynamicPropertyRegistry registry) throws IOException {
-        dbFile = Files.createTempFile("panel-dialog-quick-actions", ".db");
-        usersDbFile = Files.createTempFile("panel-dialog-quick-actions-users", ".db");
-        sharedConfigDir = Files.createTempDirectory("panel-dialog-quick-actions-shared-config");
-        attachmentsDir = Files.createTempDirectory("panel-dialog-quick-actions-attachments");
-        initializeUsersDb(usersDbFile);
-        registry.add("app.datasource.sqlite.path", () -> dbFile.toString());
-        registry.add("app.datasource.users-sqlite.path", () -> usersDbFile.toString());
-        registry.add("shared-config.dir", () -> sharedConfigDir.toString());
-        registry.add("app.storage.attachments", () -> attachmentsDir.toString());
-    }
-
-    private static void initializeUsersDb(Path path) {
-        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath());
-             var statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS users (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        username TEXT NOT NULL UNIQUE,
-                        password TEXT NOT NULL,
-                        enabled BOOLEAN NOT NULL DEFAULT 1,
-                        role_id INTEGER,
-                        role TEXT,
-                        department TEXT,
-                        full_name TEXT,
-                        photo TEXT,
-                        is_blocked BOOLEAN NOT NULL DEFAULT 0,
-                        last_portal_activity_at TEXT,
-                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS roles (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL UNIQUE,
-                        description TEXT,
-                        permissions TEXT NOT NULL DEFAULT '{}'
-                    )
-                    """);
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to initialize users test database", ex);
-        }
-    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -153,7 +105,7 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiReassignsAndMutatesParticipantsAcrossReadAndListConsumers() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
         insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
@@ -161,12 +113,13 @@ class DialogQuickActionsIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (101, 'token101', 'Quick Actions Handoff', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (101, 'token101', 'Quick Actions Handoff', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920101L, "T-QA-LIVE", 101L, "quick_action_user", "Клиент Quick Action", "Retail", "Калуга", "Точка QA", "Проверка reassign + participants", "2026-06-03T09:00:00Z", 10101L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-LIVE", "watcher_owner", "dispatcher", "2026-06-03T08:59:00Z");
         jdbcTemplate.update("""
@@ -302,17 +255,18 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiResolveAndReopenRefreshListDetailsAndWorkspaceConsumers() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (102, 'token102', 'Quick Actions Close', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (102, 'token102', 'Quick Actions Close', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920102L, "T-QA-CLOSE", 102L, "quick_close_user", "Клиент Close", "Retail", "Тула", "Точка Close", "Проверка resolve + reopen", "2026-06-03T10:00:00Z", 10201L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-CLOSE", "watcher_owner", "dispatcher", "2026-06-03T09:59:00Z");
         insertHistoryRow("T-QA-CLOSE", 920102L, "user", "Клиент ожидает решения", "2026-06-03T10:01:00Z", "text", 1201L, null, 102L);
@@ -422,17 +376,18 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiLifecycleStateErrorsStayExplicit() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("lifecycle_owner", true, false, 1L, "Support", "Lifecycle Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (119, 'token119', 'Quick Actions Lifecycle Errors', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (119, 'token119', 'Quick Actions Lifecycle Errors', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920119L, "T-QA-LIFECYCLE-STATE", 119L, "quick_lifecycle_state_user", "Клиент Lifecycle State", "Retail", "Смоленск", "Точка Lifecycle State", "Проверка resolve/reopen state contract", "2026-06-05T14:30:00Z", 11901L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-LIFECYCLE-STATE", "lifecycle_owner", "dispatcher", "2026-06-05T14:29:00Z");
         insertHistoryRow("T-QA-LIFECYCLE-STATE", 920119L, "user", "Клиент ждёт решения", "2026-06-05T14:31:00Z", "text", 2901L, null, 119L);
@@ -491,19 +446,20 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiReplyRefreshesDetailsWorkspaceAndAuditTrailForWebFormDialog() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (104, 'token104', 'Quick Actions Reply', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (104, 'token104', 'Quick Actions Reply', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920104L, "T-QA-REPLY", 104L, "quick_reply_user", "Клиент Reply", "Retail", "Орёл", "Точка Reply", "Проверка operator reply", "2026-06-04T08:00:00Z", 10401L);
         jdbcTemplate.update("""
                 INSERT INTO web_form_sessions(
                     token, ticket_id, channel_id, user_id, answers_json,
                     client_name, client_contact, username, created_at, last_active_at
-                ) VALUES (?,?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,?,?,?,?,?,CAST(? AS TIMESTAMPTZ),CAST(? AS TIMESTAMPTZ))
                 """,
                 "qa-reply-token",
                 "T-QA-REPLY",
@@ -603,19 +559,20 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiWebFormReplyEditDeleteRefreshesDetailsWorkspaceWithoutTelegramTransport() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (108, '', 'Quick Actions Web Form Mutate', 'vk', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (108, '', 'Quick Actions Web Form Mutate', 'vk', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920108L, "T-QA-WEB-MUTATE", 108L, "quick_web_mutate_user", "Клиент Web Mutate", "Retail", "Курск", "Точка Web Mutate", "Проверка web_form reply/edit/delete", "2026-06-04T12:00:00Z", 10801L);
         jdbcTemplate.update("""
                 INSERT INTO web_form_sessions(
                     token, ticket_id, channel_id, user_id, answers_json,
                     client_name, client_contact, username, created_at, last_active_at
-                ) VALUES (?,?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,?,?,?,?,?,CAST(? AS TIMESTAMPTZ),CAST(? AS TIMESTAMPTZ))
                 """,
                 "qa-web-mutate-token",
                 "T-QA-WEB-MUTATE",
@@ -643,7 +600,7 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.responsible").value("watcher_owner"));
 
         Long localTelegramMessageId = jdbcTemplate.queryForObject(
-                "SELECT tg_message_id FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY rowid DESC LIMIT 1",
+                "SELECT tg_message_id FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY id DESC LIMIT 1",
                 Long.class,
                 "T-QA-WEB-MUTATE"
         );
@@ -761,12 +718,13 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiReplyEditDeleteRefreshesDetailsWorkspaceAndAuditTrail() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (106, 'token106', 'Quick Actions Edit Delete', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (106, 'token106', 'Quick Actions Edit Delete', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920106L, "T-QA-MUTATE", 106L, "quick_mutate_user", "Клиент Mutate", "Retail", "Тверь", "Точка Mutate", "Проверка reply/edit/delete", "2026-06-04T10:00:00Z", 10601L);
         insertHistoryRow("T-QA-MUTATE", 920106L, "user", "Клиент ждёт уточнение", "2026-06-04T10:01:00Z", "text", 1601L, null, 106L);
@@ -902,12 +860,13 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiMediaReplyRefreshesDetailsWorkspaceAndAuditTrail() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (107, 'token107', 'Quick Actions Media', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (107, 'token107', 'Quick Actions Media', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920107L, "T-QA-MEDIA", 107L, "quick_media_user", "Клиент Media", "Retail", "Кострома", "Точка Media", "Проверка reply media", "2026-06-04T11:00:00Z", 10701L);
         insertHistoryRow("T-QA-MEDIA", 920107L, "user", "Нужна картинка", "2026-06-04T11:01:00Z", "text", 1701L, null, 107L);
@@ -1000,18 +959,19 @@ class DialogQuickActionsIntegrationTest {
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void quickActionsApiReplyEditDeleteNotifiesPeerParticipantsThroughNotificationApi() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("notify_owner", true, false, 1L, "Support", "Notify Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("notify_peer", true, false, 1L, "Support", "Notify Peer", "Ops", "/img/peer.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (109, 'token109', 'Quick Actions Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (109, 'token109', 'Quick Actions Notify', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920109L, "T-QA-NOTIFY", 109L, "quick_notify_user", "Клиент Notify", "Retail", "Томск", "Точка Notify", "Проверка reply/edit/delete notifications", "2026-06-05T09:00:00Z", 10901L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-NOTIFY", "notify_owner", "dispatcher", "2026-06-05T08:59:00Z");
         jdbcTemplate.update("""
@@ -1069,13 +1029,13 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("notify_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].text").value("Сообщение в обращении T-QA-NOTIFY было удалено"))
-                .andExpect(jsonPath("$[0].url").value("/dialogs/T-QA-NOTIFY"))
-                .andExpect(jsonPath("$[1].text").value("Сообщение в обращении T-QA-NOTIFY было отредактировано"))
-                .andExpect(jsonPath("$[1].url").value("/dialogs/T-QA-NOTIFY"))
-                .andExpect(jsonPath("$[2].text").value("Новое сообщение в обращении T-QA-NOTIFY"))
-                .andExpect(jsonPath("$[2].url").value("/dialogs/T-QA-NOTIFY"));
+                .andExpect(jsonPath("$.items.length()").value(3))
+                .andExpect(jsonPath("$.items[0].text").value("Сообщение в обращении T-QA-NOTIFY было удалено"))
+                .andExpect(jsonPath("$.items[0].url").value("/dialogs/T-QA-NOTIFY"))
+                .andExpect(jsonPath("$.items[1].text").value("Сообщение в обращении T-QA-NOTIFY было отредактировано"))
+                .andExpect(jsonPath("$.items[1].url").value("/dialogs/T-QA-NOTIFY"))
+                .andExpect(jsonPath("$.items[2].text").value("Новое сообщение в обращении №20260605-001"))
+                .andExpect(jsonPath("$.items[2].url").value("/dialogs/T-QA-NOTIFY"));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("notify_peer", "n/a", "PAGE_DIALOGS")))
@@ -1095,8 +1055,8 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("notify_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(latestNotificationId))
-                .andExpect(jsonPath("$[0].read").value(true));
+                .andExpect(jsonPath("$.items[0].id").value(latestNotificationId))
+                .andExpect(jsonPath("$.items[0].read").value(true));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("notify_peer", "n/a", "PAGE_DIALOGS")))
@@ -1112,18 +1072,19 @@ class DialogQuickActionsIntegrationTest {
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void quickActionsApiMediaReplyNotifiesPeerParticipantsThroughNotificationApi() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("media_notify_owner", true, false, 1L, "Support", "Media Notify Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("media_notify_peer", true, false, 1L, "Support", "Media Notify Peer", "Ops", "/img/peer.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (110, 'token110', 'Quick Actions Media Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (110, 'token110', 'Quick Actions Media Notify', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920110L, "T-QA-MEDIA-NOTIFY", 110L, "quick_media_notify_user", "Клиент Media Notify", "Retail", "Омск", "Точка Media Notify", "Проверка media notifications", "2026-06-05T09:30:00Z", 11001L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-MEDIA-NOTIFY", "media_notify_owner", "dispatcher", "2026-06-05T09:29:00Z");
         jdbcTemplate.update("""
@@ -1148,9 +1109,9 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("media_notify_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].text").value("Новое медиа-сообщение в обращении T-QA-MEDIA-NOTIFY"))
-                .andExpect(jsonPath("$[0].url").value("/dialogs/T-QA-MEDIA-NOTIFY"));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].text").value("Новое медиа-сообщение в обращении T-QA-MEDIA-NOTIFY"))
+                .andExpect(jsonPath("$.items[0].url").value("/dialogs/T-QA-MEDIA-NOTIFY"));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("media_notify_peer", "n/a", "PAGE_DIALOGS")))
@@ -1166,18 +1127,19 @@ class DialogQuickActionsIntegrationTest {
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void quickActionsApiSpamNotifiesPeerParticipantsThroughNotificationApi() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("spam_notify_owner", true, false, 1L, "Support", "Spam Notify Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("spam_notify_peer", true, false, 1L, "Support", "Spam Notify Peer", "Ops", "/img/peer.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (113, 'token113', 'Quick Actions Spam Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (113, 'token113', 'Quick Actions Spam Notify', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920113L, "T-QA-SPAM-NOTIFY", 113L, "quick_spam_notify_user", "Клиент Spam Notify", "Retail", "Иваново", "Точка Spam Notify", "Проверка spam notifications", "2026-06-05T11:00:00Z", 11301L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-SPAM-NOTIFY", "spam_notify_owner", "dispatcher", "2026-06-05T10:59:00Z");
         jdbcTemplate.update("""
@@ -1211,10 +1173,10 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("spam_notify_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].text").value("Обращение T-QA-SPAM-NOTIFY помечено как спам"))
-                .andExpect(jsonPath("$[0].url").value("/dialogs/T-QA-SPAM-NOTIFY"))
-                .andExpect(jsonPath("$[0].read").value(false));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].text").value("Обращение T-QA-SPAM-NOTIFY помечено как спам"))
+                .andExpect(jsonPath("$.items[0].url").value("/dialogs/T-QA-SPAM-NOTIFY"))
+                .andExpect(jsonPath("$.items[0].read").value(false));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("spam_notify_peer", "n/a", "PAGE_DIALOGS")))
@@ -1239,9 +1201,9 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("spam_notify_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(latestSpamNotificationId))
-                .andExpect(jsonPath("$[0].read").value(true));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(latestSpamNotificationId))
+                .andExpect(jsonPath("$.items[0].read").value(true));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("spam_notify_owner", "n/a", "PAGE_DIALOGS")))
@@ -1252,13 +1214,14 @@ class DialogQuickActionsIntegrationTest {
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void quickActionsApiLifecycleActionsNotifyPeerParticipantsThroughNotificationApi() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("lifecycle_owner", true, false, 1L, "Support", "Lifecycle Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("lifecycle_peer", true, false, 1L, "Support", "Lifecycle Peer", "Ops", "/img/peer.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (111, 'token111', 'Quick Actions Lifecycle Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (111, 'token111', 'Quick Actions Lifecycle Notify', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920111L, "T-QA-LIFECYCLE-NOTIFY", 111L, "quick_lifecycle_notify_user", "Клиент Lifecycle Notify", "Retail", "Курск", "Точка Lifecycle Notify", "Проверка lifecycle notifications", "2026-06-05T10:00:00Z", 11101L);
         jdbcTemplate.update("""
@@ -1311,15 +1274,15 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("lifecycle_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(4))
-                .andExpect(jsonPath("$[0].text").value("Обращение T-QA-LIFECYCLE-NOTIFY снова открыто"))
-                .andExpect(jsonPath("$[0].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"))
-                .andExpect(jsonPath("$[1].text").value("Обращение T-QA-LIFECYCLE-NOTIFY закрыто"))
-                .andExpect(jsonPath("$[1].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"))
-                .andExpect(jsonPath("$[2].text").value("В обращении T-QA-LIFECYCLE-NOTIFY обновлены категории"))
-                .andExpect(jsonPath("$[2].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"))
-                .andExpect(jsonPath("$[3].text").value("Обращение T-QA-LIFECYCLE-NOTIFY взято в работу оператором lifecycle_owner"))
-                .andExpect(jsonPath("$[3].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"));
+                .andExpect(jsonPath("$.items.length()").value(4))
+                .andExpect(jsonPath("$.items[0].text").value("Обращение T-QA-LIFECYCLE-NOTIFY снова открыто"))
+                .andExpect(jsonPath("$.items[0].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"))
+                .andExpect(jsonPath("$.items[1].text").value("Обращение T-QA-LIFECYCLE-NOTIFY закрыто"))
+                .andExpect(jsonPath("$.items[1].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"))
+                .andExpect(jsonPath("$.items[2].text").value("В обращении T-QA-LIFECYCLE-NOTIFY обновлены категории"))
+                .andExpect(jsonPath("$.items[2].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"))
+                .andExpect(jsonPath("$.items[3].text").value("Обращение T-QA-LIFECYCLE-NOTIFY взято в работу оператором lifecycle_owner"))
+                .andExpect(jsonPath("$.items[3].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("lifecycle_peer", "n/a", "PAGE_DIALOGS")))
@@ -1344,12 +1307,12 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("lifecycle_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(4))
-                .andExpect(jsonPath("$[0].id").value(latestLifecycleNotificationId))
-                .andExpect(jsonPath("$[0].read").value(true))
-                .andExpect(jsonPath("$[1].read").value(false))
-                .andExpect(jsonPath("$[2].read").value(false))
-                .andExpect(jsonPath("$[3].read").value(false));
+                .andExpect(jsonPath("$.items.length()").value(4))
+                .andExpect(jsonPath("$.items[0].id").value(latestLifecycleNotificationId))
+                .andExpect(jsonPath("$.items[0].read").value(true))
+                .andExpect(jsonPath("$.items[1].read").value(false))
+                .andExpect(jsonPath("$.items[2].read").value(false))
+                .andExpect(jsonPath("$.items[3].read").value(false));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
@@ -1360,7 +1323,7 @@ class DialogQuickActionsIntegrationTest {
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void quickActionsApiCollaborationActionsNotifyPeerParticipantsThroughNotificationApi() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("collab_owner", true, false, 1L, "Support", "Collab Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("collab_new", true, false, 1L, "Support", "Collab New", "Ops", "/img/new.png");
         insertDirectoryUser("collab_peer", true, false, 1L, "Support", "Collab Peer", "Ops", "/img/peer.png");
@@ -1368,12 +1331,13 @@ class DialogQuickActionsIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (112, 'token112', 'Quick Actions Collab Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (112, 'token112', 'Quick Actions Collab Notify', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920112L, "T-QA-COLLAB-NOTIFY", 112L, "quick_collab_notify_user", "Клиент Collab Notify", "Retail", "Ярославль", "Точка Collab Notify", "Проверка collaboration notifications", "2026-06-05T10:30:00Z", 11201L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-COLLAB-NOTIFY", "collab_owner", "dispatcher", "2026-06-05T10:29:00Z");
         jdbcTemplate.update("""
@@ -1421,13 +1385,13 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].text").value("Из обращения T-QA-COLLAB-NOTIFY исключен оператор Collab Observer"))
-                .andExpect(jsonPath("$[0].url").value("/dialogs/T-QA-COLLAB-NOTIFY"))
-                .andExpect(jsonPath("$[1].text").value("К обращению T-QA-COLLAB-NOTIFY подключен оператор Collab Observer"))
-                .andExpect(jsonPath("$[1].url").value("/dialogs/T-QA-COLLAB-NOTIFY"))
-                .andExpect(jsonPath("$[2].text").value("Обращение T-QA-COLLAB-NOTIFY передано оператору Collab New"))
-                .andExpect(jsonPath("$[2].url").value("/dialogs/T-QA-COLLAB-NOTIFY"));
+                .andExpect(jsonPath("$.items.length()").value(3))
+                .andExpect(jsonPath("$.items[0].text").value("Из обращения T-QA-COLLAB-NOTIFY исключен оператор Collab Observer"))
+                .andExpect(jsonPath("$.items[0].url").value("/dialogs/T-QA-COLLAB-NOTIFY"))
+                .andExpect(jsonPath("$.items[1].text").value("К обращению T-QA-COLLAB-NOTIFY подключен оператор Collab Observer"))
+                .andExpect(jsonPath("$.items[1].url").value("/dialogs/T-QA-COLLAB-NOTIFY"))
+                .andExpect(jsonPath("$.items[2].text").value("Обращение T-QA-COLLAB-NOTIFY передано оператору Collab New"))
+                .andExpect(jsonPath("$.items[2].url").value("/dialogs/T-QA-COLLAB-NOTIFY"));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
@@ -1452,11 +1416,11 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].id").value(latestCollabNotificationId))
-                .andExpect(jsonPath("$[0].read").value(true))
-                .andExpect(jsonPath("$[1].read").value(false))
-                .andExpect(jsonPath("$[2].read").value(false));
+                .andExpect(jsonPath("$.items.length()").value(3))
+                .andExpect(jsonPath("$.items[0].id").value(latestCollabNotificationId))
+                .andExpect(jsonPath("$.items[0].read").value(true))
+                .andExpect(jsonPath("$.items[1].read").value(false))
+                .andExpect(jsonPath("$.items[2].read").value(false));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("collab_owner", "n/a", "PAGE_DIALOGS")))
@@ -1466,17 +1430,18 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiSnoozeKeepsDialogStateAndRefreshesWorkspaceAuditTrail() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (105, 'token105', 'Quick Actions Snooze', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (105, 'token105', 'Quick Actions Snooze', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920105L, "T-QA-SNOOZE", 105L, "quick_snooze_user", "Клиент Snooze", "Retail", "Псков", "Точка Snooze", "Проверка snooze audit trail", "2026-06-04T09:00:00Z", 10501L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-SNOOZE", "watcher_owner", "dispatcher", "2026-06-04T08:59:00Z");
         insertHistoryRow("T-QA-SNOOZE", 920105L, "user", "Клиент ждёт ответ", "2026-06-04T09:01:00Z", "text", 1501L, null, 105L);
@@ -1525,7 +1490,7 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiSnoozeReturnsNotFoundForMissingDialog() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         mockMvc.perform(post("/api/dialogs/T-QA-SNOOZE-MISSING/snooze")
@@ -1546,17 +1511,18 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiSnoozeReturnsErrorForClosedDialog() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("snooze_closed_owner", true, false, 1L, "Support", "Snooze Closed Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (118, 'token118', 'Quick Actions Snooze Closed', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (118, 'token118', 'Quick Actions Snooze Closed', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920118L, "T-QA-SNOOZE-CLOSED", 118L, "quick_snooze_closed_user", "Клиент Snooze Closed", "Retail", "Липецк", "Точка Snooze Closed", "Проверка snooze closed contract", "2026-06-05T14:00:00Z", 11801L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-SNOOZE-CLOSED", "snooze_closed_owner", "dispatcher", "2026-06-05T13:59:00Z");
         insertHistoryRow("T-QA-SNOOZE-CLOSED", 920118L, "user", "Клиент уже закрыт", "2026-06-05T14:01:00Z", "text", 2801L, null, 118L);
@@ -1599,7 +1565,7 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiMissingDialogReturnsNotFoundAcrossRemainingOperatorActions() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
 
@@ -1653,18 +1619,19 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiTakeAlreadyAssignedStaysExplicitNoopWithoutBellSideEffects() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("take_owner", true, false, 1L, "Support", "Take Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("take_peer", true, false, 1L, "Support", "Take Peer", "Ops", "/img/peer.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (117, 'token117', 'Quick Actions Take Noop', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (117, 'token117', 'Quick Actions Take Noop', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920117L, "T-QA-TAKE-NOOP", 117L, "quick_take_noop_user", "Клиент Take Noop", "Retail", "Вологда", "Точка Take Noop", "Проверка take same-owner noop", "2026-06-05T13:30:00Z", 11701L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-TAKE-NOOP", "take_owner", "dispatcher", "2026-06-05T13:29:00Z");
         jdbcTemplate.update("""
@@ -1693,7 +1660,7 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("take_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.items.length()").value(0));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("take_peer", "n/a", "PAGE_DIALOGS")))
@@ -1719,19 +1686,20 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiCollaborationNoopAndErrorSemanticsStayExplicit() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("collab_owner", true, false, 1L, "Support", "Collab Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("collab_peer", true, false, 1L, "Support", "Collab Peer", "Ops", "/img/peer.png");
         insertDirectoryUser("collab_observer", true, false, 1L, "Support", "Collab Observer", "Backoffice", "/img/observer.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (114, 'token114', 'Quick Actions Collab Noop', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (114, 'token114', 'Quick Actions Collab Noop', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920114L, "T-QA-COLLAB-NOOP", 114L, "quick_collab_noop_user", "Клиент Collab Noop", "Retail", "Тверь", "Точка Collab Noop", "Проверка collaboration noop semantics", "2026-06-05T12:00:00Z", 11401L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-COLLAB-NOOP", "collab_owner", "dispatcher", "2026-06-05T11:59:00Z");
         jdbcTemplate.update("""
@@ -1765,9 +1733,9 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(latestNoopNotificationId))
-                .andExpect(jsonPath("$[0].read").value(false));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(latestNoopNotificationId))
+                .andExpect(jsonPath("$.items[0].read").value(false));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
@@ -1829,9 +1797,9 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(latestNoopNotificationId))
-                .andExpect(jsonPath("$[0].read").value(true));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(latestNoopNotificationId))
+                .andExpect(jsonPath("$.items[0].read").value(true));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
@@ -1851,19 +1819,20 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiClosedDialogCollaborationActionsReturnExplicitErrors() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("closed_owner", true, false, 1L, "Support", "Closed Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("closed_peer", true, false, 1L, "Support", "Closed Peer", "Ops", "/img/peer.png");
         insertDirectoryUser("closed_observer", true, false, 1L, "Support", "Closed Observer", "Backoffice", "/img/observer.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (115, 'token115', 'Quick Actions Closed Collab', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (115, 'token115', 'Quick Actions Closed Collab', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920115L, "T-QA-CLOSED-COLLAB", 115L, "quick_closed_collab_user", "Клиент Closed Collab", "Retail", "Кострома", "Точка Closed Collab", "Проверка closed collaboration errors", "2026-06-05T12:30:00Z", 11501L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-CLOSED-COLLAB", "closed_owner", "dispatcher", "2026-06-05T12:29:00Z");
         jdbcTemplate.update("""
@@ -1898,9 +1867,9 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(closedPeerNotificationCount))
-                .andExpect(jsonPath("$[0].id").value(latestClosedNotificationId))
-                .andExpect(jsonPath("$[0].read").value(false));
+                .andExpect(jsonPath("$.items.length()").value(closedPeerNotificationCount))
+                .andExpect(jsonPath("$.items[0].id").value(latestClosedNotificationId))
+                .andExpect(jsonPath("$.items[0].read").value(false));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
@@ -1960,8 +1929,8 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(latestClosedNotificationId))
-                .andExpect(jsonPath("$[0].read").value(true));
+                .andExpect(jsonPath("$.items[0].id").value(latestClosedNotificationId))
+                .andExpect(jsonPath("$.items[0].read").value(true));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
@@ -1981,18 +1950,19 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiCollaborationUnknownTargetErrorsStayExplicit() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("unknown_owner", true, false, 1L, "Support", "Unknown Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("unknown_peer", true, false, 1L, "Support", "Unknown Peer", "Ops", "/img/peer.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (116, 'token116', 'Quick Actions Unknown Target', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (116, 'token116', 'Quick Actions Unknown Target', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920116L, "T-QA-UNKNOWN-COLLAB", 116L, "quick_unknown_collab_user", "Клиент Unknown Collab", "Retail", "Ярославль", "Точка Unknown Collab", "Проверка unknown-target collaboration errors", "2026-06-05T13:00:00Z", 11601L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-QA-UNKNOWN-COLLAB", "unknown_owner", "dispatcher", "2026-06-05T12:59:00Z");
         jdbcTemplate.update("""
@@ -2058,7 +2028,7 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("unknown_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value((int) peerNotificationsBefore));
+                .andExpect(jsonPath("$.items.length()").value((int) peerNotificationsBefore));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("unknown_peer", "n/a", "PAGE_DIALOGS")))
@@ -2079,12 +2049,13 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiTakeCategoriesAndSpamRefreshWorkspaceAndDetailsConsumers() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (103, 'token103', 'Quick Actions Take Spam', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (103, 'token103', 'Quick Actions Take Spam', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920103L, "T-QA-TAKE", 103L, "quick_take_user", "Клиент Take", "Retail", "Рязань", "Точка Take", "Проверка take/categories/spam", "2026-06-03T11:00:00Z", 10301L);
         jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-QA-TAKE", "billing");
@@ -2195,9 +2166,9 @@ class DialogQuickActionsIntegrationTest {
         )).isEqualTo("watcher_owner");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT is_blacklisted FROM client_blacklist WHERE user_id = ?",
-                Integer.class,
+                Boolean.class,
                 "920103"
-        )).isEqualTo(1);
+        )).isTrue();
         assertThat(jdbcTemplate.query(
                 "SELECT category FROM ticket_categories WHERE ticket_id = ? ORDER BY category",
                 (rs, rowNum) -> rs.getString(1),
@@ -2210,19 +2181,20 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     void quickActionsApiTakeAndCategoriesPersistAcrossReplyAckAndRepeatedFollowUpRefreshLoop() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("loop_owner", true, false, 1L, "Support", "Loop Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (120, 'token120', 'Quick Actions Refresh Loop', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (120, 'token120', 'Quick Actions Refresh Loop', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(920120L, "T-QA-LOOP", 120L, "quick_loop_user", "Клиент Loop", "Retail", "Тамбов", "Точка Loop", "Проверка post-action refresh loop", "2026-06-11T09:00:00Z", 12001L);
         jdbcTemplate.update("""
                 INSERT INTO web_form_sessions(
                     token, ticket_id, channel_id, user_id, answers_json,
                     client_name, client_contact, username, created_at, last_active_at
-                ) VALUES (?,?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,?,?,?,?,?,CAST(? AS TIMESTAMPTZ),CAST(? AS TIMESTAMPTZ))
                 """,
                 "qa-loop-token",
                 "T-QA-LOOP",
@@ -2278,13 +2250,13 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-LOOP"));
 
         Long operatorReplyTelegramId = jdbcTemplate.queryForObject(
-                "SELECT tg_message_id FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY rowid DESC LIMIT 1",
+                "SELECT tg_message_id FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY id DESC LIMIT 1",
                 Long.class,
                 "T-QA-LOOP"
         );
         assertThat(operatorReplyTelegramId).isNotNull();
         String operatorReplyTimestamp = jdbcTemplate.queryForObject(
-                "SELECT timestamp FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY rowid DESC LIMIT 1",
+                "SELECT to_char(timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD') || 'T' || to_char(timestamp AT TIME ZONE 'UTC', 'HH24:MI:SS') || 'Z' FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY id DESC LIMIT 1",
                 String.class,
                 "T-QA-LOOP"
         );
@@ -2444,7 +2416,7 @@ class DialogQuickActionsIntegrationTest {
 
     private long countUnreadNotificationRows(String userIdentity) {
         Long count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM notifications WHERE user_identity = ? AND is_read = 0",
+                "SELECT COUNT(*) FROM notifications WHERE user_identity = ? AND is_read = FALSE",
                 Long.class,
                 userIdentity
         );
@@ -2474,13 +2446,13 @@ class DialogQuickActionsIntegrationTest {
     }
 
     private void ensureUsersDirectoryColumns() {
-        ensureColumn(usersJdbcTemplate, "users", "enabled", "BOOLEAN NOT NULL DEFAULT 1");
+        ensureColumn(usersJdbcTemplate, "users", "enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
         ensureColumn(usersJdbcTemplate, "users", "role_id", "INTEGER");
         ensureColumn(usersJdbcTemplate, "users", "role", "TEXT");
         ensureColumn(usersJdbcTemplate, "users", "department", "TEXT");
         ensureColumn(usersJdbcTemplate, "users", "full_name", "TEXT");
         ensureColumn(usersJdbcTemplate, "users", "photo", "TEXT");
-        ensureColumn(usersJdbcTemplate, "users", "is_blocked", "BOOLEAN NOT NULL DEFAULT 0");
+        ensureColumn(usersJdbcTemplate, "users", "is_blocked", "BOOLEAN NOT NULL DEFAULT FALSE");
         ensureColumn(usersJdbcTemplate, "users", "last_portal_activity_at", "TEXT");
     }
 
@@ -2493,8 +2465,9 @@ class DialogQuickActionsIntegrationTest {
 
     private Set<String> loadColumns(JdbcTemplate template, String tableName) {
         return new LinkedHashSet<>(template.query(
-                "PRAGMA table_info(" + tableName + ")",
-                (rs, rowNum) -> rs.getString("name")
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ?",
+                (rs, rowNum) -> rs.getString("column_name"),
+                tableName
         ));
     }
 
@@ -2518,7 +2491,7 @@ class DialogQuickActionsIntegrationTest {
                 INSERT INTO messages (
                     group_msg_id, user_id, business, city, location_name, problem, created_at,
                     username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?)
                 """,
                 groupMessageId,
                 userId,
@@ -2547,17 +2520,17 @@ class DialogQuickActionsIntegrationTest {
                                      String photo) {
         usersJdbcTemplate.update("""
                 INSERT INTO users(username, password, enabled, role_id, role, department, full_name, photo, is_blocked, last_portal_activity_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 username,
                 "{noop}test",
-                enabled ? 1 : 0,
+                enabled,
                 roleId,
                 role,
                 department,
                 fullName,
                 photo,
-                blocked ? 1 : 0,
+                blocked,
                 "2026-06-03T08:00:00Z");
     }
 
@@ -2574,7 +2547,7 @@ class DialogQuickActionsIntegrationTest {
                 INSERT INTO chat_history(
                     user_id, sender, message, timestamp, ticket_id, message_type,
                     channel_id, tg_message_id, reply_to_tg_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, CAST(? AS TIMESTAMPTZ), ?, ?, ?, ?, ?)
                 """,
                 userId,
                 sender,

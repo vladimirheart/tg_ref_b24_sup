@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.support.PostgresqlIntegrationTestSupport;
 import com.example.panel.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,59 +33,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-@ActiveProfiles("sqlite")
-@TestPropertySource(properties = {
-        "spring.flyway.locations=classpath:db/migration/sqlite"
-})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class DialogReadIntegrationTest {
+class DialogReadIntegrationTest extends PostgresqlIntegrationTestSupport {
 
     private static Path dbFile;
     private static Path usersDbFile;
     private static Path sharedConfigDir;
-
-    @DynamicPropertySource
-    static void sqlite(DynamicPropertyRegistry registry) throws IOException {
-        dbFile = Files.createTempFile("panel-dialog-read", ".db");
-        usersDbFile = Files.createTempFile("panel-dialog-read-users", ".db");
-        sharedConfigDir = Files.createTempDirectory("panel-dialog-read-shared-config");
-        initializeUsersDb(usersDbFile);
-        registry.add("app.datasource.sqlite.path", () -> dbFile.toString());
-        registry.add("app.datasource.users-sqlite.path", () -> usersDbFile.toString());
-        registry.add("shared-config.dir", () -> sharedConfigDir.toString());
-    }
-
-    private static void initializeUsersDb(Path path) {
-        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath());
-             var statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS users (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        username TEXT NOT NULL UNIQUE,
-                        password TEXT NOT NULL,
-                        enabled BOOLEAN NOT NULL DEFAULT 1,
-                        role_id INTEGER,
-                        role TEXT,
-                        department TEXT,
-                        full_name TEXT,
-                        photo TEXT,
-                        is_blocked BOOLEAN NOT NULL DEFAULT 0,
-                        last_portal_activity_at TEXT,
-                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS roles (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL UNIQUE,
-                        description TEXT,
-                        permissions TEXT NOT NULL DEFAULT '{}'
-                    )
-                    """);
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to initialize users test database", ex);
-        }
-    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -120,18 +74,19 @@ class DialogReadIntegrationTest {
     void historyApiProjectsReplyPreviewMutationMarkersAndReadReceipt() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (71, 'token71', 'Dialog Read', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (71, 'token71', 'Dialog Read', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-READ-1", "watcher_owner", "dispatcher", "2026-05-22T10:00:00Z");
         jdbcTemplate.update("""
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type, attachment,
                     tg_message_id, reply_to_tg_id, channel_id, original_message, edited_at, deleted_at, forwarded_from
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?,?,?,?,CAST(? AS TIMESTAMPTZ),CAST(? AS TIMESTAMPTZ),?)
                 """,
                 "T-READ-1", "user", "Первое сообщение", "2026-05-22T10:01:00Z", "text", null,
                 501L, null, 71L, "Первое сообщение", null, null, null);
@@ -139,7 +94,7 @@ class DialogReadIntegrationTest {
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type, attachment,
                     tg_message_id, reply_to_tg_id, channel_id, original_message, edited_at, deleted_at, forwarded_from
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?,?,?,?,CAST(? AS TIMESTAMPTZ),CAST(? AS TIMESTAMPTZ),?)
                 """,
                 "T-READ-1", "operator", "Уточнённый ответ", "2026-05-22T10:02:00Z", "image", "reply.png",
                 502L, 501L, 71L, "Изначальный ответ", "2026-05-22T10:03:00Z", null, "manager");
@@ -147,7 +102,7 @@ class DialogReadIntegrationTest {
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type, attachment,
                     tg_message_id, reply_to_tg_id, channel_id, original_message, edited_at, deleted_at, forwarded_from
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?,?,?,?,CAST(? AS TIMESTAMPTZ),CAST(? AS TIMESTAMPTZ),?)
                 """,
                 "T-READ-1", "operator", "Скрытое удалённое сообщение", "2026-05-22T10:04:00Z", "text", null,
                 503L, null, 71L, "Скрытое удалённое сообщение", null, "2026-05-22T10:05:00Z", null);
@@ -168,7 +123,7 @@ class DialogReadIntegrationTest {
                 .andExpect(jsonPath("$.messages[2].deletedAt").value("2026-05-22T10:05:00Z"));
 
         String lastReadAt = jdbcTemplate.queryForObject(
-                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                "SELECT to_char(last_read_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') || 'T' || to_char(last_read_at AT TIME ZONE 'UTC', 'HH24:MI:SS') || 'Z' FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
                 String.class,
                 "T-READ-1",
                 "watcher_owner"
@@ -180,7 +135,8 @@ class DialogReadIntegrationTest {
     void previousHistoryApiReturnsNestedMutationProjectionAndWebFormSourceLabel() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (72, 'token72', 'Web History', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (72, 'token72', 'Web History', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         jdbcTemplate.update("INSERT INTO tickets(user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
                 9001L, "T-READ-CUR", "pending", 72L);
@@ -190,7 +146,7 @@ class DialogReadIntegrationTest {
                 INSERT INTO web_form_sessions(
                     token, ticket_id, channel_id, user_id, answers_json,
                     client_name, client_contact, username, created_at, last_active_at
-                ) VALUES (?,?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,?,?,?,?,?,CAST(? AS TIMESTAMPTZ),CAST(? AS TIMESTAMPTZ))
                 """,
                 "token-old-1",
                 "T-READ-OLD",
@@ -204,19 +160,19 @@ class DialogReadIntegrationTest {
                 "2026-05-20T09:03:00Z");
         jdbcTemplate.update("""
                 INSERT INTO messages(group_msg_id, ticket_id, user_id, created_at, problem, channel_id)
-                VALUES (?,?,?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?)
                 """,
                 7201L, "T-READ-CUR", 9001L, "2026-05-22T11:00:00Z", "Текущий диалог", 72L);
         jdbcTemplate.update("""
                 INSERT INTO messages(group_msg_id, ticket_id, user_id, created_at, problem, channel_id)
-                VALUES (?,?,?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?)
                 """,
                 7101L, "T-READ-OLD", 9001L, "2026-05-20T09:00:00Z", "Предыдущий диалог", 72L);
         jdbcTemplate.update("""
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type,
                     tg_message_id, reply_to_tg_id, channel_id, original_message, edited_at, deleted_at, forwarded_from
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?,?,?,CAST(? AS TIMESTAMPTZ),CAST(? AS TIMESTAMPTZ),?)
                 """,
                 "T-READ-OLD", "user", "Историческое первое сообщение", "2026-05-20T09:01:00Z", "text",
                 601L, null, 72L, "Историческое первое сообщение", null, null, null);
@@ -224,7 +180,7 @@ class DialogReadIntegrationTest {
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type,
                     tg_message_id, reply_to_tg_id, channel_id, original_message, edited_at, deleted_at, forwarded_from
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?,?,?,CAST(? AS TIMESTAMPTZ),CAST(? AS TIMESTAMPTZ),?)
                 """,
                 "T-READ-OLD", "operator", "Удалённый ответ", "2026-05-20T09:02:00Z", "text",
                 602L, 601L, 72L, "Исходный ответ", null, "2026-05-20T09:03:00Z", "lead");
@@ -245,7 +201,7 @@ class DialogReadIntegrationTest {
 
     @Test
     void participantsAndOperatorsApisReflectRuntimeDirectoryProjection() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
         insertDirectoryUser("watcher_observer", true, false, 1L, "Support", "Watcher Observer", "Backoffice", "/img/observer.png");
@@ -254,7 +210,8 @@ class DialogReadIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (72, 'token72b', 'Participants Channel', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (72, 'token72b', 'Participants Channel', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         jdbcTemplate.update("""
                 INSERT INTO tickets (user_id, ticket_id, status, channel_id)
@@ -263,12 +220,12 @@ class DialogReadIntegrationTest {
                 910080L, "T-READ-2", "open", 72L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
-                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                VALUES (?,?,TIMESTAMPTZ '2026-05-22 12:00:00+00',?)
                 """,
                 "T-READ-2", "watcher_peer", "watcher_owner");
         jdbcTemplate.update("""
                 INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
-                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                VALUES (?,?,TIMESTAMPTZ '2026-05-22 12:00:00+00',?)
                 """,
                 "T-READ-2", "watcher_observer", "watcher_owner");
 
@@ -293,7 +250,7 @@ class DialogReadIntegrationTest {
 
     @Test
     void participantsApiRefreshesAfterReassignAndParticipantRemovalLifecycle() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
         insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
@@ -301,7 +258,8 @@ class DialogReadIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (73, 'token73c', 'Participants Lifecycle', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (73, 'token73c', 'Participants Lifecycle', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         jdbcTemplate.update("""
                 INSERT INTO tickets (user_id, ticket_id, status, channel_id)
@@ -312,7 +270,7 @@ class DialogReadIntegrationTest {
                 INSERT INTO messages (
                     group_msg_id, user_id, problem, created_at, username, ticket_id,
                     created_date, created_time, client_name, channel_id, updated_at, updated_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, CAST(? AS TIMESTAMPTZ), ?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?)
                 """,
                 7301L,
                 910081L,
@@ -328,7 +286,7 @@ class DialogReadIntegrationTest {
                 "seed");
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-READ-QA", "watcher_owner", "dispatcher", "2026-05-26T18:04:00Z");
         jdbcTemplate.update("""
@@ -376,7 +334,8 @@ class DialogReadIntegrationTest {
     void historyApiRefreshesDialogUnreadLoopWithoutImplicitlyAckingBellNotifications() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (74, 'token74d', 'History Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (74, 'token74d', 'History Notify', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         jdbcTemplate.update("""
                 INSERT INTO tickets (user_id, ticket_id, status, channel_id)
@@ -387,7 +346,7 @@ class DialogReadIntegrationTest {
                 INSERT INTO messages (
                     group_msg_id, user_id, problem, created_at, username, ticket_id,
                     created_date, created_time, client_name, channel_id, updated_at, updated_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, CAST(? AS TIMESTAMPTZ), ?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?)
                 """,
                 7401L,
                 910082L,
@@ -403,13 +362,13 @@ class DialogReadIntegrationTest {
                 "seed");
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-READ-NOTIFY", "watcher_owner", "dispatcher", "2026-05-27T09:19:00Z");
         jdbcTemplate.update("""
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type, channel_id, tg_message_id
-                ) VALUES (?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?)
                 """,
                 "T-READ-NOTIFY", "user", "Follow-up для history route", "2026-05-27T09:23:00Z", "text", 74L, 741L);
 
@@ -442,7 +401,7 @@ class DialogReadIntegrationTest {
                 .andExpect(jsonPath("$.messages[0].message").value("Follow-up для history route"));
 
         String lastReadAt = jdbcTemplate.queryForObject(
-                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                "SELECT to_char(last_read_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') || 'T' || to_char(last_read_at AT TIME ZONE 'UTC', 'HH24:MI:SS') || 'Z' FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
                 String.class,
                 "T-READ-NOTIFY",
                 "watcher_owner"
@@ -484,7 +443,8 @@ class DialogReadIntegrationTest {
     void notificationReadAllDoesNotHideUnreadDialogBeforeHistoryReread() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (75, 'token75d', 'History Read All', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (75, 'token75d', 'History Read All', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         jdbcTemplate.update("""
                 INSERT INTO tickets (user_id, ticket_id, status, channel_id)
@@ -495,7 +455,7 @@ class DialogReadIntegrationTest {
                 INSERT INTO messages (
                     group_msg_id, user_id, problem, created_at, username, ticket_id,
                     created_date, created_time, client_name, channel_id, updated_at, updated_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, CAST(? AS TIMESTAMPTZ), ?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?)
                 """,
                 7501L,
                 910083L,
@@ -511,13 +471,13 @@ class DialogReadIntegrationTest {
                 "seed");
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-READ-ALL", "watcher_owner", "dispatcher", "2026-05-27T09:39:00Z");
         jdbcTemplate.update("""
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type, channel_id, tg_message_id
-                ) VALUES (?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?)
                 """,
                 "T-READ-ALL", "user", "Follow-up для read-all route", "2026-05-27T09:43:00Z", "text", 75L, 751L);
 
@@ -548,7 +508,7 @@ class DialogReadIntegrationTest {
                 .andExpect(jsonPath("$.unread").value(0));
 
         String lastReadAtBeforeHistory = jdbcTemplate.queryForObject(
-                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                "SELECT to_char(last_read_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') || 'T' || to_char(last_read_at AT TIME ZONE 'UTC', 'HH24:MI:SS') || 'Z' FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
                 String.class,
                 "T-READ-ALL",
                 "watcher_owner"
@@ -583,7 +543,8 @@ class DialogReadIntegrationTest {
     void notificationReadAllRereadStillAllowsNextHistoryFollowUpToRearmUnreadAndBell() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (76, 'token76d', 'History Read All Rearm', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (76, 'token76d', 'History Read All Rearm', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         jdbcTemplate.update("""
                 INSERT INTO tickets (user_id, ticket_id, status, channel_id)
@@ -594,7 +555,7 @@ class DialogReadIntegrationTest {
                 INSERT INTO messages (
                     group_msg_id, user_id, problem, created_at, username, ticket_id,
                     created_date, created_time, client_name, channel_id, updated_at, updated_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, CAST(? AS TIMESTAMPTZ), ?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?)
                 """,
                 7601L,
                 910084L,
@@ -610,13 +571,13 @@ class DialogReadIntegrationTest {
                 "seed");
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-READ-ALL-REARM", "watcher_owner", "dispatcher", "2026-05-27T09:49:00Z");
         jdbcTemplate.update("""
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type, channel_id, tg_message_id
-                ) VALUES (?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?)
                 """,
                 "T-READ-ALL-REARM", "user", "Первый follow-up до mass-ack", "2026-05-27T09:53:00Z", "text", 76L, 761L);
 
@@ -649,7 +610,7 @@ class DialogReadIntegrationTest {
         jdbcTemplate.update("""
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type, channel_id, tg_message_id, reply_to_tg_id
-                ) VALUES (?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?,?)
                 """,
                 "T-READ-ALL-REARM", "user", "Второй follow-up после reread", "2026-05-27T09:55:00Z", "text", 76L, 762L, 761L);
         notificationService.notifyDialogParticipants(
@@ -684,8 +645,8 @@ class DialogReadIntegrationTest {
         ensureColumn(usersJdbcTemplate, "users", "department", "TEXT");
         ensureColumn(usersJdbcTemplate, "users", "full_name", "TEXT");
         ensureColumn(usersJdbcTemplate, "users", "photo", "TEXT");
-        ensureColumn(usersJdbcTemplate, "users", "is_blocked", "BOOLEAN NOT NULL DEFAULT 0");
-        ensureColumn(usersJdbcTemplate, "users", "enabled", "BOOLEAN NOT NULL DEFAULT 1");
+        ensureColumn(usersJdbcTemplate, "users", "is_blocked", "BOOLEAN NOT NULL DEFAULT FALSE");
+        ensureColumn(usersJdbcTemplate, "users", "enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
         ensureColumn(usersJdbcTemplate, "users", "role_id", "INTEGER");
         ensureColumn(usersJdbcTemplate, "users", "role", "TEXT");
     }
@@ -699,8 +660,9 @@ class DialogReadIntegrationTest {
 
     private Set<String> loadColumns(JdbcTemplate template, String tableName) {
         return new LinkedHashSet<>(template.query(
-                "PRAGMA table_info(" + tableName + ")",
-                (rs, rowNum) -> rs.getString("name")
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ?",
+                (rs, rowNum) -> rs.getString("column_name"),
+                tableName
         ));
     }
 
@@ -720,7 +682,7 @@ class DialogReadIntegrationTest {
         appendUserColumn(sql, values, params, "username", username);
         appendUserColumn(sql, values, params, "password", "n/a");
         if (columns.contains("enabled")) {
-            appendUserColumn(sql, values, params, "enabled", enabled ? 1 : 0);
+            appendUserColumn(sql, values, params, "enabled", enabled);
         }
         if (columns.contains("role_id")) {
             appendUserColumn(sql, values, params, "role_id", roleId);
@@ -737,7 +699,7 @@ class DialogReadIntegrationTest {
             appendUserColumn(sql, values, params, "photo", photo);
         }
         if (columns.contains("is_blocked")) {
-            appendUserColumn(sql, values, params, "is_blocked", blocked ? 1 : 0);
+            appendUserColumn(sql, values, params, "is_blocked", blocked);
         }
 
         sql.append(")");

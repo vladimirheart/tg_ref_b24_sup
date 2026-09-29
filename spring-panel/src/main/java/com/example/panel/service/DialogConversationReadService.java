@@ -554,6 +554,15 @@ public class DialogConversationReadService {
         if (value == null) {
             return null;
         }
+        if (value instanceof java.time.OffsetDateTime timestamp) {
+            return timestamp.toInstant().toString();
+        }
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toInstant().toString();
+        }
+        if (value instanceof java.time.Instant timestamp) {
+            return timestamp.toString();
+        }
         String text = String.valueOf(value).trim();
         return text.isEmpty() ? null : text;
     }

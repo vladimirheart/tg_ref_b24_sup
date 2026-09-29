@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.support.PostgresqlIntegrationTestSupport;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,59 +38,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-@ActiveProfiles("sqlite")
-@TestPropertySource(properties = {
-        "spring.flyway.locations=classpath:db/migration/sqlite"
-})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class DialogWorkspaceIntegrationTest {
+class DialogWorkspaceIntegrationTest extends PostgresqlIntegrationTestSupport {
 
     private static Path dbFile;
     private static Path usersDbFile;
     private static Path sharedConfigDir;
-
-    @DynamicPropertySource
-    static void sqlite(DynamicPropertyRegistry registry) throws IOException {
-        dbFile = Files.createTempFile("panel-dialog-workspace", ".db");
-        usersDbFile = Files.createTempFile("panel-dialog-workspace-users", ".db");
-        sharedConfigDir = Files.createTempDirectory("panel-dialog-workspace-shared-config");
-        initializeUsersDb(usersDbFile);
-        registry.add("app.datasource.sqlite.path", () -> dbFile.toString());
-        registry.add("app.datasource.users-sqlite.path", () -> usersDbFile.toString());
-        registry.add("shared-config.dir", () -> sharedConfigDir.toString());
-    }
-
-    private static void initializeUsersDb(Path path) {
-        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath());
-             var statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS users (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        username TEXT NOT NULL UNIQUE,
-                        password TEXT NOT NULL,
-                        enabled BOOLEAN NOT NULL DEFAULT 1,
-                        role_id INTEGER,
-                        role TEXT,
-                        department TEXT,
-                        full_name TEXT,
-                        photo TEXT,
-                        is_blocked BOOLEAN NOT NULL DEFAULT 0,
-                        last_portal_activity_at TEXT,
-                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS roles (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL UNIQUE,
-                        description TEXT,
-                        permissions TEXT NOT NULL DEFAULT '{}'
-                    )
-                    """);
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to initialize users test database", ex);
-        }
-    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -147,13 +101,13 @@ class DialogWorkspaceIntegrationTest {
     }
 
     private void ensureUsersDirectoryColumns() {
-        ensureUsersColumn("enabled", "BOOLEAN NOT NULL DEFAULT 1");
+        ensureUsersColumn("enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
         ensureUsersColumn("role_id", "INTEGER");
         ensureUsersColumn("role", "TEXT");
         ensureUsersColumn("department", "TEXT");
         ensureUsersColumn("full_name", "TEXT");
         ensureUsersColumn("photo", "TEXT");
-        ensureUsersColumn("is_blocked", "BOOLEAN NOT NULL DEFAULT 0");
+        ensureUsersColumn("is_blocked", "BOOLEAN NOT NULL DEFAULT FALSE");
         ensureUsersColumn("last_portal_activity_at", "TEXT");
     }
 
@@ -166,15 +120,16 @@ class DialogWorkspaceIntegrationTest {
 
     private Set<String> loadColumns(String tableName) {
         return new LinkedHashSet<>(jdbcTemplate.query(
-                "PRAGMA table_info(" + tableName + ")",
-                (rs, rowNum) -> rs.getString("name")
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ?",
+                (rs, rowNum) -> rs.getString("column_name"),
+                tableName
         ));
     }
 
     private Set<String> loadUsersColumns() {
         return new LinkedHashSet<>(usersJdbcTemplate.query(
-                "PRAGMA table_info(users)",
-                (rs, rowNum) -> rs.getString("name")
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'users'",
+                (rs, rowNum) -> rs.getString("column_name")
         ));
     }
 
@@ -182,18 +137,19 @@ class DialogWorkspaceIntegrationTest {
     void workspaceApiSlicesMessagesAndUpdatesReadReceiptForAuthorizedOperator() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (81, 'token81', 'Workspace Telegram', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (81, 'token81', 'Workspace Telegram', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910081L, "T-WS-1", 81L, "workspace_user", "Клиент Workspace", "Retail", "Москва", "Офис", "Нужна помощь", "2026-05-22T10:00:00Z", 8101L);
         insertDialogTicket(910082L, "T-WS-0", 81L, "workspace_queue", "Клиент Queue", "Retail", "Москва", "Бэк-офис", "Очередь", "2026-05-22T09:00:00Z", 8102L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-1", "watcher_owner", "dispatcher", "2026-05-22T09:59:00Z");
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-0", "watcher_owner", "dispatcher", "2026-05-22T08:59:00Z");
         insertHistoryRow("T-WS-1", 910081L, "user", "Первое сообщение", "2026-05-22T10:01:00Z", "text", 801L, null, 81L, null);
@@ -227,7 +183,7 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.sla.state").isNotEmpty());
 
         String lastReadAt = jdbcTemplate.queryForObject(
-                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                "SELECT to_char(last_read_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') || 'T' || to_char(last_read_at AT TIME ZONE 'UTC', 'HH24:MI:SS') || 'Z' FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
                 String.class,
                 "T-WS-1",
                 "watcher_owner"
@@ -239,13 +195,14 @@ class DialogWorkspaceIntegrationTest {
     void workspaceApiBuildsContextHistoryAndAuditEventsByDefault() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (82, 'token82', 'Workspace Context', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (82, 'token82', 'Workspace Context', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910091L, "T-WS-CTX", 82L, "ctx_user", "Клиент Context", "B2B", "Казань", "Главный офис", "Текущий диалог", "2026-05-22T11:00:00Z", 8201L);
         insertDialogTicket(910091L, "T-WS-CTX-OLD", 82L, "ctx_user", "Клиент Context", "B2B", "Казань", "Архив", "Предыдущий диалог", "2026-05-20T09:00:00Z", 8202L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-CTX", "watcher_owner", "dispatcher", "2026-05-22T10:50:00Z");
         insertHistoryRow("T-WS-CTX", 910091L, "user", "Сообщение клиента", "2026-05-22T11:01:00Z", "text", 901L, null, 82L, null);
@@ -254,7 +211,7 @@ class DialogWorkspaceIntegrationTest {
         insertHistoryRow("T-WS-CTX-OLD", 910091L, "user", "История старого диалога", "2026-05-20T09:01:00Z", "text", 904L, null, 82L, null);
         jdbcTemplate.update("""
                 INSERT INTO dialog_action_audit(ticket_id, actor, action, result, detail, created_at)
-                VALUES (?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-CTX", "watcher_owner", "reply", "success", "sent_message", "2026-05-22T11:04:00Z");
 
@@ -310,12 +267,13 @@ class DialogWorkspaceIntegrationTest {
                 )));
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (83, 'token83', 'Workspace Contract', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (83, 'token83', 'Workspace Contract', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910093L, "T-WS-CONTRACT", 83L, "contract_user", "Клиент Contract", "B2B", "Самара", "Офис", "Нужен context contract", "2026-05-25T12:00:00Z", 8301L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-CONTRACT", "watcher_owner", "dispatcher", "2026-05-25T11:59:00Z");
         jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-WS-CONTRACT", "billing");
@@ -359,14 +317,15 @@ class DialogWorkspaceIntegrationTest {
         ));
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (84, 'token84', 'Workspace Parity', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (84, 'token84', 'Workspace Parity', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910094L, "T-WS-PARITY", 84L, "parity_user", "Клиент Parity", "Retail", "Тула", "Флагман", "Нужен runtime parity", "2026-05-25T13:00:00Z", 8401L);
         insertDialogTicket(910094L, "T-WS-PREV-2", 84L, "parity_user", "Клиент Parity", "Retail", "Тула", "Архив 2", "Более новый прошлый диалог", "2026-05-24T13:00:00Z", 8402L);
         insertDialogTicket(910094L, "T-WS-PREV-1", 84L, "parity_user", "Клиент Parity", "Retail", "Тула", "Архив 1", "Старый прошлый диалог", "2026-05-23T13:00:00Z", 8403L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-PARITY", "watcher_owner", "dispatcher", "2026-05-25T12:59:00Z");
         insertHistoryRow("T-WS-PARITY", 910094L, "user", "Первое сообщение parity", "2026-05-25T13:01:00Z", "text", 941L, null, 84L, null);
@@ -374,12 +333,13 @@ class DialogWorkspaceIntegrationTest {
         insertHistoryRow("T-WS-PARITY", 910094L, "system", "Системное событие parity", "2026-05-25T13:03:00Z", "event", 943L, null, 84L, null);
         jdbcTemplate.update("""
                 INSERT INTO dialog_action_audit(ticket_id, actor, action, result, detail, created_at)
-                VALUES (?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-PARITY", "watcher_owner", "reply", "success", "audit_tail", "2026-05-25T13:05:00Z");
         jdbcTemplate.update("""
                 INSERT INTO tasks(id, seq, title, assignee, creator, status, last_activity_at, created_at)
-                VALUES (?,?,?,?,?,?,?,?)
+                OVERRIDING SYSTEM VALUE
+                VALUES (?,?,?,?,?,?,CAST(? AS TIMESTAMPTZ),CAST(? AS TIMESTAMPTZ))
                 """,
                 84001L, 1L, "Parity task", "watcher_owner", "dispatcher", "Новая", "2026-05-25T13:04:00Z", "2026-05-25T13:00:30Z");
         jdbcTemplate.update("""
@@ -389,7 +349,8 @@ class DialogWorkspaceIntegrationTest {
                 910094L, "T-WS-PARITY", 84001L);
         jdbcTemplate.update("""
                 INSERT INTO task_history(id, task_id, at, text)
-                VALUES (?,?,?,?)
+                OVERRIDING SYSTEM VALUE
+                VALUES (?,?,CAST(? AS TIMESTAMPTZ),?)
                 """,
                 84011L, 84001L, "2026-05-25T13:04:00Z", "Workflow escalation note");
 
@@ -423,12 +384,13 @@ class DialogWorkspaceIntegrationTest {
     void workspaceApiBlocksOperatorParityWhenDialogPermissionsAreMissing() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (85, 'token85', 'Workspace Blocked', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (85, 'token85', 'Workspace Blocked', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910095L, "T-WS-BLOCKED", 85L, "blocked_user", "Клиент Blocked", "Retail", "Курск", "Точка", "Нужен blocked parity contract", "2026-05-26T09:00:00Z", 8501L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-BLOCKED", "viewer_only", "dispatcher", "2026-05-26T08:59:00Z");
         insertHistoryRow("T-WS-BLOCKED", 910095L, "user", "Сообщение без thread target", "2026-05-26T09:01:00Z", "text", 951L, null, 85L, null);
@@ -457,12 +419,13 @@ class DialogWorkspaceIntegrationTest {
     void workspaceApiProjectsRichTimelineMutationAndAttachmentFields() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (86, 'token86', 'Workspace Rich Timeline', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (86, 'token86', 'Workspace Rich Timeline', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910096L, "T-WS-RICH", 86L, "rich_user", "Клиент Rich", "Retail", "Тверь", "Шоурум", "Нужен timeline payload", "2026-05-26T10:00:00Z", 8601L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-RICH", "watcher_owner", "dispatcher", "2026-05-26T09:59:00Z");
         insertHistoryRow("T-WS-RICH", 910096L, "user", "", "2026-05-26T10:01:00Z", "image", 961L, null, 86L,
@@ -532,12 +495,13 @@ class DialogWorkspaceIntegrationTest {
                 )));
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (87, 'token87', 'Workspace Rollout', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (87, 'token87', 'Workspace Rollout', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910097L, "T-WS-ROLLOUT", 87L, "rollout_user", "Клиент Rollout", "Retail", "Пермь", "Смена", "Нужен rollout contract", "2026-05-26T11:00:00Z", 8701L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-ROLLOUT", "watcher_owner", "dispatcher", "2026-05-26T10:59:00Z");
         insertHistoryRow("T-WS-ROLLOUT", 910097L, "user", "Сообщение для rollout", "2026-05-26T11:01:00Z", "text", 971L, null, 87L, null);
@@ -602,7 +566,7 @@ class DialogWorkspaceIntegrationTest {
                         )
                 )
         ));
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
         insertDirectoryUser("watcher_observer", true, false, 1L, "Support", "Watcher Observer", "Backoffice", "/img/observer.png");
@@ -612,12 +576,13 @@ class DialogWorkspaceIntegrationTest {
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (88, 'token88', 'Workspace Workflow', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (88, 'token88', 'Workspace Workflow', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910098L, "T-WS-WORKFLOW", 88L, "workflow_user", "Клиент Workflow", "Retail", "Рязань", "Филиал", "Нужен operator workflow snapshot", "2026-05-26T12:00:00Z", 8801L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-WORKFLOW", "watcher_owner", "dispatcher", "2026-05-26T11:59:00Z");
         jdbcTemplate.update("""
@@ -679,19 +644,20 @@ class DialogWorkspaceIntegrationTest {
 
     @Test
     void workspaceApiRefreshesWorkflowActionsAcrossReassignResolveReopenAndParticipantRemovalLifecycle() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
         insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (89, 'token89', 'Workspace Action Runtime', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (89, 'token89', 'Workspace Action Runtime', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910099L, "T-WS-ACTION", 89L, "action_user", "Клиент Action", "Retail", "Орел", "Офис", "Нужен action continuity", "2026-05-26T13:00:00Z", 8901L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-ACTION", "watcher_owner", "dispatcher", "2026-05-26T12:59:00Z");
         jdbcTemplate.update("""
@@ -798,18 +764,19 @@ class DialogWorkspaceIntegrationTest {
 
     @Test
     void workspaceApiClearsAutoProcessingOverlayAcrossReassignAndNextFollowUp() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (102, 'token102', 'Workspace Handoff Runtime', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (102, 'token102', 'Workspace Handoff Runtime', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910112L, "T-WS-HANDOFF", 102L, "workspace_handoff_user", "Клиент Workspace Handoff", "Retail", "Калуга", "Точка", "Проверка workspace handoff auto_processing", "2026-05-28T12:00:00Z", 10201L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-HANDOFF", "watcher_owner", "dispatcher", "2026-05-28T12:02:00Z");
         jdbcTemplate.update("""
@@ -869,19 +836,20 @@ class DialogWorkspaceIntegrationTest {
 
     @Test
     void workspaceApiProjectsAuditRelatedEventsAfterHttpQuickActionLifecycle() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
         insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (90, 'token90', 'Workspace Audit Trail', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (90, 'token90', 'Workspace Audit Trail', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910100L, "T-WS-AUDIT", 90L, "audit_user", "Клиент Audit", "Retail", "Тверь", "Филиал", "Проверка audit trail", "2026-05-26T14:00:00Z", 9001L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-AUDIT", "watcher_owner", "dispatcher", "2026-05-26T13:59:00Z");
         jdbcTemplate.update("""
@@ -939,17 +907,18 @@ class DialogWorkspaceIntegrationTest {
         sharedConfigService.saveSettings(Map.of(
                 "dialog_config", Map.of("sla_target_minutes", 1000000)
         ));
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (91, 'token91w', 'Workspace Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (91, 'token91w', 'Workspace Notify', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910101L, "T-WS-NOTIFY", 91L, "workspace_notify_user", "Клиент Workspace Notify", "Retail", "Тверь", "Точка", "Проверка workspace notification loop", "2026-05-27T09:40:00Z", 9101L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-NOTIFY", "watcher_owner", "dispatcher", "2026-05-27T09:39:00Z");
         insertHistoryRow("T-WS-NOTIFY", 910101L, "user", "Follow-up для workspace route", "2026-05-27T09:43:00Z", "text", 911L, null, 91L, null);
@@ -984,7 +953,7 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.messages.items[0].message").value("Follow-up для workspace route"));
 
         String lastReadAt = jdbcTemplate.queryForObject(
-                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                "SELECT to_char(last_read_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') || 'T' || to_char(last_read_at AT TIME ZONE 'UTC', 'HH24:MI:SS') || 'Z' FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
                 String.class,
                 "T-WS-NOTIFY",
                 "watcher_owner"
@@ -1027,17 +996,18 @@ class DialogWorkspaceIntegrationTest {
         sharedConfigService.saveSettings(Map.of(
                 "dialog_config", Map.of("sla_target_minutes", 1000000)
         ));
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (98, 'token98w', 'Workspace Read All', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (98, 'token98w', 'Workspace Read All', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910108L, "T-WS-READ-ALL", 98L, "workspace_read_all_user", "Клиент Workspace Read All", "Retail", "Ярославль", "Точка", "Проверка workspace read-all separation", "2026-05-27T10:40:00Z", 9801L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-READ-ALL", "watcher_owner", "dispatcher", "2026-05-27T10:39:00Z");
         insertHistoryRow("T-WS-READ-ALL", 910108L, "user", "Follow-up до workspace reread", "2026-05-27T10:43:00Z", "text", 981L, null, 98L, null);
@@ -1069,7 +1039,7 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.unread").value(0));
 
         String lastReadAtBeforeWorkspace = jdbcTemplate.queryForObject(
-                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                "SELECT to_char(last_read_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') || 'T' || to_char(last_read_at AT TIME ZONE 'UTC', 'HH24:MI:SS') || 'Z' FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
                 String.class,
                 "T-WS-READ-ALL",
                 "watcher_owner"
@@ -1104,17 +1074,18 @@ class DialogWorkspaceIntegrationTest {
         sharedConfigService.saveSettings(Map.of(
                 "dialog_config", Map.of("sla_target_minutes", 1000000)
         ));
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (99, 'token99w', 'Workspace Read All Rearm', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (99, 'token99w', 'Workspace Read All Rearm', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910109L, "T-WS-READ-ALL-REARM", 99L, "workspace_read_all_rearm_user", "Клиент Workspace Read All Rearm", "Retail", "Кострома", "Точка", "Проверка workspace read-all rearm", "2026-05-27T10:50:00Z", 9901L);
         jdbcTemplate.update("""
                 INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
-                VALUES (?,?,?,?)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 "T-WS-READ-ALL-REARM", "watcher_owner", "dispatcher", "2026-05-27T10:49:00Z");
         insertHistoryRow("T-WS-READ-ALL-REARM", 910109L, "user", "Первый follow-up до mass-ack", "2026-05-27T10:53:00Z", "text", 991L, null, 99L, null);
@@ -1169,12 +1140,13 @@ class DialogWorkspaceIntegrationTest {
 
     @Test
     void workspaceApiPreservesTakeWorkflowAndUnreadRearmAcrossReplyAckAndNextFollowUp() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (100, 'token100w', 'Workspace Take Loop', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (100, 'token100w', 'Workspace Take Loop', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910110L, "T-WS-TAKE-LOOP", 100L, "workspace_take_user", "Клиент Workspace Take", "Retail", "Брянск", "Точка", "Проверка workspace take/categories loop", "2026-05-27T11:00:00Z", 10001L);
         insertHistoryRow("T-WS-TAKE-LOOP", 910110L, "user", "Сообщение до take", "2026-05-27T11:01:00Z", "text", 1001L, null, 100L, null);
@@ -1286,12 +1258,13 @@ class DialogWorkspaceIntegrationTest {
 
     @Test
     void workspaceApiProjectsSpamAuditAndResponsibleAfterTakeAndSpam() throws Exception {
-        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) OVERRIDING SYSTEM VALUE VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
-                VALUES (101, 'token101w', 'Workspace Spam Runtime', 'telegram', 1, CURRENT_TIMESTAMP)
+                OVERRIDING SYSTEM VALUE
+                VALUES (101, 'token101w', 'Workspace Spam Runtime', 'telegram', TRUE, CURRENT_TIMESTAMP)
                 """);
         insertDialogTicket(910111L, "T-WS-SPAM", 101L, "workspace_spam_user", "Клиент Workspace Spam", "Retail", "Сочи", "Точка", "Проверка workspace spam continuity", "2026-05-27T11:10:00Z", 10101L);
         jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-WS-SPAM", "billing");
@@ -1357,7 +1330,7 @@ class DialogWorkspaceIntegrationTest {
                 INSERT INTO messages (
                     group_msg_id, user_id, business, city, location_name, problem, created_at,
                     username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?)
                 """,
                 groupMessageId,
                 userId,
@@ -1386,17 +1359,17 @@ class DialogWorkspaceIntegrationTest {
                                      String photo) {
         usersJdbcTemplate.update("""
                 INSERT INTO users(username, password, enabled, role_id, role, department, full_name, photo, is_blocked, last_portal_activity_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?,?,CAST(? AS TIMESTAMPTZ))
                 """,
                 username,
                 "{noop}test",
-                enabled ? 1 : 0,
+                enabled,
                 roleId,
                 role,
                 department,
                 fullName,
                 photo,
-                blocked ? 1 : 0,
+                blocked,
                 "2026-05-26T12:00:00Z");
     }
 
@@ -1433,7 +1406,7 @@ class DialogWorkspaceIntegrationTest {
                     user_id, sender, message, timestamp, ticket_id, message_type,
                     channel_id, tg_message_id, reply_to_tg_id, attachment,
                     original_message, edited_at, deleted_at, forwarded_from
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, CAST(? AS TIMESTAMPTZ), ?, ?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), CAST(? AS TIMESTAMPTZ), ?)
                 """,
                 userId,
                 sender,

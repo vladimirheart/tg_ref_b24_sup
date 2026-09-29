@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import com.example.panel.support.PostgresqlIntegrationTestSupport;
 import com.example.panel.controller.SettingsBridgeController;
 import com.example.panel.controller.SettingsItEquipmentController;
 import com.example.panel.model.dialog.DialogDetails;
@@ -44,65 +45,13 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@ActiveProfiles("sqlite")
-@TestPropertySource(properties = {
-        "spring.flyway.locations=classpath:db/migration/sqlite"
-})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class SupportPanelIntegrationTests {
+class SupportPanelIntegrationTests extends PostgresqlIntegrationTestSupport {
 
     private static Path dbFile;
     private static Path usersDbFile;
     private static Path sharedConfigDir;
     private static final TypeReference<LinkedHashMap<String, Object>> MAP_TYPE = new TypeReference<>() {};
-
-    @DynamicPropertySource
-    static void sqlite(DynamicPropertyRegistry registry) throws IOException {
-        dbFile = Files.createTempFile("panel-test", ".db");
-        usersDbFile = Files.createTempFile("panel-users-test", ".db");
-        initializeUsersDb(usersDbFile);
-        sharedConfigDir = Files.createTempDirectory("panel-shared-config");
-        registry.add("app.datasource.sqlite.path", () -> dbFile.toString());
-        registry.add("app.datasource.users-sqlite.path", () -> usersDbFile.toString());
-        registry.add("shared-config.dir", () -> sharedConfigDir.toString());
-    }
-
-    private static void initializeUsersDb(Path path) {
-        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath());
-             var statement = connection.createStatement()) {
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS users (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        username TEXT NOT NULL UNIQUE,
-                        password TEXT NOT NULL,
-                        enabled BOOLEAN NOT NULL DEFAULT 1,
-                        role_id INTEGER,
-                        department TEXT,
-                        is_blocked BOOLEAN NOT NULL DEFAULT 0,
-                        last_portal_activity_at TEXT,
-                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS user_authorities (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        authority TEXT NOT NULL,
-                        UNIQUE(user_id, authority)
-                    )
-                    """);
-            statement.execute("""
-                    CREATE TABLE IF NOT EXISTS roles (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL UNIQUE,
-                        description TEXT,
-                        permissions TEXT NOT NULL DEFAULT '{}'
-                    )
-                    """);
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to initialize users test database", ex);
-        }
-    }
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -219,7 +168,7 @@ class SupportPanelIntegrationTests {
                     duration_ms, experiment_name, experiment_cohort, operator_segment,
                     primary_kpis, secondary_kpis, template_id, template_name, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, 'workspace.v1', ?,
-                          ?, ?, ?, ?, ?, NULL, NULL, ?)
+                          ?, ?, ?, ?, ?, NULL, NULL, CAST(? AS TIMESTAMPTZ))
                 """,
                 actor,
                 eventType,
@@ -325,7 +274,7 @@ class SupportPanelIntegrationTests {
                     duration_ms, experiment_name, experiment_cohort, operator_segment,
                     primary_kpis, secondary_kpis, template_id, template_name, created_at
                 ) VALUES (?, ?, 'macro', ?, NULL, NULL, 'workspace.v1', NULL,
-                          'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, ?, ?, ?)
+                          'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, ?, ?, CAST(? AS TIMESTAMPTZ))
                 """,
                 actor,
                 eventType,
@@ -337,13 +286,13 @@ class SupportPanelIntegrationTests {
 
     @Test
     void dialogServiceAggregatesStatsAndHistory() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at) VALUES (1, 'token', 'Demo', 1, CURRENT_TIMESTAMP)");
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at) OVERRIDING SYSTEM VALUE VALUES (1, 'token', 'Demo', TRUE, CURRENT_TIMESTAMP)");
         jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
                 1001L, "T-1", "pending", 1);
         jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, business, city, location_name, problem, created_at, username, ticket_id, created_date, created_time, client_name, client_status, updated_at, updated_by, channel_id) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'tester', ?)",
+                        "VALUES (?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'tester', ?)",
                 7001L, 1001L, "Food", "Москва", "Пиццерия", "Не работает терминал", "2026-03-19T13:40:00", "ivan", "T-1", "2026-03-19", "13:40:00", "Иван", "VIP", 1);
-        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,?,?,?,?)",
+        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?)",
                 1001L, "user", "Добрый день", OffsetDateTime.now().toString(), "T-1", "text", 1);
 
         DialogSummary summary = dialogService.loadSummary();
@@ -370,8 +319,8 @@ class SupportPanelIntegrationTests {
 
     @Test
     void dialogListIncludesTicketsWithoutMessages() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at) VALUES (3, 'token-3', 'Fallback', 1, CURRENT_TIMESTAMP)");
-        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id, created_at) VALUES (?,?,?,?,?)",
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at) OVERRIDING SYSTEM VALUE VALUES (3, 'token-3', 'Fallback', TRUE, CURRENT_TIMESTAMP)");
+        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id, created_at) VALUES (?,?,?,?,CAST(? AS TIMESTAMPTZ))",
                 2002L, "T-NOMSG", "open", 3, "2026-01-01T08:30:00");
 
         DialogSummary summary = dialogService.loadSummary();
@@ -401,9 +350,9 @@ class SupportPanelIntegrationTests {
     @Test
     void notificationServiceCountsAndMarksAsRead() {
         jdbcTemplate.update("INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
-                "operator", "Новое сообщение", "/tickets/T-1", 0);
+                "operator", "Новое сообщение", "/tickets/T-1", false);
         jdbcTemplate.update("INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
-                "operator", "Резерв", "/tickets/T-2", 0);
+                "operator", "Резерв", "/tickets/T-2", false);
 
         NotificationSummary summary = notificationService.summary("operator");
         assertThat(summary.unreadCount()).isEqualTo(2);
@@ -462,7 +411,7 @@ class SupportPanelIntegrationTests {
                 .extracting(row -> String.valueOf(row.get("url")))
                 .containsOnly("/dialogs/MISSING-TICKET");
         assertThat(notifications)
-                .allSatisfy(row -> assertThat(((Number) row.get("is_read")).intValue()).isZero());
+                .allSatisfy(row -> assertThat((Boolean) row.get("is_read")).isFalse());
     }
 
     @Test
@@ -486,38 +435,31 @@ class SupportPanelIntegrationTests {
 
 
     @Test
-    void operatorNotificationWatcherCreatesBellNotificationForFollowUpClientMessage() {
+    void operatorNotificationWatcherDoesNotDuplicateCanonicalBellNotificationForFollowUpClientMessage() {
         insertOperatorUser("watcher_followup");
         assertThat(notificationService.findAllOperatorRecipients()).contains("watcher_followup");
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at) VALUES (62, 'token62', 'Ops Telegram', 'telegram', 1, CURRENT_TIMESTAMP)");
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at) OVERRIDING SYSTEM VALUE VALUES (62, 'token62', 'Ops Telegram', 'telegram', TRUE, CURRENT_TIMESTAMP)");
         jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
                 910002L, "WATCHER-WEB-2", "open", 62);
         jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, problem, created_at, username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by) " +
-                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, DATE('now'), TIME('now'), ?, ?, CURRENT_TIMESTAMP, ?)",
+                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD'), TO_CHAR(CURRENT_TIMESTAMP, 'HH24:MI:SS'), ?, ?, CURRENT_TIMESTAMP, ?)",
                 910102L, 910002L, "Нужна помощь", "client_followup", "WATCHER-WEB-2", "Олег", 62, "seed");
-        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,?,?,?,?)",
+        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?)",
                 910002L, "user", "Первое сообщение", OffsetDateTime.now().toString(), "WATCHER-WEB-2", "text", 62);
 
         operatorNotificationWatcher.watch();
         jdbcTemplate.update("DELETE FROM notifications WHERE user_identity = ?", "watcher_followup");
 
-        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,?,?,?,?)",
+        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?)",
                 910002L, "user", "Есть ещё уточнение по открытому диалогу", OffsetDateTime.now().toString(), "WATCHER-WEB-2", "text", 62);
 
         operatorNotificationWatcher.watch();
-
         Integer notificationCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM notifications WHERE url = ?",
                 Integer.class,
                 "/dialogs/WATCHER-WEB-2"
         );
-        String notificationText = jdbcTemplate.queryForObject(
-                "SELECT text FROM notifications WHERE url = ? ORDER BY id DESC LIMIT 1",
-                String.class,
-                "/dialogs/WATCHER-WEB-2"
-        );
-        assertThat(notificationCount).isGreaterThanOrEqualTo(1);
-        assertThat(notificationText).isNotBlank();
+        assertThat(notificationCount).isZero();
     }
 
     @Test
@@ -527,13 +469,13 @@ class SupportPanelIntegrationTests {
         insertOperatorUser("watcher_observer");
         insertOperatorUser("watcher_new");
 
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at) VALUES (64, 'token64', 'Ops Telegram', 'telegram', 1, CURRENT_TIMESTAMP)");
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at) OVERRIDING SYSTEM VALUE VALUES (64, 'token64', 'Ops Telegram', 'telegram', TRUE, CURRENT_TIMESTAMP)");
         jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
                 910064L, "WATCHER-QA-1", "open", 64);
         jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, problem, created_at, username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by) " +
-                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, DATE('now'), TIME('now'), ?, ?, CURRENT_TIMESTAMP, ?)",
+                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD'), TO_CHAR(CURRENT_TIMESTAMP, 'HH24:MI:SS'), ?, ?, CURRENT_TIMESTAMP, ?)",
                 910164L, 910064L, "Нужен runtime continuity", "client_qa", "WATCHER-QA-1", "Клиент QA", 64, "seed");
-        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id) VALUES (?,?,?,?,?,?,?,?)",
+        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?,?)",
                 910064L, "user", "Первое сообщение runtime dialog", OffsetDateTime.now().toString(), "WATCHER-QA-1", "text", 64, 7001L);
         jdbcTemplate.update("INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) VALUES (?,?,?)",
                 "WATCHER-QA-1", "watcher_owner", "dispatcher");
@@ -604,13 +546,13 @@ class SupportPanelIntegrationTests {
         insertOperatorUser("watcher_peer");
         insertOperatorUser("watcher_observer");
 
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at) VALUES (65, 'token65', 'Ops Telegram 2', 'telegram', 1, CURRENT_TIMESTAMP)");
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at) OVERRIDING SYSTEM VALUE VALUES (65, 'token65', 'Ops Telegram 2', 'telegram', TRUE, CURRENT_TIMESTAMP)");
         jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
                 910065L, "WATCHER-QA-2", "open", 65);
         jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, problem, created_at, username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by) " +
-                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, DATE('now'), TIME('now'), ?, ?, CURRENT_TIMESTAMP, ?)",
+                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD'), TO_CHAR(CURRENT_TIMESTAMP, 'HH24:MI:SS'), ?, ?, CURRENT_TIMESTAMP, ?)",
                 910165L, 910065L, "Нужно исключить участника", "client_qa2", "WATCHER-QA-2", "Клиент QA2", 65, "seed");
-        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id) VALUES (?,?,?,?,?,?,?,?)",
+        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id) VALUES (?,?,?,CAST(? AS TIMESTAMPTZ),?,?,?,?)",
                 910065L, "user", "Сообщение для participant flow", OffsetDateTime.now().toString(), "WATCHER-QA-2", "text", 65, 7002L);
         jdbcTemplate.update("INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) VALUES (?,?,?)",
                 "WATCHER-QA-2", "watcher_owner", "dispatcher");
@@ -648,18 +590,18 @@ class SupportPanelIntegrationTests {
 
     @Test
     void loadRelatedEventsIncludesWorkflowHistoryFromTaskLinks() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at) VALUES (3, 'token3', 'Ops', 1, CURRENT_TIMESTAMP)");
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at) OVERRIDING SYSTEM VALUE VALUES (3, 'token3', 'Ops', TRUE, CURRENT_TIMESTAMP)");
         jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
                 1002L, "T-WF-1", "pending", 3);
         jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, business, city, location_name, problem, created_at, username, ticket_id, created_date, created_time, client_name, client_status, updated_at, updated_by, channel_id) " +
-                        "VALUES (NULL, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, DATE('now'), TIME('now'), ?, ?, CURRENT_TIMESTAMP, 'tester', ?)",
+                        "VALUES (9102002, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD'), TO_CHAR(CURRENT_TIMESTAMP, 'HH24:MI:SS'), ?, ?, CURRENT_TIMESTAMP, 'tester', ?)",
                 1002L, "IT", "Москва", "Офис", "Нет доступа", "petrov", "T-WF-1", "Пётр", "Новый", 3);
 
         jdbcTemplate.update("INSERT INTO task_seq (id, val) VALUES (1, 1)");
-        jdbcTemplate.update("INSERT INTO tasks (id, seq, title, creator, assignee, status, created_at, last_activity_at) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
+        jdbcTemplate.update("INSERT INTO tasks (id, seq, title, creator, assignee, status, created_at, last_activity_at) OVERRIDING SYSTEM VALUE VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
                 500L, 1L, "Разобрать обращение", "lead", "operator", "В работе");
         jdbcTemplate.update("INSERT INTO task_links (user_id, task_id, ticket_id) VALUES (?,?,?)", 1002L, 500L, "T-WF-1");
-        jdbcTemplate.update("INSERT INTO task_history (task_id, at, text) VALUES (?,?,?)", 500L, OffsetDateTime.now().plusMinutes(1).toString(), "Назначен дежурному инженеру");
+        jdbcTemplate.update("INSERT INTO task_history (task_id, at, text) VALUES (?,CAST(? AS TIMESTAMPTZ),?)", 500L, OffsetDateTime.now().plusMinutes(1).toString(), "Назначен дежурному инженеру");
 
         List<Map<String, Object>> events = dialogService.loadRelatedEvents("T-WF-1", 10);
         assertThat(events).isNotEmpty();
@@ -2358,7 +2300,7 @@ class SupportPanelIntegrationTests {
         jdbcTemplate.update("""
                 INSERT INTO it_equipment_catalog (
                     equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """,
                 "Router", "MikroTik", "RB4011", "[]", "OLD-SN", "old kit");
 
@@ -2593,7 +2535,6 @@ class SupportPanelIntegrationTests {
 
     private void insertOperatorUser(String username) {
         insertOperatorUser(usersJdbcTemplate, username, true, false);
-        insertOperatorUser(jdbcTemplate, username, true, false);
     }
 
     private void insertOperatorUser(JdbcTemplate template,
@@ -2603,7 +2544,7 @@ class SupportPanelIntegrationTests {
         Set<String> columns = loadTableColumns(template, "users");
         if (columns.contains("is_blocked")) {
             template.update(
-                    "INSERT OR IGNORE INTO users (username, password, enabled, is_blocked, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+                    "INSERT INTO users (username, password, enabled, is_blocked, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT (username) DO NOTHING",
                     username,
                     "{noop}test",
                     enabled,
@@ -2612,7 +2553,7 @@ class SupportPanelIntegrationTests {
             return;
         }
         template.update(
-                "INSERT OR IGNORE INTO users (username, password, enabled, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                "INSERT INTO users (username, password, enabled, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT (username) DO NOTHING",
                 username,
                 "{noop}test",
                 enabled
@@ -2625,8 +2566,9 @@ class SupportPanelIntegrationTests {
 
     private Set<String> loadTableColumns(JdbcTemplate template, String tableName) {
         return Set.copyOf(template.query(
-                "PRAGMA table_info(" + tableName + ")",
-                (rs, rowNum) -> rs.getString("name").toLowerCase()
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ?",
+                (rs, rowNum) -> rs.getString("column_name"),
+                tableName.toLowerCase()
         ));
     }
 

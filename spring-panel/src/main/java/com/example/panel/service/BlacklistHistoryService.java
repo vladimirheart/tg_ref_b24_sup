@@ -30,7 +30,7 @@ public class BlacklistHistoryService {
                 action,
                 StringUtils.hasText(reason) ? reason.trim() : null,
                 StringUtils.hasText(actor) ? actor.trim() : null,
-                timestamp.toString()
+                timestamp
         );
     }
 
@@ -80,7 +80,7 @@ public class BlacklistHistoryService {
                     ORDER BY created_at DESC
                     LIMIT 1
                     """,
-                rs -> rs.next() ? parseOffsetDateTime(rs.getString("created_at")) : null,
+                rs -> rs.next() ? rs.getObject("created_at", OffsetDateTime.class) : null,
                 userId
         ));
     }
@@ -97,9 +97,9 @@ public class BlacklistHistoryService {
                     ORDER BY created_at ASC
                     LIMIT 1
                     """,
-                rs -> rs.next() ? parseOffsetDateTime(rs.getString("created_at")) : null,
+                rs -> rs.next() ? rs.getObject("created_at", OffsetDateTime.class) : null,
                 userId,
-                after.toString()
+                after
         ));
     }
 
@@ -110,7 +110,7 @@ public class BlacklistHistoryService {
                     FROM client_blacklist
                     WHERE user_id = ?
                     """,
-                rs -> rs.next() ? parseOffsetDateTime(rs.getString("added_at")) : null,
+                rs -> rs.next() ? rs.getObject("added_at", OffsetDateTime.class) : null,
                 userId
         ));
     }
