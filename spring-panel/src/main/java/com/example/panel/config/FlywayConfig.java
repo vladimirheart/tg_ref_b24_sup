@@ -28,12 +28,6 @@ public class FlywayConfig {
     private static final Logger logger = LoggerFactory.getLogger(FlywayConfig.class);
     private static final String BASELINE_VERSION = "1";
     private static final String BASELINE_SCRIPT = "V1__baseline_schema.sql";
-    private static final String LEGACY_CLIENT_PHONES_VERSION = "6.1";
-    private static final String LEGACY_CLIENT_PHONES_SCRIPT = "db.migration.V6_1__fix_client_phones_schema";
-    private static final String CLIENT_PHONES_SQLITE_OLD_VERSION = "37";
-    private static final String CLIENT_PHONES_SQLITE_NEW_VERSION = "37.1";
-    private static final String CLIENT_PHONES_SQLITE_OLD_SCRIPT = "db.migration.sqlite.V37__fix_client_phones_schema";
-    private static final String CLIENT_PHONES_SQLITE_NEW_SCRIPT = "db.migration.sqlite.V37_1__fix_client_phones_schema";
 
     @Bean
     public FlywayConfigurationCustomizer databaseSpecificFlywayLocations(Environment environment) {
@@ -93,11 +87,6 @@ public class FlywayConfig {
         }
 
         String schemaHistoryTable = configuration.getTable();
-        String deleteLegacyClientPhonesSql =
-            "DELETE FROM " + schemaHistoryTable + " WHERE version = ? AND script = ?";
-        String migrateClientPhonesVersionSql =
-            "UPDATE " + schemaHistoryTable + " SET version = ?, script = ? " +
-                "WHERE version = ? AND script = ? AND success = TRUE";
         String updateBaselineChecksumSql =
             "UPDATE " + schemaHistoryTable + " SET checksum = ? " +
                 "WHERE version = ? AND script = ? AND success = TRUE AND (checksum IS NULL OR checksum <> ?)";
@@ -120,22 +109,6 @@ public class FlywayConfig {
                     schemaHistoryTable
                 );
                 return;
-            }
-
-            int removedLegacyRows;
-            try (PreparedStatement statement = connection.prepareStatement(deleteLegacyClientPhonesSql)) {
-                statement.setString(1, LEGACY_CLIENT_PHONES_VERSION);
-                statement.setString(2, LEGACY_CLIENT_PHONES_SCRIPT);
-                removedLegacyRows = statement.executeUpdate();
-            }
-
-            int migratedClientPhonesRows;
-            try (PreparedStatement statement = connection.prepareStatement(migrateClientPhonesVersionSql)) {
-                statement.setString(1, CLIENT_PHONES_SQLITE_NEW_VERSION);
-                statement.setString(2, CLIENT_PHONES_SQLITE_NEW_SCRIPT);
-                statement.setString(3, CLIENT_PHONES_SQLITE_OLD_VERSION);
-                statement.setString(4, CLIENT_PHONES_SQLITE_OLD_SCRIPT);
-                migratedClientPhonesRows = statement.executeUpdate();
             }
 
             int repairedBaselineChecksums = 0;
@@ -161,11 +134,9 @@ public class FlywayConfig {
                 removedDeleteMarkers = statement.executeUpdate();
             }
 
-            if (removedLegacyRows > 0 || migratedClientPhonesRows > 0 || repairedBaselineChecksums > 0 || removedDeleteMarkers > 0) {
+            if (repairedBaselineChecksums > 0 || removedDeleteMarkers > 0) {
                 logger.info(
-                    "Normalized Flyway schema history: removed {} legacy V6.1 rows, remapped {} SQLite client_phones rows to version 37.1, repaired {} baseline V1 checksums and removed {} redundant DELETE markers.",
-                    removedLegacyRows,
-                    migratedClientPhonesRows,
+                    "Normalized PostgreSQL Flyway schema history: repaired {} baseline V1 checksums and removed {} redundant DELETE markers.",
                     repairedBaselineChecksums,
                     removedDeleteMarkers
                 );

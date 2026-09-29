@@ -11,10 +11,8 @@ import org.junit.jupiter.api.Test;
 class TaskAnalyticsPersistenceSourceContractTest {
 
     @Test
-    void savedViewsAreOwnerScopedAndMigrationsFollowEveryDatabaseChain() throws IOException {
+    void savedViewsAreOwnerScopedAndCanonicalPostgresqlMigrationIsPresent() throws IOException {
         String postgres = read("src/main/resources/db/migration/postgresql/V44__task_analytics_saved_views.sql");
-        String sqlite = read("src/main/resources/db/migration/sqlite/V55__task_analytics_saved_views.sql");
-        String mysql = read("src/main/resources/db/migration/mysql/V23__task_analytics_saved_views.sql");
         String entity = read("src/main/java/com/example/panel/entity/TaskAnalyticsView.java");
         String repository = read("src/main/java/com/example/panel/repository/TaskAnalyticsViewRepository.java");
         String service = read("src/main/java/com/example/panel/service/TaskAnalyticsViewService.java");
@@ -25,9 +23,6 @@ class TaskAnalyticsPersistenceSourceContractTest {
             .contains("owner_identity VARCHAR(255) NOT NULL")
             .contains("filters_json TEXT NOT NULL")
             .contains("uq_task_analytics_view_owner_name");
-        assertThat(sqlite).contains("CREATE TABLE IF NOT EXISTS task_analytics_views");
-        assertThat(mysql).contains("CREATE TABLE IF NOT EXISTS task_analytics_views");
-
         assertThat(entity)
             .contains("@Table(")
             .contains("name = \"task_analytics_views\"")

@@ -28,17 +28,6 @@ class BackendOpsCommandBoundarySourceContractTest {
             "heartbeat_at",
             "progress_percent"
         );
-        assertFile(
-            RESOURCE_ROOT.resolve(
-                "db/migration/sqlite/V51__backend_ops_command.sql"
-            ),
-            "backend_ops_command",
-            "active_key",
-            "UNIQUE",
-            "claimed_by",
-            "heartbeat_at",
-            "progress_percent"
-        );
     }
 
     @Test

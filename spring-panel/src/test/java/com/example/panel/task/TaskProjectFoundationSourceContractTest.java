@@ -17,8 +17,6 @@ class TaskProjectFoundationSourceContractTest {
         String panelTaskService = read("src/main/java/com/example/panel/service/PanelTaskService.java");
         String domainService = read("src/main/java/com/example/panel/service/TaskDomainFoundationService.java");
         String postgresMigration = read("src/main/resources/db/migration/postgresql/V42__task_project_foundation.sql");
-        String sqliteMigration = read("src/main/resources/db/migration/sqlite/V53__task_project_foundation.sql");
-        String mysqlMigration = read("src/main/resources/db/migration/mysql/V21__task_project_foundation.sql");
         String tasksTemplate = read("src/main/resources/templates/tasks/index.html");
 
         assertThat(postgresMigration)
@@ -29,13 +27,6 @@ class TaskProjectFoundationSourceContractTest {
             .contains("CREATE TABLE IF NOT EXISTS task_events")
             .contains("INSERT INTO tags")
             .contains("ON CONFLICT (task_id, tag_id) DO NOTHING");
-        assertThat(sqliteMigration)
-            .contains("INSERT OR IGNORE INTO tags")
-            .contains("task_events");
-        assertThat(mysqlMigration)
-            .contains("INSERT IGNORE INTO tags")
-            .contains("task_project_memberships");
-
         assertThat(projectApi)
             .contains("@RequestMapping(\"/api/projects\")")
             .contains("@DeleteMapping(\"/{id}\")");
@@ -46,7 +37,7 @@ class TaskProjectFoundationSourceContractTest {
             .contains("dto.put(\"projects\", taskDomainFoundationService.listProjects(task.getId()))")
             .contains("dto.put(\"tags\", taskDomainFoundationService.listTags(task.getId()))")
             .contains("dto.put(\"events\", taskDomainFoundationService.listEvents(task.getId()))");
-        assertThat(panelTaskService).contains("taskDomainFoundationService.recordCreated");
+        assertThat(panelTaskService).contains("taskDomainFoundationService.recordSaved");
         assertThat(domainService)
             .contains("TASK_CREATED")
             .contains("FIELD_CHANGED")

@@ -13,8 +13,6 @@ class TaskBoardFoundationSourceContractTest {
     @Test
     void phaseCKeepsCanonicalTaskStatusSeparateFromBoardPlacement() throws IOException {
         String postgres = read("src/main/resources/db/migration/postgresql/V43__task_board_foundation.sql");
-        String sqlite = read("src/main/resources/db/migration/sqlite/V54__task_board_foundation.sql");
-        String mysql = read("src/main/resources/db/migration/mysql/V22__task_board_foundation.sql");
         String service = read("src/main/java/com/example/panel/service/TaskBoardService.java");
         String controller = read("src/main/java/com/example/panel/controller/TaskBoardApiController.java");
         String readiness = read("src/main/java/com/example/panel/config/PostgresRuntimeReadinessVerifier.java");
@@ -26,15 +24,6 @@ class TaskBoardFoundationSourceContractTest {
             .contains("CREATE TABLE IF NOT EXISTS board_columns")
             .contains("CREATE TABLE IF NOT EXISTS board_task_placements")
             .contains("CONSTRAINT uq_board_task_placement UNIQUE(board_id, task_id)");
-        assertThat(sqlite)
-            .contains("project_boards")
-            .contains("board_task_placements")
-            .contains("UNIQUE(board_id, task_id)");
-        assertThat(mysql)
-            .contains("project_boards")
-            .contains("board_columns")
-            .contains("board_task_placements");
-
         assertThat(controller)
             .contains("@RequestMapping(\"/api/task-boards\")")
             .contains("@PostMapping(\"/project/{projectId}/ensure\")")
