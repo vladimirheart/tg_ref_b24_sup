@@ -3,13 +3,12 @@ package com.example.panel.service;
 import com.example.panel.model.clients.ClientListItem;
 import com.example.panel.model.clients.ClientProfile;
 import com.example.panel.repository.ClientUsernameRepository;
+import com.example.panel.support.PostgresqlJdbcTestSupport;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -23,12 +22,7 @@ class ClientsServiceTest {
 
     @BeforeEach
     void setUp() {
-        DataSource dataSource = new DriverManagerDataSource(
-                "jdbc:h2:mem:clients_service_" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-                "sa",
-                ""
-        );
-        jdbcTemplate = new JdbcTemplate(dataSource);
+        jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("clients_service");
         ClientUsernameRepository clientUsernameRepository = mock(ClientUsernameRepository.class);
         when(clientUsernameRepository.findByUserIdOrderBySeenAtDesc(55L)).thenReturn(List.of());
         blacklistHistoryService = mock(BlacklistHistoryService.class);

@@ -1,12 +1,11 @@
 package com.example.panel.service;
 
+import com.example.panel.support.PostgresqlJdbcTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-import javax.sql.DataSource;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
@@ -25,8 +24,7 @@ class AiLearningServiceTest {
 
     @BeforeEach
     void setUp() {
-        DataSource dataSource = new DriverManagerDataSource("jdbc:h2:mem:ai_learning_" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", "");
-        jdbcTemplate = new JdbcTemplate(dataSource);
+        jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("ai_learning");
         createSchema();
         AiPolicyService policyService = new AiPolicyService(jdbcTemplate);
         AiIntentService intentService = new AiIntentService(jdbcTemplate, new ObjectMapper());

@@ -15,11 +15,11 @@ import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.repository.PendingFeedbackRequestRepository;
 import com.example.panel.repository.ProviderDeliveryLedgerRepository;
 import com.example.panel.storage.AttachmentObjectStorageService;
+import com.example.panel.support.PostgresqlJdbcTestSupport;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 class BotRuntimeTicketWriteServiceTest {
 
@@ -32,11 +32,7 @@ class BotRuntimeTicketWriteServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        jdbcTemplate = new JdbcTemplate(new DriverManagerDataSource(
-            "jdbc:h2:mem:bot_runtime_ticket_write_" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-            "sa",
-            ""
-        ));
+        jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("bot_runtime_ticket_write");
         DialogReplyTargetService dialogReplyTargetService = new DialogReplyTargetService(
             jdbcTemplate,
             new ChatAttachmentMetadataService(jdbcTemplate, mock(AttachmentObjectStorageService.class))
