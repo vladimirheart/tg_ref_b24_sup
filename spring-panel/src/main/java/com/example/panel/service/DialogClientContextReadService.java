@@ -41,7 +41,7 @@ public class DialogClientContextReadService {
                       FROM messages m
                       LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
                      WHERE m.user_id = ?
-                       AND (? IS NULL OR m.ticket_id <> ?)
+                       AND (CAST(? AS TEXT) IS NULL OR m.ticket_id <> ?)
                      ORDER BY %s
                      LIMIT ?
                     """.formatted(createdAtOrder);

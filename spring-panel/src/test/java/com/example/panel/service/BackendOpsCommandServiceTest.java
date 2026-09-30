@@ -1,32 +1,26 @@
 package com.example.panel.service;
 
+import com.example.panel.support.PostgresqlJdbcTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class BackendOpsCommandServiceTest {
 
-    private SingleConnectionDataSource dataSource;
     private JdbcTemplate jdbcTemplate;
     private BackendOpsCommandService service;
 
     @BeforeEach
     void setUp() {
-        dataSource = new SingleConnectionDataSource(
-            "jdbc:sqlite::memory:",
-            true
-        );
-        jdbcTemplate = new JdbcTemplate(dataSource);
+        jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("backend_ops_command");
         jdbcTemplate.execute("""
             CREATE TABLE backend_ops_command (
                 command_id TEXT PRIMARY KEY,
@@ -37,18 +31,18 @@ class BackendOpsCommandServiceTest {
                 payload_json TEXT NOT NULL DEFAULT '{}',
                 status TEXT NOT NULL,
                 requested_by TEXT,
-                requested_at TIMESTAMP NOT NULL,
-                available_at TIMESTAMP NOT NULL,
+                requested_at TIMESTAMPTZ NOT NULL,
+                available_at TIMESTAMPTZ NOT NULL,
                 claimed_by TEXT,
-                claimed_at TIMESTAMP,
-                heartbeat_at TIMESTAMP,
-                completed_at TIMESTAMP,
+                claimed_at TIMESTAMPTZ,
+                heartbeat_at TIMESTAMPTZ,
+                completed_at TIMESTAMPTZ,
                 progress_percent INTEGER NOT NULL DEFAULT 0,
                 progress_message TEXT,
                 result_json TEXT,
                 last_error TEXT,
                 attempt_count INTEGER NOT NULL DEFAULT 0,
-                updated_at TIMESTAMP NOT NULL
+                updated_at TIMESTAMPTZ NOT NULL
             )
             """);
         jdbcTemplate.execute("""
@@ -61,11 +55,6 @@ class BackendOpsCommandServiceTest {
             jdbcTemplate,
             new ObjectMapper()
         );
-    }
-
-    @AfterEach
-    void tearDown() {
-        dataSource.destroy();
     }
 
     @Test

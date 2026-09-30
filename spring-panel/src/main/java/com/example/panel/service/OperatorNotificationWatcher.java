@@ -316,12 +316,13 @@ public class OperatorNotificationWatcher {
             return null;
         }
         String value = raw.trim();
+        String normalized = value.replace(' ', 'T');
         try {
-            return OffsetDateTime.parse(value);
+            return OffsetDateTime.parse(normalized);
         } catch (DateTimeParseException ignored) {
         }
         try {
-            return OffsetDateTime.parse(value.replace(' ', 'T') + "Z");
+            return LocalDateTime.parse(normalized).atOffset(ZoneOffset.UTC);
         } catch (DateTimeParseException ignored) {
         }
         try {

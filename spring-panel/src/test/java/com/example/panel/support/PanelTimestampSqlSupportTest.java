@@ -8,17 +8,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PanelTimestampSqlSupportTest {
 
     @Test
-    void sqliteFixtureBuildsDatetimePredicateWithRelativeModifier() {
-        PanelTimestampSqlSupport support = new SqlitePanelTimestampSqlSupport();
-
-        PanelTimestampSqlSupport.SqlCondition condition = support.since("created_at", Duration.ofMinutes(60));
-
-        assertThat(condition.sql()).isEqualTo("datetime(substr(COALESCE(created_at, ''), 1, 19)) >= datetime('now', ?)");
-        assertThat(condition.params()).containsExactly("-60 minutes");
-        assertThat(support.orderByTimestampDesc("created_at")).isEqualTo("substr(COALESCE(created_at, ''), 1, 19) DESC");
-    }
-
-    @Test
     void productionSupportBuildsTypedPredicateWithNullSafeOrdering() {
         PanelTimestampSqlSupport support = new PanelTimestampSqlSupport();
 

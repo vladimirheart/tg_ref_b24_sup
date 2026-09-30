@@ -101,7 +101,7 @@ public class DialogWorkspaceTelemetryDataService {
                   FROM workspace_telemetry_audit
                  WHERE created_at >= ?
                    AND created_at < ?
-                   AND (? IS NULL OR experiment_name = ?)
+                   AND (CAST(? AS TEXT) IS NULL OR experiment_name = ?)
                  GROUP BY COALESCE(experiment_cohort, 'unknown'), COALESCE(operator_segment, 'unknown')
                  ORDER BY events DESC, experiment_cohort ASC, operator_segment ASC
                 """;
@@ -180,7 +180,7 @@ public class DialogWorkspaceTelemetryDataService {
                  WHERE created_at >= ?
                    AND created_at < ?
                    AND event_type = ?
-                   AND (? IS NULL OR experiment_name = ?)
+                   AND (CAST(? AS TEXT) IS NULL OR experiment_name = ?)
                  GROUP BY LOWER(TRIM(COALESCE(reason, '')))
                  ORDER BY events DESC, reason ASC
                  LIMIT ?
@@ -373,7 +373,7 @@ public class DialogWorkspaceTelemetryDataService {
                  WHERE created_at >= ?
                    AND created_at < ?
                    AND event_type = ?
-                   AND (? IS NULL OR experiment_name = ?)
+                   AND (CAST(? AS TEXT) IS NULL OR experiment_name = ?)
                  ORDER BY created_at DESC
                 """;
         try {

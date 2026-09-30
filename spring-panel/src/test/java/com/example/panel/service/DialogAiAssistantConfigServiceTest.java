@@ -2,7 +2,6 @@ package com.example.panel.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.panel.support.PanelTimestampSqlSupport;
-import com.example.panel.support.SqlitePanelTimestampSqlSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -40,7 +39,7 @@ class DialogAiAssistantConfigServiceTest {
                 jdbcTemplate,
                 sharedConfigService,
                 persistenceService,
-                new SqlitePanelTimestampSqlSupport()
+                new PanelTimestampSqlSupport()
         );
 
         assertThat(service.isAgentEnabled()).isFalse();
@@ -65,7 +64,7 @@ class DialogAiAssistantConfigServiceTest {
                 jdbcTemplate,
                 sharedConfigService,
                 persistenceService,
-                new SqlitePanelTimestampSqlSupport()
+                new PanelTimestampSqlSupport()
         );
 
         assertThat(service.resolveAgentMode()).isEqualTo("auto_reply");
@@ -89,7 +88,7 @@ class DialogAiAssistantConfigServiceTest {
                 "ai_agent_max_auto_replies_per_dialog", 3
         ));
         when(sharedConfigService.loadSettings()).thenReturn(settings);
-        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("T-1"), eq("-60 minutes"))).thenReturn(0);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq("T-1"), any(java.sql.Timestamp.class))).thenReturn(0);
         when(jdbcTemplate.queryForList(anyString(), eq("T-1"))).thenReturn(List.of(Map.of(
                 "last_action", "auto_replied",
                 "updated_at", "2026-05-12T10:00:00Z"
@@ -100,7 +99,7 @@ class DialogAiAssistantConfigServiceTest {
                 jdbcTemplate,
                 sharedConfigService,
                 persistenceService,
-                new SqlitePanelTimestampSqlSupport()
+                new PanelTimestampSqlSupport()
         );
 
         DialogAiAssistantConfigService.AutoReplyGuard guard = service.evaluateAutoReplyGuard("T-1");

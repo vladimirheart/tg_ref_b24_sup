@@ -27,7 +27,7 @@ public final class PostgresqlJdbcTestSupport {
         admin.execute("CREATE SCHEMA " + schema);
 
         String separator = POSTGRES.getJdbcUrl().contains("?") ? "&" : "?";
-        return new JdbcTemplate(dataSource(POSTGRES.getJdbcUrl() + separator + "currentSchema=" + schema));
+        return new JdbcTemplate(dataSource(POSTGRES.getJdbcUrl() + separator + "currentSchema=" + schema + "&stringtype=unspecified"));
     }
 
     private static DriverManagerDataSource dataSource(String url) {
