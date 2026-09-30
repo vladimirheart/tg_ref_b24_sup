@@ -45,12 +45,9 @@ MONITORING_CREDENTIALS_MASTER_KEY=base64:<generated-or-legacy-key>
 
 - `TELEGRAM_BOT_TOKEN` — токен Telegram-бота.
 - `GROUP_CHAT_ID` — ID рабочей группы/чата для уведомлений (можно оставить пустым и сохранить в панели).
-- `APP_DB_MODE` — для `spring-panel` production runtime используется `postgresql`; `sqlite` больше не является поддерживаемым panel runtime mode. Изолированный dynamic bot child использует отдельный `worker` contract, а archival SQLite import запускается только специальным tooling.
-- `APP_DB_PANEL_RUNTIME`, `APP_DB_PANEL_IDENTITY`, `APP_DB_BOT_RUNTIME` и legacy aliases `APP_DB_TICKETS` / `APP_DB_USERS` / `APP_DB_BOT` сохраняются только как archive/import source hints; normal PostgreSQL runtime не использует их как live datasource contract.
-- Secondary `APP_DB_*` пути относятся к legacy archive/import/diagnostic perimeter и не должны создавать live business SQLite databases.
-- `APP_BOT_DATABASE_DIR` — каталог legacy per-channel shard-файлов для archive/import/diagnostic сценариев; normal bot runtime не создаёт там отдельный business source of truth.
-- `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` — preferred-конфиг для external DB.
-- `DATABASE_URL` — compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL.
+- `APP_DB_MODE` — единственный поддерживаемый SQL runtime mode для `spring-panel`, `java-bot` и dynamic bot children: `postgresql`.
+- `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` — canonical PostgreSQL datasource contract для panel и bot runtimes.
+- `DATABASE_URL` — compatibility shorthand только для PostgreSQL URL; не включает альтернативный DB vendor/runtime mode.
 - `IGUANA_BOOTSTRAP_INSTALL_DOCKER` — разрешает bootstrap на Windows автоматически поставить Docker Desktop через `winget` (по умолчанию `true`).
 - `IGUANA_BOOTSTRAP_DOCKER_READY_TIMEOUT_SECONDS` — сколько ждать готовности Docker Desktop после установки/старта (по умолчанию `300` секунд).
 - `APP_COORDINATION_MODE` — coordination backend для shared leases/counters/cooldowns; для production contour с multi-instance bot ingress должен быть `redis`.
@@ -69,19 +66,19 @@ SPRING_DATASOURCE_PASSWORD=secret
 
 Важно:
 
-- `spring-panel` в external DB-режиме теперь сам выбирает vendor-specific Flyway migrations, а не SQLite-папку по умолчанию.
-- `spring-panel` использует canonical primary external datasource; users/monitoring runtime JDBC являются aliases этого contour, а legacy SQLite path holders зарегистрированы только для explicit archive/recovery flows и не создают live datasource.
-- `java-bot` больше не использует Spring Boot `sql.init` как runtime-механику владения схемой: в external PostgreSQL-режиме бот просто подключается к готовой схеме, а не пытается инициализировать её сам.
-- `java-bot` production child runtime использует `worker` contract: временный technical store допустим только для self-owned coordination/dedup state и не является business SQLite compatibility mode.
-- runtime-контракт запуска ботов теперь пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели; child `java-bot` JDBC launch больше не поддерживает SQLite compatibility env.
+- `spring-panel` использует единственный Flyway location `classpath:db/migration/postgresql`.
+- `spring-panel` использует canonical primary PostgreSQL datasource; users/monitoring JDBC wiring является alias того же SQL contour.
+- `java-bot` не владеет schema bootstrap: bot runtime подключается к готовой PostgreSQL schema.
+- production child runtime использует `APP_DB_MODE=postgresql` и canonical `SPRING_DATASOURCE_*`; local SQL datasource fallback отсутствует.
+- runtime-контракт запуска ботов пробрасывает PostgreSQL env (`APP_DB_MODE`, `SPRING_DATASOURCE_*`) напрямую из панели.
 - для multi-instance bot ingress production contour теперь предполагает shared coordination:
   - `Telegram`, `VK`, `MAX` long-poll ownership должен идти через `APP_COORDINATION_MODE=redis`;
   - связанные bot-side schedulers должны идти через shared job lease, а не через process-local таймеры.
 - `VK` и `MAX` webhook mode теперь не должны опираться на single-owner `409` gating:
   - question-flow session state externalized через shared bot session store;
   - multi-instance webhook contour требует общего Redis coordination/session layer.
-- `spring-panel` больше не регистрирует `EnvDefaultsInitializer` и не подставляет `APP_DB_*` SQLite-пути как runtime defaults; explicit `APP_DB_MODE=sqlite` для панели отклоняется.
-- normal first-run path больше не должен неявно переводить проект обратно в SQLite только потому, что Docker недоступен.
+- `spring-panel` больше не регистрирует `EnvDefaultsInitializer` и не подставляет legacy DB path aliases как runtime defaults; любой DB mode кроме `postgresql` отклоняется.
+- normal first-run path завершается ошибкой, если обязательная PostgreSQL infrastructure недоступна.
 - `VK` webhook mode не должен silently жить рядом с long-poll: при `vk-bot.webhook-enabled=true` long-poll runner должен быть выключен, а webhook/runtime state должен идти через shared coordination/session layer.
 - `spring-panel/run-windows.bat` и `spring-panel/run-linux.sh` умеют мягко долечить старый local bootstrap `.env` только для безопасных app-side секретов (`APP_INTERNAL_BOT_API_TOKEN`, `APP_SECURITY_REMEMBER_ME_KEY`, `MONITORING_CREDENTIALS_MASTER_KEY`) и не должны молча ротировать persisted infra credentials.
 

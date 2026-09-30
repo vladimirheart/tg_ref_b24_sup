@@ -411,8 +411,9 @@ function Get-IguanaDatabaseMode {
         return "postgresql"
     }
 
-    if ($mode.Trim().ToLowerInvariant() -eq "sqlite") {
-        return "sqlite"
+    $normalizedMode = $mode.Trim().ToLowerInvariant()
+    if ($normalizedMode -notin @("auto", "postgresql")) {
+        throw "Unsupported database mode '$mode'. Iguana supports only PostgreSQL."
     }
 
     return "postgresql"
@@ -1351,18 +1352,14 @@ try {
     $dbMode = Get-IguanaDatabaseMode
     Write-InfoMessage "Effective database mode: $dbMode"
 
-    if ($dbMode -eq "postgresql") {
-        if (-not $docker) {
-            Ensure-Wsl
-            Ensure-Hypervisor
-            Ensure-LanmanServer
-            $docker = Ensure-Docker
-        }
-
-        Ensure-IguanaContainers -Docker $docker
-    } else {
-        Write-WarnMessage "Explicit SQLite compatibility mode is active."
+    if (-not $docker) {
+        Ensure-Wsl
+        Ensure-Hypervisor
+        Ensure-LanmanServer
+        $docker = Ensure-Docker
     }
+
+    Ensure-IguanaContainers -Docker $docker
 
     Write-Host ""
     Write-Ok "Iguana runtime environment is ready."

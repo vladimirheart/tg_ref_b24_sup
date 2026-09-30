@@ -94,9 +94,9 @@ cd spring-panel
 - создаёт корневой `.env`, если его ещё нет;
 - подготавливает `attachments/`, `logs/` и `bot_databases/`;
 - поднимает локальные `PostgreSQL` и `RabbitMQ`, переводит старт в `APP_DB_MODE=postgresql` и включает `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
-- если Docker недоступен, bootstrap теперь завершается ошибкой вместо молчаливого перехода в SQLite;
-- дефолтные runtime-конфиги `spring-panel` и `java-bot` теперь тоже ориентированы на `APP_DB_MODE=postgresql`;
-- `APP_DB_MODE=sqlite` для `spring-panel` отклоняется; legacy SQLite читается только explicit archive/import/recovery tooling, а не normal runtime.
+- если Docker/обязательная PostgreSQL infrastructure недоступны, bootstrap завершается ошибкой;
+- дефолтные runtime-конфиги `spring-panel` и `java-bot` используют `APP_DB_MODE=postgresql`;
+- любой альтернативный SQL DB mode для panel/bot runtime отклоняется fail-closed.
 
 Если нужен именно dockerized contour, а не local process bootstrap, используйте:
 
@@ -167,7 +167,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 | `java-bot/` | код и runtime модулей ботов |
 | `config/shared/` | shared JSON-конфиги |
 | `attachments/` | пользовательские вложения, knowledge assets, аватары и другие файлы |
-| `bot_databases/` | legacy per-channel SQLite shard-файлы `bot-<channelId>.db` для import/диагностики |
+| `bot_databases/` | исторические per-channel DB artifacts; не являются runtime datasource или поддерживаемым import input |
 | `docs/` | эксплуатационная и архитектурная документация |
 | `ai-context/` | AI-контекст, правила проекта, task-tracking и changelog |
 
@@ -175,7 +175,7 @@ Maven wrapper уже лежит в репозитории, поэтому отд
 
 Production source of truth - PostgreSQL. В нём находятся business data панели, операторы, диалоги, сообщения, настройки каналов и runtime-ownership. RabbitMQ обеспечивает transport boundary, Redis - coordination и leases, а MinIO/S3 - медиа и файлы.
 
-SQLite и `bot_databases/` не являются live production storage: это только compatibility/import/diagnostic perimeter. Актуальная схема и требования к cutover приведены в [docs/database-paths.md](docs/database-paths.md), [docs/POSTGRESQL_FIRST_READINESS_CLOSEOUT.md](docs/POSTGRESQL_FIRST_READINESS_CLOSEOUT.md) и [docs/BOT_RUNTIME_CONTRACT.md](docs/BOT_RUNTIME_CONTRACT.md).
+PostgreSQL — единственная SQL/реляционная БД проекта. Исторические DB artifacts не являются runtime/input contract. Актуальные runtime boundaries описаны в [docs/database_distribution.md](docs/database_distribution.md) и [docs/BOT_RUNTIME_CONTRACT.md](docs/BOT_RUNTIME_CONTRACT.md).
 
 ## Конфигурация
 
@@ -251,7 +251,6 @@ Legacy `APP_DB_*` path keys и `APP_BOT_DATABASE_DIR` сохраняются т�
 - [docs/ARCHITECTURE_AUDIT_2026-04-08.md](docs/ARCHITECTURE_AUDIT_2026-04-08.md)
 - [docs/ARCH_UI_REFACTORING_ROADMAP_2026-04-15.md](docs/ARCH_UI_REFACTORING_ROADMAP_2026-04-15.md)
 - [docs/REFACTORING_PLAN_2026.md](docs/REFACTORING_PLAN_2026.md)
-- [docs/SQLITE_BOOTSTRAP_PERIMETER.md](docs/SQLITE_BOOTSTRAP_PERIMETER.md)
 - [docs/POSTGRESQL_FIRST_READINESS_CLOSEOUT.md](docs/POSTGRESQL_FIRST_READINESS_CLOSEOUT.md)
 
 ## Перенос на другую машину

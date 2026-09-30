@@ -63,10 +63,10 @@ Smoke не должен считаться завершённым, если ег
 - Подтвердить статус `ready`.
 - Проверить хотя бы один production channel через `GET /api/bots/{channelId}/runtime-contract`.
 - Убедиться, что:
-  - `APP_DB_MODE=worker`;
+  - `APP_DB_MODE=postgresql`;
   - `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
-  - нет `SPRING_DATASOURCE_URL`;
-  - нет `DATABASE_URL`.
+  - `SPRING_DATASOURCE_URL` начинается с `jdbc:postgresql:`;
+  - заданы `SPRING_DATASOURCE_USERNAME` и `SPRING_DATASOURCE_PASSWORD`.
 
 Если этот gate не проходит, дальше прикладной smoke выполнять бессмысленно.
 

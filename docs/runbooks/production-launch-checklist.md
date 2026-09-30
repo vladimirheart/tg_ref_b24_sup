@@ -35,15 +35,15 @@ Production launch для Iguana считается допустимым толь
 - `RabbitMQ` как integration transport;
 - `S3-compatible` storage как attachment boundary;
 - `java-bot` как transport/integration runtime;
-- bot child processes в режиме `APP_DB_MODE=worker`;
+- bot child processes в режиме `APP_DB_MODE=postgresql` с canonical `SPRING_DATASOURCE_*`;
 - transport boundary в режиме `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`.
 
 Что не считается production contour:
 
-- `APP_DB_MODE=sqlite` как основной runtime;
+- любой SQL runtime mode кроме `APP_DB_MODE=postgresql`;
 - `APP_INTEGRATION_TRANSPORT_MODE=jdbc` в live-среде;
 - `APP_STORAGE_OBJECT_MODE=local_fs` как production storage boundary;
-- bot child с прямыми `SPRING_DATASOURCE_*` credentials;
+- bot child без canonical PostgreSQL `SPRING_DATASOURCE_*` contract;
 - production-старт с дефолтными security secrets.
 
 ## 3. Профиль запуска
@@ -80,12 +80,12 @@ Production launch для Iguana считается допустимым толь
 
 ### 5.1. Можно идти в production, если одновременно выполняется всё ниже
 
-- production contour реально использует `PostgreSQL`, а не compatibility `SQLite`;
+- production contour использует PostgreSQL как единственную SQL/реляционную БД;
 - `Settings -> Production readiness` возвращает `ready`, а не `degraded` или `compatibility`;
 - `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
 - `APP_COORDINATION_MODE=redis`;
 - object storage переведён в `s3`-совместимый режим и bucket probe успешен;
-- bot runtime contract не содержит прямых `SPRING_DATASOURCE_*` для child processes;
+- bot runtime contract содержит `APP_DB_MODE=postgresql` и canonical `SPRING_DATASOURCE_*` для child processes;
 - задан безопасный `APP_INTERNAL_BOT_API_TOKEN`;
 - задан безопасный `APP_SECURITY_REMEMBER_ME_KEY`;
 - если в external DB ещё нет пользователя с `ROLE_ADMIN`, заранее заданы:
@@ -145,7 +145,7 @@ Production launch для Iguana считается допустимым толь
 - Есть снимок данных до запуска.
 - Есть backup `PostgreSQL`.
 - Есть backup `attachments/object storage`.
-- Если миграция идёт с legacy SQLite, проведён rehearsal на production-like копии.
+- Если запуск включает перенос historical pre-PostgreSQL data, проведён отдельный rehearsal вне live runtime contour.
 - Есть сверка критичных сущностей:
   - tickets
   - messages
@@ -213,22 +213,16 @@ APP_STORAGE_OBJECT_SECRET_KEY=...
 Для bot runtime в `rabbitmq` contour обязательны:
 
 ```text
-APP_DB_MODE=worker
+APP_DB_MODE=postgresql
+SPRING_DATASOURCE_URL=jdbc:postgresql://...
+SPRING_DATASOURCE_USERNAME=...
+SPRING_DATASOURCE_PASSWORD=...
 APP_INTEGRATION_TRANSPORT_MODE=rabbitmq
 APP_PANEL_INTERNAL_API_BASE_URL=...
 APP_PANEL_INTERNAL_API_TOKEN=...
 ```
 
-И запрещены как live-path:
-
-```text
-SPRING_DATASOURCE_URL
-SPRING_DATASOURCE_USERNAME
-SPRING_DATASOURCE_PASSWORD
-DATABASE_URL
-APP_DB_BOT_RUNTIME
-SUPPORT_BOT_DATABASE_PATH
-```
+Retired local/legacy DB path variables не должны входить в live child contract.
 
 ## 8. Preflight за 1-3 дня до релиза
 
@@ -328,8 +322,8 @@ SUPPORT_BOT_DATABASE_PATH
 ### 10.4. Негативный контроль
 
 - Убедиться, что не растёт unexplained DLQ.
-- Убедиться, что нет silent fallback в SQLite/local business path.
-- Убедиться, что child runtime не держит неожиданный direct datasource.
+- Убедиться, что нет local SQL/business fallback.
+- Убедиться, что child runtime использует ожидаемый canonical PostgreSQL datasource contract.
 
 ## 11. Rollback plan
 

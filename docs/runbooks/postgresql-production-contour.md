@@ -173,16 +173,16 @@ Production contour теперь предполагает следующий live
 
 Если snapshot `degraded`, сначала устранить конкретный component reason в UI и только затем повторить проверку. Само обновление snapshot безопасно и не меняет runtime state.
 
-## Bot worker DB isolation invariant (v35)
+## Bot PostgreSQL datasource invariant
 
 Для production bot child одновременно должны выполняться условия:
 
-- panel runtime: PostgreSQL canonical;
+- panel runtime использует canonical PostgreSQL;
 - `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
-- `APP_DB_MODE=worker`;
-- в child environment отсутствуют `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `DATABASE_URL`, `APP_DB_BOT_RUNTIME`, `SUPPORT_BOT_DATABASE_PATH`;
-- business ticket/channel/feedback/blacklist paths идут только через RabbitMQ или internal panel API;
-- временный worker SQLite файл из `%TEMP%` / `java.io.tmpdir` стартует без business schema; self-owned technical tables для worker coordination/dedup допустимы, но случайный repository/JDBC доступ к business tables должен завершаться ошибкой, а не работать как hidden local fallback.
+- `APP_DB_MODE=postgresql`;
+- child environment содержит canonical `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`;
+- bot runtime не выполняет schema bootstrap/migration;
+- business ticket/channel/feedback/blacklist paths следуют transport/internal API boundary без local SQL fallback.
 
 Проверка runtime contract без старта:
 
@@ -190,7 +190,7 @@ Production contour теперь предполагает следующий live
 GET /api/bots/{channelId}/runtime-contract
 ```
 
-Для production-ready channel required keys должны содержать `APP_DB_MODE` и `APP_INTEGRATION_TRANSPORT_MODE`, но не `SPRING_DATASOURCE_URL`. Если child стартует с direct PostgreSQL datasource, production boundary считается нарушенной даже при доступной БД.
+Для production-ready channel required keys должны содержать `APP_DB_MODE=postgresql`, `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` и PostgreSQL datasource contract. Отсутствие canonical PostgreSQL datasource или появление local SQL fallback считается нарушением production boundary.
 
 ## Windows log/console UTF-8 invariant (v36)
 
@@ -221,70 +221,17 @@ Get-Content ..\logs\errors.log -Encoding UTF8 -Tail 100 -Wait
 - transport mode — `rabbitmq`, required queues существуют, необъяснённого DLQ backlog нет;
 - object-storage provider — S3-compatible и bucket probe успешен;
 - incident durable delivery не имеет unresolved failed/stale-processing состояния;
-- production bot runtime contract содержит `APP_DB_MODE=worker` и `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
-- child environment не содержит canonical `SPRING_DATASOURCE_*`/`DATABASE_URL`;
+- production bot runtime contract содержит `APP_DB_MODE=postgresql`, `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` и canonical `SPRING_DATASOURCE_*`;
+- child environment не содержит retired local/legacy DB path variables;
 - реальный bot child проходит startup/workflow smoke;
 - application и process logs читаются в UTF-8 без mojibake.
 
-`sqlite`, `jdbc` и `local_fs` остаются допустимыми только для явно выбранных compatibility/dev/import сценариев. Snapshot `compatibility` не является production-ready состоянием.
+`jdbc` transport и `local_fs` могут использоваться только в явно документированных non-production сценариях; SQL runtime при этом остаётся PostgreSQL-only. Snapshot `compatibility` не является production-ready состоянием.
 
 После выполнения этого gate дальнейшие richer reporting, external alerting и worker-forensics следует вести отдельными задачами: они улучшают maturity, но не открывают заново базовый production-contour scope `01-183`.
 
-## Закрытие переноса legacy SQLite
+## Historical data boundary after PostgreSQL-only cleanup
 
-В canonical production contour SQLite не является runtime dependency: обычный `db-migrate`, `panel-web`, `ops-worker` и `bot-runner` не получают доступ к историческим `*.db`. Архивный импорт отделён от штатного запуска и требует явного compose-override.
+Legacy SQL import/recovery/compaction tooling удалён в `01-277 S2` и не является частью production runbook. Historical pre-PostgreSQL evidence хранится вне live runtime contour и не монтируется в `db-migrate`, `panel-web`, `ops-worker` или `bot-runner`.
 
-Подготовьте неизменяемую staging-копию. Скрипт читает source, создаёт копии в `.tmp/legacy-sqlite-import` и записывает SHA-256 manifest. Исходные БД не изменяются.
-
-```powershell
-.\scripts\stage-legacy-sqlite-import.ps1 -Replace
-```
-
-```bash
-./scripts/stage-legacy-sqlite-import.sh --replace
-```
-
-Для согласованного разового import window задайте staging только в текущей shell-сессии и запустите мигратор с архивным override. Он использует staging как read-only mount, а не живые файлы из корня репозитория:
-
-```powershell
-$env:IGUANA_LEGACY_SQLITE_STAGING_DIR = './.tmp/legacy-sqlite-import'
-docker compose -f docker-compose.production-contour.yml -f docker-compose.legacy-sqlite-import.yml up --no-deps --force-recreate db-migrate
-Remove-Item Env:IGUANA_LEGACY_SQLITE_STAGING_DIR
-```
-
-После exit code `0` обязательно выполните сверку. Она проверяет critical tables из `panel_runtime.db` (`messages`, `chat_history`, `notifications`, `web_form_sessions`, `chat_attachment_metadata`) и наличие recovery evidence в PostgreSQL. Если PostgreSQL содержит меньше строк, команда завершается ошибкой.
-
-```powershell
-.\scripts\verify-legacy-sqlite-import.ps1
-```
-
-`bot-*.db`, изменившийся после прошлого import marker, не переимпортируется автоматически. Verifier выводит его как отдельный warning; такой shard нужно разобрать вручную и перенести отдельным идемпотентным сценарием, а не удалять marker.
-
-Только после зелёной сверки и проверки dialog/media/UI:
-
-1. Пересоздайте обычный contour только с `docker-compose.production-contour.yml` через `scripts/docker-production-up.ps1`.
-2. Сохраните staging manifest и исходные SQLite-файлы в off-host архиве на согласованное rollback window.
-3. Не добавляйте архивный compose-override в service, CI или штатный production command.
-
-Не удаляйте и не выполняйте `VACUUM` над SQLite-источниками до завершения этой последовательности.
-## Monitoring history retention / legacy compaction (v39)
-
-`monitoring_check_history` хранится не более 30 дней на текущем canonical monitoring runtime:
-
-- production PostgreSQL: таблица остаётся в primary PostgreSQL; cleanup выполняется под shared Redis lease;
-- SQLite compatibility: runtime history живёт в `monitoring.db`; bootstrap переносит legacy history из primary SQLite и очищает старую копию;
-- cleanup выполняется при startup и затем периодически (`PANEL_MONITORING_HISTORY_RETENTION_INTERVAL_MS`, default 6h); срок 30 дней не расширяется настройкой.
-
-Для PostgreSQL-first инсталляции старые SQLite-файлы после завершённого compatibility import можно физически уплотнить только отдельным согласованным архивным запуском. Обычный production contour для этого не используется:
-
-```powershell
-$env:IGUANA_LEGACY_SQLITE_STAGING_DIR = './.tmp/legacy-sqlite-import'
-$env:IGUANA_LEGACY_MONITORING_HISTORY_COMPACT = 'true'
-docker compose -f docker-compose.production-contour.yml -f docker-compose.legacy-sqlite-import.yml up --no-deps --force-recreate db-migrate
-Remove-Item Env:IGUANA_LEGACY_MONITORING_HISTORY_COMPACT
-Remove-Item Env:IGUANA_LEGACY_SQLITE_STAGING_DIR
-```
-
-Compactor проверяет `panel_runtime.db`, `monitoring.db`, `bot_runtime.db` и legacy `bot_database.db`. Строки в актуальном 30-дневном окне сначала должны присутствовать в PostgreSQL (missing rows докопируются); старые строки считаются истёкшими по retention. Только после успешной verification source `monitoring_check_history` очищается и выполняется `VACUUM`.
-
-Если встречается current-window row с неразбираемым `created_at`/обязательными полями, destructive cleanup для этого файла отменяется. Не включайте archive override или `IGUANA_LEGACY_MONITORING_HISTORY_COMPACT` в `.env`, CI или штатную команду запуска.
+Production maintenance для monitoring/history выполняется только средствами canonical PostgreSQL schema и штатных retention jobs.

@@ -123,8 +123,8 @@ T+60  Зафиксировано решение rehearsal: PASS / CONDITIONAL / 
 - Развернуть `spring-panel` на rehearsal contour.
 - Развернуть `java-bot` и bot child runtimes с production-like конфигурацией.
 - Проверить, что:
-  - `APP_DB_MODE=postgresql` у panel;
-  - `APP_DB_MODE=worker` у bot child;
+  - `APP_DB_MODE=postgresql` у panel и bot child;
+  - bot child получает canonical `SPRING_DATASOURCE_*`;
   - `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
   - `APP_COORDINATION_MODE=redis`;
   - `APP_STORAGE_OBJECT_MODE=s3`.

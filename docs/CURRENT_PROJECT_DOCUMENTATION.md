@@ -43,7 +43,7 @@
 
 ### 3.1. Коротко
 
-На `17 сентября 2026 года` Iguana работает в PostgreSQL production contour; `spring-panel` не поддерживает SQLite runtime mode, а SQLite сохранён только в explicit archive/import/recovery, read-only verification, test-fixture и изолированном bot-worker technical perimeter.
+Iguana работает в PostgreSQL-only SQL contour: `spring-panel`, `java-bot` и dynamic bot children используют только PostgreSQL, а альтернативные SQL runtime/tooling/test contours удалены задачей `01-277`.
 
 Это означает:
 
@@ -51,7 +51,7 @@
 - `spring-panel` является центром ownership для business data и operator-facing workflow;
 - `java-bot` больше не должен быть владельцем business schema в production-контуре;
 - `RabbitMQ`, `Redis` и object storage уже входят в целевую модель;
-- legacy `SQLite` остаётся только для controlled archive/import/recovery, read-only verification и тестов; отдельный technical worker store не является business source of truth.
+- historical changelog/task records могут описывать прежние DB modes, но они не являются runtime/tooling/test contract.
 
 ### 3.2. Что считается главным архитектурным направлением
 
@@ -220,22 +220,21 @@ Shared JSON-конфигурация остаётся важной частью 
 - `spring-panel` владеет business data;
 - production business contour должен жить в backend-owned data plane;
 - bot runtimes не должны владеть business schema;
-- legacy `SQLite` и bot shard-файлы - это transitional perimeter, а не цель.
+- local/legacy SQL shard paths не входят в поддерживаемый runtime contract.
 
 Это зафиксировано в `ai-context/rules/backend/05-iguana-production-storage-boundaries.md`.
 
 ## 6.2. Runtime data contours
 
-Normal production data plane больше не делится по SQLite-файлам. Для `spring-panel` business, identity, monitoring, channels и object-passport state живут в canonical PostgreSQL datasource; `usersJdbcTemplate` и monitoring JDBC wiring являются aliases этого же production contour.
+Normal production data plane использует canonical PostgreSQL datasource для business, identity, monitoring, channels, bot runtime и object-passport state; `usersJdbcTemplate` и monitoring JDBC wiring являются aliases этого же SQL contour.
 
-Legacy `panel_runtime.db`, `panel_identity.db`, `monitoring.db`, `bot_runtime.db`, `clients.db`, `knowledge_base.db`, `objects.db` и `bot-<channelId>.db` допускаются только как archive/import/recovery evidence или test/diagnostic input. Они не описывают live production topology.
+Retired local DB filenames и path aliases не являются supported runtime, tooling или test input. Historical references сохраняются только в changelog/task records.
 
 Актуальные источники по storage ownership:
 
-- [database-paths.md](./database-paths.md) — legacy archive/import source paths;
-- [database_distribution.md](./database_distribution.md) — current production ownership;
-- [SQLITE_BOOTSTRAP_PERIMETER.md](./SQLITE_BOOTSTRAP_PERIMETER.md) — разрешённый residual SQLite perimeter;
-- `ai-context/rules/backend/04-sqlite-topology.md`.
+- [database_distribution.md](./database_distribution.md) — current PostgreSQL ownership;
+- [BOT_RUNTIME_CONTRACT.md](./BOT_RUNTIME_CONTRACT.md) — current panel/bot runtime contract;
+- `ai-context/rules/backend/05-iguana-production-storage-boundaries.md`.
 
 ## 6.3. Что нельзя делать при новых изменениях
 
@@ -343,8 +342,8 @@ PostgreSQL - это целевой primary contour для:
 
 - production bot path использует canonical `APP_DB_MODE=postgresql` и `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq`;
 - `bot-runner` работает в одном экземпляре и автоматически запускает отдельный runtime для каждого активного канала;
-- дочерние процессы используют PostgreSQL, RabbitMQ, Redis, MinIO/S3 и internal panel API, но не local SQLite storage;
-- `SQLite` допустим только как явный compatibility/import/dev путь.
+- дочерние процессы используют PostgreSQL, RabbitMQ, Redis, MinIO/S3 и internal panel API;
+- local/non-PostgreSQL SQL runtime path отсутствует.
 
 ## 8.3. Запуск и orchestration
 
@@ -643,7 +642,7 @@ CSS-файлы в `static/css/` собираются из `SCSS` через `dar
 - Для runtime contract панели и ботов - [BOT_RUNTIME_CONTRACT.md](./BOT_RUNTIME_CONTRACT.md).
 - Для production target-state - [target-production-architecture-plan.md](./target-production-architecture-plan.md).
 - Для storage/data lifecycle - [IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md](./IGUANA_DATA_LIFECYCLE_AND_STORAGE_STRATEGY.md).
-- Для DB paths и topology - [database-paths.md](./database-paths.md), [database_distribution.md](./database_distribution.md), [db/sqlite-target-topology.md](./db/sqlite-target-topology.md).
+- Для DB topology - [database_distribution.md](./database_distribution.md) и [BOT_RUNTIME_CONTRACT.md](./BOT_RUNTIME_CONTRACT.md).
 - Для AI/project rules - `ai-context/rules/` и `ai-context/baseline/ai-rules/`.
 
 ## 11.2. Как вносить новые архитектурные изменения
@@ -652,12 +651,12 @@ CSS-файлы в `static/css/` собираются из `SCSS` через `dar
 
 - явно понимать, какой контур ownership она меняет;
 - не ломать production направление `backend-owned business data`;
-- не усиливать legacy SQLite split без отдельного решения;
+- не добавлять non-PostgreSQL SQL runtime/tooling/test paths;
 - обновлять связанную документацию, если меняет contract, topology или runtime behavior.
 
 Если изменение касается:
 
-- DB topology - нужно смотреть и обновлять `database-paths.md`, `database_distribution.md`, `db/sqlite-target-topology.md`;
+- DB topology - нужно смотреть и обновлять `database_distribution.md` и `BOT_RUNTIME_CONTRACT.md`;
 - bot runtime contract - нужно обновлять `BOT_RUNTIME_CONTRACT.md`;
 - production contour - нужно проверять влияние на `target-production-architecture-plan.md` и runbooks;
 - UI preferences / UI shell - нужно обновлять этот документ и профильные UI docs при изменении правил.

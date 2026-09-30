@@ -16,7 +16,7 @@
 | `MAX_BOT_ENABLED` | включить MAX-бота (`true/false`) | Java-бот |
 | `MAX_BOT_TOKEN` | токен MAX | Java-бот |
 | `MAX_SUPPORT_CHAT_ID` | чат операторов MAX | Java-бот |
-| `APP_DB_MODE` | `spring-panel` production runtime: `postgresql`; dynamic bot child: `worker`; `sqlite` не является поддерживаемым panel production mode | Панель и бот |
+| `APP_DB_MODE` | единственный поддерживаемый SQL runtime mode для panel и bot runtimes: `postgresql` | Панель и бот |
 | `DATABASE_URL` | compatibility shorthand для external DB; для `java-bot` поддержан только PostgreSQL | Панель и бот |
 | `SPRING_DATASOURCE_URL` | явный JDBC URL для external DB | Панель и бот |
 | `SPRING_DATASOURCE_USERNAME` | пользователь external DB | Панель и бот |
@@ -81,23 +81,16 @@
 | `IGUANA_SHARED_CONFIG_DIR` | persistent shared-config runtime directory; production default is `../iguana-runtime/tg_ref_b24_sup/shared-config`, outside the Git checkout | compose/infrastructure |
 | `IGUANA_ATTACHMENTS_DIR` | bind-mount override для `attachments` в docker-compose contour | compose/infrastructure |
 | `IGUANA_LOGS_DIR` | bind-mount override для `logs` в docker-compose contour | compose/infrastructure |
-| `IGUANA_BOT_DATABASES_DIR` | bind-mount override для `bot_databases` в docker-compose contour | compose/infrastructure |
 
 ## Базы данных
 
 | Переменная | Описание | По умолчанию |
 | --- | --- | --- |
-| `APP_DB_PANEL_RUNTIME` | legacy source hint для archive/import (`panel_runtime.db`), не live production datasource | unset / archive-only |
-| `APP_DB_PANEL_IDENTITY` | legacy source hint для archive/import (`panel_identity.db`) | unset / archive-only |
-| `APP_DB_BOT_RUNTIME` | legacy source hint для archive/import (`bot_runtime.db`) | unset / archive-only |
-| `APP_DB_TICKETS` | legacy alias для archive/import source | unset / archive-only |
-| `APP_DB_USERS` | legacy alias для archive/import source | unset / archive-only |
-| `APP_DB_BOT` | legacy alias для archive/import source | unset / archive-only |
-| `SUPPORT_BOT_DATABASE_PATH` | legacy/test SQLite bridge; не production business storage | unset |
-| `APP_DB_CLIENTS` | legacy archive/import source hint (`clients.db`) | unset / archive-only |
-| `APP_DB_KNOWLEDGE` | legacy archive/import source hint (`knowledge_base.db`) | unset / archive-only |
-| `APP_DB_OBJECTS` | legacy archive/import source hint (`objects.db`) | unset / archive-only |
-| `APP_BOT_DATABASE_DIR` | каталог legacy per-channel shard-файлов `bot-<channelId>.db` для import/диагностики | `../bot_databases` |
+| `APP_DB_MODE` | единственный поддерживаемый SQL runtime mode: `postgresql` | `postgresql` |
+| `SPRING_DATASOURCE_URL` | canonical PostgreSQL JDBC URL | required |
+| `SPRING_DATASOURCE_USERNAME` | PostgreSQL user | required |
+| `SPRING_DATASOURCE_PASSWORD` | PostgreSQL password | required |
+| `DATABASE_URL` | optional compatibility shorthand; допускается только PostgreSQL URL | unset |
 
 ## Хранилища
 
@@ -137,24 +130,23 @@ export SPRING_DATASOURCE_PASSWORD="secret"
 
 Для `java-bot` действует явная граница:
 
-- production child runtime использует `APP_DB_MODE=worker`; его temporary SQLite store является только technical coordination/dedup state и не владеет business schema;
-- в `APP_DB_MODE=postgresql` runtime получает готовый PostgreSQL datasource-контракт и не несёт `SPRING_SQL_INIT_MODE`/`schema-sqlite.sql` в production-path.
-- в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` bot-side business операции по ticket/channel/feedback/blacklist должны идти через `APP_PANEL_INTERNAL_API_*`; silent fallback в local `JPA/SQLite` business storage больше не считается допустимым live-path.
+- production child runtime использует `APP_DB_MODE=postgresql` и canonical `SPRING_DATASOURCE_*`; bot runtime не выполняет schema bootstrap/migration.
+- в `APP_INTEGRATION_TRANSPORT_MODE=rabbitmq` business операции по ticket/channel/feedback/blacklist идут через transport/internal API boundary; local SQL fallback отсутствует.
 - для multi-instance bot ingress в production contour нужно использовать `APP_COORDINATION_MODE=redis`, чтобы `Telegram`/`VK`/`MAX` long-poll owner semantics не оставались process-local.
 - для `VK`/`MAX` webhook multi-instance contour вместе с этим нужен shared bot session-state слой; он настраивается тем же coordination namespace и TTL через `APP_COORDINATION_BOT_SESSION_TTL`.
 
 Для `spring-panel` действует ещё одно правило:
 
-- `spring-panel` не подставляет local `APP_DB_*` SQLite-пути как runtime defaults; `EnvDefaultsInitializer` удалён из startup graph.
-- explicit `APP_DB_MODE=sqlite` для панели отклоняется; legacy `APP_DB_*` допускаются только в archive/import/diagnostic tooling.
-- `APP_DB_SETTINGS` больше не входит в active runtime/env contract: отдельный `settings.db` registry layer удалён как legacy topology.
+- `spring-panel` не подставляет retired DB path aliases как runtime defaults; `EnvDefaultsInitializer` удалён из startup graph.
+- любой DB mode кроме `postgresql` отклоняется fail-closed.
+- retired local DB registry/path variables не входят в active runtime/env contract.
 - во внешнем production-like контуре `spring-panel` теперь fail-fast останавливается, если `APP_INTERNAL_BOT_API_TOKEN` или `APP_SECURITY_REMEMBER_ME_KEY` оставлены на встроенных дефолтах.
 - если во внешнем контуре в `users/user_authorities` ещё нет пользователя с `ROLE_ADMIN`, для первого старта нужно заранее передать `APP_SECURITY_BOOTSTRAP_ADMIN_USERNAME` и `APP_SECURITY_BOOTSTRAP_ADMIN_PASSWORD`.
 
 Для first-run bootstrap после стартового production-slice `01-183` действует ещё одно правило:
 
 - default bootstrap-path должен завершаться в `PostgreSQL + RabbitMQ`;
-- SQLite first-run bootstrap больше не поддерживается ни как compatibility override, ни как fallback.
+- SQL fallback отсутствует: при недоступной PostgreSQL infrastructure bootstrap завершается ошибкой.
 - bootstrap-скрипты `scripts/bootstrap-first-run.ps1` и `scripts/bootstrap-first-run.sh` для локального PostgreSQL-контура теперь сразу генерируют `APP_INTERNAL_BOT_API_TOKEN` и `APP_SECURITY_REMEMBER_ME_KEY`;
 - bootstrap-скрипты `scripts/bootstrap-first-run.ps1` и `scripts/bootstrap-first-run.sh` на fresh install теперь также генерируют `IGUANA_POSTGRES_PASSWORD`, `IGUANA_RABBITMQ_PASSWORD`, `IGUANA_REDIS_PASSWORD`, `APP_STORAGE_OBJECT_ACCESS_KEY`, `APP_STORAGE_OBJECT_SECRET_KEY`, `MONITORING_CREDENTIALS_MASTER_KEY` и `IGUANA_GRAFANA_ADMIN_PASSWORD`;
 - если в `config/shared/monitoring-credentials.key` уже лежит legacy AES key, bootstrap использует `MONITORING_CREDENTIALS_MASTER_KEY=base64:<legacy-key>` вместо ротации, чтобы старые `enc:v1:` monitoring credentials продолжили расшифровываться;
