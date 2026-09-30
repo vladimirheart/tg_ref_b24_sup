@@ -1,6 +1,5 @@
 package com.example.supportbot.service;
 
-import com.example.supportbot.config.BotDatabaseRuntimeMode;
 import com.example.supportbot.entity.Channel;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -16,16 +15,12 @@ public class UiEventOutboxService {
     private static final int MAX_COUNTER_VALUE = 999;
 
     private final JdbcTemplate jdbcTemplate;
-    private final BotDatabaseRuntimeMode databaseRuntimeMode;
     private final long nodeId;
     private final AtomicInteger counter = new AtomicInteger(0);
 
-    public UiEventOutboxService(JdbcTemplate jdbcTemplate,
-                                BotDatabaseRuntimeMode databaseRuntimeMode) {
+    public UiEventOutboxService(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.databaseRuntimeMode = databaseRuntimeMode;
         this.nodeId = resolveNodeId();
-        ensureSchema();
     }
 
     public void publishTicketCreated(String ticketId, Channel channel, String previewText) {
@@ -103,28 +98,6 @@ public class UiEventOutboxService {
         return (nowMillis * 1_000_000L) + (nodeId * 1_000L) + nextCounter;
     }
 
-    private void ensureSchema() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS ui_event_outbox (
-                    id BIGINT PRIMARY KEY,
-                    event_type TEXT NOT NULL,
-                    ticket_id TEXT NOT NULL,
-                    channel_id BIGINT,
-                    message_text TEXT,
-                    message_type TEXT,
-                    attachment TEXT,
-                    rating INTEGER,
-                    created_at TEXT NOT NULL
-                )
-                """);
-        jdbcTemplate.execute("""
-                CREATE INDEX IF NOT EXISTS idx_ui_event_outbox_ticket
-                ON ui_event_outbox(ticket_id, id)
-                """);
-    }
 
     private long resolveNodeId() {
         String runtimeName = ManagementFactory.getRuntimeMXBean().getName();

@@ -16,17 +16,6 @@ public class BotDatabaseRuntimeMode {
             ));
     }
 
-    public boolean isSqliteMode() {
-        return false;
-    }
-
-    public boolean isWorkerMode() {
-        return false;
-    }
-
-    public boolean isExternalMode() {
-        return true;
-    }
 
     public String modeLabel() {
         return externalSettings.schemaPlatform();

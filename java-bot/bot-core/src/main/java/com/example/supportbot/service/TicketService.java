@@ -619,19 +619,17 @@ public class TicketService {
             panelTicketWriteClient.registerActivity(ticketId, username);
             return;
         }
-        SqliteBusyRetrySupport.run(() -> {
-            OffsetDateTime now = OffsetDateTime.now();
-            TicketActive active = ticketActiveRepository.findById(ticketId).orElseGet(() -> {
-                TicketActive placeholder = new TicketActive();
-                placeholder.setTicketId(ticketId);
-                return placeholder;
-            });
-            active.setLastSeen(now);
-            if (active.getUser() == null || active.getUser().isBlank()) {
-                active.setUser(username);
-            }
-            ticketActiveRepository.save(active);
+        OffsetDateTime now = OffsetDateTime.now();
+        TicketActive active = ticketActiveRepository.findById(ticketId).orElseGet(() -> {
+            TicketActive placeholder = new TicketActive();
+            placeholder.setTicketId(ticketId);
+            return placeholder;
         });
+        active.setLastSeen(now);
+        if (active.getUser() == null || active.getUser().isBlank()) {
+            active.setUser(username);
+        }
+        ticketActiveRepository.save(active);
     }
 
     @Transactional

@@ -1,6 +1,5 @@
 package com.example.supportbot.service;
 
-import com.example.supportbot.config.BotDatabaseRuntimeMode;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.ChatHistory;
 import com.example.supportbot.repository.ChatHistoryRepository;
@@ -16,38 +15,17 @@ public class ChatHistoryService {
     private final JdbcTemplate jdbcTemplate;
     private final UiEventOutboxService uiEventOutboxService;
     private final ChatAttachmentMetadataService chatAttachmentMetadataService;
-    private final BotDatabaseRuntimeMode databaseRuntimeMode;
 
     public ChatHistoryService(ChatHistoryRepository historyRepository,
                               JdbcTemplate jdbcTemplate,
                               UiEventOutboxService uiEventOutboxService,
-                              ChatAttachmentMetadataService chatAttachmentMetadataService,
-                              BotDatabaseRuntimeMode databaseRuntimeMode) {
+                              ChatAttachmentMetadataService chatAttachmentMetadataService) {
         this.historyRepository = historyRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.uiEventOutboxService = uiEventOutboxService;
         this.chatAttachmentMetadataService = chatAttachmentMetadataService;
-        this.databaseRuntimeMode = databaseRuntimeMode;
-        ensureColumns();
     }
 
-    private void ensureColumns() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        try {
-            jdbcTemplate.execute("ALTER TABLE chat_history ADD COLUMN original_message TEXT");
-        } catch (Exception ignored) {
-        }
-        try {
-            jdbcTemplate.execute("ALTER TABLE chat_history ADD COLUMN forwarded_from TEXT");
-        } catch (Exception ignored) {
-        }
-        try {
-            jdbcTemplate.execute("ALTER TABLE chat_history ADD COLUMN file_name TEXT");
-        } catch (Exception ignored) {
-        }
-    }
 
     @Transactional
     public ChatHistory storeUserMessage(Long userId,

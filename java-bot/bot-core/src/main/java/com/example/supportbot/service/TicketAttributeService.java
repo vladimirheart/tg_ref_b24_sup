@@ -1,6 +1,5 @@
 package com.example.supportbot.service;
 
-import com.example.supportbot.config.BotDatabaseRuntimeMode;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,13 +11,9 @@ import org.springframework.util.StringUtils;
 public class TicketAttributeService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final BotDatabaseRuntimeMode databaseRuntimeMode;
 
-    public TicketAttributeService(JdbcTemplate jdbcTemplate,
-                                  BotDatabaseRuntimeMode databaseRuntimeMode) {
+    public TicketAttributeService(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.databaseRuntimeMode = databaseRuntimeMode;
-        ensureSchema();
     }
 
     public void replaceAttributes(String ticketId, List<TicketService.TicketAttributeInput> attributes) {
@@ -81,29 +76,6 @@ public class TicketAttributeService {
         );
     }
 
-    private void ensureSchema() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS ticket_attributes (
-                    ticket_id TEXT NOT NULL,
-                    question_id TEXT NOT NULL,
-                    attribute_key TEXT NOT NULL,
-                    question_text TEXT,
-                    input_type TEXT NOT NULL,
-                    value_id TEXT,
-                    value_label TEXT,
-                    value_text TEXT,
-                    include_in_dashboard BOOLEAN NOT NULL DEFAULT FALSE,
-                    created_at TEXT,
-                    updated_at TEXT,
-                    PRIMARY KEY (ticket_id, question_id)
-                )
-                """);
-        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_ticket_attributes_ticket ON ticket_attributes(ticket_id)");
-        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_ticket_attributes_key_dashboard ON ticket_attributes(attribute_key, include_in_dashboard)");
-    }
 
     private String trimToNull(String value) {
         if (!StringUtils.hasText(value)) {

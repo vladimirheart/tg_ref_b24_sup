@@ -1,6 +1,5 @@
 package com.example.supportbot.service;
 
-import com.example.supportbot.config.BotDatabaseRuntimeMode;
 import com.example.supportbot.config.ObjectStorageProperties;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -17,16 +16,12 @@ import java.util.Locale;
 public class ChatAttachmentMetadataService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final BotDatabaseRuntimeMode databaseRuntimeMode;
     private final ObjectStorageProperties objectStorageProperties;
 
     public ChatAttachmentMetadataService(JdbcTemplate jdbcTemplate,
-                                         BotDatabaseRuntimeMode databaseRuntimeMode,
                                          ObjectStorageProperties objectStorageProperties) {
         this.jdbcTemplate = jdbcTemplate;
-        this.databaseRuntimeMode = databaseRuntimeMode;
         this.objectStorageProperties = objectStorageProperties;
-        ensureSchema();
     }
 
     public void upsertForChatHistory(Long chatHistoryId,
@@ -88,51 +83,6 @@ public class ChatAttachmentMetadataService {
         );
     }
 
-    private void ensureSchema() {
-        if (!databaseRuntimeMode.isSqliteMode()) {
-            return;
-        }
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS chat_attachment_metadata (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    chat_history_id BIGINT NOT NULL UNIQUE REFERENCES chat_history(id) ON DELETE CASCADE,
-                    ticket_id TEXT,
-                    channel_id BIGINT,
-                    storage_key TEXT,
-                    storage_provider TEXT NOT NULL DEFAULT 'local_fs',
-                    storage_class TEXT NOT NULL DEFAULT 'dialog_attachment',
-                    original_name TEXT,
-                    mime_type TEXT,
-                    size BIGINT,
-                    content_hash TEXT,
-                    legacy_attachment_ref TEXT,
-                    normalization_status TEXT NOT NULL DEFAULT 'normalized',
-                    availability_status TEXT NOT NULL DEFAULT 'unknown',
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT,
-                    archived_at TEXT,
-                    deleted_at TEXT,
-                    CHECK (normalization_status IN ('normalized', 'unresolved')),
-                    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
-                )
-                """);
-        jdbcTemplate.execute("""
-                CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_ticket
-                ON chat_attachment_metadata(ticket_id, chat_history_id)
-                """);
-        jdbcTemplate.execute("""
-                CREATE INDEX IF NOT EXISTS idx_chat_attachment_metadata_storage_key
-                ON chat_attachment_metadata(storage_key)
-                """);
-        try {
-            jdbcTemplate.execute("""
-                    ALTER TABLE chat_attachment_metadata
-                    ADD COLUMN availability_status TEXT NOT NULL DEFAULT 'unknown'
-                    CHECK (availability_status IN ('available', 'missing', 'external', 'unresolved', 'unknown'))
-                    """);
-        } catch (Exception ignored) {
-        }
-    }
 
     private String normalizeStorageKey(String ticketId, String rawAttachment) {
         String normalized = normalizeReference(rawAttachment);

@@ -18,9 +18,6 @@ class BotDatabaseRuntimeModeTest {
 
         BotDatabaseRuntimeMode runtimeMode = new BotDatabaseRuntimeMode(environment);
 
-        assertThat(runtimeMode.isSqliteMode()).isFalse();
-        assertThat(runtimeMode.isWorkerMode()).isFalse();
-        assertThat(runtimeMode.isExternalMode()).isTrue();
         assertThat(runtimeMode.modeLabel()).isEqualTo("postgres");
     }
 

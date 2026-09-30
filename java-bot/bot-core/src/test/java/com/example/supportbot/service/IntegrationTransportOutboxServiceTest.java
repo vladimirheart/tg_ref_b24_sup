@@ -8,8 +8,6 @@ import static org.mockito.Mockito.mock;
 
 import com.example.supportbot.config.IntegrationRabbitProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -19,8 +17,20 @@ import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 class IntegrationTransportOutboxServiceTest {
+
+    private static final DockerImageName POSTGRES_IMAGE = DockerImageName.parse("postgres:16-alpine");
+    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(POSTGRES_IMAGE)
+        .withDatabaseName("iguana_test")
+        .withUsername("iguana")
+        .withPassword("iguana");
+
+    static {
+        POSTGRES.start();
+    }
 
     private JdbcTemplate jdbcTemplate;
     private IntegrationTransportOutboxService service;
@@ -28,9 +38,16 @@ class IntegrationTransportOutboxServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        Path dbFile = Files.createTempFile("bot-outbox-", ".db");
+        String schema = "bot_outbox_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        JdbcTemplate admin = new JdbcTemplate(new DriverManagerDataSource(
+            POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()
+        ));
+        admin.execute("CREATE SCHEMA " + schema);
+        String separator = POSTGRES.getJdbcUrl().contains("?") ? "&" : "?";
         jdbcTemplate = new JdbcTemplate(new DriverManagerDataSource(
-            "jdbc:sqlite:" + dbFile.toAbsolutePath()
+            POSTGRES.getJdbcUrl() + separator + "currentSchema=" + schema + "&stringtype=unspecified",
+            POSTGRES.getUsername(),
+            POSTGRES.getPassword()
         ));
         RabbitTemplate rabbitTemplate = mock(RabbitTemplate.class);
         doAnswer(invocation -> {

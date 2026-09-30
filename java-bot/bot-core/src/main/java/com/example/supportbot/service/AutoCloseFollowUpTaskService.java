@@ -1,6 +1,5 @@
 package com.example.supportbot.service;
 
-import com.example.supportbot.config.BotDatabaseRuntimeMode;
 import com.example.supportbot.entity.Task;
 import com.example.supportbot.entity.TicketMessage;
 import com.example.supportbot.entity.TicketResponsible;
@@ -46,14 +45,12 @@ public class AutoCloseFollowUpTaskService implements AutoCloseFollowUpTaskSuppor
                                         TicketResponsibleRepository ticketResponsibleRepository,
                                         TicketMessageRepository ticketMessageRepository,
                                         JdbcTemplate jdbcTemplate,
-                                        PlatformTransactionManager transactionManager,
-                                        BotDatabaseRuntimeMode databaseRuntimeMode) {
+                                        PlatformTransactionManager transactionManager) {
         this(taskService,
                 ticketResponsibleRepository,
                 ticketMessageRepository,
                 jdbcTemplate,
-                buildRequiresNewTransactionOperations(transactionManager),
-                databaseRuntimeMode);
+                buildRequiresNewTransactionOperations(transactionManager));
     }
 
     AutoCloseFollowUpTaskService(TaskService taskService,
@@ -61,42 +58,11 @@ public class AutoCloseFollowUpTaskService implements AutoCloseFollowUpTaskSuppor
                                  TicketMessageRepository ticketMessageRepository,
                                  JdbcTemplate jdbcTemplate,
                                  TransactionOperations isolatedTransactionOperations) {
-        this(taskService,
-                ticketResponsibleRepository,
-                ticketMessageRepository,
-                jdbcTemplate,
-                isolatedTransactionOperations,
-                true);
-    }
-
-    AutoCloseFollowUpTaskService(TaskService taskService,
-                                 TicketResponsibleRepository ticketResponsibleRepository,
-                                 TicketMessageRepository ticketMessageRepository,
-                                 JdbcTemplate jdbcTemplate,
-                                 TransactionOperations isolatedTransactionOperations,
-                                 BotDatabaseRuntimeMode databaseRuntimeMode) {
-        this(taskService,
-                ticketResponsibleRepository,
-                ticketMessageRepository,
-                jdbcTemplate,
-                isolatedTransactionOperations,
-                databaseRuntimeMode.isSqliteMode());
-    }
-
-    private AutoCloseFollowUpTaskService(TaskService taskService,
-                                         TicketResponsibleRepository ticketResponsibleRepository,
-                                         TicketMessageRepository ticketMessageRepository,
-                                         JdbcTemplate jdbcTemplate,
-                                         TransactionOperations isolatedTransactionOperations,
-                                         boolean sqliteMode) {
         this.taskService = taskService;
         this.ticketResponsibleRepository = ticketResponsibleRepository;
         this.ticketMessageRepository = ticketMessageRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.isolatedTransactionOperations = isolatedTransactionOperations;
-        if (sqliteMode) {
-            ensureParticipantSchema();
-        }
     }
 
     @Override
@@ -281,25 +247,6 @@ public class AutoCloseFollowUpTaskService implements AutoCloseFollowUpTaskSuppor
         return normalized.substring(0, Math.max(0, maxLength - 1)).trim() + "...";
     }
 
-    private void ensureParticipantSchema() {
-        try {
-            jdbcTemplate.execute("""
-                    CREATE TABLE IF NOT EXISTS ticket_participants (
-                        ticket_id TEXT NOT NULL,
-                        username TEXT NOT NULL,
-                        added_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        added_by TEXT,
-                        PRIMARY KEY (ticket_id, username)
-                    )
-                    """);
-            jdbcTemplate.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_ticket_participants_username
-                        ON ticket_participants(username)
-                    """);
-        } catch (DataAccessException ex) {
-            log.warn("Unable to ensure ticket_participants schema: {}", ex.getMessage());
-        }
-    }
 
     private String escapeHtml(String value) {
         if (value == null) {

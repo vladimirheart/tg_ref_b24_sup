@@ -1,6 +1,5 @@
 package com.example.supportbot.service;
 
-import com.example.supportbot.config.BotDatabaseRuntimeMode;
 import com.example.supportbot.config.ObjectStorageProperties;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -18,13 +17,10 @@ class ChatAttachmentMetadataServiceTest {
     @Test
     void marksNormalizedS3ObjectAsAvailableWithoutLocalFile() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        BotDatabaseRuntimeMode databaseRuntimeMode = mock(BotDatabaseRuntimeMode.class);
         ObjectStorageProperties objectStorageProperties = mock(ObjectStorageProperties.class);
-        when(databaseRuntimeMode.isSqliteMode()).thenReturn(false);
         when(objectStorageProperties.isS3Mode()).thenReturn(true);
         ChatAttachmentMetadataService service = new ChatAttachmentMetadataService(
                 jdbcTemplate,
-                databaseRuntimeMode,
                 objectStorageProperties
         );
 
