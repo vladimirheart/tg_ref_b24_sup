@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -145,6 +146,28 @@ class DialogConversationReadServiceTest {
         assertThat(page.batch().sourceLabel()).isEqualTo("Внешняя форма");
         assertThat(page.batch().messages()).hasSize(1);
         assertThat(page.batch().messages().get(0).message()).isEqualTo("Историческое сообщение");
+    }
+
+    @Test
+    void loadHistoryScopesColumnMetadataToCurrentSchema() {
+        String shadowSchema = "dialog_conversation_shadow_"
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        jdbcTemplate.execute("CREATE SCHEMA " + shadowSchema);
+        jdbcTemplate.execute("CREATE TABLE " + shadowSchema + ".chat_history (file_name TEXT)");
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(
+                    ticket_id, sender, message, timestamp, message_type, attachment,
+                    tg_message_id, reply_to_tg_id, channel_id, original_message, edited_at, deleted_at, forwarded_from
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                "T-SCHEMA", "client", "Schema scoped metadata", "2026-09-30T20:00:00Z", "text", null,
+                501L, null, 5L, "Schema scoped metadata", null, null, null
+        );
+
+        List<ChatMessageDto> history = service.loadHistory("T-SCHEMA", 5L);
+
+        assertThat(history).hasSize(1);
+        assertThat(history.get(0).message()).isEqualTo("Schema scoped metadata");
     }
 
     @Test

@@ -580,7 +580,12 @@ public class DialogConversationReadService {
             return jdbcTemplate.execute((ConnectionCallback<Set<String>>) connection -> {
                 Set<String> columns = new LinkedHashSet<>();
                 var metaData = connection.getMetaData();
-                try (var resultSet = metaData.getColumns(null, null, tableName, null)) {
+                String schema = connection.getSchema();
+                if (!StringUtils.hasText(schema)) {
+                    return columns;
+                }
+                String catalog = connection.getCatalog();
+                try (var resultSet = metaData.getColumns(catalog, schema, tableName, null)) {
                     while (resultSet.next()) {
                         columns.add(resultSet.getString("COLUMN_NAME").toLowerCase());
                     }
@@ -588,7 +593,7 @@ public class DialogConversationReadService {
                 if (!columns.isEmpty()) {
                     return columns;
                 }
-                try (var resultSet = metaData.getColumns(null, null, tableName.toUpperCase(), null)) {
+                try (var resultSet = metaData.getColumns(catalog, schema, tableName.toUpperCase(), null)) {
                     while (resultSet.next()) {
                         columns.add(resultSet.getString("COLUMN_NAME").toLowerCase());
                     }
