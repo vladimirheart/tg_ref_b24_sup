@@ -2,12 +2,11 @@ package com.example.panel.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.panel.support.PanelTimestampSqlSupport;
+import com.example.panel.support.PostgresqlJdbcTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-import javax.sql.DataSource;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
@@ -27,8 +26,7 @@ class AiRetrievalServiceTest {
 
     @BeforeEach
     void setUp() {
-        DataSource dataSource = new DriverManagerDataSource("jdbc:h2:mem:ai_retrieval_" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", "");
-        jdbcTemplate = new JdbcTemplate(dataSource);
+        jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("ai_retrieval");
         createSchema();
         intentService = new AiIntentService(jdbcTemplate, new ObjectMapper());
         retrievalService = new AiRetrievalService(
@@ -161,8 +159,8 @@ class AiRetrievalServiceTest {
                     scope_channel VARCHAR(120),
                     scope_business VARCHAR(120),
                     scope_location VARCHAR(120),
-                    created_at TIMESTAMP,
-                    updated_at TIMESTAMP
+                    created_at TIMESTAMPTZ,
+                    updated_at TIMESTAMPTZ
                 )
                 """);
         jdbcTemplate.execute("""
@@ -178,8 +176,8 @@ class AiRetrievalServiceTest {
                     channel VARCHAR(120),
                     status VARCHAR(32),
                     source_ref VARCHAR(160),
-                    created_at TIMESTAMP,
-                    updated_at TIMESTAMP
+                    created_at TIMESTAMPTZ,
+                    updated_at TIMESTAMPTZ
                 )
                 """);
         jdbcTemplate.execute("""
@@ -188,8 +186,8 @@ class AiRetrievalServiceTest {
                     query_key VARCHAR(128),
                     knowledge_unit_id BIGINT,
                     link_type VARCHAR(32),
-                    weight DOUBLE,
-                    created_at TIMESTAMP
+                    weight DOUBLE PRECISION,
+                    created_at TIMESTAMPTZ
                 )
                 """);
     }

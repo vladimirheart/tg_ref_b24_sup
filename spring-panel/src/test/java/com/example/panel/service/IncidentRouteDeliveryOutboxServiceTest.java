@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.example.panel.entity.Incident;
 import com.example.panel.entity.IncidentRoute;
 import com.example.panel.repository.IncidentRouteRepository;
+import com.example.panel.support.PostgresqlJdbcTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -16,7 +17,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 class IncidentRouteDeliveryOutboxServiceTest {
 
@@ -28,11 +28,7 @@ class IncidentRouteDeliveryOutboxServiceTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate = new JdbcTemplate(new DriverManagerDataSource(
-            "jdbc:h2:mem:incident_route_outbox_" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-            "sa",
-            ""
-        ));
+        jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("incident_route_outbox");
         jdbcTemplate.execute("""
                 CREATE TABLE incidents (
                     id BIGINT PRIMARY KEY,
@@ -47,9 +43,9 @@ class IncidentRouteDeliveryOutboxServiceTest {
                     route_type VARCHAR(120),
                     route_target VARCHAR(255),
                     route_status VARCHAR(64),
-                    note CLOB,
-                    created_at TIMESTAMP,
-                    updated_at TIMESTAMP
+                    note TEXT,
+                    created_at TIMESTAMPTZ,
+                    updated_at TIMESTAMPTZ
                 )
                 """);
         jdbcTemplate.execute("""
@@ -60,18 +56,18 @@ class IncidentRouteDeliveryOutboxServiceTest {
                     event_type VARCHAR(120) NOT NULL,
                     route_type VARCHAR(120) NOT NULL,
                     route_target VARCHAR(255) NOT NULL,
-                    message_text CLOB NOT NULL,
+                    message_text TEXT NOT NULL,
                     incident_url VARCHAR(255),
-                    payload_json CLOB NOT NULL,
+                    payload_json TEXT NOT NULL,
                     requested_by VARCHAR(120),
                     status VARCHAR(32) NOT NULL,
                     attempt_count INTEGER NOT NULL DEFAULT 0,
-                    last_error CLOB,
-                    available_at TIMESTAMP,
-                    processing_started_at TIMESTAMP,
-                    delivered_at TIMESTAMP,
-                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    last_error TEXT,
+                    available_at TIMESTAMPTZ,
+                    processing_started_at TIMESTAMPTZ,
+                    delivered_at TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
                 """);
 
