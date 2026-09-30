@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
 import com.example.panel.config.IntegrationRabbitProperties;
+import com.example.panel.support.PostgresqlJdbcTestSupport;
 import com.example.panel.service.RuntimeCoordinationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
@@ -15,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 class OutboundFeedbackPromptPublishOutboxServiceTest {
 
@@ -25,11 +25,7 @@ class OutboundFeedbackPromptPublishOutboxServiceTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate = new JdbcTemplate(new DriverManagerDataSource(
-            "jdbc:h2:mem:panel_outbox_" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-            "sa",
-            ""
-        ));
+        jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("panel_outbox");
         jdbcTemplate.execute("""
                 CREATE TABLE integration_transport_outbox (
                     event_id VARCHAR(120) PRIMARY KEY,
@@ -37,14 +33,14 @@ class OutboundFeedbackPromptPublishOutboxServiceTest {
                     event_kind VARCHAR(120) NOT NULL,
                     exchange_name VARCHAR(255) NOT NULL,
                     routing_key VARCHAR(255) NOT NULL,
-                    payload_json CLOB NOT NULL,
+                    payload_json TEXT NOT NULL,
                     channel_id BIGINT,
                     user_id BIGINT,
                     ticket_id VARCHAR(255),
                     request_id BIGINT,
                     status VARCHAR(32) NOT NULL,
                     attempt_count INTEGER NOT NULL DEFAULT 0,
-                    last_error CLOB,
+                    last_error TEXT,
                     available_at TIMESTAMP,
                     processing_started_at TIMESTAMP,
                     published_at TIMESTAMP,
