@@ -119,7 +119,7 @@ final class ObjectPassportAppealQuery {
         appendNormalizedMatch(sql, params, "business", businessKey);
         appendNormalizedMatch(sql, params, "city", cityKey);
         appendNormalizedMatch(sql, params, "location_name", departmentKey);
-        sql.append(" ORDER BY COALESCE(created_at, '') DESC, ticket_id DESC");
+        sql.append(" ORDER BY created_at DESC NULLS LAST, ticket_id DESC");
 
         List<Map<String, Object>> rows = jdbcTemplate.query(
                 sql.toString(),
