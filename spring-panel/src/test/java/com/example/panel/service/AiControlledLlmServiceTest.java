@@ -1,11 +1,10 @@
 package com.example.panel.service;
 
+import com.example.panel.support.PostgresqlJdbcTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-import javax.sql.DataSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -71,8 +70,7 @@ class AiControlledLlmServiceTest {
     private AiControlledLlmService createService(String settingsJson) throws Exception {
         Path sharedDir = Files.createTempDirectory("ai-llm-settings");
         Files.writeString(sharedDir.resolve("settings.json"), settingsJson);
-        DataSource dataSource = new DriverManagerDataSource("jdbc:h2:mem:ai_llm_" + System.nanoTime() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", "");
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+        JdbcTemplate jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("ai_controlled_llm");
         ObjectMapper objectMapper = new ObjectMapper();
         SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, sharedDir.toString());
         AiIntentService aiIntentService = new AiIntentService(jdbcTemplate, objectMapper);

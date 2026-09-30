@@ -1,10 +1,9 @@
 package com.example.panel.service;
 
+import com.example.panel.support.PostgresqlJdbcTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -12,12 +11,7 @@ class AiPolicyMemoryAutoReplyTest {
 
     @Test
     void memoryAutoReplyRequiresExplicitDatabaseOptIn() {
-        String db = "ai_policy_memory_" + UUID.randomUUID().toString().replace("-", "");
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(new DriverManagerDataSource(
-                "jdbc:h2:mem:" + db + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-                "sa",
-                ""
-        ));
+        JdbcTemplate jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("ai_policy_memory");
         jdbcTemplate.execute("""
                 CREATE TABLE ai_agent_solution_memory (
                     query_key VARCHAR(128) PRIMARY KEY,
