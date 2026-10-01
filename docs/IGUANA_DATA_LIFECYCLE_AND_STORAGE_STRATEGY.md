@@ -59,7 +59,7 @@ Iguana — stateful support-система с canonical PostgreSQL для relati
 
 - это долгоживущий source of truth;
 - хранится бессрочно или по отдельной бизнес-политике;
-- живёт в `panel_runtime.db` и связанных canonical business-контурах;
+- живёт в canonical PostgreSQL business contour;
 - не смешивается с техническим шумом.
 
 ### 3.2 Transport/runtime history
