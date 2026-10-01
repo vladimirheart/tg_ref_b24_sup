@@ -3,6 +3,8 @@
 Дата старта: `2026-04-15`
 Обновлено: `2026-06-25`
 
+> **Статус:** исторический roadmap snapshot. Storage/SQL runtime assumptions ниже отражают состояние на момент работ и не являются текущим PostgreSQL-only contract.
+
 ## Цель
 
 Снизить архитектурный риск в `spring-panel` и привести UI runtime к управляемой

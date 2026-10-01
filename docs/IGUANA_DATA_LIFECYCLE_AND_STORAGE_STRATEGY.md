@@ -2,7 +2,7 @@
 
 ## 1. Зачем нужен этот документ
 
-Iguana уже не выглядит как "просто Spring Boot + несколько SQLite-файлов". Это stateful support-система, в которой одновременно растут:
+Iguana — stateful support-система с canonical PostgreSQL для relational data и отдельными storage boundaries для файлов/объектов. Одновременно растут:
 
 - история диалогов;
 - transport history каналов;
@@ -14,7 +14,7 @@ Iguana уже не выглядит как "просто Spring Boot + неск�
 
 Если не разделить эти типы данных по lifecycle, проект упрётся сразу в несколько проблем:
 
-- раздувание `panel_runtime.db` и соседних БД;
+- рост hot PostgreSQL tables/indexes и файлового/object storage без понятного lifecycle;
 - тяжёлые переносы между машинами;
 - дорогие резервные копии;
 - долгий startup и диагностика;
@@ -141,15 +141,15 @@ Iguana уже не выглядит как "просто Spring Boot + неск�
 
 ## 4.1 Runtime БД
 
-Целевая БД-топология уже частично зафиксирована в `docs/db/sqlite-target-topology.md`.
+Текущая relational topology зафиксирована в `docs/database_distribution.md`: PostgreSQL является единственной живой SQL-БД.
 
 Для growth strategy важно закрепить:
 
-- `panel_runtime.db` - только business source of truth;
-- `panel_identity.db` - identity/access;
-- `monitoring.db` - monitoring history;
-- `panel_telemetry.db` - техническая telemetry/history;
-- `bot_runtime.db` - transport/runtime ingress контур.
+- business, identity/access, monitoring и runtime facts живут в canonical PostgreSQL contour;
+- Redis используется только для coordination/cache/event fanout, а не как relational source of truth;
+- RabbitMQ остаётся transport boundary;
+- MinIO/S3 или local filesystem используются для binary/object storage по соответствующему storage contract;
+- bot processes не создают отдельную relational business database.
 
 ### Что важно дополнительно
 
@@ -254,7 +254,7 @@ Iguana уже не выглядит как "просто Spring Boot + неск�
 
 Варианты:
 
-1. `Dialog archive` как отдельная SQLite/PostgreSQL БД.
+1. `Dialog archive` как PostgreSQL partition/archive schema или отдельный approved PostgreSQL archive contour.
 2. `Cold export` в партиционированный архивный storage с индексом.
 3. Гибрид:
    - metadata + summary в runtime;
@@ -341,7 +341,7 @@ Iguana уже не выглядит как "просто Spring Boot + неск�
 Минимум, что нужно измерять:
 
 - размер `attachments`;
-- размер каждого SQLite-контура;
+- размер hot PostgreSQL tables/indexes и объём filesystem/object-storage contours;
 - темп роста по дням и неделям;
 - число новых файлов и их общий вес;
 - top N самых тяжёлых каналов;
@@ -358,24 +358,19 @@ Iguana уже не выглядит как "просто Spring Boot + неск�
 - cleanup job не запускался более N часов;
 - archive backlog растёт быстрее, чем разгружается.
 
-## 9. Решение по SQLite и PostgreSQL
+## 9. PostgreSQL и storage tiers
 
-Не нужно раньше времени "переезжать всё в Postgres только потому, что данных стало больше".
+PostgreSQL уже является canonical relational database, поэтому дальнейшее масштабирование не должно возвращать выбор SQL-vendor в runtime.
 
-Более зрелое решение:
+Зрелый порядок роста:
 
-1. Сначала разделить lifecycle и storage tiers.
-2. Вынести тяжёлые binaries.
-3. Убрать технический шум из hot business DB.
-4. Добавить archive policy.
-5. Уже после этого измерить, остаётся ли bottleneck у SQLite.
+1. Разделять lifecycle и storage tiers.
+2. Выносить тяжёлые binaries в filesystem/object storage.
+3. Применять retention к monitoring/telemetry.
+4. Использовать archive/partition policy для history.
+5. Оптимизировать PostgreSQL через индексы, partitioning, query/read-model design и capacity planning.
 
-То есть:
-
-- рост файлов почти всегда лечится раньше storage-tiering, чем сменой СУБД;
-- рост monitoring/telemetry лечится retention;
-- рост history лечится archive policy;
-- миграция на Postgres нужна только если упираемся в concurrency, write pressure, reporting complexity или объём hot business facts даже после предыдущих шагов.
+То есть файловый рост лечится storage-tiering, telemetry — retention, history — archive/partition policy, а relational scaling остаётся внутри PostgreSQL contract.
 
 ## 10. Phased rollout
 
@@ -396,8 +391,8 @@ Iguana уже не выглядит как "просто Spring Boot + неск�
 Текущий operational helper для этого этапа:
 
 - `python scripts/report-iguana-storage.py`
-- скрипт инвентаризирует candidate attachment roots, размеры SQLite-файлов и attachment/path references из БД;
-- отдельным сигналом подсвечивает path drift, когда в истории остались старые абсолютные пути, а фактическое хранилище уже живёт в другом каталоге.
+- скрипт инвентаризирует filesystem storage roots, количество/объём файлов, top extensions и крупнейшие файлы;
+- relational integrity и attachment metadata проверяются через PostgreSQL/backend diagnostics и tests, а не через чтение legacy local DB files.
 
 ## Этап 2. Storage abstraction для вложений
 

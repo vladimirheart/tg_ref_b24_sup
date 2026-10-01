@@ -41,7 +41,7 @@
      `KnowledgeArticle`, `Notification`.
 
 2. `Repository`-абстракции
-   - Отвечают за доступ к данным и скрывают детали JPA/SQLite.
+   - Отвечают за доступ к данным и скрывают детали JPA/PostgreSQL.
    - Примеры: `TicketRepository`, `MessageRepository`,
      `KnowledgeArticleRepository`.
 
@@ -89,8 +89,7 @@ JPA, SQL, API канала или структуры базы.
 Главные примеры:
 
 - `OutboundMessenger` в `bot-core` задает общий интерфейс отправки сообщений;
-- `AbstractSqliteDataSourceProperties` выделяет общую логику для SQLite
-  datasource и позволяет создавать конкретные варианты через наследников;
+- repository/service boundaries отделяют callers от конкретных PostgreSQL/JDBC деталей и сохраняют единый persistence contract;
 - `JpaRepository`-интерфейсы формируют абстракцию доступа к данным.
 
 Итог: верхний уровень работает не с конкретной платформой или конкретным JDBC
@@ -103,9 +102,7 @@ JPA, SQL, API канала или структуры базы.
 
 Ключевой пример:
 
-- `SqliteDataSourceProperties` наследует
-  `AbstractSqliteDataSourceProperties` и переиспользует общую логику
-  нормализации пути, сборки JDBC URL и создания SQLite-файла.
+- в persistence-конфигурации больше нет vendor-specific SQLite hierarchy: PostgreSQL остаётся единственным SQL path, а повторное использование строится через composition/configuration boundaries.
 
 Это хороший признак: проект не перегружен "иерархиями ради иерархий", а
 предпочитает композицию там, где это безопаснее и проще.
@@ -267,8 +264,7 @@ lifecycle-операций. Это соответствует OOP-подходу
 Лучше всего принцип соблюден в модульных адаптерах каналов:
 
 - можно добавить новую платформу, реализовав `OutboundMessenger`;
-- можно добавить новый datasource properties-класс через наследование от
-  `AbstractSqliteDataSourceProperties`.
+- persistence можно расширять за repository/service boundaries без добавления альтернативного SQL-vendor runtime path.
 
 ### L - Liskov Substitution Principle
 

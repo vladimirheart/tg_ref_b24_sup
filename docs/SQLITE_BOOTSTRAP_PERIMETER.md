@@ -1,30 +1,23 @@
-# SQLite archive/test perimeter after PostgreSQL cutover
+# Retired SQLite perimeter after PostgreSQL-only cutover
 
-После принятой задачи `01-228` SQLite больше не является поддерживаемым runtime mode для `spring-panel`. Canonical production storage — PostgreSQL.
+This path is retained as a navigation anchor for older task/changelog links. It is not a live bootstrap guide.
 
-## Разрешённые остаточные роли SQLite
+## Current relational-storage contract
 
-- **Архивный one-time import/recovery** через explicit tooling и staging-копии legacy `*.db`.
-- **Read-only verification** исторических источников против PostgreSQL.
-- **Тестовые fixtures**.
-- **Bot worker technical store** в `APP_DB_MODE=worker`: временный self-owned SQLite state для coordination/dedup без canonical business schema.
+- Canonical business/runtime SQL storage is PostgreSQL.
+- `spring-panel`, `java-bot` and dynamic bot children do not create or select a SQLite datasource.
+- There is no `APP_DB_MODE=worker` database mode and no temporary bot-worker SQLite store.
+- There is no first-party legacy SQLite import/recovery bootstrap in the normal repository workflow.
 
-## Что больше не является поддерживаемым perimeter
+## Residual references that may remain
 
-- `spring-panel APP_DB_MODE=sqlite`;
-- automatic `APP_DB_*` path seeding через `EnvDefaultsInitializer`;
-- local/dev panel bootstrap на business SQLite;
-- live secondary SQLite databases для users/clients/knowledge/objects/monitoring;
-- panel-side child JDBC contract, который запускает business bot runtime через SQLite.
+SQLite references are acceptable only when they are clearly one of these:
 
-## Архивный import boundary
+- historical task/changelog or incident evidence;
+- historical schema/log snapshots;
+- test fixtures that do not create a live runtime datasource;
+- negative-contract tests proving that non-PostgreSQL modes are rejected.
 
-Сохраняются до отдельного принятого purge/cleanup шага:
+Legacy `*.db` files, if retained for audit/history, are evidence only. Their presence must never change startup behavior or become a fallback datasource.
 
-- `docker-compose.legacy-sqlite-import.yml`;
-- `scripts/stage-legacy-sqlite-import.ps1` / `.sh`;
-- `scripts/verify-legacy-sqlite-import.ps1`;
-- backend-owned legacy import/recovery services и ledger;
-- исходные legacy DB/archive evidence, если они ещё нужны для rollback/audit.
-
-Normal production compose не должен подключать эти sources к live Java roles. Запуск archive import — отдельная осознанная операция, а не startup helper.
+For the current production ownership model use `database_distribution.md` and the production runbooks.

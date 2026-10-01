@@ -1,10 +1,8 @@
-# Legacy SQLite source paths после PostgreSQL cutover
+# Historical legacy DB path reference after PostgreSQL-only cutover
 
-Этот документ описывает только archive/import/recovery path hints. Он **не** является картой production runtime datasource.
+This document preserves names that may still appear in old logs, archived task records or test fixtures. It is not a runtime datasource map and it is not an import/recovery procedure.
 
-## Production runtime
-
-Для `spring-panel` canonical database contract:
+## Current production runtime
 
 ```text
 APP_DB_MODE=postgresql
@@ -13,26 +11,22 @@ SPRING_DATASOURCE_USERNAME=...
 SPRING_DATASOURCE_PASSWORD=...
 ```
 
-Business, identity, monitoring, channels, clients, knowledge и object-passport data живут в canonical PostgreSQL contour. Отдельные panel-side SQLite datasources больше не поддерживаются.
+Business, identity, monitoring, channels, clients, knowledge and object-passport data use the canonical PostgreSQL contour. Separate panel-side or bot-side business SQLite datasources are not supported.
 
-## Legacy archive/import source hints
+## Historical names
 
-| Env/path | Historical source | Разрешённое использование |
+| Legacy env/path | Historical file | Current meaning |
 | --- | --- | --- |
-| `APP_DB_PANEL_RUNTIME` / `APP_DB_TICKETS` | `panel_runtime.db` / `tickets.db` | archive/import/recovery input |
-| `APP_DB_PANEL_IDENTITY` / `APP_DB_USERS` | `panel_identity.db` / `users.db` | archive/import/recovery input |
-| `APP_DB_MONITORING` | `monitoring.db` | archive/import/recovery input |
-| `APP_DB_BOT_RUNTIME` / `APP_DB_BOT` | `bot_runtime.db` / `bot_database.db` | archive/import/recovery input |
-| `APP_DB_CLIENTS` | `clients.db` | archive/import/recovery input |
-| `APP_DB_KNOWLEDGE` | `knowledge_base.db` | archive/import/recovery input |
-| `APP_DB_OBJECTS` | `objects.db` | archive/import/recovery input |
-| `APP_BOT_DATABASE_DIR` | `bot-<channelId>.db` | legacy shard staging/import/diagnostics |
-| `SUPPORT_BOT_DATABASE_PATH` | legacy/test bridge | test/archive compatibility only; not production business storage |
+| `APP_DB_PANEL_RUNTIME` / `APP_DB_TICKETS` | `panel_runtime.db` / `tickets.db` | historical/test evidence only |
+| `APP_DB_PANEL_IDENTITY` / `APP_DB_USERS` | `panel_identity.db` / `users.db` | historical/test evidence only |
+| `APP_DB_MONITORING` | `monitoring.db` | historical/test evidence only |
+| `APP_DB_BOT_RUNTIME` / `APP_DB_BOT` | `bot_runtime.db` / `bot_database.db` | historical/test evidence only |
+| `APP_DB_CLIENTS` | `clients.db` | historical/test evidence only |
+| `APP_DB_KNOWLEDGE` | `knowledge_base.db` | historical/test evidence only |
+| `APP_DB_OBJECTS` | `objects.db` | historical/test evidence only |
+| `APP_BOT_DATABASE_DIR` | `bot-<channelId>.db` | historical shard evidence only |
+| `SUPPORT_BOT_DATABASE_PATH` | legacy/test bridge | historical/test evidence only |
 
-Наличие этих env keys или файлов не включает SQLite runtime для `spring-panel`. Normal production roles не должны монтировать legacy sources как live datasource.
+These names do not enable a SQLite runtime mode. The current repository does not provide a live legacy SQLite migration/bootstrap path.
 
-## Explicit import/recovery
-
-Для controlled legacy import используйте dedicated tooling и staging contour, включая `docker-compose.legacy-sqlite-import.yml`, `scripts/stage-legacy-sqlite-import.*` и verification tooling. Повторный import не должен запускаться автоматически только потому, что рядом с checkout обнаружен `*.db`.
-
-Актуальная production ownership-модель: [database_distribution.md](database_distribution.md). Разрешённый residual SQLite perimeter: [SQLITE_BOOTSTRAP_PERIMETER.md](SQLITE_BOOTSTRAP_PERIMETER.md).
+Current production ownership: [database_distribution.md](database_distribution.md). Retired SQLite boundary notes: [SQLITE_BOOTSTRAP_PERIMETER.md](SQLITE_BOOTSTRAP_PERIMETER.md).

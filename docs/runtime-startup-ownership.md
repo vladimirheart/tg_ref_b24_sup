@@ -30,19 +30,15 @@ Therefore production compose must start a successful migrator before web/worker.
 ## Current ApplicationRunner ownership
 
 Migrator-owned:
-- `LegacySqliteImportService`
-- `PostgresImportedDataReconciliationService`
-- `PostgresLegacyCriticalDataRecoveryService`
-- `LegacyBotShardConsolidationService`
-- `LegacyMonitoringHistoryCompactionService`
-- `RmsMonitoringSeedImportService`
-- `LocationsSharedConfigRepairService`
-- security bootstrap bean from `PanelApplication`
+- Flyway normalization/migrate ownership for canonical PostgreSQL;
+- `RmsMonitoringSeedImportService`;
+- `LocationsSharedConfigRepairService`;
+- security bootstrap bean from `PanelApplication`.
 
 Compatibility-only:
-- legacy local additional-services process check from `PanelApplication`
+- legacy local additional-services process check from `PanelApplication`.
 
-No SQLite business/secondary database bootstrap runner remains in the live panel graph. Legacy SQLite import/recovery stays migrator-owned, explicit and opt-in; `LegacySqliteArchiveConfiguration` only binds archive source paths and creates no runtime datasource.
+Retired legacy SQLite import/recovery/reconciliation/shard-consolidation runners are not part of the live graph. No SQLite business, secondary or worker datasource is created by startup ownership.
 
 Worker-owned:
 - scheduled services that already implement `ApplicationRunner` and carry worker `@RuntimeWorkload`.

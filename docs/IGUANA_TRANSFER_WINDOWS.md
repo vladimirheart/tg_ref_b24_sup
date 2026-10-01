@@ -16,7 +16,7 @@
 - object-storage backup/restore data, если используется отдельный MinIO/S3 contour;
 - документация и runbooks.
 
-Legacy root `*.db` и `bot_databases/` переносятся только когда они нужны как archive/import/recovery evidence. Они не являются входом normal startup.
+Legacy root `*.db` и `bot_databases/`, если сохраняются, относятся только к historical/audit evidence. Они не являются входом normal startup и не имеют first-party live import/recovery path.
 
 ## 3. Что не нужно переносить как runtime state
 
@@ -74,15 +74,15 @@ Fresh bootstrap обязан завершиться в PostgreSQL/RabbitMQ conto
 4. на месте ли `config/shared/`;
 5. доступен ли attachment/object-storage contour.
 
-Legacy SQLite следует подключать только через explicit staging/import/recovery tooling и никогда как live fallback.
+Legacy SQLite не подключается к current runtime. Если старые files сохраняются для audit/history, они остаются offline evidence и никогда не становятся live fallback.
 
-## 8. Legacy migration evidence
+## 8. Historical legacy evidence
 
-Если перенос выполняется именно для исторического recovery/audit, дополнительно можно сохранить:
+Если требуется сохранить историю для audit/investigation, отдельно от runtime package можно архивировать:
 
 - legacy root `*.db`;
 - `bot_databases/`;
-- import manifests/ledgers;
-- rollback evidence.
+- старые manifests/ledgers/logs, если они существуют;
+- rollback/audit evidence.
 
-Это отдельный archive/import package, а не production runtime package.
+Это offline historical package, а не production runtime или supported import package.

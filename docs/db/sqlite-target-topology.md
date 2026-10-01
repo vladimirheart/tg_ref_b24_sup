@@ -1,21 +1,21 @@
-# Историческая SQLite topology — superseded
+# Historical SQLite topology — superseded
 
-> **Статус: исторический документ.** Изначальная target-модель нескольких SQLite databases больше не является целевой production архитектурой. После PostgreSQL cutover `01-228` и cleanup `01-229` canonical business/runtime storage — PostgreSQL.
+> **Status: historical document.** The former multi-SQLite target model is superseded. Canonical relational business/runtime storage is PostgreSQL only.
 
-Этот путь сохранён как navigation anchor для старых changelog/task ссылок. Использовать его как инструкцию по проектированию нового runtime нельзя.
+This path remains as a navigation anchor for old task/changelog references. Do not use it to design or operate current runtime.
 
-## Что актуально сейчас
+## Current contract
 
-- `spring-panel` production runtime использует PostgreSQL; `APP_DB_MODE=sqlite` отклоняется.
-- users/monitoring/business/object reads и writes не открывают отдельные SQLite datasources.
-- legacy `panel_runtime.db`, `panel_identity.db`, `monitoring.db`, `bot_runtime.db`, `clients.db`, `knowledge_base.db`, `objects.db` и per-channel shards являются только archive/import/recovery evidence или test fixtures.
-- isolated bot worker technical SQLite допустим только для self-owned technical state и не может быть canonical business source of truth.
+- `spring-panel`, `java-bot` and dynamic bot children use PostgreSQL for relational business/runtime data.
+- `APP_DB_MODE=sqlite` and other non-PostgreSQL runtime selections are rejected.
+- No panel secondary SQLite datasources and no bot-worker technical SQLite datasource remain in the live graph.
+- Legacy `*.db` files and per-channel shards, if retained, are historical/test evidence only; they are not startup inputs or a supported first-party import path.
 
-## Текущие источники истины по storage
+## Current sources of truth
 
 - [../database_distribution.md](../database_distribution.md) — production ownership;
-- [../database-paths.md](../database-paths.md) — legacy archive/import source hints;
-- [../SQLITE_BOOTSTRAP_PERIMETER.md](../SQLITE_BOOTSTRAP_PERIMETER.md) — разрешённый residual SQLite perimeter;
+- [../configuration.md](../configuration.md) — runtime configuration;
+- [../SQLITE_BOOTSTRAP_PERIMETER.md](../SQLITE_BOOTSTRAP_PERIMETER.md) — retired SQLite boundary and allowed historical/test evidence;
 - [../../ai-context/rules/backend/04-sqlite-topology.md](../../ai-context/rules/backend/04-sqlite-topology.md) — project rule.
 
-Исторические решения о “5 SQLite contours” следует читать только в соответствующих старых task/changelog snapshots, а не как current target-state.
+Historical decisions about multiple SQLite contours belong only to dated task/changelog snapshots.

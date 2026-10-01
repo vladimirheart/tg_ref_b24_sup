@@ -8,7 +8,7 @@
           <div class="modal-body">
             <div class="settings-modal-lead" role="note">
               <i class="bi bi-hdd-stack-fill" aria-hidden="true"></i>
-              <div class="settings-modal-lead__text">Запускает inventory-скрипт из репозитория, собирает storage roots, размеры SQLite и проверяет attachment references на path drift и missing files.</div>
+              <div class="settings-modal-lead__text">Запускает filesystem inventory-скрипт из репозитория: собирает storage roots, количество/объём файлов, top extensions и крупнейшие файлы.</div>
             </div>
             <div
               data-storage-inventory
@@ -44,7 +44,7 @@
                 <div class="col-lg-6">
                   <h6 class="mb-2">Сигналы риска</h6>
                   <ul class="small mb-0 ps-3" data-storage-inventory-risks>
-                    <li class="text-muted">После запуска здесь появятся storage-риски и path drift сигналы.</li>
+                    <li class="text-muted">После запуска здесь появятся сигналы доступности и состояния storage roots.</li>
                   </ul>
                 </div>
               </div>

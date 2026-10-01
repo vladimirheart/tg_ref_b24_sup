@@ -79,8 +79,7 @@ This is not a new microservice. It is a durable boundary inside the canonical ba
 
 The target boundary is now implemented by `backend_ops_command`.
 
-- PostgreSQL: `V40__backend_ops_command.sql`.
-- SQLite: `V51__backend_ops_command.sql`.
+- PostgreSQL: `V40__backend_ops_command.sql` (canonical and only live migration path).
 - one nullable unique `active_key` per command type prevents duplicate active execution across replicas;
 - worker claim uses compare-and-set `UPDATE ... WHERE status='queued'`;
 - stale running claims are returned to the queue;

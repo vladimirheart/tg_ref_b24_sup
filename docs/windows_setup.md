@@ -91,7 +91,6 @@ The Spring Boot relaxed binding automatically maps these variables to `app.stora
 ## 5. Useful commands
 - Rebuild JAR: `mvnw.cmd package` (or `mvn package` if Maven is installed globally)
 - Run from the compiled JAR: `java -jar target/panel-0.0.1-SNAPSHOT.jar`
-- Open the in-memory H2 console: browse to <http://localhost:8080/h2-console> and use `sa`/`sa`.
 
 The application has been verified to create and normalize directories via `java.nio.file.Path`, so the same code paths work on both Windows and Linux.
 

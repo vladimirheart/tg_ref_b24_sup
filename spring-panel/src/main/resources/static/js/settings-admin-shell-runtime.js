@@ -165,14 +165,13 @@
       function renderSummary(payload) {
         const report = payload && typeof payload.report === 'object' ? payload.report : {};
         const storageRoots = Array.isArray(report.storage_roots) ? report.storage_roots : [];
-        const databases = Array.isArray(report.databases) ? report.databases : [];
         const risks = Array.isArray(report.risks) ? report.risks : [];
-        const references = Array.isArray(report.attachment_references) ? report.attachment_references : [];
         const totalStorageBytes = storageRoots.reduce((sum, item) => sum + (Number(item?.total_bytes) || 0), 0);
-        const missingReferenceRows = references.reduce((sum, item) => sum + (Number(item?.resolved_missing) || 0), 0);
-        const largestDb = databases.reduce((largest, item) => {
-          const currentBytes = Number(item?.bytes) || 0;
-          const largestBytes = Number(largest?.bytes) || 0;
+        const totalStorageFiles = storageRoots.reduce((sum, item) => sum + (Number(item?.total_files) || 0), 0);
+        const availableRoots = storageRoots.filter((item) => Boolean(item?.exists)).length;
+        const largestRoot = storageRoots.reduce((largest, item) => {
+          const currentBytes = Number(item?.total_bytes) || 0;
+          const largestBytes = Number(largest?.total_bytes) || 0;
           return currentBytes > largestBytes ? item : largest;
         }, null);
 
@@ -184,12 +183,12 @@
                 <div class="settings-storage-inventory__stat-label">Суммарный размер storage roots</div>
               </div>
               <div class="settings-storage-inventory__stat">
-                <div class="settings-storage-inventory__stat-value">${escapeHtml(String(databases.length))}</div>
-                <div class="settings-storage-inventory__stat-label">SQLite-файлов в inventory</div>
+                <div class="settings-storage-inventory__stat-value">${escapeHtml(String(totalStorageFiles))}</div>
+                <div class="settings-storage-inventory__stat-label">Файлов в storage roots</div>
               </div>
               <div class="settings-storage-inventory__stat">
-                <div class="settings-storage-inventory__stat-value">${escapeHtml(String(missingReferenceRows))}</div>
-                <div class="settings-storage-inventory__stat-label">Missing attachment references</div>
+                <div class="settings-storage-inventory__stat-value">${escapeHtml(`${availableRoots}/${storageRoots.length}`)}</div>
+                <div class="settings-storage-inventory__stat-label">Доступных storage roots</div>
               </div>
               <div class="settings-storage-inventory__stat">
                 <div class="settings-storage-inventory__stat-value">${escapeHtml(String(risks.length))}</div>
@@ -197,7 +196,7 @@
               </div>
             </div>
             <div class="small text-muted mt-2">
-              ${largestDb ? `Самая тяжёлая БД: <code>${escapeHtml(String(largestDb.path || ''))}</code> (${escapeHtml(formatBytes(Number(largestDb.bytes) || 0))})` : 'Крупнейшая БД не определена.'}
+              ${largestRoot ? `Самый объёмный root: <code>${escapeHtml(String(largestRoot.display_root || largestRoot.root || ''))}</code> (${escapeHtml(formatBytes(Number(largestRoot.total_bytes) || 0))})` : 'Storage roots не определены.'}
             </div>
           `;
         }
@@ -208,10 +207,11 @@
           } else {
             rootsEl.innerHTML = storageRoots.map((root) => {
               const rootPath = typeof root?.root === 'string' ? root.root : '';
+              const displayRoot = typeof root?.display_root === 'string' && root.display_root ? root.display_root : formatRelativePath(rootPath, payload?.repository_root || '') || rootPath;
               const exists = Boolean(root?.exists);
               return `
                 <div class="settings-storage-inventory__root-item">
-                  <div class="fw-semibold"><code>${escapeHtml(formatRelativePath(rootPath, payload?.repository_root || '') || rootPath)}</code></div>
+                  <div class="fw-semibold"><code>${escapeHtml(displayRoot)}</code></div>
                   <div class="small text-muted">
                     ${exists ? 'Каталог доступен' : 'Каталог не найден'} · ${escapeHtml(String(root?.total_files ?? 0))} files · ${escapeHtml(formatBytes(Number(root?.total_bytes) || 0))}
                   </div>
@@ -223,7 +223,7 @@
 
         if (risksEl instanceof HTMLElement) {
           if (!risks.length) {
-            risksEl.innerHTML = '<li class="text-success">Явных storage-рисков отчёт не выявил.</li>';
+            risksEl.innerHTML = '<li class="text-success">Явных filesystem storage-рисков отчёт не выявил.</li>';
           } else {
             risksEl.innerHTML = risks.map((risk) => `<li>${escapeHtml(String(risk))}</li>`).join('');
           }
@@ -250,7 +250,7 @@
           return;
         }
         setRunning(true);
-        setFeedback('Собираю inventory: storage roots, SQLite и attachment references…', 'info');
+        setFeedback('Собираю filesystem inventory: storage roots, размеры и состав файлов…', 'info');
         try {
           const response = await fetch(endpoint, {
             method: 'POST',

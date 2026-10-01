@@ -2,7 +2,7 @@
 
 This document captures the structure of the legacy SQLite databases shipped with the monorepo. The dumps were produced with `sqlite3 .schema` on the reference data files committed to the repository.
 
-Important: this snapshot is historical and descriptive. Transitional runtime ownership is defined in `docs/database-paths.md` and `ai-context/rules/backend/04-sqlite-topology.md`, while the target-state architecture is defined in `docs/db/sqlite-target-topology.md`.
+Important: this snapshot is historical and descriptive. Current PostgreSQL-only production ownership is defined in `docs/database_distribution.md`; `docs/database-paths.md` and `docs/db/sqlite-target-topology.md` are retained only as historical/legacy navigation anchors.
 
 ## `tickets.db`
 

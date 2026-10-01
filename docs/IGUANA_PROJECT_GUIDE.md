@@ -110,16 +110,11 @@ Shared JSON-файлы лежат в `config/shared/`:
 
 Canonical production business/runtime storage — PostgreSQL. `spring-panel` не выбирает SQLite как live datasource и не создаёт отдельные business SQLite-файлы для panel/identity/monitoring/client/knowledge/object контуров.
 
-Legacy `*.db` сохраняются только для controlled archive/import/recovery, read-only verification и test fixtures. Изолированный `java-bot` technical worker store допустим лишь для self-owned coordination/dedup state и не является business source of truth.
+Legacy `*.db` и per-channel shard files, если они ещё присутствуют, являются historical/test evidence only. Текущий runtime не создаёт technical worker SQLite store и не содержит first-party archive/import/recovery path для этих файлов.
 
-### 5.2 Bot database directory
+### 5.2 Historical bot shard directory
 
-Отдельно существует `bot_databases/`, где лежат legacy-файлы вида `bot-<channelId>.db`.
-
-Это важно по двум причинам:
-
-1. часть исторических bot-данных может жить вне root SQLite-файлов до controlled import;
-2. при переносе на другую машину этот каталог нужно переносить вместе с проектом, если требуется подтянуть legacy shard-данные.
+`bot_databases/` может существовать как остаточный каталог со старыми `bot-<channelId>.db`. Он не нужен normal startup, не является production state и не должен переноситься как часть рабочего runtime package, если только отдельно не сохраняется audit/history evidence.
 
 ### 5.3 Attachments
 
@@ -147,9 +142,9 @@ python scripts/report-iguana-storage.py
 
 Скрипт:
 
-- считает размер и состав `attachments/` и `java-bot/attachments/`;
-- показывает размеры SQLite-файлов;
-- сверяет attachment/path references из БД с фактическими файлами на диске.
+- считает размер и состав filesystem storage roots;
+- показывает количество файлов, общий объём, top extensions и крупнейшие файлы;
+- не открывает legacy relational DB files: relational checks остаются в PostgreSQL/backend diagnostics.
 
 ## 6. Конфигурация и переменные окружения
 
@@ -158,7 +153,7 @@ python scripts/report-iguana-storage.py
 Через env обычно задаются:
 
 - токены и секреты каналов;
-- альтернативные пути к БД;
+- canonical PostgreSQL datasource parameters;
 - пути к storage;
 - сетевые и runtime-параметры запуска.
 
@@ -173,7 +168,7 @@ Production database/runtime:
 - `APP_INTEGRATION_TRANSPORT_MODE`
 - `APP_COORDINATION_MODE`
 
-Legacy `APP_DB_*`, `SUPPORT_BOT_DATABASE_PATH` и `APP_BOT_DATABASE_DIR` относятся только к archive/import/test/diagnostic perimeter; их наличие не включает SQLite runtime для панели.
+Legacy `APP_DB_*`, `SUPPORT_BOT_DATABASE_PATH` и `APP_BOT_DATABASE_DIR` могут встречаться только в historical/test evidence; они не являются поддерживаемыми runtime inputs и не включают SQLite runtime для панели.
 
 Storage:
 
@@ -247,7 +242,7 @@ $env:SPRING_OPTS='--server.port=8080'
 
 Рекомендуемая последовательность:
 
-1. Убедиться, что canonical PostgreSQL и shared JSON-конфиги доступны, а необходимые legacy SQLite evidence staged только для explicit import/recovery.
+1. Убедиться, что canonical PostgreSQL и shared JSON-конфиги доступны; legacy SQLite artifacts не участвуют в normal startup.
 2. Поднять `spring-panel`.
 3. Убедиться, что страница настроек открывается без ошибок.
 4. Проверить список каналов и состояние bot runtime.
@@ -321,8 +316,8 @@ $env:SPRING_OPTS='--server.port=8080'
 
 - установлен ли `JDK 17`;
 - не занят ли HTTP-порт;
-- не заблокированы ли файлы SQLite другой копией процесса;
-- не сломаны ли пути к БД через env;
+- доступен ли canonical PostgreSQL и корректны ли datasource credentials;
+- корректны ли PostgreSQL datasource/storage env values;
 - что пишет `logs/spring-panel.log`.
 
 ### 11.2 Бот не стартует
@@ -333,16 +328,16 @@ $env:SPRING_OPTS='--server.port=8080'
 - доступность нужного порта;
 - bot-specific лог;
 - состояние channel config в панели;
-- наличие и доступность `bot_databases/` для controlled import старых per-channel данных.
+- доступность canonical PostgreSQL, queue/API boundary и bot-specific configuration.
 
 ### 11.3 В панели нет данных или пропали вложения
 
 Почти всегда это означает одну из причин:
 
-- не перенесены SQLite-файлы;
-- не перенесён `attachments/`;
+- подключён неверный или пустой PostgreSQL database/schema;
+- не перенесён required filesystem/object-storage content;
 - выставлены неверные `APP_STORAGE_*` пути;
-- старт выполнен на пустых новых БД вместо боевых файлов.
+- восстановлен не тот PostgreSQL backup или используется неверное окружение.
 
 ### 11.4 После переноса "всё открылось, но не то"
 
@@ -382,9 +377,9 @@ $env:SPRING_OPTS='--server.port=8080'
 Iguana нужно воспринимать как рабочую систему со stateful-контуром:
 
 - код;
-- SQLite-данные;
+- canonical PostgreSQL data;
 - shared JSON-конфиги;
-- вложения;
-- bot runtime и его локальные БД.
+- filesystem/object-storage content;
+- bot runtime, queue/API boundaries и channel configuration.
 
 Чем точнее эта картина отражена в документации и переносе, тем меньше риск получить "пустую", частично сломанную или непредсказуемую копию на новой машине.
