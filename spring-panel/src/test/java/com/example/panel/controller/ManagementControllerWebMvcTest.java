@@ -17,6 +17,7 @@ import com.example.panel.repository.AppSettingRepository;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.ItEquipmentCatalogRepository;
 import com.example.panel.repository.PanelUserRepository;
+import com.example.panel.repository.ProjectRepository;
 import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.entity.PanelUser;
@@ -61,6 +62,9 @@ class ManagementControllerWebMvcTest {
 
     @MockBean
     private PanelUserRepository panelUserRepository;
+
+    @MockBean
+    private ProjectRepository projectRepository;
 
     @MockBean
     private AppSettingRepository appSettingRepository;

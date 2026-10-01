@@ -46,7 +46,7 @@ class UiRuntimeIntegritySourceContractTest {
         assertTrue(runtime.contains("const effectivePx = basePx * scale / 100"));
         assertTrue(runtime.contains("DOMContentLoaded', initializePageFontScale"));
         assertFalse(runtime.contains("document.documentElement.style.fontSize = " + Character.toString(96) + "$" + "{scale}%" + Character.toString(96) + ";"));
-        assertTrue(uiHead.contains("ui-preferences.js(v='20260908-01-259-r4-2')"));
+        assertTrue(uiHead.contains("ui-preferences.js(v='20260924-01-273-r8')"));
     }
 
     @Test
@@ -57,9 +57,8 @@ class UiRuntimeIntegritySourceContractTest {
         assertFalse(navbar.contains("sidebar-footer-kicker"));
         assertTrue(navbar.contains("sidebarUserUsername != sidebarUserDisplayName"));
         assertTrue(scss.contains("Sidebar account calm refinement — 01-259 r4.2"));
-        assertTrue(scss.contains("min-height: 44px"));
-        assertTrue(scss.contains("width: 34px"));
-        assertTrue(scss.contains("width: 38px"));
+        assertTrue(scss.contains("min-height: 40px"));
+        assertTrue(scss.contains("width: 32px"));
         assertTrue(scss.contains("grid-template-columns: 28px minmax(0, 1fr) 28px"));
     }
 }

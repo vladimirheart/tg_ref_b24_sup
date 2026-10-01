@@ -20,7 +20,6 @@ class DialogDetailsCompactHeaderComposerSlaUiSourceContractTest {
         String dialogsDetailsScss = read("spring-panel/src/main/resources/scss/app/dialogs/_details-controls.scss");
         String dialogsActionsRuntime = read("spring-panel/src/main/resources/static/js/dialogs-actions-runtime.js");
         String dialogsDetailsRuntime = read("spring-panel/src/main/resources/static/js/dialogs-details-runtime.js");
-        String taskList = read("ai-context/tasks/task-list.md");
 
         assertThat(template)
             .contains("/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css")
@@ -44,8 +43,6 @@ class DialogDetailsCompactHeaderComposerSlaUiSourceContractTest {
             .contains("bi bi-zoom-in")
             .contains("id=\"dialogMediaDownloadLink\"")
             .contains("bi bi-download")
-            .contains("@{/css/app.css(v='20260907-1')}")
-            .contains("dialogsAssetVersion='20260907-1'")
             .doesNotContain(">Участники</button>")
             .doesNotContain(">Передать</button>")
             .doesNotContain(">Отправить</button>")
@@ -92,10 +89,6 @@ class DialogDetailsCompactHeaderComposerSlaUiSourceContractTest {
             .contains("const PROBLEM_FOLLOW_UP_PREFIX = 'Уточнение после ответов на вопросы:';")
             .contains("function formatDetailsProblemLabel(raw)")
             .contains("const problemLabel = formatDetailsProblemLabel(");
-
-        assertThat(taskList)
-            .contains("🟢 [01-253] Сделать reply-target пульсацию заметной и вынести меню сообщения за bubble")
-            .contains("🟢 [01-254] Уплотнить шапку диалога, composer и добавить SLA-пульсацию метрик");
 
         assertThat(Files.exists(REPO_ROOT.resolve("apply-dialog-reply-pulse-menu-ui-v1.js"))).isFalse();
         assertThat(Files.exists(REPO_ROOT.resolve("apply-dialog-reply-pulse-menu-ui-v2.js"))).isFalse();

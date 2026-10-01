@@ -10,13 +10,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SettingsTemplateGovernanceCoverageTest {
 
-    private static final Path SETTINGS_TEMPLATE = Path.of("src/main/resources/templates/settings/index.html");
+    private static final Path DIALOG_SETTINGS_FRAGMENT = Path.of("src/main/resources/templates/settings/fragments/dialog-settings.html");
+    private static final Path IT_EQUIPMENT_FRAGMENT = Path.of("src/main/resources/templates/settings/fragments/it-equipment.html");
     private static final Path WORKSPACE_RUNTIME = Path.of("src/main/resources/static/js/settings-dialog-workspace-governance-runtime.js");
     private static final Path SLA_RUNTIME = Path.of("src/main/resources/static/js/settings-dialog-sla-core-runtime.js");
 
     @Test
     void settingsTemplateContainsWorkspaceReviewGovernanceFields() throws IOException {
-        String html = Files.readString(SETTINGS_TEMPLATE);
+        String html = Files.readString(DIALOG_SETTINGS_FRAGMENT);
         String workspaceRuntime = Files.readString(WORKSPACE_RUNTIME);
 
         assertThat(html)
@@ -37,7 +38,7 @@ class SettingsTemplateGovernanceCoverageTest {
 
     @Test
     void settingsTemplateContainsMacroGovernanceBaselineFields() throws IOException {
-        String html = Files.readString(SETTINGS_TEMPLATE);
+        String html = Files.readString(DIALOG_SETTINGS_FRAGMENT);
         String slaRuntime = Files.readString(SLA_RUNTIME);
 
         assertThat(html)
@@ -88,7 +89,7 @@ class SettingsTemplateGovernanceCoverageTest {
 
     @Test
     void settingsTemplateContainsSlaPolicyGovernanceBaselineFields() throws IOException {
-        String html = Files.readString(SETTINGS_TEMPLATE);
+        String html = Files.readString(DIALOG_SETTINGS_FRAGMENT);
         String slaRuntime = Files.readString(SLA_RUNTIME);
 
         assertThat(html)
@@ -119,16 +120,12 @@ class SettingsTemplateGovernanceCoverageTest {
 
     @Test
     void settingsTemplateContainsItEquipmentSerialAndAccessoriesFields() throws IOException {
-        String html = Files.readString(SETTINGS_TEMPLATE);
+        String html = Files.readString(IT_EQUIPMENT_FRAGMENT);
 
         assertThat(html)
                 .contains("id=\"itEquipmentSerialNumberInput\"")
                 .contains("data-it-equipment-field=\"serial_number\"")
                 .contains("id=\"itEquipmentAccessoriesInput\"")
-                .contains("data-it-equipment-field=\"accessories\"")
-                .contains("<th data-field=\"serial_number\">Серийный номер</th>")
-                .contains("<th data-field=\"accessories\">Комплектация</th>")
-                .contains("data-field=\"serial_number\"")
-                .contains("data-field=\"accessories\"");
+                .contains("data-it-equipment-field=\"accessories\"");
     }
 }

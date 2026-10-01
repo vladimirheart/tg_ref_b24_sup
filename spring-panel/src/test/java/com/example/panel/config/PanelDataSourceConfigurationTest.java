@@ -14,11 +14,11 @@ class PanelDataSourceConfigurationTest {
     @Test
     void dataSourceRejectsMissingExternalDatasource() {
         MockEnvironment environment = new MockEnvironment()
-            .withProperty("app.datasource.mode", "auto");
+            .withProperty("app.datasource.mode", "postgresql");
 
         assertThatThrownBy(() -> configuration.dataSource(environment))
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("external datasource contract");
+            .hasMessageContaining("spring-panel requires PostgreSQL");
     }
 
     @Test

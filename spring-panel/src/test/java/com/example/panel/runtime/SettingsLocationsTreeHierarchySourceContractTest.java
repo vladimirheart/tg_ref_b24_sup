@@ -15,7 +15,7 @@ class SettingsLocationsTreeHierarchySourceContractTest {
     @Test
     void locationTreeOpensOneLevelAtATimeAndKeepsLeafIndentation() throws IOException {
         String treeRuntime = read("spring-panel/src/main/resources/static/js/settings-locations-tree-runtime.js");
-        String calm = read("spring-panel/src/main/resources/scss/settings/_calm.scss");
+        String calm = read("spring-panel/src/main/resources/scss/settings/calm/_infrastructure.scss");
 
         assertThat(treeRuntime)
             .contains("collapsedLocationNodes.add(makeCollapseKey('business', business));")
@@ -32,7 +32,7 @@ class SettingsLocationsTreeHierarchySourceContractTest {
     void locationMetadataAndIikoSavedSecretUseThemeTokens() throws IOException {
         String treeRuntime = read("spring-panel/src/main/resources/static/js/settings-locations-tree-runtime.js");
         String iikoRuntime = read("spring-panel/src/main/resources/static/js/settings-locations-iiko-runtime.js");
-        String calm = read("spring-panel/src/main/resources/scss/settings/_calm.scss");
+        String calm = read("spring-panel/src/main/resources/scss/settings/calm/_infrastructure.scss");
 
         assertThat(treeRuntime)
             .contains("badge rounded-pill location-node-meta__badge")

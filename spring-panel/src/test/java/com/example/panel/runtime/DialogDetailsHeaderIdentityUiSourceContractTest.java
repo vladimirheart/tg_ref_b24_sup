@@ -18,8 +18,7 @@ class DialogDetailsHeaderIdentityUiSourceContractTest {
         String dialogsJs = read("spring-panel/src/main/resources/static/js/dialogs.js");
         String presentationRuntime = read("spring-panel/src/main/resources/static/js/dialogs-presentation-runtime.js");
         String detailsRuntime = read("spring-panel/src/main/resources/static/js/dialogs-details-runtime.js");
-        String dialogsScss = read("spring-panel/src/main/resources/scss/app/_dialogs.scss");
-        String taskList = read("ai-context/tasks/task-list.md");
+        String dialogsScss = read("spring-panel/src/main/resources/scss/app/dialogs/_header-density.scss");
 
         assertThat(template)
             .contains("class=\"dialog-details-meta-pair\"")
@@ -27,8 +26,6 @@ class DialogDetailsHeaderIdentityUiSourceContractTest {
             .contains("<strong class=\"dialog-details-meta-label\">Локация</strong>")
             .contains("id=\"dialogDetailsLocation\">—</span>")
             .contains("id=\"dialogDetailsBusiness\" aria-label=\"Бизнес\">—</div>")
-            .contains("@{/css/app.css(v='20260907-1')}")
-            .contains("dialogsAssetVersion='20260907-1'")
             .doesNotContain("id=\"dialogDetailsLocation\">Локация: —</div>");
 
         assertThat(dialogsJs)
@@ -58,9 +55,6 @@ class DialogDetailsHeaderIdentityUiSourceContractTest {
             .contains("#dialogDetailsModal .dialog-details-meta-label")
             .contains("#dialogDetailsModal .dialog-details-header-business");
 
-        assertThat(taskList)
-            .contains("🟢 [01-254] Уплотнить шапку диалога, composer и добавить SLA-пульсацию метрик")
-            .contains("🟢 [01-255] Уплотнить идентификационную шапку диалога и вынести бизнес в центр");
     }
 
     private String read(String relativePath) throws IOException {

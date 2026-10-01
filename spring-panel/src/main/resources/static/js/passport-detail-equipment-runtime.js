@@ -82,7 +82,7 @@
                         ${view.serial ? `<span><small>SN</small>${escapeHtml(view.serial)}</span>` : ''}
                         ${view.catalogId ? `<span><small>CAT</small>#${view.catalogId}</span>` : ''}
                     </div>
-                    ${(details.length || description || view.links.length) ? `<details class="passport-asset-details">
+                    ${(details.length || description || view.links.length) ? `<details class="ui-disclosure-native passport-asset-details">
                         <summary class="page-header-info__toggle passport-asset-details__toggle" aria-label="Показать сведения об оборудовании" title="Показать сведения об оборудовании"><i class="bi bi-info-circle" aria-hidden="true"></i></summary>
                         <div class="passport-asset-details__grid">
                             ${details.map((pair) => `<div><span>${escapeHtml(pair[0])}</span><strong>${escapeHtml(pair[1])}</strong></div>`).join('')}

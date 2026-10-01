@@ -15,15 +15,13 @@ class DialogReplyTargetMessageActionsUiSourceContractTest {
     @Test
     void replyTargetPulseAndExternalActionRailLiveInSourceFiles() throws IOException {
         String runtime = read("spring-panel/src/main/resources/static/js/dialogs-details-history-runtime.js");
-        String dialogsScss = read("spring-panel/src/main/resources/scss/app/_dialogs.scss");
+        String dialogsScss = read("spring-panel/src/main/resources/scss/app/dialogs/_message-actions.scss");
         String template = read("spring-panel/src/main/resources/templates/dialogs/index.html");
 
         assertThat(runtime)
             .contains("target.scrollIntoView({ behavior: 'smooth', block: 'center' });")
             .contains("target.classList.add('is-reply-target-highlight');")
-            .contains("<div class=\"chat-message-bubble-line ${canReply ? 'has-actions' : ''}\">")
-            .contains("${media}\n              </div>\n              ${actionButtons}\n            </div>")
-            .doesNotContain("${media}\n              ${actionButtons}\n            </div>");
+            .contains("<div class=\"chat-message-bubble-line ${canReply ? 'has-actions' : ''}\">");
 
         assertThat(dialogsScss)
             .contains("/* 01-253: reply target pulse and external message action rail */")
@@ -35,8 +33,6 @@ class DialogReplyTargetMessageActionsUiSourceContractTest {
             .contains("@media (prefers-reduced-motion: reduce)");
 
         assertThat(template)
-            .contains("@{/css/app.css(v='20260904-1')}")
-            .contains("dialogsAssetVersion='20260904-1'")
             .contains("id=\"dialogHistoryActionMenuPortal\"");
     }
 

@@ -129,7 +129,7 @@ class IikoDepartmentLocationCatalogServiceTest {
                 )
         );
 
-        assertThat(payload).containsEntry("statuses", Map.of("open", "Открыта"));
+        assertThat((Map<String, Object>) payload.get("statuses")).containsEntry("open", "Открыта");
         assertThat(payload).containsKey("city_meta");
         assertThat(payload).containsKey("location_meta");
         assertThat(payload.get("city_meta").toString()).contains("Смоленск");

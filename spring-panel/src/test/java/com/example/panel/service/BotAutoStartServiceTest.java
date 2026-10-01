@@ -53,6 +53,7 @@ class BotAutoStartServiceTest {
         when(channelRepository.findAll()).thenReturn(List.of(channel));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(sharedConfigService, never()).loadBotCredentials();
         verify(botProcessService, never()).status(anyLong());
@@ -73,6 +74,7 @@ class BotAutoStartServiceTest {
         ));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(botProcessService, never()).status(any());
         verify(botProcessService, never()).start(any());
@@ -96,6 +98,7 @@ class BotAutoStartServiceTest {
             .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(botProcessService).status(77L);
         verify(botProcessService).start(channel);
@@ -116,6 +119,7 @@ class BotAutoStartServiceTest {
             .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(sharedConfigService, never()).loadBotCredentials();
         verify(botProcessService).status(66L);
@@ -132,6 +136,7 @@ class BotAutoStartServiceTest {
         when(channelRepository.findAll()).thenReturn(List.of(channel));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(sharedConfigService, never()).loadBotCredentials();
         verify(botProcessService, never()).status(anyLong());
@@ -154,6 +159,7 @@ class BotAutoStartServiceTest {
             .thenReturn(new BotProcessService.BotProcessStatus(true, "running", OffsetDateTime.parse("2026-04-23T12:00:00Z")));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(botProcessService).status(88L);
         verify(botProcessService, never()).start(any());
@@ -175,6 +181,7 @@ class BotAutoStartServiceTest {
             .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(botProcessService).status(91L);
         verify(botProcessService).start(channel);
@@ -209,6 +216,7 @@ class BotAutoStartServiceTest {
             .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(botProcessService, times(2)).start(failed);
         verify(botProcessService).start(succeeds);
@@ -231,6 +239,7 @@ class BotAutoStartServiceTest {
             .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(botProcessService).status(111L);
         verify(botProcessService).start(channel);
@@ -264,6 +273,7 @@ class BotAutoStartServiceTest {
             .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(botProcessService, times(2)).start(first);
         verify(botProcessService).start(second);
@@ -295,6 +305,7 @@ class BotAutoStartServiceTest {
             .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(botProcessService).status(114L);
         verify(botProcessService).status(115L);
@@ -329,6 +340,7 @@ class BotAutoStartServiceTest {
             .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(botProcessService).start(failed);
         verify(botProcessService).start(succeeds);
@@ -339,8 +351,23 @@ class BotAutoStartServiceTest {
         when(botProcessProperties.isAutoStartEnabled()).thenReturn(false);
 
         botAutoStartService.autoStartActiveBots();
+        awaitAutoStartCycle();
 
         verify(botProcessService, never()).stopAllForStartup();
         verify(channelRepository, never()).findAll();
+    }
+    private void awaitAutoStartCycle() {
+        try {
+            java.lang.reflect.Field executorField = BotAutoStartService.class.getDeclaredField("autoStartExecutor");
+            executorField.setAccessible(true);
+            java.util.concurrent.ExecutorService executor =
+                (java.util.concurrent.ExecutorService) executorField.get(botAutoStartService);
+            executor.submit(() -> {}).get(5, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("Bot auto-start async cycle was interrupted", ex);
+        } catch (ReflectiveOperationException | java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException ex) {
+            throw new AssertionError("Bot auto-start async cycle did not complete", ex);
+        }
     }
 }

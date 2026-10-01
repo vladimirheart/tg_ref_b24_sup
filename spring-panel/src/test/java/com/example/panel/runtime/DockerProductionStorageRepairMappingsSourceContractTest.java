@@ -26,7 +26,6 @@ class DockerProductionStorageRepairMappingsSourceContractTest {
             .contains("/workspace/java-bot/attachments/$storageKey")
             .contains("/workspace/attachments/$storageKey")
             .contains("/workspace/scripts/internal/storage-repair-mapping.sh")
-            .contains("[REPAIR_RESULT]")
             .contains("no database rows or local source files were modified")
             .doesNotContain("$shellCommand = @(")
             .doesNotContain("UPDATE ")

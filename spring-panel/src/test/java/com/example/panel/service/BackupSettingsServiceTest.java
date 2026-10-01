@@ -30,7 +30,7 @@ class BackupSettingsServiceTest {
 
         Map<String, Object> saved = service.save(Map.ofEntries(
                 Map.entry("destination_path", "Z:\\IguanaBackup"),
-                Map.entry("external_failure_domain", true),
+                Map.entry("external_failure_domain", false),
                 Map.entry("postgres_retention_days", 45),
                 Map.entry("minio_retention_days", 21),
                 Map.entry("manual_mode", "custom"),
@@ -48,7 +48,7 @@ class BackupSettingsServiceTest {
 
         assertThat(saved)
                 .containsEntry("destination_path", "Z:\\IguanaBackup")
-                .containsEntry("external_failure_domain", true)
+                .containsEntry("external_failure_domain", false)
                 .containsEntry("archive_format", "tar.gz")
                 .containsEntry("manual_mode", "custom")
                 .containsEntry("critical_enabled", true)

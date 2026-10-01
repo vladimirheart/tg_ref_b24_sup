@@ -36,7 +36,7 @@ class SettingsLocationsIikoSourceThemeSurfaceContractTest {
 
     @Test
     void calmScssOwnsIikoDisclosurePresentationWithIguanaTokens() throws IOException {
-        String calm = read("spring-panel/src/main/resources/scss/settings/_calm.scss");
+        String calm = read("spring-panel/src/main/resources/scss/settings/calm/_infrastructure.scss");
 
         assertThat(calm)
             .contains("#locationsModal .locations-iiko-source-card")

@@ -1323,7 +1323,7 @@ class AuthManagementApiControllerWebMvcTest {
             "png-binary".getBytes(StandardCharsets.UTF_8)
         );
         doReturn(new PanelUserPhotoService.StoredAvatar("stored-avatar.png", "/api/attachments/avatars/stored-avatar.png"))
-            .when(panelUserPhotoService).storeUploadedAvatar(any());
+            .when(panelUserPhotoService).storeUploadedAvatar(any(), any());
 
         mockMvc.perform(multipart("/api/users/photo-upload")
                 .file(file)
@@ -1344,7 +1344,7 @@ class AuthManagementApiControllerWebMvcTest {
             "webp-binary".getBytes(StandardCharsets.UTF_8)
         );
         doReturn(new PanelUserPhotoService.StoredAvatar("stored-avatar.webp", "/api/attachments/avatars/stored-avatar.webp"))
-            .when(panelUserPhotoService).storeUploadedAvatar(any());
+            .when(panelUserPhotoService).storeUploadedAvatar(any(), any());
 
         mockMvc.perform(multipart("/api/users/photo-upload/")
                 .file(file)

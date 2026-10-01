@@ -29,7 +29,7 @@ class NetBoxApiServiceTest {
 
     @Test
     void summarizeErrorBodyCompactsPlainTextPayload() {
-        String body = "  line one\\n\\n   line two   line three  ";
+        String body = "  line one\n\n   line two   line three  ";
 
         assertEquals("line one line two line three", service.summarizeErrorBody(body));
     }
