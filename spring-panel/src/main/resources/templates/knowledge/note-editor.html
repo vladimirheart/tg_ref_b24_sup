@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${note.id == null} ? 'Новая заметка — iguana' : 'Заметка — iguana'"></title>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="knowledge">
+<div th:replace="~{fragments/navbar :: navbar('knowledge')}"></div>
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div class="d-flex align-items-center gap-2">
+            <a class="btn btn-sm btn-outline-secondary" th:href="@{/knowledge-base/notes}" aria-label="К заметкам"><i class="bi bi-arrow-left"></i></a>
+            <div>
+                <span class="page-kicker">Знания · Заметки</span>
+                <h1 class="h4 mb-0" th:text="${note.id == null} ? 'Новая заметка' : ${note.title}"></h1>
+            </div>
+        </div>
+        <form th:if="${note.id != null}" th:action="@{'/knowledge-base/notes/' + ${note.id} + '/delete'}" method="post" onsubmit="return confirm('Удалить заметку?');">
+            <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash me-1"></i>Удалить</button>
+        </form>
+    </div>
+
+    <nav class="nav nav-tabs mb-4" aria-label="Разделы базы знаний" data-knowledge-tabs>
+        <a class="nav-link" th:href="@{/knowledge-base}">Статьи</a>
+        <a class="nav-link active" aria-current="page" th:href="@{/knowledge-base/notes}">Заметки</a>
+    </nav>
+
+    <form th:action="@{/knowledge-base/notes}" method="post" class="row g-3" data-knowledge-note-form>
+        <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+        <input type="hidden" name="id" th:value="${note.id}">
+        <div class="col-12 col-xl-8">
+            <div class="card ops-section-card h-100">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Заголовок</label>
+                        <input class="form-control" name="title" maxlength="500" required th:value="${note.title}" placeholder="Короткое название заметки">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Текст</label>
+                        <textarea class="form-control" name="body" rows="14" maxlength="100000" th:text="${note.body}" placeholder="Свободный текст заметки"></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <h2 class="h6 mb-0">Пользовательские поля</h2>
+                            <div class="small text-muted">Добавляйте любые пары «поле — значение» для конкретной заметки.</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-note-add-field><i class="bi bi-plus-lg me-1"></i>Поле</button>
+                    </div>
+                    <div data-note-custom-fields>
+                        <div class="row g-2 mb-2" data-note-field-row th:each="field : ${note.customFields}">
+                            <div class="col-md-5"><input class="form-control" name="customFieldKey" maxlength="120" th:value="${field.key}" placeholder="Название поля"></div>
+                            <div class="col-md-6"><input class="form-control" name="customFieldValue" maxlength="4000" th:value="${field.value}" placeholder="Значение"></div>
+                            <div class="col-md-1 d-grid"><button class="btn btn-outline-secondary" type="button" data-note-remove-field aria-label="Удалить поле"><i class="bi bi-x-lg"></i></button></div>
+                        </div>
+                        <div class="row g-2 mb-2" data-note-field-row th:if="${#maps.isEmpty(note.customFields)}">
+                            <div class="col-md-5"><input class="form-control" name="customFieldKey" maxlength="120" placeholder="Название поля"></div>
+                            <div class="col-md-6"><input class="form-control" name="customFieldValue" maxlength="4000" placeholder="Значение"></div>
+                            <div class="col-md-1 d-grid"><button class="btn btn-outline-secondary" type="button" data-note-remove-field aria-label="Удалить поле"><i class="bi bi-x-lg"></i></button></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <div class="card ops-section-card mb-3">
+                <div class="card-header fw-semibold">Связи</div>
+                <div class="card-body">
+                    <label class="form-label">Статьи базы знаний</label>
+                    <select class="form-select mb-3" name="knowledgeArticleIds" multiple size="8">
+                        <option th:each="article : ${articles}" th:value="${article.id}" th:selected="${note.knowledgeArticleIds.contains(article.id)}" th:text="${article.title}"></option>
+                    </select>
+                    <label class="form-label">Паспорта объектов</label>
+                    <select class="form-select" name="objectPassportIds" multiple size="8" th:disabled="${!canLinkPassports}">
+                        <option th:each="passport : ${passports}" th:value="${passport['id']}" th:selected="${note.objectPassportIds.contains(passport['id'])}" th:text="${(passport['city'] != null and !#strings.isEmpty(passport['city']) ? passport['city'] + ' / ' : '') + (passport['department'] != null and !#strings.isEmpty(passport['department']) ? passport['department'] : 'Паспорт #' + passport['id'])}"></option>
+                    </select>
+                    <div class="form-text" th:if="${!canLinkPassports}">Для выбора паспорта требуется доступ к разделу паспортов объектов.</div>
+                </div>
+            </div>
+            <div class="card ops-section-card" th:if="${note.id != null}">
+                <div class="card-body small text-muted">
+                    <div>Создал: <span th:text="${note.createdBy != null and !note.createdBy.isBlank()} ? ${note.createdBy} : '—'"></span></div>
+                    <div>Создано: <time data-note-time th:attr="datetime=${note.createdAt}" th:text="${note.createdAt}"></time></div>
+                    <div>Обновлено: <time data-note-time th:attr="datetime=${note.updatedAt}" th:text="${note.updatedAt}"></time></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 d-flex justify-content-end gap-2">
+            <a class="btn btn-outline-secondary" th:href="@{/knowledge-base/notes}">Отмена</a>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-check-lg me-1"></i>Сохранить</button>
+        </div>
+    </form>
+</main>
+<script th:src="@{/js/knowledge-notes.js(v='20261002-01-278-notes-r13')}"></script>
+</body>
+</html>

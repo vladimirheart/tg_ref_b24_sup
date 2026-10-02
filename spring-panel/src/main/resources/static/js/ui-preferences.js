@@ -35,6 +35,17 @@
     return value === 'compact' ? 'compact' : 'comfortable';
   }
 
+  function normalizeTimeZone(value) {
+    const raw = typeof value === 'string' ? value.trim() : '';
+    const candidate = raw || 'UTC';
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(new Date(0));
+      return candidate;
+    } catch (_error) {
+      return 'UTC';
+    }
+  }
+
   function normalizePinned(value) {
     if (value === true || value === '1' || value === 1 || value === 'true') {
       return '1';
@@ -148,6 +159,11 @@
       storageKey: 'uiDensityMode',
       fallback: 'comfortable',
       normalize: normalizeDensity,
+    }),
+    displayTimeZone: Object.freeze({
+      storageKey: 'iguana:display-time-zone',
+      fallback: 'UTC',
+      normalize: normalizeTimeZone,
     }),
     sidebarNavOrder: Object.freeze({
       storageKey: 'sidebarNavOrder',

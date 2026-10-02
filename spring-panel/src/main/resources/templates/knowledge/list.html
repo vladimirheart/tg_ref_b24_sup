@@ -42,6 +42,11 @@
 		</div>
 	</div>
 
+    <nav class="nav nav-tabs mb-4" aria-label="Разделы базы знаний" data-knowledge-tabs>
+        <a class="nav-link active" aria-current="page" th:href="@{/knowledge-base}">Статьи</a>
+        <a class="nav-link" th:href="@{/knowledge-base/notes}">Заметки</a>
+    </nav>
+
     <div class="card mb-4 kb-import-card ops-section-card" id="notion-import">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">

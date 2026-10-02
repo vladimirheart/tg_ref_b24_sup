@@ -106,13 +106,17 @@
       if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
         return options.fallback || '—';
       }
+      const uiTime = window.iguanaUiTime;
+      if (uiTime) {
+        return options.includeTime
+          ? uiTime.formatDateTime(date, { fallback: options.fallback || '—' })
+          : uiTime.formatDate(date, { fallback: options.fallback || '—' });
+      }
       const day = String(date.getUTCDate()).padStart(2, '0');
       const month = String(date.getUTCMonth() + 1).padStart(2, '0');
       const year = date.getUTCFullYear();
       const base = `${day}.${month}.${year}`;
-      if (!options.includeTime) {
-        return base;
-      }
+      if (!options.includeTime) return base;
       const hours = String(date.getUTCHours()).padStart(2, '0');
       const minutes = String(date.getUTCMinutes()).padStart(2, '0');
       return `${base} ${hours}:${minutes} UTC`;

@@ -686,6 +686,7 @@
                         <span class="visually-hidden" id="dialogDetailsParticipantsState">Дополнительные участники не подключены.</span>
                         <div class="dialog-details-participants-list" id="dialogDetailsParticipantsList"></div>
                     </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm dialog-details-action-icon" id="dialogDetailsLocationBusinessBtn" aria-label="Изменить бизнес и локацию" title="Изменить бизнес и локацию" data-dialog-tooltip="Изменить бизнес и локацию"><i class="bi bi-geo-alt" aria-hidden="true"></i></button>
                     <button type="button" class="btn btn-outline-secondary btn-sm dialog-details-action-icon" id="dialogDetailsParticipantsBtn" aria-label="Участники" title="Участники диалога" data-dialog-tooltip="Участники диалога"><i class="bi bi-people" aria-hidden="true"></i></button>
                     <button type="button" class="btn btn-outline-primary btn-sm dialog-details-action-icon" id="dialogDetailsReassignBtn" aria-label="Передать" title="Передать диалог" data-dialog-tooltip="Передать диалог"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></button>
                     <a class="btn btn-outline-secondary btn-sm dialog-details-action-icon" id="dialogDetailsCreateTask" aria-label="Создать задачу" title="Создать задачу" data-dialog-tooltip="Создать задачу" th:href="@{/tasks(create=1)}"><i class="bi bi-check2-square" aria-hidden="true"></i></a>
@@ -1358,6 +1359,46 @@
     }
   })();
 </script>
+
+
+
+    <div class="modal fade" id="dialogLocationBusinessModal" tabindex="-1" aria-labelledby="dialogLocationBusinessModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="dialogLocationBusinessForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="dialogLocationBusinessModalLabel">Бизнес и локация диалога</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger d-none" id="dialogLocationBusinessError" role="alert"></div>
+                        <div class="mb-3">
+                            <label class="form-label" for="dialogLocationBusinessBusiness">Бизнес</label>
+                            <select class="form-select" id="dialogLocationBusinessBusiness"></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="dialogLocationBusinessType">Тип локации</label>
+                            <select class="form-select" id="dialogLocationBusinessType"></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="dialogLocationBusinessCity">Город</label>
+                            <select class="form-select" id="dialogLocationBusinessCity"></select>
+                        </div>
+                        <div>
+                            <label class="form-label" for="dialogLocationBusinessLocation">Локация</label>
+                            <select class="form-select" id="dialogLocationBusinessLocation"></select>
+                        </div>
+                        <div class="form-text mt-2">Можно оставить бизнес или локацию не указанными. Доступные значения берутся из действующего каталога локаций.</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary" id="dialogLocationBusinessSave">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script th:src="@{/js/dialogs-location-business-runtime.js(v='20261002-01-278-s2-r7')}"></script>
 
 </body>
 </html>

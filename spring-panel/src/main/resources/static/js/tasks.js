@@ -501,7 +501,8 @@
     data.append('tag', tags);
     data.append('project_ids', selectedProjectIds());
     data.append('due_at', String(taskForm.elements.namedItem('due_at')?.value || '').trim());
-    data.append('status', String(taskForm.dataset.status || 'Новая'));
+    const currentStatus = String(taskForm.elements.namedItem('status')?.value || taskForm.dataset.status || 'Новая').trim() || 'Новая';
+    data.append('status', currentStatus);
 
     try {
       const response = await httpJson('/api/tasks', { method: 'POST', body: data });

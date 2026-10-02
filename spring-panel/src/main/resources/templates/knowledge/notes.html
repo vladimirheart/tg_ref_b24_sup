@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Заметки — iguana</title>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="knowledge">
+<div th:replace="~{fragments/navbar :: navbar('knowledge')}"></div>
+<main class="main-content container-fluid py-4 page-shell ops-page-shell">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+        <div>
+            <span class="page-kicker">Знания</span>
+            <h1 class="page-title mb-1">Заметки</h1>
+            <p class="page-subtitle mb-0">Рабочие заметки с произвольными полями и связями с БЗ и паспортами объектов.</p>
+        </div>
+        <a class="btn btn-primary" th:href="@{/knowledge-base/notes/new}"><i class="bi bi-plus-lg me-1"></i>Новая заметка</a>
+    </div>
+
+    <nav class="nav nav-tabs mb-4" aria-label="Разделы базы знаний" data-knowledge-tabs>
+        <a class="nav-link" th:href="@{/knowledge-base}">Статьи</a>
+        <a class="nav-link active" aria-current="page" th:href="@{/knowledge-base/notes}">Заметки</a>
+    </nav>
+
+    <div class="card ops-section-card">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Заметка</th><th>Поля</th><th>Связи</th><th>Автор</th><th>Обновлено</th></tr></thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(notes)}"><td colspan="5" class="text-center text-muted py-5">Заметок пока нет.</td></tr>
+                <tr th:each="note : ${notes}">
+                    <td>
+                        <a class="fw-semibold text-decoration-none" th:href="@{'/knowledge-base/notes/' + ${note.id}}" th:text="${note.title}"></a>
+                        <div class="small text-muted mt-1" th:if="${note.body != null and !note.body.isBlank()}" th:text="${#strings.abbreviate(note.body, 180)}"></div>
+                    </td>
+                    <td><span class="badge text-bg-light border" th:text="${note.customFieldCount}"></span></td>
+                    <td><span class="badge text-bg-light border" th:text="${note.relationCount}"></span></td>
+                    <td class="text-muted" th:text="${note.createdBy != null and !note.createdBy.isBlank()} ? ${note.createdBy} : '—'"></td>
+                    <td class="text-muted text-nowrap"><time data-note-time th:attr="datetime=${note.updatedAt}" th:text="${note.updatedAt}"></time></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+<script th:src="@{/js/knowledge-notes.js(v='20261002-01-278-notes-r13')}"></script>
+</body>
+</html>

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -137,6 +138,7 @@ public class UiPreferenceService {
         mergeField(target, normalized, requestPayload, "themePalette");
         mergeField(target, normalized, requestPayload, "sidebarPinned");
         mergeField(target, normalized, requestPayload, "uiDensityMode");
+        mergeField(target, normalized, requestPayload, "displayTimeZone");
         mergeField(target, normalized, requestPayload, "sidebarNavOrder");
         mergeField(target, normalized, requestPayload, "dashboardPanelLayout");
         mergeField(target, normalized, requestPayload, "pageFontScales");
@@ -184,6 +186,10 @@ public class UiPreferenceService {
         String density = normalizeDensity(payload.get("uiDensityMode"));
         if (density != null) {
             normalized.put("uiDensityMode", density);
+        }
+        String displayTimeZone = normalizeTimeZone(payload.get("displayTimeZone"));
+        if (displayTimeZone != null) {
+            normalized.put("displayTimeZone", displayTimeZone);
         }
         List<String> navOrder = normalizeNavOrder(payload.get("sidebarNavOrder"));
         if (navOrder != null && !navOrder.isEmpty()) {
@@ -319,6 +325,18 @@ public class UiPreferenceService {
     private String normalizeDensity(Object value) {
         String raw = asTrimmed(value).toLowerCase(Locale.ROOT);
         return "compact".equals(raw) ? "compact" : ("comfortable".equals(raw) ? "comfortable" : null);
+    }
+
+    private String normalizeTimeZone(Object value) {
+        String raw = asTrimmed(value);
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        try {
+            return ZoneId.of(raw).getId();
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private String normalizeBinaryFlag(Object value) {
