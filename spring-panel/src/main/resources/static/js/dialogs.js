@@ -2291,8 +2291,11 @@
     const responsibleRaw = resolveResponsibleRawFromItem(item) || (responsible === '—' ? '' : String(responsible).trim());
     const canTakeOwnership = !isOwnedByCurrentOperator(responsibleRaw);
     const unreadCount = Number(item?.unreadCount) || 0;
-    const createdDate = item?.createdDateSafe || item?.createdDate || 'Дата не указана';
-    const createdTime = item?.createdTimeSafe || item?.createdTime || '—';
+    const created = formatDialogListCreatedAt(
+      item?.createdAt || '',
+      item?.createdDateSafe || item?.createdDate || 'Дата не указана',
+      item?.createdTimeSafe || item?.createdTime || '—',
+    );
     const ratingValue = Number(item?.rating);
     const ratingStars = formatRatingStars(ratingValue);
     const userId = getDialogUserId(item);
@@ -2375,8 +2378,8 @@
         <td data-column-key="categories">${escapeHtml(categories)}</td>
         <td data-column-key="responsible">${renderResponsibleCell(responsible, responsibleAvatarUrl)}</td>
         <td data-column-key="created">
-          <div class="small text-muted">${escapeHtml(createdDate)}</div>
-          <div class="small">${escapeHtml(createdTime)}</div>
+          <div class="small text-muted" data-dialog-created-date>${escapeHtml(created.date)}</div>
+          <div class="small" data-dialog-created-time>${escapeHtml(created.time)}</div>
         </td>
         <td class="dialog-sla-cell" data-column-key="sla">
           <span class="badge rounded-pill dialog-sla-badge">—</span>
@@ -3570,6 +3573,34 @@
       || String(value || '');
   }
 
+  function formatDialogListCreatedAt(value, fallbackDate = 'Дата не указана', fallbackTime = '—') {
+    const parsed = parseUtcDateValue(value);
+    const uiTime = window.iguanaUiTime;
+    if (!parsed || !uiTime) {
+      return { date: fallbackDate, time: fallbackTime };
+    }
+    return {
+      date: uiTime.formatDate(parsed, { fallback: fallbackDate }),
+      time: uiTime.formatTime(parsed, { fallback: fallbackTime, includeSeconds: true }),
+    };
+  }
+
+  function applyDialogListCreatedTimeZone(root = table) {
+    if (!root || typeof root.querySelectorAll !== 'function') return;
+    root.querySelectorAll('tbody tr[data-created-at]').forEach((row) => {
+      const dateNode = row.querySelector('[data-dialog-created-date]');
+      const timeNode = row.querySelector('[data-dialog-created-time]');
+      if (!dateNode || !timeNode) return;
+      const formatted = formatDialogListCreatedAt(
+        row.dataset.createdAt || '',
+        String(dateNode.textContent || '').trim() || 'Дата не указана',
+        String(timeNode.textContent || '').trim() || '—',
+      );
+      dateNode.textContent = formatted.date;
+      timeNode.textContent = formatted.time;
+    });
+  }
+
   function buildMediaMarkup(message) {
     return dialogsDetailsHistoryRuntime?.buildMediaMarkup(message) || '';
   }
@@ -4460,6 +4491,7 @@
   applyColumnOrder();
   applyColumnState();
   applyBusinessCellStyles();
+  applyDialogListCreatedTimeZone();
   rowsList().forEach(applyDialogCompactCellTitles);
   hydrateAvatars(table);
   applyOperatorPermissionGuards();

@@ -562,8 +562,8 @@
                             <span class="text-muted" th:if="${dialog.responsible() == null or #strings.isEmpty(dialog.responsible())}">—</span>
                         </td>
                         <td data-column-key="created">
-                            <div class="small text-muted" th:text="${dialog.createdDateSafe()}">—</div>
-                            <div class="small" th:text="${dialog.createdTimeSafe()}">—</div>
+                            <div class="small text-muted" data-dialog-created-date th:text="${dialog.createdDateSafe()}">—</div>
+                            <div class="small" data-dialog-created-time th:text="${dialog.createdTimeSafe()}">—</div>
                         </td>
                         <td class="dialog-sla-cell" data-column-key="sla">
                             <span class="badge rounded-pill dialog-sla-badge">—</span>
@@ -1276,7 +1276,7 @@
     in_work: Array.isArray(RAW_MY_IN_WORK_DIALOGS) ? RAW_MY_IN_WORK_DIALOGS : [],
   };
 </script>
-<th:block th:with="dialogsAssetVersion='20260928-01-276-display-r53'">
+<th:block th:with="dialogsAssetVersion='20261002-01-278-timezone-r46'">
 <script th:src="@{/js/dialogs-list-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-avatar-runtime.js(v=${dialogsAssetVersion})}"></script>
