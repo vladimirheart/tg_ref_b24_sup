@@ -96,12 +96,34 @@
     return format(value, 'datetime', options);
   }
 
+  function isSelectableTimeZone(zone) {
+    const normalized = String(zone || '').trim();
+    return normalized === DEFAULT_TIME_ZONE || (normalized && !normalized.startsWith('Etc/'));
+  }
+
+  function timeZoneOptionLabel(zone) {
+    const normalized = normalizeTimeZone(zone);
+    if (normalized === DEFAULT_TIME_ZONE) return 'UTC (по умолчанию)';
+
+    const fixedOffset = normalized.match(/^Etc\/GMT([+-])(\d{1,2})$/);
+    if (fixedOffset) {
+      const displaySign = fixedOffset[1] === '+' ? '-' : '+';
+      const hours = String(Number(fixedOffset[2])).padStart(2, '0');
+      return `UTC${displaySign}${hours}:00 (legacy fixed offset)`;
+    }
+    if (['Etc/GMT', 'Etc/UTC', 'Etc/UCT', 'Etc/Universal', 'Etc/Zulu'].includes(normalized)) {
+      return 'UTC (legacy alias)';
+    }
+    if (normalized.startsWith('Etc/')) return 'Legacy technical time zone';
+    return normalized;
+  }
+
   function supportedTimeZones() {
     const result = [DEFAULT_TIME_ZONE];
     if (typeof Intl.supportedValuesOf === 'function') {
       try {
         Intl.supportedValuesOf('timeZone').forEach((zone) => {
-          if (!result.includes(zone)) result.push(zone);
+          if (isSelectableTimeZone(zone) && !result.includes(zone)) result.push(zone);
         });
       } catch (_error) {
         // fall through to compact fallback list
@@ -135,7 +157,7 @@
     supportedTimeZones().forEach((zone) => {
       const option = document.createElement('option');
       option.value = zone;
-      option.textContent = zone === DEFAULT_TIME_ZONE ? 'UTC (по умолчанию)' : zone;
+      option.textContent = timeZoneOptionLabel(zone);
       select.appendChild(option);
     });
     select.value = getTimeZone();
@@ -172,6 +194,8 @@
     formatDate,
     formatTime,
     formatDateTime,
+    isSelectableTimeZone,
+    timeZoneOptionLabel,
     supportedTimeZones,
   });
 
