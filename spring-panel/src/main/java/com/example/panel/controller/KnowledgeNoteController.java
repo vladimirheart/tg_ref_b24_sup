@@ -83,10 +83,13 @@ public class KnowledgeNoteController {
                        Authentication authentication) {
         String actor = authentication != null ? authentication.getName() : null;
         boolean canLinkPassports = permissionService.hasAuthority(authentication, "PAGE_OBJECT_PASSPORTS");
+        List<Long> passportLinkIds = canLinkPassports
+            ? (objectPassportIds == null ? List.of() : objectPassportIds)
+            : null;
         long noteId = knowledgeNoteService.save(
             id, title, body, customFieldKeys, customFieldValues,
             knowledgeArticleIds,
-            canLinkPassports ? objectPassportIds : List.of(),
+            passportLinkIds,
             actor
         );
         String label = title != null && !title.isBlank() ? title.trim() : "без названия";

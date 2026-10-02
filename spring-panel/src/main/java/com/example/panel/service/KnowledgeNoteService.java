@@ -117,7 +117,9 @@ public class KnowledgeNoteService {
             noteId = id;
         }
         replaceLinks(noteId, TARGET_KNOWLEDGE_ARTICLE, retainExistingIds("knowledge_articles", knowledgeArticleIds));
-        replaceLinks(noteId, TARGET_OBJECT_PASSPORT, retainExistingIds("object_passports", objectPassportIds));
+        if (id == null || objectPassportIds != null) {
+            replaceLinks(noteId, TARGET_OBJECT_PASSPORT, retainExistingIds("object_passports", objectPassportIds));
+        }
         return noteId;
     }
 

@@ -33,6 +33,10 @@ class KnowledgeNotesSourceContractTest {
             .contains("knowledgeBaseService.listArticles()")
             .contains("objectPassportService.listPassports()")
             .contains("PAGE_OBJECT_PASSPORTS")
+            .contains("List<Long> passportLinkIds = canLinkPassports")
+            .contains("? (objectPassportIds == null ? List.of() : objectPassportIds)")
+            .contains("passportLinkIds,")
+            .doesNotContain("canLinkPassports ? objectPassportIds : List.of()")
             .contains("note_saved");
 
         assertThat(service)
@@ -40,6 +44,7 @@ class KnowledgeNotesSourceContractTest {
             .contains("TARGET_OBJECT_PASSPORT = \"object_passport\"")
             .contains("buildCustomFields")
             .contains("replaceLinks")
+            .contains("if (id == null || objectPassportIds != null)")
             .contains("CAST(? AS jsonb)");
 
         assertThat(articleList)
