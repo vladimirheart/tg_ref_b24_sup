@@ -145,7 +145,7 @@
       select.disabled = true;
       try {
         if (prefApi && typeof prefApi.set === 'function') {
-          prefApi.set('displayTimeZone', next, 'time-zone-control');
+          await prefApi.set('displayTimeZone', next, 'time-zone-control');
           if (typeof prefApi.flush === 'function') await prefApi.flush();
         } else {
           try { root.localStorage?.setItem('iguana:display-time-zone', next); } catch (_error) { }
@@ -153,6 +153,10 @@
       } finally {
         root.location.reload();
       }
+
+      // 01-278 R32: refresh the current page after the display timezone is persisted
+      document.documentElement.dataset.displayTimeZone = next;
+      window.location.reload();
     });
 
     control.appendChild(label);
