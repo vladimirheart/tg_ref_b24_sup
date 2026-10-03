@@ -13,6 +13,74 @@
     }
 
     const PROBLEM_FOLLOW_UP_PREFIX = 'Уточнение после ответов на вопросы:';
+    let notesRequestSerial = 0;
+
+    function resetDialogNotes() {
+      notesRequestSerial += 1;
+      const section = document.getElementById('dialogDetailsNotesSection');
+      const state = document.getElementById('dialogDetailsNotesState');
+      const list = document.getElementById('dialogDetailsNotesList');
+      if (section) section.classList.add('d-none');
+      if (state) state.textContent = 'Загрузка заметок…';
+      if (list) list.innerHTML = '';
+    }
+
+    async function loadDialogNotes(ticketId) {
+      const section = document.getElementById('dialogDetailsNotesSection');
+      const state = document.getElementById('dialogDetailsNotesState');
+      const list = document.getElementById('dialogDetailsNotesList');
+      if (!section || !state || !list || !ticketId) return;
+      const requestSerial = ++notesRequestSerial;
+      try {
+        const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/notes`, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        const activeTicketId = String(getActiveDialogState()?.ticketId || '');
+        if (requestSerial !== notesRequestSerial || activeTicketId !== String(ticketId)) return;
+        if (response.status === 401 || response.status === 403) return;
+        section.classList.remove('d-none');
+        if (!response.ok) {
+          state.textContent = 'Заметки недоступны.';
+          return;
+        }
+        const payload = await response.json();
+        const notes = Array.isArray(payload?.notes) ? payload.notes : [];
+        if (!notes.length) {
+          state.textContent = 'Заметок нет.';
+          return;
+        }
+        state.textContent = '';
+        list.innerHTML = notes.map((note) => {
+          const title = String(note?.title || 'Без названия');
+          const body = String(note?.body || '').trim();
+          const preview = body.length > 800 ? `${body.slice(0, 800)}…` : body;
+          const noteId = Number(note?.id);
+          const href = Number.isFinite(noteId) ? `/knowledge-base/notes/${encodeURIComponent(noteId)}` : '/knowledge-base/notes';
+          const locationBadge = note?.locationMatched === true
+            ? '<span class="badge text-bg-primary ms-2">Локация</span>'
+            : '';
+          const updated = note?.updatedAt
+            ? (options.formatTimestamp?.(note.updatedAt, { includeTime: true }) || String(note.updatedAt))
+            : '';
+          return `
+            <article class="border rounded p-2">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <a class="fw-semibold text-decoration-none" href="${href}" target="_blank" rel="noopener">${escapeHtml(title)}</a>
+                ${locationBadge}
+              </div>
+              ${preview ? `<div class="small mt-1 text-break" style="white-space: pre-wrap;">${escapeHtml(preview)}</div>` : '<div class="small text-muted mt-1">Без текста</div>'}
+              ${updated ? `<div class="small text-muted mt-1">${escapeHtml(updated)}</div>` : ''}
+            </article>
+          `;
+        }).join('');
+      } catch (_error) {
+        const activeTicketId = String(getActiveDialogState()?.ticketId || '');
+        if (requestSerial !== notesRequestSerial || activeTicketId !== String(ticketId)) return;
+        section.classList.remove('d-none');
+        state.textContent = 'Не удалось загрузить заметки.';
+      }
+    }
 
     function formatDetailsProblemLabel(raw) {
       const text = String(raw || '').trim();
@@ -258,6 +326,7 @@
       options.resetPreviousDialogHistoryState?.();
       if (elements.detailsSummary) elements.detailsSummary.innerHTML = '<div>Загрузка...</div>';
       if (elements.detailsMetrics) elements.detailsMetrics.innerHTML = '<div class="text-muted">Загрузка метрик...</div>';
+      resetDialogNotes();
       options.updateDetailsLocationLabel?.('—');
       if (elements.detailsHistory) {
         options.renderHistory?.([], { scrollToBottom: false });
@@ -486,6 +555,7 @@
           `).join('');
         }
         options.renderHistory?.(data.history || []);
+        loadDialogNotes(ticketId);
         try {
           await options.loadDialogParticipants?.();
         } catch (participantsError) {

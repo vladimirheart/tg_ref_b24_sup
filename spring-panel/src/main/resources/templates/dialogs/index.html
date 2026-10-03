@@ -742,6 +742,16 @@
                 <div class="dialog-details-layout">
                     <div class="dialog-details-sidebar" id="dialogDetailsSidebar">
                             <div class="dialog-details-sidebar-scroll">
+                                <details class="dialog-details-section dialog-details-disclosure ui-disclosure-native d-none" id="dialogDetailsNotesSection" open>
+                                    <summary class="dialog-details-disclosure-toggle">
+                                        <span class="fw-semibold">Заметки</span>
+                                        <span class="dialog-details-disclosure-caret" aria-hidden="true">▾</span>
+                                    </summary>
+                                    <div class="pt-2">
+                                        <div class="small text-muted" id="dialogDetailsNotesState">Загрузка заметок…</div>
+                                        <div class="d-flex flex-column gap-2 mt-2" id="dialogDetailsNotesList"></div>
+                                    </div>
+                                </details>
                                 <details class="dialog-details-section dialog-details-disclosure ui-disclosure-native">
                                     <summary class="dialog-details-disclosure-toggle">
                                         <span class="fw-semibold">Статус</span>
@@ -1284,7 +1294,7 @@
 <script th:src="@{/js/dialogs-presentation-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-ai-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-details-history-runtime.js(v=${dialogsAssetVersion})}"></script>
-<script th:src="@{/js/dialogs-details-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-details-runtime.js(v='20261003-01-279-notes-r6')}"></script>
 <script th:src="@{/js/dialogs-workspace-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-actions-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-participants-runtime.js(v=${dialogsAssetVersion})}"></script>

@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.passports.ObjectPassportService;
 import com.example.panel.service.KnowledgeBaseService;
+import com.example.panel.service.KnowledgeNoteLocationService;
 import com.example.panel.service.KnowledgeNoteService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.NotificationRoutingService;
@@ -27,6 +28,7 @@ import java.util.Set;
 public class KnowledgeNoteController {
 
     private final KnowledgeNoteService knowledgeNoteService;
+    private final KnowledgeNoteLocationService knowledgeNoteLocationService;
     private final KnowledgeBaseService knowledgeBaseService;
     private final ObjectPassportService objectPassportService;
     private final NavigationService navigationService;
@@ -34,12 +36,14 @@ public class KnowledgeNoteController {
     private final NotificationRoutingService notificationRoutingService;
 
     public KnowledgeNoteController(KnowledgeNoteService knowledgeNoteService,
+                                   KnowledgeNoteLocationService knowledgeNoteLocationService,
                                    KnowledgeBaseService knowledgeBaseService,
                                    ObjectPassportService objectPassportService,
                                    NavigationService navigationService,
                                    PermissionService permissionService,
                                    NotificationRoutingService notificationRoutingService) {
         this.knowledgeNoteService = knowledgeNoteService;
+        this.knowledgeNoteLocationService = knowledgeNoteLocationService;
         this.knowledgeBaseService = knowledgeBaseService;
         this.objectPassportService = objectPassportService;
         this.navigationService = navigationService;
@@ -80,16 +84,18 @@ public class KnowledgeNoteController {
                        @RequestParam(name = "customFieldValue", required = false) List<String> customFieldValues,
                        @RequestParam(name = "knowledgeArticleIds", required = false) List<Long> knowledgeArticleIds,
                        @RequestParam(name = "objectPassportIds", required = false) List<Long> objectPassportIds,
+                       @RequestParam(name = "locationNames", required = false) List<String> locationNames,
                        Authentication authentication) {
         String actor = authentication != null ? authentication.getName() : null;
         boolean canLinkPassports = permissionService.hasAuthority(authentication, "PAGE_OBJECT_PASSPORTS");
         List<Long> passportLinkIds = canLinkPassports
             ? (objectPassportIds == null ? List.of() : objectPassportIds)
             : null;
-        long noteId = knowledgeNoteService.save(
+        long noteId = knowledgeNoteLocationService.saveNote(
             id, title, body, customFieldKeys, customFieldValues,
             knowledgeArticleIds,
             passportLinkIds,
+            locationNames,
             actor
         );
         String label = title != null && !title.isBlank() ? title.trim() : "без названия";
@@ -118,6 +124,8 @@ public class KnowledgeNoteController {
         boolean canLinkPassports = permissionService.hasAuthority(authentication, "PAGE_OBJECT_PASSPORTS");
         model.addAttribute("canLinkPassports", canLinkPassports);
         model.addAttribute("passports", canLinkPassports ? objectPassportService.listPassports() : List.of());
+        model.addAttribute("selectedLocationNames", knowledgeNoteLocationService.loadLocationNames(note.id()));
+        model.addAttribute("locationOptions", knowledgeNoteLocationService.listLocationOptions(note.id()));
     }
 
     private KnowledgeNoteService.NoteDetails emptyNote() {

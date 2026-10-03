@@ -1344,4 +1344,81 @@ class DialogDetailsIntegrationTest extends PostgresqlIntegrationTestSupport {
                 deletedAt,
                 forwardedFrom);
     }
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.example.panel.service.KnowledgeNoteLocationService knowledgeNoteLocationService;
+
+    @Test
+    void notesLocationPriorityUsesLocationNameOnlyAgainstRealPostgresql() throws Exception {
+        jdbcTemplate.update("DELETE FROM knowledge_note_location_links");
+        jdbcTemplate.update("DELETE FROM knowledge_notes");
+        insertDirectoryUser("notes_owner", "Notes Owner", "/img/notes-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                OVERRIDING SYSTEM VALUE
+                VALUES (27901, 'token-notes-279', 'Notes Location Integration', 'telegram', TRUE, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                927901L, "T-NOTES-LOC-279", "open", 27901L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?)
+                """,
+                2790101L,
+                927901L,
+                "Business-A",
+                "City-A",
+                "Location-Only-Key",
+                "Notes location priority integration",
+                "2026-07-01T10:00:00Z",
+                "notes_owner",
+                "T-NOTES-LOC-279",
+                "2026-07-01",
+                "10:00:00",
+                "Notes Client",
+                27901L,
+                "2026-07-01T10:00:00Z",
+                "notes_owner");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,CAST(? AS TIMESTAMPTZ))
+                """,
+                "T-NOTES-LOC-279", "notes_owner", "notes_owner", "2026-07-01T09:59:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO knowledge_notes(title, body, updated_at)
+                VALUES (?, ?, CAST(? AS TIMESTAMPTZ))
+                """,
+                "Unmatched newer", "unmatched", "2026-07-03T10:00:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO knowledge_notes(title, body, updated_at)
+                VALUES (?, ?, CAST(? AS TIMESTAMPTZ))
+                """,
+                "Matched older", "matched", "2026-07-02T10:00:00Z");
+        Long matchedNoteId = jdbcTemplate.queryForObject(
+                "SELECT id FROM knowledge_notes WHERE title = ?",
+                Long.class,
+                "Matched older");
+        jdbcTemplate.update(
+                "INSERT INTO knowledge_note_location_links(note_id, location_name) VALUES (?, ?)",
+                matchedNoteId,
+                "Location-Only-Key");
+
+        try {
+            var notes = knowledgeNoteLocationService.listDialogNotes("T-NOTES-LOC-279", "notes_owner");
+            org.junit.jupiter.api.Assertions.assertEquals(2, notes.size());
+            org.junit.jupiter.api.Assertions.assertEquals("Matched older", notes.get(0).title());
+            org.junit.jupiter.api.Assertions.assertTrue(notes.get(0).locationMatched());
+            org.junit.jupiter.api.Assertions.assertEquals("Unmatched newer", notes.get(1).title());
+            org.junit.jupiter.api.Assertions.assertFalse(notes.get(1).locationMatched());
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    knowledgeNoteLocationService.listDialogNotes("T-NOTES-LOC-279-MISSING", "notes_owner").isEmpty());
+        } finally {
+            jdbcTemplate.update("DELETE FROM knowledge_note_location_links");
+            jdbcTemplate.update("DELETE FROM knowledge_notes");
+        }
+    }
 }

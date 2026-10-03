@@ -83,6 +83,14 @@
                         <option th:each="passport : ${passports}" th:value="${passport['id']}" th:selected="${note.objectPassportIds.contains(passport['id'])}" th:text="${(passport['city'] != null and !#strings.isEmpty(passport['city']) ? passport['city'] + ' / ' : '') + (passport['department'] != null and !#strings.isEmpty(passport['department']) ? passport['department'] : 'Паспорт #' + passport['id'])}"></option>
                     </select>
                     <div class="form-text" th:if="${!canLinkPassports}">Для выбора паспорта требуется доступ к разделу паспортов объектов.</div>
+                    <label class="form-label mt-3">Локации</label>
+                    <select class="form-select" name="locationNames" multiple size="10">
+                        <option th:each="location : ${locationOptions}"
+                                th:value="${location.name}"
+                                th:selected="${selectedLocationNames.contains(location.name)}"
+                                th:text="${location.label}"></option>
+                    </select>
+                    <div class="form-text">В открытом диалоге заметки его локации показываются первыми; остальные остаются доступны ниже.</div>
                 </div>
             </div>
             <div class="card ops-section-card" th:if="${note.id != null}">
