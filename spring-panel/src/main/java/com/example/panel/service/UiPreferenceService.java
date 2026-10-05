@@ -256,7 +256,7 @@ public class UiPreferenceService {
             } else if (rawScale != null) {
                 try { scale = Integer.parseInt(String.valueOf(rawScale).trim()); } catch (NumberFormatException ignored) { }
             }
-            if (scale != null && List.of(90, 100, 110, 120, 130).contains(scale)) {
+            if (scale != null && List.of(90, 100, 110, 120, 130, 140, 150).contains(scale)) {
                 normalized.put(key, scale);
             }
         }

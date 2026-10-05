@@ -51,3 +51,128 @@
     grid-template-columns: 104px minmax(0, 1fr);
   }
 }
+
+/* 01-280 R43 readability and equipment type grouping. */
+[data-ui-page='passports'].passports-list-page .passport-summary-chip,
+[data-ui-page='passports'].passports-list-page .passport-table,
+[data-ui-page='passports'].passports-list-page .passport-quick-search {
+  font-size: 0.86rem;
+}
+
+[data-ui-page='passports'].passports-list-page .passport-summary-panel .small {
+  font-size: 0.8rem !important;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-kpi__label,
+[data-ui-page='passports'].passport-detail-page .passport-kpi__hint,
+[data-ui-page='passports'].passport-detail-page .passport-section-kicker,
+[data-ui-page='passports'].passport-detail-page .passport-tab-count {
+  font-size: 0.76rem;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-workspace-tab,
+[data-ui-page='passports'].passport-detail-page .passport-property__label,
+[data-ui-page='passports'].passport-detail-page .passport-contact span,
+[data-ui-page='passports'].passport-detail-page .passport-contact a,
+[data-ui-page='passports'].passport-detail-page .passport-asset-type,
+[data-ui-page='passports'].passport-detail-page .passport-asset-model {
+  font-size: 0.8rem;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-property__value,
+[data-ui-page='passports'].passport-detail-page .passport-contact strong,
+[data-ui-page='passports'].passport-detail-page .passport-asset-card__head h3 {
+  font-size: 0.88rem;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-asset-card__quick > span {
+  font-size: 0.8rem;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-asset-card__quick small {
+  font-size: 0.68rem;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-asset-details__grid span {
+  font-size: 0.72rem;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-asset-details__grid strong {
+  font-size: 0.82rem;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-asset-details pre {
+  font-size: 0.76rem;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-equipment-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.8rem;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-equipment-group {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-equipment-group__toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 42px;
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  background: var(--surface-raised);
+  color: var(--color-text);
+  text-align: left;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-equipment-group__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-equipment-group__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.7rem;
+  height: 1.45rem;
+  padding-inline: 0.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-selected);
+  color: var(--primary);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-equipment-group__chevron {
+  transition: transform 0.15s ease;
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-equipment-group__toggle[aria-expanded='true'] .passport-equipment-group__chevron {
+  transform: rotate(180deg);
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-equipment-group__body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0.65rem;
+  padding: 0.7rem;
+  border-top: 1px solid var(--color-border);
+}
+
+[data-ui-page='passports'].passport-detail-page .passport-equipment-group__body[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 575.98px) {
+  [data-ui-page='passports'].passport-detail-page .passport-equipment-group__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

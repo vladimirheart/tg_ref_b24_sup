@@ -133,7 +133,7 @@
       const key = String(rawKey || '').trim();
       const scale = Number.parseInt(rawScale, 10);
       if (!key || key.length > 160) return;
-      if (![90, 100, 110, 120, 130].includes(scale)) return;
+      if (![90, 100, 110, 120, 130, 140, 150].includes(scale)) return;
       result[key] = scale;
     });
     return JSON.stringify(result);
@@ -282,6 +282,14 @@
     if (suppressedSource) {
       return;
     }
+    if (source === 'page-font-scale') {
+      if (syncTimer) {
+        clearTimeout(syncTimer);
+        syncTimer = null;
+      }
+      void flushRemoteSync();
+      return;
+    }
     if (syncTimer) {
       clearTimeout(syncTimer);
     }
@@ -346,7 +354,7 @@
     return REGISTRY[name]?.storageKey || null;
   }
 
-  const PAGE_FONT_SCALE_STEPS = Object.freeze([90, 100, 110, 120, 130]);
+  const PAGE_FONT_SCALE_STEPS = Object.freeze([90, 100, 110, 120, 130, 140, 150]);
   let baseRootFontPx = null;
 
   function resolveBaseRootFontPx() {
@@ -381,7 +389,7 @@
 
   function defaultPageFontScale(pageKey) {
     const key = String(pageKey || '');
-    if (key === '/object-passports' || key.startsWith('/object-passports/')) return 120;
+    if (key === '/object-passports' || key.startsWith('/object-passports/')) return 130;
     return 100;
   }
 
@@ -476,6 +484,10 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializePageFontScale, { once: true });
   else initializePageFontScale();
+
+  root.addEventListener('pagehide', () => {
+    if (syncTimer) void flushRemoteSyncNow();
+  });
 
   root.addEventListener('storage', (event) => {
     if (!event.key) return;

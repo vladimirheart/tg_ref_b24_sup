@@ -37,6 +37,7 @@
     const equipmentProfileNameCache = new Map();
     const equipmentProfileRequestCache = new Map();
     let equipmentRenderRevision = 0;
+    const expandedEquipmentTypeKeys = new Set();
 
     function configurationProfileId(view) {
         const id = Number(view && view.item && view.item.configuration_profile_id);
@@ -106,6 +107,82 @@
         });
     }
 
+    function equipmentTypeGroupKey(type) {
+        return normalizeKey(text(type)) || 'equipment';
+    }
+
+    function renderEquipmentCard(view, index) {
+        const description = text(view.item && view.item.description);
+        const connection = first(view.item && view.item.connection_type, view.item && view.item.it_connection_type, '');
+        const connectionId = first(view.item && view.item.connection_id, '');
+        const profileId = configurationProfileId(view);
+        const details = [
+            ['Тип', view.type],
+            ['Производитель', view.vendor],
+            ['Модель', view.model],
+            ['Серийный номер', view.serial],
+            ['IP-адрес', view.ip],
+            ['Подключение', connection],
+            ['ID подключения', connectionId],
+            ['Комплектация', view.accessories]
+        ].filter((pair) => text(pair[1]));
+        const quickItems = [
+            view.ip ? `<span><small>IP</small>${escapeHtml(view.ip)}</span>` : '',
+            view.serial ? `<span><small>SN</small>${escapeHtml(view.serial)}</span>` : '',
+            view.catalogId ? `<span><small>CAT</small>#${view.catalogId}</span>` : ''
+        ].filter(Boolean).join('');
+        const hasDetails = Boolean(details.length || description || view.links.length || profileId);
+        const detailsId = `passportEquipmentDetails${index}`;
+        return `<article class="passport-asset-card ${view.archived ? 'is-archived' : ''}" data-equipment-index="${index}">
+            <div class="passport-asset-card__visual ${view.cover ? 'has-image' : ''}">
+                <span class="passport-asset-card__visual-placeholder" aria-hidden="true"><i class="bi bi-image"></i></span>
+                ${view.cover ? `<img src="${escapeHtml(view.cover)}" alt="${escapeHtml(view.name)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
+                <span class="passport-asset-card__type-center">${escapeHtml(view.type)}</span>
+            </div>
+            <div class="passport-asset-card__body">
+                <div class="passport-asset-card__head">
+                    <div>
+                        <span class="passport-asset-type">${escapeHtml(view.type)}</span>
+                        <h3>${escapeHtml(view.name)}</h3>
+                        ${view.vendor && view.model && normalizeKey(view.name) !== normalizeKey(`${view.vendor} ${view.model}`) ? `<div class="passport-asset-model">${escapeHtml(`${view.vendor} ${view.model}`)}</div>` : ''}
+                    </div>
+                    <span class="passport-asset-status" data-tone="${statusTone(view.status)}">${escapeHtml(view.status)}</span>
+                </div>
+                ${(quickItems || hasDetails) ? `<div class="passport-asset-card__quick-line">
+                    <div class="passport-asset-card__quick">${quickItems}</div>
+                    ${hasDetails ? `<button class="page-header-info__toggle passport-asset-details__toggle" type="button" data-equipment-details-toggle aria-expanded="false" aria-controls="${detailsId}" aria-label="Показать сведения об оборудовании" title="Показать сведения"><i class="bi bi-info-circle" aria-hidden="true"></i></button>` : ''}
+                </div>` : ''}
+                ${hasDetails ? `<div class="passport-asset-details" id="${detailsId}" data-equipment-details hidden>
+                    <div class="passport-asset-details__grid">
+                        ${details.map((pair) => `<div><span>${escapeHtml(pair[0])}</span><strong>${escapeHtml(pair[1])}</strong></div>`).join('')}
+                        ${profileId ? `<div><span>Профиль комплектации</span><strong data-equipment-profile-name="${profileId}">${escapeHtml(equipmentProfileLabel(profileId))}</strong></div>` : ''}
+                    </div>
+                    ${description ? `<pre>${escapeHtml(description)}</pre>` : ''}
+                    ${view.links.length ? `<div class="passport-asset-links">${view.links.map((url, linkIndex) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Ссылка ${linkIndex + 1}</a>`).join('')}</div>` : ''}
+                </div>` : ''}
+            </div>
+        </article>`;
+    }
+
+    function bindEquipmentGroupToggles(grid) {
+        grid.querySelectorAll('[data-equipment-group-toggle]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const bodyId = button.getAttribute('aria-controls');
+                const body = bodyId ? document.getElementById(bodyId) : null;
+                if (!body) return;
+                const key = text(button.getAttribute('data-equipment-group-key'));
+                const expanded = button.getAttribute('aria-expanded') === 'true';
+                const nextExpanded = !expanded;
+                button.setAttribute('aria-expanded', String(nextExpanded));
+                body.hidden = !nextExpanded;
+                if (key) {
+                    if (nextExpanded) expandedEquipmentTypeKeys.add(key);
+                    else expandedEquipmentTypeKeys.delete(key);
+                }
+            });
+        });
+    }
+
     function renderEquipment() {
         const passport = resolvePassport();
         const equipmentSearch = document.getElementById('passportEquipmentSearch');
@@ -119,60 +196,37 @@
             ].join(' ')).includes(query);
         });
         const revision = ++equipmentRenderRevision;
+        const groupMap = new Map();
+        const groups = [];
+        views.forEach((view, index) => {
+            const label = text(view.type) || 'Оборудование';
+            const key = equipmentTypeGroupKey(label);
+            let group = groupMap.get(key);
+            if (!group) {
+                group = { key, label, items: [] };
+                groupMap.set(key, group);
+                groups.push(group);
+            }
+            group.items.push({ view, index });
+        });
 
         document.getElementById('passportEquipmentEmpty').classList.toggle('d-none', views.length > 0);
-        grid.innerHTML = views.map((view, index) => {
-            const description = text(view.item && view.item.description);
-            const connection = first(view.item && view.item.connection_type, view.item && view.item.it_connection_type, '');
-            const connectionId = first(view.item && view.item.connection_id, '');
-            const profileId = configurationProfileId(view);
-            const details = [
-                ['Тип', view.type],
-                ['Производитель', view.vendor],
-                ['Модель', view.model],
-                ['Серийный номер', view.serial],
-                ['IP-адрес', view.ip],
-                ['Подключение', connection],
-                ['ID подключения', connectionId],
-                ['Комплектация', view.accessories]
-            ].filter((pair) => text(pair[1]));
-            const quickItems = [
-                view.ip ? `<span><small>IP</small>${escapeHtml(view.ip)}</span>` : '',
-                view.serial ? `<span><small>SN</small>${escapeHtml(view.serial)}</span>` : '',
-                view.catalogId ? `<span><small>CAT</small>#${view.catalogId}</span>` : ''
-            ].filter(Boolean).join('');
-            const hasDetails = Boolean(details.length || description || view.links.length || profileId);
-            const detailsId = `passportEquipmentDetails${index}`;
-            return `<article class="passport-asset-card ${view.archived ? 'is-archived' : ''}" data-equipment-index="${index}">
-                <div class="passport-asset-card__visual ${view.cover ? 'has-image' : ''}">
-                    <span class="passport-asset-card__visual-placeholder" aria-hidden="true"><i class="bi bi-image"></i></span>
-                    ${view.cover ? `<img src="${escapeHtml(view.cover)}" alt="${escapeHtml(view.name)}" loading="lazy" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
-                    <span class="passport-asset-card__type-center">${escapeHtml(view.type)}</span>
+        const expandForSearch = Boolean(query);
+        grid.innerHTML = groups.map((group, groupIndex) => {
+            const bodyId = `passportEquipmentTypeGroup${groupIndex}`;
+            const expanded = expandForSearch || expandedEquipmentTypeKeys.has(group.key);
+            return `<section class="passport-equipment-group" data-equipment-group="${escapeHtml(group.key)}">
+                <button class="passport-equipment-group__toggle" type="button" data-equipment-group-toggle data-equipment-group-key="${escapeHtml(group.key)}" aria-expanded="${expanded}" aria-controls="${bodyId}">
+                    <span class="passport-equipment-group__label">${escapeHtml(group.label)}</span>
+                    <span class="passport-equipment-group__count">${group.items.length}</span>
+                    <i class="bi bi-chevron-down passport-equipment-group__chevron" aria-hidden="true"></i>
+                </button>
+                <div class="passport-equipment-group__body" id="${bodyId}" data-equipment-group-body ${expanded ? '' : 'hidden'}>
+                    ${group.items.map((entry) => renderEquipmentCard(entry.view, entry.index)).join('')}
                 </div>
-                <div class="passport-asset-card__body">
-                    <div class="passport-asset-card__head">
-                        <div>
-                            <span class="passport-asset-type">${escapeHtml(view.type)}</span>
-                            <h3>${escapeHtml(view.name)}</h3>
-                            ${view.vendor && view.model && normalizeKey(view.name) !== normalizeKey(`${view.vendor} ${view.model}`) ? `<div class="passport-asset-model">${escapeHtml(`${view.vendor} ${view.model}`)}</div>` : ''}
-                        </div>
-                        <span class="passport-asset-status" data-tone="${statusTone(view.status)}">${escapeHtml(view.status)}</span>
-                    </div>
-                    ${(quickItems || hasDetails) ? `<div class="passport-asset-card__quick-line">
-                        <div class="passport-asset-card__quick">${quickItems}</div>
-                        ${hasDetails ? `<button class="page-header-info__toggle passport-asset-details__toggle" type="button" data-equipment-details-toggle aria-expanded="false" aria-controls="${detailsId}" aria-label="Показать сведения об оборудовании" title="Показать сведения"><i class="bi bi-info-circle" aria-hidden="true"></i></button>` : ''}
-                    </div>` : ''}
-                    ${hasDetails ? `<div class="passport-asset-details" id="${detailsId}" data-equipment-details hidden>
-                        <div class="passport-asset-details__grid">
-                            ${details.map((pair) => `<div><span>${escapeHtml(pair[0])}</span><strong>${escapeHtml(pair[1])}</strong></div>`).join('')}
-                            ${profileId ? `<div><span>Профиль комплектации</span><strong data-equipment-profile-name="${profileId}">${escapeHtml(equipmentProfileLabel(profileId))}</strong></div>` : ''}
-                        </div>
-                        ${description ? `<pre>${escapeHtml(description)}</pre>` : ''}
-                        ${view.links.length ? `<div class="passport-asset-links">${view.links.map((url, linkIndex) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Ссылка ${linkIndex + 1}</a>`).join('')}</div>` : ''}
-                    </div>` : ''}
-                </div>
-            </article>`;
+            </section>`;
         }).join('');
+        bindEquipmentGroupToggles(grid);
         bindEquipmentDetailsToggles(grid);
         hydrateEquipmentProfileNames(grid, views, revision);
     }

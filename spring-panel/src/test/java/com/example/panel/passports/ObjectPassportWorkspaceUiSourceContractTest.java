@@ -17,6 +17,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
     @Test
     void detailUsesViewFirstWorkspaceAndDedicatedEditRoute() throws IOException {
         String html = read("src/main/resources/templates/passports/detail.html");
+        String listHtml = read("src/main/resources/templates/passports/list.html");
         String edit = read("src/main/resources/templates/passports/fragments/detail-edit.html");
         String media = read("src/main/resources/templates/passports/fragments/detail-media.html");
         String equipmentMediaRuntime = read("src/main/resources/static/js/equipment-media-runtime.js");
@@ -46,8 +47,9 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(equipmentMediaRuntime.contains("window.EquipmentMediaRuntime"));
         assertTrue(equipmentMediaRuntime.contains("function coverUrl(raw)"));
         assertTrue(pageRuntime.contains("PassportDetailCoreRuntime"));
-        assertTrue(html.contains("/js/passport-detail-equipment-runtime.js?v=20261005-01-280-r37"));
-        assertTrue(html.contains("passport-ui-polish.css(v='20261005-01-280-r37')"));
+        assertTrue(html.contains("/js/passport-detail-equipment-runtime.js?v=20261005-01-280-r43"));
+        assertTrue(html.contains("passport-ui-polish.css(v='20261005-01-280-r43')"));
+        assertTrue(listHtml.contains("passport-ui-polish.css(v='20261005-01-280-r43')"));
         assertTrue(pageRuntime.contains("PassportDetailEquipmentRuntime"));
         assertTrue(coreRuntime.contains("equipmentMediaRuntime.coverUrl"));
         assertTrue(equipmentRuntime.contains("passport-asset-card__visual-placeholder"));
@@ -55,6 +57,9 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(equipmentRuntime.contains("data-equipment-details-toggle"));
         assertTrue(equipmentRuntime.contains("data-equipment-profile-name"));
         assertTrue(equipmentRuntime.contains("Профиль комплектации"));
+        assertTrue(equipmentRuntime.contains("data-equipment-group-toggle"));
+        assertTrue(equipmentRuntime.contains("expandedEquipmentTypeKeys"));
+        assertTrue(equipmentRuntime.contains("const expandForSearch = Boolean(query)"));
         assertTrue(!equipmentRuntime.contains("media.photos.find"));
         assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20261005-01-280-r16"));
         assertTrue(html.contains("/js/passport-detail-page-runtime.js?v=20260916-01-260-p4i"));
@@ -153,6 +158,8 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(equipmentHistoryScss.contains("Equipment archive history — 01-259 r4.4"));
         assertTrue(passportPolishCss.contains("grid-template-columns: 118px minmax(0, 1fr)"));
         assertTrue(passportPolishCss.contains("passport-asset-card__quick-line"));
+        assertTrue(passportPolishCss.contains("passport-equipment-group__toggle"));
+        assertTrue(passportPolishCss.contains("passport-equipment-group__body[hidden]"));
     }
 
     @Test
@@ -164,7 +171,11 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("currentPageFontKey"));
         assertTrue(runtime.contains("defaultPageFontScale"));
         assertTrue(runtime.contains("key.startsWith('/object-passports/')"));
-        assertTrue(runtime.contains("return 120"));
+        assertTrue(runtime.contains("return 130"));
+        assertTrue(runtime.contains("140, 150"));
+        assertTrue(runtime.contains("source === 'page-font-scale'"));
+        assertTrue(runtime.contains("void flushRemoteSync()"));
+        assertTrue(service.contains("130, 140, 150"));
         assertTrue(runtime.contains("data-page-font-scale-control"));
         assertTrue(service.contains("pageFontScales"));
         assertTrue(sidebarScss.contains("sidebar-font-scale-control"));
