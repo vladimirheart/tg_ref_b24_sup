@@ -46,7 +46,7 @@ class UiRuntimeIntegritySourceContractTest {
         assertTrue(runtime.contains("const effectivePx = basePx * scale / 100"));
         assertTrue(runtime.contains("DOMContentLoaded', initializePageFontScale"));
         assertFalse(runtime.contains("document.documentElement.style.fontSize = " + Character.toString(96) + "$" + "{scale}%" + Character.toString(96) + ";"));
-        assertTrue(uiHead.contains("ui-preferences.js(v='20261002-01-278-timezone-r10')"));
+        assertTrue(uiHead.contains("ui-preferences.js(v='20261005-01-280-r37')"));
     }
 
     @Test

@@ -48,6 +48,18 @@ class ObjectPassportEquipmentConfigurationEditorUiSourceContractTest {
     }
 
     @Test
+    void readOnlyEquipmentDetailResolvesAssignedProfileNameWithoutDenormalizingPassportJson() throws Exception {
+        String detail = read("src/main/resources/static/js/passport-detail-equipment-runtime.js");
+
+        assertThat(detail)
+                .contains("/api/settings/it-equipment/profiles?equipmentType=")
+                .contains("configuration_profile_id")
+                .contains("data-equipment-profile-name")
+                .contains("Профиль комплектации")
+                .doesNotContain("configuration_profile_name");
+    }
+
+    @Test
     void configurationRuntimeLoadsBeforeEachPassportEquipmentEditor() throws Exception {
         String newPage = read("src/main/resources/templates/passports/new.html");
         String detailPage = read("src/main/resources/templates/passports/detail.html");

@@ -379,9 +379,16 @@
     return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   }
 
+  function defaultPageFontScale(pageKey) {
+    const key = String(pageKey || '');
+    if (key === '/object-passports' || key.startsWith('/object-passports/')) return 120;
+    return 100;
+  }
+
   function currentPageFontScale() {
-    const raw = Number.parseInt(pageFontScaleMap()[currentPageFontKey()], 10);
-    return PAGE_FONT_SCALE_STEPS.includes(raw) ? raw : 100;
+    const pageKey = currentPageFontKey();
+    const raw = Number.parseInt(pageFontScaleMap()[pageKey], 10);
+    return PAGE_FONT_SCALE_STEPS.includes(raw) ? raw : defaultPageFontScale(pageKey);
   }
 
   function applyCurrentPageFontScale() {

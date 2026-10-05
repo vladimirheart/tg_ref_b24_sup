@@ -46,11 +46,15 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(equipmentMediaRuntime.contains("window.EquipmentMediaRuntime"));
         assertTrue(equipmentMediaRuntime.contains("function coverUrl(raw)"));
         assertTrue(pageRuntime.contains("PassportDetailCoreRuntime"));
-        assertTrue(html.contains("/js/passport-detail-equipment-runtime.js?v=20260922-01-272-s7"));
+        assertTrue(html.contains("/js/passport-detail-equipment-runtime.js?v=20261005-01-280-r37"));
+        assertTrue(html.contains("passport-ui-polish.css(v='20261005-01-280-r37')"));
         assertTrue(pageRuntime.contains("PassportDetailEquipmentRuntime"));
         assertTrue(coreRuntime.contains("equipmentMediaRuntime.coverUrl"));
         assertTrue(equipmentRuntime.contains("passport-asset-card__visual-placeholder"));
         assertTrue(equipmentRuntime.contains("passport-asset-card__type-center"));
+        assertTrue(equipmentRuntime.contains("data-equipment-details-toggle"));
+        assertTrue(equipmentRuntime.contains("data-equipment-profile-name"));
+        assertTrue(equipmentRuntime.contains("Профиль комплектации"));
         assertTrue(!equipmentRuntime.contains("media.photos.find"));
         assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20261005-01-280-r16"));
         assertTrue(html.contains("/js/passport-detail-page-runtime.js?v=20260916-01-260-p4i"));
@@ -136,6 +140,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         String workspaceInteractionsScss = read("src/main/resources/scss/app/passports/_workspace-interactions.scss");
         String listPolishScss = read("src/main/resources/scss/app/passports/_list-polish.scss");
         String equipmentHistoryScss = read("src/main/resources/scss/app/passports/_equipment-history.scss");
+        String passportPolishCss = read("src/main/resources/static/css/passport-ui-polish.css");
         assertTrue(workspaceScss.contains("Passport workspace — 01-259"));
         assertTrue(workspaceScss.contains("passport-overview-grid"));
         assertTrue(workspaceScss.contains("passport-property-grid"));
@@ -146,6 +151,8 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(workspaceInteractionsScss.contains("passport-photo-viewer"));
         assertTrue(workspaceInteractionsScss.contains("passport-edit-drawer"));
         assertTrue(equipmentHistoryScss.contains("Equipment archive history — 01-259 r4.4"));
+        assertTrue(passportPolishCss.contains("grid-template-columns: 118px minmax(0, 1fr)"));
+        assertTrue(passportPolishCss.contains("passport-asset-card__quick-line"));
     }
 
     @Test
@@ -155,6 +162,9 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         String sidebarScss = read("src/main/resources/scss/sidebar/_sections.scss");
         assertTrue(runtime.contains("pageFontScales"));
         assertTrue(runtime.contains("currentPageFontKey"));
+        assertTrue(runtime.contains("defaultPageFontScale"));
+        assertTrue(runtime.contains("key.startsWith('/object-passports/')"));
+        assertTrue(runtime.contains("return 120"));
         assertTrue(runtime.contains("data-page-font-scale-control"));
         assertTrue(service.contains("pageFontScales"));
         assertTrue(sidebarScss.contains("sidebar-font-scale-control"));

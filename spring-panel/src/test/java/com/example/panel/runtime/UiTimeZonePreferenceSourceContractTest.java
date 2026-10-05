@@ -31,7 +31,7 @@ class UiTimeZonePreferenceSourceContractTest {
             .contains("fallback: 'UTC'");
 
         assertThat(head)
-            .contains("ui-preferences.js(v='20261002-01-278-timezone-r10')")
+            .contains("ui-preferences.js(v='20261005-01-280-r37')")
             .contains("ui-time.js(v='20261002-01-278-timezone-r10')");
 
         assertThat(timeRuntime)
