@@ -46,6 +46,39 @@
                     </div>
                     <div id="itEquipmentBody" class="it-equipment-catalog-grid"></div>
                     <div id="itEquipmentEmptyState" class="it-equipment-catalog-empty d-none">Пока нет оборудования.</div>
+<div class="mt-4 pt-4 border-top" id="itEquipmentConfigurationWorkspace" data-it-equipment-configuration-root>
+  <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+    <div>
+      <h6 class="mb-1">Конфигурации оборудования</h6>
+      <p class="text-muted small mb-0">Характеристики задаются для типа оборудования; профили хранят типовые значения и при необходимости привязываются к модели.</p>
+    </div>
+    <div style="min-width: 260px;">
+      <label class="form-label small mb-1" for="itEquipmentConfigurationType">Тип оборудования</label>
+      <select class="form-select form-select-sm" id="itEquipmentConfigurationType" data-it-equipment-configuration-type>
+        <option value="">Выберите тип оборудования</option>
+      </select>
+    </div>
+  </div>
+  <div class="alert d-none py-2 px-3" id="itEquipmentConfigurationMessage" role="alert" data-it-equipment-configuration-message></div>
+  <ul class="nav nav-tabs settings-menu-tabs mb-3" role="tablist" aria-label="Конфигурации оборудования">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="itEquipmentAttributesTab" data-bs-toggle="tab" data-bs-target="#itEquipmentAttributesPane" type="button" role="tab" aria-controls="itEquipmentAttributesPane" aria-selected="true">Характеристики</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="itEquipmentProfilesTab" data-bs-toggle="tab" data-bs-target="#itEquipmentProfilesPane" type="button" role="tab" aria-controls="itEquipmentProfilesPane" aria-selected="false">Профили комплектации</button>
+    </li>
+  </ul>
+  <div class="tab-content">
+    <section class="tab-pane fade show active" id="itEquipmentAttributesPane" role="tabpanel" aria-labelledby="itEquipmentAttributesTab">
+      <div id="itEquipmentConfigurationAttributes" data-it-equipment-configuration-attributes></div>
+      <div id="itEquipmentConfigurationAttributeEditor" class="mt-3" data-it-equipment-configuration-attribute-editor></div>
+    </section>
+    <section class="tab-pane fade" id="itEquipmentProfilesPane" role="tabpanel" aria-labelledby="itEquipmentProfilesTab">
+      <div id="itEquipmentConfigurationProfiles" data-it-equipment-configuration-profiles></div>
+      <div id="itEquipmentConfigurationProfileEditor" class="mt-3" data-it-equipment-configuration-profile-editor></div>
+    </section>
+  </div>
+</div>
                     <div class="form-text text-muted mt-2">
                       Это мастер-каталог моделей. Паспорта объектов используют его для фото, типа, производителя, модели и базовой комплектации; SN/IP/status остаются данными конкретного экземпляра.
                     </div>

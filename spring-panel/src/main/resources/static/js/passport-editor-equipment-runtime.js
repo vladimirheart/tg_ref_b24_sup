@@ -7,6 +7,7 @@
     const getPassportData = typeof options.getPassportData === 'function' ? options.getPassportData : () => ({});
     const equipmentOptionSets = options.equipmentOptionSets && typeof options.equipmentOptionSets === 'object' ? options.equipmentOptionSets : { types: [], vendors: [], models: [], serials: [], statuses: [] };
     const equipmentCatalog = Array.isArray(options.equipmentCatalog) ? options.equipmentCatalog : [];
+    const equipmentConfigurationEditorRuntime = options.equipmentConfigurationEditorRuntime || window.EquipmentConfigurationEditorRuntime || null;
     const itConnectionChoices = Array.isArray(options.itConnectionChoices) ? options.itConnectionChoices : [];
     const equipmentContainer = options.equipmentContainer || document.getElementById('equipmentContainer');
     const equipmentEmptyText = options.equipmentEmptyText || document.getElementById('equipmentEmptyText');
@@ -45,28 +46,105 @@
       return value && typeof value === 'object' ? value : {};
     }
 
+    function createEquipmentInstanceId() {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+      }
+      return `eq-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
     function ensureEquipmentKey(item, fallbackIndex) {
       if (!item || typeof item !== 'object') {
         return `index-${fallbackIndex}`;
       }
-      if (item.id !== null && typeof item.id !== 'undefined') {
-        return String(item.id);
+      const existingInstanceId = typeof item.instance_id === 'string' ? item.instance_id.trim() : '';
+      if (existingInstanceId) {
+        return existingInstanceId;
       }
-      if (item._internalKey) {
-        return String(item._internalKey);
-      }
-      const uniqueKey = `temp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-      try {
-        Object.defineProperty(item, '_internalKey', {
-          value: uniqueKey,
-          enumerable: false,
-          configurable: true,
-        });
-      } catch (error) {
-        item._internalKey = uniqueKey;
-      }
-      return uniqueKey;
+      const instanceId = createEquipmentInstanceId();
+      item.instance_id = instanceId;
+      return instanceId;
     }
+
+    function equipmentConfigurationItemForCard(card) {
+      if (!card) return null;
+      const key = String(card.dataset.equipmentKey || '');
+      const list = Array.isArray(resolvePassportData().equipment) ? resolvePassportData().equipment : [];
+      return list.find((item, index) => String(ensureEquipmentKey(item, index)) === key) || null;
+    }
+
+    function mountEquipmentConfigurationCard(card) {
+      if (!equipmentConfigurationEditorRuntime || typeof equipmentConfigurationEditorRuntime.mount !== 'function' || !card) return;
+      const item = equipmentConfigurationItemForCard(card);
+      if (!item) return;
+      let host = card.querySelector('[data-equipment-instance-configuration]');
+      if (!host) {
+        host = document.createElement('div');
+        host.className = 'equipment-instance-configuration border-top mt-3 pt-3';
+        host.dataset.equipmentInstanceConfiguration = 'true';
+        card.appendChild(host);
+      }
+      const typeSelect = card.querySelector('.equipment-type');
+      const equipmentType = String(typeSelect ? typeSelect.value : (item.equipment_type || '')).trim();
+      const itemCatalogId = Number(item.catalog_id);
+      const matchedCatalogId = Number(card.dataset.catalogMatched);
+      const catalogId = Number.isFinite(itemCatalogId) && itemCatalogId > 0
+        ? itemCatalogId
+        : (Number.isFinite(matchedCatalogId) && matchedCatalogId > 0 ? matchedCatalogId : null);
+      equipmentConfigurationEditorRuntime.mount({
+        host,
+        item,
+        equipmentType,
+        catalogId,
+        disabled: Boolean(item.archived),
+        onChange(change) {
+          const profileId = Number(change && change.configuration_profile_id);
+          if (Number.isFinite(profileId) && profileId > 0) item.configuration_profile_id = profileId;
+          else delete item.configuration_profile_id;
+          const configuration = change && change.configuration && typeof change.configuration === 'object' && !Array.isArray(change.configuration)
+            ? { ...change.configuration }
+            : {};
+          if (Object.keys(configuration).length) item.configuration = configuration;
+          else delete item.configuration;
+        }
+      });
+    }
+
+    function mountEquipmentConfigurationCards() {
+      if (!equipmentContainer) return;
+      equipmentContainer.querySelectorAll('.equipment-card').forEach((card) => mountEquipmentConfigurationCard(card));
+    }
+
+    const equipmentConfigurationObserver = (equipmentConfigurationEditorRuntime && typeof MutationObserver !== 'undefined')
+      ? new MutationObserver(() => mountEquipmentConfigurationCards())
+      : null;
+    if (equipmentConfigurationObserver) {
+      equipmentConfigurationObserver.observe(equipmentContainer, { childList: true });
+    }
+    equipmentContainer.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target || !target.matches('.equipment-type, .equipment-vendor, .equipment-model')) return;
+      const card = target.closest('.equipment-card');
+      const item = equipmentConfigurationItemForCard(card);
+      if (!card || !item) return;
+      if (target.matches('.equipment-type')) {
+        const nextType = String(target.value || '').trim();
+        if (String(item.equipment_type || '').trim() !== nextType) {
+          item.equipment_type = nextType;
+          delete item.configuration_profile_id;
+          delete item.configuration;
+          delete item.catalog_id;
+        }
+      } else {
+        delete item.configuration_profile_id;
+        delete item.catalog_id;
+      }
+      Promise.resolve().then(() => {
+        if (!card.isConnected) return;
+        card.querySelector('[data-equipment-instance-configuration]')?.remove();
+        mountEquipmentConfigurationCard(card);
+      });
+    });
 
     let highlightedEquipmentCard = null;
     let highlightedEquipmentTimeoutId = null;
@@ -979,7 +1057,15 @@
 
     async function handleEquipmentSave(card) {
       const id = card.dataset.id;
+      const configurationSourceItem = equipmentConfigurationItemForCard(card);
+      const configurationProfileId = Number(configurationSourceItem && configurationSourceItem.configuration_profile_id);
+      const configurationOverrides = configurationSourceItem && configurationSourceItem.configuration && typeof configurationSourceItem.configuration === 'object' && !Array.isArray(configurationSourceItem.configuration)
+        ? { ...configurationSourceItem.configuration }
+        : {};
       const payload = {
+        instance_id: configurationSourceItem ? ensureEquipmentKey(configurationSourceItem, 0) : createEquipmentInstanceId(),
+        configuration_profile_id: Number.isFinite(configurationProfileId) && configurationProfileId > 0 ? configurationProfileId : null,
+        configuration: configurationOverrides,
         equipment_type: card.querySelector('.equipment-type').value.trim(),
         vendor: card.querySelector('.equipment-vendor').value.trim(),
         name: card.querySelector('.equipment-name').value.trim(),

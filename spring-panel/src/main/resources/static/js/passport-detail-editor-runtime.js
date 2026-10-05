@@ -18,6 +18,7 @@
       throw new Error('PassportDetailEditorRuntime requires coreRuntime');
     }
     const { DAY_LABELS, text, escapeHtml, normalizeKey, first, isEquipmentArchived, catalogKey, equipmentCover } = coreRuntime;
+    const equipmentConfigurationEditorRuntime = options.equipmentConfigurationEditorRuntime || window.EquipmentConfigurationEditorRuntime || null;
     let editEquipmentDraft = [];
     let editScheduleDraft = [];
 
@@ -175,17 +176,32 @@
         return Number.isFinite(id) && id > 0 ? { id, item: matches[0], inferred: true } : null;
     }
 
-    function resolvedEquipmentDraft() {
-        return editEquipmentDraft.map((item) => {
-            if (!item || isEquipmentArchived(item)) return item;
-            const explicitId = Number(item.catalog_id);
-            if (Number.isFinite(explicitId) && explicitId > 0) return item;
-            const match = catalogMatch(item);
-            return match ? { ...item, catalog_id: match.id } : item;
-        });
+    function createEquipmentInstanceId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID();
     }
+    return `eq-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
 
-    function catalogOptions(selectedId) {
+  function ensureEquipmentInstanceId(item) {
+    if (!item || typeof item !== 'object') return item;
+    const existing = typeof item.instance_id === 'string' ? item.instance_id.trim() : '';
+    if (existing) return item;
+    return { ...item, instance_id: createEquipmentInstanceId() };
+  }
+
+  function resolvedEquipmentDraft() {
+    return editEquipmentDraft.map((item) => {
+      const withIdentity = ensureEquipmentInstanceId(item);
+      if (!withIdentity || isEquipmentArchived(withIdentity)) return withIdentity;
+      const explicitId = Number(withIdentity.catalog_id);
+      if (Number.isFinite(explicitId) && explicitId > 0) return withIdentity;
+      const match = catalogMatch(withIdentity);
+      return match ? { ...withIdentity, catalog_id: match.id } : withIdentity;
+    });
+  }
+
+  function catalogOptions(selectedId) {
         const options = ['<option value="">Без связи с каталогом</option>'];
         equipmentCatalog.forEach((item) => {
             const id = Number(item && item.id);
@@ -204,6 +220,90 @@
         }
         return `<label class="passport-edit-equipment-field" for="${id}"><span>${escapeHtml(label)}</span><input class="form-control form-control-sm" id="${id}" type="${options.type || 'text'}" value="${escapeHtml(text(value))}" data-equipment-field="${key}"${disabled}></label>`;
     }
+
+    function detailEquipmentConfigurationItem(card) {
+        const index = Number(card && card.dataset.editEquipmentIndex);
+        return Number.isFinite(index) && editEquipmentDraft[index] ? { index, item: editEquipmentDraft[index] } : null;
+    }
+
+    function mountDetailEquipmentConfigurationCard(card) {
+        if (!equipmentConfigurationEditorRuntime || typeof equipmentConfigurationEditorRuntime.mount !== 'function' || !card) return;
+        const resolved = detailEquipmentConfigurationItem(card);
+        if (!resolved) return;
+        const item = resolved.item;
+        let host = card.querySelector('[data-equipment-instance-configuration]');
+        if (!host) {
+            host = document.createElement('div');
+            host.className = 'equipment-instance-configuration border-top mt-3 pt-3';
+            host.dataset.equipmentInstanceConfiguration = 'true';
+            card.appendChild(host);
+        }
+        const catalogId = Number(item.catalog_id);
+        equipmentConfigurationEditorRuntime.mount({
+            host,
+            item,
+            equipmentType: text(item.equipment_type),
+            catalogId: Number.isFinite(catalogId) && catalogId > 0 ? catalogId : null,
+            disabled: isEquipmentArchived(item),
+            onChange(change) {
+                const profileId = Number(change && change.configuration_profile_id);
+                if (Number.isFinite(profileId) && profileId > 0) item.configuration_profile_id = profileId;
+                else delete item.configuration_profile_id;
+                const configuration = change && change.configuration && typeof change.configuration === 'object' && !Array.isArray(change.configuration)
+                    ? { ...change.configuration }
+                    : {};
+                if (Object.keys(configuration).length) item.configuration = configuration;
+                else delete item.configuration;
+            }
+        });
+    }
+
+    function mountDetailEquipmentConfigurationCards() {
+        const target = document.getElementById('passportEditEquipment');
+        if (!target) return;
+        target.querySelectorAll('[data-edit-equipment-index]').forEach((card) => mountDetailEquipmentConfigurationCard(card));
+    }
+
+    const detailEquipmentConfigurationTarget = document.getElementById('passportEditEquipment');
+    const detailEquipmentConfigurationObserver = (detailEquipmentConfigurationTarget && equipmentConfigurationEditorRuntime && typeof MutationObserver !== 'undefined')
+        ? new MutationObserver(() => mountDetailEquipmentConfigurationCards())
+        : null;
+    if (detailEquipmentConfigurationObserver) {
+        detailEquipmentConfigurationObserver.observe(detailEquipmentConfigurationTarget, { childList: true });
+    }
+    detailEquipmentConfigurationTarget?.addEventListener('input', (event) => {
+        const field = event.target && event.target.dataset ? event.target.dataset.equipmentField : '';
+        if (!['equipment_type', 'vendor', 'model'].includes(field)) return;
+        const card = event.target.closest('[data-edit-equipment-index]');
+        const resolved = detailEquipmentConfigurationItem(card);
+        if (!resolved) return;
+        if (field === 'equipment_type') {
+            const nextType = text(event.target.value);
+            if (text(resolved.item.equipment_type) !== nextType) {
+                resolved.item.equipment_type = nextType;
+                delete resolved.item.configuration_profile_id;
+                delete resolved.item.configuration;
+                delete resolved.item.catalog_id;
+            }
+        } else {
+            delete resolved.item.configuration_profile_id;
+            delete resolved.item.catalog_id;
+        }
+        card.querySelector('[data-equipment-instance-configuration]')?.remove();
+        mountDetailEquipmentConfigurationCard(card);
+    });
+    detailEquipmentConfigurationTarget?.addEventListener('change', (event) => {
+        if (!event.target || !event.target.matches('[data-equipment-catalog]')) return;
+        const card = event.target.closest('[data-edit-equipment-index]');
+        const resolved = detailEquipmentConfigurationItem(card);
+        if (!resolved) return;
+        const nextCatalogId = Number(event.target.value);
+        if (Number.isFinite(nextCatalogId) && nextCatalogId > 0) resolved.item.catalog_id = nextCatalogId;
+        else delete resolved.item.catalog_id;
+        delete resolved.item.configuration_profile_id;
+        card.querySelector('[data-equipment-instance-configuration]')?.remove();
+        mountDetailEquipmentConfigurationCard(card);
+    });
 
     function renderEditorEquipment() {
         const target = document.getElementById('passportEditEquipment');
@@ -451,7 +551,7 @@
             if (field === 'is_24') renderEditorSchedule();
         });
         document.getElementById('passportEditEquipmentAdd')?.addEventListener('click', () => {
-            editEquipmentDraft.push({ equipment_type: '', vendor: '', name: '', model: '', serial_number: '', status: '', ip_address: '', connection_type: '', connection_id: '', connection_password: '', description: '' });
+            editEquipmentDraft.push({ instance_id: createEquipmentInstanceId(), equipment_type: '', vendor: '', name: '', model: '', serial_number: '', status: '', ip_address: '', connection_type: '', connection_id: '', connection_password: '', description: '' });
             renderEditorEquipment();
         });
         document.getElementById('passportEditEquipment')?.addEventListener('input', (event) => {

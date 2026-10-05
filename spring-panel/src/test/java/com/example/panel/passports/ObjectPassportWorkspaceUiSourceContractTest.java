@@ -52,7 +52,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(equipmentRuntime.contains("passport-asset-card__visual-placeholder"));
         assertTrue(equipmentRuntime.contains("passport-asset-card__type-center"));
         assertTrue(!equipmentRuntime.contains("media.photos.find"));
-        assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20260923-01-272-s7-r8"));
+        assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20261005-01-280-r16"));
         assertTrue(html.contains("/js/passport-detail-page-runtime.js?v=20260916-01-260-p4i"));
         assertTrue(html.contains("PassportDetailPageRuntime"));
         assertTrue(pageRuntime.contains("PassportDetailEditorRuntime"));
@@ -69,7 +69,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         String html = read("src/main/resources/templates/passports/new.html");
         String pageRuntime = read("src/main/resources/static/js/passport-editor-page-runtime.js");
         String equipmentRuntime = read("src/main/resources/static/js/passport-editor-equipment-runtime.js");
-        assertTrue(html.contains("/js/passport-editor-equipment-runtime.js?v=20260916-01-260-p4j"));
+        assertTrue(html.contains("/js/passport-editor-equipment-runtime.js?v=20261005-01-280-r16"));
         assertTrue(html.contains("/js/passport-editor-page-runtime.js?v=20260916-01-260-p4k"));
         assertTrue(html.contains("PassportEditorPageRuntime"));
         assertTrue(pageRuntime.contains("PassportEditorEquipmentRuntime"));
