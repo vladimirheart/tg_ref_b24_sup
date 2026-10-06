@@ -8,7 +8,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,8 +17,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 final class ObjectPassportPersistence {
-
-    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
     private final ObjectMapper objectMapper;
     private final ObjectPassportPayloadModel payloadModel;
@@ -34,7 +31,7 @@ final class ObjectPassportPersistence {
         try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             statement.setString(1, payloadModel.buildObjectName(payload));
             statement.setString(2, stringValue(payload.get("location_address")));
-            statement.setString(3, nowText());
+            statement.setObject(3, OffsetDateTime.now());
             statement.executeUpdate();
             return readGeneratedKey(statement, "objects");
         }
@@ -56,7 +53,7 @@ final class ObjectPassportPersistence {
             statement.setLong(1, objectId);
             statement.setString(2, payloadModel.buildPassportNumber(payload));
             statement.setString(3, writeJson(payloadModel.normalizePayload(Map.of(), payload, null)));
-            statement.setString(4, nowText());
+            statement.setObject(4, OffsetDateTime.now());
             statement.executeUpdate();
             return readGeneratedKey(statement, "object_passports");
         }
@@ -177,10 +174,6 @@ final class ObjectPassportPersistence {
 
     private String stringValue(Object raw) {
         return raw == null ? "" : String.valueOf(raw).trim();
-    }
-
-    private String nowText() {
-        return OffsetDateTime.now().format(TIMESTAMP_FORMATTER);
     }
 
     record StoredPassportRecord(long passportId, long objectId, Map<String, Object> payload) {

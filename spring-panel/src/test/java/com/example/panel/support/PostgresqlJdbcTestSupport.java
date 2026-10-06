@@ -22,12 +22,24 @@ public final class PostgresqlJdbcTestSupport {
     }
 
     public static JdbcTemplate freshJdbcTemplate(String prefix) {
+        return freshJdbcTemplate(prefix, true);
+    }
+
+    public static JdbcTemplate freshJdbcTemplateDefaultStringType(String prefix) {
+        return freshJdbcTemplate(prefix, false);
+    }
+
+    private static JdbcTemplate freshJdbcTemplate(String prefix, boolean unspecifiedStringType) {
         String schema = schemaName(prefix);
         JdbcTemplate admin = new JdbcTemplate(dataSource(POSTGRES.getJdbcUrl()));
         admin.execute("CREATE SCHEMA " + schema);
 
         String separator = POSTGRES.getJdbcUrl().contains("?") ? "&" : "?";
-        return new JdbcTemplate(dataSource(POSTGRES.getJdbcUrl() + separator + "currentSchema=" + schema + "&stringtype=unspecified"));
+        String url = POSTGRES.getJdbcUrl() + separator + "currentSchema=" + schema;
+        if (unspecifiedStringType) {
+            url += "&stringtype=unspecified";
+        }
+        return new JdbcTemplate(dataSource(url));
     }
 
     private static DriverManagerDataSource dataSource(String url) {
