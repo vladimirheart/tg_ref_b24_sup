@@ -11,6 +11,7 @@
     const statusesRaw = Array.isArray(options.statusesRaw) ? options.statusesRaw : [];
     const parameterValuesRaw = options.parameterValuesRaw && typeof options.parameterValuesRaw === 'object' ? options.parameterValuesRaw : {};
     const csrfToken = typeof options.csrfToken === 'string' ? options.csrfToken : '';
+    const createMode = options.createMode === true;
     const refreshWorkspace = typeof options.refreshWorkspace === 'function' ? options.refreshWorkspace : () => {};
     const refreshMedia = typeof options.refreshMedia === 'function' ? options.refreshMedia : () => {};
     const coreRuntime = options.coreRuntime && typeof options.coreRuntime === 'object' ? options.coreRuntime : null;
@@ -415,6 +416,13 @@
         renderEditorSchedule();
         renderEditorEquipment();
         renderEditorPhotos();
+        document.querySelectorAll('[data-passport-edit-existing-only]').forEach((node) => {
+            node.hidden = createMode;
+        });
+        const title = document.getElementById('passportEditTitle');
+        if (title) title.textContent = createMode ? 'Создать объект' : 'Изменить объект';
+        const saveButton = document.getElementById('passportEditSave');
+        if (saveButton) saveButton.textContent = createMode ? 'Создать паспорт' : 'Сохранить изменения';
         setEditorTab(tab);
         document.getElementById('passportEditStatus').textContent = '';
         layer.hidden = false;
@@ -424,6 +432,10 @@
     }
 
     function closeEditor() {
+        if (createMode) {
+            window.location.assign('/object-passports');
+            return;
+        }
         const layer = document.getElementById('passportEditLayer');
         if (!layer) return;
         layer.hidden = true;
@@ -437,12 +449,12 @@
         document.querySelectorAll('[data-passport-edit-field]').forEach((control) => {
             const key = control.dataset.passportEditField;
             const value = control.value == null ? '' : String(control.value).trim();
-            if (value !== text(passport[key])) payload[key] = value;
+            if (createMode || value !== text(passport[key])) payload[key] = value;
         });
-        if (JSON.stringify(editScheduleDraft) !== JSON.stringify(normalizedScheduleDraft())) payload.schedule = deepClone(editScheduleDraft);
+        if (createMode || JSON.stringify(editScheduleDraft) !== JSON.stringify(normalizedScheduleDraft())) payload.schedule = deepClone(editScheduleDraft);
         const currentEquipment = Array.isArray(passport.equipment) ? passport.equipment : [];
         const equipmentPayload = resolvedEquipmentDraft();
-        if (JSON.stringify(equipmentPayload) !== JSON.stringify(currentEquipment)) payload.equipment = deepClone(equipmentPayload);
+        if (createMode || JSON.stringify(equipmentPayload) !== JSON.stringify(currentEquipment)) payload.equipment = deepClone(equipmentPayload);
         return payload;
     }
 
@@ -466,14 +478,23 @@
         status.textContent = 'Сохраняем…';
         status.dataset.tone = 'neutral';
         try {
-            const response = await fetch(`/api/object_passports/${passportId}`, {
-                method: 'PUT',
+            const saveUrl = createMode ? '/api/object_passports' : `/api/object_passports/${passportId}`;
+            const saveMethod = createMode ? 'POST' : 'PUT';
+            const response = await fetch(saveUrl, {
+                method: saveMethod,
                 credentials: 'same-origin',
                 headers: csrfHeaders(true),
                 body: JSON.stringify(payload)
             });
             const data = await response.json();
-            if (!response.ok || data.success === false || !data.passport) throw new Error((data && data.error) || 'Не удалось сохранить паспорт');
+            if (!response.ok || data.success === false) throw new Error((data && data.error) || 'Не удалось сохранить паспорт');
+            if (createMode) {
+                const createdId = Number(data && data.id);
+                if (!Number.isFinite(createdId) || createdId <= 0) throw new Error('Сервер не вернул ID созданного паспорта');
+                window.location.assign(`/object-passports/${createdId}/edit`);
+                return;
+            }
+            if (!data.passport) throw new Error('Сервер не вернул сохранённый паспорт');
             setPassport(data.passport);
             refreshWorkspace();
             closeEditor();
@@ -518,6 +539,12 @@
     async function uploadPhoto(event) {
         const passportId = resolvePassportId();
         event.preventDefault();
+        if (createMode || !Number.isFinite(Number(passportId)) || Number(passportId) <= 0) {
+            const status = document.getElementById('passportEditStatus');
+            status.textContent = 'Сначала создайте паспорт, затем добавьте фото.';
+            status.dataset.tone = 'danger';
+            return;
+        }
         const file = document.getElementById('passportPhotoUploadFile')?.files?.[0];
         if (!file) return;
         const formData = new FormData();

@@ -6,6 +6,7 @@
   function createRuntime(options = {}) {
     const equipmentCatalog = Array.isArray(options.equipmentCatalog) ? options.equipmentCatalog : [];
     const initialEditMode = options.initialEditMode === true;
+    const initialCreateMode = options.initialCreateMode === true;
     const statusesRaw = Array.isArray(options.statusesRaw) ? options.statusesRaw : [];
     const parameterValuesRaw = options.parameterValuesRaw && typeof options.parameterValuesRaw === 'object' ? options.parameterValuesRaw : {};
 
@@ -103,6 +104,7 @@
         statusesRaw,
         parameterValuesRaw,
         csrfToken,
+        createMode: initialCreateMode,
         coreRuntime: passportDetailCoreRuntime,
         refreshWorkspace: () => {
             renderHeader();
@@ -238,9 +240,29 @@
         if (initialEditMode) openEditor('main');
     }
 
+    function initializeCreateMode() {
+        passport = {
+            is_new: true,
+            status: statusesRaw.length ? statusesRaw[0] : '',
+            schedule: [],
+            equipment: [],
+            photos: [],
+        };
+        cases = [];
+        tasks = [];
+        incidents = [];
+        loading.classList.add('d-none');
+        workspace.classList.add('d-none');
+        openEditor('main');
+    }
+
     function boot() {
         bindTabs();
         bindR4Events();
+        if (initialCreateMode) {
+            initializeCreateMode();
+            return;
+        }
         load().catch((error) => {
             loading.classList.add('d-none');
             errorBox.textContent = error && error.message ? error.message : String(error);

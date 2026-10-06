@@ -51,7 +51,9 @@ public class ObjectPassportPageController {
     public String newPassport(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         pageModelAssembler.populatePassportEditor(model, true);
-        return "passports/new";
+        model.addAttribute("passportEditMode", false);
+        model.addAttribute("passportCreateMode", true);
+        return "passports/detail";
     }
 
     @GetMapping("/object-passports/{id}")
@@ -60,6 +62,7 @@ public class ObjectPassportPageController {
         navigationService.enrich(model, authentication);
         pageModelAssembler.populatePassportEditor(model, false);
         model.addAttribute("passportEditMode", false);
+        model.addAttribute("passportCreateMode", false);
         return "passports/detail";
     }
 
@@ -69,6 +72,7 @@ public class ObjectPassportPageController {
         navigationService.enrich(model, authentication);
         pageModelAssembler.populatePassportEditor(model, false);
         model.addAttribute("passportEditMode", true);
+        model.addAttribute("passportCreateMode", false);
         return "passports/detail";
     }
 

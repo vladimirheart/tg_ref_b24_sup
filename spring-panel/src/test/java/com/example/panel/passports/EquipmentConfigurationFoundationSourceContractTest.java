@@ -24,20 +24,15 @@ class EquipmentConfigurationFoundationSourceContractTest {
     }
 
     @Test
-    void passportEditorsUsePersistentInstanceIdentityWithoutReplacingCatalogIdentity() throws Exception {
-        String shared = read("src/main/resources/static/js/passport-editor-equipment-runtime.js");
+    void modernPassportEditorUsesPersistentInstanceIdentityWithoutReplacingCatalogIdentity() throws Exception {
         String detail = read("src/main/resources/static/js/passport-detail-editor-runtime.js");
-
-        assertThat(shared)
-            .contains("item.instance_id")
-            .contains("createEquipmentInstanceId")
-            .contains("return instanceId;");
 
         assertThat(detail)
             .contains("function ensureEquipmentInstanceId(item)")
             .contains("instance_id: createEquipmentInstanceId()")
             .contains("const withIdentity = ensureEquipmentInstanceId(item)")
-            .contains("catalog_id: match.id");
+            .contains("catalog_id: match.id")
+            .contains("const createMode = options.createMode === true");
     }
 
     private String read(String relativePath) throws Exception {

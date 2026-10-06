@@ -62,9 +62,9 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(equipmentRuntime.contains("expandedEquipmentTypeKeys"));
         assertTrue(equipmentRuntime.contains("const expandForSearch = Boolean(query)"));
         assertTrue(!equipmentRuntime.contains("media.photos.find"));
-        assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20261005-01-280-r16"));
+        assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20261006-modern-create-r12"));
         assertTrue(html.contains("/js/passport-detail-header-runtime.js?v=20261006-legacy-editor-removal-r1"));
-        assertTrue(html.contains("/js/passport-detail-page-runtime.js?v=20260916-01-260-p4i"));
+        assertTrue(html.contains("/js/passport-detail-page-runtime.js?v=20261006-modern-create-r12"));
         assertTrue(html.contains("PassportDetailPageRuntime"));
         assertTrue(pageRuntime.contains("PassportDetailEditorRuntime"));
         assertTrue(coreRuntime.contains("findCatalogItem"));
@@ -76,22 +76,29 @@ class ObjectPassportWorkspaceUiSourceContractTest {
     }
 
     @Test
-    void creationEditorUsesDedicatedPageAndEquipmentRuntimes() throws IOException {
-        String html = read("src/main/resources/templates/passports/new.html");
-        String pageRuntime = read("src/main/resources/static/js/passport-editor-page-runtime.js");
-        String equipmentRuntime = read("src/main/resources/static/js/passport-editor-equipment-runtime.js");
-        assertTrue(html.contains("/js/passport-editor-equipment-runtime.js?v=20261005-01-280-r16"));
-        assertTrue(html.contains("/js/passport-editor-page-runtime.js?v=20260916-01-260-p4k"));
-        assertTrue(html.contains("PassportEditorPageRuntime"));
-        assertTrue(pageRuntime.contains("PassportEditorEquipmentRuntime"));
-        assertTrue(pageRuntime.contains("async function savePassport()"));
-        assertTrue(pageRuntime.contains("async function ensurePassportDataLoaded()"));
-        assertTrue(pageRuntime.contains("/api/settings/parameters"));
-        assertTrue(pageRuntime.contains("/api/object_passports/${passportData.id}/cases"));
-        assertTrue(pageRuntime.contains("/api/object_passports/${passportData.id}/tasks"));
-        assertTrue(pageRuntime.contains("/api/object_passports/${passportData.id}/photos"));
-        assertTrue(pageRuntime.contains("/api/object_passports/${passportData.id}/network_files"));
-        assertTrue(equipmentRuntime.contains("function renderEquipment(equipmentList)"));
+    void creationUsesModernWorkspaceAndLegacyCreationArtifactsAreGone() throws IOException {
+        String html = read("src/main/resources/templates/passports/detail.html");
+        String pageRuntime = read("src/main/resources/static/js/passport-detail-page-runtime.js");
+        String editorRuntime = read("src/main/resources/static/js/passport-detail-editor-runtime.js");
+        String controller = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageController.java");
+        assertTrue(html.contains("initialCreateMode"));
+        assertTrue(pageRuntime.contains("const initialCreateMode = options.initialCreateMode === true"));
+        assertTrue(pageRuntime.contains("createMode: initialCreateMode"));
+        assertTrue(pageRuntime.contains("function initializeCreateMode()"));
+        assertTrue(editorRuntime.contains("const createMode = options.createMode === true"));
+        assertTrue(editorRuntime.contains("const saveMethod = createMode ? 'POST' : 'PUT'"));
+        assertTrue(editorRuntime.contains("window.location.assign"));
+        assertTrue(editorRuntime.contains("/object-passports/${createdId}/edit"));
+        assertTrue(controller.contains("model.addAttribute(\"passportCreateMode\", true)"));
+        assertFalse(controller.contains("return \"passports/new\";"));
+        assertFalse(Files.exists(Path.of("src/main/resources/templates/passports/new.html")));
+        assertFalse(Files.exists(Path.of("src/main/resources/static/js/passport-editor-page-runtime.js")));
+        assertFalse(Files.exists(Path.of("src/main/resources/static/js/passport-editor-equipment-runtime.js")));
+        assertFalse(Files.exists(Path.of("src/main/resources/templates/passports/fragments/editor-basic-info.html")));
+        assertFalse(Files.exists(Path.of("src/main/resources/templates/passports/fragments/editor-network.html")));
+        assertFalse(Files.exists(Path.of("src/main/resources/templates/passports/fragments/editor-activity.html")));
+        assertFalse(Files.exists(Path.of("src/main/resources/templates/passports/fragments/editor-media.html")));
+        assertFalse(Files.exists(Path.of("src/main/resources/templates/passports/fragments/editor-equipment.html")));
     }
 
     @Test

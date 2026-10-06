@@ -417,11 +417,13 @@ class ManagementControllerWebMvcTest {
 
         mockMvc.perform(get("/object-passports/new").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
             .andExpect(status().isOk())
-            .andExpect(view().name("passports/new"))
+            .andExpect(view().name("passports/detail"))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/common.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("passport-edit-layer")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("PassportDetailPageRuntime")))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("passport-editor-page-runtime.js"))))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("meta name=\"_csrf\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"passports\"")));
     }
@@ -433,11 +435,16 @@ class ManagementControllerWebMvcTest {
 
         mockMvc.perform(get("/object-passports/new").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
             .andExpect(status().isOk())
-            .andExpect(view().name("passports/new"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("БлинБери")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Корпоративная сеть")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Смоленск")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Ленина 1")));
+            .andExpect(view().name("passports/detail"))
+            .andExpect(result -> {
+                Object rawParameterValues = result.getModelAndView().getModel().get("parameterValues");
+                org.junit.jupiter.api.Assertions.assertTrue(rawParameterValues instanceof Map<?, ?>);
+                Map<?, ?> parameterValues = (Map<?, ?>) rawParameterValues;
+                org.junit.jupiter.api.Assertions.assertTrue(parameterValues.get("business") instanceof List<?> businessValues && businessValues.contains("БлинБери"));
+                org.junit.jupiter.api.Assertions.assertTrue(parameterValues.get("partner_type") instanceof List<?> partnerTypeValues && partnerTypeValues.contains("Корпоративная сеть"));
+                org.junit.jupiter.api.Assertions.assertTrue(parameterValues.get("city") instanceof List<?> cityValues && cityValues.contains("Смоленск"));
+                org.junit.jupiter.api.Assertions.assertTrue(parameterValues.get("department") instanceof List<?> departmentValues && departmentValues.contains("Ленина 1"));
+            });
     }
 
     @Test

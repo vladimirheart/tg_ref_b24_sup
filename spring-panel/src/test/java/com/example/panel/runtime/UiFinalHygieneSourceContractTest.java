@@ -13,7 +13,6 @@ class UiFinalHygieneSourceContractTest {
     private static final Path DISCLOSURE = Path.of("src/main/resources/static/js/content-disclosure.js");
     private static final Path CORE_SCSS = Path.of("src/main/resources/scss/app/_core.scss");
     private static final Path CLIENT_PROFILE = Path.of("src/main/resources/templates/clients/profile.html");
-    private static final Path PASSPORT_EDITOR = Path.of("src/main/resources/templates/passports/new.html");
     private static final Path UI_HEAD = Path.of("src/main/resources/templates/fragments/ui-head.html");
 
     @Test
@@ -21,7 +20,6 @@ class UiFinalHygieneSourceContractTest {
         String disclosure = read(DISCLOSURE);
         String core = read(CORE_SCSS);
         String clientProfile = read(CLIENT_PROFILE);
-        String passportEditor = read(PASSPORT_EDITOR);
 
         assertThat(disclosure)
             .contains("function ensurePageHeaderTitleRow(header, title)")
@@ -41,9 +39,6 @@ class UiFinalHygieneSourceContractTest {
             .contains("class=\"page-subtitle mb-0\" data-no-disclosure")
             .contains("th:text=\"'ID: ' + ${profile.header.userId}\"");
 
-        assertThat(passportEditor)
-            .contains("class=\"page-subtitle object-title\" data-no-disclosure")
-            .contains("id=\"objectTitle\"");
     }
 
     @Test

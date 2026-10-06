@@ -122,13 +122,14 @@
 <script src="/js/passport-detail-activity-runtime.js?v=20260916-01-260-p4e"></script>
 <script src="/js/passport-detail-media-runtime.js?v=20260916-01-260-p4f"></script>
 <script src="/js/equipment-configuration-editor-runtime.js?v=20261005-01-280-r16"></script>
-<script src="/js/passport-detail-editor-runtime.js?v=20261005-01-280-r16"></script>
-<script src="/js/passport-detail-page-runtime.js?v=20260916-01-260-p4i"></script>
+<script src="/js/passport-detail-editor-runtime.js?v=20261006-modern-create-r12"></script>
+<script src="/js/passport-detail-page-runtime.js?v=20261006-modern-create-r12"></script>
 <script th:inline="javascript">
 (() => {
     const catalogRaw = /*[[${itEquipmentCatalog}]]*/ [];
     const equipmentCatalog = Array.isArray(catalogRaw) ? catalogRaw : [];
     const initialEditMode = /*[[${passportEditMode}]]*/ false;
+    const initialCreateMode = /*[[${passportCreateMode}]]*/ false;
     const statusesRawValue = /*[[${statuses}]]*/ [];
     const statusesRaw = Array.isArray(statusesRawValue) ? statusesRawValue : [];
     const parameterValuesRawValue = /*[[${parameterValues}]]*/ {};
@@ -136,6 +137,7 @@
     const passportDetailPageRuntime = window.PassportDetailPageRuntime?.mount({
         equipmentCatalog,
         initialEditMode,
+        initialCreateMode,
         statusesRaw,
         parameterValuesRaw,
     });

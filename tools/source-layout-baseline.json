@@ -491,18 +491,6 @@
                         "lines":  2777
                     },
                     {
-                        "path":  "spring-panel/src/main/resources/static/js/passport-editor-equipment-runtime.js",
-                        "kind":  "browser-js",
-                        "bytes":  53328,
-                        "lines":  1140
-                    },
-                    {
-                        "path":  "spring-panel/src/main/resources/static/js/passport-editor-page-runtime.js",
-                        "kind":  "browser-js",
-                        "bytes":  103390,
-                        "lines":  2473
-                    },
-                    {
                         "path":  "spring-panel/src/main/resources/static/js/rms-monitoring.js",
                         "kind":  "browser-js",
                         "bytes":  58380,

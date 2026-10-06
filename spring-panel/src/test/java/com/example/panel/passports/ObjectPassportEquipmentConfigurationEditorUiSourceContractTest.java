@@ -28,23 +28,17 @@ class ObjectPassportEquipmentConfigurationEditorUiSourceContractTest {
     }
 
     @Test
-    void bothPassportEditorsPersistProfileAndInstanceOverrides() throws Exception {
-        String shared = read("src/main/resources/static/js/passport-editor-equipment-runtime.js");
+    void modernPassportEditorPersistsProfileAndInstanceOverridesForCreateAndEdit() throws Exception {
         String detail = read("src/main/resources/static/js/passport-detail-editor-runtime.js");
-
-        assertThat(shared)
-                .contains("window.EquipmentConfigurationEditorRuntime")
-                .contains("data-equipment-instance-configuration")
-                .contains("configuration_profile_id")
-                .contains("configuration:")
-                .contains("instance_id:");
 
         assertThat(detail)
                 .contains("window.EquipmentConfigurationEditorRuntime")
                 .contains("data-equipment-instance-configuration")
                 .contains("configuration_profile_id")
                 .contains("resolvedEquipmentDraft()")
-                .contains("instance_id: createEquipmentInstanceId()");
+                .contains("instance_id: createEquipmentInstanceId()")
+                .contains("const createMode = options.createMode === true")
+                .contains("const saveMethod = createMode ? 'POST' : 'PUT'");
     }
 
     @Test
@@ -60,17 +54,14 @@ class ObjectPassportEquipmentConfigurationEditorUiSourceContractTest {
     }
 
     @Test
-    void configurationRuntimeLoadsBeforeEachPassportEquipmentEditor() throws Exception {
-        String newPage = read("src/main/resources/templates/passports/new.html");
+    void configurationRuntimeLoadsBeforeTheSingleModernPassportEditor() throws Exception {
         String detailPage = read("src/main/resources/templates/passports/detail.html");
         String configurationRuntime = "/js/equipment-configuration-editor-runtime.js";
-        String sharedEditor = "/js/passport-editor-equipment-runtime.js";
         String detailEditor = "/js/passport-detail-editor-runtime.js";
 
-        assertThat(newPage.indexOf(configurationRuntime)).isGreaterThanOrEqualTo(0);
-        assertThat(newPage.indexOf(configurationRuntime)).isLessThan(newPage.indexOf(sharedEditor));
         assertThat(detailPage.indexOf(configurationRuntime)).isGreaterThanOrEqualTo(0);
         assertThat(detailPage.indexOf(configurationRuntime)).isLessThan(detailPage.indexOf(detailEditor));
+        assertThat(Files.exists(Path.of("src/main/resources/static/js/passport-editor-equipment-runtime.js"))).isFalse();
     }
 
     private String read(String relativePath) throws Exception {
