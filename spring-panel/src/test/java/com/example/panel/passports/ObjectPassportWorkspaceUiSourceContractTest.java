@@ -1,5 +1,6 @@
 package com.example.panel.passports;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -62,6 +63,7 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(equipmentRuntime.contains("const expandForSearch = Boolean(query)"));
         assertTrue(!equipmentRuntime.contains("media.photos.find"));
         assertTrue(html.contains("/js/passport-detail-editor-runtime.js?v=20261005-01-280-r16"));
+        assertTrue(html.contains("/js/passport-detail-header-runtime.js?v=20261006-legacy-editor-removal-r1"));
         assertTrue(html.contains("/js/passport-detail-page-runtime.js?v=20260916-01-260-p4i"));
         assertTrue(html.contains("PassportDetailPageRuntime"));
         assertTrue(pageRuntime.contains("PassportDetailEditorRuntime"));
@@ -95,11 +97,21 @@ class ObjectPassportWorkspaceUiSourceContractTest {
     @Test
     void controllerSeparatesReadOnlyDetailFromExistingEditorAndExposesCatalogIds() throws IOException {
         String controller = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageController.java");
+        String edit = read("src/main/resources/templates/passports/fragments/detail-edit.html");
+        String headerRuntime = read("src/main/resources/static/js/passport-detail-header-runtime.js");
+        String uiPreferences = read("src/main/resources/static/js/ui-preferences.js");
         String pageModel = read("src/main/java/com/example/panel/passports/api/ObjectPassportPageModelAssembler.java");
         String managementController = read("src/main/java/com/example/panel/controller/ManagementController.java");
         assertTrue(controller.contains("return \"passports/detail\";"));
         assertTrue(controller.contains("@GetMapping(\"/object-passports/{id}/edit\")"));
-        assertTrue(controller.contains("@GetMapping(\"/object-passports/{id}/legacy-edit\")"));
+        assertTrue(controller.contains("@GetMapping(\"/object-passports/new\")"));
+        assertFalse(controller.contains("@GetMapping(\"/object-passports/{id}/legacy-edit\")"));
+        assertFalse(controller.contains("passportLegacyEdit("));
+        assertFalse(edit.contains("passportLegacyEditLink"));
+        assertFalse(edit.contains("Legacy-редактор"));
+        assertFalse(headerRuntime.contains("passportLegacyEditLink"));
+        assertFalse(headerRuntime.contains("/legacy-edit"));
+        assertFalse(uiPreferences.contains("legacy-edit"));
         assertTrue(controller.contains("model.addAttribute(\"passportEditMode\", true)"));
         assertTrue(pageModel.contains("catalogItem.put(\"id\", item.getId())"));
         assertTrue(pageModel.contains("catalogItem.put(\"equipment_model\", item.getEquipmentModel())"));

@@ -50,7 +50,7 @@ class UiRuntimeIntegritySourceContractTest {
         assertTrue(runtime.contains("DOMContentLoaded', initializePageFontScale"));
         assertTrue(uiHead.contains(":root[data-page-font-scale][data-page-font-scale-base-px]"));
         assertTrue(uiHead.contains("font-size: var(--iguana-page-root-font-size, 80%)"));
-        assertTrue(uiHead.contains("ui-preferences.js(v='20261005-01-280-r48')"));
+        assertTrue(uiHead.contains("ui-preferences.js(v='20261006-legacy-editor-removal-r1')"));
     }
 
     @Test

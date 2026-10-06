@@ -66,8 +66,6 @@
             source.classList.remove('d-none');
         }
 
-        const legacyLink = document.getElementById('passportLegacyEditLink');
-        if (legacyLink) legacyLink.href = `/object-passports/${passportId}/legacy-edit`;
         renderCover();
     }
 

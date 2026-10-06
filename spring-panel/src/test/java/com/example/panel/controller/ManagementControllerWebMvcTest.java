@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -45,6 +46,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 @WebMvcTest({ManagementController.class, ObjectPassportPageController.class, SettingsPageController.class})
 @AutoConfigureMockMvc
@@ -53,6 +55,9 @@ class ManagementControllerWebMvcTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private RequestMappingHandlerMapping requestMappingHandlerMapping;
 
     @MockBean
     private TaskRepository taskRepository;
@@ -463,14 +468,12 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
-    void existingObjectPassportLegacyEditRouteKeepsFallbackEditor() throws Exception {
-        stubNavigationDefaults();
-        stubPassportEditorDependencies();
+    void existingObjectPassportLegacyEditRouteIsNotExposed() {
+        boolean legacyRoutePresent = requestMappingHandlerMapping.getHandlerMethods().keySet().stream()
+            .flatMap(mapping -> mapping.getPatternValues().stream())
+            .anyMatch("/object-passports/{id}/legacy-edit"::equals);
 
-        mockMvc.perform(get("/object-passports/42/legacy-edit").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
-            .andExpect(status().isOk())
-            .andExpect(view().name("passports/new"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("savePassportBtn")));
+        assertFalse(legacyRoutePresent);
     }
 
     private void stubPassportEditorDependencies() {

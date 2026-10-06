@@ -444,7 +444,7 @@
 
   function currentPageFontKey() {
     let pathname = String(root.location && root.location.pathname ? root.location.pathname : '/').replace(/\/+$/, '') || '/';
-    pathname = pathname.replace(/^\/object-passports\/\d+\/(?:edit|legacy-edit)$/i, '/object-passports/:id');
+    pathname = pathname.replace(/^\/object-passports\/\d+\/edit$/i, '/object-passports/:id');
     pathname = pathname.split('/').map((segment) => /^\d+$/.test(segment) ? ':id' : segment).join('/') || '/';
     return pathname;
   }

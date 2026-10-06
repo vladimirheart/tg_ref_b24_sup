@@ -72,12 +72,4 @@ public class ObjectPassportPageController {
         return "passports/detail";
     }
 
-    @GetMapping("/object-passports/{id}/legacy-edit")
-    @PreAuthorize("hasAuthority('PAGE_OBJECT_PASSPORTS')")
-    public String passportLegacyEdit(@PathVariable Long id, Authentication authentication, Model model) {
-        navigationService.enrich(model, authentication);
-        pageModelAssembler.populatePassportEditor(model, false);
-        return "passports/new";
-    }
-
 }
