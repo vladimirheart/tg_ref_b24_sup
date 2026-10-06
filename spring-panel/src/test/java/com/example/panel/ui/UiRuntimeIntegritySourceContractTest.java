@@ -44,9 +44,13 @@ class UiRuntimeIntegritySourceContractTest {
 
         assertTrue(runtime.contains("resolveBaseRootFontPx"));
         assertTrue(runtime.contains("const effectivePx = basePx * scale / 100"));
+        assertTrue(runtime.contains("style.setProperty('--iguana-page-root-font-size'"));
+        assertFalse(runtime.contains("document.documentElement.style.fontSize"));
+        assertFalse(runtime.contains("rootElement.style.fontSize"));
         assertTrue(runtime.contains("DOMContentLoaded', initializePageFontScale"));
-        assertFalse(runtime.contains("document.documentElement.style.fontSize = " + Character.toString(96) + "$" + "{scale}%" + Character.toString(96) + ";"));
-        assertTrue(uiHead.contains("ui-preferences.js(v='20261005-01-280-r43')"));
+        assertTrue(uiHead.contains(":root[data-page-font-scale][data-page-font-scale-base-px]"));
+        assertTrue(uiHead.contains("font-size: var(--iguana-page-root-font-size, 80%)"));
+        assertTrue(uiHead.contains("ui-preferences.js(v='20261005-01-280-r48')"));
     }
 
     @Test

@@ -35,7 +35,8 @@ class DialogsColumnWidthsUiSourceContractTest {
             .contains("dialogsColumnWidths")
             .contains("iguana:dialogs:column-widths-v2")
             .contains("flush: flushRemoteSyncNow")
-            .contains("keepalive: true");
+            .contains("keepalive: keepalive === true")
+            .contains("sendPreferenceSnapshot(body, true)");
         assertThat(service)
             .contains("dialogsColumnWidths")
             .contains("normalizeDialogsColumnWidths");

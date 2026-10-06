@@ -58,6 +58,10 @@
         html.dialog-list-only-prepaint body[data-ui-page='dialogs'] .dialogs-extra-section {
             display: none !important;
         }
+
+        :root[data-page-font-scale][data-page-font-scale-base-px] {
+            font-size: var(--iguana-page-root-font-size, 80%);
+        }
     </style>
     <script>
         document.documentElement.classList.add('iguana-ui-first-paint');
@@ -72,7 +76,7 @@
             endpoint: /*[[@{/profile/ui-preferences}]]*/ '/profile/ui-preferences'
         };
     </script>
-    <script th:src="@{/js/ui-preferences.js(v='20261005-01-280-r43')}"></script>
+    <script th:src="@{/js/ui-preferences.js(v='20261005-01-280-r48')}"></script>
     <script th:src="@{/js/ui-time.js(v='20261002-01-278-timezone-r10')}"></script>
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/ui-config.js}"></script>

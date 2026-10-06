@@ -174,7 +174,11 @@ class ObjectPassportWorkspaceUiSourceContractTest {
         assertTrue(runtime.contains("return 130"));
         assertTrue(runtime.contains("140, 150"));
         assertTrue(runtime.contains("source === 'page-font-scale'"));
-        assertTrue(runtime.contains("void flushRemoteSync()"));
+        assertTrue(runtime.contains("PENDING_PAGE_FONT_SYNC_STORAGE_KEY"));
+        assertTrue(runtime.contains("page-font-scale-recovery"));
+        assertTrue(runtime.contains("syncInFlight"));
+        assertTrue(runtime.contains("response.ok"));
+        assertTrue(runtime.contains("meta[name=\"_csrf_header\"]"));
         assertTrue(service.contains("130, 140, 150"));
         assertTrue(runtime.contains("data-page-font-scale-control"));
         assertTrue(service.contains("pageFontScales"));

@@ -59,14 +59,14 @@ class UiPreferenceServiceTest {
     void saveForUserPersistsIndependentPageFontScales() {
         Map<String, Object> saved = service.saveForUser("font-user", Map.of(
                 "pageFontScales", Map.of(
-                        "/object-passports/:id", 120,
+                        "/object-passports/:id", 150,
                         "/settings", 110,
                         "/invalid", 999
                 )
         ));
 
         assertEquals(Map.of(
-                "/object-passports/:id", 120,
+                "/object-passports/:id", 150,
                 "/settings", 110
         ), saved.get("pageFontScales"));
         assertEquals(saved, service.loadForUser("font-user"));

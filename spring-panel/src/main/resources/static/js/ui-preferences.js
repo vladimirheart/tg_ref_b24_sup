@@ -22,6 +22,11 @@
     ? syncMeta.endpoint.trim()
     : '/profile/ui-preferences';
   let syncTimer = null;
+  let syncRevision = 0;
+  let syncCommittedRevision = 0;
+  let syncInFlight = null;
+  let syncQueued = false;
+  const PENDING_PAGE_FONT_SYNC_STORAGE_KEY = 'iguana:page-font-scales-sync-pending-v1';
 
   function normalizeTheme(value) {
     return value === 'dark' || value === 'light' || value === 'auto' ? value : 'light';
@@ -251,30 +256,92 @@
     return result;
   }
 
+  function hasPendingPageFontSync() {
+    if (!storage) return false;
+    try {
+      return storage.getItem(PENDING_PAGE_FONT_SYNC_STORAGE_KEY) === '1';
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function setPendingPageFontSync(pending) {
+    if (!storage) return;
+    try {
+      if (pending) storage.setItem(PENDING_PAGE_FONT_SYNC_STORAGE_KEY, '1');
+      else storage.removeItem(PENDING_PAGE_FONT_SYNC_STORAGE_KEY);
+    } catch (_error) {
+      // local sync marker is best-effort only
+    }
+  }
+
+  function syncHeaders() {
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
+    const csrfHeaderName = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+    const headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) headers[csrfHeaderName] = csrfToken;
+    return headers;
+  }
+
+  async function sendPreferenceSnapshot(body, keepalive) {
+    const response = await fetch(syncEndpoint, {
+      method: 'PUT',
+      credentials: 'same-origin',
+      keepalive: keepalive === true,
+      headers: syncHeaders(),
+      body,
+    });
+    if (!response.ok) {
+      throw new Error(`UI preference sync failed with HTTP ${response.status}`);
+    }
+    return response;
+  }
+
   async function flushRemoteSync() {
     syncTimer = null;
     if (!syncEnabled || !syncEndpoint) {
-      return;
+      return false;
     }
-    const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
-    const headers = { 'Content-Type': 'application/json' };
-    if (csrfToken) {
-      headers['X-CSRF-TOKEN'] = csrfToken;
+    if (syncInFlight) {
+      syncQueued = true;
+      return syncInFlight;
     }
+
+    const revision = syncRevision;
+    const body = JSON.stringify(snapshot());
+    let succeeded = false;
+    const request = (async () => {
+      try {
+        await sendPreferenceSnapshot(body, true);
+        succeeded = true;
+        syncCommittedRevision = Math.max(syncCommittedRevision, revision);
+        if (revision === syncRevision) setPendingPageFontSync(false);
+        return true;
+      } catch (_error) {
+        return false;
+      }
+    })();
+    syncInFlight = request;
+
     try {
-      await fetch(syncEndpoint, {
-        method: 'PUT',
-        credentials: 'same-origin',
-        keepalive: true,
-        headers,
-        body: JSON.stringify(snapshot()),
-      });
-    } catch (_error) {
-      // ignore preference sync failures; local runtime remains the fallback
+      return await request;
+    } finally {
+      syncInFlight = null;
+      const shouldDrain = syncQueued || (succeeded && syncCommittedRevision < syncRevision);
+      syncQueued = false;
+      if (shouldDrain) {
+        if (syncTimer) {
+          clearTimeout(syncTimer);
+          syncTimer = null;
+        }
+        root.setTimeout(() => { void flushRemoteSync(); }, 0);
+      }
     }
   }
 
   function scheduleRemoteSync(source) {
+    const isPageFontSync = source === 'page-font-scale' || source === 'page-font-scale-recovery';
+    if (isPageFontSync) setPendingPageFontSync(true);
     if (!syncEnabled) {
       return;
     }
@@ -282,18 +349,12 @@
     if (suppressedSource) {
       return;
     }
-    if (source === 'page-font-scale') {
-      if (syncTimer) {
-        clearTimeout(syncTimer);
-        syncTimer = null;
-      }
-      void flushRemoteSync();
-      return;
-    }
+    syncRevision += 1;
     if (syncTimer) {
       clearTimeout(syncTimer);
     }
-    syncTimer = root.setTimeout(flushRemoteSync, 300);
+    const delayMs = isPageFontSync ? 120 : 300;
+    syncTimer = root.setTimeout(() => { void flushRemoteSync(); }, delayMs);
   }
 
   function readRawByStorageKey(storageKey) {
@@ -363,12 +424,18 @@
     }
 
     const rootElement = document.documentElement;
-    const previousInline = rootElement.style.fontSize;
-    rootElement.style.removeProperty('font-size');
+    const previousRootFont = rootElement.style.getPropertyValue('--iguana-page-root-font-size');
+    const previousScale = rootElement.getAttribute('data-page-font-scale');
+    const previousBase = rootElement.getAttribute('data-page-font-scale-base-px');
+
+    rootElement.style.removeProperty('--iguana-page-root-font-size');
+    rootElement.removeAttribute('data-page-font-scale');
+    rootElement.removeAttribute('data-page-font-scale-base-px');
     const computed = Number.parseFloat(root.getComputedStyle(rootElement).fontSize);
 
-    if (previousInline) rootElement.style.fontSize = previousInline;
-    else rootElement.style.removeProperty('font-size');
+    if (previousRootFont) rootElement.style.setProperty('--iguana-page-root-font-size', previousRootFont);
+    if (previousBase != null) rootElement.setAttribute('data-page-font-scale-base-px', previousBase);
+    if (previousScale != null) rootElement.setAttribute('data-page-font-scale', previousScale);
 
     // 12.8px is only a fail-safe for the project's 80% root baseline.
     baseRootFontPx = Number.isFinite(computed) && computed > 0 ? computed : 12.8;
@@ -403,9 +470,9 @@
     const scale = currentPageFontScale();
     const basePx = resolveBaseRootFontPx();
     const effectivePx = basePx * scale / 100;
-    document.documentElement.style.fontSize = `${effectivePx}px`;
-    document.documentElement.dataset.pageFontScale = String(scale);
+    document.documentElement.style.setProperty('--iguana-page-root-font-size', `${effectivePx}px`);
     document.documentElement.dataset.pageFontScaleBasePx = String(basePx);
+    document.documentElement.dataset.pageFontScale = String(scale);
     const value = document.querySelector('[data-page-font-scale-value]');
     if (value) value.textContent = `${scale}%`;
     document.querySelectorAll('[data-page-font-scale-delta]').forEach((button) => {
@@ -452,6 +519,7 @@
       syncTimer = null;
     }
     await flushRemoteSync();
+    if (syncCommittedRevision < syncRevision) await flushRemoteSync();
   }
 
   root.iguanaUiPreferences = Object.freeze({
@@ -464,12 +532,17 @@
     registry: REGISTRY,
   });
 
+  const pendingPageFontSyncAtBootstrap = hasPendingPageFontSync();
   Object.entries(bootstrapPrefs).forEach(([name, value]) => {
     if (!REGISTRY[name]) {
       return;
     }
+    if (name === 'pageFontScales' && pendingPageFontSyncAtBootstrap) {
+      return;
+    }
     set(name, value, 'bootstrap');
   });
+  if (pendingPageFontSyncAtBootstrap) scheduleRemoteSync('page-font-scale-recovery');
 
   document.addEventListener('ui-preference:change', (event) => {
     if (event && event.detail && event.detail.name === 'pageFontScales') applyCurrentPageFontScale();
@@ -486,7 +559,19 @@
   else initializePageFontScale();
 
   root.addEventListener('pagehide', () => {
-    if (syncTimer) void flushRemoteSyncNow();
+    if (syncTimer) {
+      clearTimeout(syncTimer);
+      syncTimer = null;
+    }
+    const hasUnsyncedSnapshot = syncRevision > syncCommittedRevision;
+    if (!syncEnabled || !syncEndpoint || !hasUnsyncedSnapshot || syncInFlight) return;
+    const revision = syncRevision;
+    void sendPreferenceSnapshot(JSON.stringify(snapshot()), true)
+      .then(() => {
+        syncCommittedRevision = Math.max(syncCommittedRevision, revision);
+        if (revision === syncRevision) setPendingPageFontSync(false);
+      })
+      .catch(() => { });
   });
 
   root.addEventListener('storage', (event) => {
