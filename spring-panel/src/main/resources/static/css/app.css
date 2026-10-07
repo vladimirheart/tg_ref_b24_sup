@@ -11493,6 +11493,29 @@ body.passport-photo-viewer-open {
   color: var(--state-success-text) !important;
 }
 
+/* RMS location coverage guard - 2026-10-07 R39 */
+[data-ui-page=analytics].analytics-monitoring-page .rms-location-coverage-card {
+  border-color: var(--color-border);
+}
+
+[data-ui-page=analytics].analytics-monitoring-page .rms-location-coverage-card.is-attention {
+  border-color: color-mix(in srgb, var(--state-warning) 48%, var(--color-border));
+  background: color-mix(in srgb, var(--state-warning-bg) 35%, var(--surface-raised));
+}
+
+[data-ui-page=analytics].analytics-monitoring-page .rms-location-coverage-details > summary {
+  cursor: pointer;
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+[data-ui-page=analytics].analytics-monitoring-page .rms-location-coverage-issue {
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
 /* RMS diagnostics / runtime indicators */
 [data-ui-page=analytics].analytics-monitoring-page .font-mono {
   font-family: var(--font-mono);

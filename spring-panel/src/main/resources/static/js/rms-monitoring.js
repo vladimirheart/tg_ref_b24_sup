@@ -9,6 +9,11 @@
   const availabilityBarEl = document.getElementById('rmsAvailabilityOverviewBar');
   const availabilityMetaEl = document.getElementById('rmsAvailabilityOverviewMeta');
   const availabilityFiltersEl = document.getElementById('rmsAvailabilityFilters');
+  const locationCoverageCardEl = document.getElementById('rmsLocationCoverageCard');
+  const locationCoverageStateEl = document.getElementById('rmsLocationCoverageState');
+  const locationCoveragePercentEl = document.getElementById('rmsLocationCoveragePercent');
+  const locationCoverageMetaEl = document.getElementById('rmsLocationCoverageMeta');
+  const locationCoverageIssuesEl = document.getElementById('rmsLocationCoverageIssues');
 
   const createModalEl = document.getElementById('rmsCreateModal');
   const createModal = createModalEl && window.bootstrap ? new bootstrap.Modal(createModalEl) : null;
@@ -68,6 +73,7 @@
   let sites = [];
   let refreshState = null;
   let availabilityOverview = null;
+  let locationCoverage = null;
   let scheduleSettings = null;
   let pollTimer = null;
   let availabilityFilter = 'all';
@@ -763,6 +769,76 @@
     updateAvailabilityFilterButtons();
   }
 
+
+  function renderLocationCoverage() {
+    if (!locationCoverageCardEl || !locationCoverageStateEl || !locationCoveragePercentEl || !locationCoverageMetaEl || !locationCoverageIssuesEl) return;
+    if (!locationCoverage) {
+      locationCoverageCardEl.classList.remove('is-attention');
+      locationCoverageStateEl.className = 'badge text-bg-secondary';
+      locationCoverageStateEl.textContent = '\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445';
+      locationCoveragePercentEl.textContent = '\u2014';
+      locationCoverageMetaEl.innerHTML = '';
+      locationCoverageIssuesEl.innerHTML = '';
+      return;
+    }
+
+    const active = Number(locationCoverage.active_location_count || 0);
+    const matched = Number(locationCoverage.matched_location_count || 0);
+    const missing = Number(locationCoverage.missing_location_count || 0);
+    const ambiguous = Number(locationCoverage.ambiguous_location_count || 0);
+    const attention = Math.max(0, missing + ambiguous);
+    const percent = Number(locationCoverage.coverage_percent || 0);
+    const issues = Array.isArray(locationCoverage.issues) ? locationCoverage.issues : [];
+
+    locationCoverageCardEl.classList.toggle('is-attention', attention > 0);
+    locationCoverageStateEl.className = attention > 0 ? 'badge text-bg-warning' : 'badge text-bg-success';
+    locationCoverageStateEl.textContent = attention > 0
+      ? `\u0422\u0440\u0435\u0431\u0443\u044e\u0442 \u0432\u043d\u0438\u043c\u0430\u043d\u0438\u044f: ${attention}`
+      : '\u041f\u043e\u043a\u0440\u044b\u0442\u0438\u0435 \u043f\u043e\u043b\u043d\u043e\u0435';
+    locationCoveragePercentEl.textContent = `\u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043e: ${percent.toFixed(1)}%`;
+    locationCoverageMetaEl.innerHTML = `
+      <span class="rms-overview-chip">\u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0445 iiko: ${escapeHtml(active)}</span>
+      <span class="rms-overview-chip text-success">\u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043e: ${escapeHtml(matched)}</span>
+      <span class="rms-overview-chip text-danger">\u0411\u0435\u0437 RMS: ${escapeHtml(missing)}</span>
+      <span class="rms-overview-chip text-warning">\u041d\u0435\u043e\u0434\u043d\u043e\u0437\u043d\u0430\u0447\u043d\u043e: ${escapeHtml(ambiguous)}</span>
+    `;
+
+    if (!issues.length) {
+      locationCoverageIssuesEl.innerHTML = '<div class="small text-success">\u0412\u0441\u0435 \u0430\u043a\u0442\u0438\u0432\u043d\u044b\u0435 \u043b\u043e\u043a\u0430\u0446\u0438\u0438 iiko \u0438\u043c\u0435\u044e\u0442 \u043e\u0434\u043d\u043e\u0437\u043d\u0430\u0447\u043d\u044b\u0439 RMS-match.</div>';
+      return;
+    }
+
+    const rows = issues.map((issue) => {
+      const kind = String(issue.kind || 'missing');
+      const pathText = [issue.business, issue.location_type, issue.city, issue.location].filter(Boolean).join(' / ');
+      const badge = kind === 'ambiguous'
+        ? '<span class="badge text-bg-warning">\u041d\u0435\u043e\u0434\u043d\u043e\u0437\u043d\u0430\u0447\u043d\u043e</span>'
+        : '<span class="badge text-bg-danger">\u041d\u0435\u0442 RMS</span>';
+      const candidates = Array.isArray(issue.candidates) ? issue.candidates : [];
+      const candidateText = candidates.length
+        ? `<div class="small text-muted mt-1">\u041a\u0430\u043d\u0434\u0438\u0434\u0430\u0442\u044b: ${candidates.map((item) => escapeHtml(item.rms_address || item.name || ('#' + item.id))).join(', ')}</div>`
+        : '';
+      return `
+        <div class="rms-location-coverage-issue">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div>
+              <div class="fw-semibold">${escapeHtml(pathText)}</div>
+              ${candidateText}
+            </div>
+            ${badge}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    locationCoverageIssuesEl.innerHTML = `
+      <details class="rms-location-coverage-details ui-disclosure-native">
+        <summary>\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043b\u043e\u043a\u0430\u0446\u0438\u0438, \u0442\u0440\u0435\u0431\u0443\u044e\u0449\u0438\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 (${issues.length})</summary>
+        <div class="d-flex flex-column gap-2 mt-2">${rows}</div>
+      </details>
+    `;
+  }
+
   function renderEmptyState(message, className) {
     if (!tableBody) return;
     tableBody.innerHTML = `<tr><td colspan="7" class="text-center ${className} py-4">${escapeHtml(message)}</td></tr>`;
@@ -877,12 +953,15 @@
       sites = Array.isArray(data.items) ? data.items : [];
       refreshState = data.refresh_state || null;
       availabilityOverview = data.availability_overview || null;
+      locationCoverage = data.location_coverage || null;
       scheduleSettings = data.schedule_settings || scheduleSettings;
       renderAvailabilityOverview();
+      renderLocationCoverage();
       renderQueueState();
       renderSites();
     } catch (error) {
       renderAvailabilityOverview();
+      renderLocationCoverage();
       renderQueueState();
       renderEmptyState(error.message || 'Не удалось загрузить RMS.', 'text-danger');
     }

@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.entity.RmsLicenseMonitor;
 import com.example.panel.service.RmsLicenseMonitoringService;
+import com.example.panel.service.RmsLocationCoverageService;
 import com.example.panel.service.RmsMonitoringScheduleSettingsService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -28,11 +29,14 @@ import java.util.Map;
 public class RmsLicenseMonitoringApiController {
 
     private final RmsLicenseMonitoringService monitoringService;
+    private final RmsLocationCoverageService locationCoverageService;
     private final RmsMonitoringScheduleSettingsService scheduleSettingsService;
 
     public RmsLicenseMonitoringApiController(RmsLicenseMonitoringService monitoringService,
+                                             RmsLocationCoverageService locationCoverageService,
                                              RmsMonitoringScheduleSettingsService scheduleSettingsService) {
         this.monitoringService = monitoringService;
+        this.locationCoverageService = locationCoverageService;
         this.scheduleSettingsService = scheduleSettingsService;
     }
 
@@ -45,6 +49,7 @@ public class RmsLicenseMonitoringApiController {
         payload.put("items", items);
         payload.put("refresh_state", toRefreshState(monitoringService.currentRefreshState()));
         payload.put("availability_overview", toAvailabilityOverview(monitoringService.buildAvailabilityOverview(monitors)));
+        payload.put("location_coverage", locationCoverageService.buildCoverage(monitors).toMap());
         payload.put("schedule_settings", scheduleSettingsService.load().toMap());
         return payload;
     }

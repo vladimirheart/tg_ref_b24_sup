@@ -108,7 +108,11 @@ class AnalyticsControllerWebMvcTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"analytics\"")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"analytics\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"rmsLocationCoverageCard\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"rmsLocationCoverageIssues\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/css/app.css?v=20261007-rms-location-coverage-r39")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/rms-monitoring.js?v=20261007-rms-location-coverage-r39")));
     }
 
     @Test
