@@ -213,6 +213,34 @@ class SettingsChannelsRuntimeUiSourceContractTest {
 
 
     @Test
+    void questionTemplateEditUsesSingleWorkingRendererBeforeOpeningModal() throws IOException {
+        String botSettings = read(BOT_SETTINGS);
+
+        String renderMarker = "function renderQuestions(options = {})";
+        int renderStart = botSettings.indexOf(renderMarker);
+        assertThat(renderStart).isGreaterThanOrEqualTo(0);
+        assertThat(botSettings.indexOf(renderMarker, renderStart + renderMarker.length())).isEqualTo(-1);
+
+        int renderEnd = botSettings.indexOf("\n  function openTemplateEditor(index)", renderStart);
+        assertThat(renderEnd).isGreaterThan(renderStart);
+        String renderer = botSettings.substring(renderStart, renderEnd);
+        assertThat(renderer)
+            .contains("let optionsHtml;")
+            .contains("optionsHtml = items.join('');")
+            .doesNotContain("buildPresetOptionsHtml(");
+
+        int editorStart = botSettings.lastIndexOf("function openTemplateEditor(index)");
+        int editorEnd = botSettings.indexOf("\n  async function saveTemplateFromEditor()", editorStart);
+        assertThat(editorStart).isGreaterThan(renderEnd);
+        assertThat(editorEnd).isGreaterThan(editorStart);
+        String editor = botSettings.substring(editorStart, editorEnd);
+        int renderCall = editor.indexOf("renderQuestions();");
+        int showCall = editor.indexOf("showChildModal(templateModalEl);");
+        assertThat(renderCall).isGreaterThanOrEqualTo(0);
+        assertThat(showCall).isGreaterThan(renderCall);
+    }
+
+    @Test
     void channelEditorMovesStaticHelpBehindInfoAndSettingsHoverIsConsistent() throws IOException {
         String channelEditor = read(CHANNEL_EDITOR);
         String disclosure = read(CONTENT_DISCLOSURE);
