@@ -102,6 +102,63 @@ class RmsLocationCoverageServiceTest {
         });
     }
 
+    @Test
+    void defaultPolicyExcludesProductionAndWarehouseLocations() {
+        RmsLocationCoverageService service = serviceWithLocations(Map.of(
+                "tree", Map.of(
+                        "БлинБери", Map.of(
+                                "Партнёры-франчайзи", Map.of(
+                                        "Воронеж", List.of("Ленина", "производство", "центральный склад", "центр. склад")
+                                )
+                        )
+                ),
+                "statuses", Map.of()
+        ));
+
+        RmsLocationCoverageService.CoverageSnapshot snapshot = service.buildCoverage(List.of(
+                monitor(30L, "ФР_ББ Воронеж Ленина", "IIKO_RMS")
+        ));
+
+        assertThat(snapshot.activeLocationCount()).isEqualTo(4);
+        assertThat(snapshot.coverageLocationCount()).isEqualTo(1);
+        assertThat(snapshot.excludedLocationCount()).isEqualTo(3);
+        assertThat(snapshot.matchedLocationCount()).isEqualTo(1);
+        assertThat(snapshot.missingLocationCount()).isZero();
+        assertThat(snapshot.coveragePercent()).isEqualTo(100.0);
+        assertThat(service.loadPolicy().excludedLocationNames())
+                .containsExactly("производство", "центральный склад", "центр. склад");
+    }
+
+    @Test
+    void coveragePolicyCanBeOverriddenAndPersistsToSharedSettings() {
+        SharedConfigService sharedConfigService = new SharedConfigService(new ObjectMapper(), tempDir.toString());
+        sharedConfigService.saveLocations(Map.of(
+                "tree", Map.of(
+                        "БлинБери", Map.of(
+                                "Партнёры-франчайзи", Map.of(
+                                        "Воронеж", List.of("производство", "центральный склад")
+                                )
+                        )
+                ),
+                "statuses", Map.of()
+        ));
+        RmsLocationCoverageService service = new RmsLocationCoverageService(sharedConfigService);
+
+        RmsLocationCoverageService.CoveragePolicy policy = service.savePolicy(Map.of(
+                "excluded_location_names", List.of("производство")
+        ));
+        RmsLocationCoverageService.CoverageSnapshot snapshot = service.buildCoverage(List.of());
+
+        assertThat(policy.excludedLocationNames()).containsExactly("производство");
+        assertThat(service.loadPolicy().excludedLocationNames()).containsExactly("производство");
+        assertThat(snapshot.activeLocationCount()).isEqualTo(2);
+        assertThat(snapshot.coverageLocationCount()).isEqualTo(1);
+        assertThat(snapshot.excludedLocationCount()).isEqualTo(1);
+        assertThat(snapshot.missingLocationCount()).isEqualTo(1);
+        assertThat(sharedConfigService.loadSettings().get("rms_location_coverage"))
+                .isEqualTo(Map.of("excluded_location_names", List.of("производство")));
+    }
+
     private RmsLocationCoverageService serviceWithLocations(Map<String, Object> payload) {
         SharedConfigService sharedConfigService = new SharedConfigService(new ObjectMapper(), tempDir.toString());
         sharedConfigService.saveLocations(payload);

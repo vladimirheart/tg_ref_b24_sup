@@ -50,8 +50,23 @@ public class RmsLicenseMonitoringApiController {
         payload.put("refresh_state", toRefreshState(monitoringService.currentRefreshState()));
         payload.put("availability_overview", toAvailabilityOverview(monitoringService.buildAvailabilityOverview(monitors)));
         payload.put("location_coverage", locationCoverageService.buildCoverage(monitors).toMap());
+        payload.put("location_coverage_settings", locationCoverageService.loadPolicy().toMap());
         payload.put("schedule_settings", scheduleSettingsService.load().toMap());
         return payload;
+    }
+
+    @GetMapping("/location-coverage-settings")
+    public Map<String, Object> getLocationCoverageSettings() {
+        return Map.of("success", true, "settings", locationCoverageService.loadPolicy().toMap());
+    }
+
+    @PatchMapping("/location-coverage-settings")
+    public ResponseEntity<Map<String, Object>> updateLocationCoverageSettings(@RequestBody(required = false) Map<String, Object> payload) {
+        try {
+            return ResponseEntity.ok(Map.of("success", true, "settings", locationCoverageService.savePolicy(payload).toMap()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
+        }
     }
 
     @GetMapping("/schedule-settings")

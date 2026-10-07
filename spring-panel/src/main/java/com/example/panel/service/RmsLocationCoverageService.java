@@ -17,6 +17,15 @@ import org.springframework.util.StringUtils;
 @Service
 public class RmsLocationCoverageService {
 
+    private static final String SETTINGS_KEY = "rms_location_coverage";
+    private static final List<String> DEFAULT_EXCLUDED_LOCATION_NAMES = List.of(
+            "производство",
+            "центральный склад",
+            "центр. склад"
+    );
+    private static final int MAX_EXCLUDED_LOCATION_NAMES = 50;
+    private static final int MAX_EXCLUDED_LOCATION_NAME_LENGTH = 120;
+
     private static final String STATUS_CLOSED = "\u0417\u0430\u043a\u0440\u044b\u0442";
     private static final String TYPE_FRANCHISE = "\u041f\u0430\u0440\u0442\u043d\u0451\u0440\u044b-\u0444\u0440\u0430\u043d\u0447\u0430\u0439\u0437\u0438";
     private static final Map<String, List<String>> BUSINESS_ALIASES = Map.of(
@@ -31,7 +40,18 @@ public class RmsLocationCoverageService {
     }
 
     public CoverageSnapshot buildCoverage(List<RmsLicenseMonitor> monitors) {
-        List<LocationRef> locations = loadActiveLocations();
+        CoveragePolicy policy = loadPolicy();
+        List<LocationRef> activeLocations = loadActiveLocations();
+        Set<String> excludedNames = normalizedExcludedNames(policy.excludedLocationNames());
+        List<LocationRef> locations = new ArrayList<>();
+        int policyExcluded = 0;
+        for (LocationRef location : activeLocations) {
+            if (excludedNames.contains(normalize(location.location()))) {
+                policyExcluded++;
+            } else {
+                locations.add(location);
+            }
+        }
         List<MonitorRef> candidates = new ArrayList<>();
         int chainExcluded = 0;
         for (RmsLicenseMonitor monitor : monitors == null ? List.<RmsLicenseMonitor>of() : monitors) {
@@ -95,7 +115,9 @@ public class RmsLocationCoverageService {
         issues.sort(Comparator.comparing(CoverageIssue::sortKey, String.CASE_INSENSITIVE_ORDER));
         double coveragePercent = locations.isEmpty() ? 100.0 : Math.round((matched * 1000.0) / locations.size()) / 10.0;
         return new CoverageSnapshot(
+                activeLocations.size(),
                 locations.size(),
+                policyExcluded,
                 matched,
                 missing,
                 ambiguous,
@@ -104,6 +126,62 @@ public class RmsLocationCoverageService {
                 coveragePercent,
                 List.copyOf(issues)
         );
+    }
+
+    public CoveragePolicy loadPolicy() {
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        Object rawPolicy = settings.get(SETTINGS_KEY);
+        if (!(rawPolicy instanceof Map<?, ?> policyMap) || !policyMap.containsKey("excluded_location_names")) {
+            return new CoveragePolicy(DEFAULT_EXCLUDED_LOCATION_NAMES);
+        }
+        return new CoveragePolicy(parseExcludedLocationNames(policyMap.get("excluded_location_names"), false));
+    }
+
+    public CoveragePolicy savePolicy(Map<String, Object> payload) {
+        Map<String, Object> source = payload == null ? Map.of() : payload;
+        List<String> excludedNames = parseExcludedLocationNames(source.get("excluded_location_names"), true);
+        CoveragePolicy policy = new CoveragePolicy(excludedNames);
+        Map<String, Object> root = new LinkedHashMap<>(sharedConfigService.loadSettings());
+        root.put(SETTINGS_KEY, policy.toMap());
+        sharedConfigService.saveSettings(root);
+        return policy;
+    }
+
+    private List<String> parseExcludedLocationNames(Object raw, boolean strict) {
+        if (!(raw instanceof Collection<?> values)) {
+            if (strict) {
+                throw new IllegalArgumentException("excluded_location_names должен быть массивом строк.");
+            }
+            return DEFAULT_EXCLUDED_LOCATION_NAMES;
+        }
+        LinkedHashMap<String, String> unique = new LinkedHashMap<>();
+        for (Object item : values) {
+            if (!(item instanceof String nameValue)) {
+                throw new IllegalArgumentException("Каждое исключение покрытия должно быть строкой.");
+            }
+            String name = nameValue.trim();
+            if (name.isEmpty()) continue;
+            if (name.length() > MAX_EXCLUDED_LOCATION_NAME_LENGTH) {
+                throw new IllegalArgumentException("Имя исключения покрытия слишком длинное.");
+            }
+            String normalized = normalize(name);
+            if (StringUtils.hasText(normalized)) {
+                unique.putIfAbsent(normalized, name);
+            }
+        }
+        if (unique.size() > MAX_EXCLUDED_LOCATION_NAMES) {
+            throw new IllegalArgumentException("Слишком много исключений покрытия: максимум " + MAX_EXCLUDED_LOCATION_NAMES + ".");
+        }
+        return List.copyOf(unique.values());
+    }
+
+    private Set<String> normalizedExcludedNames(Collection<String> names) {
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String name : names == null ? List.<String>of() : names) {
+            String value = normalize(name);
+            if (StringUtils.hasText(value)) normalized.add(value);
+        }
+        return normalized;
     }
 
     private List<LocationRef> loadActiveLocations() {
@@ -257,7 +335,19 @@ public class RmsLocationCoverageService {
         }
     }
 
+    public record CoveragePolicy(List<String> excludedLocationNames) {
+        public CoveragePolicy {
+            excludedLocationNames = List.copyOf(excludedLocationNames == null ? List.of() : excludedLocationNames);
+        }
+
+        public Map<String, Object> toMap() {
+            return Map.of("excluded_location_names", excludedLocationNames);
+        }
+    }
+
     public record CoverageSnapshot(int activeLocationCount,
+                                   int coverageLocationCount,
+                                   int excludedLocationCount,
                                    int matchedLocationCount,
                                    int missingLocationCount,
                                    int ambiguousLocationCount,
@@ -268,6 +358,8 @@ public class RmsLocationCoverageService {
         public Map<String, Object> toMap() {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("active_location_count", activeLocationCount);
+            map.put("coverage_location_count", coverageLocationCount);
+            map.put("excluded_location_count", excludedLocationCount);
             map.put("matched_location_count", matchedLocationCount);
             map.put("missing_location_count", missingLocationCount);
             map.put("ambiguous_location_count", ambiguousLocationCount);

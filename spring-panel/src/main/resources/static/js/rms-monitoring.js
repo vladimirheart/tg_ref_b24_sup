@@ -14,6 +14,11 @@
   const locationCoveragePercentEl = document.getElementById('rmsLocationCoveragePercent');
   const locationCoverageMetaEl = document.getElementById('rmsLocationCoverageMeta');
   const locationCoverageIssuesEl = document.getElementById('rmsLocationCoverageIssues');
+  const openCoverageSettingsBtn = document.getElementById('openRmsCoverageSettingsBtn');
+  const coverageSettingsModalEl = document.getElementById('rmsCoverageSettingsModal');
+  const coverageSettingsModal = coverageSettingsModalEl && window.bootstrap ? new bootstrap.Modal(coverageSettingsModalEl) : null;
+  const coverageSettingsForm = document.getElementById('rmsCoverageSettingsForm');
+  const coverageExcludedNamesInput = document.getElementById('rmsCoverageExcludedNames');
 
   const createModalEl = document.getElementById('rmsCreateModal');
   const createModal = createModalEl && window.bootstrap ? new bootstrap.Modal(createModalEl) : null;
@@ -74,6 +79,7 @@
   let refreshState = null;
   let availabilityOverview = null;
   let locationCoverage = null;
+  let locationCoverageSettings = null;
   let scheduleSettings = null;
   let pollTimer = null;
   let availabilityFilter = 'all';
@@ -772,6 +778,7 @@
 
   function renderLocationCoverage() {
     if (!locationCoverageCardEl || !locationCoverageStateEl || !locationCoveragePercentEl || !locationCoverageMetaEl || !locationCoverageIssuesEl) return;
+    const detailsWasOpen = Boolean(locationCoverageIssuesEl.querySelector('details.rms-location-coverage-details')?.open);
     if (!locationCoverage) {
       locationCoverageCardEl.classList.remove('is-attention');
       locationCoverageStateEl.className = 'badge text-bg-secondary';
@@ -783,6 +790,8 @@
     }
 
     const active = Number(locationCoverage.active_location_count || 0);
+    const coverage = Number(locationCoverage.coverage_location_count ?? active);
+    const excluded = Number(locationCoverage.excluded_location_count || 0);
     const matched = Number(locationCoverage.matched_location_count || 0);
     const missing = Number(locationCoverage.missing_location_count || 0);
     const ambiguous = Number(locationCoverage.ambiguous_location_count || 0);
@@ -798,6 +807,8 @@
     locationCoveragePercentEl.textContent = `\u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043e: ${percent.toFixed(1)}%`;
     locationCoverageMetaEl.innerHTML = `
       <span class="rms-overview-chip">\u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0445 iiko: ${escapeHtml(active)}</span>
+      <span class="rms-overview-chip">\u0422\u0440\u0435\u0431\u0443\u044e\u0442 RMS: ${escapeHtml(coverage)}</span>
+      <span class="rms-overview-chip text-body-secondary">\u0418\u0441\u043a\u043b\u044e\u0447\u0435\u043d\u043e: ${escapeHtml(excluded)}</span>
       <span class="rms-overview-chip text-success">\u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043e: ${escapeHtml(matched)}</span>
       <span class="rms-overview-chip text-danger">\u0411\u0435\u0437 RMS: ${escapeHtml(missing)}</span>
       <span class="rms-overview-chip text-warning">\u041d\u0435\u043e\u0434\u043d\u043e\u0437\u043d\u0430\u0447\u043d\u043e: ${escapeHtml(ambiguous)}</span>
@@ -837,6 +848,8 @@
         <div class="d-flex flex-column gap-2 mt-2">${rows}</div>
       </details>
     `;
+    const renderedDetails = locationCoverageIssuesEl.querySelector('details.rms-location-coverage-details');
+    if (detailsWasOpen && renderedDetails) renderedDetails.open = true;
   }
 
   function renderEmptyState(message, className) {
@@ -954,6 +967,7 @@
       refreshState = data.refresh_state || null;
       availabilityOverview = data.availability_overview || null;
       locationCoverage = data.location_coverage || null;
+      locationCoverageSettings = data.location_coverage_settings || locationCoverageSettings;
       scheduleSettings = data.schedule_settings || scheduleSettings;
       renderAvailabilityOverview();
       renderLocationCoverage();
@@ -964,6 +978,36 @@
       renderLocationCoverage();
       renderQueueState();
       renderEmptyState(error.message || 'Не удалось загрузить RMS.', 'text-danger');
+    }
+  }
+
+  function openCoverageSettings() {
+    if (!coverageSettingsModal || !coverageExcludedNamesInput) return;
+    const names = Array.isArray(locationCoverageSettings?.excluded_location_names)
+      ? locationCoverageSettings.excluded_location_names
+      : [];
+    coverageExcludedNamesInput.value = names.join('\n');
+    coverageSettingsModal.show();
+  }
+
+  async function saveCoverageSettings(event) {
+    event.preventDefault();
+    const names = String(coverageExcludedNamesInput?.value || '')
+      .split(/\r?\n/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    try {
+      const data = await requestJson('/api/monitoring/rms/location-coverage-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ excluded_location_names: names }),
+      });
+      locationCoverageSettings = data.settings || { excluded_location_names: names };
+      coverageSettingsModal?.hide();
+      await loadSites(false);
+      showMessage('Исключения покрытия RMS сохранены.', 'success');
+    } catch (error) {
+      showMessage(`Не удалось сохранить исключения покрытия: ${error.message}`, 'error');
     }
   }
 
@@ -1216,6 +1260,7 @@
     renderExportColumns();
     exportModal?.show();
   });
+  openCoverageSettingsBtn?.addEventListener('click', openCoverageSettings);
 
   tableBody?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action]');
@@ -1279,6 +1324,7 @@
 
   createForm?.addEventListener('submit', createSite);
   editForm?.addEventListener('submit', saveChanges);
+  coverageSettingsForm?.addEventListener('submit', saveCoverageSettings);
   refreshLicensesBtn?.addEventListener('click', () => {
     triggerRefresh('/api/monitoring/rms/refresh/licenses', 'Обновление лицензий поставлено в очередь.');
   });
