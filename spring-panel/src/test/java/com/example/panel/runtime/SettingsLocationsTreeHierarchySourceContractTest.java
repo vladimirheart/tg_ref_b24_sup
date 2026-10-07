@@ -13,9 +13,10 @@ class SettingsLocationsTreeHierarchySourceContractTest {
     private static final Path REPO_ROOT = Path.of("..").toAbsolutePath().normalize();
 
     @Test
-    void locationTreeOpensOneLevelAtATimeAndKeepsLeafIndentation() throws IOException {
+    void locationTreeOpensOneLevelAtATimeAndUsesCompactReadableHierarchy() throws IOException {
         String treeRuntime = read("spring-panel/src/main/resources/static/js/settings-locations-tree-runtime.js");
         String calm = read("spring-panel/src/main/resources/scss/settings/calm/_infrastructure.scss");
+        String compiled = read("spring-panel/src/main/resources/static/css/settings.css");
 
         assertThat(treeRuntime)
             .contains("collapsedLocationNodes.add(makeCollapseKey('business', business));")
@@ -23,9 +24,28 @@ class SettingsLocationsTreeHierarchySourceContractTest {
             .contains("collapsedLocationNodes.add(makeCollapseKey('city', business, type, city));");
 
         assertThat(calm)
-            .contains("#locationsModal .location-level-location")
-            .contains("padding-left: 3rem;")
+            .contains("Location hierarchy polish - 2026-10-07 R26")
+            .contains("#locationsModal .location-tree-row")
+            .contains("display: flex;")
+            .contains("#locationsModal .location-tree-bubble::before")
+            .contains("content: \"Бизнес\";")
+            .contains("#locationsModal .location-tree__children > .location-tree__item::before")
+            .contains("#locationsModal .location-tree__children.is-collapsed")
+            .contains("#locationsModal .location-name-input:disabled")
+            .contains("-webkit-text-fill-color: var(--color-text);")
+            .contains("#locationsModal .location-actions .btn-outline-danger:disabled")
             .contains("padding-left: 0;");
+
+        assertThat(compiled)
+            .contains("Location hierarchy polish - 2026-10-07 R26")
+            .contains("#locationsModal .location-tree-card")
+            .contains("#locationsModal .location-tree__children.is-collapsed");
+
+        assertThat(
+            compiled.contains("#locationsModal .location-tree-bubble[data-location-level=\"location\"]::before")
+                || compiled.contains("#locationsModal .location-tree-bubble[data-location-level=location]::before")
+                || compiled.contains("#locationsModal .location-tree-bubble[data-location-level='location']::before")
+        ).isTrue();
     }
 
     @Test

@@ -187,6 +187,269 @@
       border-radius: var(--radius-md);
     }
 
+    /* Location hierarchy polish - 2026-10-07 R26 */
+    #locationsModal .location-tree {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      margin: 0;
+    }
+
+    #locationsModal .location-tree__item {
+      position: relative;
+      margin: 0;
+    }
+
+    #locationsModal .location-tree-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: 0.6rem;
+      row-gap: 0.32rem;
+      min-width: 0;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+      box-shadow: none;
+    }
+
+    #locationsModal .location-level-business > .location-tree-card {
+      background: var(--surface-selected);
+    }
+
+    #locationsModal .location-level-type > .location-tree-card {
+      background: var(--surface-card);
+    }
+
+    #locationsModal .location-level-location {
+      padding-left: 0;
+    }
+
+    #locationsModal .location-level-location > .location-tree-card {
+      padding: 0.42rem 0.55rem;
+      border-color: transparent;
+      background: transparent;
+    }
+
+    #locationsModal .location-level-location > .location-tree-card:hover {
+      border-color: var(--color-border);
+      background: var(--surface-interactive);
+    }
+
+    #locationsModal .location-tree-row {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      min-width: 0;
+    }
+
+    #locationsModal .location-tree-toggle {
+      display: inline-flex;
+      flex: 0 0 1.9rem;
+      align-items: center;
+      justify-content: center;
+      width: 1.9rem;
+      height: 1.9rem;
+      padding: 0;
+      border-radius: var(--radius-md);
+    }
+
+    #locationsModal .location-tree-bubble {
+      display: grid;
+      grid-template-columns: 4.9rem minmax(0, 1fr);
+      flex: 1 1 20rem;
+      align-items: center;
+      gap: 0.45rem;
+      min-width: 0;
+      padding: 0.1rem 0;
+      border: 0 !important;
+      background: transparent !important;
+      color: var(--color-text) !important;
+    }
+
+    #locationsModal .location-tree-bubble::before {
+      color: var(--color-text-muted);
+      font-size: 0.67rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    #locationsModal .location-tree-bubble[data-location-level="business"]::before {
+      content: "Бизнес";
+    }
+
+    #locationsModal .location-tree-bubble[data-location-level="type"]::before {
+      content: "Тип";
+    }
+
+    #locationsModal .location-tree-bubble[data-location-level="city"]::before {
+      content: "Город";
+    }
+
+    #locationsModal .location-tree-bubble[data-location-level="location"]::before {
+      content: "Локация";
+    }
+
+    #locationsModal .location-name-input {
+      min-width: 0;
+      font-weight: 650;
+    }
+
+    #locationsModal .location-name-input:disabled {
+      padding: 0.2rem 0.1rem;
+      border-color: transparent !important;
+      background: transparent !important;
+      color: var(--color-text) !important;
+      -webkit-text-fill-color: var(--color-text);
+      opacity: 1;
+      box-shadow: none;
+    }
+
+    #locationsModal .location-tree-controls {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 0.45rem;
+      min-width: 0;
+    }
+
+    #locationsModal .location-status-wrapper,
+    #locationsModal .location-actions,
+    #locationsModal .location-node-meta {
+      display: flex;
+      align-items: center;
+    }
+
+    #locationsModal .location-status-badge {
+      padding: 0.3rem 0.5rem;
+      white-space: nowrap;
+    }
+
+    #locationsModal .location-status-select {
+      min-width: 10rem;
+    }
+
+    #locationsModal .location-actions {
+      gap: 0.3rem;
+      white-space: nowrap;
+    }
+
+    #locationsModal .location-actions .btn {
+      min-height: 1.95rem;
+      padding: 0.25rem 0.5rem;
+    }
+
+    #locationsModal .location-actions .btn-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.95rem;
+      height: 1.95rem;
+      padding: 0;
+    }
+
+    #locationsModal .location-actions .btn-outline-danger:disabled {
+      display: none;
+    }
+
+    #locationsModal .location-node-meta {
+      grid-column: 1;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      min-width: 0;
+    }
+
+    #locationsModal .location-node-meta__badge {
+      padding: 0.24rem 0.45rem;
+      font-size: 0.7rem;
+    }
+
+    #locationsModal .location-level-location > .location-tree-card > .btn-outline-secondary.mt-1 {
+      grid-column: 2;
+      grid-row: 2;
+      align-self: center;
+      justify-self: end;
+      margin-top: 0 !important;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+
+    #locationsModal .location-tree__children {
+      position: relative;
+      margin: 0.45rem 0 0 1rem;
+      padding-left: 1.2rem;
+      border-left: 1px solid var(--color-border);
+    }
+
+    #locationsModal .location-tree__children.is-collapsed {
+      display: none;
+    }
+
+    #locationsModal .location-tree__children > .location-tree__item {
+      margin-top: 0.45rem;
+    }
+
+    #locationsModal .location-tree__children > .location-tree__item::before {
+      content: "";
+      position: absolute;
+      top: 1.35rem;
+      left: -1.2rem;
+      width: 0.9rem;
+      border-top: 1px solid var(--color-border);
+    }
+
+    @media (max-width: 991.98px) {
+      #locationsModal .location-tree-row {
+        flex-wrap: wrap;
+      }
+
+      #locationsModal .location-tree-controls {
+        flex: 1 1 100%;
+        justify-content: space-between;
+        padding-left: 2.35rem;
+      }
+    }
+
+    @media (max-width: 767.98px) {
+      #locationsModal .location-tree-card {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 0.5rem;
+      }
+
+      #locationsModal .location-tree-bubble {
+        grid-template-columns: 4.25rem minmax(0, 1fr);
+      }
+
+      #locationsModal .location-tree-controls {
+        align-items: flex-start;
+        padding-left: 0;
+      }
+
+      #locationsModal .location-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      #locationsModal .location-level-location > .location-tree-card > .btn-outline-secondary.mt-1 {
+        grid-column: 1;
+        grid-row: auto;
+        justify-self: start;
+      }
+
+      #locationsModal .location-tree__children {
+        padding-left: 0.75rem;
+      }
+
+      #locationsModal .location-tree__children > .location-tree__item::before {
+        left: -0.75rem;
+        width: 0.55rem;
+      }
+    }
+
     /* ---------- neutral empty states ---------- */
 
     [data-partner-contacts-empty],

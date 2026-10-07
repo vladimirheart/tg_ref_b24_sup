@@ -44,7 +44,7 @@ class SettingsItEquipmentPhotoUiSourceContractTest {
                 .contains("class=\"visually-hidden\" id=\"itEquipmentPhotoEditFile\"");
 
         assertThat(template)
-                .contains("settings.css?v=20260909-01-259-r4-8")
+                .contains("settings.css?v=20261007-locations-tree-r26")
                 .contains("equipment-media-runtime.js?v=20260922-01-272-s7")
                 .contains("settings-it-equipment-runtime.js?v=20260922-01-272-s7")
                 .contains("settings-page-shell.js?v=20260909-01-259-r4-6")
