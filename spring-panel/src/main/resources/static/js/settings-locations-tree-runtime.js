@@ -11,6 +11,7 @@
     'Заморожен',
   ];
   const DEFAULT_LOCATION_STATUS = LOCATION_STATUS_OPTIONS[0];
+  const CLOSED_LOCATION_STATUS = 'Закрыт';
   const LOCATION_STATUS_CLASS_MAP = {
     Активен: 'status-active',
     Закрыт: 'status-closed',
@@ -142,6 +143,7 @@
   function createRuntime(options = {}) {
     const collapsedLocationNodes = new Set();
     let defaultCollapseSeeded = false;
+    let showClosedLocations = false;
     const config = resolveConfig(options);
     const initialLocations = readConfigObject(config, 'tree') || options.initialLocations || {};
     const hasInitialLocationsPayload = initialLocations && typeof initialLocations === 'object'
@@ -609,29 +611,38 @@
       return true;
     }
 
-    function getTypeMetrics(cities) {
+    function isLocationClosed(businessName, typeName, cityName, locationName) {
+      return getStatus('location', businessName, typeName, cityName, locationName) === CLOSED_LOCATION_STATUS;
+    }
+
+    function getTypeMetrics(businessName, typeName, cities) {
       if (!cities || typeof cities !== 'object') {
-        return { cityCount: 0, locationCount: 0 };
+        return { cityCount: 0, locationCount: 0, closedLocationCount: 0 };
       }
       const cityNames = Object.keys(cities);
       let locationCount = 0;
+      let closedLocationCount = 0;
       cityNames.forEach((cityName) => {
         const entries = Array.isArray(cities[cityName]) ? cities[cityName] : [];
         locationCount += entries.length;
+        closedLocationCount += entries.filter((locationName) =>
+          isLocationClosed(businessName, typeName, cityName, locationName)).length;
       });
-      return { cityCount: cityNames.length, locationCount };
+      return { cityCount: cityNames.length, locationCount, closedLocationCount };
     }
 
-    function getBusinessMetrics(types) {
+    function getBusinessMetrics(businessName, types) {
       const typeNames = types && typeof types === 'object' ? Object.keys(types) : [];
       let cityCount = 0;
       let locationCount = 0;
+      let closedLocationCount = 0;
       typeNames.forEach((typeName) => {
-        const { cityCount: typeCities, locationCount: typeLocations } = getTypeMetrics(types[typeName]);
-        cityCount += typeCities;
-        locationCount += typeLocations;
+        const metrics = getTypeMetrics(businessName, typeName, types[typeName]);
+        cityCount += metrics.cityCount;
+        locationCount += metrics.locationCount;
+        closedLocationCount += metrics.closedLocationCount;
       });
-      return { typeCount: typeNames.length, cityCount, locationCount };
+      return { typeCount: typeNames.length, cityCount, locationCount, closedLocationCount };
     }
 
     function createLocationMeta(badges) {
@@ -643,9 +654,12 @@
       }
       const meta = document.createElement('div');
       meta.className = 'location-node-meta';
-      normalized.forEach(({ label, value }) => {
+      normalized.forEach(({ label, value, tone }) => {
         const badge = document.createElement('span');
         badge.className = 'badge rounded-pill location-node-meta__badge';
+        if (tone === 'closed') {
+          badge.classList.add('is-closed-count');
+        }
         badge.textContent = `${label}: ${value}`;
         meta.appendChild(badge);
       });
@@ -730,6 +744,7 @@
         applyStatusStyle(bubble, statusSelect.value);
         statusBadge.textContent = statusSelect.value;
         applyStatusStyle(statusBadge, statusSelect.value);
+        row.classList.toggle('is-closed', statusSelect.value === CLOSED_LOCATION_STATUS);
       };
       statusSelect.addEventListener('change', updateAppearance);
       updateAppearance();
@@ -776,6 +791,7 @@
 
       const card = document.createElement('div');
       card.className = 'location-tree-card';
+      card.classList.toggle('is-closed', isLocationClosed(businessName, typeName, cityName, locationName));
       card.appendChild(row);
       if (meta) {
         card.appendChild(meta);
@@ -804,6 +820,11 @@
       item.className = 'org-tree__item location-tree__item location-level-city';
 
       const locationNames = Array.isArray(locations) ? locations : [];
+      const closedLocationCount = locationNames.filter((locationName) =>
+        isLocationClosed(businessName, typeName, cityName, locationName)).length;
+      const visibleLocationNames = showClosedLocations
+        ? locationNames
+        : locationNames.filter((locationName) => !isLocationClosed(businessName, typeName, cityName, locationName));
       const collapseKey = makeCollapseKey('city', businessName, typeName, cityName);
 
       const { row, input, statusSelect, actions, toggleButton } = createLocationTreeRow('city', {
@@ -816,7 +837,7 @@
           statusSelect.value = getStatus('city', businessName, typeName, cityName);
         },
         onDelete: () => removeCity(businessName, typeName, cityName),
-        collapsible: locationNames.length > 0,
+        collapsible: visibleLocationNames.length > 0,
       });
 
       const addLocationBtn = document.createElement('button');
@@ -829,22 +850,24 @@
       const cityMeta = readNodeMeta('city_meta', makeCityMetaKey(businessName, typeName, cityName));
       const meta = createLocationMeta([
         { label: 'Локаций', value: locationNames.length },
+        { label: 'Закрытых', value: closedLocationCount, tone: closedLocationCount > 0 ? 'closed' : '' },
         ...(cityMeta.country ? [{ label: 'Страна', value: cityMeta.country }] : []),
         ...(cityMeta.partner_type ? [{ label: 'Тип партнёра', value: cityMeta.partner_type }] : []),
       ]);
 
       const card = document.createElement('div');
       card.className = 'location-tree-card';
+      card.classList.toggle('is-closed', getStatus('city', businessName, typeName, cityName) === CLOSED_LOCATION_STATUS);
       card.appendChild(row);
       if (meta) {
         card.appendChild(meta);
       }
       item.appendChild(card);
 
-      if (locationNames.length) {
+      if (visibleLocationNames.length) {
         const childrenList = document.createElement('ul');
         childrenList.className = 'org-tree__children location-tree__children list-unstyled';
-        locationNames.forEach((locationName) => {
+        visibleLocationNames.forEach((locationName) => {
           childrenList.appendChild(createLocationLeaf(businessName, typeName, cityName, locationName));
         });
         item.appendChild(childrenList);
@@ -881,14 +904,16 @@
       addCityBtn.addEventListener('click', () => addCityToType(businessName, typeName));
       actions.appendChild(addCityBtn);
 
-      const { cityCount, locationCount } = getTypeMetrics(cities);
+      const { cityCount, locationCount, closedLocationCount } = getTypeMetrics(businessName, typeName, cities);
       const meta = createLocationMeta([
         { label: 'Городов', value: cityCount },
         { label: 'Локаций', value: locationCount },
+        { label: 'Закрытых', value: closedLocationCount, tone: closedLocationCount > 0 ? 'closed' : '' },
       ]);
 
       const card = document.createElement('div');
       card.className = 'location-tree-card';
+      card.classList.toggle('is-closed', getStatus('type', businessName, typeName) === CLOSED_LOCATION_STATUS);
       card.appendChild(row);
       if (meta) {
         card.appendChild(meta);
@@ -934,15 +959,17 @@
       addTypeBtn.addEventListener('click', () => addTypeToBusiness(businessName));
       actions.appendChild(addTypeBtn);
 
-      const { typeCount, cityCount, locationCount } = getBusinessMetrics(types);
+      const { typeCount, cityCount, locationCount, closedLocationCount } = getBusinessMetrics(businessName, types);
       const meta = createLocationMeta([
         { label: 'Типов', value: typeCount },
         { label: 'Городов', value: cityCount },
         { label: 'Локаций', value: locationCount },
+        { label: 'Закрытых', value: closedLocationCount, tone: closedLocationCount > 0 ? 'closed' : '' },
       ]);
 
       const card = document.createElement('div');
       card.className = 'location-tree-card';
+      card.classList.toggle('is-closed', getStatus('business', businessName) === CLOSED_LOCATION_STATUS);
       card.appendChild(row);
       if (meta) {
         card.appendChild(meta);
@@ -993,6 +1020,22 @@
 
       defaultCollapseSeeded = true;
     }
+    function bindClosedLocationsFilter() {
+      const control = document.getElementById('locationsShowClosed');
+      if (!(control instanceof HTMLInputElement)) {
+        return;
+      }
+      control.checked = showClosedLocations;
+      if (control.dataset.locationsClosedFilterBound === 'true') {
+        return;
+      }
+      control.dataset.locationsClosedFilterBound = 'true';
+      control.addEventListener('change', () => {
+        showClosedLocations = control.checked;
+        renderLocationsTree();
+      });
+    }
+
     function renderLocationsTree() {
       const container = document.getElementById('locationsEditor');
       if (!(container instanceof HTMLElement)) {
@@ -1000,6 +1043,7 @@
       }
 
       state.tree = normalizeLocationTree(state.tree);
+      bindClosedLocationsFilter();
       container.innerHTML = '';
       container.classList.remove('is-loading');
       container.removeAttribute('aria-busy');

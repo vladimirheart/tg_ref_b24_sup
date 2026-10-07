@@ -2465,6 +2465,60 @@
     width: 0.55rem;
   }
 }
+/* Location closed visibility - 2026-10-07 R32 */
+#locationsModal .location-structure-toolbar {
+  align-items: center;
+}
+
+#locationsModal .location-closed-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  margin-left: auto;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+#locationsModal .location-closed-filter .form-check-input {
+  margin: 0;
+}
+
+#locationsModal .location-tree-card.is-closed {
+  border-color: color-mix(in srgb, var(--state-danger) 42%, var(--color-border));
+  background: color-mix(in srgb, var(--state-danger-bg) 42%, var(--surface-raised));
+}
+
+#locationsModal .location-tree-row.is-closed .location-tree-bubble::before,
+#locationsModal .location-tree-row.is-closed .location-name-input:disabled {
+  color: var(--state-danger-text) !important;
+  -webkit-text-fill-color: var(--state-danger-text);
+}
+
+#locationsModal .location-status-badge.status-closed {
+  border: 1px solid var(--state-danger-border);
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
+}
+
+#locationsModal .location-node-meta__badge.is-closed-count {
+  border-color: var(--state-danger-border);
+  background: color-mix(in srgb, var(--state-danger-bg) 62%, var(--surface-selected));
+  color: var(--state-danger-text);
+}
+
+@media (max-width: 767.98px) {
+  #locationsModal .location-closed-filter {
+    flex: 1 1 100%;
+    width: fit-content;
+    margin-left: 0;
+  }
+}
 /* ---------- neutral empty states ---------- */
 [data-partner-contacts-empty],
 [data-legal-entities-empty] {

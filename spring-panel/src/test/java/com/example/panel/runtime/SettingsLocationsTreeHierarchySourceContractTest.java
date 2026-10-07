@@ -15,13 +15,31 @@ class SettingsLocationsTreeHierarchySourceContractTest {
     @Test
     void locationTreeOpensOneLevelAtATimeAndUsesCompactReadableHierarchy() throws IOException {
         String treeRuntime = read("spring-panel/src/main/resources/static/js/settings-locations-tree-runtime.js");
+        String locationsTemplate = read("spring-panel/src/main/resources/templates/settings/fragments/locations.html");
+        String settingsTemplate = read("spring-panel/src/main/resources/templates/settings/index.html");
         String calm = read("spring-panel/src/main/resources/scss/settings/calm/_infrastructure.scss");
         String compiled = read("spring-panel/src/main/resources/static/css/settings.css");
 
         assertThat(treeRuntime)
             .contains("collapsedLocationNodes.add(makeCollapseKey('business', business));")
             .contains("collapsedLocationNodes.add(makeCollapseKey('type', business, type));")
-            .contains("collapsedLocationNodes.add(makeCollapseKey('city', business, type, city));");
+            .contains("collapsedLocationNodes.add(makeCollapseKey('city', business, type, city));")
+            .contains("const CLOSED_LOCATION_STATUS = 'Закрыт';")
+            .contains("let showClosedLocations = false;")
+            .contains("function isLocationClosed(businessName, typeName, cityName, locationName)")
+            .contains("closedLocationCount")
+            .contains("const visibleLocationNames = showClosedLocations")
+            .contains("document.getElementById('locationsShowClosed')")
+            .contains("row.classList.toggle('is-closed', statusSelect.value === CLOSED_LOCATION_STATUS);");
+
+        assertThat(locationsTemplate)
+            .contains("id=\"locationsShowClosed\"")
+            .contains("Показывать закрытые")
+            .contains("location-closed-filter");
+
+        assertThat(settingsTemplate)
+            .contains("/css/settings.css?v=20261007-locations-tree-r32")
+            .contains("/js/settings-locations-tree-runtime.js?v=20261007-closed-filter-r32");
 
         assertThat(calm)
             .contains("Location hierarchy polish - 2026-10-07 R26")
@@ -34,11 +52,20 @@ class SettingsLocationsTreeHierarchySourceContractTest {
             .contains("#locationsModal .location-name-input:disabled")
             .contains("-webkit-text-fill-color: var(--color-text);")
             .contains("#locationsModal .location-actions .btn-outline-danger:disabled")
+            .contains("Location closed visibility - 2026-10-07 R32")
+            .contains("#locationsModal .location-tree-card.is-closed")
+            .contains("#locationsModal .location-status-badge.status-closed")
+            .contains("#locationsModal .location-node-meta__badge.is-closed-count")
+            .contains("#locationsModal .location-closed-filter")
             .contains("padding-left: 0;");
 
         assertThat(compiled)
             .contains("Location hierarchy polish - 2026-10-07 R26")
+            .contains("Location closed visibility - 2026-10-07 R32")
             .contains("#locationsModal .location-tree-card")
+            .contains("#locationsModal .location-tree-card.is-closed")
+            .contains("#locationsModal .location-status-badge.status-closed")
+            .contains("#locationsModal .location-node-meta__badge.is-closed-count")
             .contains("#locationsModal .location-tree__children.is-collapsed");
 
         assertThat(

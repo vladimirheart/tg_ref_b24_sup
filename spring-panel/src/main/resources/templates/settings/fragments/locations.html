@@ -27,9 +27,13 @@
             </ul>
             <div class="tab-content settings-tab-content mt-3">
               <div class="tab-pane fade show active" id="locations-structure-pane" role="tabpanel" aria-labelledby="locations-structure-tab" tabindex="0">
-                <div class="d-flex flex-wrap gap-2 mb-3">
+                <div class="d-flex flex-wrap gap-2 mb-3 location-structure-toolbar">
                   <button class="btn btn-sm btn-primary" type="button" data-location-wizard-open>Добавить запись</button>
                   <button class="btn btn-sm btn-outline-primary" type="button" data-add-business-trigger>+ Добавить бизнес</button>
+                  <div class="form-check form-switch location-closed-filter">
+                    <input class="form-check-input" type="checkbox" role="switch" id="locationsShowClosed">
+                    <label class="form-check-label" for="locationsShowClosed">Показывать закрытые</label>
+                  </div>
                 </div>
                 <div id="locationsEditor" class="mb-3">
                   <!-- Дерево будет построено динамически -->
