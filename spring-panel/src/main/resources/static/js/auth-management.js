@@ -1072,6 +1072,12 @@
         isBlocked: Boolean(user?.is_blocked),
       };
       this.elements.userForm.dataset.mode = mode;
+      this.elements.userForm.dataset.userId = mode === 'edit' && user?.id != null ? String(user.id) : '';
+      if (this.elements.userModal) {
+        this.elements.userModal.dispatchEvent(new CustomEvent('authManagement:userModalOpen', {
+          detail: { mode, userId: this.modalState.userId },
+        }));
+      }
       this.setUserModalError('');
       this.setUserSaveStatus('');
       this.setUserSubmitLabel('Сохранить');
@@ -2209,6 +2215,7 @@
       if (this.elements.userForm) {
         this.elements.userForm.reset();
         delete this.elements.userForm.dataset.mode;
+        delete this.elements.userForm.dataset.userId;
       }
       if (this.elements.userRegistrationInput) {
         this.elements.userRegistrationInput.value = '';

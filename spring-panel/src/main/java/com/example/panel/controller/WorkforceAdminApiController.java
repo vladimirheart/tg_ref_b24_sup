@@ -31,7 +31,8 @@ public class WorkforceAdminApiController {
         return Map.of(
                 "success", true,
                 "positions", workforceService.listPositions(),
-                "notification_targets", List.of("support_chat", "broadcast_channel", "custom_chat")
+                "notification_targets", List.of("support_chat", "broadcast_channel", "custom_chat"),
+                "notification_channels", workforceService.listNotificationChannels()
         );
     }
 

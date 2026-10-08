@@ -2024,6 +2024,80 @@
   border-top: 0 !important;
 }
 
+/* ---------- workforce management ---------- */
+#usersModal .workforce-positions-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 1rem;
+}
+
+#usersModal .workforce-position-editor,
+#usersModal .workforce-position-list-wrap {
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+#usersModal .workforce-position-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+#usersModal .workforce-position-card {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+#usersModal .workforce-position-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+#usersModal .workforce-position-card__badges > span {
+  padding: 0.16rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+#authUserDetailsModal .workforce-user-workspace {
+  border-top: 1px solid var(--color-border) !important;
+}
+
+#authUserDetailsModal .workforce-schedule-table {
+  min-width: 980px;
+  margin-bottom: 0.35rem;
+}
+
+#authUserDetailsModal .workforce-schedule-table th {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+#authUserDetailsModal .workforce-minute-input {
+  min-width: 84px;
+}
+
+#authUserDetailsModal .workforce-schedule-block,
+#authUserDetailsModal .workforce-sessions-block {
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 991.98px) {
+  #usersModal .workforce-positions-layout {
+    grid-template-columns: 1fr;
+  }
+}
 /* ---------- IT block ---------- */
 #itConnectionsModal #itSettingsAccordion {
   border-top: 1px solid var(--color-border);

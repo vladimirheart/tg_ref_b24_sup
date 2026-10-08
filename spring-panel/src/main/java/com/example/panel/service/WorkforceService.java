@@ -242,6 +242,18 @@ public class WorkforceService {
         );
     }
 
+    public List<Map<String, Object>> listNotificationChannels() {
+        return jdbcTemplate.queryForList(
+                """
+                SELECT id, channel_name, bot_name, bot_username, platform, support_chat_id, delivery_settings
+                FROM channels
+                WHERE COALESCE(is_active, TRUE) = TRUE
+                  AND (platform IS NULL OR btrim(platform) = '' OR lower(platform) = 'telegram')
+                ORDER BY lower(channel_name), id
+                """
+        );
+    }
+
     public Map<String, Object> createPosition(Map<String, Object> payload) {
         PositionInput input = positionInput(payload, null);
         Long id = jdbcTemplate.queryForObject(
