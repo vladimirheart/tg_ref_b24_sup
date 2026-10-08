@@ -1,6 +1,8 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.PermissionService;
+import com.example.panel.service.WorkforceService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -18,14 +20,33 @@ class LoginRedirectControllerTest {
     private PermissionService permissionService;
 
     @Mock
+    private WorkforceService workforceService;
+
+    @Mock
     private Authentication authentication;
+
+    private LoginRedirectController controller;
+
+    @BeforeEach
+    void setUp() {
+        when(authentication.getName()).thenReturn("operator");
+        when(workforceService.requiresCheckIn("operator")).thenReturn(false);
+        controller = new LoginRedirectController(permissionService, workforceService);
+    }
+
+    @Test
+    void redirectsToCheckInBeforeNormalPageRoutingWhenShiftIsPending() {
+        when(workforceService.requiresCheckIn("operator")).thenReturn(true);
+
+        String redirect = controller.postLogin(authentication);
+
+        assertThat(redirect).isEqualTo("redirect:/shift-check-in");
+    }
 
     @Test
     void redirectsToClientsWhenDialogsPermissionIsMissing() {
         when(permissionService.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(false);
         when(permissionService.hasAuthority(authentication, "PAGE_CLIENTS")).thenReturn(true);
-
-        LoginRedirectController controller = new LoginRedirectController(permissionService);
 
         String redirect = controller.postLogin(authentication);
 
@@ -35,8 +56,6 @@ class LoginRedirectControllerTest {
     @Test
     void redirectsTo403WhenNoPagePermissionsExist() {
         when(permissionService.hasAuthority(eq(authentication), org.mockito.ArgumentMatchers.anyString())).thenReturn(false);
-
-        LoginRedirectController controller = new LoginRedirectController(permissionService);
 
         String redirect = controller.postLogin(authentication);
 
@@ -51,8 +70,6 @@ class LoginRedirectControllerTest {
         when(permissionService.hasAuthority(authentication, "PAGE_ANALYTICS")).thenReturn(false);
         when(permissionService.hasAuthority(authentication, "PAGE_SETTINGS")).thenReturn(false);
         when(permissionService.hasAuthority(authentication, "PAGE_USERS")).thenReturn(true);
-
-        LoginRedirectController controller = new LoginRedirectController(permissionService);
 
         String redirect = controller.postLogin(authentication);
 

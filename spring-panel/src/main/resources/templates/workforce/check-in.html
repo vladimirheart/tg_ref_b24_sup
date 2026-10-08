@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Начало смены — iguana</title>
+  <link href="/vendor/bootstrap/5.3.3/bootstrap.min.css" rel="stylesheet">
+  <link href="/css/style.css" rel="stylesheet">
+  <style>
+    body { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--color-bg, #f5f6f8); }
+    .shift-check-in-card { width: min(560px, 100%); }
+    .shift-check-in-meta { display: grid; gap: 12px; }
+    .shift-check-in-row { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 10px; border-bottom: 1px solid var(--color-border, #dee2e6); }
+    .shift-check-in-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .shift-check-in-label { color: var(--color-text-muted, #6c757d); }
+    .shift-check-in-value { text-align: right; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="card shadow-sm shift-check-in-card" aria-labelledby="shiftCheckInTitle">
+    <div class="card-body p-4 p-md-5">
+      <div class="mb-4">
+        <div class="text-uppercase small text-muted fw-semibold mb-2">Рабочая смена</div>
+        <h1 class="h3 mb-2" id="shiftCheckInTitle">Подтвердите начало смены</h1>
+        <p class="text-muted mb-0">После подтверждения система зафиксирует фактический выход и, если настроено, отправит оповещение через рабочего бота.</p>
+      </div>
+
+      <div class="shift-check-in-meta mb-4">
+        <div class="shift-check-in-row">
+          <span class="shift-check-in-label">Сотрудник</span>
+          <span class="shift-check-in-value" th:text="${checkIn.fullName}">Пользователь</span>
+        </div>
+        <div class="shift-check-in-row">
+          <span class="shift-check-in-label">Должность</span>
+          <span class="shift-check-in-value" th:text="${checkIn.positionName}">Без должности</span>
+        </div>
+        <div class="shift-check-in-row">
+          <span class="shift-check-in-label">Плановая смена</span>
+          <span class="shift-check-in-value" th:text="${shiftLabel}">Вне расписания</span>
+        </div>
+        <div class="shift-check-in-row">
+          <span class="shift-check-in-label">Часовой пояс</span>
+          <span class="shift-check-in-value" th:text="${checkIn.timeZone}">UTC</span>
+        </div>
+      </div>
+
+      <div class="alert alert-warning" th:if="${checkIn.unscheduled}">
+        На текущее время активная смена в расписании не найдена. Подтверждение будет отмечено как выход вне расписания.
+      </div>
+
+      <form method="post" th:action="@{/shift-check-in}" class="d-grid gap-2">
+        <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+        <button type="submit" class="btn btn-primary btn-lg">Подтвердить начало смены</button>
+        <a class="btn btn-outline-secondary" th:href="@{/logout}">Выйти из учётной записи</a>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

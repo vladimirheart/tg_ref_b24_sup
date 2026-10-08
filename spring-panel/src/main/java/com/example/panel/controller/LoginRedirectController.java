@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.PermissionService;
+import com.example.panel.service.WorkforceService;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,13 +22,19 @@ public class LoginRedirectController {
     };
 
     private final PermissionService permissionService;
+    private final WorkforceService workforceService;
 
-    public LoginRedirectController(PermissionService permissionService) {
+    public LoginRedirectController(PermissionService permissionService,
+                                   WorkforceService workforceService) {
         this.permissionService = permissionService;
+        this.workforceService = workforceService;
     }
 
     @GetMapping("/post-login")
     public String postLogin(Authentication authentication) {
+        if (authentication != null && workforceService.requiresCheckIn(authentication.getName())) {
+            return "redirect:/shift-check-in";
+        }
         for (String mapping : PAGE_REDIRECTS) {
             String[] parts = mapping.split(":", 2);
             if (permissionService.hasAuthority(authentication, parts[0])) {

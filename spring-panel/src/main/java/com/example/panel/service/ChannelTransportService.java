@@ -352,6 +352,50 @@ public class ChannelTransportService {
         return ResponseEntity.ok(Map.of("success", true, "sent", sentRecipients, "failed", failedRecipients));
     }
 
+    public ConfiguredMessageDeliveryResult sendConfiguredMessage(Long channelId,
+                                                                 String target,
+                                                                 String customChatId,
+                                                                 String message) {
+        if (channelId == null) {
+            return new ConfiguredMessageDeliveryResult(false, null, "channel_not_configured");
+        }
+        Channel channel = channelRepository.findById(channelId).orElse(null);
+        if (channel == null) {
+            return new ConfiguredMessageDeliveryResult(false, null, "channel_not_found");
+        }
+        if (Boolean.FALSE.equals(channel.getActive())) {
+            return new ConfiguredMessageDeliveryResult(false, null, "channel_inactive");
+        }
+        if (!isTelegramPlatform(channel.getPlatform())) {
+            return new ConfiguredMessageDeliveryResult(false, null, "unsupported_platform");
+        }
+        if (isBlank(channel.getToken())) {
+            return new ConfiguredMessageDeliveryResult(false, null, "bot_token_missing");
+        }
+        String normalizedTarget = stringValue(target).toLowerCase();
+        String recipient;
+        if ("broadcast_channel".equals(normalizedTarget)) {
+            Map<String, Object> deliverySettings = parseJsonMap(channel.getDeliverySettings());
+            recipient = stringValue(firstValue(deliverySettings, "broadcast_channel_id", "broadcastChannelId"));
+        } else if ("custom_chat".equals(normalizedTarget)) {
+            recipient = stringValue(customChatId);
+        } else {
+            recipient = stringValue(channel.getSupportChatId());
+        }
+        if (recipient.isEmpty()) {
+            return new ConfiguredMessageDeliveryResult(false, null, "recipient_not_configured");
+        }
+        if (isBlank(message)) {
+            return new ConfiguredMessageDeliveryResult(false, recipient, "message_empty");
+        }
+        boolean sent = sendTelegramMessage(channel, channel.getToken(), recipient, message);
+        return sent
+                ? new ConfiguredMessageDeliveryResult(true, recipient, null)
+                : new ConfiguredMessageDeliveryResult(false, recipient, "delivery_failed");
+    }
+
+    public record ConfiguredMessageDeliveryResult(boolean success, String recipient, String error) { }
+
     public ResponseEntity<Map<String, Object>> refreshBotInfo(long channelId) {
         Channel channel = channelRepository.findById(channelId).orElse(null);
         if (channel == null) {
