@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +26,7 @@ import java.util.Map;
 public class WorkforceAdminApiController {
 
     private final WorkforceService workforceService;
+    private final ConcurrentHashMap<String, Long> lastTestByUser = new ConcurrentHashMap<>();
 
     public WorkforceAdminApiController(WorkforceService workforceService) {
         this.workforceService = workforceService;
@@ -45,6 +51,29 @@ public class WorkforceAdminApiController {
     public Map<String, Object> updatePosition(@PathVariable long positionId,
                                                @RequestBody Map<String, Object> payload) {
         return Map.of("success", true, "position", workforceService.updatePosition(positionId, payload));
+    }
+
+    @PostMapping("/positions/test-notification")
+    public Map<String, Object> testPositionNotification(@RequestBody Map<String, Object> payload,
+                                                         Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        }
+        workforceService.validateNotificationRecipients(payload);
+        String actor = authentication.getName();
+        long now = System.currentTimeMillis();
+        AtomicBoolean allowed = new AtomicBoolean(false);
+        lastTestByUser.compute(actor, (key, previous) -> {
+            if (previous == null || now - previous >= 15_000L) {
+                allowed.set(true);
+                return now;
+            }
+            return previous;
+        });
+        if (!allowed.get()) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Wait 15 seconds before another test");
+        }
+        return workforceService.testPositionNotification(payload);
     }
 
     @GetMapping("/users/{userId}/settings")

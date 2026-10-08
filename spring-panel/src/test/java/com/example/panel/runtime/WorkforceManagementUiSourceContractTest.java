@@ -130,6 +130,47 @@ class WorkforceManagementUiSourceContractTest {
                 .contains("min-height: 9.5rem");
     }
 
+    @Test
+    void workforcePositionEditorSupportsMultiRecipientPreviewBeforeIndependentSave() throws Exception {
+        String users = read("src/main/resources/templates/settings/fragments/users-access.html");
+        String runtime = read("src/main/resources/static/js/workforce-management.js");
+        String controller = read("src/main/java/com/example/panel/controller/WorkforceAdminApiController.java");
+        String service = read("src/main/java/com/example/panel/service/WorkforceService.java");
+
+        assertThat(users)
+                .contains("data-workforce-recipient-block")
+                .contains("data-workforce-recipient-add")
+                .contains("data-workforce-recipient-rows")
+                .contains("data-workforce-position-test")
+                .contains("data-workforce-position-test-results")
+                .contains("Получатели уведомления")
+                .contains("Отправить тест")
+                .doesNotContain("data-workforce-position-channel")
+                .doesNotContain("data-workforce-position-target")
+                .doesNotContain("data-workforce-position-chat");
+        assertThat(runtime)
+                .contains("notification_recipients: recipients")
+                .contains("'/api/workforce/positions/test-notification'")
+                .contains("async function testPositionNotification()")
+                .contains("async function savePosition(event)")
+                .contains("displayPositionTestResults(result, recipients.length)")
+                .contains("data-workforce-recipient-remove")
+                .contains("support_chat_configured")
+                .contains("broadcast_channel_configured")
+                .contains("clearPositionTestResults()")
+                .contains("Number(result.failed || 0)")
+                .contains("state.positionRecipients")
+                .doesNotContain("elements.positionChannel")
+                .doesNotContain("elements.positionTarget")
+                .doesNotContain("elements.positionChat");
+        assertThat(controller)
+                .contains("@PostMapping(\"/positions/test-notification\")");
+        assertThat(service)
+                .contains("public Map<String, Object> testPositionNotification(Map<String, Object> payload)")
+                .contains("result.put(\"results\", summary.results())")
+                .contains("private List<NotificationRecipient> effectiveNotificationRecipients(CheckInContext context)");
+    }
+
     private String read(String relative) throws Exception {
         return Files.readString(Path.of(relative));
     }

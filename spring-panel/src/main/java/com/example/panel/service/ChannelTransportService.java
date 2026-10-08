@@ -352,6 +352,26 @@ public class ChannelTransportService {
         return ResponseEntity.ok(Map.of("success", true, "sent", sentRecipients, "failed", failedRecipients));
     }
 
+    public String resolveConfiguredRecipient(Long channelId, String target, String customChatId) {
+        if (channelId == null) return null;
+        Channel channel = channelRepository.findById(channelId).orElse(null);
+        if (channel == null || Boolean.FALSE.equals(channel.getActive())
+                || !isTelegramPlatform(channel.getPlatform()) || isBlank(channel.getToken())) return null;
+        String normalized = stringValue(target).toLowerCase();
+        String recipient;
+        if ("broadcast_channel".equals(normalized)) {
+            Map<String, Object> settings = parseJsonMap(channel.getDeliverySettings());
+            recipient = stringValue(firstValue(settings, "broadcast_channel_id", "broadcastChannelId"));
+        } else if ("custom_chat".equals(normalized)) {
+            recipient = stringValue(customChatId);
+        } else if ("support_chat".equals(normalized)) {
+            recipient = stringValue(channel.getSupportChatId());
+        } else {
+            return null;
+        }
+        return recipient.isBlank() ? null : recipient;
+    }
+
     public ConfiguredMessageDeliveryResult sendConfiguredMessage(Long channelId,
                                                                  String target,
                                                                  String customChatId,

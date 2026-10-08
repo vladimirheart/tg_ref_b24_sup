@@ -25,6 +25,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -37,6 +38,7 @@ public class WorkforceService {
 
     private static final Logger log = LoggerFactory.getLogger(WorkforceService.class);
     private static final Set<String> NOTIFICATION_TARGETS = Set.of("support_chat", "broadcast_channel", "custom_chat");
+    private static final int MAX_NOTIFICATION_RECIPIENTS = 10;
     private static final DateTimeFormatter MESSAGE_DATE_TIME = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final DateTimeFormatter SHIFT_TIME = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -196,24 +198,13 @@ public class WorkforceService {
         String notificationError = null;
         boolean notificationSent = false;
         if (context.notifyOnCheckIn()) {
-            if (context.notificationChannelId() == null) {
-                notificationStatus = "failed";
-                notificationError = "notification_channel_not_configured";
-            } else {
-                ChannelTransportService.ConfiguredMessageDeliveryResult delivery = channelTransportService.sendConfiguredMessage(
-                        context.notificationChannelId(),
-                        context.notificationTarget(),
-                        context.notificationChatId(),
-                        buildCheckInMessage(context, checkedInAt)
-                );
-                if (delivery.success()) {
-                    notificationStatus = "sent";
-                    notificationSent = true;
-                } else {
-                    notificationStatus = "failed";
-                    notificationError = firstNonBlank(delivery.error(), "delivery_failed");
-                }
-            }
+            DeliverySummary summary = dispatchNotificationRecipients(
+                    effectiveNotificationRecipients(context), buildCheckInMessage(context, checkedInAt), inserted.get(0));
+            notificationSent = summary.sent() > 0;
+            notificationStatus = summary.sent() > 0 && summary.failed() == 0 ? "sent" : "failed";
+            notificationError = summary.failed() > 0
+                    ? summary.failed() + " of " + (summary.sent() + summary.failed()) + " recipients failed"
+                    : null;
             jdbcTemplate.update(
                     """
                     UPDATE workforce_shift_sessions
@@ -231,7 +222,7 @@ public class WorkforceService {
     }
 
     public List<Map<String, Object>> listPositions() {
-        return jdbcTemplate.queryForList(
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 """
                 SELECT id, name, description, check_in_required, notify_on_check_in,
                        notification_channel_id, notification_target, notification_chat_id,
@@ -240,22 +231,41 @@ public class WorkforceService {
                 ORDER BY lower(name), id
                 """
         );
+        return rows.stream().map(this::withNotificationRecipients).toList();
     }
 
     public List<Map<String, Object>> listNotificationChannels() {
-        return jdbcTemplate.queryForList(
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 """
-                SELECT id, channel_name, bot_name, bot_username, platform, support_chat_id, delivery_settings
+                SELECT id, channel_name, bot_name, bot_username, platform
                 FROM channels
                 WHERE COALESCE(is_active, TRUE) = TRUE
                   AND (platform IS NULL OR btrim(platform) = '' OR lower(platform) = 'telegram')
                 ORDER BY lower(channel_name), id
                 """
         );
+        return rows.stream().map(row -> {
+            Map<String, Object> result = new LinkedHashMap<>(row);
+            Long channelId = nullableLong(row.get("id"));
+            result.put("support_chat_configured",
+                    channelTransportService.resolveConfiguredRecipient(channelId, "support_chat", null) != null);
+            result.put("broadcast_channel_configured",
+                    channelTransportService.resolveConfiguredRecipient(channelId, "broadcast_channel", null) != null);
+            return result;
+        }).toList();
     }
 
+    @Transactional
     public Map<String, Object> createPosition(Map<String, Object> payload) {
         PositionInput input = positionInput(payload, null);
+        List<NotificationRecipient> recipients = parsePositionRecipients(payload, null, input);
+        validateNotificationPolicy(input.notifyOnCheckIn(), recipients);
+        Long canonicalChannel = payload != null && payload.containsKey("notification_recipients")
+                ? (recipients.isEmpty() ? null : recipients.get(0).channelId()) : input.notificationChannelId();
+        String canonicalTarget = payload != null && payload.containsKey("notification_recipients")
+                ? (recipients.isEmpty() ? "support_chat" : recipients.get(0).target()) : input.notificationTarget();
+        String canonicalChat = payload != null && payload.containsKey("notification_recipients")
+                ? (recipients.isEmpty() ? null : recipients.get(0).chatId()) : input.notificationChatId();
         Long id = jdbcTemplate.queryForObject(
                 """
                 INSERT INTO workforce_positions (
@@ -266,14 +276,24 @@ public class WorkforceService {
                 """,
                 Long.class,
                 input.name(), input.description(), input.checkInRequired(), input.notifyOnCheckIn(),
-                input.notificationChannelId(), input.notificationTarget(), input.notificationChatId(), input.active()
+                canonicalChannel, canonicalTarget, canonicalChat, input.active()
         );
+        replacePositionRecipients(id, recipients);
         return getPosition(id);
     }
 
+    @Transactional
     public Map<String, Object> updatePosition(long positionId, Map<String, Object> payload) {
         Map<String, Object> existing = getPosition(positionId);
         PositionInput input = positionInput(payload, existing);
+        List<NotificationRecipient> recipients = parsePositionRecipients(payload, existing, input);
+        validateNotificationPolicy(input.notifyOnCheckIn(), recipients);
+        Long canonicalChannel = payload != null && payload.containsKey("notification_recipients")
+                ? (recipients.isEmpty() ? null : recipients.get(0).channelId()) : input.notificationChannelId();
+        String canonicalTarget = payload != null && payload.containsKey("notification_recipients")
+                ? (recipients.isEmpty() ? "support_chat" : recipients.get(0).target()) : input.notificationTarget();
+        String canonicalChat = payload != null && payload.containsKey("notification_recipients")
+                ? (recipients.isEmpty() ? null : recipients.get(0).chatId()) : input.notificationChatId();
         int updated = jdbcTemplate.update(
                 """
                 UPDATE workforce_positions
@@ -283,12 +303,29 @@ public class WorkforceService {
                 WHERE id = ?
                 """,
                 input.name(), input.description(), input.checkInRequired(), input.notifyOnCheckIn(),
-                input.notificationChannelId(), input.notificationTarget(), input.notificationChatId(), input.active(), positionId
+                canonicalChannel, canonicalTarget, canonicalChat, input.active(), positionId
         );
-        if (updated != 1) {
-            throw new IllegalArgumentException("Должность не найдена");
-        }
+        if (updated != 1) throw new IllegalArgumentException("Position not found");
+        replacePositionRecipients(positionId, recipients);
         return getPosition(positionId);
+    }
+
+    public void validateNotificationRecipients(Map<String, Object> payload) {
+        List<NotificationRecipient> recipients = parsePositionRecipients(payload, null, null);
+        if (recipients.isEmpty()) throw new IllegalArgumentException("Select at least one notification recipient");
+    }
+
+    public Map<String, Object> testPositionNotification(Map<String, Object> payload) {
+        List<NotificationRecipient> recipients = parsePositionRecipients(payload, null, null);
+        if (recipients.isEmpty()) throw new IllegalArgumentException("Select at least one notification recipient");
+        DeliverySummary summary = dispatchNotificationRecipients(
+                recipients, "\uD83E\uDDEA \u0422\u0415\u0421\u0422 Workforce: \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438. \u042d\u0442\u043e \u043d\u0435 \u0432\u044b\u0445\u043e\u0434 \u043d\u0430 \u0441\u043c\u0435\u043d\u0443.", null);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("sent", summary.sent());
+        result.put("failed", summary.failed());
+        result.put("results", summary.results());
+        return result;
     }
 
     public Map<String, Object> getUserSettings(long userId) {
@@ -570,6 +607,199 @@ public class WorkforceService {
                 + "Смена: " + shift;
     }
 
+    private Map<String, Object> withNotificationRecipients(Map<String, Object> position) {
+        Map<String, Object> response = new LinkedHashMap<>(position);
+        Long positionId = nullableLong(position.get("id"));
+        List<NotificationRecipient> recipients = loadPositionRecipients(positionId);
+        if (recipients.isEmpty() && nullableLong(position.get("notification_channel_id")) != null) {
+            recipients = List.of(new NotificationRecipient(
+                    nullableLong(position.get("notification_channel_id")),
+                    normalizeNotificationTarget(stringValue(position.get("notification_target"))),
+                    nullableString(position.get("notification_chat_id"))));
+        }
+        response.put("notification_recipients", recipients.stream().map(NotificationRecipient::asMap).toList());
+        return response;
+    }
+
+    private List<NotificationRecipient> loadPositionRecipients(Long positionId) {
+        if (positionId == null) return List.of();
+        return jdbcTemplate.query(
+                """
+                SELECT channel_id, target, chat_id
+                FROM workforce_position_notification_recipients
+                WHERE position_id = ? ORDER BY id
+                """,
+                (rs, index) -> new NotificationRecipient(rs.getLong("channel_id"), rs.getString("target"), rs.getString("chat_id")),
+                positionId
+        );
+    }
+
+    private List<NotificationRecipient> parsePositionRecipients(Map<String, Object> payload,
+                                                                 Map<String, Object> existing,
+                                                                 PositionInput fallback) {
+        Map<String, Object> data = payload == null ? Map.of() : payload;
+        if (!data.containsKey("notification_recipients")) {
+            // Legacy clients still submit the scalar route fields. An explicit legacy change
+            // replaces the multi-route set; unrelated edits preserve the existing set.
+            boolean legacyRouteTouched = data.containsKey("notification_channel_id")
+                    || data.containsKey("notification_target")
+                    || data.containsKey("notification_chat_id");
+            if (!legacyRouteTouched && existing != null
+                    && existing.get("notification_recipients") instanceof List<?> list && !list.isEmpty()) {
+                return parseRecipientList(list);
+            }
+            Long channelId = fallback == null ? nullableLong(data.get("notification_channel_id")) : fallback.notificationChannelId();
+            if (channelId == null) return List.of();
+            String target = fallback == null
+                    ? firstNonBlank(stringValue(data.get("notification_target")), "support_chat")
+                    : fallback.notificationTarget();
+            String chat = fallback == null ? nullableString(data.get("notification_chat_id")) : fallback.notificationChatId();
+            return validateAndDeduplicate(List.of(new NotificationRecipient(channelId, target, chat)));
+        }
+        Object value = data.get("notification_recipients");
+        if (!(value instanceof List<?> list)) throw new IllegalArgumentException("notification_recipients must be an array");
+        return parseRecipientList(list);
+    }
+
+    private List<NotificationRecipient> parseRecipientList(List<?> list) {
+        if (list.size() > MAX_NOTIFICATION_RECIPIENTS) {
+            throw new IllegalArgumentException("Too many recipients (maximum 10)");
+        }
+        List<NotificationRecipient> recipients = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> map)) throw new IllegalArgumentException("Invalid notification recipient");
+            Long channelId = nullableLong(map.get("channel_id"));
+            String target = firstNonBlank(stringValue(map.get("target")), "support_chat");
+            String chatId = nullableString(map.get("chat_id"));
+            recipients.add(new NotificationRecipient(channelId, target, chatId));
+        }
+        return validateAndDeduplicate(recipients);
+    }
+
+    private List<NotificationRecipient> validateAndDeduplicate(List<NotificationRecipient> routes) {
+        List<NotificationRecipient> result = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (NotificationRecipient item : routes) {
+            if (item.channelId() == null || item.channelId() < 1) {
+                throw new IllegalArgumentException("Select a bot for every recipient");
+            }
+            if (!NOTIFICATION_TARGETS.contains(item.target())) {
+                throw new IllegalArgumentException("Unsupported notification target");
+            }
+            String chatId = item.chatId();
+            if ("custom_chat".equals(item.target())) {
+                if (chatId == null || chatId.length() > 128
+                        || !chatId.matches("-?[0-9]{1,20}|@[a-zA-Z0-9_]{5,32}")) {
+                    throw new IllegalArgumentException("Invalid Telegram chat ID or @username");
+                }
+            } else {
+                if (chatId != null) throw new IllegalArgumentException("Only custom_chat accepts chat_id");
+            }
+            String key = item.channelId() + ":" + item.target() + ":" + firstNonBlank(chatId, "");
+            if (seen.add(key)) result.add(item);
+        }
+        if (result.size() > MAX_NOTIFICATION_RECIPIENTS) {
+            throw new IllegalArgumentException("Too many notification recipients");
+        }
+        return List.copyOf(result);
+    }
+
+    private void validateNotificationPolicy(boolean notify, List<NotificationRecipient> recipients) {
+        if (notify && recipients.isEmpty()) {
+            throw new IllegalArgumentException("At least one recipient is required when notifications are enabled");
+        }
+    }
+
+    private void replacePositionRecipients(long positionId, List<NotificationRecipient> recipients) {
+        jdbcTemplate.update("DELETE FROM workforce_position_notification_recipients WHERE position_id = ?", positionId);
+        for (NotificationRecipient recipient : recipients) {
+            jdbcTemplate.update(
+                    "INSERT INTO workforce_position_notification_recipients(position_id, channel_id, target, chat_id) VALUES (?, ?, ?, ?)",
+                    positionId, recipient.channelId(), recipient.target(), recipient.chatId());
+        }
+    }
+
+    private List<NotificationRecipient> effectiveNotificationRecipients(CheckInContext context) {
+        if (context.userId() == null) return List.of();
+        Boolean userHasRouteOverride = jdbcTemplate.queryForObject(
+                """
+                SELECT (notification_channel_id_override IS NOT NULL
+                        OR notification_target_override IS NOT NULL
+                        OR notification_chat_id_override IS NOT NULL)
+                FROM workforce_user_settings WHERE user_id = ?
+                """, Boolean.class, context.userId());
+        if (Boolean.TRUE.equals(userHasRouteOverride)) {
+            if (context.notificationChannelId() == null) return List.of();
+            return validateAndDeduplicate(List.of(new NotificationRecipient(
+                    context.notificationChannelId(), context.notificationTarget(),
+                    "custom_chat".equals(context.notificationTarget()) ? context.notificationChatId() : null)));
+        }
+        List<NotificationRecipient> configured = loadPositionRecipients(context.positionId());
+        if (!configured.isEmpty()) return configured;
+        if (context.notificationChannelId() == null) return List.of();
+        return validateAndDeduplicate(List.of(new NotificationRecipient(
+                context.notificationChannelId(), context.notificationTarget(),
+                "custom_chat".equals(context.notificationTarget()) ? context.notificationChatId() : null)));
+    }
+
+    private DeliverySummary dispatchNotificationRecipients(List<NotificationRecipient> recipients,
+                                                           String message, Long sessionId) {
+        int sent = 0;
+        int failed = 0;
+        List<Map<String, Object>> results = new ArrayList<>();
+        Set<String> resolvedKeys = new LinkedHashSet<>();
+        for (NotificationRecipient route : recipients) {
+            String resolved = channelTransportService.resolveConfiguredRecipient(
+                    route.channelId(), route.target(), route.chatId());
+            if (resolved != null && !resolvedKeys.add(route.channelId() + ":" + resolved)) {
+                continue;
+            }
+            ChannelTransportService.ConfiguredMessageDeliveryResult delivery;
+            try {
+                delivery = channelTransportService.sendConfiguredMessage(
+                        route.channelId(), route.target(), route.chatId(), message);
+            } catch (RuntimeException ex) {
+                log.warn("Workforce notification delivery failed for channel {}: {}", route.channelId(), ex.getClass().getSimpleName());
+                delivery = new ChannelTransportService.ConfiguredMessageDeliveryResult(false, resolved, "delivery_exception");
+            }
+            boolean success = delivery != null && delivery.success();
+            if (success) sent++; else failed++;
+            String error = success ? null : firstNonBlank(delivery == null ? null : delivery.error(), "delivery_failed");
+            String actualRecipient = delivery == null ? resolved : firstNonBlank(delivery.recipient(), resolved);
+            Map<String, Object> item = new LinkedHashMap<>(route.asMap());
+            item.put("success", success);
+            item.put("recipient", actualRecipient);
+            item.put("error", error);
+            results.add(item);
+            if (sessionId != null) {
+                jdbcTemplate.update(
+                        """
+                        INSERT INTO workforce_shift_notification_deliveries(
+                            shift_session_id, channel_id, target, chat_id, resolved_recipient,
+                            delivery_status, error, sent_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        sessionId, route.channelId(), route.target(), route.chatId(), actualRecipient,
+                        success ? "sent" : "failed", error,
+                        success ? OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC) : null);
+            }
+        }
+        if (recipients.isEmpty()) failed++;
+        return new DeliverySummary(sent, failed, results);
+    }
+
+    private record NotificationRecipient(Long channelId, String target, String chatId) {
+        Map<String, Object> asMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("channel_id", channelId);
+            map.put("target", target);
+            map.put("chat_id", chatId);
+            return map;
+        }
+    }
+
+    private record DeliverySummary(int sent, int failed, List<Map<String, Object>> results) { }
+
     private Map<String, Object> getPosition(long positionId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 """
@@ -582,7 +812,7 @@ public class WorkforceService {
                 positionId
         );
         if (rows.isEmpty()) throw new IllegalArgumentException("Должность не найдена");
-        return new LinkedHashMap<>(rows.get(0));
+        return withNotificationRecipients(rows.get(0));
     }
 
     private PositionInput positionInput(Map<String, Object> payload, Map<String, Object> existing) {

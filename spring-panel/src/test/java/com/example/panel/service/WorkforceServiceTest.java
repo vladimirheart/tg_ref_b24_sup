@@ -9,6 +9,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.contains;
@@ -54,6 +55,128 @@ class WorkforceServiceTest {
         verify(channelTransportService).sendConfiguredMessage(
                 eq(11L), eq("support_chat"), isNull(), contains("Оператор поддержки")
         );
+    }
+
+    @Test
+    void multiRecipientCheckInSendsEachConfiguredRouteOncePerShift() {
+        long userId = insertUser("multi", "Multi Recipient");
+        long positionId = insertPosition("Dispatcher", true, true, 11L);
+        jdbcTemplate.update("""
+                INSERT INTO workforce_position_notification_recipients(position_id, channel_id, target, chat_id)
+                VALUES (?, 11, 'support_chat', NULL), (?, 12, 'custom_chat', '-100789')
+                """, positionId, positionId);
+        enableUser(userId, positionId, "UTC", null, null);
+        org.mockito.Mockito.when(channelTransportService.resolveConfiguredRecipient(eq(11L), eq("support_chat"), isNull()))
+                .thenReturn("-100123");
+        org.mockito.Mockito.when(channelTransportService.resolveConfiguredRecipient(eq(12L), eq("custom_chat"), eq("-100789")))
+                .thenReturn("-100789");
+        org.mockito.Mockito.when(channelTransportService.sendConfiguredMessage(
+                eq(11L), eq("support_chat"), isNull(), contains("Multi Recipient")))
+                .thenReturn(new ChannelTransportService.ConfiguredMessageDeliveryResult(true, "-100123", null));
+        org.mockito.Mockito.when(channelTransportService.sendConfiguredMessage(
+                eq(12L), eq("custom_chat"), eq("-100789"), contains("Multi Recipient")))
+                .thenReturn(new ChannelTransportService.ConfiguredMessageDeliveryResult(true, "-100789", null));
+
+        WorkforceService service = serviceAt("2026-10-08T10:00:00Z");
+        assertThat(service.confirmCheckIn("multi").notificationStatus()).isEqualTo("sent");
+        assertThat(service.confirmCheckIn("multi").created()).isFalse();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM workforce_shift_sessions", Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM workforce_shift_notification_deliveries", Integer.class)).isEqualTo(2);
+        verify(channelTransportService).sendConfiguredMessage(eq(11L), eq("support_chat"), isNull(), contains("Multi Recipient"));
+        verify(channelTransportService).sendConfiguredMessage(eq(12L), eq("custom_chat"), eq("-100789"), contains("Multi Recipient"));
+    }
+
+    @Test
+    void legacyScalarRouteUpdateReplacesMultiRecipientSet() {
+        long positionId = insertPosition("Legacy route update", true, true, 11L);
+        jdbcTemplate.update("""
+                INSERT INTO workforce_position_notification_recipients(position_id, channel_id, target, chat_id)
+                VALUES (?, 11, 'support_chat', NULL), (?, 12, 'custom_chat', '-100789')
+                """, positionId, positionId);
+
+        WorkforceService service = serviceAt("2026-10-08T10:00:00Z");
+        Map<String, Object> updated = service.updatePosition(positionId, Map.of(
+                "notification_channel_id", 13L, "notification_target", "broadcast_channel"));
+        List<?> recipients = (List<?>) updated.get("notification_recipients");
+
+        assertThat(recipients).hasSize(1);
+        Map<?, ?> recipient = (Map<?, ?>) recipients.get(0);
+        assertThat(recipient.get("channel_id")).isEqualTo(13L);
+        assertThat(recipient.get("target")).isEqualTo("broadcast_channel");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM workforce_position_notification_recipients WHERE position_id = ?",
+                Integer.class, positionId)).isEqualTo(1);
+    }
+
+    @Test
+    void descriptionOnlyUpdatePreservesExistingMultiRecipientSet() {
+        long positionId = insertPosition("Multi route metadata update", true, true, 11L);
+        jdbcTemplate.update("""
+                INSERT INTO workforce_position_notification_recipients(position_id, channel_id, target, chat_id)
+                VALUES (?, 11, 'support_chat', NULL), (?, 12, 'custom_chat', '-100789')
+                """, positionId, positionId);
+
+        WorkforceService service = serviceAt("2026-10-08T10:00:00Z");
+        Map<String, Object> updated = service.updatePosition(positionId, Map.of("description", "changed only"));
+        List<?> recipients = (List<?>) updated.get("notification_recipients");
+
+        assertThat(recipients).hasSize(2);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM workforce_position_notification_recipients WHERE position_id = ?",
+                Integer.class, positionId)).isEqualTo(2);
+    }
+
+    @Test
+    void legacyScalarClearAfterDisableRemovesMultiRecipientRoutes() {
+        long positionId = insertPosition("Legacy clear", true, true, 11L);
+        jdbcTemplate.update("""
+                INSERT INTO workforce_position_notification_recipients(position_id, channel_id, target, chat_id)
+                VALUES (?, 11, 'support_chat', NULL), (?, 12, 'custom_chat', '-100789')
+                """, positionId, positionId);
+
+        Map<String, Object> legacyPayload = new java.util.LinkedHashMap<>();
+        legacyPayload.put("notification_channel_id", null);
+        legacyPayload.put("notify_on_check_in", false);
+        WorkforceService service = serviceAt("2026-10-08T10:00:00Z");
+        Map<String, Object> updated = service.updatePosition(positionId, legacyPayload);
+
+        assertThat((List<?>) updated.get("notification_recipients")).isEmpty();
+        assertThat(updated.get("notification_channel_id")).isNull();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM workforce_position_notification_recipients WHERE position_id = ?",
+                Integer.class, positionId)).isZero();
+    }
+
+    @Test
+    void testNotificationDeduplicatesSameResolvedChatAcrossTargets() {
+        WorkforceService service = serviceAt("2026-10-08T10:00:00Z");
+        org.mockito.Mockito.when(channelTransportService.resolveConfiguredRecipient(eq(11L), eq("support_chat"), isNull()))
+                .thenReturn("-100123");
+        org.mockito.Mockito.when(channelTransportService.resolveConfiguredRecipient(eq(11L), eq("custom_chat"), eq("-100123")))
+                .thenReturn("-100123");
+        org.mockito.Mockito.when(channelTransportService.sendConfiguredMessage(
+                eq(11L), eq("support_chat"), isNull(), contains("Workforce")))
+                .thenReturn(new ChannelTransportService.ConfiguredMessageDeliveryResult(true, "-100123", null));
+        Map<String, Object> response = service.testPositionNotification(Map.of("notification_recipients", List.of(
+                Map.of("channel_id", 11, "target", "support_chat"),
+                Map.of("channel_id", 11, "target", "custom_chat", "chat_id", "-100123"))));
+        assertThat(response).containsEntry("sent", 1).containsEntry("failed", 0);
+        verify(channelTransportService, never()).sendConfiguredMessage(
+                eq(11L), eq("custom_chat"), eq("-100123"), contains("Workforce"));
+    }
+
+    @Test
+    void testNotificationUsesUnsavedRecipientsAndDoesNotPersistPositionOrSession() {
+        WorkforceService service = serviceAt("2026-10-08T10:00:00Z");
+        org.mockito.Mockito.when(channelTransportService.sendConfiguredMessage(
+                eq(12L), eq("custom_chat"), eq("-100789"), contains("Workforce")))
+                .thenReturn(new ChannelTransportService.ConfiguredMessageDeliveryResult(true, "-100789", null));
+        Map<String, Object> data = service.testPositionNotification(Map.of(
+                "notification_recipients", List.of(Map.of("channel_id", 12, "target", "custom_chat", "chat_id", "-100789"))));
+        assertThat(data).containsEntry("sent", 1).containsEntry("failed", 0);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM workforce_positions", Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM workforce_shift_sessions", Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM workforce_shift_notification_deliveries", Integer.class)).isZero();
     }
 
     @Test
@@ -168,6 +291,15 @@ class WorkforceServiceTest {
                 )
                 """);
         jdbcTemplate.execute("""
+                CREATE TABLE workforce_position_notification_recipients (
+                    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                    position_id BIGINT NOT NULL,
+                    channel_id BIGINT NOT NULL,
+                    target TEXT NOT NULL,
+                    chat_id TEXT
+                )
+                """);
+        jdbcTemplate.execute("""
                 CREATE TABLE workforce_user_settings (
                     user_id BIGINT PRIMARY KEY,
                     position_id BIGINT,
@@ -220,6 +352,20 @@ class WorkforceServiceTest {
                     notification_status TEXT NOT NULL DEFAULT 'skipped',
                     notification_sent_at TIMESTAMPTZ,
                     notification_error TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE workforce_shift_notification_deliveries (
+                    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                    shift_session_id BIGINT NOT NULL,
+                    channel_id BIGINT,
+                    target TEXT NOT NULL,
+                    chat_id TEXT,
+                    resolved_recipient TEXT,
+                    delivery_status TEXT NOT NULL,
+                    error TEXT,
+                    sent_at TIMESTAMPTZ,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
                 """);

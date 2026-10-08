@@ -113,21 +113,21 @@
                               <label class="form-check-label">Отправлять сообщение о приходе</label>
                             </div>
                           </div>
-                          <div class="col-md-5">
-                            <label class="form-label small mb-1">Канал / бот</label>
-                            <select class="form-select form-select-sm" data-workforce-position-channel disabled></select>
-                          </div>
-                          <div class="col-md-4">
-                            <label class="form-label small mb-1">Куда отправлять</label>
-                            <select class="form-select form-select-sm" data-workforce-position-target disabled>
-                              <option value="support_chat">Чат поддержки</option>
-                              <option value="broadcast_channel">Канал рассылки</option>
-                              <option value="custom_chat">Другой chat ID</option>
-                            </select>
-                          </div>
-                          <div class="col-md-3 d-none" data-workforce-custom-chat-wrap>
-                            <label class="form-label small mb-1">Chat ID</label>
-                            <input type="text" class="form-control form-control-sm" data-workforce-position-chat disabled autocomplete="off">
+                          <div class="col-12" data-workforce-recipient-block>
+                            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                              <div>
+                                <label class="form-label small fw-semibold mb-1">Получатели уведомления</label>
+                                <div class="small text-muted">Можно сочетать настроенные чаты ботов и отдельные Chat ID (до 10 получателей).</div>
+                              </div>
+                              <button type="button" class="btn btn-outline-secondary btn-sm" data-workforce-recipient-add>+ Добавить получателя</button>
+                            </div>
+                            <div class="d-flex flex-column gap-2 mt-2" data-workforce-recipient-rows></div>
+                            <div class="small text-muted mt-2">Выбранный бот отправит сообщение каждому получателю. Для Telegram бот должен иметь доступ к чату или каналу.</div>
+                            <div class="d-flex align-items-center flex-wrap gap-2 mt-3">
+                              <button type="button" class="btn btn-outline-primary btn-sm" data-workforce-position-test>Отправить тест</button>
+                              <span class="small text-muted">Реальная тестовая отправка, без сохранения должности и создания смены. Интервал: 15 секунд.</span>
+                            </div>
+                            <div class="alert alert-secondary small mt-2 mb-0 d-none" data-workforce-position-test-results role="status" aria-live="polite"></div>
                           </div>
                           <div class="col-12 d-flex flex-wrap align-items-center justify-content-between gap-2">
                             <div class="form-check form-switch">
@@ -350,7 +350,7 @@
                             <summary class="workforce-sub-disclosure__summary">
                               <span class="workforce-sub-disclosure__heading">
                                 <span class="workforce-sub-disclosure__title">Персональные исключения</span>
-                                <span class="workforce-sub-disclosure__description">Переопределяют правила выбранной должности только для этого пользователя</span>
+                                <span class="workforce-sub-disclosure__description">Переопределяют правила должности. Персональный получатель заменяет весь список получателей должности.</span>
                               </span>
                               <span class="workforce-sub-disclosure__chevron" aria-hidden="true"></span>
                             </summary>
@@ -373,16 +373,16 @@
                                   </select>
                                 </div>
                                 <div class="col-md-6 col-lg-4">
-                                  <label class="form-label small mb-1">Канал / бот</label>
+                                  <label class="form-label small mb-1">Отправлять через бота</label>
                                   <select class="form-select form-select-sm" data-workforce-user-channel-override></select>
                                 </div>
                                 <div class="col-md-6 col-lg-4">
-                                  <label class="form-label small mb-1">Получатель</label>
+                                  <label class="form-label small mb-1">Получатель уведомления</label>
                                   <select class="form-select form-select-sm" data-workforce-user-target-override>
                                     <option value="">Наследовать от должности</option>
                                     <option value="support_chat">Чат поддержки</option>
                                     <option value="broadcast_channel">Канал рассылки</option>
-                                    <option value="custom_chat">Другой chat ID</option>
+                                    <option value="custom_chat">Указанный чат / канал</option>
                                   </select>
                                 </div>
                                 <div class="col-md-6 col-lg-4 d-none" data-workforce-user-custom-chat-wrap>
