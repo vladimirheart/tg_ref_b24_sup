@@ -1,7 +1,10 @@
 // panel/static/sidebar.js
 (function () {
+  const SIDEBAR_RUNTIME_FLAG = '__IGUANA_SIDEBAR_RUNTIME_READY__';
+  if (window[SIDEBAR_RUNTIME_FLAG] === true) return;
   const sidebar = document.getElementById('app-sidebar');
   if (!sidebar) return;
+  window[SIDEBAR_RUNTIME_FLAG] = true;
   const prefApi = window.iguanaUiPreferences || null;
 
   const collapseToggleBtn = document.getElementById('sidebarCollapseToggle');
@@ -294,6 +297,7 @@
   }
 
   function applyState() {
+    document.documentElement.dataset.sidebarExpanded = expanded ? '1' : '0';
     if (isMobileViewport()) {
       sidebar.classList.remove('pinned', 'collapsed');
       setBodyCollapsedState(false);
