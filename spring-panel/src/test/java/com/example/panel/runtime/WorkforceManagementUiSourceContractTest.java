@@ -101,6 +101,35 @@ class WorkforceManagementUiSourceContractTest {
                 .contains("#authUserDetailsModal .workforce-schedule-table");
     }
 
+
+    @Test
+    void userDetailsModalUsesNativeScrollableContentAndProgressiveWorkforceDisclosure() throws Exception {
+        String users = read("src/main/resources/templates/settings/fragments/users-access.html");
+        String scss = read("src/main/resources/scss/settings/calm/_users-access.scss");
+        String css = read("src/main/resources/static/css/settings.css");
+
+        assertThat(users)
+                .contains("modal-dialog modal-dialog-scrollable modal-xl modal-fullscreen-sm-down")
+                .contains("<form class=\"modal-content\" data-auth-user-form")
+                .doesNotContain("<div class=\"modal-content\">\n          <form data-auth-user-form")
+                .contains("<details class=\"ui-disclosure-native workforce-user-disclosure\">")
+                .contains("<details class=\"ui-disclosure-native workforce-sub-disclosure\" data-workforce-advanced-disclosure>")
+                .contains("<details class=\"ui-disclosure-native workforce-sub-disclosure workforce-schedule-block\">")
+                .contains("<details class=\"ui-disclosure-native workforce-sub-disclosure workforce-sessions-block\">")
+                .doesNotContain("<details class=\"ui-disclosure-native workforce-user-disclosure\" open");
+
+        assertThat(scss)
+                .contains("user modal density and native scroll corrective R89")
+                .contains("#authUserDetailsModal .workforce-user-disclosure__summary")
+                .contains("#authUserDetailsModal .workforce-sub-disclosure__body")
+                .contains("min-height: 9.5rem");
+        assertThat(css)
+                .contains("user modal density and native scroll corrective R89")
+                .contains("#authUserDetailsModal .workforce-user-disclosure__summary")
+                .contains("#authUserDetailsModal .workforce-sub-disclosure__body")
+                .contains("min-height: 9.5rem");
+    }
+
     private String read(String relative) throws Exception {
         return Files.readString(Path.of(relative));
     }

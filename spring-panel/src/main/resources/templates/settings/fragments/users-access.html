@@ -184,8 +184,7 @@
 
     <div class="modal fade settings-child-modal settings-child-modal--workspace settings-child-modal--sheet" id="authUserDetailsModal" tabindex="-1" aria-hidden="true" data-auth-user-modal>
       <div class="modal-dialog modal-dialog-scrollable modal-xl modal-fullscreen-sm-down">
-        <div class="modal-content">
-          <form data-auth-user-form action="/api/users" method="post">
+        <form class="modal-content" data-auth-user-form action="/api/users" method="post">
             <input type="hidden" name="_csrf" th:value="${_csrf.token}">
             <div class="modal-header">
               <h5 class="modal-title" data-auth-user-modal-title>Пользователь</h5>
@@ -300,114 +299,154 @@
                     </div>
                   </div>
                   <div class="col-12" data-workforce-user-section>
-                    <div class="border rounded-3 p-3 workforce-user-workspace">
-                      <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
-                        <div>
-                          <h6 class="mb-1">Работа и расписание</h6>
-                          <p class="small text-muted mb-0">Должность, подтверждение выхода на смену и персональные исключения.</p>
-                        </div>
-                      </div>
-                      <div class="small text-muted" data-workforce-user-loading>Загрузка настроек…</div>
-                      <div class="alert alert-info small d-none mb-0" data-workforce-user-unavailable></div>
-                      <div class="d-none" data-workforce-user-content>
-                        <div class="alert d-none py-2 px-3 small" data-workforce-user-status role="status" aria-live="polite"></div>
-                        <div class="row g-3">
-                          <div class="col-md-4">
-                            <div class="form-check form-switch mt-4">
-                              <input class="form-check-input" type="checkbox" id="workforceUserEnabled" data-workforce-user-enabled>
-                              <label class="form-check-label" for="workforceUserEnabled">Учитывать пользователя в расписании</label>
+                    <details class="ui-disclosure-native workforce-user-disclosure">
+                      <summary class="workforce-user-disclosure__summary">
+                        <span class="workforce-user-disclosure__heading">
+                          <span class="workforce-user-disclosure__title">Работа и расписание</span>
+                          <span class="workforce-user-disclosure__description">Должность, check-in, смены и оповещения</span>
+                        </span>
+                        <span class="workforce-user-disclosure__chevron" aria-hidden="true"></span>
+                      </summary>
+                      <div class="workforce-user-workspace">
+                        <div class="small text-muted" data-workforce-user-loading>Загрузка настроек…</div>
+                        <div class="alert alert-info small d-none mb-0" data-workforce-user-unavailable></div>
+                        <div class="d-none" data-workforce-user-content>
+                          <div class="alert d-none py-2 px-3 small" data-workforce-user-status role="status" aria-live="polite"></div>
+
+                          <div class="workforce-core-settings">
+                            <div class="workforce-section-heading">
+                              <div>
+                                <h6 class="mb-1">Основные настройки</h6>
+                                <div class="small text-muted">Включите пользователя в график и назначьте должность.</div>
+                              </div>
+                            </div>
+                            <div class="row g-3 align-items-end">
+                              <div class="col-lg-4">
+                                <div class="form-check form-switch workforce-enabled-switch">
+                                  <input class="form-check-input" type="checkbox" id="workforceUserEnabled" data-workforce-user-enabled>
+                                  <label class="form-check-label" for="workforceUserEnabled">Учитывать в расписании</label>
+                                </div>
+                              </div>
+                              <div class="col-md-6 col-lg-4">
+                                <label class="form-label small mb-1">Должность</label>
+                                <select class="form-select form-select-sm" data-workforce-user-position></select>
+                              </div>
+                              <div class="col-md-6 col-lg-4">
+                                <label class="form-label small mb-1">Часовой пояс</label>
+                                <input type="text" class="form-control form-control-sm" list="workforceTimeZones" data-workforce-user-time-zone value="UTC" autocomplete="off">
+                                <datalist id="workforceTimeZones">
+                                  <option value="UTC"></option>
+                                  <option value="Europe/Moscow"></option>
+                                  <option value="Europe/Amsterdam"></option>
+                                  <option value="Asia/Yekaterinburg"></option>
+                                  <option value="Asia/Novosibirsk"></option>
+                                  <option value="Asia/Vladivostok"></option>
+                                </datalist>
+                              </div>
                             </div>
                           </div>
-                          <div class="col-md-4">
-                            <label class="form-label small mb-1">Должность</label>
-                            <select class="form-select form-select-sm" data-workforce-user-position></select>
-                          </div>
-                          <div class="col-md-4">
-                            <label class="form-label small mb-1">Часовой пояс</label>
-                            <input type="text" class="form-control form-control-sm" list="workforceTimeZones" data-workforce-user-time-zone value="UTC" autocomplete="off">
-                            <datalist id="workforceTimeZones">
-                              <option value="UTC"></option>
-                              <option value="Europe/Moscow"></option>
-                              <option value="Europe/Amsterdam"></option>
-                              <option value="Asia/Yekaterinburg"></option>
-                              <option value="Asia/Novosibirsk"></option>
-                              <option value="Asia/Vladivostok"></option>
-                            </datalist>
-                          </div>
-                          <div class="col-md-4">
-                            <label class="form-label small mb-1">Check-in</label>
-                            <select class="form-select form-select-sm" data-workforce-user-checkin-override>
-                              <option value="">Наследовать от должности</option>
-                              <option value="true">Обязателен</option>
-                              <option value="false">Не запрашивать</option>
-                            </select>
-                          </div>
-                          <div class="col-md-4">
-                            <label class="form-label small mb-1">Оповещение о приходе</label>
-                            <select class="form-select form-select-sm" data-workforce-user-notify-override>
-                              <option value="">Наследовать от должности</option>
-                              <option value="true">Отправлять</option>
-                              <option value="false">Не отправлять</option>
-                            </select>
-                          </div>
-                          <div class="col-md-4">
-                            <label class="form-label small mb-1">Персональный канал / бот</label>
-                            <select class="form-select form-select-sm" data-workforce-user-channel-override></select>
-                          </div>
-                          <div class="col-md-4">
-                            <label class="form-label small mb-1">Персональный получатель</label>
-                            <select class="form-select form-select-sm" data-workforce-user-target-override>
-                              <option value="">Наследовать от должности</option>
-                              <option value="support_chat">Чат поддержки</option>
-                              <option value="broadcast_channel">Канал рассылки</option>
-                              <option value="custom_chat">Другой chat ID</option>
-                            </select>
-                          </div>
-                          <div class="col-md-4 d-none" data-workforce-user-custom-chat-wrap>
-                            <label class="form-label small mb-1">Персональный chat ID</label>
-                            <input type="text" class="form-control form-control-sm" data-workforce-user-chat-override autocomplete="off">
-                          </div>
-                          <div class="col-12 d-flex justify-content-end">
+
+                          <details class="ui-disclosure-native workforce-sub-disclosure" data-workforce-advanced-disclosure>
+                            <summary class="workforce-sub-disclosure__summary">
+                              <span class="workforce-sub-disclosure__heading">
+                                <span class="workforce-sub-disclosure__title">Персональные исключения</span>
+                                <span class="workforce-sub-disclosure__description">Переопределяют правила выбранной должности только для этого пользователя</span>
+                              </span>
+                              <span class="workforce-sub-disclosure__chevron" aria-hidden="true"></span>
+                            </summary>
+                            <div class="workforce-sub-disclosure__body">
+                              <div class="row g-3">
+                                <div class="col-md-6 col-lg-4">
+                                  <label class="form-label small mb-1">Check-in</label>
+                                  <select class="form-select form-select-sm" data-workforce-user-checkin-override>
+                                    <option value="">Наследовать от должности</option>
+                                    <option value="true">Обязателен</option>
+                                    <option value="false">Не запрашивать</option>
+                                  </select>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                  <label class="form-label small mb-1">Оповещение о приходе</label>
+                                  <select class="form-select form-select-sm" data-workforce-user-notify-override>
+                                    <option value="">Наследовать от должности</option>
+                                    <option value="true">Отправлять</option>
+                                    <option value="false">Не отправлять</option>
+                                  </select>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                  <label class="form-label small mb-1">Канал / бот</label>
+                                  <select class="form-select form-select-sm" data-workforce-user-channel-override></select>
+                                </div>
+                                <div class="col-md-6 col-lg-4">
+                                  <label class="form-label small mb-1">Получатель</label>
+                                  <select class="form-select form-select-sm" data-workforce-user-target-override>
+                                    <option value="">Наследовать от должности</option>
+                                    <option value="support_chat">Чат поддержки</option>
+                                    <option value="broadcast_channel">Канал рассылки</option>
+                                    <option value="custom_chat">Другой chat ID</option>
+                                  </select>
+                                </div>
+                                <div class="col-md-6 col-lg-4 d-none" data-workforce-user-custom-chat-wrap>
+                                  <label class="form-label small mb-1">Chat ID</label>
+                                  <input type="text" class="form-control form-control-sm" data-workforce-user-chat-override autocomplete="off">
+                                </div>
+                              </div>
+                            </div>
+                          </details>
+
+                          <div class="d-flex justify-content-end mt-3">
                             <button type="button" class="btn btn-outline-primary btn-sm" data-workforce-user-settings-save>Сохранить настройки работы</button>
                           </div>
-                        </div>
 
-                        <div class="workforce-schedule-block mt-4">
-                          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                            <div>
-                              <h6 class="mb-1">Недельное расписание</h6>
-                              <div class="small text-muted">Можно добавить несколько смен в один день. Если конец раньше начала — смена считается ночной.</div>
+                          <details class="ui-disclosure-native workforce-sub-disclosure workforce-schedule-block">
+                            <summary class="workforce-sub-disclosure__summary">
+                              <span class="workforce-sub-disclosure__heading">
+                                <span class="workforce-sub-disclosure__title">Недельное расписание</span>
+                                <span class="workforce-sub-disclosure__description">Несколько смен в день поддерживаются; конец раньше начала означает ночную смену</span>
+                              </span>
+                              <span class="workforce-sub-disclosure__chevron" aria-hidden="true"></span>
+                            </summary>
+                            <div class="workforce-sub-disclosure__body">
+                              <div class="d-flex justify-content-end mb-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-workforce-schedule-add>+ Добавить смену</button>
+                              </div>
+                              <div class="table-responsive workforce-schedule-table-wrap">
+                                <table class="table table-sm align-middle workforce-schedule-table">
+                                  <thead>
+                                    <tr>
+                                      <th>День</th><th>Начало</th><th>Конец</th><th>С даты</th><th>По дату</th><th title="За сколько минут до начала можно отметиться">Окно, мин</th><th title="Через сколько минут считать опозданием">Опоздание, мин</th><th>Активна</th><th></th>
+                                    </tr>
+                                  </thead>
+                                  <tbody data-workforce-schedule-rows></tbody>
+                                </table>
+                              </div>
+                              <div class="text-muted small" data-workforce-schedule-empty>Расписание пока не задано.</div>
+                              <div class="d-flex justify-content-end mt-2">
+                                <button type="button" class="btn btn-primary btn-sm" data-workforce-schedule-save>Сохранить расписание</button>
+                              </div>
                             </div>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" data-workforce-schedule-add>+ Добавить смену</button>
-                          </div>
-                          <div class="table-responsive workforce-schedule-table-wrap">
-                            <table class="table table-sm align-middle workforce-schedule-table">
-                              <thead>
-                                <tr>
-                                  <th>День</th><th>Начало</th><th>Конец</th><th>С даты</th><th>По дату</th><th title="За сколько минут до начала можно отметиться">Окно, мин</th><th title="Через сколько минут считать опозданием">Опоздание, мин</th><th>Активна</th><th></th>
-                                </tr>
-                              </thead>
-                              <tbody data-workforce-schedule-rows></tbody>
-                            </table>
-                          </div>
-                          <div class="text-muted small" data-workforce-schedule-empty>Расписание пока не задано.</div>
-                          <div class="d-flex justify-content-end mt-2">
-                            <button type="button" class="btn btn-primary btn-sm" data-workforce-schedule-save>Сохранить расписание</button>
-                          </div>
-                        </div>
+                          </details>
 
-                        <div class="workforce-sessions-block mt-4">
-                          <h6 class="mb-2">Последние выходы на смену</h6>
-                          <div class="table-responsive">
-                            <table class="table table-sm align-middle mb-1">
-                              <thead><tr><th>Check-in</th><th>Статус</th><th>Должность</th><th>Сообщение</th></tr></thead>
-                              <tbody data-workforce-sessions-rows></tbody>
-                            </table>
-                          </div>
-                          <div class="text-muted small" data-workforce-sessions-empty>Подтверждений смен ещё нет.</div>
+                          <details class="ui-disclosure-native workforce-sub-disclosure workforce-sessions-block">
+                            <summary class="workforce-sub-disclosure__summary">
+                              <span class="workforce-sub-disclosure__heading">
+                                <span class="workforce-sub-disclosure__title">Последние выходы на смену</span>
+                                <span class="workforce-sub-disclosure__description">Фактические check-in и состояние отправки сообщения</span>
+                              </span>
+                              <span class="workforce-sub-disclosure__chevron" aria-hidden="true"></span>
+                            </summary>
+                            <div class="workforce-sub-disclosure__body">
+                              <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-1">
+                                  <thead><tr><th>Check-in</th><th>Статус</th><th>Должность</th><th>Сообщение</th></tr></thead>
+                                  <tbody data-workforce-sessions-rows></tbody>
+                                </table>
+                              </div>
+                              <div class="text-muted small" data-workforce-sessions-empty>Подтверждений смен ещё нет.</div>
+                            </div>
+                          </details>
                         </div>
                       </div>
-                    </div>
+                    </details>
                   </div>
                   <div class="col-12">
                     <div class="border rounded-3 p-3">
@@ -479,8 +518,7 @@
               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отменить</button>
               <button type="submit" class="btn btn-primary" data-auth-user-submit>Сохранить</button>
             </div>
-          </form>
-        </div>
+        </form>
       </div>
     </div>
 
