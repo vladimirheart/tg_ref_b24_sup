@@ -4,7 +4,7 @@
   if (!sidebar) return;
   const prefApi = window.iguanaUiPreferences || null;
 
-  const pinBtn = document.getElementById('pinSidebarBtn');
+  const collapseToggleBtn = document.getElementById('sidebarCollapseToggle');
   const bellBtn = document.getElementById('bellBtn');
   const bellBadge = document.getElementById('notify-count');
   const root = document.body;
@@ -22,18 +22,24 @@
   const actionMenu = sidebar.querySelector('[data-sidebar-action-menu]');
   const actionMenuTrigger = sidebar.querySelector('[data-sidebar-action-trigger]');
   const actionMenuList = sidebar.querySelector('#sidebarActionMenu');
+  const resizeHandle = sidebar.querySelector('[data-sidebar-resize-handle]');
   let changePasswordModalInstance = null;
 
   const PREF_KEY_PIN = 'sidebarPinned';
+  const PREF_KEY_WIDTH = 'sidebarWidth';
   const PREF_KEY_NAV_SCROLL = 'sidebarNavScrollTop';
   const NOTIFICATIONS_POLL_INTERVAL_MS = 5000;
   const UNBLOCK_POLL_INTERVAL_MS = 30000;
   const PANEL_SSE_URL = '/api/events/stream';
   const PANEL_SSE_STATUS_EVENT = 'panel:sse-status';
   const PANEL_SSE_EVENT_PREFIX = 'panel:sse:';
-  let pinned = (prefApi ? prefApi.get(PREF_KEY_PIN) : localStorage.getItem(PREF_KEY_PIN)) === '1';
-  const HOVER_LEAVE_DELAY_MS = 1000;
-  let hoverLeaveTimer = null;
+  const SIDEBAR_WIDTH_DEFAULT = 286;
+  const SIDEBAR_WIDTH_MIN = 240;
+  const SIDEBAR_WIDTH_MAX = 420;
+  const SIDEBAR_WIDTH_KEYBOARD_STEP = 12;
+  let expanded = (prefApi ? prefApi.get(PREF_KEY_PIN) : localStorage.getItem(PREF_KEY_PIN)) === '1';
+  let sidebarWidth = SIDEBAR_WIDTH_DEFAULT;
+  let resizePointerId = null;
   const MOBILE_BREAKPOINT = 991.98;
   let actionMenuOpen = false;
   let panelEventsSource = null;
@@ -248,36 +254,59 @@
 
   function setBodyCollapsedState(collapsed) {
     if (!root) return;
-    if (collapsed) {
-      root.classList.add('sidebar-collapsed');
-      root.classList.remove('sidebar-hovering');
-    } else {
-      root.classList.remove('sidebar-collapsed');
-      root.classList.remove('sidebar-hovering');
+    root.classList.toggle('sidebar-collapsed', Boolean(collapsed));
+  }
+
+  function normalizeSidebarWidth(value) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(parsed)) return SIDEBAR_WIDTH_DEFAULT;
+    return Math.max(SIDEBAR_WIDTH_MIN, Math.min(SIDEBAR_WIDTH_MAX, parsed));
+  }
+
+  function applySidebarWidth(value, options = {}) {
+    const nextWidth = normalizeSidebarWidth(value);
+    sidebarWidth = nextWidth;
+    document.documentElement.style.setProperty('--sidebar-w', `${nextWidth}px`);
+    if (resizeHandle) resizeHandle.setAttribute('aria-valuenow', String(nextWidth));
+    if (options.persist === true) {
+      setPreference(PREF_KEY_WIDTH, String(nextWidth), options.source || 'sidebar-width');
+    }
+    return nextWidth;
+  }
+
+  function syncSidebarControls() {
+    const desktop = !isMobileViewport();
+    if (collapseToggleBtn) {
+      const label = expanded ? 'Свернуть боковую панель' : 'Развернуть боковую панель';
+      const icon = collapseToggleBtn.querySelector('.sidebar-collapse-toggle__icon');
+      collapseToggleBtn.hidden = !desktop;
+      collapseToggleBtn.title = label;
+      collapseToggleBtn.setAttribute('aria-label', label);
+      collapseToggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      if (icon) icon.textContent = expanded ? '‹' : '›';
+    }
+    if (resizeHandle) {
+      const enabled = desktop && expanded;
+      resizeHandle.hidden = !enabled;
+      resizeHandle.tabIndex = enabled ? 0 : -1;
+      resizeHandle.setAttribute('aria-disabled', enabled ? 'false' : 'true');
     }
   }
 
   function applyState() {
-    if (hoverLeaveTimer) {
-      clearTimeout(hoverLeaveTimer);
-      hoverLeaveTimer = null;
-    }
     if (isMobileViewport()) {
-      sidebar.classList.remove('pinned', 'hovering', 'collapsed');
+      sidebar.classList.remove('pinned', 'collapsed');
       setBodyCollapsedState(false);
+      syncSidebarControls();
       return;
     }
-    if (pinned) {
-      sidebar.classList.add('pinned');
-      sidebar.classList.remove('collapsed', 'hovering');
-      setBodyCollapsedState(false);
-    } else {
-      sidebar.classList.remove('pinned');
-      sidebar.classList.add('collapsed');
-      sidebar.classList.remove('hovering');
-      setBodyCollapsedState(true);
-    }
+    sidebar.classList.toggle('pinned', expanded);
+    sidebar.classList.toggle('collapsed', !expanded);
+    setBodyCollapsedState(!expanded);
+    syncSidebarControls();
   }
+
+  applySidebarWidth(getPreference(PREF_KEY_WIDTH, String(SIDEBAR_WIDTH_DEFAULT)));
   applyState();
 
   function setActionMenuOpen(open) {
@@ -460,28 +489,6 @@
     });
   }
 
-  // hover раскрытие, если не pinned
-  sidebar.addEventListener('mouseenter', () => {
-    if (hoverLeaveTimer) {
-      clearTimeout(hoverLeaveTimer);
-      hoverLeaveTimer = null;
-    }
-    if (!pinned) {
-      sidebar.classList.add('hovering');
-      if (root) root.classList.add('sidebar-hovering');
-    }
-  });
-  sidebar.addEventListener('mouseleave', () => {
-    if (!pinned) {
-      if (hoverLeaveTimer) clearTimeout(hoverLeaveTimer);
-      hoverLeaveTimer = setTimeout(() => {
-        sidebar.classList.remove('hovering');
-        if (root) root.classList.remove('sidebar-hovering');
-        hoverLeaveTimer = null;
-      }, HOVER_LEAVE_DELAY_MS);
-    }
-  });
-
   if (actionMenuTrigger) {
     actionMenuTrigger.addEventListener('click', (event) => {
       event.preventDefault();
@@ -520,20 +527,65 @@
     }
 });
 
-  // клик по "📌"
-  if (pinBtn) {
-    pinBtn.addEventListener('click', () => {
-      pinned = !pinned;
-      setPreference(PREF_KEY_PIN, pinned ? '1' : '0', 'sidebar-pin');
+  if (collapseToggleBtn) {
+    collapseToggleBtn.addEventListener('click', () => {
+      expanded = !expanded;
+      setPreference(PREF_KEY_PIN, expanded ? '1' : '0', 'sidebar-collapse-toggle');
       applyState();
+    });
+  }
+
+  function beginSidebarResize(event) {
+    if (!resizeHandle || isMobileViewport() || !expanded || event.button !== 0) return;
+    resizePointerId = event.pointerId;
+    root.classList.add('sidebar-resizing');
+    try { resizeHandle.setPointerCapture(event.pointerId); } catch (_error) { }
+    event.preventDefault();
+  }
+
+  function moveSidebarResize(event) {
+    if (resizePointerId == null || event.pointerId !== resizePointerId) return;
+    applySidebarWidth(event.clientX);
+  }
+
+  function endSidebarResize(event, persist) {
+    if (resizePointerId == null || event.pointerId !== resizePointerId) return;
+    try {
+      if (resizeHandle && resizeHandle.hasPointerCapture(event.pointerId)) {
+        resizeHandle.releasePointerCapture(event.pointerId);
+      }
+    } catch (_error) { }
+    resizePointerId = null;
+    root.classList.remove('sidebar-resizing');
+    if (persist) applySidebarWidth(sidebarWidth, { persist: true, source: 'sidebar-width-drag' });
+  }
+
+  if (resizeHandle) {
+    resizeHandle.addEventListener('pointerdown', beginSidebarResize);
+    resizeHandle.addEventListener('pointermove', moveSidebarResize);
+    resizeHandle.addEventListener('pointerup', (event) => endSidebarResize(event, true));
+    resizeHandle.addEventListener('pointercancel', (event) => endSidebarResize(event, false));
+    resizeHandle.addEventListener('keydown', (event) => {
+      if (isMobileViewport() || !expanded) return;
+      let nextWidth = null;
+      if (event.key === 'ArrowLeft') nextWidth = sidebarWidth - SIDEBAR_WIDTH_KEYBOARD_STEP;
+      if (event.key === 'ArrowRight') nextWidth = sidebarWidth + SIDEBAR_WIDTH_KEYBOARD_STEP;
+      if (event.key === 'Home') nextWidth = SIDEBAR_WIDTH_DEFAULT;
+      if (nextWidth == null) return;
+      event.preventDefault();
+      applySidebarWidth(nextWidth, { persist: true, source: 'sidebar-width-keyboard' });
     });
   }
 
   document.addEventListener('ui-preference:change', (event) => {
     const detail = event && event.detail ? event.detail : {};
     if (detail.name === PREF_KEY_PIN) {
-      pinned = detail.value === '1';
+      expanded = detail.value === '1';
       applyState();
+      return;
+    }
+    if (detail.name === PREF_KEY_WIDTH) {
+      applySidebarWidth(detail.value);
       return;
     }
 

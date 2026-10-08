@@ -45,7 +45,15 @@
 						 role="region"
 						 aria-label="Оповещения">
 					</div>
-                    <button id="pinSidebarBtn" class="icon-btn" type="button" title="Прикрепить/открепить">📌</button>
+                    <button id="sidebarCollapseToggle"
+                            class="icon-btn sidebar-collapse-toggle"
+                            type="button"
+                            title="Свернуть боковую панель"
+                            aria-label="Свернуть боковую панель"
+                            aria-controls="app-sidebar"
+                            aria-expanded="true">
+                        <span class="sidebar-collapse-toggle__icon" aria-hidden="true">‹</span>
+                    </button>
                 </div>
             </div>
             <div class="sidebar-runtime-strip">
@@ -213,6 +221,15 @@
                 </div>
             </div>
         </div>
+        <div class="sidebar-resize-handle"
+             data-sidebar-resize-handle
+             role="separator"
+             aria-orientation="vertical"
+             aria-label="Изменить ширину боковой панели"
+             aria-valuemin="240"
+             aria-valuemax="420"
+             aria-valuenow="286"
+             tabindex="0"></div>
     </div>
 
     <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true" data-sidebar-password-modal>

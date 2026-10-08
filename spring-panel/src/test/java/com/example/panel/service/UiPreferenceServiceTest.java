@@ -40,6 +40,7 @@ class UiPreferenceServiceTest {
                 "theme", "dark",
                 "themePalette", "catppuccin",
                 "sidebarPinned", true,
+                "sidebarWidth", 360,
                 "uiDensityMode", "compact",
                 "sidebarNavOrder", List.of("dialogs", "settings", "dialogs")
         ));
@@ -47,12 +48,19 @@ class UiPreferenceServiceTest {
         assertEquals("dark", saved.get("theme"));
         assertEquals("catppuccin", saved.get("themePalette"));
         assertEquals("1", saved.get("sidebarPinned"));
+        assertEquals(360, saved.get("sidebarWidth"));
         assertEquals("compact", saved.get("uiDensityMode"));
         assertEquals(List.of("dialogs", "settings"), saved.get("sidebarNavOrder"));
 
         Map<String, Object> reloaded = service.loadForUser("alice");
         assertEquals(saved, reloaded);
         assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM settings_parameters", Integer.class));
+    }
+
+    @Test
+    void saveForUserClampsSidebarWidthToSupportedDesktopRange() {
+        assertEquals(420, service.saveForUser("wide-sidebar", Map.of("sidebarWidth", 999)).get("sidebarWidth"));
+        assertEquals(240, service.saveForUser("narrow-sidebar", Map.of("sidebarWidth", 10)).get("sidebarWidth"));
     }
 
     @Test

@@ -137,6 +137,7 @@ public class UiPreferenceService {
         mergeField(target, normalized, requestPayload, "theme");
         mergeField(target, normalized, requestPayload, "themePalette");
         mergeField(target, normalized, requestPayload, "sidebarPinned");
+        mergeField(target, normalized, requestPayload, "sidebarWidth");
         mergeField(target, normalized, requestPayload, "uiDensityMode");
         mergeField(target, normalized, requestPayload, "displayTimeZone");
         mergeField(target, normalized, requestPayload, "sidebarNavOrder");
@@ -182,6 +183,10 @@ public class UiPreferenceService {
         String pinned = normalizeBinaryFlag(payload.get("sidebarPinned"));
         if (pinned != null) {
             normalized.put("sidebarPinned", pinned);
+        }
+        Integer sidebarWidth = normalizeSidebarWidth(payload.get("sidebarWidth"));
+        if (sidebarWidth != null) {
+            normalized.put("sidebarWidth", sidebarWidth);
         }
         String density = normalizeDensity(payload.get("uiDensityMode"));
         if (density != null) {
@@ -348,6 +353,14 @@ public class UiPreferenceService {
             return "0";
         }
         return null;
+    }
+
+    private Integer normalizeSidebarWidth(Object value) {
+        Integer width = parseIntegerFlexible(value);
+        if (width == null) {
+            return null;
+        }
+        return Math.max(240, Math.min(420, width));
     }
 
     private List<String> normalizeNavOrder(Object value) {

@@ -58,6 +58,12 @@
     return '0';
   }
 
+  function normalizeSidebarWidth(value) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(parsed)) return '286';
+    return String(Math.max(240, Math.min(420, parsed)));
+  }
+
   function normalizeNavOrder(value) {
     if (Array.isArray(value)) {
       return JSON.stringify(value.filter((item) => typeof item === 'string' && item.trim()));
@@ -159,6 +165,11 @@
       storageKey: 'sidebarPinned',
       fallback: '0',
       normalize: normalizePinned,
+    }),
+    sidebarWidth: Object.freeze({
+      storageKey: 'sidebarWidth',
+      fallback: '286',
+      normalize: normalizeSidebarWidth,
     }),
     uiDensityMode: Object.freeze({
       storageKey: 'uiDensityMode',

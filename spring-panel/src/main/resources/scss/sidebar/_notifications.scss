@@ -190,13 +190,17 @@ body.sidebar-mobile-open .sidebar-mobile-overlay {
 
 @media (max-width: 991.98px) {
   body.with-sidebar,
-  body.with-sidebar.sidebar-collapsed,
-  body.with-sidebar.sidebar-hovering {
+  body.with-sidebar.sidebar-collapsed {
     padding-left: 0 !important;
   }
 
   .sidebar-mobile-toggle {
     display: inline-flex;
+  }
+
+  .sidebar-collapse-toggle,
+  .sidebar-resize-handle {
+    display: none !important;
   }
 
   .sidebar {
