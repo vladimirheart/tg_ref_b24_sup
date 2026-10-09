@@ -2116,11 +2116,42 @@
         return;
       }
 
-      if (mode === 'edit' && Object.keys(payload).length === 0) {
-        this.setUserSaveStatus('Нет изменений для сохранения.', 'muted');
-        if (submitButton) {
-          submitButton.disabled = false;
+      // The footer Save covers profile fields AND the separately loaded workforce settings.
+      // A synchronous event bridge keeps the two runtimes independent and avoids duplicate writes.
+      const workforceChanges = { userId, pending: false, save: null };
+      if (mode === 'edit' && this.elements.userModal) {
+        this.elements.userModal.dispatchEvent(new CustomEvent('authManagement:collectWorkforceChanges', {
+          detail: workforceChanges,
+        }));
+      }
+      const saveWorkforce = async () => {
+        if (!workforceChanges.pending) return;
+        if (typeof workforceChanges.save !== 'function' || !(await workforceChanges.save())) {
+          throw new Error('Настройки работы не сохранены. Проверьте сообщение в разделе «Работа и расписание».');
         }
+      };
+      if (mode === 'edit' && Object.keys(payload).length === 0) {
+        if (!workforceChanges.pending) {
+          this.setUserSaveStatus('Нет изменений для сохранения.', 'muted');
+          if (submitButton) submitButton.disabled = false;
+          return;
+        }
+        this.setUserSaveStatus('Сохраняем настройки работы…', 'muted');
+        this.setUserSubmitLabel('Сохраняем…');
+        Promise.resolve()
+          .then(saveWorkforce)
+          .then(() => {
+            this.setUserSaveStatus('Настройки работы сохранены.', 'success');
+            this.setMessage('Настройки работы пользователя обновлены.', 'success');
+          })
+          .catch((error) => {
+            this.setUserModalError(error.message || String(error));
+            this.setUserSaveStatus('Настройки работы не сохранены.', 'danger');
+          })
+          .finally(() => {
+            this.setUserSubmitLabel('Сохранить');
+            if (submitButton) submitButton.disabled = false;
+          });
         return;
       }
 
@@ -2137,7 +2168,7 @@
         body: JSON.stringify(payload),
       })
         .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
-        .then(({ ok, data }) => {
+        .then(async ({ ok, data }) => {
           if (!ok || data.success === false) {
             throw new Error(
               data.error || (mode === 'create' ? 'Не удалось создать пользователя' : 'Не удалось сохранить пользователя')
@@ -2152,13 +2183,24 @@
           if (original && this.modalState?.mode === 'edit') {
             Object.assign(original, payload);
           }
-          this.setUserSaveStatus('Сохранено. Изменения применены.', 'success');
-          this.setMessage('Данные пользователя обновлены.', 'success');
+          if (workforceChanges.pending) {
+            try {
+              await saveWorkforce();
+            } catch (error) {
+              throw new Error('Профиль сохранён, но ' + (error.message || String(error)));
+            }
+          }
+          this.setUserSaveStatus(workforceChanges.pending
+            ? 'Профиль и настройки работы сохранены.' : 'Сохранено. Изменения применены.', 'success');
+          this.setMessage(workforceChanges.pending
+            ? 'Профиль и настройки работы пользователя обновлены.' : 'Данные пользователя обновлены.', 'success');
           return this.refresh();
         })
         .catch((error) => {
-          this.setUserModalError(error.message || String(error));
-          this.setUserSaveStatus('Не удалось сохранить изменения.', 'danger');
+          const message = error.message || String(error);
+          this.setUserModalError(message);
+          this.setUserSaveStatus(message.startsWith('Профиль сохранён, но ')
+            ? 'Профиль сохранён, настройки работы не сохранены.' : 'Не удалось сохранить изменения.', 'danger');
         })
         .finally(() => {
           this.setUserSubmitLabel('Сохранить');

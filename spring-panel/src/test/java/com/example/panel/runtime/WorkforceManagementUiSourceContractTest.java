@@ -70,6 +70,35 @@ class WorkforceManagementUiSourceContractTest {
     }
 
     @Test
+    void footerSavesChangedWorkforceSettingsAndTimezoneUsesSelect() throws Exception {
+        String auth = read("src/main/resources/static/js/auth-management.js");
+        String workforce = read("src/main/resources/static/js/workforce-management.js");
+        String users = read("src/main/resources/templates/settings/fragments/users-access.html");
+
+        assertThat(auth)
+                .contains("authManagement:collectWorkforceChanges")
+                .contains("const workforceChanges = { userId, pending: false, save: null }")
+                .contains("Promise.resolve()")
+                .contains(".then(saveWorkforce)")
+                .contains("await saveWorkforce()")
+                .contains("Настройки работы сохранены.")
+                .contains("Профиль сохранён, настройки работы не сохранены.");
+        assertThat(workforce)
+                .contains("function collectUserWorkforcePayload()")
+                .contains("function snapshotUserWorkforceSettings(settings)")
+                .contains("function workforceUserSettingsChanged()")
+                .contains("userModal.addEventListener('authManagement:collectWorkforceChanges'")
+                .contains("detail.save = function () { return saveUserSettings(); }")
+                .contains("setUserTimeZone(settings?.time_zone || 'UTC')");
+        assertThat(users)
+                .contains("<select class=\"form-select form-select-sm\" data-workforce-user-time-zone")
+                .contains("Москва (UTC+3)")
+                .contains("data-workforce-user-settings-save")
+                .contains("data-workforce-schedule-save")
+                .doesNotContain("list=\"workforceTimeZones\"");
+    }
+
+    @Test
     void workforceStateOwnsSafeNotificationChannelCatalogWithoutTokens() throws Exception {
         String controller = read("src/main/java/com/example/panel/controller/WorkforceAdminApiController.java");
         String service = read("src/main/java/com/example/panel/service/WorkforceService.java");

@@ -533,11 +533,26 @@
     elements.userContent?.classList.remove('d-none');
   }
 
+  function setUserTimeZone(zone) {
+    if (!elements.userTimeZone) return;
+    const wanted = String(zone || 'UTC').trim() || 'UTC';
+    const options = Array.from(elements.userTimeZone.options || []);
+    if (!options.some(function (option) { return option.value === wanted; })) {
+      // Preserve a previously saved IANA zone even if it is absent from the short list.
+      const option = document.createElement('option');
+      option.value = wanted;
+      option.textContent = wanted + ' (ранее выбран)';
+      option.dataset.workforceSavedTimeZone = 'true';
+      elements.userTimeZone.appendChild(option);
+    }
+    elements.userTimeZone.value = wanted;
+  }
+
   function renderUserSettings(settings) {
     state.currentUserSettings = settings || {};
     if (elements.userEnabled) elements.userEnabled.checked = settings?.enabled === true;
     fillPositionSelect(elements.userPosition, settings?.position_id);
-    if (elements.userTimeZone) elements.userTimeZone.value = settings?.time_zone || 'UTC';
+    setUserTimeZone(settings?.time_zone || 'UTC');
     if (elements.userCheckInOverride) elements.userCheckInOverride.value = normalizeBooleanSelect(settings?.check_in_required_override);
     if (elements.userNotifyOverride) elements.userNotifyOverride.value = normalizeBooleanSelect(settings?.notify_on_check_in_override);
     fillChannelSelect(elements.userChannelOverride, settings?.notification_channel_id_override, 'Наследовать от должности');
@@ -659,18 +674,15 @@
     }
   }
 
-  async function saveUserSettings() {
-    const userId = state.currentUserId;
-    if (!userId) return;
+  function collectUserWorkforcePayload() {
     const positionId = String(elements.userPosition?.value || '').trim();
     const channelId = String(elements.userChannelOverride?.value || '').trim();
     const target = String(elements.userTargetOverride?.value || '').trim();
     const chatId = String(elements.userChatOverride?.value || '').trim();
     if (target === 'custom_chat' && !chatId) {
-      setUserStatus('Для персонального custom chat укажите chat ID.', 'danger');
-      return;
+      throw new Error('Для персонального custom chat укажите chat ID.');
     }
-    const payload = {
+    return {
       enabled: Boolean(elements.userEnabled?.checked),
       position_id: positionId ? Number(positionId) : null,
       time_zone: String(elements.userTimeZone?.value || 'UTC').trim() || 'UTC',
@@ -680,6 +692,43 @@
       notification_target_override: target || null,
       notification_chat_id_override: target === 'custom_chat' ? (chatId || null) : null,
     };
+  }
+
+  function snapshotUserWorkforceSettings(settings) {
+    const current = settings || {};
+    const target = String(current.notification_target_override || '');
+    return {
+      enabled: current.enabled === true,
+      position_id: current.position_id == null ? null : Number(current.position_id),
+      time_zone: String(current.time_zone || 'UTC').trim() || 'UTC',
+      check_in_required_override: current.check_in_required_override == null ? null : Boolean(current.check_in_required_override),
+      notify_on_check_in_override: current.notify_on_check_in_override == null ? null : Boolean(current.notify_on_check_in_override),
+      notification_channel_id_override: current.notification_channel_id_override == null ? null : Number(current.notification_channel_id_override),
+      notification_target_override: target || null,
+      notification_chat_id_override: target === 'custom_chat' ? (String(current.notification_chat_id_override || '').trim() || null) : null,
+    };
+  }
+
+  function workforceUserSettingsChanged() {
+    if (!state.currentUserId || !state.currentUserSettings) return false;
+    try {
+      return JSON.stringify(collectUserWorkforcePayload()) !== JSON.stringify(snapshotUserWorkforceSettings(state.currentUserSettings));
+    } catch (_) {
+      // Invalid changed fields still need validation when the user presses Save.
+      return true;
+    }
+  }
+
+  async function saveUserSettings() {
+    const userId = state.currentUserId;
+    if (!userId) return false;
+    let payload;
+    try {
+      payload = collectUserWorkforcePayload();
+    } catch (error) {
+      setUserStatus(error.message || String(error), 'danger');
+      return false;
+    }
     elements.userSettingsSave && (elements.userSettingsSave.disabled = true);
     setUserStatus('Сохраняем настройки…');
     try {
@@ -688,10 +737,13 @@
         headers: csrfHeaders(true),
         body: JSON.stringify(payload),
       });
+      if (String(state.currentUserId) !== String(userId)) return false;
       renderUserSettings(data.settings || payload);
       setUserStatus('Настройки работы сохранены.', 'success');
+      return true;
     } catch (error) {
       setUserStatus(error.message || String(error), 'danger');
+      return false;
     } finally {
       elements.userSettingsSave && (elements.userSettingsSave.disabled = false);
     }
@@ -792,7 +844,14 @@
       if (button) editPosition(button.dataset.workforcePositionEdit);
     });
     elements.userTargetOverride?.addEventListener('change', syncUserNotificationControls);
-    elements.userSettingsSave?.addEventListener('click', saveUserSettings);
+    elements.userSettingsSave?.addEventListener('click', function () { void saveUserSettings(); });
+    userModal.addEventListener('authManagement:collectWorkforceChanges', function (event) {
+      const detail = event.detail || {};
+      if (String(detail.userId) !== String(state.currentUserId) || !state.currentUserSettings) return;
+      if (!workforceUserSettingsChanged()) return;
+      detail.pending = true;
+      detail.save = function () { return saveUserSettings(); };
+    });
     elements.scheduleAdd?.addEventListener('click', function () { addScheduleRow({ day_of_week: 1, start_time: '09:00', end_time: '18:00', check_in_open_minutes: 120, late_after_minutes: 15, active: true }); });
     elements.scheduleRows?.addEventListener('click', function (event) {
       const button = event.target.closest('[data-workforce-rule-remove]');

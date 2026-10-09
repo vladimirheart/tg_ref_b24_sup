@@ -333,15 +333,40 @@
                               </div>
                               <div class="col-md-6 col-lg-4">
                                 <label class="form-label small mb-1">Часовой пояс</label>
-                                <input type="text" class="form-control form-control-sm" list="workforceTimeZones" data-workforce-user-time-zone value="UTC" autocomplete="off">
-                                <datalist id="workforceTimeZones">
-                                  <option value="UTC"></option>
-                                  <option value="Europe/Moscow"></option>
-                                  <option value="Europe/Amsterdam"></option>
-                                  <option value="Asia/Yekaterinburg"></option>
-                                  <option value="Asia/Novosibirsk"></option>
-                                  <option value="Asia/Vladivostok"></option>
-                                </datalist>
+                                <select class="form-select form-select-sm" data-workforce-user-time-zone aria-label="Часовой пояс сотрудника">
+                                  <option value="UTC">UTC — всемирное время</option>
+                                  <optgroup label="Россия">
+                                    <option value="Europe/Kaliningrad">Калининград (UTC+2)</option>
+                                    <option value="Europe/Moscow">Москва (UTC+3)</option>
+                                    <option value="Europe/Samara">Самара (UTC+4)</option>
+                                    <option value="Asia/Yekaterinburg">Екатеринбург (UTC+5)</option>
+                                    <option value="Asia/Omsk">Омск (UTC+6)</option>
+                                    <option value="Asia/Novosibirsk">Новосибирск (UTC+7)</option>
+                                    <option value="Asia/Barnaul">Барнаул (UTC+7)</option>
+                                    <option value="Asia/Tomsk">Томск (UTC+7)</option>
+                                    <option value="Asia/Krasnoyarsk">Красноярск (UTC+7)</option>
+                                    <option value="Asia/Irkutsk">Иркутск (UTC+8)</option>
+                                    <option value="Asia/Yakutsk">Якутск (UTC+9)</option>
+                                    <option value="Asia/Chita">Чита (UTC+9)</option>
+                                    <option value="Asia/Vladivostok">Владивосток (UTC+10)</option>
+                                    <option value="Asia/Magadan">Магадан (UTC+11)</option>
+                                    <option value="Asia/Sakhalin">Сахалин (UTC+11)</option>
+                                    <option value="Asia/Kamchatka">Камчатка (UTC+12)</option>
+                                    <option value="Asia/Anadyr">Анадырь (UTC+12)</option>
+                                  </optgroup>
+                                  <optgroup label="Другие часовые пояса">
+                                    <option value="Europe/London">Лондон</option>
+                                    <option value="Europe/Berlin">Берлин</option>
+                                    <option value="Europe/Amsterdam">Амстердам</option>
+                                    <option value="Europe/Istanbul">Стамбул</option>
+                                    <option value="Asia/Almaty">Алматы</option>
+                                    <option value="Asia/Dubai">Дубай</option>
+                                    <option value="Asia/Tokyo">Токио</option>
+                                    <option value="America/New_York">Нью-Йорк</option>
+                                    <option value="America/Los_Angeles">Лос-Анджелес</option>
+                                  </optgroup>
+                                </select>
+                                <div class="form-text small">Время смен рассчитывается в часовом поясе сотрудника.</div>
                               </div>
                             </div>
                           </div>
@@ -516,7 +541,7 @@
             <div class="modal-footer">
               <div class="small text-muted me-auto d-none" role="status" aria-live="polite" data-auth-user-save-status></div>
               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отменить</button>
-              <button type="submit" class="btn btn-primary" data-auth-user-submit>Сохранить</button>
+              <button type="submit" class="btn btn-primary" data-auth-user-submit title="Сохраняет профиль и настройки работы; недельное расписание сохраняется отдельно">Сохранить</button>
             </div>
         </form>
       </div>
