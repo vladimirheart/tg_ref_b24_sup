@@ -30,6 +30,7 @@ class InboundClientMessageIngestionServiceTest {
     @Test
     void ingestStoresInboundMessageInsidePanelBusinessTables() {
         IntegrationInboundEventInboxService inboxService = mock(IntegrationInboundEventInboxService.class);
+        LegacyTicketIdConcurrencyGuard concurrencyGuard = mock(LegacyTicketIdConcurrencyGuard.class);
         ChannelRepository channelRepository = mock(ChannelRepository.class);
         TicketRepository ticketRepository = mock(TicketRepository.class);
         ChatHistoryRepository chatHistoryRepository = mock(ChatHistoryRepository.class);
@@ -39,6 +40,7 @@ class InboundClientMessageIngestionServiceTest {
 
         InboundClientMessageIngestionService service = new InboundClientMessageIngestionService(
             inboxService,
+            concurrencyGuard,
             channelRepository,
             ticketRepository,
             chatHistoryRepository,
@@ -120,6 +122,7 @@ class InboundClientMessageIngestionServiceTest {
             eq(null),
             eq("photo")
         );
+        verify(concurrencyGuard).acquire("T-17");
         verify(messageRepository).save(rootMessage);
         assertThat(rootMessage.getUsername()).isEqualTo("tg_user");
         assertThat(rootMessage.getClientName()).isEqualTo("Telegram User");
@@ -136,6 +139,7 @@ class InboundClientMessageIngestionServiceTest {
         IntegrationInboundEventInboxService inboxService = mock(IntegrationInboundEventInboxService.class);
         InboundClientMessageIngestionService service = new InboundClientMessageIngestionService(
             inboxService,
+            mock(LegacyTicketIdConcurrencyGuard.class),
             mock(ChannelRepository.class),
             mock(TicketRepository.class),
             mock(ChatHistoryRepository.class),

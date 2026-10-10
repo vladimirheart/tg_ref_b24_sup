@@ -18,6 +18,7 @@ class LegacyTicketIdAdvisoryLockPostgresIntegrationTest {
     @Test
     void serializesTransactionsForTheSameExactLegacyTicketId() throws Exception {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("ticket_creation_lock");
+        LegacyTicketIdConcurrencyGuard concurrencyGuard = new LegacyTicketIdConcurrencyGuard(jdbc);
         TransactionTemplate transactionTemplate = new TransactionTemplate(
             new DataSourceTransactionManager(jdbc.getDataSource())
         );
@@ -29,7 +30,7 @@ class LegacyTicketIdAdvisoryLockPostgresIntegrationTest {
 
         try {
             Future<?> first = executor.submit(() -> transactionTemplate.executeWithoutResult(status -> {
-                acquireLock(jdbc, "T-SAME-EXACT-ID");
+                concurrencyGuard.acquire("T-SAME-EXACT-ID");
                 firstLockAcquired.countDown();
                 await(releaseFirstTransaction);
             }));
@@ -37,7 +38,7 @@ class LegacyTicketIdAdvisoryLockPostgresIntegrationTest {
 
             Future<?> second = executor.submit(() -> transactionTemplate.executeWithoutResult(status -> {
                 secondStartsWaiting.countDown();
-                acquireLock(jdbc, "T-SAME-EXACT-ID");
+                concurrencyGuard.acquire("T-SAME-EXACT-ID");
                 secondLockAcquired.countDown();
             }));
             assertThat(secondStartsWaiting.await(5, TimeUnit.SECONDS)).isTrue();
@@ -51,14 +52,6 @@ class LegacyTicketIdAdvisoryLockPostgresIntegrationTest {
             releaseFirstTransaction.countDown();
             executor.shutdownNow();
         }
-    }
-
-    private void acquireLock(JdbcTemplate jdbc, String ticketId) {
-        jdbc.query(
-            ConversationTicketCreationIngestionService.LEGACY_TICKET_ID_LOCK_SQL,
-            statement -> statement.setString(1, ticketId),
-            resultSet -> null
-        );
     }
 
     private void await(CountDownLatch latch) {

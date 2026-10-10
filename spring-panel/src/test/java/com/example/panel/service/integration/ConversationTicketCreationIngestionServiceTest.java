@@ -24,21 +24,19 @@ import com.example.panel.repository.TicketActiveRepository;
 import com.example.panel.repository.TicketRepository;
 import com.example.panel.repository.TicketSpanRepository;
 import com.example.panel.service.ChatAttachmentMetadataService;
-import java.sql.PreparedStatement;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.PreparedStatementSetter;
-import org.springframework.jdbc.core.ResultSetExtractor;
 
 class ConversationTicketCreationIngestionServiceTest {
 
     @Test
-    void ingestCreatesBackendOwnedTicketStateInsidePanel() throws Exception {
+    void ingestCreatesBackendOwnedTicketStateInsidePanel() {
         IntegrationInboundEventInboxService inboxService = mock(IntegrationInboundEventInboxService.class);
+        LegacyTicketIdConcurrencyGuard concurrencyGuard = mock(LegacyTicketIdConcurrencyGuard.class);
         ChannelRepository channelRepository = mock(ChannelRepository.class);
         MessageRepository messageRepository = mock(MessageRepository.class);
         TicketRepository ticketRepository = mock(TicketRepository.class);
@@ -50,6 +48,7 @@ class ConversationTicketCreationIngestionServiceTest {
 
         ConversationTicketCreationIngestionService service = new ConversationTicketCreationIngestionService(
             inboxService,
+            concurrencyGuard,
             channelRepository,
             messageRepository,
             ticketRepository,
@@ -125,16 +124,7 @@ class ConversationTicketCreationIngestionServiceTest {
         TicketId expectedLocator = new TicketId();
         expectedLocator.setUserId(901L);
         expectedLocator.setTicketId("T-RABBIT-1");
-        ArgumentCaptor<PreparedStatementSetter> lockSetterCaptor =
-            ArgumentCaptor.forClass(PreparedStatementSetter.class);
-        verify(jdbcTemplate).query(
-            eq("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))"),
-            lockSetterCaptor.capture(),
-            any(ResultSetExtractor.class)
-        );
-        PreparedStatement lockStatement = mock(PreparedStatement.class);
-        lockSetterCaptor.getValue().setValues(lockStatement);
-        verify(lockStatement).setString(1, "T-RABBIT-1");
+        verify(concurrencyGuard).acquire("T-RABBIT-1");
         verify(ticketRepository).existsById(expectedLocator);
         verify(ticketRepository).existsByIdTicketId("T-RABBIT-1");
 
@@ -207,7 +197,7 @@ class ConversationTicketCreationIngestionServiceTest {
         MessageRepository messageRepository = mock(MessageRepository.class);
         TicketRepository ticketRepository = mock(TicketRepository.class);
         ConversationTicketCreationIngestionService service = new ConversationTicketCreationIngestionService(
-            inboxService, channelRepository, messageRepository, ticketRepository,
+            inboxService, mock(LegacyTicketIdConcurrencyGuard.class), channelRepository, messageRepository, ticketRepository,
             mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
             mock(JdbcTemplate.class)
@@ -242,7 +232,7 @@ class ConversationTicketCreationIngestionServiceTest {
         MessageRepository messageRepository = mock(MessageRepository.class);
         TicketRepository ticketRepository = mock(TicketRepository.class);
         ConversationTicketCreationIngestionService service = new ConversationTicketCreationIngestionService(
-            inboxService, channelRepository, messageRepository, ticketRepository,
+            inboxService, mock(LegacyTicketIdConcurrencyGuard.class), channelRepository, messageRepository, ticketRepository,
             mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
             mock(JdbcTemplate.class)
@@ -278,6 +268,7 @@ class ConversationTicketCreationIngestionServiceTest {
         IntegrationInboundEventInboxService inboxService = mock(IntegrationInboundEventInboxService.class);
         ConversationTicketCreationIngestionService service = new ConversationTicketCreationIngestionService(
             inboxService,
+            mock(LegacyTicketIdConcurrencyGuard.class),
             mock(ChannelRepository.class),
             mock(MessageRepository.class),
             mock(TicketRepository.class),

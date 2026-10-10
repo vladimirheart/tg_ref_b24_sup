@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 public class InboundClientMessageIngestionService {
 
     private final IntegrationInboundEventInboxService inboxService;
+    private final LegacyTicketIdConcurrencyGuard legacyTicketIdConcurrencyGuard;
     private final ChannelRepository channelRepository;
     private final TicketRepository ticketRepository;
     private final ChatHistoryRepository chatHistoryRepository;
@@ -28,6 +29,7 @@ public class InboundClientMessageIngestionService {
     private final ChatAttachmentMetadataService chatAttachmentMetadataService;
 
     public InboundClientMessageIngestionService(IntegrationInboundEventInboxService inboxService,
+                                                LegacyTicketIdConcurrencyGuard legacyTicketIdConcurrencyGuard,
                                                 ChannelRepository channelRepository,
                                                 TicketRepository ticketRepository,
                                                 ChatHistoryRepository chatHistoryRepository,
@@ -35,6 +37,7 @@ public class InboundClientMessageIngestionService {
                                                 TicketActiveRepository ticketActiveRepository,
                                                 ChatAttachmentMetadataService chatAttachmentMetadataService) {
         this.inboxService = inboxService;
+        this.legacyTicketIdConcurrencyGuard = legacyTicketIdConcurrencyGuard;
         this.channelRepository = channelRepository;
         this.ticketRepository = ticketRepository;
         this.chatHistoryRepository = chatHistoryRepository;
@@ -72,6 +75,7 @@ public class InboundClientMessageIngestionService {
     private void processEvent(InboundClientMessageEvent event) {
         Channel channel = channelRepository.findById(event.channelId())
             .orElseThrow(() -> new IllegalStateException("Inbound event channel not found: " + event.channelId()));
+        legacyTicketIdConcurrencyGuard.acquire(event.ticketId());
         Ticket ticket = ticketRepository.findByIdTicketId(event.ticketId())
             .orElseThrow(() -> new IllegalStateException("Inbound event ticket not found: " + event.ticketId()));
         if (ticket.getChannel() != null && ticket.getChannel().getId() != null
