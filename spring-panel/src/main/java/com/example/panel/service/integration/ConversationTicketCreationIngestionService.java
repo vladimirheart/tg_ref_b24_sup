@@ -29,6 +29,8 @@ import org.springframework.util.StringUtils;
 public class ConversationTicketCreationIngestionService {
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+    static final String LEGACY_TICKET_ID_LOCK_SQL =
+        "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))";
 
     private final IntegrationInboundEventInboxService inboxService;
     private final ChannelRepository channelRepository;
@@ -89,6 +91,7 @@ public class ConversationTicketCreationIngestionService {
     private void processEvent(ConversationTicketCreatedEvent event) {
         Channel channel = channelRepository.findById(event.channelId())
             .orElseThrow(() -> new IllegalStateException("Ticket creation channel not found: " + event.channelId()));
+        acquireLegacyTicketIdLock(event.ticketId());
         // Idempotency is scoped to the canonical composite ticket identity.
         TicketId canonicalLocator = new TicketId();
         canonicalLocator.setUserId(event.userId());
@@ -125,6 +128,18 @@ public class ConversationTicketCreationIngestionService {
 
         replaceTicketAttributes(event.ticketId(), event.attributes(), occurredAt);
         storeConversationHistory(event, channel, occurredAt);
+    }
+
+    private void acquireLegacyTicketIdLock(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) {
+            throw new IllegalArgumentException("Ticket creation requires a legacy ticket ID");
+        }
+        // The surrounding transaction releases this PostgreSQL xact lock on commit or rollback.
+        jdbcTemplate.query(
+            LEGACY_TICKET_ID_LOCK_SQL,
+            statement -> statement.setString(1, ticketId),
+            resultSet -> null
+        );
     }
 
     private Message buildRootMessage(ConversationTicketCreatedEvent event,
