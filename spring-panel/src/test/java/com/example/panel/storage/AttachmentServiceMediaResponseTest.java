@@ -1,5 +1,6 @@
 package com.example.panel.storage;
 
+import com.example.panel.service.LegacyTicketIdJdbcGuard;
 import com.example.panel.service.PermissionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -14,6 +15,7 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class AttachmentServiceMediaResponseTest {
@@ -25,8 +27,10 @@ class AttachmentServiceMediaResponseTest {
     void storageKeyVideoSupportsByteRangeAndDeterministicMimeType() throws Exception {
         PermissionService permissions = mock(PermissionService.class);
         AttachmentObjectStorageService storage = mock(AttachmentObjectStorageService.class);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
         Authentication authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket("ticket")).thenReturn(true);
         byte[] payload = new byte[] {0, 1, 2, 3, 4, 5};
         when(storage.openDialogAttachmentByStorageKey("ticket/media.mp4"))
                 .thenReturn(new AttachmentObjectStorageService.StoredBinary(
@@ -39,6 +43,7 @@ class AttachmentServiceMediaResponseTest {
         AttachmentService service = new AttachmentService(
                 permissions,
                 storage,
+                legacyTicketIdJdbcGuard,
                 tempDir.resolve("attachments").toString(),
                 tempDir.resolve("knowledge").toString()
         );
@@ -62,8 +67,10 @@ class AttachmentServiceMediaResponseTest {
     void storageKeyVoiceUsesAudioOggMimeInsteadOfOctetStream() throws Exception {
         PermissionService permissions = mock(PermissionService.class);
         AttachmentObjectStorageService storage = mock(AttachmentObjectStorageService.class);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
         Authentication authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket("ticket")).thenReturn(true);
         when(storage.openDialogAttachmentByStorageKey("ticket/voice.ogg"))
                 .thenReturn(new AttachmentObjectStorageService.StoredBinary(
                         "ticket/voice.ogg",
@@ -75,6 +82,7 @@ class AttachmentServiceMediaResponseTest {
         AttachmentService service = new AttachmentService(
                 permissions,
                 storage,
+                legacyTicketIdJdbcGuard,
                 tempDir.resolve("attachments-2").toString(),
                 tempDir.resolve("knowledge-2").toString()
         );
@@ -94,8 +102,10 @@ class AttachmentServiceMediaResponseTest {
     void downloadByLegacyAbsolutePathUsesObjectStorageWhenAttachmentsSuffixCanBeExtracted() throws Exception {
         PermissionService permissions = mock(PermissionService.class);
         AttachmentObjectStorageService storage = mock(AttachmentObjectStorageService.class);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
         Authentication authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket("ticket-77")).thenReturn(true);
         when(storage.openDialogAttachmentByStorageKey("ticket-77/photo.jpg"))
                 .thenReturn(new AttachmentObjectStorageService.StoredBinary(
                         "ticket-77/photo.jpg",
@@ -107,6 +117,7 @@ class AttachmentServiceMediaResponseTest {
         AttachmentService service = new AttachmentService(
                 permissions,
                 storage,
+                legacyTicketIdJdbcGuard,
                 tempDir.resolve("attachments-3").toString(),
                 tempDir.resolve("knowledge-3").toString()
         );
@@ -120,5 +131,44 @@ class AttachmentServiceMediaResponseTest {
         assertThat(response.getHeaders().getContentType().toString()).isEqualTo("image/jpeg");
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getInputStream().readAllBytes()).containsExactly(9, 8, 7);
+    }
+
+    @Test
+    void duplicateTicketIdDoesNotOpenAttachmentThroughAnyPublicLookup() throws Exception {
+        PermissionService permissions = mock(PermissionService.class);
+        AttachmentObjectStorageService storage = mock(AttachmentObjectStorageService.class);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        Authentication authentication = mock(Authentication.class);
+        when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
+
+        AttachmentService service = new AttachmentService(
+                permissions,
+                storage,
+                legacyTicketIdJdbcGuard,
+                tempDir.resolve("attachments-4").toString(),
+                tempDir.resolve("knowledge-4").toString()
+        );
+
+        ResponseEntity<Resource> directResponse = service.downloadTicketAttachment(
+                authentication,
+                "T-AMB",
+                "file.png",
+                null
+        );
+        ResponseEntity<Resource> storageKeyResponse = service.downloadTicketAttachmentByStorageKey(
+                authentication,
+                "T-AMB/file.png",
+                null
+        );
+        ResponseEntity<Resource> pathResponse = service.downloadTicketAttachmentByPath(
+                authentication,
+                "C:\\legacy\\attachments\\T-AMB\\file.png",
+                null
+        );
+
+        assertThat(directResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(storageKeyResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(pathResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        verifyNoInteractions(storage);
     }
 }

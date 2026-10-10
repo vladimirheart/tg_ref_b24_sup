@@ -45,4 +45,15 @@ class AttachmentStorageKeyResolverTest {
                 "/api/attachments/tickets/by-path?path=legacy-file"
         ));
     }
+
+    @Test
+    void extractsTicketIdFromNestedStorageKeyAndLegacyPath() {
+        assertEquals("ticket-123", AttachmentStorageKeyResolver.extractDialogTicketId(
+                "ticket-123/2026/07/31/video.mp4"
+        ));
+        assertEquals("channel-public-id", AttachmentStorageKeyResolver.extractDialogTicketId(
+                "C:\\legacy\\attachments\\channel-public-id\\2026\\07\\31\\video.mp4"
+        ));
+        assertNull(AttachmentStorageKeyResolver.extractDialogTicketId("file.mp4"));
+    }
 }

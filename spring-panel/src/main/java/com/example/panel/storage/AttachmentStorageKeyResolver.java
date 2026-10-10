@@ -103,6 +103,22 @@ public final class AttachmentStorageKeyResolver {
         return slashIndex >= 0 ? normalized.substring(slashIndex + 1) : normalized;
     }
 
+    public static String extractDialogTicketId(String raw) {
+        String storageKey = extractAttachmentsSuffix(raw);
+        if (!StringUtils.hasText(storageKey)) {
+            storageKey = normalizeReference(raw);
+        }
+        if (!StringUtils.hasText(storageKey)) {
+            return null;
+        }
+        int separatorIndex = storageKey.indexOf('/');
+        if (separatorIndex <= 0) {
+            return null;
+        }
+        String ticketId = storageKey.substring(0, separatorIndex).trim();
+        return StringUtils.hasText(ticketId) ? ticketId : null;
+    }
+
     public static String stripStoredAttachmentPrefix(String value) {
         if (!StringUtils.hasText(value)) {
             return null;

@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.PermissionService;
+import com.example.panel.service.LegacyTicketIdJdbcGuard;
 import com.example.panel.storage.AttachmentObjectStorageService;
 import com.example.panel.storage.AttachmentService;
 import com.example.panel.storage.ObjectStorageProperties;
@@ -51,12 +52,15 @@ class AttachmentControllerMediaWebMvcTest {
         );
 
         PermissionService permissionService = mock(PermissionService.class);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
         Authentication authentication = mock(Authentication.class);
         when(permissionService.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket("3d543ab982d2f414aa9dc8b135805291")).thenReturn(true);
 
         AttachmentService attachmentService = new AttachmentService(
                 permissionService,
                 objectStorage,
+                legacyTicketIdJdbcGuard,
                 attachmentsRoot.toString(),
                 knowledgeRoot.toString()
         );

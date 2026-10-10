@@ -1,5 +1,6 @@
 package com.example.panel.storage;
 
+import com.example.panel.service.LegacyTicketIdJdbcGuard;
 import com.example.panel.service.PermissionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
@@ -32,14 +33,17 @@ public class AttachmentService {
 
     private final PermissionService permissionService;
     private final AttachmentObjectStorageService objectStorageService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     private final Path attachmentsRoot;
     private final Path knowledgeBaseRoot;
     public AttachmentService(PermissionService permissionService,
                               AttachmentObjectStorageService objectStorageService,
+                              LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
                               @Value("${app.storage.attachments:attachments}") String attachmentsDir,
                               @Value("${app.storage.knowledge-base:attachments/knowledge_base}") String knowledgeBaseDir) throws IOException {
         this.permissionService = permissionService;
         this.objectStorageService = objectStorageService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
         this.attachmentsRoot = ensureDirectory(attachmentsDir);
         this.knowledgeBaseRoot = ensureDirectory(knowledgeBaseDir);
     }
@@ -53,6 +57,9 @@ public class AttachmentService {
                                                              String filename,
                                                              String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            return ResponseEntity.notFound().build();
+        }
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, filename);
         return buildResponse(binary, buildContentDisposition("attachment", filename), filename, rangeHeader);
     }
@@ -65,6 +72,9 @@ public class AttachmentService {
                                                                    String path,
                                                                    String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
+        if (!hasUniqueTicketForStorageKey(path)) {
+            return ResponseEntity.notFound().build();
+        }
         AttachmentObjectStorageService.StoredBinary binary = openByStoredPath(path);
         String filename = AttachmentStorageKeyResolver.extractFileName(path);
         String safeFilename = StringUtils.hasText(filename) ? filename : "file";
@@ -79,6 +89,9 @@ public class AttachmentService {
                                                                          String storageKey,
                                                                          String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
+        if (!hasUniqueTicketForStorageKey(storageKey)) {
+            return ResponseEntity.notFound().build();
+        }
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachmentByStorageKey(storageKey);
         String filename = AttachmentStorageKeyResolver.extractFileName(storageKey);
         String safeFilename = StringUtils.hasText(filename) ? filename : "file";
@@ -124,6 +137,7 @@ public class AttachmentService {
         if (file.isEmpty() || !StringUtils.hasText(ticketId)) {
             throw new IllegalArgumentException("File is empty");
         }
+        requireUniqueTicket(ticketId);
         String safeName = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "file.bin");
         String storedName = UUID.randomUUID() + "_" + safeName;
         try (InputStream in = file.getInputStream()) {
@@ -147,6 +161,9 @@ public class AttachmentService {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(storedName)) {
             return;
         }
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            return;
+        }
         objectStorageService.deleteDialogAttachment(ticketId, storedName);
     }
 
@@ -159,6 +176,7 @@ public class AttachmentService {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(storedName)) {
             throw new IllegalArgumentException("File not found");
         }
+        requireUniqueTicket(ticketId);
         try (AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, storedName)) {
             return new AttachmentDescriptor(extractOriginalAttachmentName(storedName), binary.size());
         }
@@ -446,6 +464,17 @@ public class AttachmentService {
     private void requireAuthenticated(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new SecurityException("Forbidden");
+        }
+    }
+
+    private boolean hasUniqueTicketForStorageKey(String rawStorageKey) {
+        String ticketId = AttachmentStorageKeyResolver.extractDialogTicketId(rawStorageKey);
+        return legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId);
+    }
+
+    private void requireUniqueTicket(String ticketId) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            throw new IllegalArgumentException("File not found");
         }
     }
 
