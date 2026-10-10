@@ -7,15 +7,19 @@ import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DialogReplyTargetServiceTest {
 
     @Test
     void logOutgoingMessageBindsOffsetDateTimeForPostgresqlTimestamp() {
         CapturingJdbcTemplate jdbcTemplate = new CapturingJdbcTemplate();
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket("T-REPLY")).thenReturn(true);
         DialogReplyTargetService service = new DialogReplyTargetService(
                 jdbcTemplate,
-                mock(ChatAttachmentMetadataService.class)
+                mock(ChatAttachmentMetadataService.class),
+                legacyTicketIdJdbcGuard
         );
 
         String returnedTimestamp = service.logOutgoingMessage(
@@ -36,9 +40,12 @@ class DialogReplyTargetServiceTest {
     @Test
     void touchTicketActivityBindsOffsetDateTimeForPostgresqlTimestamp() {
         CapturingJdbcTemplate jdbcTemplate = new CapturingJdbcTemplate();
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket("T-ACTIVITY")).thenReturn(true);
         DialogReplyTargetService service = new DialogReplyTargetService(
                 jdbcTemplate,
-                mock(ChatAttachmentMetadataService.class)
+                mock(ChatAttachmentMetadataService.class),
+                legacyTicketIdJdbcGuard
         );
 
         service.touchTicketActivity("T-ACTIVITY", "admin");
@@ -47,6 +54,25 @@ class DialogReplyTargetServiceTest {
         assertThat(jdbcTemplate.lastArgs[0]).isInstanceOf(OffsetDateTime.class);
         assertThat(jdbcTemplate.lastArgs[1]).isEqualTo("admin");
         assertThat(jdbcTemplate.lastArgs[2]).isEqualTo("T-ACTIVITY");
+    }
+
+    @Test
+    void doesNotReadOrWriteForAmbiguousLegacyTicketId() {
+        CapturingJdbcTemplate jdbcTemplate = new CapturingJdbcTemplate();
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        DialogReplyTargetService service = new DialogReplyTargetService(
+                jdbcTemplate,
+                mock(ChatAttachmentMetadataService.class),
+                legacyTicketIdJdbcGuard
+        );
+
+        assertThat(service.loadReplyTarget("T-AMB")).isEmpty();
+        assertThat(service.hasWebFormSession("T-AMB")).isFalse();
+        assertThat(service.markOperatorMessageEdited("T-AMB", 101L, "edited")).isZero();
+        assertThat(service.markOperatorMessageDeleted("T-AMB", 101L)).isZero();
+        service.touchTicketActivity("T-AMB", "operator");
+
+        assertThat(jdbcTemplate.lastArgs).isNull();
     }
 
     private static final class CapturingJdbcTemplate extends JdbcTemplate {

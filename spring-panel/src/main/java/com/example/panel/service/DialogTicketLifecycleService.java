@@ -19,15 +19,18 @@ public class DialogTicketLifecycleService {
 
     private final JdbcTemplate jdbcTemplate;
     private final DialogResponsibilityService dialogResponsibilityService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogTicketLifecycleService(JdbcTemplate jdbcTemplate,
-                                        DialogResponsibilityService dialogResponsibilityService) {
+                                        DialogResponsibilityService dialogResponsibilityService,
+                                        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogResponsibilityService = dialogResponsibilityService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public void setTicketCategories(String ticketId, List<String> categories) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return;
         }
         List<String> normalized = normalizeCategories(categories);
@@ -46,19 +49,11 @@ public class DialogTicketLifecycleService {
     }
 
     public DialogResolveResult resolveTicket(String ticketId, String operator, List<String> categories) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return new DialogResolveResult(false, false, null);
         }
         try {
             List<String> normalizedCategories = normalizeCategories(categories);
-            Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tickets WHERE ticket_id = ?",
-                    Integer.class,
-                    ticketId
-            );
-            if (count == null || count == 0) {
-                return new DialogResolveResult(false, false, null);
-            }
             String currentStatus = jdbcTemplate.query(
                     "SELECT status FROM tickets WHERE ticket_id = ?",
                     rs -> rs.next() ? trimToNull(rs.getString("status")) : null,
@@ -91,18 +86,10 @@ public class DialogTicketLifecycleService {
     }
 
     public DialogResolveResult reopenTicket(String ticketId, String operator) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return new DialogResolveResult(false, false, null);
         }
         try {
-            Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tickets WHERE ticket_id = ?",
-                    Integer.class,
-                    ticketId
-            );
-            if (count == null || count == 0) {
-                return new DialogResolveResult(false, false, null);
-            }
             String currentStatus = jdbcTemplate.query(
                     "SELECT status FROM tickets WHERE ticket_id = ?",
                     rs -> rs.next() ? trimToNull(rs.getString("status")) : null,
@@ -132,7 +119,7 @@ public class DialogTicketLifecycleService {
     }
 
     private void ensurePendingFeedbackRequest(String ticketId, String resolvedBy) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return;
         }
         String source = isAutoCloseResolvedBy(resolvedBy) ? "auto_close" : "operator_close";

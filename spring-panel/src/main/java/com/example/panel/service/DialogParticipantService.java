@@ -30,11 +30,14 @@ public class DialogParticipantService {
 
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogParticipantService(JdbcTemplate jdbcTemplate,
-                                    @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate) {
+                                    @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
+                                    LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public boolean ticketExists(String ticketId) {
@@ -42,22 +45,12 @@ public class DialogParticipantService {
         if (normalizedTicketId == null) {
             return false;
         }
-        try {
-            Integer count = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tickets WHERE ticket_id = ?",
-                    Integer.class,
-                    normalizedTicketId
-            );
-            return count != null && count > 0;
-        } catch (DataAccessException ex) {
-            log.warn("Unable to check ticket existence for {}: {}", normalizedTicketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
-            return false;
-        }
+        return legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId);
     }
 
     public List<DialogParticipantDto> loadParticipants(String ticketId) {
         String normalizedTicketId = trimToNull(ticketId);
-        if (normalizedTicketId == null) {
+        if (normalizedTicketId == null || !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {
             return List.of();
         }
         try {
@@ -126,7 +119,8 @@ public class DialogParticipantService {
         String normalizedTicketId = trimToNull(ticketId);
         String normalizedUsername = normalizeIdentity(username);
         String actor = normalizeIdentity(addedBy);
-        if (normalizedTicketId == null || normalizedUsername == null) {
+        if (normalizedTicketId == null || normalizedUsername == null
+                || !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {
             return false;
         }
         try {
@@ -158,7 +152,8 @@ public class DialogParticipantService {
     public boolean removeParticipant(String ticketId, String username) {
         String normalizedTicketId = trimToNull(ticketId);
         String normalizedUsername = normalizeIdentity(username);
-        if (normalizedTicketId == null || normalizedUsername == null) {
+        if (normalizedTicketId == null || normalizedUsername == null
+                || !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {
             return false;
         }
         try {

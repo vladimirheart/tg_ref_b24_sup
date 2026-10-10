@@ -28,6 +28,7 @@ public class BotRuntimeTicketWriteService {
     private final ProviderDeliveryLedgerService providerDeliveryLedgerService;
     private final PendingFeedbackRequestRepository pendingFeedbackRequestRepository;
     private final FeedbackRepository feedbackRepository;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public BotRuntimeTicketWriteService(JdbcTemplate jdbcTemplate,
                                         DialogReplyTargetService dialogReplyTargetService,
@@ -36,7 +37,8 @@ public class BotRuntimeTicketWriteService {
                                         UiEventOutboxAppendService uiEventOutboxAppendService,
                                         ProviderDeliveryLedgerService providerDeliveryLedgerService,
                                         PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
-                                        FeedbackRepository feedbackRepository) {
+                                        FeedbackRepository feedbackRepository,
+                                        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogReplyTargetService = dialogReplyTargetService;
         this.dialogResponsibilityService = dialogResponsibilityService;
@@ -45,6 +47,7 @@ public class BotRuntimeTicketWriteService {
         this.providerDeliveryLedgerService = providerDeliveryLedgerService;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.feedbackRepository = feedbackRepository;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     @Transactional
@@ -84,7 +87,7 @@ public class BotRuntimeTicketWriteService {
 
     @Transactional
     public MutationResult registerActivity(String ticketId, String userIdentity) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return new MutationResult(false, false);
         }
         dialogReplyTargetService.touchTicketActivity(ticketId.trim(), userIdentity);
@@ -93,7 +96,7 @@ public class BotRuntimeTicketWriteService {
 
     @Transactional
     public MutationResult clearActivity(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return new MutationResult(false, false);
         }
         int updated = jdbcTemplate.update("DELETE FROM ticket_active WHERE ticket_id = ?", ticketId.trim());
@@ -255,7 +258,7 @@ public class BotRuntimeTicketWriteService {
     }
 
     private TicketSnapshot loadTicket(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return null;
         }
         return jdbcTemplate.query("""
@@ -277,12 +280,7 @@ public class BotRuntimeTicketWriteService {
     }
 
     private boolean ticketExists(String ticketId) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM tickets WHERE ticket_id = ?",
-                Integer.class,
-                ticketId.trim()
-        );
-        return count != null && count > 0;
+        return legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId);
     }
 
     private ClientMessageSnapshot loadClientMessage(Long channelId, Long telegramMessageId) {

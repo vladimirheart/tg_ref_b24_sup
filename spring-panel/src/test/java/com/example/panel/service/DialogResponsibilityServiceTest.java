@@ -17,7 +17,7 @@ class DialogResponsibilityServiceTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("dialog_responsibility");
-        service = new DialogResponsibilityService(jdbcTemplate);
+        service = new DialogResponsibilityService(jdbcTemplate, new LegacyTicketIdJdbcGuard(jdbcTemplate));
         createSchema();
     }
 
@@ -105,7 +105,30 @@ class DialogResponsibilityServiceTest {
         assertThat(row.get("last_read_at")).isEqualTo("2026-04-20T09:00:00Z");
     }
 
+    @Test
+    void doesNotChangeResponsibleForAmbiguousLegacyTicketId() {
+        jdbcTemplate.update("INSERT INTO tickets(user_id, ticket_id) VALUES (?, ?), (?, ?)",
+                41L, "T-AMB", 42L, "T-AMB");
+        jdbcTemplate.update("INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) VALUES (?, ?, ?)",
+                "T-AMB", "old-operator", "lead");
+
+        service.assignResponsibleIfMissingOrRedirected("T-AMB", "new-operator", "lead");
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-AMB"
+        )).isEqualTo("old-operator");
+    }
+
     private void createSchema() {
+        jdbcTemplate.execute("""
+                CREATE TABLE tickets (
+                    user_id BIGINT,
+                    ticket_id TEXT,
+                    PRIMARY KEY (user_id, ticket_id)
+                )
+                """);
         jdbcTemplate.execute("""
                 CREATE TABLE ticket_responsibles (
                     ticket_id TEXT PRIMARY KEY,
@@ -122,5 +145,7 @@ class DialogResponsibilityServiceTest {
                     timestamp TIMESTAMPTZ
                 )
                 """);
+        jdbcTemplate.update("INSERT INTO tickets(user_id, ticket_id) VALUES (?, ?), (?, ?), (?, ?)",
+                1L, "T-100", 2L, "T-101", 3L, "T-200");
     }
 }

@@ -16,14 +16,20 @@ public class DialogReplyTargetService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ChatAttachmentMetadataService chatAttachmentMetadataService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogReplyTargetService(JdbcTemplate jdbcTemplate,
-                                    ChatAttachmentMetadataService chatAttachmentMetadataService) {
+                                    ChatAttachmentMetadataService chatAttachmentMetadataService,
+                                    LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.chatAttachmentMetadataService = chatAttachmentMetadataService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public Optional<DialogReplyTarget> loadReplyTarget(String ticketId) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            return Optional.empty();
+        }
         return jdbcTemplate.query("""
                         SELECT user_id, channel_id
                           FROM messages
@@ -37,7 +43,7 @@ public class DialogReplyTargetService {
     }
 
     public boolean hasWebFormSession(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return false;
         }
         Integer count = jdbcTemplate.queryForObject(
@@ -74,7 +80,7 @@ public class DialogReplyTargetService {
     }
 
     public Long nextLocalTelegramMessageId(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return 1L;
         }
         Long max = jdbcTemplate.queryForObject("""
@@ -131,7 +137,7 @@ public class DialogReplyTargetService {
     }
 
     public void touchTicketActivity(String ticketId, String operatorIdentity) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return;
         }
         String identity = normalizeOperatorIdentity(operatorIdentity);
@@ -174,6 +180,9 @@ public class DialogReplyTargetService {
     }
 
     public int markOperatorMessageEdited(String ticketId, Long telegramMessageId, String message) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            return 0;
+        }
         return jdbcTemplate.update("""
                 UPDATE chat_history
                    SET original_message = COALESCE(original_message, message),
@@ -186,6 +195,9 @@ public class DialogReplyTargetService {
     }
 
     public int markOperatorMessageDeleted(String ticketId, Long telegramMessageId) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            return 0;
+        }
         return jdbcTemplate.update("""
                 UPDATE chat_history
                    SET deleted_at = CURRENT_TIMESTAMP

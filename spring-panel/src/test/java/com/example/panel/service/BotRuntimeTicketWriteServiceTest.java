@@ -33,14 +33,17 @@ class BotRuntimeTicketWriteServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("bot_runtime_ticket_write");
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = new LegacyTicketIdJdbcGuard(jdbcTemplate);
         DialogReplyTargetService dialogReplyTargetService = new DialogReplyTargetService(
             jdbcTemplate,
-            new ChatAttachmentMetadataService(jdbcTemplate, mock(AttachmentObjectStorageService.class))
+            new ChatAttachmentMetadataService(jdbcTemplate, mock(AttachmentObjectStorageService.class)),
+            legacyTicketIdJdbcGuard
         );
-        dialogResponsibilityService = new DialogResponsibilityService(jdbcTemplate);
+        dialogResponsibilityService = new DialogResponsibilityService(jdbcTemplate, legacyTicketIdJdbcGuard);
         dialogParticipantService = new DialogParticipantService(
             jdbcTemplate,
-            jdbcTemplate
+            jdbcTemplate,
+            legacyTicketIdJdbcGuard
         );
         channelRepository = mock(ChannelRepository.class);
         providerDeliveryLedgerService = new ProviderDeliveryLedgerService(
@@ -56,7 +59,8 @@ class BotRuntimeTicketWriteServiceTest {
             new UiEventOutboxAppendService(jdbcTemplate),
             providerDeliveryLedgerService,
             mock(PendingFeedbackRequestRepository.class),
-            mock(FeedbackRepository.class)
+            mock(FeedbackRepository.class),
+            legacyTicketIdJdbcGuard
         );
         createSchema();
     }
@@ -99,6 +103,32 @@ class BotRuntimeTicketWriteServiceTest {
                 String.class,
                 "T-500"
         )).isEqualTo("ticket_reopened");
+    }
+
+    @Test
+    void doesNotReopenAmbiguousLegacyTicketId() {
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, status, user_id, channel_id, reopen_count)
+                VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)
+                """,
+                "T-AMB", "closed", 55L, 9L, 0,
+                "T-AMB", "closed", 56L, 10L, 0
+        );
+
+        BotRuntimeTicketWriteService.MutationResult result = service.reopenTicket("T-AMB", "operator");
+
+        assertThat(result.updated()).isFalse();
+        assertThat(result.exists()).isFalse();
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT status FROM tickets WHERE ticket_id = ? ORDER BY user_id",
+                String.class,
+                "T-AMB"
+        )).containsExactly("closed", "closed");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ticket_active WHERE ticket_id = ?",
+                Integer.class,
+                "T-AMB"
+        )).isZero();
     }
 
     @Test
@@ -307,7 +337,8 @@ class BotRuntimeTicketWriteServiceTest {
         FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
         DialogReplyTargetService dialogReplyTargetService = new DialogReplyTargetService(
             jdbcTemplate,
-            new ChatAttachmentMetadataService(jdbcTemplate, mock(AttachmentObjectStorageService.class))
+            new ChatAttachmentMetadataService(jdbcTemplate, mock(AttachmentObjectStorageService.class)),
+            new LegacyTicketIdJdbcGuard(jdbcTemplate)
         );
         BotRuntimeTicketWriteService feedbackService = new BotRuntimeTicketWriteService(
             jdbcTemplate,
@@ -317,7 +348,8 @@ class BotRuntimeTicketWriteServiceTest {
             new UiEventOutboxAppendService(jdbcTemplate),
             providerDeliveryLedgerService,
             pendingFeedbackRequestRepository,
-            feedbackRepository
+            feedbackRepository,
+            new LegacyTicketIdJdbcGuard(jdbcTemplate)
         );
 
         Channel channel = new Channel();
@@ -365,14 +397,15 @@ class BotRuntimeTicketWriteServiceTest {
                 """);
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
-                    ticket_id TEXT PRIMARY KEY,
+                    ticket_id TEXT,
                     status TEXT,
                     resolved_at TIMESTAMP WITH TIME ZONE,
                     resolved_by TEXT,
                     user_id BIGINT,
                     channel_id BIGINT,
                     reopen_count INTEGER,
-                    last_reopen_at TIMESTAMP WITH TIME ZONE
+                    last_reopen_at TIMESTAMP WITH TIME ZONE,
+                    PRIMARY KEY (user_id, ticket_id)
                 )
                 """);
         jdbcTemplate.execute("""

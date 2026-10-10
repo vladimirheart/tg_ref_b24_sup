@@ -14,9 +14,12 @@ public class DialogResponsibilityService {
     private static final String AI_AGENT_USERNAME = "ai_agent";
 
     private final JdbcTemplate jdbcTemplate;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
-    public DialogResponsibilityService(JdbcTemplate jdbcTemplate) {
+    public DialogResponsibilityService(JdbcTemplate jdbcTemplate,
+                                       LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public String assignResponsibleIfMissing(String ticketId, String username) {
@@ -24,7 +27,7 @@ public class DialogResponsibilityService {
     }
 
     public String assignResponsibleIfMissing(String ticketId, String username, String assignedBy) {
-        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(username)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || !StringUtils.hasText(username)) {
             return loadResponsible(ticketId);
         }
         String normalizedUsername = trimToNull(username);
@@ -46,7 +49,7 @@ public class DialogResponsibilityService {
     }
 
     public void markDialogAsRead(String ticketId, String operator) {
-        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(operator)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || !StringUtils.hasText(operator)) {
             return;
         }
         try {
@@ -67,7 +70,7 @@ public class DialogResponsibilityService {
     }
 
     public void assignResponsibleIfMissingOrRedirected(String ticketId, String newResponsible, String assignedBy) {
-        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(newResponsible)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || !StringUtils.hasText(newResponsible)) {
             return;
         }
         String actor = StringUtils.hasText(assignedBy) ? assignedBy : newResponsible;
@@ -90,7 +93,7 @@ public class DialogResponsibilityService {
     }
 
     public String loadResponsible(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return null;
         }
         try {

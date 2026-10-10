@@ -18,7 +18,12 @@ class DialogTicketLifecycleServiceTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("dialog_ticket_lifecycle");
-        service = new DialogTicketLifecycleService(jdbcTemplate, new DialogResponsibilityService(jdbcTemplate));
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = new LegacyTicketIdJdbcGuard(jdbcTemplate);
+        service = new DialogTicketLifecycleService(
+                jdbcTemplate,
+                new DialogResponsibilityService(jdbcTemplate, legacyTicketIdJdbcGuard),
+                legacyTicketIdJdbcGuard
+        );
         createSchema();
     }
 
@@ -127,6 +132,32 @@ class DialogTicketLifecycleServiceTest {
     }
 
     @Test
+    void doesNotResolveAmbiguousLegacyTicketId() {
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, status, user_id, channel_id, closed_count, reopen_count)
+                VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)
+                """,
+                "T-AMB", "pending", 501L, 5L, 0, 0,
+                "T-AMB", "pending", 502L, 6L, 0, 0
+        );
+
+        DialogResolveResult result = service.resolveTicket("T-AMB", "operator", List.of("billing"));
+
+        assertThat(result.updated()).isFalse();
+        assertThat(result.exists()).isFalse();
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT status FROM tickets WHERE ticket_id = ? ORDER BY user_id",
+                String.class,
+                "T-AMB"
+        )).containsExactly("pending", "pending");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ticket_categories WHERE ticket_id = ?",
+                Integer.class,
+                "T-AMB"
+        )).isZero();
+    }
+
+    @Test
     void reopenReturnsNotClosedWhenTicketIsStillOpen() {
         jdbcTemplate.update("""
                 INSERT INTO tickets(ticket_id, status, user_id, channel_id, closed_count, reopen_count)
@@ -180,15 +211,16 @@ class DialogTicketLifecycleServiceTest {
     private void createSchema() {
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
-                    ticket_id TEXT PRIMARY KEY,
+                    user_id INTEGER,
+                    ticket_id TEXT,
                     status TEXT,
                     resolved_at TIMESTAMPTZ,
                     resolved_by TEXT,
-                    user_id INTEGER,
                     channel_id INTEGER,
                     closed_count INTEGER,
                     reopen_count INTEGER,
-                    last_reopen_at TIMESTAMPTZ
+                    last_reopen_at TIMESTAMPTZ,
+                    PRIMARY KEY (user_id, ticket_id)
                 )
                 """);
         jdbcTemplate.execute("""
