@@ -243,6 +243,10 @@ multibusiness.shared-channel-resolution=false
 multibusiness.ui-selector=false
 ```
 
+`MultibusinessFeatureFlags` binds these exact keys and defaults all of them to
+`false`. At the S2A source checkpoint no runtime path reads this bean: adding
+the configuration does not enable filtering, assignment or a UI switch.
+
 Строгий read scope нельзя включать, пока вся показываемая legacy выборка не
 получила approved business или не изолирована как `UNRESOLVED`. Каждый flag
 имеет отдельный acceptance checklist и rollback в состояние `false`; source
