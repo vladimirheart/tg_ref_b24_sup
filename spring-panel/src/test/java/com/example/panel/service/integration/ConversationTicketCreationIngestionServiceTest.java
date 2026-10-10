@@ -1,6 +1,7 @@
 package com.example.panel.service.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -13,6 +14,7 @@ import com.example.panel.entity.Channel;
 import com.example.panel.entity.ChatHistory;
 import com.example.panel.entity.Message;
 import com.example.panel.entity.Ticket;
+import com.example.panel.entity.TicketId;
 import com.example.panel.entity.TicketActive;
 import com.example.panel.entity.TicketSpan;
 import com.example.panel.repository.ChannelRepository;
@@ -108,7 +110,7 @@ class ConversationTicketCreationIngestionServiceTest {
             eq(occurredAt)
         )).thenReturn(true);
         when(channelRepository.findById(25L)).thenReturn(Optional.of(channel));
-        when(ticketRepository.findByIdTicketId("T-RABBIT-1")).thenReturn(Optional.empty());
+        when(ticketRepository.existsByIdTicketId("T-RABBIT-1")).thenReturn(false);
         when(chatHistoryRepository.save(any(ChatHistory.class))).thenAnswer(invocation -> {
             ChatHistory history = invocation.getArgument(0);
             history.setId(801L);
@@ -116,6 +118,12 @@ class ConversationTicketCreationIngestionServiceTest {
         });
 
         service.ingest(event, "integration.ticket.telegram");
+
+        TicketId expectedLocator = new TicketId();
+        expectedLocator.setUserId(901L);
+        expectedLocator.setTicketId("T-RABBIT-1");
+        verify(ticketRepository).existsById(expectedLocator);
+        verify(ticketRepository).existsByIdTicketId("T-RABBIT-1");
 
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(messageRepository).save(messageCaptor.capture());
@@ -180,6 +188,79 @@ class ConversationTicketCreationIngestionServiceTest {
     }
 
     @Test
+    void ingestMarksExistingCompositeTicketAsIdempotentWithoutWritingRoot() {
+        IntegrationInboundEventInboxService inboxService = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channelRepository = mock(ChannelRepository.class);
+        MessageRepository messageRepository = mock(MessageRepository.class);
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        ConversationTicketCreationIngestionService service = new ConversationTicketCreationIngestionService(
+            inboxService, channelRepository, messageRepository, ticketRepository,
+            mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
+            mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
+            mock(JdbcTemplate.class)
+        );
+        ConversationTicketCreatedEvent event = minimalEvent("evt-same-owner", 901L, "T-RABBIT-SAME");
+        Channel channel = new Channel();
+        channel.setId(25L);
+        when(inboxService.beginProcessing(
+            eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt())
+        )).thenReturn(true);
+        when(channelRepository.findById(25L)).thenReturn(Optional.of(channel));
+        TicketId canonicalLocator = new TicketId();
+        canonicalLocator.setUserId(901L);
+        canonicalLocator.setTicketId("T-RABBIT-SAME");
+        when(ticketRepository.existsById(canonicalLocator)).thenReturn(true);
+
+        service.ingest(event, "integration.ticket.telegram");
+
+        verify(ticketRepository).existsById(canonicalLocator);
+        verify(ticketRepository, never()).existsByIdTicketId(any());
+        verify(messageRepository, never()).save(any());
+        verify(ticketRepository, never()).save(any());
+        verify(inboxService).markProcessed("evt-same-owner");
+    }
+
+    @Test
+    void ingestRejectsCrossUserLegacyTicketIdCollisionBeforeWritingRoot() {
+        IntegrationInboundEventInboxService inboxService = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channelRepository = mock(ChannelRepository.class);
+        MessageRepository messageRepository = mock(MessageRepository.class);
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        ConversationTicketCreationIngestionService service = new ConversationTicketCreationIngestionService(
+            inboxService, channelRepository, messageRepository, ticketRepository,
+            mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
+            mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
+            mock(JdbcTemplate.class)
+        );
+        ConversationTicketCreatedEvent event = minimalEvent("evt-other-owner", 902L, "T-RABBIT-COLLISION");
+        Channel channel = new Channel();
+        channel.setId(25L);
+        when(inboxService.beginProcessing(
+            eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt())
+        )).thenReturn(true);
+        when(channelRepository.findById(25L)).thenReturn(Optional.of(channel));
+        when(ticketRepository.existsByIdTicketId("T-RABBIT-COLLISION")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.ingest(event, "integration.ticket.telegram"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Legacy ticket ID collision");
+
+        TicketId canonicalLocator = new TicketId();
+        canonicalLocator.setUserId(902L);
+        canonicalLocator.setTicketId("T-RABBIT-COLLISION");
+        verify(ticketRepository).existsById(canonicalLocator);
+        verify(ticketRepository).existsByIdTicketId("T-RABBIT-COLLISION");
+        verify(messageRepository, never()).save(any());
+        verify(ticketRepository, never()).save(any());
+        verify(inboxService).markFailed(eq("evt-other-owner"), any(Exception.class));
+        verify(inboxService, never()).markProcessed(any());
+    }
+
+    @Test
     void ingestSkipsDuplicateInboxEvent() {
         IntegrationInboundEventInboxService inboxService = mock(IntegrationInboundEventInboxService.class);
         ConversationTicketCreationIngestionService service = new ConversationTicketCreationIngestionService(
@@ -228,5 +309,14 @@ class ConversationTicketCreationIngestionServiceTest {
 
         verify(inboxService, never()).markProcessed(any());
         verify(inboxService, never()).markFailed(any(), any());
+    }
+
+    private ConversationTicketCreatedEvent minimalEvent(String eventId, long userId, String ticketId) {
+        return new ConversationTicketCreatedEvent(
+            eventId, "ticket.created.initial_contact", "telegram", 25L,
+            ticketId, userId, "user-identity", "username", null,
+            "Retail", "store", "Moscow", "Tverskaya", "Need help",
+            OffsetDateTime.parse("2026-08-14T11:00:00Z"), List.of(), List.of()
+        );
     }
 }

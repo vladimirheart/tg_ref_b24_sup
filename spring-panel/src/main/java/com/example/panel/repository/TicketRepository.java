@@ -14,6 +14,8 @@ public interface TicketRepository extends JpaRepository<Ticket, TicketId> {
 
     Optional<Ticket> findByIdTicketId(String ticketId);
 
+    boolean existsByIdTicketId(String ticketId);
+
     @Query("SELECT new com.example.panel.service.db.projection.TicketAnalyticsProjection(m.business, m.city, t.status, COUNT(t)) " +
             "FROM Ticket t JOIN Message m ON m.ticketId = t.id.ticketId GROUP BY m.business, m.city, t.status")
     List<TicketAnalyticsProjection> aggregateTicketSummary();

@@ -89,8 +89,17 @@ public class ConversationTicketCreationIngestionService {
     private void processEvent(ConversationTicketCreatedEvent event) {
         Channel channel = channelRepository.findById(event.channelId())
             .orElseThrow(() -> new IllegalStateException("Ticket creation channel not found: " + event.channelId()));
-        if (ticketRepository.findByIdTicketId(event.ticketId()).isPresent()) {
+        // Idempotency is scoped to the canonical composite ticket identity.
+        TicketId canonicalLocator = new TicketId();
+        canonicalLocator.setUserId(event.userId());
+        canonicalLocator.setTicketId(event.ticketId());
+        if (ticketRepository.existsById(canonicalLocator)) {
             return;
+        }
+        // Legacy child records still use a bare ticket_id; a cross-user collision
+        // must fail closed instead of silently dropping an unrelated ticket.
+        if (ticketRepository.existsByIdTicketId(event.ticketId())) {
+            throw new IllegalStateException("Legacy ticket ID collision across users");
         }
 
         OffsetDateTime occurredAt = event.occurredAt() != null ? event.occurredAt() : OffsetDateTime.now();
