@@ -109,6 +109,11 @@ business-role, но не system-admin capability.
   non-null значений. Legacy routes не расширяются и остаются в подтверждённом
   compatibility window; internal callers без public ID обязаны нести полный
   `(user_id, ticket_id)` tuple. Bare `ticket_id` не считается глобальным ключом.
+- S2A также предоставляет только read-only preview legacy assignment: он
+  сравнивает `messages.business` с `business_legacy_aliases.alias` побайтно,
+  без trim/lowercase или иных догадок. `UNRESOLVED`, duplicate mapping и
+  conflict остаются отдельными состояниями; сервис не меняет `tickets` и не
+  является backfill.
 - Child records получают business scope через canonical ticket. Там, где
   таблица хранит только `ticket_id`, этап S2 обязан добавить/вывести достаточный
   tuple или public reference до включения strict filtering. `chat_history`
@@ -191,9 +196,10 @@ requireSelectedBusiness(requested context, authenticated user)
    выше V50; новые tables/nullable FKs/indexes, `BusinessAccessService`,
    default-deny contract и PostgreSQL integration tests. Feature flags off;
    никаких existing-row mutation, UI switch или strict filtering.
-2. **S2, assignment.** S2A фиксирует public/composite ticket locator без
-   legacy assignment. S2B требует approved alias/location map, dry-run evidence,
-   controlled writes, child tuple integrity и UNRESOLVED queue. Backfill
+2. **S2, assignment.** S2A фиксирует public/composite ticket locator и
+   read-only preview, но не делает legacy assignment. S2B требует approved
+   alias/location map, dry-run evidence, controlled writes, child tuple integrity
+   и UNRESOLVED queue. Backfill
    запускается только отдельным явным scope.
 3. **S3, server scope.** Read/write API, dialogs, attachments, tasks,
    projects/boards, analytics, notification and realtime/outbox paths; negative
@@ -264,7 +270,8 @@ merge сам по себе не является rollout.
 
 S1 не назначает legacy records и не включает strict scope, поэтому может быть
 подготовлен без раскрытия sensitive aliases. S2A закрывает ticket public locator
-contract, но до S2B/S3 необходимо закрыть релевантные оставшиеся PENDING
+contract и добавляет fail-closed read-only preview, но до S2B/S3 необходимо
+закрыть релевантные оставшиеся PENDING
 decisions из decision table и precise changed-file/test plan against fresh
 `main`. Отдельное явное
 разрешение на запуск migration, backfill или rollout по-прежнему обязательно:
