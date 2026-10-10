@@ -108,6 +108,22 @@ public class BusinessAccessService {
     }
 
     /**
+     * Requires the canonical ticket owner to be assigned and readable by the
+     * authenticated user. Legacy tickets without an owner deliberately fail
+     * closed until separately approved S2B assignment.
+     */
+    public TicketLocatorService.TicketReference requireReadableTicket(
+            Long userId,
+            TicketLocatorService.TicketReference ticket
+    ) {
+        if (ticket == null || ticket.businessId() == null) {
+            throw new AccessDeniedException("Ticket business context is not accessible");
+        }
+        requireCapability(userId, ticket.businessId(), BusinessCapability.READ);
+        return ticket;
+    }
+
+    /**
      * Resolves a presentation context without granting any additional access.
      * A concrete context must be one of the caller's accessible businesses;
      * the all-businesses context is only their resolved union.

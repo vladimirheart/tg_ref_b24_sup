@@ -228,9 +228,12 @@ requireSelectedBusiness(requested context, authenticated user)
 - `requireSelectedBusiness` принимает типизированный single/all context:
   конкретный business разрешён только из accessible IDs, а all-view возвращает
   их union (включая пустой). Это presentation scope, не grant и не write scope.
+- `requireReadableTicket` пропускает только `TicketReference` с non-null
+  canonical owner и effective `READ`; unassigned legacy ticket и чужой owner
+  получают fail-closed отказ. Метод не подключён к endpoint до S3.
 - Targeted PostgreSQL integration test подтверждает legacy ticket без
   assignment, denied-by-default, изоляцию selected membership, fail-closed
-  selected context и включение future business в `ALL_BUSINESSES` без
+  selected/ticket contexts и включение future business в `ALL_BUSINESSES` без
   capability `CONFIGURE`.
 - Existing API/UI/read paths намеренно не подключены к сервису до S3, поэтому
   V51 source foundation не меняет поведение existing users.

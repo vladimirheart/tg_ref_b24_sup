@@ -120,6 +120,40 @@ class BusinessAccessServicePostgresIntegrationTest {
                 .isInstanceOf(AccessDeniedException.class);
     }
 
+    @Test
+    void readableTicketRequiresAssignedBusinessAndReadCapability() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_readable_ticket_v51");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'reader')");
+        applyMigration(jdbc);
+
+        Long sushiId = businessId(jdbc, "sushi");
+        Long blinyId = businessId(jdbc, "bliny");
+        jdbc.update(
+                "INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (?, ?, 'VIEWER')",
+                1L,
+                sushiId
+        );
+        BusinessAccessService service = new BusinessAccessService(jdbc);
+        TicketLocatorService.TicketReference readable = new TicketLocatorService.TicketReference(
+                10L,
+                "sushi-ticket",
+                "0123456789abcdef0123456789abcdef",
+                sushiId
+        );
+
+        assertThat(service.requireReadableTicket(1L, readable)).isEqualTo(readable);
+        assertThatThrownBy(() -> service.requireReadableTicket(
+                1L,
+                new TicketLocatorService.TicketReference(11L, "bliny-ticket", null, blinyId)
+        )).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.requireReadableTicket(
+                1L,
+                new TicketLocatorService.TicketReference(12L, "legacy-ticket", null, null)
+        )).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.requireReadableTicket(1L, null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
     private JdbcTemplate freshSchema(String prefix) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate(prefix);
         jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");
