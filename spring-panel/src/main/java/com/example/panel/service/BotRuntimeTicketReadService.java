@@ -71,7 +71,7 @@ public class BotRuntimeTicketReadService {
         if (!StringUtils.hasText(ticketId)) {
             return Optional.empty();
         }
-        return ticketRepository.findByIdTicketId(ticketId.trim())
+        return ticketRepository.findUniqueByLegacyTicketId(ticketId.trim())
             .map(ticket -> new TicketLookup(ticket.getUserId(), ticket.getTicketId(), ticket.getStatus()));
     }
 

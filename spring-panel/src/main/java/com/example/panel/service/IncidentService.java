@@ -1228,7 +1228,7 @@ public class IncidentService {
         String relationKey = requiredText(relation.relationKey(), "Укажите ключ связи incident.");
         switch (relationType) {
             case "ticket" -> {
-                if (ticketRepository.findByIdTicketId(relationKey).isEmpty()) {
+                if (ticketRepository.findUniqueByLegacyTicketId(relationKey).isEmpty()) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Диалог " + relationKey + " не найден для incident.");
                 }
             }

@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 
 import com.example.panel.entity.Channel;
 import com.example.panel.entity.PendingFeedbackRequest;
+import com.example.panel.entity.Ticket;
+import com.example.panel.entity.TicketId;
 import com.example.panel.repository.FeedbackRepository;
 import com.example.panel.repository.MessageRepository;
 import com.example.panel.repository.PendingFeedbackRequestRepository;
@@ -18,6 +20,30 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class BotRuntimeTicketReadServiceTest {
+
+    @Test
+    void findTicketUsesFailClosedUniqueLegacyResolver() {
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        BotRuntimeTicketReadService service = new BotRuntimeTicketReadService(
+            mock(MessageRepository.class),
+            ticketRepository,
+            mock(TicketActiveRepository.class),
+            mock(FeedbackRepository.class),
+            mock(PendingFeedbackRequestRepository.class)
+        );
+        Ticket ticket = new Ticket();
+        TicketId ticketId = new TicketId();
+        ticketId.setUserId(901L);
+        ticketId.setTicketId("T-901");
+        ticket.setId(ticketId);
+        ticket.setStatus("open");
+        when(ticketRepository.findUniqueByLegacyTicketId("T-901")).thenReturn(Optional.of(ticket));
+
+        Optional<BotRuntimeTicketReadService.TicketLookup> result = service.findTicket(" T-901 ");
+
+        assertThat(result).contains(new BotRuntimeTicketReadService.TicketLookup(901L, "T-901", "open"));
+        verify(ticketRepository).findUniqueByLegacyTicketId("T-901");
+    }
 
     @Test
     void findActiveFeedbackRequestReturnsChannelScopedRequestWhenNotRatedYet() {

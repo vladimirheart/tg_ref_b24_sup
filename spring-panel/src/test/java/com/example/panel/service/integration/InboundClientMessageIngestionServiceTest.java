@@ -124,7 +124,6 @@ class InboundClientMessageIngestionServiceTest {
         );
         verify(concurrencyGuard).acquire("T-17");
         verify(ticketRepository).findById(ticketId);
-        verify(ticketRepository, never()).findByIdTicketId(any());
         verify(messageRepository).save(rootMessage);
         assertThat(rootMessage.getUsername()).isEqualTo("tg_user");
         assertThat(rootMessage.getClientName()).isEqualTo("Telegram User");

@@ -12,7 +12,15 @@ import java.util.Optional;
 
 public interface TicketRepository extends JpaRepository<Ticket, TicketId> {
 
-    Optional<Ticket> findByIdTicketId(String ticketId);
+    List<Ticket> findTop2ByIdTicketId(String ticketId);
+
+    /**
+     * Temporary compatibility resolver for callers that have no canonical tuple.
+     * A bare legacy ID never selects an arbitrary ticket when it is ambiguous.
+     */
+    default Optional<Ticket> findUniqueByLegacyTicketId(String ticketId) {
+        return LegacyTicketIdLookupPolicy.onlyUnique(findTop2ByIdTicketId(ticketId));
+    }
 
     boolean existsByIdTicketId(String ticketId);
 

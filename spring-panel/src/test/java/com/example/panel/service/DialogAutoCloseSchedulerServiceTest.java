@@ -55,7 +55,7 @@ class DialogAutoCloseSchedulerServiceTest {
         ticket.setStatus("open");
         ticket.setClosedCount(0);
         ticket.setWorkTimeTotalSec(15L);
-        when(ticketRepository.findByIdTicketId("T-900")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findUniqueByLegacyTicketId("T-900")).thenReturn(Optional.of(ticket));
 
         TicketSpan span = new TicketSpan();
         span.setTicketId("T-900");
@@ -125,7 +125,7 @@ class DialogAutoCloseSchedulerServiceTest {
         ticket.setId(ticketId);
         ticket.setChannel(channel);
         ticket.setStatus("open");
-        when(ticketRepository.findByIdTicketId("T-901")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findUniqueByLegacyTicketId("T-901")).thenReturn(Optional.of(ticket));
 
         DialogAutoCloseSchedulerService service = new DialogAutoCloseSchedulerService(
             ticketActiveRepository,

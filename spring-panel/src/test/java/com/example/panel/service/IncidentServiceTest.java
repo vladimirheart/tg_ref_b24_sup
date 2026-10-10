@@ -126,7 +126,7 @@ class IncidentServiceTest {
         ticketId.setTicketId("T-INC-1");
         ticketId.setUserId(1001L);
         ticket.setId(ticketId);
-        when(ticketRepository.findByIdTicketId("T-INC-1")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findUniqueByLegacyTicketId("T-INC-1")).thenReturn(Optional.of(ticket));
 
         Task task = new Task();
         task.setId(15L);

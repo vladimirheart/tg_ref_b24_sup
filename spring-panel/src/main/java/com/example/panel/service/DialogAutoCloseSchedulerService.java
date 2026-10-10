@@ -103,7 +103,7 @@ public class DialogAutoCloseSchedulerService {
             if (active == null || !StringUtils.hasText(active.getTicketId())) {
                 continue;
             }
-            Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(active.getTicketId());
+            Optional<Ticket> ticketOpt = ticketRepository.findUniqueByLegacyTicketId(active.getTicketId());
             if (ticketOpt.isEmpty()) {
                 ticketActiveRepository.deleteById(active.getTicketId());
                 continue;
@@ -187,7 +187,7 @@ public class DialogAutoCloseSchedulerService {
         if (updated > 0) {
             return;
         }
-        Ticket ticket = ticketRepository.findByIdTicketId(ticketId).orElse(null);
+        Ticket ticket = ticketRepository.findUniqueByLegacyTicketId(ticketId).orElse(null);
         if (ticket == null || ticket.getUserId() == null || ticket.getChannel() == null || ticket.getChannel().getId() == null) {
             return;
         }
