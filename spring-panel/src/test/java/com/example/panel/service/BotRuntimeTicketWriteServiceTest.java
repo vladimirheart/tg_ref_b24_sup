@@ -56,7 +56,7 @@ class BotRuntimeTicketWriteServiceTest {
             dialogReplyTargetService,
             dialogResponsibilityService,
             dialogParticipantService,
-            new UiEventOutboxAppendService(jdbcTemplate),
+            new UiEventOutboxAppendService(jdbcTemplate, legacyTicketIdJdbcGuard),
             providerDeliveryLedgerService,
             mock(PendingFeedbackRequestRepository.class),
             mock(FeedbackRepository.class),
@@ -235,6 +235,12 @@ class BotRuntimeTicketWriteServiceTest {
     @Test
     void markClientMessageEditedUpdatesHistoryAndAppendsUiEvent() {
         jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, status, user_id, channel_id, reopen_count)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                "T-880", "pending", 88L, 18L, 0
+        );
+        jdbcTemplate.update("""
                 INSERT INTO chat_history(
                     user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -345,7 +351,7 @@ class BotRuntimeTicketWriteServiceTest {
             dialogReplyTargetService,
             dialogResponsibilityService,
             dialogParticipantService,
-            new UiEventOutboxAppendService(jdbcTemplate),
+            new UiEventOutboxAppendService(jdbcTemplate, new LegacyTicketIdJdbcGuard(jdbcTemplate)),
             providerDeliveryLedgerService,
             pendingFeedbackRequestRepository,
             feedbackRepository,
@@ -364,6 +370,12 @@ class BotRuntimeTicketWriteServiceTest {
 
         when(pendingFeedbackRequestRepository.findById(903L)).thenReturn(Optional.of(request));
         when(feedbackRepository.findFirstByTicketIdOrderByTimestampDesc("T-903")).thenReturn(Optional.empty());
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, status, user_id, channel_id, reopen_count)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                "T-903", "closed", 77L, 25L, 0
+        );
 
         BotRuntimeTicketWriteService.MutationResult result = feedbackService.storeFeedback(903L, 4);
 

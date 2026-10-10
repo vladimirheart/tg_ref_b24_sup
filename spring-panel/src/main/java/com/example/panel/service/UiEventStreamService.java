@@ -18,11 +18,14 @@ public class UiEventStreamService {
     private static final long EMITTER_TIMEOUT_MS = 0L;
 
     private final UiEventFanoutPublisher fanoutPublisher;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     private final ConcurrentHashMap<String, CopyOnWriteArraySet<SseEmitter>> emittersByUser =
         new ConcurrentHashMap<>();
 
-    public UiEventStreamService(UiEventFanoutPublisher fanoutPublisher) {
+    public UiEventStreamService(UiEventFanoutPublisher fanoutPublisher,
+                                LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.fanoutPublisher = fanoutPublisher;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public SseEmitter connect(String userIdentity) {
@@ -40,10 +43,16 @@ public class UiEventStreamService {
     }
 
     public void publishDialogsChanged(String reason, String ticketId) {
+        if (!hasUniqueTicket(ticketId)) {
+            return;
+        }
         publishToAll("dialogs_changed", basePayload(reason, ticketId, null));
     }
 
     public void publishDialogHistoryChanged(String ticketId, Long channelId, String reason) {
+        if (!hasUniqueTicket(ticketId)) {
+            return;
+        }
         publishToAll("dialog_history_changed", basePayload(reason, ticketId, channelId));
     }
 
@@ -177,6 +186,10 @@ public class UiEventStreamService {
         return StringUtils.hasText(userIdentity)
             ? userIdentity.trim().toLowerCase()
             : "anonymous";
+    }
+
+    private boolean hasUniqueTicket(String ticketId) {
+        return StringUtils.hasText(ticketId) && legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId);
     }
 
     private String nowUtc() {

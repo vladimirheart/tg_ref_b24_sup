@@ -17,7 +17,9 @@ class PostgresqlRuntimeTemporalBindingTest {
     @Test
     void uiEventOutboxBindsCreatedAtAsOffsetDateTime() {
         CapturingJdbcTemplate jdbc = new CapturingJdbcTemplate();
-        UiEventOutboxAppendService service = new UiEventOutboxAppendService(jdbc);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket("T-1")).thenReturn(true);
+        UiEventOutboxAppendService service = new UiEventOutboxAppendService(jdbc, legacyTicketIdJdbcGuard);
 
         service.append("client_message_edited", "T-1", 1L, "edited", null, null, null);
 

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.entity.Channel;
@@ -75,11 +76,39 @@ class DialogRealtimeEventServiceTest {
         );
     }
 
+    @Test
+    void incomingMessageSkipsAmbiguousLegacyTicketIdBeforeNotificationsAndAi() {
+        NotificationService notificationService = mock(NotificationService.class);
+        DialogAiAssistantService aiService = mock(DialogAiAssistantService.class);
+        AlertQueueService alertQueueService = mock(AlertQueueService.class);
+        ChannelRepository channelRepository = mock(ChannelRepository.class);
+        UiEventStreamService uiEventStreamService = mock(UiEventStreamService.class);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        DialogRealtimeEventService service = new DialogRealtimeEventService(
+                notificationService,
+                aiService,
+                alertQueueService,
+                mock(ChannelAssignmentRoutingService.class),
+                channelRepository,
+                mock(DialogResponsibilityService.class),
+                mock(DialogNotificationService.class),
+                uiEventStreamService,
+                legacyTicketIdJdbcGuard
+        );
+
+        service.handleIncomingClientMessage("T-DUPLICATE", 7L, "message", "text", null);
+
+        verify(legacyTicketIdJdbcGuard).hasUniqueTicket("T-DUPLICATE");
+        verifyNoInteractions(notificationService, aiService, alertQueueService, channelRepository, uiEventStreamService);
+    }
+
     private DialogRealtimeEventService service(NotificationService notificationService,
                                                DialogAiAssistantService aiService,
                                                AlertQueueService alertQueueService,
                                                ChannelRepository channelRepository,
                                                DialogNotificationService dialogNotificationService) {
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket(anyString())).thenReturn(true);
         return new DialogRealtimeEventService(
                 notificationService,
                 aiService,
@@ -88,7 +117,8 @@ class DialogRealtimeEventServiceTest {
                 channelRepository,
                 mock(DialogResponsibilityService.class),
                 dialogNotificationService,
-                mock(UiEventStreamService.class)
+                mock(UiEventStreamService.class),
+                legacyTicketIdJdbcGuard
         );
     }
 }

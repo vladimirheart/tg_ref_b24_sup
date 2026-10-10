@@ -13,11 +13,14 @@ public class UiEventOutboxAppendService {
     private static final int MAX_COUNTER_VALUE = 999;
 
     private final JdbcTemplate jdbcTemplate;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     private final long nodeId;
     private final AtomicInteger counter = new AtomicInteger(0);
 
-    public UiEventOutboxAppendService(JdbcTemplate jdbcTemplate) {
+    public UiEventOutboxAppendService(JdbcTemplate jdbcTemplate,
+                                      LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
         this.nodeId = resolveNodeId();
     }
 
@@ -48,7 +51,9 @@ public class UiEventOutboxAppendService {
                        String messageType,
                        String attachment,
                        Integer rating) {
-        if (!StringUtils.hasText(eventType) || !StringUtils.hasText(ticketId)) {
+        if (!StringUtils.hasText(eventType)
+                || !StringUtils.hasText(ticketId)
+                || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return;
         }
         jdbcTemplate.update("""

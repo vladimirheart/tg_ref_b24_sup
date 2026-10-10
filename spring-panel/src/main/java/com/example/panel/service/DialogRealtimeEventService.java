@@ -19,6 +19,7 @@ public class DialogRealtimeEventService {
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogNotificationService dialogNotificationService;
     private final UiEventStreamService uiEventStreamService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogRealtimeEventService(NotificationService notificationService,
                                       DialogAiAssistantService dialogAiAssistantService,
@@ -27,7 +28,8 @@ public class DialogRealtimeEventService {
                                       ChannelRepository channelRepository,
                                       DialogResponsibilityService dialogResponsibilityService,
                                       DialogNotificationService dialogNotificationService,
-                                      UiEventStreamService uiEventStreamService) {
+                                      UiEventStreamService uiEventStreamService,
+                                      LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.notificationService = notificationService;
         this.dialogAiAssistantService = dialogAiAssistantService;
         this.alertQueueService = alertQueueService;
@@ -36,10 +38,11 @@ public class DialogRealtimeEventService {
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogNotificationService = dialogNotificationService;
         this.uiEventStreamService = uiEventStreamService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public void handleTicketCreated(String ticketId, Long channelId, String previewText) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = resolveUniqueTicketId(ticketId);
         if (normalizedTicketId == null) {
             return;
         }
@@ -86,7 +89,7 @@ public class DialogRealtimeEventService {
                                             String messageType,
                                             String attachment,
                                             boolean notifyBell) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = resolveUniqueTicketId(ticketId);
         if (normalizedTicketId == null) {
             return;
         }
@@ -108,7 +111,7 @@ public class DialogRealtimeEventService {
     }
 
     public void handleClientMessageEdited(String ticketId, Long channelId) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = resolveUniqueTicketId(ticketId);
         if (normalizedTicketId == null) {
             return;
         }
@@ -117,7 +120,7 @@ public class DialogRealtimeEventService {
     }
 
     public void handleOperatorMessageEdited(String ticketId, Long channelId) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = resolveUniqueTicketId(ticketId);
         if (normalizedTicketId == null) {
             return;
         }
@@ -126,7 +129,7 @@ public class DialogRealtimeEventService {
     }
 
     public void handleFeedbackCreated(String ticketId, Integer rating) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = resolveUniqueTicketId(ticketId);
         if (normalizedTicketId == null || rating == null) {
             return;
         }
@@ -140,7 +143,7 @@ public class DialogRealtimeEventService {
     }
 
     public void handleTicketAutoClosed(String ticketId, Long channelId, String text) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = resolveUniqueTicketId(ticketId);
         if (normalizedTicketId == null) {
             return;
         }
@@ -167,7 +170,7 @@ public class DialogRealtimeEventService {
     }
 
     private void publishTicketLifecycleChange(String ticketId, Long channelId, String reason) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = resolveUniqueTicketId(ticketId);
         if (normalizedTicketId == null) {
             return;
         }
@@ -185,6 +188,13 @@ public class DialogRealtimeEventService {
     private String trimPreview(String value) {
         String safe = StringUtils.hasText(value) ? value.trim() : "без текста";
         return safe.length() <= 140 ? safe : safe.substring(0, 140) + "...";
+    }
+
+    private String resolveUniqueTicketId(String ticketId) {
+        String normalizedTicketId = trimToNull(ticketId);
+        return normalizedTicketId != null && legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)
+                ? normalizedTicketId
+                : null;
     }
 
     private String trimToNull(String value) {

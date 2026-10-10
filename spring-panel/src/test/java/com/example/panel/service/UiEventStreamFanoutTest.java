@@ -19,7 +19,8 @@ class UiEventStreamFanoutTest {
         UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
         when(publisher.publish(any(), any(), any())).thenReturn(true);
 
-        UiEventStreamService service = new UiEventStreamService(publisher);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = uniqueTicketGuard();
+        UiEventStreamService service = new UiEventStreamService(publisher, legacyTicketIdJdbcGuard);
         service.publishDialogsChanged("ticket_updated", "T-42");
 
         @SuppressWarnings("unchecked")
@@ -42,7 +43,7 @@ class UiEventStreamFanoutTest {
         UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
         when(publisher.publish(any(), any(), any())).thenReturn(true);
 
-        UiEventStreamService service = new UiEventStreamService(publisher);
+        UiEventStreamService service = new UiEventStreamService(publisher, uniqueTicketGuard());
         service.publishNotificationsChanged(" Operator@Example.COM ", "notification_created");
 
         verify(publisher).publish(
@@ -50,5 +51,23 @@ class UiEventStreamFanoutTest {
             eq("notifications_changed"),
             any()
         );
+    }
+
+    @Test
+    void dialogsChangedSkipsAmbiguousLegacyTicketId() {
+        UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        UiEventStreamService service = new UiEventStreamService(publisher, legacyTicketIdJdbcGuard);
+
+        service.publishDialogsChanged("ticket_updated", "T-DUPLICATE");
+
+        verify(legacyTicketIdJdbcGuard).hasUniqueTicket("T-DUPLICATE");
+        verify(publisher, org.mockito.Mockito.never()).publish(any(), any(), any());
+    }
+
+    private LegacyTicketIdJdbcGuard uniqueTicketGuard() {
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket(any())).thenReturn(true);
+        return legacyTicketIdJdbcGuard;
     }
 }
