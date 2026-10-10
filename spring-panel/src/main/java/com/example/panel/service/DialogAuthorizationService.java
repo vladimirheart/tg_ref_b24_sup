@@ -16,11 +16,14 @@ public class DialogAuthorizationService {
 
     private final PermissionService permissionService;
     private final DialogAuditService dialogAuditService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogAuthorizationService(PermissionService permissionService,
-                                      DialogAuditService dialogAuditService) {
+                                      DialogAuditService dialogAuditService,
+                                      LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.permissionService = permissionService;
         this.dialogAuditService = dialogAuditService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public Map<String, Object> resolveWorkspacePermissions(Authentication authentication) {
@@ -43,7 +46,11 @@ public class DialogAuthorizationService {
         Map<String, Object> permissions = resolveWorkspacePermissions(authentication);
         boolean allowed = Boolean.TRUE.equals(permissions.get(permission));
         if (allowed) {
-            return null;
+            if (ticketId == null || legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+                return null;
+            }
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("success", false, "error", "Диалог не найден"));
         }
         String operator = authentication != null ? authentication.getName() : null;
         logDialogAction(operator, ticketId, action, "forbidden", "Недостаточно прав: " + permission);
