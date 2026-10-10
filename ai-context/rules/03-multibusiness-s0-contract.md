@@ -104,11 +104,11 @@ business-role, но не system-admin capability.
   запись с guessed default.
 - `messages.business` остаётся legacy display/compatibility metadata и не
   участвует в авторизации. Нельзя удалять или переписывать это поле в S1.
-- Новый public route key должен быть отдельным immutable `ticket_public_id`,
-  либо каждый внешний и внутренний route обязан нести полный `(user_id,
-  ticket_id)` tuple. Одно из решений необходимо утвердить до S1. До него
-  нельзя расширять новые direct-ID API и нельзя предполагать уникальность
-  `ticket_id` вне подтверждённого legacy compatibility window.
+- S2A фиксирует новый public route key как отдельный immutable
+  `ticket_public_id`: 32 lowercase hexadecimal symbols, уникальный только для
+  non-null значений. Legacy routes не расширяются и остаются в подтверждённом
+  compatibility window; internal callers без public ID обязаны нести полный
+  `(user_id, ticket_id)` tuple. Bare `ticket_id` не считается глобальным ключом.
 - Child records получают business scope через canonical ticket. Там, где
   таблица хранит только `ticket_id`, этап S2 обязан добавить/вывести достаточный
   tuple или public reference до включения strict filtering. `chat_history`
@@ -181,7 +181,7 @@ requireSelectedBusiness(requested context, authenticated user)
 | Mixed channels | Только explicit/verified resolver | **PENDING:** source priority и UX ручного выбора |
 | 2 tasks без ticket link | `UNRESOLVED` либо `GLOBAL_SYSTEM`, не произвольный business | **PENDING:** policy и право на global Kanban |
 | 105 incidents / system notifications | Не получают business ID массово | **PENDING:** business/shared/global classification и отдельные permissions |
-| Existing ticket route | Legacy route доступен только в подтверждённом unique window | **PENDING:** public opaque ID vs mandatory composite locator |
+| Existing ticket route | Legacy route доступен только в подтверждённом unique window | **РЕШЕНО S2A:** opaque immutable `ticket_public_id`; internal fallback — обязательный composite locator |
 | Roles | Global page permissions не меняются автоматически | **PENDING:** business role matrix и administrator boundary |
 | Projects/boards | Не показывают inaccessible tasks | **PENDING:** scope project/board and explicit-global task policy |
 
@@ -191,9 +191,10 @@ requireSelectedBusiness(requested context, authenticated user)
    выше V50; новые tables/nullable FKs/indexes, `BusinessAccessService`,
    default-deny contract и PostgreSQL integration tests. Feature flags off;
    никаких existing-row mutation, UI switch или strict filtering.
-2. **S2, assignment.** Approved alias/location map, dry-run evidence,
-   controlled writes, public/composite ticket locator, child tuple integrity и
-   UNRESOLVED queue. Backfill запускается только отдельным явным scope.
+2. **S2, assignment.** S2A фиксирует public/composite ticket locator без
+   legacy assignment. S2B требует approved alias/location map, dry-run evidence,
+   controlled writes, child tuple integrity и UNRESOLVED queue. Backfill
+   запускается только отдельным явным scope.
 3. **S3, server scope.** Read/write API, dialogs, attachments, tasks,
    projects/boards, analytics, notification and realtime/outbox paths; negative
    cross-business tests before strict flag.
@@ -262,8 +263,9 @@ merge сам по себе не является rollout.
 ## Gates после S1
 
 S1 не назначает legacy records и не включает strict scope, поэтому может быть
-подготовлен без раскрытия sensitive aliases. До S2/S3 необходимо закрыть
-релевантные PENDING decisions из decision table, ticket public locator contract
-и precise changed-file/test plan against fresh `main`. Отдельное явное
+подготовлен без раскрытия sensitive aliases. S2A закрывает ticket public locator
+contract, но до S2B/S3 необходимо закрыть релевантные оставшиеся PENDING
+decisions из decision table и precise changed-file/test plan against fresh
+`main`. Отдельное явное
 разрешение на запуск migration, backfill или rollout по-прежнему обязательно:
 ни один из них не следует из source foundation.

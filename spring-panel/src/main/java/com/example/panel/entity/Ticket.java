@@ -6,8 +6,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "tickets")
@@ -18,6 +20,9 @@ public class Ticket {
 
     @Column(name = "group_msg_id")
     private Long groupMessageId;
+
+    @Column(name = "ticket_public_id", length = 32, updatable = false)
+    private String ticketPublicId;
 
     private String status;
 
@@ -51,6 +56,21 @@ public class Ticket {
 
     public void setGroupMessageId(Long groupMessageId) {
         this.groupMessageId = groupMessageId;
+    }
+
+    public String getTicketPublicId() {
+        return ticketPublicId;
+    }
+
+    public void setTicketPublicId(String ticketPublicId) {
+        this.ticketPublicId = ticketPublicId;
+    }
+
+    @PrePersist
+    public void assignTicketPublicIdIfMissing() {
+        if (ticketPublicId == null || ticketPublicId.isBlank()) {
+            ticketPublicId = UUID.randomUUID().toString().replace("-", "");
+        }
     }
 
     public String getStatus() {
