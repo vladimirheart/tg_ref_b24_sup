@@ -2,9 +2,11 @@
 
 ## Статус
 
-Черновик S0 от `2026-10-10`. Документ фиксирует технический контракт,
+S0-контракт от `2026-10-10`; S1 source foundation подготовлен и проверен в
+изолированной PostgreSQL-схеме. Документ фиксирует технический контракт,
 который должен быть реализован по стадиям задачи `01-278`; он не разрешает
-Flyway-миграцию, backfill, изменение production/runtime или внешних систем.
+запуск Flyway-миграции, backfill, изменение production/runtime или внешних
+систем.
 
 Требующие бизнес-решения пункты помечены **PENDING**. Пока они не утверждены,
 код не должен подставлять бизнес по текстовому имени, каналу, последнему выбору
@@ -204,6 +206,24 @@ requireSelectedBusiness(requested context, authenticated user)
    revision/image, migration/backfill checkpoint, rollback pointer and
    independent acceptance. It is not part of source implementation.
 
+### S1 source checkpoint — 2026-10-10
+
+- Добавлена V51, не запускавшаяся вне изолированной PostgreSQL Testcontainers
+  schema. Она создаёт `businesses`, memberships, `ALL_BUSINESSES` grants,
+  пустой approved-alias registry, channel/location mapping foundations и
+  nullable `tickets.business_id` с FK/index; legacy rows не присваиваются.
+- В V51 seed-ятся только предустановленные records `sushi` и `bliny`;
+  реальных legacy aliases в migration нет.
+- `BusinessAccessService` резолвит direct membership и `ALL_BUSINESSES` grant,
+  применяет initial role matrix `VIEWER`/`OPERATOR`/`MANAGER`/`ADMIN` и по
+  умолчанию отказывает при отсутствии active grant. Business `ADMIN` — не
+  системный `ROLE_ADMIN`.
+- Targeted PostgreSQL integration test подтверждает legacy ticket без
+  assignment, denied-by-default, изоляцию selected membership и включение
+  future business в `ALL_BUSINESSES` без capability `CONFIGURE`.
+- Existing API/UI/read paths намеренно не подключены к сервису до S3, поэтому
+  V51 source foundation не меняет поведение existing users.
+
 ## Feature flags и rollout boundary
 
 Предлагаемые flags выключены по умолчанию:
@@ -239,10 +259,11 @@ merge сам по себе не является rollout.
 - UI/manual: one/many/all grants, forbidden context switch, all-view labels and
   counts, reload/realtime, empty business and business catalog membership save.
 
-## S1 entry gate
+## Gates после S1
 
-До S1 должны быть зафиксированы all PENDING decisions из decision table,
-business-role matrix, ticket public locator contract, schema migration version
-и precise changed-file/test plan against fresh `main`. Отдельно требуется
-пользовательское разрешение на migration/backfill/rollout — ни один из них не
-следует из этого документа.
+S1 не назначает legacy records и не включает strict scope, поэтому может быть
+подготовлен без раскрытия sensitive aliases. До S2/S3 необходимо закрыть
+релевантные PENDING decisions из decision table, ticket public locator contract
+и precise changed-file/test plan against fresh `main`. Отдельное явное
+разрешение на запуск migration, backfill или rollout по-прежнему обязательно:
+ни один из них не следует из source foundation.
