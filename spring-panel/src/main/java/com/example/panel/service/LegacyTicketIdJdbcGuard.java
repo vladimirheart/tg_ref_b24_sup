@@ -28,7 +28,7 @@ public class LegacyTicketIdJdbcGuard {
             List<Integer> candidates = jdbcTemplate.query(
                 "SELECT 1 FROM tickets WHERE ticket_id = ? LIMIT 2",
                 (rs, rowNum) -> 1,
-                ticketId.trim()
+                ticketId
             );
             return candidates.size() == 1;
         } catch (DataAccessException ex) {
