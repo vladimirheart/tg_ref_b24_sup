@@ -5,6 +5,7 @@ import com.example.panel.entity.ChatHistory;
 import com.example.panel.entity.Message;
 import com.example.panel.entity.Ticket;
 import com.example.panel.entity.TicketActive;
+import com.example.panel.entity.TicketId;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.ChatHistoryRepository;
 import com.example.panel.repository.MessageRepository;
@@ -76,7 +77,10 @@ public class InboundClientMessageIngestionService {
         Channel channel = channelRepository.findById(event.channelId())
             .orElseThrow(() -> new IllegalStateException("Inbound event channel not found: " + event.channelId()));
         legacyTicketIdConcurrencyGuard.acquire(event.ticketId());
-        Ticket ticket = ticketRepository.findByIdTicketId(event.ticketId())
+        TicketId canonicalTicketId = new TicketId();
+        canonicalTicketId.setUserId(event.userId());
+        canonicalTicketId.setTicketId(event.ticketId());
+        Ticket ticket = ticketRepository.findById(canonicalTicketId)
             .orElseThrow(() -> new IllegalStateException("Inbound event ticket not found: " + event.ticketId()));
         if (ticket.getChannel() != null && ticket.getChannel().getId() != null
             && !ticket.getChannel().getId().equals(channel.getId())) {

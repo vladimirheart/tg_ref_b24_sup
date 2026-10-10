@@ -95,7 +95,7 @@ class InboundClientMessageIngestionServiceTest {
             eq(OffsetDateTime.parse("2026-08-14T10:15:00Z"))
         )).thenReturn(true);
         when(channelRepository.findById(17L)).thenReturn(Optional.of(channel));
-        when(ticketRepository.findByIdTicketId("T-17")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
         when(messageRepository.findFirstByTicketId("T-17")).thenReturn(Optional.of(rootMessage));
         when(ticketActiveRepository.findById("T-17")).thenReturn(Optional.empty());
         when(chatHistoryRepository.save(any(ChatHistory.class))).thenReturn(persisted);
@@ -123,6 +123,8 @@ class InboundClientMessageIngestionServiceTest {
             eq("photo")
         );
         verify(concurrencyGuard).acquire("T-17");
+        verify(ticketRepository).findById(ticketId);
+        verify(ticketRepository, never()).findByIdTicketId(any());
         verify(messageRepository).save(rootMessage);
         assertThat(rootMessage.getUsername()).isEqualTo("tg_user");
         assertThat(rootMessage.getClientName()).isEqualTo("Telegram User");
