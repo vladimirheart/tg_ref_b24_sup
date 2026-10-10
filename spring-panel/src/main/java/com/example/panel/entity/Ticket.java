@@ -24,6 +24,13 @@ public class Ticket {
     @Column(name = "ticket_public_id", length = 32, updatable = false)
     private String ticketPublicId;
 
+    /**
+     * Canonical business owner from V51. It remains nullable for legacy
+     * tickets until a separately approved assignment is applied.
+     */
+    @Column(name = "business_id")
+    private Long businessId;
+
     private String status;
 
     private OffsetDateTime resolvedAt;
@@ -64,6 +71,14 @@ public class Ticket {
 
     public void setTicketPublicId(String ticketPublicId) {
         this.ticketPublicId = ticketPublicId;
+    }
+
+    public Long getBusinessId() {
+        return businessId;
+    }
+
+    public void setBusinessId(Long businessId) {
+        this.businessId = businessId;
     }
 
     @PrePersist
