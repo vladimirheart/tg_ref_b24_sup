@@ -22,11 +22,14 @@ public class DialogClientContextReadService {
 
     private final JdbcTemplate jdbcTemplate;
     private final PanelTimestampSqlSupport timestampSqlSupport;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogClientContextReadService(JdbcTemplate jdbcTemplate,
-                                          PanelTimestampSqlSupport timestampSqlSupport) {
+                                          PanelTimestampSqlSupport timestampSqlSupport,
+                                          LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.timestampSqlSupport = timestampSqlSupport;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public List<Map<String, Object>> loadClientDialogHistory(Long userId, String currentTicketId, int limit) {
@@ -159,7 +162,7 @@ public class DialogClientContextReadService {
     }
 
     public List<Map<String, Object>> loadRelatedEvents(String ticketId, int limit) {
-        if (!StringUtils.hasText(ticketId) || limit <= 0) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || limit <= 0) {
             return List.of();
         }
         String eventOrderBy = timestampSqlSupport.orderByTimestampDesc("event_at") + ", COALESCE(sort_id, 0) DESC";

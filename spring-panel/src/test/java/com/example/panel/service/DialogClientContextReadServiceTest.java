@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class DialogClientContextReadServiceTest {
 
@@ -19,8 +23,28 @@ class DialogClientContextReadServiceTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("dialog_client_context");
-        service = new DialogClientContextReadService(jdbcTemplate, new PanelTimestampSqlSupport());
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket(anyString())).thenReturn(true);
+        service = new DialogClientContextReadService(
+                jdbcTemplate,
+                new PanelTimestampSqlSupport(),
+                legacyTicketIdJdbcGuard
+        );
         createSchema();
+    }
+
+    @Test
+    void loadRelatedEventsDoesNotQueryAmbiguousLegacyTicketId() {
+        JdbcTemplate guardedJdbcTemplate = mock(JdbcTemplate.class);
+        DialogClientContextReadService guardedService = new DialogClientContextReadService(
+                guardedJdbcTemplate,
+                new PanelTimestampSqlSupport(),
+                mock(LegacyTicketIdJdbcGuard.class)
+        );
+
+        assertThat(guardedService.loadRelatedEvents("T-AMB", 10)).isEmpty();
+
+        verifyNoInteractions(guardedJdbcTemplate);
     }
 
     @Test

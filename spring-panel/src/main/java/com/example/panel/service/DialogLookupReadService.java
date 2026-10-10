@@ -42,15 +42,18 @@ public class DialogLookupReadService {
     private final JdbcTemplate usersJdbcTemplate;
     private final PanelUserPhotoService panelUserPhotoService;
     private final PanelTimestampSqlSupport timestampSqlSupport;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogLookupReadService(JdbcTemplate jdbcTemplate,
                                    @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                                    PanelUserPhotoService panelUserPhotoService,
-                                   PanelTimestampSqlSupport timestampSqlSupport) {
+                                   PanelTimestampSqlSupport timestampSqlSupport,
+                                   LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.panelUserPhotoService = panelUserPhotoService;
         this.timestampSqlSupport = timestampSqlSupport;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     private String latestMessageOrderSql(String alias) {
@@ -326,6 +329,9 @@ public class DialogLookupReadService {
     }
 
     public Optional<DialogListItem> findDialog(String ticketId, String operator) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            return Optional.empty();
+        }
         try {
             Set<String> feedbackColumns = loadTableColumns("feedbacks");
             boolean feedbackHasTicketId = feedbackColumns.contains("ticket_id");

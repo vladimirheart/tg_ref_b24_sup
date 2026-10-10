@@ -13,7 +13,9 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class DialogLookupReadServiceTest {
@@ -28,14 +30,36 @@ class DialogLookupReadServiceTest {
         usersJdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("dialog_lookup_users");
         AttachmentObjectStorageService attachmentObjectStorageService = mock(AttachmentObjectStorageService.class);
         when(attachmentObjectStorageService.avatarExists("ivan.png")).thenReturn(false);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket(anyString())).thenReturn(true);
         service = new DialogLookupReadService(
                 jdbcTemplate,
                 usersJdbcTemplate,
                 new PanelUserPhotoService(attachmentObjectStorageService),
-                new PanelTimestampSqlSupport()
+                new PanelTimestampSqlSupport(),
+                legacyTicketIdJdbcGuard
         );
         createPanelSchema();
         createUsersSchema();
+    }
+
+    @Test
+    void findDialogDoesNotQueryAmbiguousLegacyTicketId() {
+        JdbcTemplate panelJdbcTemplate = mock(JdbcTemplate.class);
+        JdbcTemplate usersJdbcTemplate = mock(JdbcTemplate.class);
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        DialogLookupReadService guardedService = new DialogLookupReadService(
+                panelJdbcTemplate,
+                usersJdbcTemplate,
+                new PanelUserPhotoService(mock(AttachmentObjectStorageService.class)),
+                new PanelTimestampSqlSupport(),
+                legacyTicketIdJdbcGuard
+        );
+
+        assertThat(guardedService.findDialog("T-AMB", "operator")).isEmpty();
+        assertThat(guardedService.resolveRequestNumber("T-AMB")).isNull();
+
+        verifyNoInteractions(panelJdbcTemplate, usersJdbcTemplate);
     }
 
     @Test

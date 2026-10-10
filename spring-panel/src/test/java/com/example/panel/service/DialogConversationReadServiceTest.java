@@ -19,7 +19,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class DialogConversationReadServiceTest {
@@ -30,12 +32,31 @@ class DialogConversationReadServiceTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("dialog_conversation");
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = alwaysUniqueTicketGuard();
         service = new DialogConversationReadService(
                 jdbcTemplate,
                 mock(AttachmentService.class),
-                new PanelTimestampSqlSupport()
+                new PanelTimestampSqlSupport(),
+                legacyTicketIdJdbcGuard
         );
         createSchema();
+    }
+
+    @Test
+    void doesNotQueryAmbiguousLegacyTicketId() {
+        JdbcTemplate guardedJdbcTemplate = mock(JdbcTemplate.class);
+        DialogConversationReadService guardedService = new DialogConversationReadService(
+                guardedJdbcTemplate,
+                mock(AttachmentService.class),
+                new PanelTimestampSqlSupport(),
+                mock(LegacyTicketIdJdbcGuard.class)
+        );
+
+        assertThat(guardedService.loadHistory("T-AMB", null)).isEmpty();
+        assertThat(guardedService.loadPreviousDialogHistory("T-AMB", 0)).isEmpty();
+        assertThat(guardedService.loadTicketCategories("T-AMB")).isEmpty();
+
+        verifyNoInteractions(guardedJdbcTemplate);
     }
 
     @Test
@@ -186,7 +207,8 @@ class DialogConversationReadServiceTest {
         DialogConversationReadService fallbackService = new DialogConversationReadService(
                 failingJdbcTemplate,
                 mock(AttachmentService.class),
-                new PanelTimestampSqlSupport()
+                new PanelTimestampSqlSupport(),
+                alwaysUniqueTicketGuard()
         );
 
         when(failingJdbcTemplate.execute(org.mockito.ArgumentMatchers.<ConnectionCallback<Set<String>>>any())).thenReturn(
@@ -227,6 +249,12 @@ class DialogConversationReadServiceTest {
         assertThat(history.get(0).message()).isEqualTo("Фолбэк без metadata");
         assertThat(history.get(0).attachment())
                 .isEqualTo("/api/attachments/tickets/by-path?path=attachments/T-77/image%20one.png");
+    }
+
+    private LegacyTicketIdJdbcGuard alwaysUniqueTicketGuard() {
+        LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        when(legacyTicketIdJdbcGuard.hasUniqueTicket(anyString())).thenReturn(true);
+        return legacyTicketIdJdbcGuard;
     }
 
     private void createSchema() {

@@ -33,17 +33,20 @@ public class DialogConversationReadService {
     private final JdbcTemplate jdbcTemplate;
     private final AttachmentService attachmentService;
     private final PanelTimestampSqlSupport timestampSqlSupport;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogConversationReadService(JdbcTemplate jdbcTemplate,
                                          AttachmentService attachmentService,
-                                         PanelTimestampSqlSupport timestampSqlSupport) {
+                                         PanelTimestampSqlSupport timestampSqlSupport,
+                                         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.attachmentService = attachmentService;
         this.timestampSqlSupport = timestampSqlSupport;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public List<ChatMessageDto> loadHistory(String ticketId, Long channelId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return Collections.emptyList();
         }
         try {
@@ -155,7 +158,7 @@ public class DialogConversationReadService {
     }
 
     public Optional<DialogPreviousHistoryPage> loadPreviousDialogHistory(String ticketId, int offset) {
-        if (!StringUtils.hasText(ticketId) || offset < 0) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || offset < 0) {
             return Optional.empty();
         }
         try {
@@ -225,7 +228,7 @@ public class DialogConversationReadService {
     }
 
     public List<String> loadTicketCategories(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return List.of();
         }
         try {
