@@ -85,6 +85,41 @@ class BusinessAccessServicePostgresIntegrationTest {
         assertThat(service.resolveAccessibleBusinessIds(1L)).isEqualTo(Set.of(sushiId));
     }
 
+    @Test
+    void selectedBusinessScopeIsFailClosedAndAllMeansOnlyAccessibleBusinesses() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_selected_scope_v51");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'member'), (2, 'blocked')");
+        applyMigration(jdbc);
+
+        Long sushiId = businessId(jdbc, "sushi");
+        Long blinyId = businessId(jdbc, "bliny");
+        jdbc.update(
+                "INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (?, ?, 'VIEWER')",
+                1L,
+                sushiId
+        );
+        BusinessAccessService service = new BusinessAccessService(jdbc);
+
+        assertThat(service.requireSelectedBusiness(
+                1L,
+                new BusinessAccessService.OneBusiness(sushiId)
+        )).isEqualTo(new BusinessAccessService.SelectedBusinessScope(Set.of(sushiId), sushiId));
+        assertThat(service.requireSelectedBusiness(
+                1L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE
+        )).isEqualTo(new BusinessAccessService.SelectedBusinessScope(Set.of(sushiId), null));
+        assertThat(service.requireSelectedBusiness(
+                2L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE
+        )).isEqualTo(new BusinessAccessService.SelectedBusinessScope(Set.of(), null));
+        assertThatThrownBy(() -> service.requireSelectedBusiness(
+                1L,
+                new BusinessAccessService.OneBusiness(blinyId)
+        )).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.requireSelectedBusiness(1L, null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
     private JdbcTemplate freshSchema(String prefix) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate(prefix);
         jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");

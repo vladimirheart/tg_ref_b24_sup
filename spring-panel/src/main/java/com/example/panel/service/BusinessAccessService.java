@@ -107,6 +107,29 @@ public class BusinessAccessService {
         }
     }
 
+    /**
+     * Resolves a presentation context without granting any additional access.
+     * A concrete context must be one of the caller's accessible businesses;
+     * the all-businesses context is only their resolved union.
+     */
+    public SelectedBusinessScope requireSelectedBusiness(Long userId,
+                                                         RequestedBusinessContext requestedContext) {
+        if (requestedContext == null) {
+            throw new AccessDeniedException("Business context is required");
+        }
+
+        Set<Long> accessibleBusinessIds = resolveAccessibleBusinessIds(userId);
+        if (requestedContext instanceof AllAccessibleBusinesses) {
+            return new SelectedBusinessScope(accessibleBusinessIds, null);
+        }
+        if (requestedContext instanceof OneBusiness oneBusiness
+                && oneBusiness.businessId() != null
+                && accessibleBusinessIds.contains(oneBusiness.businessId())) {
+            return new SelectedBusinessScope(Set.of(oneBusiness.businessId()), oneBusiness.businessId());
+        }
+        throw new AccessDeniedException("Business context is not accessible");
+    }
+
     private boolean hasActiveAllBusinessesGrant(Long userId) {
         Boolean granted = jdbcTemplate.queryForObject(
                 """
@@ -129,6 +152,30 @@ public class BusinessAccessService {
         OPERATE,
         MANAGE,
         CONFIGURE
+    }
+
+    public sealed interface RequestedBusinessContext permits OneBusiness, AllAccessibleBusinesses {
+    }
+
+    public record OneBusiness(Long businessId) implements RequestedBusinessContext {
+    }
+
+    public enum AllAccessibleBusinesses implements RequestedBusinessContext {
+        INSTANCE
+    }
+
+    public record SelectedBusinessScope(Set<Long> businessIds, Long selectedBusinessId) {
+
+        public SelectedBusinessScope {
+            businessIds = businessIds == null ? Set.of() : Set.copyOf(businessIds);
+            if (selectedBusinessId != null && !businessIds.contains(selectedBusinessId)) {
+                throw new IllegalArgumentException("Selected business must be inside the resolved scope");
+            }
+        }
+
+        public boolean isAllBusinessesView() {
+            return selectedBusinessId == null;
+        }
     }
 
     public enum BusinessRole {

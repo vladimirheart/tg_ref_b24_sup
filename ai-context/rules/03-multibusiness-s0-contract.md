@@ -225,9 +225,13 @@ requireSelectedBusiness(requested context, authenticated user)
   применяет initial role matrix `VIEWER`/`OPERATOR`/`MANAGER`/`ADMIN` и по
   умолчанию отказывает при отсутствии active grant. Business `ADMIN` — не
   системный `ROLE_ADMIN`.
+- `requireSelectedBusiness` принимает типизированный single/all context:
+  конкретный business разрешён только из accessible IDs, а all-view возвращает
+  их union (включая пустой). Это presentation scope, не grant и не write scope.
 - Targeted PostgreSQL integration test подтверждает legacy ticket без
-  assignment, denied-by-default, изоляцию selected membership и включение
-  future business в `ALL_BUSINESSES` без capability `CONFIGURE`.
+  assignment, denied-by-default, изоляцию selected membership, fail-closed
+  selected context и включение future business в `ALL_BUSINESSES` без
+  capability `CONFIGURE`.
 - Existing API/UI/read paths намеренно не подключены к сервису до S3, поэтому
   V51 source foundation не меняет поведение existing users.
 
