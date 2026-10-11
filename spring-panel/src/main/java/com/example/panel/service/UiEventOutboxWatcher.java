@@ -5,6 +5,7 @@ import com.example.panel.runtime.RuntimeRole;
 import com.example.panel.runtime.RuntimeReplicaPolicy;
 import jakarta.annotation.PostConstruct;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -30,16 +31,19 @@ public class UiEventOutboxWatcher {
     private final DialogRealtimeEventService dialogRealtimeEventService;
     private final RuntimeCoordinationService runtimeCoordinationService;
     private final RuntimeWorkerCheckpointService checkpointService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     private final AtomicLong lastProcessedId = new AtomicLong(0L);
 
     public UiEventOutboxWatcher(JdbcTemplate jdbcTemplate,
                                 DialogRealtimeEventService dialogRealtimeEventService,
                                 RuntimeCoordinationService runtimeCoordinationService,
-                                RuntimeWorkerCheckpointService checkpointService) {
+                                RuntimeWorkerCheckpointService checkpointService,
+                                LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogRealtimeEventService = dialogRealtimeEventService;
         this.runtimeCoordinationService = runtimeCoordinationService;
         this.checkpointService = checkpointService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     @PostConstruct
@@ -57,7 +61,7 @@ public class UiEventOutboxWatcher {
                   FROM ui_event_outbox
                  WHERE id > ?
                  ORDER BY id ASC
-                """, rs -> {
+                """, (ResultSetExtractor<Void>) rs -> {
                 long maxSeen = afterId;
                 while (rs.next()) {
                     long id = rs.getLong("id");
@@ -85,6 +89,7 @@ public class UiEventOutboxWatcher {
                     lastProcessedId.set(maxSeen);
                     checkpointService.saveLongCursor(CHECKPOINT_KEY, maxSeen);
                 }
+                return null;
             }, afterId);
         });
     }
@@ -113,6 +118,9 @@ public class UiEventOutboxWatcher {
                              String messageType,
                              String attachment,
                              Integer rating) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            return;
+        }
         String normalizedEventType = StringUtils.hasText(eventType) ? eventType.trim().toLowerCase() : "";
         switch (normalizedEventType) {
             case "ticket_created" -> dialogRealtimeEventService.handleTicketCreated(ticketId, channelId, messageText);
@@ -158,7 +166,7 @@ public class UiEventOutboxWatcher {
                            AND lower(COALESCE(previous_message.event_type, '')) = 'client_message_created'
                            AND previous_message.id < ?
                     ) THEN TRUE ELSE FALSE END
-                    """, Boolean.class, ticketId.trim(), eventId, ticketId.trim(), eventId);
+                    """, Boolean.class, ticketId, eventId, ticketId, eventId);
             return Boolean.TRUE.equals(initial);
         } catch (RuntimeException ex) {
             log.warn("Unable to resolve initial client-message ownership for ticket {} event {}: {}",

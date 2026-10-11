@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 import com.example.panel.entity.Notification;
 import com.example.panel.repository.NotificationRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.mockito.ArgumentCaptor;
@@ -26,7 +28,8 @@ class NotificationServiceTest {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         when(dialogLookupReadService.resolveRequestNumber("T-101")).thenReturn("20260928-007");
 
-        NotificationService service = new NotificationService(repository, jdbcTemplate, usersJdbcTemplate, streamService);
+        NotificationService service = new NotificationService(repository, jdbcTemplate, usersJdbcTemplate, streamService,
+            mock(LegacyTicketIdJdbcGuard.class));
         ReflectionTestUtils.setField(service, "dialogLookupReadService", dialogLookupReadService);
 
         service.notifyUser(
@@ -72,7 +75,8 @@ class NotificationServiceTest {
         taskStored.setCreatedAt(OffsetDateTime.parse("2026-09-28T12:01:00Z"));
         when(repository.findByUserIdentityOrderByCreatedAtDesc("operator")).thenReturn(List.of(stored, taskStored));
 
-        NotificationService service = new NotificationService(repository, jdbcTemplate, usersJdbcTemplate, streamService);
+        NotificationService service = new NotificationService(repository, jdbcTemplate, usersJdbcTemplate, streamService,
+            mock(LegacyTicketIdJdbcGuard.class));
         ReflectionTestUtils.setField(service, "dialogLookupReadService", dialogLookupReadService);
         ReflectionTestUtils.setField(service, "dialogTaskDisplayService", new DialogTaskDisplayService(dialogLookupReadService));
 
@@ -93,7 +97,8 @@ class NotificationServiceTest {
                 repository,
                 mock(JdbcTemplate.class),
                 mock(JdbcTemplate.class),
-                mock(UiEventStreamService.class)
+                mock(UiEventStreamService.class),
+                mock(LegacyTicketIdJdbcGuard.class)
         );
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         ReflectionTestUtils.setField(service, "dialogLookupReadService", dialogLookupReadService);
@@ -101,5 +106,23 @@ class NotificationServiceTest {
         assertThat(service.formatAutoCloseText("d73d2eac-792e-31a7-947b-aac607333189"))
                 .isEqualTo("Обращение автоматически закрыто из-за отсутствия активности.")
                 .doesNotContain("d73d2eac");
+    }
+    @ParameterizedTest
+    @ValueSource(strings = {"/dialogs/+T-EXACT+", "/dialogs/%20T-EXACT%20",
+        "/dialogs?ticketId=%20T-EXACT%20&tab=history"})
+    void encodedTicketIdKeepsWhitespaceInCanonicalNumberLookup(String url) {
+        NotificationRepository repository = mock(NotificationRepository.class);
+        DialogLookupReadService lookup = mock(DialogLookupReadService.class);
+        when(lookup.resolveRequestNumber(" T-EXACT ")).thenReturn("20261011-017");
+        NotificationService service = new NotificationService(repository, mock(JdbcTemplate.class),
+            mock(JdbcTemplate.class), mock(UiEventStreamService.class), mock(LegacyTicketIdJdbcGuard.class));
+        ReflectionTestUtils.setField(service, "dialogLookupReadService", lookup);
+
+        service.notifyUser("operator", "Новое обращение", url);
+
+        ArgumentCaptor<Notification> saved = ArgumentCaptor.forClass(Notification.class);
+        verify(repository).save(saved.capture());
+        assertThat(saved.getValue().getText()).isEqualTo("Новое обращение №20261011-017");
+        verify(lookup).resolveRequestNumber(" T-EXACT ");
     }
 }

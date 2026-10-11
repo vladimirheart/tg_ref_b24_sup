@@ -7,6 +7,8 @@ import com.example.panel.support.PanelTimestampSqlSupport;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -22,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DialogConversationReadServiceTest {
@@ -251,6 +254,105 @@ class DialogConversationReadServiceTest {
                 .isEqualTo("/api/attachments/tickets/by-path?path=attachments/T-77/image%20one.png");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"missing-root", "duplicate-root", "wrong-owner"})
+    void previousHistoryDoesNotExposeInvalidNeighbourFields(String condition) {
+        seedTicket("T-CURRENT", 77L, "2026-04-30T10:00:00Z");
+        seedMessage("T-CURRENT", 77L, "2026-04-30T10:00:00Z");
+        if (!"missing-root".equals(condition)) {
+            seedTicket("T-PRIVATE", "wrong-owner".equals(condition) ? 88L : 77L, "2026-04-29T10:00:00Z");
+        }
+        if ("duplicate-root".equals(condition)) {
+            seedTicket("T-PRIVATE", 88L, "2026-04-29T10:00:00Z");
+        }
+        seedMessage("T-PRIVATE", 77L, "2026-04-29T10:00:00Z");
+
+        assertThat(guardedService(mock(AttachmentService.class)).loadPreviousDialogHistory("T-CURRENT", 0)).isEmpty();
+    }
+
+    @Test
+    void previousHistoryUsesCanonicalCurrentOwnerInsteadOfCorruptRootMessage() {
+        seedTicket("T-CURRENT", 77L, "2026-04-30T10:00:00Z");
+        seedMessage("T-CURRENT", 88L, "2026-04-30T10:00:00Z");
+        seedTicket("T-FOREIGN", 88L, "2026-04-29T10:00:00Z");
+        seedMessage("T-FOREIGN", 88L, "2026-04-29T10:00:00Z");
+        seedTicket("T-VALID", 77L, "2026-04-28T10:00:00Z");
+        seedMessage("T-VALID", 77L, "2026-04-28T10:00:00Z");
+
+        DialogPreviousHistoryPage page = guardedService(mock(AttachmentService.class))
+            .loadPreviousDialogHistory("T-CURRENT", 0).orElseThrow();
+
+        assertThat(page.batch().ticketId()).isEqualTo("T-VALID");
+        assertThat(page.hasMore()).isFalse();
+    }
+
+    @Test
+    void previousHistoryFiltersUnsafeRowsBeforePaginationAndPreservesExactChildId() {
+        seedTicket(" T-CURRENT ", 77L, "2026-04-30T10:00:00Z");
+        seedMessage(" T-CURRENT ", 77L, "2026-04-30T10:00:00Z");
+        seedTicket("T-CURRENT", 88L, "2026-04-30T10:00:00Z");
+        seedMessage("T-CURRENT", 88L, "2026-04-30T10:00:00Z");
+        seedMessage("T-ORPHAN", 77L, "2026-04-29T10:00:00Z");
+        seedTicket("T-DUP", 77L, "2026-04-28T10:00:00Z");
+        seedTicket("T-DUP", 88L, "2026-04-28T10:00:00Z");
+        seedMessage("T-DUP", 77L, "2026-04-28T10:00:00Z");
+        seedTicket("T-MISMATCH", 88L, "2026-04-27T10:00:00Z");
+        seedMessage("T-MISMATCH", 77L, "2026-04-27T10:00:00Z");
+        seedTicket(" T-OLD ", 77L, "2026-04-26T10:00:00Z");
+        seedMessage(" T-OLD ", 77L, "2026-04-26T10:00:00Z");
+        seedTicket("T-OLD", 88L, "2026-04-26T10:00:00Z");
+        seedMessage("T-OLD", 88L, "2026-04-26T10:00:00Z");
+        seedTicket("T-OLDER", 77L, "2026-04-25T10:00:00Z");
+        seedMessage("T-OLDER", 77L, "2026-04-25T10:00:00Z");
+        jdbcTemplate.update("""
+            INSERT INTO chat_history(ticket_id, sender, message, timestamp, message_type) VALUES
+                (' T-OLD ', 'client', 'exact history', '2026-04-26T10:00:00Z', 'text'),
+                ('T-OLD', 'client', 'foreign history', '2026-04-26T10:00:00Z', 'text')
+            """);
+        DialogConversationReadService guarded = guardedService(mock(AttachmentService.class));
+
+        DialogPreviousHistoryPage first = guarded.loadPreviousDialogHistory(" T-CURRENT ", 0).orElseThrow();
+        assertThat(first.batch().ticketId()).isEqualTo(" T-OLD ");
+        assertThat(first.batch().messages()).singleElement().extracting(ChatMessageDto::message).isEqualTo("exact history");
+        assertThat(first.hasMore()).isTrue();
+        assertThat(first.nextOffset()).isEqualTo(1);
+        DialogPreviousHistoryPage second = guarded.loadPreviousDialogHistory(" T-CURRENT ", 1).orElseThrow();
+        assertThat(second.batch().ticketId()).isEqualTo("T-OLDER");
+        assertThat(second.hasMore()).isFalse();
+        assertThat(second.nextOffset()).isNull();
+    }
+
+    @Test
+    void historyAttachmentUrlAndDescriptorUseTheSameExactValidatedTicketId() throws java.io.IOException {
+        seedTicket(" T-MEDIA ", 77L, "2026-04-30T10:00:00Z");
+        jdbcTemplate.update("""
+            INSERT INTO chat_history(ticket_id, sender, message, timestamp, message_type, attachment) VALUES
+                (' T-MEDIA ', 'operator', '', '2026-04-30T10:00:00Z', 'image', 'photo.png')
+            """);
+        AttachmentService attachments = mock(AttachmentService.class);
+
+        List<ChatMessageDto> history = guardedService(attachments).loadHistory(" T-MEDIA ", null);
+
+        assertThat(history).singleElement().extracting(ChatMessageDto::attachment)
+            .isEqualTo("/api/attachments/tickets/%20T-MEDIA%20/photo.png");
+        verify(attachments).describeTicketAttachment(" T-MEDIA ", "photo.png");
+    }
+
+    private DialogConversationReadService guardedService(AttachmentService attachments) {
+        return new DialogConversationReadService(jdbcTemplate, attachments,
+            new PanelTimestampSqlSupport(), new LegacyTicketIdJdbcGuard(jdbcTemplate));
+    }
+
+    private void seedTicket(String ticketId, Long userId, String createdAt) {
+        jdbcTemplate.update("INSERT INTO tickets(ticket_id, user_id, status, created_at) VALUES (?, ?, 'resolved', ?)",
+            ticketId, userId, java.time.OffsetDateTime.parse(createdAt));
+    }
+
+    private void seedMessage(String ticketId, Long userId, String createdAt) {
+        jdbcTemplate.update("INSERT INTO messages(ticket_id, user_id, problem, created_at) VALUES (?, ?, ?, ?)",
+            ticketId, userId, "problem " + ticketId, java.time.OffsetDateTime.parse(createdAt));
+    }
+
     private LegacyTicketIdJdbcGuard alwaysUniqueTicketGuard() {
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
         when(legacyTicketIdJdbcGuard.hasUniqueTicket(anyString())).thenReturn(true);
@@ -289,9 +391,11 @@ class DialogConversationReadServiceTest {
                 """);
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
-                    ticket_id TEXT PRIMARY KEY,
+                    ticket_id TEXT,
+                    user_id BIGINT NOT NULL DEFAULT 77,
                     status TEXT,
-                    created_at TIMESTAMPTZ
+                    created_at TIMESTAMPTZ,
+                    PRIMARY KEY(user_id, ticket_id)
                 )
                 """);
         jdbcTemplate.execute("""

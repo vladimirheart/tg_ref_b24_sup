@@ -27,7 +27,8 @@ class NotificationPagingServiceTest {
                 repository,
                 mock(JdbcTemplate.class),
                 mock(JdbcTemplate.class),
-                mock(UiEventStreamService.class)
+                mock(UiEventStreamService.class),
+                mock(LegacyTicketIdJdbcGuard.class)
         );
 
         Notification newest = notification(103L, "2026-09-28T14:03:00Z");
@@ -74,7 +75,8 @@ class NotificationPagingServiceTest {
                 repository,
                 mock(JdbcTemplate.class),
                 mock(JdbcTemplate.class),
-                mock(UiEventStreamService.class)
+                mock(UiEventStreamService.class),
+                mock(LegacyTicketIdJdbcGuard.class)
         );
         when(repository.findByUserIdentityOrderByCreatedAtDescIdDesc(eq("operator"), any(Pageable.class)))
                 .thenReturn(List.of());

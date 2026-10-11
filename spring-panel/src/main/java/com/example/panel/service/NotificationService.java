@@ -57,6 +57,7 @@ public class NotificationService {
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
     private final UiEventStreamService uiEventStreamService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     @Autowired
     private DialogLookupReadService dialogLookupReadService;
@@ -67,11 +68,13 @@ public class NotificationService {
     public NotificationService(NotificationRepository notificationRepository,
                                JdbcTemplate jdbcTemplate,
                                @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
-                               UiEventStreamService uiEventStreamService) {
+                               UiEventStreamService uiEventStreamService,
+                               LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.notificationRepository = notificationRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.uiEventStreamService = uiEventStreamService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     @Transactional(readOnly = true)
@@ -226,7 +229,7 @@ public class NotificationService {
             return null;
         }
         try {
-            String requestNumber = dialogLookupReadService.resolveRequestNumber(ticketId.trim());
+            String requestNumber = dialogLookupReadService.resolveRequestNumber(ticketId);
             return StringUtils.hasText(requestNumber) ? requestNumber.trim() : null;
         } catch (RuntimeException ex) {
             return null;
@@ -277,12 +280,12 @@ public class NotificationService {
                 end = index;
             }
         }
-        candidate = candidate.substring(0, end).trim();
+        candidate = candidate.substring(0, end);
         if (candidate.isEmpty()) {
             return null;
         }
         try {
-            return URLDecoder.decode(candidate, StandardCharsets.UTF_8).trim();
+            return URLDecoder.decode(candidate, StandardCharsets.UTF_8);
         } catch (IllegalArgumentException ex) {
             return candidate;
         }
@@ -290,11 +293,11 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public Set<String> findDialogRecipients(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return Set.of();
         }
         Set<String> recipients = new LinkedHashSet<>();
-        String normalizedTicketId = ticketId.trim();
+        String normalizedTicketId = ticketId;
         collectDialogRecipients(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
                 "responsible",
@@ -317,6 +320,9 @@ public class NotificationService {
     }
 
     public void notifyDialogParticipants(String ticketId, String text, String url, String excludedIdentity) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            return;
+        }
         Set<String> recipients = findDialogRecipients(ticketId);
         if (recipients.isEmpty()) {
             notifyAllOperators(text, url, excludedIdentity);
@@ -333,7 +339,7 @@ public class NotificationService {
     }
 
     public String buildDialogUrl(String ticketId) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = exactTicketId(ticketId);
         if (normalizedTicketId == null) {
             return "/dialogs";
         }
@@ -617,7 +623,7 @@ public class NotificationService {
         }
         String trimmed = url.trim();
         if (trimmed.startsWith("#open=ticket:")) {
-            return trimToNull(trimmed.substring("#open=ticket:".length()));
+            return exactTicketId(trimmed.substring("#open=ticket:".length()));
         }
         int ticketIdIndex = trimmed.indexOf("ticketId=");
         boolean dialogsLink = trimmed.startsWith("/dialogs?")
@@ -636,17 +642,13 @@ public class NotificationService {
             raw = raw.substring(0, hashIndex);
         }
         try {
-            return trimToNull(URLDecoder.decode(raw, StandardCharsets.UTF_8));
+            return exactTicketId(URLDecoder.decode(raw, StandardCharsets.UTF_8));
         } catch (Exception ex) {
-            return trimToNull(raw);
+            return exactTicketId(raw);
         }
     }
 
-    private String trimToNull(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+    private String exactTicketId(String value) {
+        return StringUtils.hasText(value) ? value : null;
     }
 }

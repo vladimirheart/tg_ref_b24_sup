@@ -4,6 +4,10 @@ import com.example.panel.support.PostgresqlJdbcTestSupport;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EmptySource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
@@ -19,8 +23,10 @@ class DialogAuditServiceTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("dialog_audit");
-        service = new DialogAuditService(jdbcTemplate);
         createSchema();
+        jdbcTemplate.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id, ticket_id))");
+        jdbcTemplate.update("INSERT INTO tickets VALUES (1, 'T-100'), (2, 'T-200')");
+        service = new DialogAuditService(jdbcTemplate, new LegacyTicketIdJdbcGuard(jdbcTemplate));
     }
 
     @Test
@@ -76,6 +82,50 @@ class DialogAuditServiceTest {
         assertThat(row.get("secondary_kpis")).isEqualTo("csat");
         assertThat(row.get("template_id")).isEqualTo("macro-1");
         assertThat(row.get("template_name")).isEqualTo("Macro 1");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"T-MISSING", "T-DUP", " T-100 "})
+    void unresolvedTicketDoesNotReadOldAuditOrAppendActionOrTelemetry(String ticketId) {
+        jdbcTemplate.update("INSERT INTO tickets VALUES (3, 'T-DUP'), (4, 'T-DUP')");
+        jdbcTemplate.update("""
+            INSERT INTO dialog_action_audit(ticket_id, action, result) VALUES (?, 'resolve', 'success')
+            """, ticketId);
+
+        assertThat(service.hasSuccessfulDialogAction(ticketId, "resolve")).isFalse();
+        service.logDialogActionAudit(ticketId, "operator", "resolve", "success", "new");
+        logTelemetry(ticketId);
+
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM dialog_action_audit", Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM workspace_telemetry_audit", Integer.class)).isZero();
+    }
+
+    @Test
+    void actionLookupAndTelemetryKeepExactTicketIdSeparateFromPlainNeighbour() {
+        jdbcTemplate.update("INSERT INTO tickets VALUES (3, ' T-100 ')");
+        service.logDialogActionAudit(" T-100 ", "operator", "resolve", "success", "exact");
+        logTelemetry(" T-100 ");
+
+        assertThat(service.hasSuccessfulDialogAction(" T-100 ", "resolve")).isTrue();
+        assertThat(service.hasSuccessfulDialogAction("T-100", "resolve")).isFalse();
+        assertThat(jdbcTemplate.queryForObject("SELECT ticket_id FROM dialog_action_audit", String.class)).isEqualTo(" T-100 ");
+        assertThat(jdbcTemplate.queryForObject("SELECT ticket_id FROM workspace_telemetry_audit", String.class)).isEqualTo(" T-100 ");
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @EmptySource
+    @ValueSource(strings = {" "})
+    void workspaceTelemetryWithoutTicketRetainsGlobalBehaviour(String ticketId) {
+        logTelemetry(ticketId);
+
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM workspace_telemetry_audit", Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT ticket_id FROM workspace_telemetry_audit", String.class)).isNull();
+    }
+
+    private void logTelemetry(String ticketId) {
+        service.logWorkspaceTelemetry("operator", "workspace_open_ms", "workspace", ticketId,
+            null, null, "workspace.v1", 100L, null, null, null, List.of(), List.of(), null, null);
     }
 
     private void createSchema() {

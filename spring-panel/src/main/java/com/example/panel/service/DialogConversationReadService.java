@@ -162,7 +162,6 @@ public class DialogConversationReadService {
             return Optional.empty();
         }
         try {
-            String messageCreatedOrder = timestampSqlSupport.orderByTimestampDesc("m2.created_at") + ", m2.group_msg_id DESC";
             String sql = """
                     SELECT
                         m.ticket_id,
@@ -183,26 +182,25 @@ public class DialogConversationReadService {
                             ELSE lower(MAX(c.platform))
                         END AS source_key
                       FROM messages m
-                      LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
+                      JOIN tickets t ON t.ticket_id = m.ticket_id AND t.user_id = m.user_id
                       LEFT JOIN channels c ON c.id = m.channel_id
                      WHERE m.user_id = (
-                            SELECT m2.user_id
-                              FROM messages m2
-                             WHERE m2.ticket_id = ?
-                               AND m2.user_id IS NOT NULL
-                             ORDER BY %s
-                             LIMIT 1
+                            SELECT current_ticket.user_id
+                              FROM tickets current_ticket
+                             WHERE current_ticket.ticket_id = ?
                         )
                        AND m.ticket_id <> ?
+                       AND (SELECT COUNT(*) FROM tickets candidates
+                             WHERE candidates.ticket_id = m.ticket_id) = 1
                      GROUP BY m.ticket_id, COALESCE(t.status, 'pending')
                      ORDER BY MAX(COALESCE(m.created_at, t.created_at)) DESC,
                               m.ticket_id DESC
                      LIMIT 2 OFFSET ?
-                    """.formatted(messageCreatedOrder);
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, ticketId.trim(), ticketId.trim(), offset);
+                    """;
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, ticketId, ticketId, offset);
             List<DialogPreviousHistoryBatch> batches = new ArrayList<>();
             for (Map<String, Object> row : rows) {
-                String previousTicketId = value(row.get("ticket_id"));
+                String previousTicketId = (String) row.get("ticket_id");
                 String sourceKey = normalizeDialogSourceKey(value(row.get("source_key")));
                 batches.add(new DialogPreviousHistoryBatch(
                         previousTicketId,
@@ -322,7 +320,7 @@ public class DialogConversationReadService {
             return trimmed;
         }
         return "/api/attachments/tickets/"
-                + UriUtils.encodePathSegment(ticketId.trim(), StandardCharsets.UTF_8)
+                + UriUtils.encodePathSegment(ticketId, StandardCharsets.UTF_8)
                 + "/"
                 + UriUtils.encodePathSegment(trimmed, StandardCharsets.UTF_8);
     }
@@ -361,7 +359,7 @@ public class DialogConversationReadService {
                 if (normalized.startsWith("attachments/") || normalized.contains("/attachments/")) {
                     descriptor = attachmentService.describeTicketAttachmentByPath(rawAttachment);
                 } else if (StringUtils.hasText(ticketId)) {
-                    descriptor = attachmentService.describeTicketAttachment(ticketId.trim(), rawAttachment.trim());
+                    descriptor = attachmentService.describeTicketAttachment(ticketId, rawAttachment.trim());
                 } else {
                     descriptor = null;
                 }

@@ -16,9 +16,11 @@ public class DialogAuditService {
     private static final Logger log = LoggerFactory.getLogger(DialogAuditService.class);
 
     private final JdbcTemplate jdbcTemplate;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
-    public DialogAuditService(JdbcTemplate jdbcTemplate) {
+    public DialogAuditService(JdbcTemplate jdbcTemplate, LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public void logDialogActionAudit(String ticketId, String actor, String action, String result, String detail) {
@@ -26,6 +28,9 @@ public class DialogAuditService {
             return;
         }
         try {
+            if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+                return;
+            }
             jdbcTemplate.update("""
                     INSERT INTO dialog_action_audit (ticket_id, actor, action, result, detail, created_at)
                     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -45,6 +50,9 @@ public class DialogAuditService {
             return false;
         }
         try {
+            if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+                return false;
+            }
             Long count = jdbcTemplate.queryForObject("""
                     SELECT COUNT(*)
                       FROM dialog_action_audit
@@ -53,7 +61,7 @@ public class DialogAuditService {
                        AND result = 'success'
                     """,
                     Long.class,
-                    ticketId.trim(),
+                    ticketId,
                     action.trim());
             return count != null && count > 0L;
         } catch (DataAccessException ex) {
@@ -81,6 +89,9 @@ public class DialogAuditService {
             return;
         }
         try {
+            if (StringUtils.hasText(ticketId) && !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+                return;
+            }
             jdbcTemplate.update("""
                     INSERT INTO workspace_telemetry_audit (
                         actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
@@ -91,7 +102,7 @@ public class DialogAuditService {
                     trimOrNull(actor),
                     trimOrNull(eventType),
                     trimOrNull(eventGroup),
-                    trimOrNull(ticketId),
+                    StringUtils.hasText(ticketId) ? ticketId : null,
                     trimOrNull(reason),
                     trimOrNull(errorCode),
                     trimOrNull(contractVersion),

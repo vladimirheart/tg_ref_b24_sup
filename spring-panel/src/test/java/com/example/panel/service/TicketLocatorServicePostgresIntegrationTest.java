@@ -4,6 +4,8 @@ import com.example.panel.support.PostgresqlJdbcTestSupport;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -53,6 +55,28 @@ class TicketLocatorServicePostgresIntegrationTest {
                 "UPDATE tickets SET ticket_public_id = ? WHERE user_id = 1 AND ticket_id = 'same-ticket'",
                 "fedcba9876543210fedcba9876543210"
         )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {" T-EXACT", "T-EXACT ", " T-EXACT "})
+    void compositeLocatorDoesNotAliasWhitespaceToAnotherBusiness(String exactId) throws Exception {
+        JdbcTemplate jdbc = freshSchema("ticket_locator_exact");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'first')");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id) VALUES (1, 'T-EXACT')");
+        applyFoundationMigration(jdbc);
+        applyLocatorMigration(jdbc);
+        Long sushi = jdbc.queryForObject("SELECT id FROM businesses WHERE code = 'sushi'", Long.class);
+        Long bliny = jdbc.queryForObject("SELECT id FROM businesses WHERE code = 'bliny'", Long.class);
+        jdbc.update("UPDATE tickets SET business_id = ? WHERE ticket_id = 'T-EXACT'", sushi);
+        TicketLocatorService service = new TicketLocatorService(jdbc);
+
+        assertThat(service.findByCompositeKey(1L, exactId)).isEmpty();
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (1, ?, ?)", exactId, bliny);
+
+        assertThat(service.findByCompositeKey(1L, exactId))
+            .contains(new TicketLocatorService.TicketReference(1L, exactId, null, bliny));
+        assertThat(service.findByCompositeKey(1L, "T-EXACT"))
+            .contains(new TicketLocatorService.TicketReference(1L, "T-EXACT", null, sushi));
     }
 
     private JdbcTemplate freshSchema(String prefix) {

@@ -42,7 +42,7 @@ public class TicketLocatorService {
                   FROM tickets
                  WHERE user_id = ?
                    AND ticket_id = ?
-                """, userId, ticketId.trim());
+                """, userId, ticketId);
     }
 
     public boolean isPublicId(String value) {
