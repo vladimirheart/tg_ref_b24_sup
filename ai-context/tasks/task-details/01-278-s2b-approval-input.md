@@ -87,3 +87,11 @@ Product owner должен утвердить оба решения:
 реализации controlled write, dry-run или backfill потребуется отдельный
 явный scope с критериями preflight, rollback и acceptance; настоящее
 согласование его не заменяет.
+
+### 5. Задачи из обращений и независимые ручные задачи (R12)
+
+**PROPOSED_NOT_APPROVED; product/owner signoff PENDING.** Предложение R11 учитывает уточнение пользователя: только задачи, создаваемые из обращений, наследуют business от canonical ticket. Ручная задача допускает любые поддерживаемые типы связей, включая несколько объектов разных бизнесов; сами links не задают origin/owner и не предоставляют доступ.
+
+Перед реализацией согласовать явный task provenance, собственную область видимости задачи и отдельную проверку каждой связи, в том числе для lists, search, projects, Kanban, details, attachments, notifications, SSE, exports и AI context. При отсутствующем/неоднозначном `tickets.business_id` ticket-derived task остаётся fail-closed, без угадывания.
+
+Две исторические задачи без ticket relation **не классифицируются автоматически** как unresolved или global/system; защищённые record decisions остаются PENDING. Фактические legacy IDs/aliases, evidence и private snapshot в репозиторий не копировать. Согласование policy не даёт разрешения на DB changes или rollout.
