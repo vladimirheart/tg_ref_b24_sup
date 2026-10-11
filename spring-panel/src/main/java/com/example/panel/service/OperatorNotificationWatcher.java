@@ -50,6 +50,7 @@ public class OperatorNotificationWatcher {
     private final RuntimeCoordinationService runtimeCoordinationService;
     private final RuntimeWorkerCheckpointService checkpointService;
     private final UiEventStreamService uiEventStreamService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
     @Autowired
     private DialogNotificationService dialogNotificationService;
 
@@ -72,7 +73,8 @@ public class OperatorNotificationWatcher {
                 sharedConfigService,
                 null,
                 new RuntimeWorkerCheckpointService(jdbcTemplate),
-                null
+                null,
+                new LegacyTicketIdJdbcGuard(jdbcTemplate)
         );
     }
 
@@ -86,7 +88,8 @@ public class OperatorNotificationWatcher {
                                        SharedConfigService sharedConfigService,
                                        RuntimeCoordinationService runtimeCoordinationService,
                                        RuntimeWorkerCheckpointService checkpointService,
-                                       UiEventStreamService uiEventStreamService) {
+                                       UiEventStreamService uiEventStreamService,
+                                       LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.notificationService = notificationService;
         this.dialogAiAssistantService = dialogAiAssistantService;
@@ -97,6 +100,7 @@ public class OperatorNotificationWatcher {
         this.runtimeCoordinationService = runtimeCoordinationService;
         this.checkpointService = checkpointService;
         this.uiEventStreamService = uiEventStreamService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     @PostConstruct
@@ -146,11 +150,10 @@ public class OperatorNotificationWatcher {
                         String attachment = trimToNull(rs.getString("attachment"));
                         Long channelId = rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null;
                         String timestampRaw = trimToNull(rs.getString("timestamp"));
-                        Channel channel = channelId != null ? channelRepository.findById(channelId).orElse(null) : null;
-
-                        if (!StringUtils.hasText(ticketId)) {
+                        if (!StringUtils.hasText(ticketId) || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
                             continue;
                         }
+                        Channel channel = channelId != null ? channelRepository.findById(channelId).orElse(null) : null;
                         if (isInactivityAutoCloseEvent(sender, messageType, message)) {
                             // Canonical auto-close bell/support-chat ownership lives in UiEventOutboxWatcher -> DialogRealtimeEventService.
                             publishDialogsChanged("dialog_auto_closed", ticketId);
@@ -178,7 +181,7 @@ public class OperatorNotificationWatcher {
     }
 
     private void notifyIncomingClientMessage(String ticketId, Channel channel, String message) {
-        if (!StringUtils.hasText(ticketId)) {
+        if (!StringUtils.hasText(ticketId) || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return;
         }
         boolean handledByQueue = channel != null
@@ -237,7 +240,10 @@ public class OperatorNotificationWatcher {
                         String ticketId = trimToNull(rs.getString("ticket_id"));
                         Long channelId = rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null;
                         String firstClientAtRaw = trimToNull(rs.getString("first_client_at"));
-                        if (!StringUtils.hasText(ticketId) || channelId == null || !StringUtils.hasText(firstClientAtRaw)) {
+                        if (!StringUtils.hasText(ticketId)
+                                || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)
+                                || channelId == null
+                                || !StringUtils.hasText(firstClientAtRaw)) {
                             continue;
                         }
                         if (dialogAuditService.hasSuccessfulDialogAction(ticketId, "first_response_overdue_notification")) {

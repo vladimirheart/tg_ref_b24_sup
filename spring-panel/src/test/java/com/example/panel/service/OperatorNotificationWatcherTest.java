@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class OperatorNotificationWatcherTest {
@@ -59,7 +60,8 @@ class OperatorNotificationWatcherTest {
                 sharedConfigService,
                 runtimeCoordinationService,
                 checkpointService,
-                null
+                null,
+                new LegacyTicketIdJdbcGuard(jdbcTemplate)
         );
         watcher.initialize();
     }
@@ -70,6 +72,7 @@ class OperatorNotificationWatcherTest {
         when(channelRepository.findById(7L)).thenReturn(Optional.of(channel));
         when(alertQueueService.notifyIncomingClientMessage(channel, "T-101", "Клиент прислал лог")).thenReturn(true);
 
+        insertTicket("T-101", 101L, 7L);
         jdbcTemplate.update("""
                 INSERT INTO chat_history(id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -89,6 +92,7 @@ class OperatorNotificationWatcherTest {
         when(channelRepository.findById(8L)).thenReturn(Optional.of(channel));
         when(alertQueueService.notifyIncomingClientMessage(channel, "T-102", "Есть уточнение")).thenReturn(false);
 
+        insertTicket("T-102", 102L, 8L);
         jdbcTemplate.update("""
                 INSERT INTO chat_history(id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -111,6 +115,7 @@ class OperatorNotificationWatcherTest {
         Channel channel = channel(9L, "History Replay Guard");
         when(channelRepository.findById(9L)).thenReturn(Optional.of(channel));
 
+        insertTicket("T-103", 103L, 9L);
         jdbcTemplate.update("""
                 INSERT INTO chat_history(id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -168,6 +173,36 @@ class OperatorNotificationWatcherTest {
         );
     }
 
+    @Test
+    void watchSkipsAmbiguousLegacyTicketIdBeforeAiAndNotifications() {
+        insertTicket("T-DUPLICATE", 201L, 21L);
+        insertTicket("T-DUPLICATE", 202L, 22L);
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                1L, "T-DUPLICATE", "user", "client message", "text", null, 21L, OffsetDateTime.now(ZoneOffset.UTC).toString());
+
+        watcher.watch();
+
+        verifyNoInteractions(
+                notificationService,
+                dialogAiAssistantService,
+                alertQueueService,
+                channelRepository,
+                dialogAuditService
+        );
+    }
+
+    private void insertTicket(String ticketId, long userId, long channelId) {
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, channel_id, status, created_at, user_id)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                ticketId, channelId, "open", OffsetDateTime.now(ZoneOffset.UTC).toString(), userId
+        );
+    }
+
     private Channel channel(Long id, String channelName) {
         Channel channel = new Channel();
         channel.setId(id);
@@ -200,11 +235,12 @@ class OperatorNotificationWatcherTest {
                 """);
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
-                    ticket_id TEXT PRIMARY KEY,
+                    ticket_id TEXT,
                     channel_id INTEGER,
                     status TEXT,
                     created_at TIMESTAMPTZ,
-                    user_id INTEGER
+                    user_id INTEGER,
+                    PRIMARY KEY (user_id, ticket_id)
                 )
                 """);
         jdbcTemplate.execute("""
