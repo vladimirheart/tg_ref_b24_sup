@@ -96,7 +96,7 @@ public class DialogMacroService {
             }
         });
         if (StringUtils.hasText(ticketId)) {
-            Map<String, String> contextVariables = buildMacroVariables(ticketId.trim(), operator, null);
+            Map<String, String> contextVariables = buildMacroVariables(ticketId, operator, null);
             contextVariables.forEach((key, value) -> {
                 if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
                     variables.add(macroVariable(key, humanizeMacroVariableLabel(key), value, "ticket_context"));
@@ -119,7 +119,7 @@ public class DialogMacroService {
             });
         }
 
-        String safeTicketId = StringUtils.hasText(ticketId) ? ticketId.trim() : null;
+        String safeTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         if (safeTicketId != null) {
             Optional<DialogDetails> detailsOptional = dialogDetailsReadService.loadDialogDetails(safeTicketId, null, operator);
             detailsOptional.ifPresent(details -> {
