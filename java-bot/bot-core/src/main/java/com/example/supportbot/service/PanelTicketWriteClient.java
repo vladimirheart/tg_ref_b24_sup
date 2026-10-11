@@ -50,7 +50,7 @@ public class PanelTicketWriteClient {
             return false;
         }
         return sendMutation(
-            "/internal/api/bot/tickets/" + encodePath(ticketId.trim()) + "/reopen",
+            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/reopen",
             "POST",
             StringUtils.hasText(operatorIdentity) ? new TicketActivityRequest(operatorIdentity.trim()) : null
         ).map(MutationResponse::updated).orElse(false);
@@ -61,7 +61,7 @@ public class PanelTicketWriteClient {
             return false;
         }
         return sendMutation(
-            "/internal/api/bot/tickets/" + encodePath(ticketId.trim()) + "/activity",
+            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/activity",
             "PUT",
             new TicketActivityRequest(userIdentity)
         ).map(MutationResponse::updated).orElse(false);
@@ -72,7 +72,7 @@ public class PanelTicketWriteClient {
             return false;
         }
         return sendMutation(
-            "/internal/api/bot/tickets/" + encodePath(ticketId.trim()) + "/activity",
+            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/activity",
             "DELETE",
             null
         ).map(MutationResponse::updated).orElse(false);
@@ -87,7 +87,7 @@ public class PanelTicketWriteClient {
             return false;
         }
         return sendMutation(
-            "/internal/api/bot/tickets/" + encodePath(ticketId.trim()) + "/operator-relay",
+            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/operator-relay",
             "POST",
             new OperatorRelayRequest(message.trim(), telegramMessageId, replyToTelegramId, operatorIdentity)
         ).map(MutationResponse::updated).orElse(false);
@@ -114,7 +114,7 @@ public class PanelTicketWriteClient {
             return false;
         }
         return sendMutation(
-            "/internal/api/bot/tickets/" + encodePath(ticketId.trim()) + "/operator-messages/" + telegramMessageId,
+            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/operator-messages/" + telegramMessageId,
             "PUT",
             new OperatorMessageEditRequest(message.trim(), operatorIdentity)
         ).map(MutationResponse::updated).orElse(false);

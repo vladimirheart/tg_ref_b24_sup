@@ -84,7 +84,7 @@ public class PanelTicketReadClient {
         if (!isEnabled() || !StringUtils.hasText(ticketId)) {
             return Optional.empty();
         }
-        return send("/internal/api/bot/tickets/" + encodePath(ticketId.trim()), new TypeReference<TicketLookupResponse>() {})
+        return send("/internal/api/bot/tickets/" + encodePath(ticketId), new TypeReference<TicketLookupResponse>() {})
             .map(response -> new TicketService.TicketWithUser(response.userId(), response.ticketId(), response.status()));
     }
 
@@ -93,7 +93,7 @@ public class PanelTicketReadClient {
             return Optional.empty();
         }
         return send(
-            "/internal/api/bot/tickets/" + encodePath(ticketId.trim()) + "/request-number",
+            "/internal/api/bot/tickets/" + encodePath(ticketId) + "/request-number",
             new TypeReference<RequestNumberResponse>() {}
         ).map(RequestNumberResponse::requestNumber);
     }
