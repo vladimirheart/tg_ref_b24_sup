@@ -5,9 +5,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.entity.Message;
 import com.example.panel.entity.PendingFeedbackRequest;
 import com.example.panel.entity.Ticket;
 import com.example.panel.entity.TicketId;
@@ -18,6 +20,10 @@ import com.example.panel.repository.TicketActiveRepository;
 import com.example.panel.repository.TicketRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EmptySource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class BotRuntimeTicketReadServiceTest {
 
@@ -43,6 +49,69 @@ class BotRuntimeTicketReadServiceTest {
 
         assertThat(result).contains(new BotRuntimeTicketReadService.TicketLookup(901L, "T-901", "open"));
         verify(ticketRepository).findUniqueByLegacyTicketId("T-901");
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @EmptySource
+    @ValueSource(strings = {" ", "T-MISSING", "T-DUPLICATE", " T-901 "})
+    void requestNumberSkipsUnresolvedTicketBeforeReadingRootMessage(String ticketId) {
+        MessageRepository messageRepository = mock(MessageRepository.class);
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        BotRuntimeTicketReadService service = new BotRuntimeTicketReadService(
+            messageRepository, ticketRepository, mock(TicketActiveRepository.class),
+            mock(FeedbackRepository.class), mock(PendingFeedbackRequestRepository.class)
+        );
+
+        assertThat(service.resolveRequestNumber(ticketId)).isEmpty();
+
+        verifyNoInteractions(messageRepository);
+    }
+
+    @Test
+    void requestNumberPreservesExactStoredLegacyId() {
+        MessageRepository messageRepository = mock(MessageRepository.class);
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        Ticket ticket = new Ticket();
+        TicketId id = new TicketId();
+        id.setUserId(901L);
+        id.setTicketId(" T-901 ");
+        ticket.setId(id);
+        when(ticketRepository.findUniqueByLegacyTicketId(" T-901 ")).thenReturn(Optional.of(ticket));
+        Message message = new Message();
+        message.setUserId(901L);
+        message.setTicketId(" T-901 ");
+        when(messageRepository.findByTicketId(" T-901 ")).thenReturn(Optional.of(message));
+        BotRuntimeTicketReadService service = new BotRuntimeTicketReadService(
+            messageRepository, ticketRepository, mock(TicketActiveRepository.class),
+            mock(FeedbackRepository.class), mock(PendingFeedbackRequestRepository.class)
+        );
+
+        assertThat(service.resolveRequestNumber(" T-901 "))
+            .contains(new BotRuntimeTicketReadService.RequestNumberLookup(" T-901 ", " T-901 "));
+        verify(messageRepository).findByTicketId(" T-901 ");
+    }
+
+    @Test
+    void requestNumberDoesNotExposeRootMessageBelongingToAnotherUser() {
+        MessageRepository messageRepository = mock(MessageRepository.class);
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        Ticket ticket = new Ticket();
+        TicketId id = new TicketId();
+        id.setUserId(901L);
+        id.setTicketId("T-901");
+        ticket.setId(id);
+        when(ticketRepository.findUniqueByLegacyTicketId("T-901")).thenReturn(Optional.of(ticket));
+        Message message = new Message();
+        message.setUserId(902L);
+        message.setTicketId("T-901");
+        when(messageRepository.findByTicketId("T-901")).thenReturn(Optional.of(message));
+        BotRuntimeTicketReadService service = new BotRuntimeTicketReadService(
+            messageRepository, ticketRepository, mock(TicketActiveRepository.class),
+            mock(FeedbackRepository.class), mock(PendingFeedbackRequestRepository.class)
+        );
+
+        assertThat(service.resolveRequestNumber("T-901")).isEmpty();
     }
 
     @Test

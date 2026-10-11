@@ -284,11 +284,10 @@ public class DialogLookupReadService {
     }
 
     public String resolveRequestNumber(String ticketId) {
-        String normalizedTicketId = trimToNull(ticketId);
-        if (normalizedTicketId == null) {
+        if (!StringUtils.hasText(ticketId)) {
             return null;
         }
-        return findDialog(normalizedTicketId, "")
+        return findDialog(ticketId, "")
                 .map(DialogListItem::requestNumber)
                 .map(this::trimToNull)
                 .filter(this::isCanonicalRequestNumber)
@@ -553,7 +552,7 @@ public class DialogLookupReadService {
         List<DialogListItem> ordered = new ArrayList<>(items);
         ordered.sort(Comparator
                 .comparing(this::requestNumberSortKey, Comparator.nullsLast(String::compareTo))
-                .thenComparing(item -> trimToNull(item.ticketId()), Comparator.nullsLast(String::compareTo)));
+                .thenComparing(DialogListItem::ticketId, Comparator.nullsLast(String::compareTo)));
         Map<String, Integer> sequenceByDay = new HashMap<>();
         Map<String, String> requestNumberByTicketId = new HashMap<>();
         for (DialogListItem item : ordered) {
@@ -577,8 +576,8 @@ public class DialogLookupReadService {
             return null;
         }
         RequestNumberSeed seed = buildRequestNumberSeed(item);
-        String ticketId = trimToNull(item.ticketId());
-        if (seed == null || ticketId == null) {
+        String ticketId = item.ticketId();
+        if (seed == null || !StringUtils.hasText(ticketId)) {
             return item;
         }
         String comparableCreatedAt = timestampSqlSupport.normalizeComparableTimestamp(seed.sortKey());

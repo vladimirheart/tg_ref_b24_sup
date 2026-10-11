@@ -99,7 +99,12 @@ public class BotRuntimeTicketReadService {
         if (!StringUtils.hasText(ticketId)) {
             return Optional.empty();
         }
-        return messageRepository.findByTicketId(ticketId.trim())
+        Ticket ticket = ticketRepository.findUniqueByLegacyTicketId(ticketId).orElse(null);
+        if (ticket == null) {
+            return Optional.empty();
+        }
+        return messageRepository.findByTicketId(ticketId)
+            .filter(message -> ticket.getUserId() != null && ticket.getUserId().equals(message.getUserId()))
             .map(message -> new RequestNumberLookup(
                 message.getTicketId(),
                 resolveClientTicketNumber(message)

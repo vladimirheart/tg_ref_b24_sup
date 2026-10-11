@@ -6,7 +6,9 @@ import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.config.PanelIntegrationTransportMode;
 import com.example.panel.entity.Channel;
 import com.example.panel.entity.PendingFeedbackRequest;
+import com.example.panel.entity.Ticket;
 import com.example.panel.repository.PendingFeedbackRequestRepository;
+import com.example.panel.repository.TicketRepository;
 import com.example.panel.service.integration.OutboundFeedbackPromptPublisher;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -33,19 +35,22 @@ public class FeedbackPromptDispatchSchedulerService {
     private final OutboundFeedbackPromptPublisher outboundFeedbackPromptPublisher;
     private final PanelIntegrationTransportMode integrationTransportMode;
     private final RuntimeCoordinationService runtimeCoordinationService;
+    private final TicketRepository ticketRepository;
 
     public FeedbackPromptDispatchSchedulerService(PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
                                                   BotRuntimeTicketReadService ticketReadService,
                                                   PanelBotSettingsService panelBotSettingsService,
                                                   OutboundFeedbackPromptPublisher outboundFeedbackPromptPublisher,
                                                   PanelIntegrationTransportMode integrationTransportMode,
-                                                  RuntimeCoordinationService runtimeCoordinationService) {
+                                                  RuntimeCoordinationService runtimeCoordinationService,
+                                                  TicketRepository ticketRepository) {
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.ticketReadService = ticketReadService;
         this.panelBotSettingsService = panelBotSettingsService;
         this.outboundFeedbackPromptPublisher = outboundFeedbackPromptPublisher;
         this.integrationTransportMode = integrationTransportMode;
         this.runtimeCoordinationService = runtimeCoordinationService;
+        this.ticketRepository = ticketRepository;
     }
 
     @Scheduled(cron = "0 */2 * * * *")
@@ -68,6 +73,11 @@ public class FeedbackPromptDispatchSchedulerService {
             Channel channel = request.getChannel();
             Long userId = request.getUserId();
             if (channel == null || channel.getId() == null || userId == null || !StringUtils.hasText(request.getTicketId())) {
+                continue;
+            }
+            Ticket ticket = ticketRepository.findUniqueByLegacyTicketId(request.getTicketId()).orElse(null);
+            if (ticket == null || !userId.equals(ticket.getUserId())
+                || ticket.getChannel() == null || !channel.getId().equals(ticket.getChannel().getId())) {
                 continue;
             }
             String prompt = buildRatingPrompt(channel, request.getTicketId());

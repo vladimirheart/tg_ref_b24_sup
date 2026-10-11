@@ -131,7 +131,13 @@ public class PanelTaskService {
     }
 
     private void linkTickets(Task task, List<String> ticketIds) {
-        for (String ticketId : sanitizeValues(ticketIds)) {
+        if (ticketIds == null) {
+            return;
+        }
+        for (String ticketId : new LinkedHashSet<>(ticketIds)) {
+            if (!StringUtils.hasText(ticketId)) {
+                continue;
+            }
             Optional<Ticket> ticketOpt = ticketRepository.findUniqueByLegacyTicketId(ticketId);
             if (ticketOpt.isEmpty() || ticketOpt.get().getUserId() == null) {
                 continue;

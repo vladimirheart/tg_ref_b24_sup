@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.entity.Channel;
@@ -19,6 +20,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EmptySource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -71,7 +76,8 @@ class DialogAutoCloseFollowUpTaskServiceTest {
             dialogTaskDisplayService,
             new ObjectMapper(),
             jdbcTemplate,
-            transactionManager()
+            transactionManager(),
+            uniqueTicketGuard("T-100")
         );
 
         Channel channel = new Channel();
@@ -119,12 +125,62 @@ class DialogAutoCloseFollowUpTaskServiceTest {
             new DialogTaskDisplayService(mock(DialogLookupReadService.class)),
             new ObjectMapper(),
             jdbcTemplate,
-            transactionManager()
+            transactionManager(),
+            uniqueTicketGuard("T-101")
         );
 
         service.createTaskForAutoClosedDialog("T-101");
 
-        verify(panelTaskService, never()).createTask(any());
+        verifyNoInteractions(panelTaskService, messageRepository, projectRepository, jdbcTemplate);
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @EmptySource
+    @ValueSource(strings = {" ", "T-MISSING", "T-DUPLICATE", " T-100 "})
+    void skipsUnresolvedTicketBeforeReadingContextOrCreatingTask(String ticketId) {
+        PanelTaskService panelTaskService = mock(PanelTaskService.class);
+        TicketResponsibleRepository responsibleRepository = mock(TicketResponsibleRepository.class);
+        MessageRepository messageRepository = mock(MessageRepository.class);
+        ProjectRepository projectRepository = mock(ProjectRepository.class);
+        DialogTaskDisplayService displayService = mock(DialogTaskDisplayService.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
+        DialogAutoCloseFollowUpTaskService service = new DialogAutoCloseFollowUpTaskService(
+            panelTaskService, responsibleRepository, messageRepository, projectRepository, displayService,
+            new ObjectMapper(), jdbcTemplate, transactionManager(), guard
+        );
+
+        service.createTaskForAutoClosedDialog(ticketId);
+
+        verifyNoInteractions(panelTaskService, responsibleRepository, messageRepository, projectRepository,
+            displayService, jdbcTemplate);
+        if (ticketId != null && !ticketId.isBlank()) {
+            verify(guard).hasUniqueTicket(ticketId);
+        }
+    }
+
+    @Test
+    void preservesExactStoredLegacyTicketIdForGuardAndResponsibleLookup() {
+        TicketResponsibleRepository responsibleRepository = mock(TicketResponsibleRepository.class);
+        LegacyTicketIdJdbcGuard guard = uniqueTicketGuard(" T-100 ");
+        DialogAutoCloseFollowUpTaskService service = new DialogAutoCloseFollowUpTaskService(
+            mock(PanelTaskService.class), responsibleRepository, mock(MessageRepository.class),
+            mock(ProjectRepository.class), mock(DialogTaskDisplayService.class), new ObjectMapper(),
+            mock(JdbcTemplate.class), transactionManager(), guard
+        );
+
+        service.createTaskForAutoClosedDialog(" T-100 ");
+
+        verify(guard).hasUniqueTicket(" T-100 ");
+        verify(responsibleRepository).findById(" T-100 ");
+        verify(responsibleRepository, never()).findById("T-100");
+    }
+
+    private LegacyTicketIdJdbcGuard uniqueTicketGuard(String ticketId) {
+        LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
+        when(guard.hasUniqueTicket(ticketId)).thenReturn(true);
+        return guard;
     }
 
     private PlatformTransactionManager transactionManager() {

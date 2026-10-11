@@ -1,18 +1,26 @@
 package com.example.panel.service.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.example.panel.config.IntegrationRabbitProperties;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import com.example.panel.service.RuntimeCoordinationService;
+import com.example.panel.service.LegacyTicketIdJdbcGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EmptySource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,6 +34,14 @@ class OutboundFeedbackPromptPublishOutboxServiceTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("panel_outbox");
+        jdbcTemplate.execute("""
+                CREATE TABLE tickets (
+                    user_id BIGINT NOT NULL,
+                    ticket_id VARCHAR(255) NOT NULL,
+                    PRIMARY KEY (user_id, ticket_id)
+                )
+                """);
+        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id) VALUES (?, ?)", 200L, "T-1");
         jdbcTemplate.execute("""
                 CREATE TABLE integration_transport_outbox (
                     event_id VARCHAR(120) PRIMARY KEY,
@@ -67,7 +83,8 @@ class OutboundFeedbackPromptPublishOutboxServiceTest {
             new ObjectMapper(),
             rabbitTemplate,
             properties,
-            coordinationService
+            coordinationService,
+            new LegacyTicketIdJdbcGuard(jdbcTemplate)
         );
     }
 
@@ -93,5 +110,73 @@ class OutboundFeedbackPromptPublishOutboxServiceTest {
             String.class,
             event.eventId()
         )).isEqualTo("published");
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @EmptySource
+    @ValueSource(strings = {" ", "T-MISSING", "T-DUPLICATE", " T-1 "})
+    void rejectsUnresolvedLegacyTicketBeforeEnqueue(String ticketId) {
+        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id) VALUES (?, ?)", 200L, "T-DUPLICATE");
+        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id) VALUES (?, ?)", 201L, "T-DUPLICATE");
+        clearInvocations(rabbitTemplate);
+
+        assertThatThrownBy(() -> service.enqueue(event(ticketId), "feedback.route"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("unique legacy ticket id");
+
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM integration_transport_outbox", Integer.class)).isZero();
+        verifyNoInteractions(rabbitTemplate);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"duplicate", "missing", "inconsistent-envelope"})
+    void doesNotPublishQueuedEventWhenTicketContextBecomesUnavailable(String scenario) {
+        OutboundFeedbackPromptEvent event = event("T-1");
+        service.enqueue(event, "feedback.route");
+        switch (scenario) {
+            case "duplicate" -> jdbcTemplate.update(
+                "INSERT INTO tickets (user_id, ticket_id) VALUES (?, ?)", 201L, "T-1"
+            );
+            case "missing" -> jdbcTemplate.update("DELETE FROM tickets WHERE ticket_id = ?", "T-1");
+            case "inconsistent-envelope" -> jdbcTemplate.update(
+                "UPDATE integration_transport_outbox SET user_id = ? WHERE event_id = ?", 201L, event.eventId()
+            );
+            default -> throw new IllegalArgumentException(scenario);
+        }
+        clearInvocations(rabbitTemplate);
+
+        service.dispatchScheduled();
+
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT status FROM integration_transport_outbox WHERE event_id = ?", String.class, event.eventId()
+        )).isEqualTo("failed");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT published_at FROM integration_transport_outbox WHERE event_id = ?", java.sql.Timestamp.class, event.eventId()
+        )).isNull();
+        verifyNoInteractions(rabbitTemplate);
+    }
+
+    @Test
+    void preservesExactStoredTicketIdAcrossEnqueueAndDispatch() {
+        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id) VALUES (?, ?)", 200L, " T-SPACED ");
+        OutboundFeedbackPromptEvent event = event(" T-SPACED ");
+
+        service.enqueue(event, "feedback.route");
+        service.dispatchScheduled();
+
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT ticket_id FROM integration_transport_outbox WHERE event_id = ?", String.class, event.eventId()
+        )).isEqualTo(" T-SPACED ");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT status FROM integration_transport_outbox WHERE event_id = ?", String.class, event.eventId()
+        )).isEqualTo("published");
+    }
+
+    private OutboundFeedbackPromptEvent event(String ticketId) {
+        return new OutboundFeedbackPromptEvent(
+            UUID.randomUUID().toString(), "feedback.prompt.dispatch", UUID.randomUUID().toString(),
+            "telegram", 42L, 100L, 200L, ticketId, "Rate it"
+        );
     }
 }

@@ -62,7 +62,7 @@ class PanelTaskServiceTest {
 
         service.createTask(new PanelTaskService.TaskPayload(
             "Follow up", null, "operator", "operator", null, null, null, "panel",
-            List.of(), List.of(), List.of("T-UNIQUE", "T-AMBIGUOUS"), List.of()
+            List.of(), List.of(), List.of("T-UNIQUE", "T-AMBIGUOUS", " T-UNIQUE "), List.of()
         ), false);
 
         ArgumentCaptor<TaskLink> linkCaptor = ArgumentCaptor.forClass(TaskLink.class);
@@ -72,6 +72,44 @@ class PanelTaskServiceTest {
         assertThat(linkCaptor.getValue().getId().getTicketId()).isEqualTo("T-UNIQUE");
         verify(ticketRepository).findUniqueByLegacyTicketId("T-UNIQUE");
         verify(ticketRepository).findUniqueByLegacyTicketId("T-AMBIGUOUS");
+        verify(ticketRepository).findUniqueByLegacyTicketId(" T-UNIQUE ");
         verify(taskLinkRepository, times(1)).save(any(TaskLink.class));
+    }
+
+    @Test
+    void savesExactCanonicalTupleForSpaceContainingTicketId() {
+        TaskRepository taskRepository = mock(TaskRepository.class);
+        TaskSequenceRepository sequenceRepository = mock(TaskSequenceRepository.class);
+        TaskLinkRepository linkRepository = mock(TaskLinkRepository.class);
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        TaskSequence sequence = new TaskSequence();
+        sequence.setId(1);
+        sequence.setVal(41L);
+        when(sequenceRepository.findById(1)).thenReturn(Optional.of(sequence));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
+            Task task = invocation.getArgument(0);
+            task.setId(77L);
+            return task;
+        });
+        Ticket ticket = new Ticket();
+        TicketId id = new TicketId();
+        id.setUserId(902L);
+        id.setTicketId(" T-UNIQUE ");
+        ticket.setId(id);
+        when(ticketRepository.findUniqueByLegacyTicketId(" T-UNIQUE ")).thenReturn(Optional.of(ticket));
+        PanelTaskService service = new PanelTaskService(
+            taskRepository, sequenceRepository, mock(TaskPersonRepository.class), mock(TaskHistoryRepository.class),
+            linkRepository, mock(NotificationRepository.class), ticketRepository, mock(TaskDomainFoundationService.class)
+        );
+
+        service.createTask(new PanelTaskService.TaskPayload(
+            "Follow up", null, "operator", "operator", null, null, null, "panel",
+            List.of(), List.of(), List.of(" T-UNIQUE ", " T-UNIQUE "), List.of()
+        ), false);
+
+        ArgumentCaptor<TaskLink> linkCaptor = ArgumentCaptor.forClass(TaskLink.class);
+        verify(linkRepository).save(linkCaptor.capture());
+        assertThat(linkCaptor.getValue().getId().getUserId()).isEqualTo(902L);
+        assertThat(linkCaptor.getValue().getId().getTicketId()).isEqualTo(" T-UNIQUE ");
     }
 }

@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.config.PanelIntegrationTransportMode;
@@ -22,6 +23,8 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -151,6 +154,38 @@ class DialogAutoCloseSchedulerServiceTest {
         assertThat(result.closedTickets()).isZero();
         verify(ticketRepository, never()).save(any());
         verify(ticketActiveRepository, never()).deleteById("T-901");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"T-MISSING", "T-DUPLICATE"})
+    void runAutoCloseSweepPreservesActiveRecordWhenLegacyTicketCannotBeResolved(String ticketId) {
+        TicketActiveRepository activeRepository = mock(TicketActiveRepository.class);
+        TicketRepository ticketRepository = mock(TicketRepository.class);
+        TicketSpanRepository spanRepository = mock(TicketSpanRepository.class);
+        ChatHistoryRepository historyRepository = mock(ChatHistoryRepository.class);
+        UiEventOutboxAppendService outbox = mock(UiEventOutboxAppendService.class);
+        DialogAutoCloseFollowUpTaskService followUp = mock(DialogAutoCloseFollowUpTaskService.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+
+        TicketActive active = new TicketActive();
+        active.setTicketId(ticketId);
+        active.setLastSeen(OffsetDateTime.now().minusDays(2));
+        when(activeRepository.findAll()).thenReturn(java.util.List.of(active));
+        when(ticketRepository.findUniqueByLegacyTicketId(ticketId)).thenReturn(Optional.empty());
+        DialogAutoCloseSchedulerService service = new DialogAutoCloseSchedulerService(
+            activeRepository, ticketRepository, spanRepository, historyRepository,
+            mock(SharedConfigService.class), outbox, followUp,
+            new PanelIntegrationTransportMode(new MockEnvironment().withProperty("app.integration.transport.mode", "rabbitmq")),
+            jdbcTemplate, passthroughCoordinationService()
+        );
+
+        DialogAutoCloseSchedulerService.AutoCloseRunResult result = service.runAutoCloseSweep(Map.of());
+
+        assertThat(result.checkedTickets()).isEqualTo(1);
+        assertThat(result.closedTickets()).isZero();
+        verify(activeRepository, never()).deleteById(any());
+        verify(ticketRepository, never()).save(any());
+        verifyNoInteractions(spanRepository, historyRepository, outbox, followUp, jdbcTemplate);
     }
 
     private RuntimeCoordinationService passthroughCoordinationService() {

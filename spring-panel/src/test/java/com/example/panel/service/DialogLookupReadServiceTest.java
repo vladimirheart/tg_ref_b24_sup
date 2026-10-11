@@ -63,6 +63,30 @@ class DialogLookupReadServiceTest {
     }
 
     @Test
+    void requestNumberResolvesExactStoredIdWithoutTrimming() {
+        jdbcTemplate.update(
+            "INSERT INTO tickets(ticket_id, status, user_id, created_at) VALUES (?, ?, ?, ?)",
+            "T-EXACT", "open", 55L, "2026-04-21T09:00:00Z"
+        );
+        jdbcTemplate.update(
+            "INSERT INTO tickets(ticket_id, status, user_id, created_at) VALUES (?, ?, ?, ?)",
+            " T-EXACT ", "open", 56L, "2026-04-22T10:00:00Z"
+        );
+        jdbcTemplate.update(
+            "INSERT INTO messages(group_msg_id, ticket_id, user_id, created_at, created_date) VALUES (?, ?, ?, ?, ?)",
+            501L, "T-EXACT", 55L, "2026-04-21T09:00:00Z", "2026-04-21"
+        );
+        jdbcTemplate.update(
+            "INSERT INTO messages(group_msg_id, ticket_id, user_id, created_at, created_date) VALUES (?, ?, ?, ?, ?)",
+            502L, " T-EXACT ", 56L, "2026-04-22T10:00:00Z", "2026-04-22"
+        );
+
+        assertThat(service.resolveRequestNumber("T-EXACT")).isEqualTo("20260421-001");
+        assertThat(service.resolveRequestNumber(" T-EXACT ")).isEqualTo("20260422-001");
+        assertThat(service.resolveRequestNumber(" T-EXACT")).isNull();
+    }
+
+    @Test
     void loadsSummaryAndEnrichesResponsibleProfile() {
         jdbcTemplate.update(
                 "INSERT INTO channels(id, channel_name) VALUES (?, ?)",

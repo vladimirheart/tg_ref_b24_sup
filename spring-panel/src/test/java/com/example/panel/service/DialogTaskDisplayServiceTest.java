@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,19 @@ class DialogTaskDisplayServiceTest {
                 .contains("Открыть обращение №20260928-008")
                 .contains("href=\"/dialogs/d73d2eac-792e-31a7-947b-aac607333189\"")
                 .doesNotContain("Открыть диалог #d73d2eac");
+    }
+
+    @Test
+    void titleAndReferenceResolveExactLegacyTicketId() {
+        DialogLookupReadService lookup = mock(DialogLookupReadService.class);
+        when(lookup.resolveRequestNumber(" T-100 ")).thenReturn("20261011-002");
+        when(lookup.resolveRequestNumber("T-100")).thenReturn("20261011-001");
+        DialogTaskDisplayService service = new DialogTaskDisplayService(lookup);
+
+        assertThat(service.buildAutoCloseTitle(" T-100 ", "Проверить"))
+            .isEqualTo("Проверить автозакрытое обращение №20261011-002: Проверить");
+        assertThat(service.dialogReference(" T-100 ")).isEqualTo("обращение №20261011-002");
+        verify(lookup, org.mockito.Mockito.never()).resolveRequestNumber("T-100");
     }
 
     @Test

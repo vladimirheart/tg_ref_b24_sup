@@ -120,12 +120,11 @@ public class DialogTaskDisplayService {
     }
 
     private String resolveCanonicalRequestNumber(String ticketId) {
-        String normalizedTicketId = trimToNull(ticketId);
-        if (normalizedTicketId == null) {
+        if (!StringUtils.hasText(ticketId)) {
             return null;
         }
         try {
-            String requestNumber = trimToNull(dialogLookupReadService.resolveRequestNumber(normalizedTicketId));
+            String requestNumber = trimToNull(dialogLookupReadService.resolveRequestNumber(ticketId));
             return requestNumber != null && requestNumber.matches("\\d{8}-\\d{3,}") ? requestNumber : null;
         } catch (RuntimeException ex) {
             return null;

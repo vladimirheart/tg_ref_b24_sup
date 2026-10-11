@@ -5,6 +5,7 @@ import com.example.panel.runtime.RuntimeRole;
 import com.example.panel.runtime.RuntimeReplicaPolicy;
 import com.example.panel.config.IntegrationRabbitProperties;
 import com.example.panel.service.RuntimeCoordinationService;
+import com.example.panel.service.LegacyTicketIdJdbcGuard;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
@@ -12,6 +13,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,23 +38,29 @@ public class OutboundFeedbackPromptPublishOutboxService {
     private final RabbitTemplate rabbitTemplate;
     private final IntegrationRabbitProperties rabbitProperties;
     private final RuntimeCoordinationService runtimeCoordinationService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public OutboundFeedbackPromptPublishOutboxService(JdbcTemplate jdbcTemplate,
                                                       ObjectMapper objectMapper,
                                                       RabbitTemplate rabbitTemplate,
                                                       IntegrationRabbitProperties rabbitProperties,
-                                                      RuntimeCoordinationService runtimeCoordinationService) {
+                                                      RuntimeCoordinationService runtimeCoordinationService,
+                                                      LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.rabbitTemplate = rabbitTemplate;
         this.rabbitProperties = rabbitProperties;
         this.runtimeCoordinationService = runtimeCoordinationService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public void enqueue(OutboundFeedbackPromptEvent event,
                         String routingKey) {
         if (event == null || !StringUtils.hasText(event.eventId()) || !StringUtils.hasText(routingKey)) {
             throw new IllegalArgumentException("Outbound feedback prompt outbox requires event id and routing key.");
+        }
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(event.ticketId())) {
+            throw new IllegalArgumentException("Outbound feedback prompt requires a unique legacy ticket id.");
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         jdbcTemplate.update("""
@@ -82,7 +90,7 @@ public class OutboundFeedbackPromptPublishOutboxService {
             toJson(event),
             event.channelId(),
             event.userId(),
-            normalize(event.ticketId()),
+            event.ticketId(),
             event.requestId(),
             "queued",
             0,
@@ -198,6 +206,14 @@ public class OutboundFeedbackPromptPublishOutboxService {
 
     private void publish(OutboxEntry entry) throws Exception {
         OutboundFeedbackPromptEvent event = objectMapper.readValue(entry.payloadJson(), OutboundFeedbackPromptEvent.class);
+        if (!Objects.equals(entry.ticketId(), event.ticketId())
+            || !Objects.equals(entry.userId(), event.userId())
+            || !Objects.equals(entry.channelId(), event.channelId())
+            || !Objects.equals(entry.requestId(), event.requestId())
+            || !Objects.equals(entry.eventId(), event.eventId())
+            || !legacyTicketIdJdbcGuard.hasUniqueTicket(entry.ticketId())) {
+            throw new IllegalStateException("Outbound feedback prompt ticket context is unavailable or inconsistent.");
+        }
         CorrelationData correlationData = new CorrelationData(entry.eventId());
         rabbitTemplate.convertAndSend(
             entry.exchangeName(),

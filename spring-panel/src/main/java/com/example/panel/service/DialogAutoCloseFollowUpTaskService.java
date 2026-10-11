@@ -44,6 +44,7 @@ public class DialogAutoCloseFollowUpTaskService {
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
     private final TransactionOperations isolatedTransactionOperations;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogAutoCloseFollowUpTaskService(PanelTaskService panelTaskService,
                                               TicketResponsibleRepository ticketResponsibleRepository,
@@ -52,7 +53,8 @@ public class DialogAutoCloseFollowUpTaskService {
                                               DialogTaskDisplayService dialogTaskDisplayService,
                                               ObjectMapper objectMapper,
                                               JdbcTemplate jdbcTemplate,
-                                              PlatformTransactionManager transactionManager) {
+                                              PlatformTransactionManager transactionManager,
+                                              LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.panelTaskService = panelTaskService;
         this.ticketResponsibleRepository = ticketResponsibleRepository;
         this.messageRepository = messageRepository;
@@ -61,6 +63,7 @@ public class DialogAutoCloseFollowUpTaskService {
         this.objectMapper = objectMapper;
         this.jdbcTemplate = jdbcTemplate;
         this.isolatedTransactionOperations = buildRequiresNewTransactionOperations(transactionManager);
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public void createTaskForAutoClosedDialog(String ticketId) {
@@ -68,23 +71,25 @@ public class DialogAutoCloseFollowUpTaskService {
     }
 
     public void createTaskForAutoClosedDialog(String ticketId, Channel channel) {
-        String normalizedTicketId = trimToNull(ticketId);
-        if (normalizedTicketId == null) {
+        if (!StringUtils.hasText(ticketId)) {
             return;
         }
         Long configuredProjectId = resolveFollowUpProjectId(channel);
         try {
             isolatedTransactionOperations.execute(status -> {
-                createTaskTransactional(normalizedTicketId, configuredProjectId);
+                createTaskTransactional(ticketId, configuredProjectId);
                 return null;
             });
         } catch (Exception ex) {
-            log.warn("Unable to create follow-up task for auto-closed ticket {}: {}", normalizedTicketId,
+            log.warn("Unable to create follow-up task for auto-closed ticket {}: {}", ticketId,
                 ex.getMessage(), ex);
         }
     }
 
     private void createTaskTransactional(String ticketId, Long configuredProjectId) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            return;
+        }
         String responsible = resolveResponsible(ticketId);
         if (responsible == null) {
             log.debug("Skipping auto-close follow-up task for ticket {} because no responsible is assigned", ticketId);

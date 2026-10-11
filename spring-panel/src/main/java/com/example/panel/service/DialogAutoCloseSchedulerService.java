@@ -105,7 +105,6 @@ public class DialogAutoCloseSchedulerService {
             }
             Optional<Ticket> ticketOpt = ticketRepository.findUniqueByLegacyTicketId(active.getTicketId());
             if (ticketOpt.isEmpty()) {
-                ticketActiveRepository.deleteById(active.getTicketId());
                 continue;
             }
             Ticket ticket = ticketOpt.get();
