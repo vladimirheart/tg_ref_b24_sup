@@ -63,7 +63,7 @@ public class UiEventOutboxAppendService {
                 """,
                 nextEventId(),
                 eventType.trim(),
-                ticketId.trim(),
+                ticketId,
                 channelId,
                 trimToNull(messageText),
                 trimToNull(messageType),

@@ -174,7 +174,7 @@ public class UiEventStreamService {
             payload.put("reason", reason.trim());
         }
         if (StringUtils.hasText(ticketId)) {
-            payload.put("ticketId", ticketId.trim());
+            payload.put("ticketId", ticketId);
         }
         if (channelId != null) {
             payload.put("channelId", channelId);

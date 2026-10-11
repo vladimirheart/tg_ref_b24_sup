@@ -31,10 +31,13 @@ public class DialogReplyTargetService {
             return Optional.empty();
         }
         return jdbcTemplate.query("""
-                        SELECT user_id, channel_id
-                          FROM messages
-                         WHERE ticket_id = ?
-                         ORDER BY created_at DESC
+                        SELECT m.user_id, m.channel_id
+                          FROM messages m
+                          JOIN tickets t ON t.ticket_id = m.ticket_id
+                                        AND t.user_id = m.user_id
+                                        AND t.channel_id = m.channel_id
+                         WHERE m.ticket_id = ?
+                         ORDER BY m.created_at DESC
                          LIMIT 1
                         """,
                 (rs, rowNum) -> new DialogReplyTarget(rs.getLong("user_id"), rs.getLong("channel_id")),
@@ -61,6 +64,7 @@ public class DialogReplyTargetService {
                                      Long telegramMessageId,
                                      Long replyToTelegramId,
                                      String sender) {
+        requireUniqueTicket(ticketId);
         OffsetDateTime timestamp = OffsetDateTime.now();
         jdbcTemplate.update("""
                 INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id)
@@ -101,6 +105,7 @@ public class DialogReplyTargetService {
                                           String messageType,
                                           Long telegramMessageId,
                                           Long replyToTelegramId) {
+        requireUniqueTicket(ticketId);
         OffsetDateTime timestamp = OffsetDateTime.now();
         Long chatHistoryId = jdbcTemplate.execute((Connection connection) -> {
             try (PreparedStatement insert = connection.prepareStatement("""
@@ -134,6 +139,12 @@ public class DialogReplyTargetService {
             );
         }
         return timestamp.toString();
+    }
+
+    private void requireUniqueTicket(String ticketId) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            throw new IllegalArgumentException("Outgoing message requires a unique legacy ticket id.");
+        }
     }
 
     public void touchTicketActivity(String ticketId, String operatorIdentity) {
@@ -191,6 +202,12 @@ public class DialogReplyTargetService {
                  WHERE ticket_id = ?
                    AND tg_message_id = ?
                    AND sender = 'operator'
+                   AND EXISTS (
+                       SELECT 1 FROM tickets t
+                        WHERE t.ticket_id = chat_history.ticket_id
+                          AND t.user_id = chat_history.user_id
+                          AND t.channel_id = chat_history.channel_id
+                   )
                 """, message, ticketId, telegramMessageId);
     }
 
@@ -204,6 +221,12 @@ public class DialogReplyTargetService {
                  WHERE ticket_id = ?
                    AND tg_message_id = ?
                    AND sender = 'operator'
+                   AND EXISTS (
+                       SELECT 1 FROM tickets t
+                        WHERE t.ticket_id = chat_history.ticket_id
+                          AND t.user_id = chat_history.user_id
+                          AND t.channel_id = chat_history.channel_id
+                   )
                 """, ticketId, telegramMessageId);
     }
 

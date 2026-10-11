@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.entity.Channel;
@@ -17,8 +20,12 @@ import com.example.panel.repository.ProviderDeliveryLedgerRepository;
 import com.example.panel.storage.AttachmentObjectStorageService;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import java.util.Optional;
+import java.util.List;
+import java.time.OffsetDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 class BotRuntimeTicketWriteServiceTest {
@@ -29,6 +36,8 @@ class BotRuntimeTicketWriteServiceTest {
     private DialogParticipantService dialogParticipantService;
     private ChannelRepository channelRepository;
     private ProviderDeliveryLedgerService providerDeliveryLedgerService;
+    private PendingFeedbackRequestRepository pendingRepository;
+    private FeedbackRepository feedbackRepository;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -51,6 +60,8 @@ class BotRuntimeTicketWriteServiceTest {
             new MonitoringCheckHistoryRepository(jdbcTemplate),
             channelRepository
         );
+        pendingRepository = mock(PendingFeedbackRequestRepository.class);
+        feedbackRepository = mock(FeedbackRepository.class);
         service = new BotRuntimeTicketWriteService(
             jdbcTemplate,
             dialogReplyTargetService,
@@ -58,8 +69,8 @@ class BotRuntimeTicketWriteServiceTest {
             dialogParticipantService,
             new UiEventOutboxAppendService(jdbcTemplate, legacyTicketIdJdbcGuard),
             providerDeliveryLedgerService,
-            mock(PendingFeedbackRequestRepository.class),
-            mock(FeedbackRepository.class),
+            pendingRepository,
+            feedbackRepository,
             legacyTicketIdJdbcGuard
         );
         createSchema();
@@ -394,6 +405,289 @@ class BotRuntimeTicketWriteServiceTest {
                 String.class,
                 "T-903"
         )).isEqualTo("feedback_created");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"missing", "duplicate", "wrong-owner", "wrong-channel",
+        "duplicate-provider-same-ticket", "duplicate-provider-other-ticket", "missing-provider"})
+    void clientEditDeniesInvalidRootOrAmbiguousProviderLocatorWithoutSideEffects(String condition) {
+        if (!"missing".equals(condition)) {
+            seedTicket("T-EDIT", 88L, 18L);
+        }
+        if ("duplicate".equals(condition)) {
+            seedTicket("T-EDIT", 99L, 19L);
+        }
+        seedHistory("T-EDIT", "wrong-owner".equals(condition) ? 99L : 88L,
+            "wrong-channel".equals(condition) ? 19L : 18L, 8100L, "client");
+        if (condition.startsWith("duplicate-provider")) {
+            String secondId = "duplicate-provider-other-ticket".equals(condition) ? "T-OTHER" : "T-EDIT";
+            if ("T-OTHER".equals(secondId)) {
+                seedTicket(secondId, 99L, 18L);
+            }
+            seedHistory(secondId, 88L, 18L, 8100L, "client");
+        }
+
+        BotRuntimeTicketWriteService.MutationResult result = service.markClientMessageEdited(
+            "wrong-channel".equals(condition) ? 19L : 18L,
+            "missing-provider".equals(condition) ? 9999L : 8100L, "edited");
+
+        assertThat(result).isEqualTo(new BotRuntimeTicketWriteService.MutationResult(false, false));
+        assertThat(jdbcTemplate.queryForList("SELECT message FROM chat_history", String.class))
+            .allMatch("initial"::equals);
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM chat_history WHERE original_message IS NOT NULL OR edited_at IS NOT NULL",
+            Integer.class)).isZero();
+        assertNoRuntimeSideEffects();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"missing", "duplicate", "wrong-owner", "wrong-channel"})
+    void relayDoesNotUseUnresolvedOrMismatchedRootMessage(String condition) {
+        if (!"missing".equals(condition)) {
+            seedTicket("T-RELAY", 88L, 18L);
+        }
+        if ("duplicate".equals(condition)) {
+            seedTicket("T-RELAY", 99L, 19L);
+        }
+        seedMessage("T-RELAY", "wrong-owner".equals(condition) ? 99L : 88L,
+            "wrong-channel".equals(condition) ? 19L : 18L, 1L);
+
+        assertThat(service.recordOperatorRelay("T-RELAY", "reply", 8100L, null, "operator").updated()).isFalse();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM chat_history", Integer.class)).isZero();
+        assertNoRuntimeSideEffects();
+        verifyNoInteractions(channelRepository);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"wrong-owner", "wrong-channel"})
+    void operatorEditDoesNotChangeHistoryWithMismatchedCanonicalContext(String condition) {
+        seedTicket("T-OPERATOR", 88L, 18L);
+        seedHistory("T-OPERATOR", "wrong-owner".equals(condition) ? 99L : 88L,
+            "wrong-channel".equals(condition) ? 19L : 18L, 8100L, "operator");
+
+        assertThat(service.markOperatorMessageEdited("T-OPERATOR", 8100L, "edited", "operator").updated()).isFalse();
+        assertThat(jdbcTemplate.queryForObject("SELECT message FROM chat_history", String.class)).isEqualTo("initial");
+        assertNoRuntimeSideEffects();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"missing", "duplicate", "wrong-owner", "wrong-channel", "null-channel", "null-owner"})
+    void feedbackDeniesInvalidCanonicalContextWithoutSavingOrExpiringRequest(String condition) {
+        if (!"missing".equals(condition)) {
+            seedTicket("T-FEEDBACK", 88L, 18L);
+        }
+        if ("duplicate".equals(condition)) {
+            seedTicket("T-FEEDBACK", 99L, 19L);
+        }
+        PendingFeedbackRequest request = pendingRequest("T-FEEDBACK",
+            "null-owner".equals(condition) ? null : "wrong-owner".equals(condition) ? 99L : 88L,
+            "null-channel".equals(condition) ? null : "wrong-channel".equals(condition) ? 19L : 18L);
+        OffsetDateTime expiresAt = request.getExpiresAt();
+        when(pendingRepository.findById(1L)).thenReturn(Optional.of(request));
+
+        assertThat(service.storeFeedback(1L, 4)).isEqualTo(new BotRuntimeTicketWriteService.MutationResult(false, false));
+        assertThat(request.getExpiresAt()).isEqualTo(expiresAt);
+        verifyNoInteractions(feedbackRepository);
+        verify(pendingRepository, never()).save(any());
+        assertNoRuntimeSideEffects();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"wrong-owner", "wrong-channel"})
+    void feedbackDoesNotOverwriteForeignExistingRating(String condition) {
+        seedTicket("T-FEEDBACK", 88L, 18L);
+        PendingFeedbackRequest request = pendingRequest("T-FEEDBACK", 88L, 18L);
+        OffsetDateTime expiresAt = request.getExpiresAt();
+        when(pendingRepository.findById(1L)).thenReturn(Optional.of(request));
+        Feedback existing = new Feedback();
+        existing.setTicketId("T-FEEDBACK");
+        existing.setUserId("wrong-owner".equals(condition) ? 99L : 88L);
+        existing.setChannelId("wrong-channel".equals(condition) ? 19L : 18L);
+        existing.setRating(1);
+        when(feedbackRepository.findFirstByTicketIdOrderByTimestampDesc("T-FEEDBACK"))
+            .thenReturn(Optional.of(existing));
+
+        assertThat(service.storeFeedback(1L, 4).updated()).isFalse();
+        assertThat(existing.getRating()).isEqualTo(1);
+        assertThat(request.getExpiresAt()).isEqualTo(expiresAt);
+        verify(feedbackRepository, never()).save(any());
+        verify(pendingRepository, never()).save(any());
+        assertNoRuntimeSideEffects();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"register", "clear", "reopen", "relay", "operator-edit", "client-edit", "feedback"})
+    void runtimeMutationsPreserveExactIdWithoutChangingPlainNeighbour(String operation) {
+        String exactId = " T-EXACT ";
+        seedTicket(exactId, 88L, 18L);
+        seedTicket("T-EXACT", 99L, 19L);
+        seedMessage(exactId, 88L, 18L, 1L);
+        seedMessage("T-EXACT", 99L, 19L, 2L);
+        seedHistory(exactId, 88L, 18L, 8100L, "client-edit".equals(operation) ? "client" : "operator");
+        seedHistory("T-EXACT", 99L, 19L, 8100L, "operator");
+        jdbcTemplate.update("""
+            INSERT INTO ticket_active(ticket_id, user_identity, last_seen) VALUES
+                (?, '88', '2026-08-16T19:00:00Z'), (?, '99', '2026-08-16T19:00:00Z')
+            """, exactId, "T-EXACT");
+        if ("relay".equals(operation)) {
+            jdbcTemplate.update("INSERT INTO ticket_responsibles(ticket_id, responsible) VALUES (?, 'lead')", exactId);
+        }
+        stubChannel(18L, "telegram", "token18");
+        if ("feedback".equals(operation)) {
+            PendingFeedbackRequest request = pendingRequest(exactId, 88L, 18L);
+            when(pendingRepository.findById(1L)).thenReturn(Optional.of(request));
+        }
+        BotRuntimeTicketWriteService.MutationResult result = switch (operation) {
+            case "register" -> service.registerActivity(exactId, "operator");
+            case "clear" -> service.clearActivity(exactId);
+            case "reopen" -> service.reopenTicket(exactId, "operator");
+            case "relay" -> service.recordOperatorRelay(exactId, "reply", 8200L, null, "backup");
+            case "operator-edit" -> service.markOperatorMessageEdited(exactId, 8100L, "edited", "operator");
+            case "client-edit" -> service.markClientMessageEdited(18L, 8100L, "edited");
+            case "feedback" -> service.storeFeedback(1L, 4);
+            default -> throw new AssertionError(operation);
+        };
+
+        assertThat(result).isEqualTo(new BotRuntimeTicketWriteService.MutationResult(true, true));
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT status FROM tickets WHERE ticket_id = 'T-EXACT'", String.class)).isEqualTo("closed");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT message FROM chat_history WHERE ticket_id = 'T-EXACT'", String.class)).isEqualTo("initial");
+        assertThat(jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM ticket_active
+             WHERE ticket_id = 'T-EXACT' AND user_identity = '99' AND last_seen = '2026-08-16T19:00:00Z'
+            """, Integer.class)).isEqualTo(1);
+        for (String table : List.of("ticket_responsibles", "ticket_participants", "ui_event_outbox", "provider_delivery_ledger")) {
+            assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + table + " WHERE ticket_id = 'T-EXACT'", Integer.class)).isZero();
+        }
+        if ("relay".equals(operation)) {
+            assertThat(jdbcTemplate.queryForObject("SELECT ticket_id FROM provider_delivery_ledger", String.class))
+                .isEqualTo(exactId);
+            assertThat(jdbcTemplate.queryForObject("SELECT ticket_id FROM ticket_participants", String.class))
+                .isEqualTo(exactId);
+        }
+        if (List.of("reopen", "operator-edit", "client-edit", "feedback").contains(operation)) {
+            assertThat(jdbcTemplate.queryForObject("SELECT ticket_id FROM ui_event_outbox", String.class))
+                .isEqualTo(exactId);
+        }
+        if ("feedback".equals(operation)) {
+            verify(feedbackRepository).save(org.mockito.ArgumentMatchers.argThat(feedback ->
+                exactId.equals(feedback.getTicketId()) && Long.valueOf(88L).equals(feedback.getUserId())));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"valid", "missing", "duplicate", "wrong-owner", "wrong-channel"})
+    void directOperatorDeleteRequiresUniqueCanonicalHistoryContext(String condition) {
+        if (!"missing".equals(condition)) {
+            seedTicket("T-DELETE", 88L, 18L);
+        }
+        if ("duplicate".equals(condition)) {
+            seedTicket("T-DELETE", 99L, 19L);
+        }
+        seedHistory("T-DELETE", "wrong-owner".equals(condition) ? 99L : 88L,
+            "wrong-channel".equals(condition) ? 19L : 18L, 8100L, "operator");
+        DialogReplyTargetService reply = new DialogReplyTargetService(
+            jdbcTemplate, mock(ChatAttachmentMetadataService.class), new LegacyTicketIdJdbcGuard(jdbcTemplate));
+
+        assertThat(reply.markOperatorMessageDeleted("T-DELETE", 8100L)).isEqualTo("valid".equals(condition) ? 1 : 0);
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT deleted_at IS NOT NULL FROM chat_history", Boolean.class)).isEqualTo("valid".equals(condition));
+    }
+
+    @Test
+    void outgoingMediaPersistsExactTicketIdAndPassesItToAttachmentMetadata() {
+        seedTicket(" T-MEDIA ", 88L, 18L);
+        ChatAttachmentMetadataService metadata = mock(ChatAttachmentMetadataService.class);
+        DialogReplyTargetService reply = new DialogReplyTargetService(
+            jdbcTemplate, metadata, new LegacyTicketIdJdbcGuard(jdbcTemplate));
+
+        String timestamp = reply.logOutgoingMediaMessage(new DialogReplyTarget(88L, 18L), " T-MEDIA ",
+            "caption", "stored.png", "original.png", "image/png", 10L, "image", 8100L, null);
+
+        assertThat(OffsetDateTime.parse(timestamp)).isNotNull();
+        assertThat(jdbcTemplate.queryForObject("SELECT ticket_id FROM chat_history", String.class)).isEqualTo(" T-MEDIA ");
+        verify(metadata).upsertForChatHistory(org.mockito.ArgumentMatchers.anyLong(), eq(" T-MEDIA "), eq(18L),
+            eq("stored.png"), eq("original.png"), eq("image/png"), eq(10L), eq("image"));
+    }
+
+    @Test
+    void validExistingFeedbackCanBeUpdatedWithoutReplacingItsIdentity() {
+        seedTicket("T-FEEDBACK", 88L, 18L);
+        PendingFeedbackRequest request = pendingRequest("T-FEEDBACK", 88L, 18L);
+        when(pendingRepository.findById(1L)).thenReturn(Optional.of(request));
+        Feedback existing = new Feedback();
+        existing.setTicketId("T-FEEDBACK");
+        existing.setUserId(88L);
+        existing.setChannelId(18L);
+        existing.setRating(1);
+        when(feedbackRepository.findFirstByTicketIdOrderByTimestampDesc("T-FEEDBACK"))
+            .thenReturn(Optional.of(existing));
+
+        assertThat(service.storeFeedback(1L, 5)).isEqualTo(new BotRuntimeTicketWriteService.MutationResult(true, true));
+        assertThat(existing.getRating()).isEqualTo(5);
+        verify(feedbackRepository).save(existing);
+        verify(pendingRepository).save(request);
+        assertThat(request.getExpiresAt()).isBefore(OffsetDateTime.now());
+    }
+
+    @Test
+    void expiredCanonicalFeedbackRequestDoesNotReadOrWriteRating() {
+        seedTicket("T-FEEDBACK", 88L, 18L);
+        PendingFeedbackRequest request = pendingRequest("T-FEEDBACK", 88L, 18L);
+        OffsetDateTime expiry = OffsetDateTime.now().minusDays(1);
+        request.setExpiresAt(expiry);
+        when(pendingRepository.findById(1L)).thenReturn(Optional.of(request));
+
+        assertThat(service.storeFeedback(1L, 5)).isEqualTo(new BotRuntimeTicketWriteService.MutationResult(false, true));
+        assertThat(request.getExpiresAt()).isEqualTo(expiry);
+        verifyNoInteractions(feedbackRepository);
+        verify(pendingRepository, never()).save(any());
+        assertNoRuntimeSideEffects();
+    }
+
+    private void seedTicket(String ticketId, Long userId, Long channelId) {
+        jdbcTemplate.update("""
+            INSERT INTO tickets(ticket_id, status, user_id, channel_id, reopen_count)
+            VALUES (?, 'closed', ?, ?, 0)
+            """, ticketId, userId, channelId);
+    }
+
+    private void seedMessage(String ticketId, Long userId, Long channelId, Long id) {
+        jdbcTemplate.update("""
+            INSERT INTO messages(id, user_id, ticket_id, channel_id, created_at)
+            VALUES (?, ?, ?, ?, '2026-08-16T19:00:00Z')
+            """, id, userId, ticketId, channelId);
+    }
+
+    private void seedHistory(String ticketId, Long userId, Long channelId, Long providerId, String sender) {
+        jdbcTemplate.update("""
+            INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id)
+            VALUES (?, ?, 'initial', '2026-08-16T19:00:00Z', ?, 'text', ?, ?)
+            """, userId, sender, ticketId, channelId, providerId);
+    }
+
+    private PendingFeedbackRequest pendingRequest(String ticketId, Long userId, Long channelId) {
+        PendingFeedbackRequest request = new PendingFeedbackRequest();
+        request.setId(1L);
+        request.setTicketId(ticketId);
+        request.setUserId(userId);
+        if (channelId != null) {
+            Channel channel = new Channel();
+            channel.setId(channelId);
+            request.setChannel(channel);
+        }
+        request.setExpiresAt(OffsetDateTime.now().plusDays(1));
+        return request;
+    }
+
+    private void assertNoRuntimeSideEffects() {
+        for (String table : List.of("ticket_active", "ticket_responsibles", "ticket_participants",
+                "ui_event_outbox", "provider_delivery_ledger")) {
+            assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class))
+                .as(table).isZero();
+        }
     }
 
     private void createSchema() {

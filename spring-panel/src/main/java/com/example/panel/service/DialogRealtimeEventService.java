@@ -191,17 +191,8 @@ public class DialogRealtimeEventService {
     }
 
     private String resolveUniqueTicketId(String ticketId) {
-        String normalizedTicketId = trimToNull(ticketId);
-        return normalizedTicketId != null && legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)
-                ? normalizedTicketId
+        return StringUtils.hasText(ticketId) && legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)
+                ? ticketId
                 : null;
-    }
-
-    private String trimToNull(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 }

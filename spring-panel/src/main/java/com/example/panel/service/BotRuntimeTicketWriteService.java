@@ -6,6 +6,7 @@ import com.example.panel.repository.FeedbackRepository;
 import com.example.panel.repository.PendingFeedbackRequestRepository;
 import java.time.OffsetDateTime;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,7 +91,7 @@ public class BotRuntimeTicketWriteService {
         if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return new MutationResult(false, false);
         }
-        dialogReplyTargetService.touchTicketActivity(ticketId.trim(), userIdentity);
+        dialogReplyTargetService.touchTicketActivity(ticketId, userIdentity);
         return new MutationResult(true, ticketExists(ticketId));
     }
 
@@ -99,7 +100,7 @@ public class BotRuntimeTicketWriteService {
         if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return new MutationResult(false, false);
         }
-        int updated = jdbcTemplate.update("DELETE FROM ticket_active WHERE ticket_id = ?", ticketId.trim());
+        int updated = jdbcTemplate.update("DELETE FROM ticket_active WHERE ticket_id = ?", ticketId);
         return new MutationResult(updated > 0, ticketExists(ticketId));
     }
 
@@ -112,10 +113,17 @@ public class BotRuntimeTicketWriteService {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(message)) {
             return new MutationResult(false, false);
         }
-        String normalizedTicketId = ticketId.trim();
+        TicketSnapshot ticket = loadTicket(ticketId);
+        if (ticket == null) {
+            return new MutationResult(false, false);
+        }
+        String normalizedTicketId = ticket.ticketId();
         Optional<DialogReplyTarget> targetOpt = dialogReplyTargetService.loadReplyTarget(normalizedTicketId);
         if (targetOpt.isEmpty()) {
-            return new MutationResult(false, ticketExists(normalizedTicketId));
+            return new MutationResult(false, true);
+        }
+        if (!matchesTicketContext(ticket, targetOpt.get().userId(), targetOpt.get().channelId())) {
+            return new MutationResult(false, false);
         }
         dialogReplyTargetService.logOutgoingMessage(
                 targetOpt.get(),
@@ -148,7 +156,8 @@ public class BotRuntimeTicketWriteService {
             return new MutationResult(false, false);
         }
         ClientMessageSnapshot snapshot = loadClientMessage(channelId, telegramMessageId);
-        if (snapshot == null) {
+        if (snapshot == null || !matchesTicketContext(
+                loadTicket(snapshot.ticketId()), snapshot.userId(), snapshot.channelId())) {
             return new MutationResult(false, false);
         }
         int updated = jdbcTemplate.update("""
@@ -156,11 +165,17 @@ public class BotRuntimeTicketWriteService {
                    SET original_message = COALESCE(original_message, message),
                        message = ?,
                        edited_at = CURRENT_TIMESTAMP
-                 WHERE channel_id = ?
+                 WHERE id = ?
+                   AND ticket_id = ?
+                   AND user_id = ?
+                   AND channel_id = ?
                    AND tg_message_id = ?
                    AND sender = 'client'
                 """,
                 message.trim(),
+                snapshot.id(),
+                snapshot.ticketId(),
+                snapshot.userId(),
                 channelId,
                 telegramMessageId
         );
@@ -178,7 +193,16 @@ public class BotRuntimeTicketWriteService {
         if (!StringUtils.hasText(ticketId) || telegramMessageId == null || !StringUtils.hasText(message)) {
             return new MutationResult(false, false);
         }
-        String normalizedTicketId = ticketId.trim();
+        TicketSnapshot ticket = loadTicket(ticketId);
+        if (ticket == null) {
+            return new MutationResult(false, false);
+        }
+        String normalizedTicketId = ticket.ticketId();
+        Optional<DialogReplyTarget> targetOpt = dialogReplyTargetService.loadReplyTarget(normalizedTicketId);
+        if (targetOpt.isPresent()
+                && !matchesTicketContext(ticket, targetOpt.get().userId(), targetOpt.get().channelId())) {
+            return new MutationResult(false, false);
+        }
         int updated = dialogReplyTargetService.markOperatorMessageEdited(
             normalizedTicketId,
             telegramMessageId,
@@ -186,7 +210,6 @@ public class BotRuntimeTicketWriteService {
         );
         if (updated > 0) {
             assignResponsibleIfPresent(normalizedTicketId, operatorIdentity);
-            Optional<DialogReplyTarget> targetOpt = dialogReplyTargetService.loadReplyTarget(normalizedTicketId);
             targetOpt.ifPresent(target -> providerDeliveryLedgerService.recordObservedSuccess(
                 target.channelId(),
                 normalizedTicketId,
@@ -196,14 +219,13 @@ public class BotRuntimeTicketWriteService {
                 telegramMessageId,
                 null
             ));
-            TicketSnapshot ticket = loadTicket(normalizedTicketId);
             uiEventOutboxAppendService.publishOperatorMessageEdited(
                 normalizedTicketId,
-                ticket != null ? ticket.channelId() : null,
+                ticket.channelId(),
                 message
             );
         }
-        return new MutationResult(updated > 0, ticketExists(normalizedTicketId));
+        return new MutationResult(updated > 0, true);
     }
 
     @Transactional
@@ -216,15 +238,22 @@ public class BotRuntimeTicketWriteService {
             return new MutationResult(false, false);
         }
         PendingFeedbackRequest request = requestOpt.get();
+        String ticketId = request.getTicketId();
+        Long channelId = request.getChannel() != null ? request.getChannel().getId() : null;
+        TicketSnapshot ticket = loadTicket(ticketId);
+        if (!matchesTicketContext(ticket, request.getUserId(), channelId)) {
+            return new MutationResult(false, false);
+        }
         OffsetDateTime now = OffsetDateTime.now();
         if (request.getExpiresAt() != null && !request.getExpiresAt().isAfter(now)) {
             return new MutationResult(false, true);
         }
-        String ticketId = request.getTicketId();
-        Long channelId = request.getChannel() != null ? request.getChannel().getId() : null;
-        Feedback feedback = StringUtils.hasText(ticketId)
-                ? feedbackRepository.findFirstByTicketIdOrderByTimestampDesc(ticketId).orElseGet(Feedback::new)
-                : new Feedback();
+        Optional<Feedback> existingFeedback = feedbackRepository.findFirstByTicketIdOrderByTimestampDesc(ticketId);
+        if (existingFeedback.isPresent() && !matchesTicketContext(
+                ticket, existingFeedback.get().getUserId(), existingFeedback.get().getChannelId())) {
+            return new MutationResult(false, false);
+        }
+        Feedback feedback = existingFeedback.orElseGet(Feedback::new);
         feedback.setUserId(request.getUserId());
         feedback.setTicketId(ticketId);
         feedback.setChannelId(channelId);
@@ -275,7 +304,7 @@ public class BotRuntimeTicketWriteService {
                         rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null
                     )
                     : null,
-                ticketId.trim()
+                ticketId
         );
     }
 
@@ -283,22 +312,34 @@ public class BotRuntimeTicketWriteService {
         return legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId);
     }
 
+    private boolean matchesTicketContext(TicketSnapshot ticket, Long userId, Long channelId) {
+        return ticket != null && userId != null && channelId != null
+                && Objects.equals(ticket.userId(), userId)
+                && Objects.equals(ticket.channelId(), channelId);
+    }
+
     private ClientMessageSnapshot loadClientMessage(Long channelId, Long telegramMessageId) {
         return jdbcTemplate.query("""
-                SELECT ticket_id, channel_id
+                SELECT id, ticket_id, user_id, channel_id
                   FROM chat_history
                  WHERE channel_id = ?
                    AND tg_message_id = ?
                    AND sender = 'client'
                  ORDER BY id DESC
-                 LIMIT 1
+                 LIMIT 2
                 """,
-                rs -> rs.next()
-                    ? new ClientMessageSnapshot(
-                        rs.getString("ticket_id"),
-                        rs.getObject("channel_id") != null ? rs.getLong("channel_id") : channelId
-                    )
-                    : null,
+                rs -> {
+                    if (!rs.next()) {
+                        return null;
+                    }
+                    ClientMessageSnapshot snapshot = new ClientMessageSnapshot(
+                            rs.getLong("id"),
+                            rs.getString("ticket_id"),
+                            rs.getObject("user_id") != null ? rs.getLong("user_id") : null,
+                            rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null
+                    );
+                    return rs.next() ? null : snapshot;
+                },
                 channelId,
                 telegramMessageId
         );
@@ -347,7 +388,9 @@ public class BotRuntimeTicketWriteService {
         }
     }
 
-    private record ClientMessageSnapshot(String ticketId,
+    private record ClientMessageSnapshot(Long id,
+                                         String ticketId,
+                                         Long userId,
                                          Long channelId) {
     }
 

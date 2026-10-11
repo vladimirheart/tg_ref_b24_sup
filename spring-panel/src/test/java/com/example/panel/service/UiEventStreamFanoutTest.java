@@ -65,6 +65,25 @@ class UiEventStreamFanoutTest {
         verify(publisher, org.mockito.Mockito.never()).publish(any(), any(), any());
     }
 
+    @Test
+    void ticketScopedFanoutPayloadsPreserveExactValidatedTicketId() {
+        UiEventFanoutPublisher publisher = mock(UiEventFanoutPublisher.class);
+        when(publisher.publish(any(), any(), any())).thenReturn(true);
+        LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
+        when(guard.hasUniqueTicket(" T-EXACT ")).thenReturn(true);
+        UiEventStreamService service = new UiEventStreamService(publisher, guard);
+
+        service.publishDialogsChanged("edited", " T-EXACT ");
+        service.publishDialogHistoryChanged(" T-EXACT ", 9L, "edited");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payload = ArgumentCaptor.forClass(Map.class);
+        verify(publisher).publish(isNull(), eq("dialogs_changed"), payload.capture());
+        assertThat(payload.getValue()).containsEntry("ticketId", " T-EXACT ");
+        verify(publisher).publish(isNull(), eq("dialog_history_changed"), payload.capture());
+        assertThat(payload.getValue()).containsEntry("ticketId", " T-EXACT ").containsEntry("channelId", 9L);
+    }
+
     private LegacyTicketIdJdbcGuard uniqueTicketGuard() {
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
         when(legacyTicketIdJdbcGuard.hasUniqueTicket(any())).thenReturn(true);

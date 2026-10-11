@@ -102,6 +102,39 @@ class DialogRealtimeEventServiceTest {
         verifyNoInteractions(notificationService, aiService, alertQueueService, channelRepository, uiEventStreamService);
     }
 
+    @Test
+    void clientEditEventPreservesExactIdAtGuardAndDispatchBoundaries() {
+        UiEventStreamService stream = mock(UiEventStreamService.class);
+        LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
+        when(guard.hasUniqueTicket(" T-EXACT ")).thenReturn(true);
+        DialogRealtimeEventService service = new DialogRealtimeEventService(
+            mock(NotificationService.class), mock(DialogAiAssistantService.class), mock(AlertQueueService.class),
+            mock(ChannelAssignmentRoutingService.class), mock(ChannelRepository.class),
+            mock(DialogResponsibilityService.class), mock(DialogNotificationService.class), stream, guard);
+
+        service.handleClientMessageEdited(" T-EXACT ", 9L);
+
+        verify(guard).hasUniqueTicket(" T-EXACT ");
+        verify(stream).publishDialogsChanged("client_message_edited", " T-EXACT ");
+        verify(stream).publishDialogHistoryChanged(" T-EXACT ", 9L, "client_message_edited");
+    }
+
+    @Test
+    void unresolvedPaddedIdCannotDispatchEventForPlainNeighbour() {
+        UiEventStreamService stream = mock(UiEventStreamService.class);
+        LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
+        when(guard.hasUniqueTicket("T-PLAIN")).thenReturn(true);
+        DialogRealtimeEventService service = new DialogRealtimeEventService(
+            mock(NotificationService.class), mock(DialogAiAssistantService.class), mock(AlertQueueService.class),
+            mock(ChannelAssignmentRoutingService.class), mock(ChannelRepository.class),
+            mock(DialogResponsibilityService.class), mock(DialogNotificationService.class), stream, guard);
+
+        service.handleClientMessageEdited(" T-PLAIN ", 9L);
+
+        verify(guard).hasUniqueTicket(" T-PLAIN ");
+        verifyNoInteractions(stream);
+    }
+
     private DialogRealtimeEventService service(NotificationService notificationService,
                                                DialogAiAssistantService aiService,
                                                AlertQueueService alertQueueService,

@@ -41,7 +41,7 @@ public class DialogParticipantService {
     }
 
     public boolean ticketExists(String ticketId) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         if (normalizedTicketId == null) {
             return false;
         }
@@ -49,7 +49,7 @@ public class DialogParticipantService {
     }
 
     public List<DialogParticipantDto> loadParticipants(String ticketId) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         if (normalizedTicketId == null || !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {
             return List.of();
         }
@@ -116,7 +116,7 @@ public class DialogParticipantService {
     }
 
     public boolean addParticipant(String ticketId, String username, String addedBy) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         String normalizedUsername = normalizeIdentity(username);
         String actor = normalizeIdentity(addedBy);
         if (normalizedTicketId == null || normalizedUsername == null
@@ -150,7 +150,7 @@ public class DialogParticipantService {
     }
 
     public boolean removeParticipant(String ticketId, String username) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         String normalizedUsername = normalizeIdentity(username);
         if (normalizedTicketId == null || normalizedUsername == null
                 || !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {

@@ -16,6 +16,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -55,15 +56,13 @@ public class BotRuntimeTicketReadService {
         List<TicketActive> active = channelId != null
             ? ticketActiveRepository.findByUserIdentityInOrderByLastSeenDescAndChannelId(identities, channelId)
             : ticketActiveRepository.findByUserIdentityInOrderByLastSeenDesc(identities);
-        if (active.isEmpty()) {
-            return Optional.empty();
-        }
-        TicketActive ticketActive = active.get(0);
-        return Optional.of(new ActiveTicketLookup(
-            ticketActive.getTicketId(),
-            ticketActive.getUserIdentity(),
-            ticketActive.getLastSeen()
-        ));
+        return active.stream()
+            .filter(Objects::nonNull)
+            .filter(candidate -> matchesCanonicalTicket(candidate.getTicketId(), userId, channelId))
+            .findFirst()
+            .map(candidate -> new ActiveTicketLookup(
+                candidate.getTicketId(), candidate.getUserIdentity(), candidate.getLastSeen()
+            ));
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +70,7 @@ public class BotRuntimeTicketReadService {
         if (!StringUtils.hasText(ticketId)) {
             return Optional.empty();
         }
-        return ticketRepository.findUniqueByLegacyTicketId(ticketId.trim())
+        return ticketRepository.findUniqueByLegacyTicketId(ticketId)
             .map(ticket -> new TicketLookup(ticket.getUserId(), ticket.getTicketId(), ticket.getStatus()));
     }
 
@@ -81,6 +80,8 @@ public class BotRuntimeTicketReadService {
             return Optional.empty();
         }
         return messageRepository.findTopByUserIdOrderByCreatedAtDesc(userId)
+            .filter(message -> userId.equals(message.getUserId())
+                && matchesCanonicalTicket(message.getTicketId(), userId, null))
             .map(message -> new LastTicketContext(
                 message.getTicketId(),
                 message.getBusiness(),
@@ -116,12 +117,13 @@ public class BotRuntimeTicketReadService {
         if (userId == null || limit <= 0) {
             return List.of();
         }
-        List<Message> messages = messageRepository.findTop10ByUserIdOrderByCreatedAtDesc(userId);
+        List<Message> messages = messageRepository.findTop10ByUserIdOrderByCreatedAtDesc(userId).stream()
+            .filter(message -> userId.equals(message.getUserId())
+                && matchesCanonicalTicket(message.getTicketId(), userId, null))
+            .limit(limit)
+            .toList();
         if (messages.isEmpty()) {
             return List.of();
-        }
-        if (messages.size() > limit) {
-            messages = messages.subList(0, limit);
         }
         List<String> ticketIds = messages.stream()
             .map(Message::getTicketId)
@@ -129,6 +131,7 @@ public class BotRuntimeTicketReadService {
             .toList();
         Map<String, Feedback> latestFeedback = feedbackRepository.findByTicketIdIn(ticketIds).stream()
             .filter(feedback -> feedback.getTicketId() != null)
+            .filter(feedback -> userId.equals(feedback.getUserId()))
             .collect(Collectors.toMap(
                 Feedback::getTicketId,
                 Function.identity(),
@@ -162,15 +165,35 @@ public class BotRuntimeTicketReadService {
             request = pendingFeedbackRequestRepository
                 .findFirstByUserIdAndChannel_IdAndExpiresAtAfterOrderByCreatedAtDesc(userId, channelId, now);
         }
-        if (request.isPresent() && !hasStoredFeedback(request.get())) {
+        if (request.isPresent() && matchesFeedbackRequest(request.get(), userId, channelId)
+            && !hasStoredFeedback(request.get())) {
             return Optional.of(toLookup(request.get()));
         }
         Optional<PendingFeedbackRequest> fallback = pendingFeedbackRequestRepository
             .findFirstByUserIdAndExpiresAtAfterOrderByCreatedAtDesc(userId, now);
-        if (fallback.isPresent() && hasStoredFeedback(fallback.get())) {
-            return Optional.empty();
+        return fallback
+            .filter(candidate -> matchesFeedbackRequest(candidate, userId, channelId))
+            .filter(candidate -> !hasStoredFeedback(candidate))
+            .map(this::toLookup);
+    }
+
+    private boolean matchesCanonicalTicket(String ticketId, Long userId, Long channelId) {
+        if (!StringUtils.hasText(ticketId)) {
+            return false;
         }
-        return fallback.map(this::toLookup);
+        return ticketRepository.findUniqueByLegacyTicketId(ticketId)
+            .filter(ticket -> ticket.getUserId() != null
+                && (userId == null || userId.equals(ticket.getUserId())))
+            .filter(ticket -> channelId == null
+                || (ticket.getChannel() != null && channelId.equals(ticket.getChannel().getId())))
+            .isPresent();
+    }
+
+    private boolean matchesFeedbackRequest(PendingFeedbackRequest request, Long userId, Long channelId) {
+        Long requestChannelId = request.getChannel() != null ? request.getChannel().getId() : null;
+        return userId.equals(request.getUserId()) && requestChannelId != null
+            && (channelId == null || channelId.equals(requestChannelId))
+            && matchesCanonicalTicket(request.getTicketId(), userId, requestChannelId);
     }
 
     private List<String> buildIdentities(Long userId, String username) {

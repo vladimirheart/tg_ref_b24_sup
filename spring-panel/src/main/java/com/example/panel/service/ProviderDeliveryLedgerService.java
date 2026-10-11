@@ -73,7 +73,7 @@ public class ProviderDeliveryLedgerService {
         OffsetDateTime attemptedAt = OffsetDateTime.now(clock);
         ProviderDeliveryLedgerEntry entry = new ProviderDeliveryLedgerEntry();
         entry.setChannelId(channel.getId());
-        entry.setTicketId(normalizeOptional(ticketId));
+        entry.setTicketId(StringUtils.hasText(ticketId) ? ticketId : null);
         entry.setPlatform(normalizePlatform(channel.getPlatform()));
         entry.setProvider(normalizePlatform(channel.getPlatform()));
         entry.setUserId(userId);
