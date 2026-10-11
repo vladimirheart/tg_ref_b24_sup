@@ -73,7 +73,7 @@ public class DialogWorkspaceRolloutParityService {
                  WHERE created_at >= ?
                    AND created_at < ?
                    AND event_type = 'workspace_parity_gap'
-                   AND (? IS NULL OR experiment_name = ?)
+                   AND (CAST(? AS TEXT) IS NULL OR experiment_name = ?)
                  ORDER BY created_at DESC
                 """;
         Instant end = Instant.now();
@@ -82,7 +82,7 @@ public class DialogWorkspaceRolloutParityService {
             List<Map<String, Object>> rawRows = jdbcTemplate.query(sql, (rs, rowNum) -> {
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("reason", configService.normalizeNullString(rs.getString("reason")));
-                row.put("ticket_id", configService.normalizeNullString(rs.getString("ticket_id")));
+                row.put("ticket_id", rs.getString("ticket_id"));
                 row.put("created_at", rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toInstant().toString() : "");
                 return row;
             }, java.sql.Timestamp.from(start), java.sql.Timestamp.from(end), filterExperiment, filterExperiment);
