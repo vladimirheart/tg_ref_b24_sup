@@ -83,7 +83,8 @@ public class DialogWorkspaceRolloutParityService {
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("reason", configService.normalizeNullString(rs.getString("reason")));
                 row.put("ticket_id", rs.getString("ticket_id"));
-                row.put("created_at", rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toInstant().toString() : "");
+                java.sql.Timestamp createdAt = rs.getTimestamp("created_at");
+                row.put("created_at", createdAt == null ? null : createdAt.toInstant());
                 return row;
             }, java.sql.Timestamp.from(start), java.sql.Timestamp.from(end), filterExperiment, filterExperiment);
             List<Map<String, Object>> filteredRows = normalizedCriticalReasons.isEmpty()

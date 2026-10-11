@@ -72,7 +72,35 @@ class DialogWorkspaceRolloutParityServiceTest {
             .containsEntry("error", "");
         assertThat(topReasons(result)).singleElement().satisfies(row ->
             assertThat(row).containsEntry("reason", "CRITICAL")
-                .containsEntry("events", 10L).containsEntry("tickets", 6));
+                .containsEntry("events", 10L).containsEntry("tickets", 6)
+                .containsEntry("last_seen_at", base.plusSeconds(9).toString()));
+    }
+
+    @Test
+    void topReasonsPreservePerReasonLastSeenWhileSectionUsesLatestFilteredEvent() {
+        Instant base = Instant.now().truncatedTo(ChronoUnit.SECONDS).minusSeconds(600);
+        insert("workspace_parity_gap", base.plusSeconds(1), "exp-a", "alpha", " T-A ");
+        insert("workspace_parity_gap", base.plusSeconds(2), "exp-a", "beta", "T-B");
+        insert("workspace_parity_gap", base.plusSeconds(3), "exp-a", "alpha", " T-A ");
+        insert("workspace_parity_gap", base.plusSeconds(4), "exp-a", "beta", "T-B2");
+        insert("workspace_parity_gap", base.plusSeconds(5), "exp-b", "alpha", "T-EXCLUDED");
+
+        DialogWorkspaceRolloutSectionResult result = service.buildParityExitCriteria(
+            config(1, List.of()), "exp-a");
+
+        assertThat(result.status()).isEqualTo("hold");
+        assertThat(result.blocking()).isTrue();
+        assertThat(result.recordedAt()).isEqualTo(base.plusSeconds(4).toString());
+        assertThat(result.payload()).containsEntry("critical_gap_events", 4L)
+            .containsEntry("last_seen_at", base.plusSeconds(4).toString())
+            .containsEntry("top_reasons_summary", "alpha(2), beta(2)")
+            .containsEntry("error", "");
+        assertThat(topReasons(result)).containsExactly(
+            Map.of("reason", "alpha", "events", 2L, "tickets", 1,
+                "last_seen_at", base.plusSeconds(3).toString()),
+            Map.of("reason", "beta", "events", 2L, "tickets", 2,
+                "last_seen_at", base.plusSeconds(4).toString())
+        );
     }
 
     @ParameterizedTest
