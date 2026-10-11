@@ -12,23 +12,32 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class DialogNotificationServiceTest {
 
     private SharedConfigService sharedConfigService;
     private DialogNotificationService service;
+    private JdbcTemplate jdbcTemplate;
+    private ChannelRepository channelRepository;
+    private LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     @BeforeEach
     void setUp() {
         sharedConfigService = mock(SharedConfigService.class);
+        jdbcTemplate = mock(JdbcTemplate.class);
+        channelRepository = mock(ChannelRepository.class);
+        legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
         service = new DialogNotificationService(
-                mock(JdbcTemplate.class),
-                mock(ChannelRepository.class),
+                jdbcTemplate,
+                channelRepository,
                 mock(IntegrationNetworkService.class),
                 sharedConfigService,
                 new BotSettingsPayloadNormalizer(),
-                new ObjectMapper()
+                new ObjectMapper(),
+                legacyTicketIdJdbcGuard
         );
     }
 
@@ -81,6 +90,14 @@ class DialogNotificationServiceTest {
                 "Пожалуйста, оцените качество ответа от 1 до 5.",
                 service.resolveRatingPrompt(channel)
         );
+    }
+
+    @Test
+    void notifyResolvedSkipsAmbiguousLegacyTicketIdBeforeLoadingTarget() {
+        service.notifyResolved("T-DUPLICATE");
+
+        verify(legacyTicketIdJdbcGuard).hasUniqueTicket("T-DUPLICATE");
+        verifyNoInteractions(jdbcTemplate, channelRepository);
     }
 
     private Map<String, Object> settingsWithRatingTemplates(List<Map<String, Object>> templates, String activeTemplateId) {

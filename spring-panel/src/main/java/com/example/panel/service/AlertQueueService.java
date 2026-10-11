@@ -34,15 +34,18 @@ public class AlertQueueService {
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
     private final ChannelAssignmentRoutingService channelAssignmentRoutingService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public AlertQueueService(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                              NotificationService notificationService,
                              ObjectMapper objectMapper,
-                             ChannelAssignmentRoutingService channelAssignmentRoutingService) {
+                             ChannelAssignmentRoutingService channelAssignmentRoutingService,
+                             LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.notificationService = notificationService;
         this.objectMapper = objectMapper;
         this.channelAssignmentRoutingService = channelAssignmentRoutingService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public boolean notifyQueueForNewPublicAppeal(Channel channel, String ticketId, String previewText) {
@@ -50,7 +53,7 @@ public class AlertQueueService {
     }
 
     public Set<String> notifyQueueForNewPublicAppealRecipients(Channel channel, String ticketId, String previewText) {
-        if (channel == null) {
+        if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return Set.of();
         }
         String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
@@ -60,7 +63,7 @@ public class AlertQueueService {
     }
 
     public boolean notifyFirstResponseOverdue(Channel channel, String ticketId, long overdueMinutes) {
-        if (channel == null || !StringUtils.hasText(ticketId)) {
+        if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return false;
         }
         String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
@@ -72,7 +75,7 @@ public class AlertQueueService {
     }
 
     public boolean notifyIncomingClientMessage(Channel channel, String ticketId, String previewText) {
-        if (channel == null || !StringUtils.hasText(ticketId)) {
+        if (channel == null || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return false;
         }
         String text = "Новое сообщение в обращении " + ticketId;

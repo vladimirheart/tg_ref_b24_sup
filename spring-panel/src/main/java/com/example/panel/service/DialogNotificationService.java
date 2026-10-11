@@ -37,19 +37,22 @@ public class DialogNotificationService {
     private final SharedConfigService sharedConfigService;
     private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
     private final ObjectMapper objectMapper;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogNotificationService(JdbcTemplate jdbcTemplate,
                                      ChannelRepository channelRepository,
                                      IntegrationNetworkService integrationNetworkService,
                                      SharedConfigService sharedConfigService,
                                      BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
-                                     ObjectMapper objectMapper) {
+                                     ObjectMapper objectMapper,
+                                     LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.jdbcTemplate = jdbcTemplate;
         this.channelRepository = channelRepository;
         this.integrationNetworkService = integrationNetworkService;
         this.sharedConfigService = sharedConfigService;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
         this.objectMapper = objectMapper;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public void notifyResolved(String ticketId) {
@@ -179,7 +182,9 @@ public class DialogNotificationService {
     }
 
     private void sendNotifications(String ticketId, java.util.function.Function<Channel, List<String>> messageFactory) {
-        if (!StringUtils.hasText(ticketId) || messageFactory == null) {
+        if (!StringUtils.hasText(ticketId)
+                || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)
+                || messageFactory == null) {
             return;
         }
         Optional<DialogTarget> targetOpt = loadTarget(ticketId);

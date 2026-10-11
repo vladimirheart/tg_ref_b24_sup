@@ -22,6 +22,7 @@ public class DialogAiAssistantService {
     private final DialogAiAssistantOperatorFeedbackService dialogAiAssistantOperatorFeedbackService;
     private final DialogAiAssistantSuggestionService dialogAiAssistantSuggestionService;
     private final DialogAiAssistantMessageFlowService dialogAiAssistantMessageFlowService;
+    private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
 
     public DialogAiAssistantService(AiMonitoringService aiMonitoringService,
                                     AiInputNormalizerService aiInputNormalizerService,
@@ -32,7 +33,8 @@ public class DialogAiAssistantService {
                                     DialogAiAssistantConfigService dialogAiAssistantConfigService,
                                     DialogAiAssistantOperatorFeedbackService dialogAiAssistantOperatorFeedbackService,
                                     DialogAiAssistantSuggestionService dialogAiAssistantSuggestionService,
-                                    DialogAiAssistantMessageFlowService dialogAiAssistantMessageFlowService) {
+                                    DialogAiAssistantMessageFlowService dialogAiAssistantMessageFlowService,
+                                    LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard) {
         this.aiMonitoringService = aiMonitoringService;
         this.aiInputNormalizerService = aiInputNormalizerService;
         this.aiRetrievalService = aiRetrievalService;
@@ -43,6 +45,7 @@ public class DialogAiAssistantService {
         this.dialogAiAssistantOperatorFeedbackService = dialogAiAssistantOperatorFeedbackService;
         this.dialogAiAssistantSuggestionService = dialogAiAssistantSuggestionService;
         this.dialogAiAssistantMessageFlowService = dialogAiAssistantMessageFlowService;
+        this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
     }
 
     public void processIncomingClientMessage(String ticketId, String message) {
@@ -50,19 +53,26 @@ public class DialogAiAssistantService {
     }
 
     public void processIncomingClientMessage(String ticketId, String message, String messageType, String attachment) {
-        dialogAiAssistantMessageFlowService.processIncomingClientMessage(ticketId, message, messageType, attachment);
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        if (uniqueTicketId != null) {
+            dialogAiAssistantMessageFlowService.processIncomingClientMessage(uniqueTicketId, message, messageType, attachment);
+        }
     }
 
     public void registerOperatorReply(String ticketId, String operatorReply, String operator) {
-        dialogAiAssistantOperatorFeedbackService.registerOperatorReply(ticketId, operatorReply, operator);
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        if (uniqueTicketId != null) {
+            dialogAiAssistantOperatorFeedbackService.registerOperatorReply(uniqueTicketId, operatorReply, operator);
+        }
     }
 
     public boolean submitOperatorLearningMapping(String ticketId,
                                                  String clientProblemMessage,
                                                  String operatorSolutionMessage,
                                                  String operator) {
-        return dialogAiAssistantOperatorFeedbackService.submitOperatorLearningMapping(
-                ticketId,
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        return uniqueTicketId != null && dialogAiAssistantOperatorFeedbackService.submitOperatorLearningMapping(
+                uniqueTicketId,
                 clientProblemMessage,
                 operatorSolutionMessage,
                 operator
@@ -70,7 +80,7 @@ public class DialogAiAssistantService {
     }
 
     public List<Map<String, Object>> loadOperatorSuggestions(String ticketId, Integer limit) {
-        String t = trim(ticketId);
+        String t = uniqueTicketId(ticketId);
         if (t == null) return List.of();
         AiInputNormalizerService.IncomingPayload payload = aiInputNormalizerService.loadLastClientPayload(t);
         String lastClient = payload != null ? payload.message() : null;
@@ -98,7 +108,10 @@ public class DialogAiAssistantService {
     }
 
     public Map<String, Object> loadDialogControlState(String ticketId) {
-        return dialogAiAssistantStateService.loadDialogControlState(ticketId);
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        return uniqueTicketId != null
+                ? dialogAiAssistantStateService.loadDialogControlState(uniqueTicketId)
+                : Map.of();
     }
 
     public boolean updateDialogControlState(String ticketId,
@@ -106,8 +119,9 @@ public class DialogAiAssistantService {
                                             Boolean autoReplyBlocked,
                                             String reason,
                                             String actor) {
-        return dialogAiAssistantStateService.updateDialogControlState(
-                ticketId,
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        return uniqueTicketId != null && dialogAiAssistantStateService.updateDialogControlState(
+                uniqueTicketId,
                 aiDisabled,
                 autoReplyBlocked,
                 reason,
@@ -124,40 +138,52 @@ public class DialogAiAssistantService {
                                          String suggestedReply,
                                          String memoryKey,
                                          String actor) {
-        dialogAiAssistantOperatorFeedbackService.recordSuggestionFeedback(
-                ticketId,
-                decision,
-                source,
-                title,
-                snippet,
-                suggestedReply,
-                memoryKey,
-                actor
-        );
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        if (uniqueTicketId != null) {
+            dialogAiAssistantOperatorFeedbackService.recordSuggestionFeedback(
+                    uniqueTicketId,
+                    decision,
+                    source,
+                    title,
+                    snippet,
+                    suggestedReply,
+                    memoryKey,
+                    actor
+            );
+        }
     }
 
     public Map<String, Object> loadPendingReview(String ticketId) {
-        return dialogAiAssistantReviewService.loadPendingReview(ticketId);
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        return uniqueTicketId != null ? dialogAiAssistantReviewService.loadPendingReview(uniqueTicketId) : Map.of();
     }
 
     public boolean approvePendingReview(String ticketId, String operator) {
-        return dialogAiAssistantReviewService.approvePendingReview(ticketId, operator);
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        return uniqueTicketId != null && dialogAiAssistantReviewService.approvePendingReview(uniqueTicketId, operator);
     }
 
     public boolean approvePendingReview(String ticketId, String operator, Long clientMessageId, Long operatorMessageId) {
-        return dialogAiAssistantReviewService.approvePendingReview(ticketId, operator, clientMessageId, operatorMessageId);
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        return uniqueTicketId != null
+                && dialogAiAssistantReviewService.approvePendingReview(uniqueTicketId, operator, clientMessageId, operatorMessageId);
     }
 
     public boolean rejectPendingReview(String ticketId, String operator) {
-        return dialogAiAssistantReviewService.rejectPendingReview(ticketId, operator);
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        return uniqueTicketId != null && dialogAiAssistantReviewService.rejectPendingReview(uniqueTicketId, operator);
     }
 
     public boolean isProcessing(String ticketId) {
-        return dialogAiAssistantStateService.isProcessing(ticketId);
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        return uniqueTicketId != null && dialogAiAssistantStateService.isProcessing(uniqueTicketId);
     }
 
     public void clearProcessing(String ticketId, String action, String error) {
-        dialogAiAssistantStateService.clearProcessing(ticketId, action, error);
+        String uniqueTicketId = uniqueTicketId(ticketId);
+        if (uniqueTicketId != null) {
+            dialogAiAssistantStateService.clearProcessing(uniqueTicketId, action, error);
+        }
     }
 
     private List<DialogAiAssistantSuggestionCandidate> findSuggestions(String ticketId, String query, int limit) {
@@ -238,7 +264,11 @@ public class DialogAiAssistantService {
                                                           String ticketId,
                                                           String eventType,
                                                           String actor) {
-        return aiMonitoringService.loadMonitoringEvents(days, limit, ticketId, eventType, actor);
+        String normalizedTicketId = trim(ticketId);
+        if (normalizedTicketId != null && !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {
+            return List.of();
+        }
+        return aiMonitoringService.loadMonitoringEvents(days, limit, normalizedTicketId, eventType, actor);
     }
 
     public boolean approvePendingReviewByKey(String queryKey, String operator) {
@@ -247,6 +277,13 @@ public class DialogAiAssistantService {
 
     public boolean rejectPendingReviewByKey(String queryKey, String operator) {
         return dialogAiAssistantReviewService.rejectPendingReviewByKey(queryKey, operator);
+    }
+
+    private String uniqueTicketId(String ticketId) {
+        String normalizedTicketId = trim(ticketId);
+        return normalizedTicketId != null && legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)
+                ? normalizedTicketId
+                : null;
     }
 
     private String cut(String text, int len) { String t = trim(text); if (t == null) return ""; String c = t.replaceAll("\\s+", " ").trim(); return c.length() <= len ? c : c.substring(0, Math.max(0, len - 3)) + "..."; }
