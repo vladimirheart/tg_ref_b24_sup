@@ -220,7 +220,7 @@ public class DialogWorkspaceTelemetryDataService {
         Map<String, GapBreakdownAccumulator> aggregates = new LinkedHashMap<>();
         for (Map<String, Object> row : rawRows) {
             List<String> reasons = normalizeWorkspaceGapReasons(row.get("reason"));
-            String ticketId = normalizeNullString(String.valueOf(row.getOrDefault("ticket_id", "")));
+            String ticketId = row.get("ticket_id") instanceof String value ? value : null;
             Instant createdAt = row.get("created_at") instanceof Instant value ? value : null;
             for (String reason : reasons) {
                 aggregates.computeIfAbsent(reason, GapBreakdownAccumulator::new)
@@ -448,7 +448,7 @@ public class DialogWorkspaceTelemetryDataService {
         private void record(String ticketId, Instant createdAt) {
             events++;
             if (StringUtils.hasText(ticketId)) {
-                ticketIds.add(ticketId.trim());
+                ticketIds.add(ticketId);
             }
             if (createdAt != null && (lastSeenAt == null || createdAt.isAfter(lastSeenAt))) {
                 lastSeenAt = createdAt;

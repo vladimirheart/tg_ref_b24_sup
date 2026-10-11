@@ -4,10 +4,16 @@ import com.example.panel.support.PostgresqlJdbcTestSupport;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EmptySource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -72,6 +78,80 @@ class DialogWorkspaceTelemetryDataServiceTest {
         });
         assertThat(blockRows).anySatisfy(item -> assertThat(item).containsEntry("reason", "context_sources"));
         assertThat(reasonRows).containsExactly(Map.of("reason", "policy_missing", "events", 2L));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "profile, workspace_context_profile_gap",
+        "source, workspace_context_source_gap",
+        "attribute_policy, workspace_context_attribute_policy_gap",
+        "block, workspace_context_block_gap",
+        "contract, workspace_context_contract_gap",
+        "sla_policy, workspace_sla_policy_gap",
+        "parity, workspace_parity_gap"
+    })
+    void gapBreakdownCountsExactTicketIdsButKeepsEventsFiltersAndLastSeen(String bucket, String eventType) {
+        Instant start = Instant.parse("2026-10-11T10:00:00Z");
+        String[] ticketIds = {"T-EXACT", " T-EXACT", "T-EXACT ", " T-EXACT ", " T-EXACT ", null, "", " "};
+        for (int index = 0; index < ticketIds.length; index++) {
+            insertTelemetry(eventType, start.plusSeconds(index), "exp-a", "test", "team=ops",
+                null, " gap, gap ", ticketIds[index], null, null);
+        }
+        insertTelemetry(eventType, start.plusSeconds(8), "exp-b", "test", "team=ops",
+            null, "gap", "T-OTHER-EXPERIMENT", null, null);
+        insertTelemetry(eventType, start.minusSeconds(1), "exp-a", "test", "team=ops",
+            null, "gap", "T-BEFORE-WINDOW", null, null);
+        insertTelemetry(eventType, start.plusSeconds(10), "exp-a", "test", "team=ops",
+            null, "gap", "T-AT-END", null, null);
+
+        Map<String, Object> breakdown = service.loadWorkspaceGapBreakdown(start, start.plusSeconds(10), " exp-a ");
+
+        assertThat(castRows(breakdown.get(bucket))).containsExactly(Map.of(
+            "reason", "gap", "events", 8L, "tickets", 4, "last_seen_at", start.plusSeconds(7).toString()));
+        breakdown.forEach((key, value) -> {
+            if (!bucket.equals(key)) {
+                assertThat(castRows(value)).isEmpty();
+            }
+        });
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @EmptySource
+    @ValueSource(strings = {" ", "null", " null "})
+    void aggregationDoesNotInventNullTicketAndRetainsLiteralTextIds(String ticketId) {
+        Instant createdAt = Instant.parse("2026-10-11T10:00:00Z");
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("ticket_id", ticketId);
+        row.put("reason", "gap");
+        row.put("created_at", createdAt);
+
+        List<Map<String, Object>> breakdown = service.aggregateWorkspaceGapReasons(List.of(row));
+
+        assertThat(breakdown).containsExactly(Map.of(
+            "reason", "gap", "events", 1L, "tickets", ticketId == null || ticketId.isBlank() ? 0 : 1,
+            "last_seen_at", createdAt.toString()));
+    }
+
+    @Test
+    void omittedTicketIdDoesNotRemoveGlobalEventOrCreateSyntheticTicket() {
+        assertThat(service.aggregateWorkspaceGapReasons(List.of(Map.of("reason", "gap"))))
+            .containsExactly(Map.of("reason", "gap", "events", 1L, "tickets", 0, "last_seen_at", ""));
+    }
+
+    @Test
+    void literalNullAndPaddedNullAreDistinctIdsInTheSameBucket() {
+        assertThat(service.aggregateWorkspaceGapReasons(List.of(
+            Map.of("reason", "gap", "ticket_id", "null"),
+            Map.of("reason", "gap", "ticket_id", " null "),
+            Map.of("reason", "gap", "ticket_id", " null "))))
+            .containsExactly(Map.of("reason", "gap", "events", 3L, "tickets", 2, "last_seen_at", ""));
+    }
+
+    @Test
+    void nonTextTicketPayloadDoesNotCreateSyntheticIdentity() {
+        assertThat(service.aggregateWorkspaceGapReasons(List.of(Map.of("reason", "gap", "ticket_id", 77L))))
+            .containsExactly(Map.of("reason", "gap", "events", 1L, "tickets", 0, "last_seen_at", ""));
     }
 
     @SuppressWarnings("unchecked")
