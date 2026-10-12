@@ -1,5 +1,8 @@
 package com.example.panel.service;
 
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
@@ -18,6 +21,8 @@ public class DialogTaskDisplayService {
             "Создано из диалога #([ \\t]+[A-Za-z0-9._-]+[ \\t]*|[A-Za-z0-9._-]+[ \\t]+)([.,;:!?]?)(?=</p>)");
     private static final Pattern PADDED_OPEN_DIALOG = Pattern.compile(
             "Открыть диалог #([ \\t]+[A-Za-z0-9._-]+[ \\t]*|[A-Za-z0-9._-]+[ \\t]+)([.,;:!?]?)(?=</a>)");
+    private static final Pattern LEGACY_DIALOG_ANCHOR_HREF = Pattern.compile(
+            "(?i)(<a\\b[^<>]*?\\s+href\\s*=\\s*)([\\\"'])(/dialogs/([^\\\"'<>?#&]+))\\2");
     private static final int TITLE_PROBLEM_LIMIT = 72;
 
     private final DialogLookupReadService dialogLookupReadService;
@@ -86,12 +91,35 @@ public class DialogTaskDisplayService {
                 "Открыть обращение №",
                 "Открыть обращение"
         );
-        return replaceLegacyBodyReference(
+        normalized = replaceLegacyBodyReference(
                 normalized,
                 OPEN_DIALOG,
                 "Открыть обращение №",
                 "Открыть обращение"
         );
+        return normalizeLegacyDialogLinks(normalized);
+    }
+
+    private String normalizeLegacyDialogLinks(String html) {
+        Matcher matcher = LEGACY_DIALOG_ANCHOR_HREF.matcher(html);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String replacement = matcher.group();
+            try {
+                // In a path, a literal '+' is a plus, not a form-encoded space.
+                String ticketId = URLDecoder.decode(matcher.group(4).replace("+", "%2B"), StandardCharsets.UTF_8);
+                if (StringUtils.hasText(ticketId) && ticketId.indexOf('\uFFFD') < 0) {
+                    String encodedTicketId = URLEncoder.encode(ticketId, StandardCharsets.UTF_8).replace("+", "%20");
+                    replacement = matcher.group(1) + matcher.group(2)
+                            + "/dialogs?ticketId=" + encodedTicketId + matcher.group(2);
+                }
+            } catch (IllegalArgumentException ignored) {
+                // Keep malformed historical href unchanged; never guess a different ticket ID.
+            }
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
     }
 
     private String normalizeLegacyTitle(String title,

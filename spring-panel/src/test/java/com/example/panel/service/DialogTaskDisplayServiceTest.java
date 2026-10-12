@@ -33,7 +33,7 @@ class DialogTaskDisplayServiceTest {
         assertThat(body)
                 .contains("Создано из обращения №20260928-008")
                 .contains("Открыть обращение №20260928-008")
-                .contains("href=\"/dialogs/d73d2eac-792e-31a7-947b-aac607333189\"")
+                .contains("href=\"/dialogs?ticketId=d73d2eac-792e-31a7-947b-aac607333189\"")
                 .doesNotContain("Открыть диалог #d73d2eac");
     }
 
@@ -73,7 +73,7 @@ class DialogTaskDisplayServiceTest {
     }
 
     @Test
-    void historicalBodyUsesExactPaddedTicketIdAndKeepsLinkUntouched() {
+    void historicalBodyUsesExactPaddedTicketIdAndRewritesLink() {
         DialogLookupReadService lookup = mock(DialogLookupReadService.class);
         when(lookup.resolveRequestNumber(" T-100 ")).thenReturn("20261012-047");
         when(lookup.resolveRequestNumber("T-100")).thenReturn("20261012-001");
@@ -85,9 +85,36 @@ class DialogTaskDisplayServiceTest {
 
         assertThat(body).contains("Создано из обращения №20261012-047.")
                 .contains("Открыть обращение №20261012-047</a>")
-                .contains("href=\"/dialogs/%20T-100%20\"")
+                .contains("href=\"/dialogs?ticketId=%20T-100%20\"")
                 .doesNotContain("20261012-001");
         verify(lookup, org.mockito.Mockito.never()).resolveRequestNumber("T-100");
+    }
+
+    @Test
+    void historicalDialogHrefMovesEncodedOpaqueIdToQueryWithoutChangingIdentity() {
+        DialogTaskDisplayService service = new DialogTaskDisplayService(mock(DialogLookupReadService.class));
+
+        String body = service.normalizeBodyHtml(
+                "<p><a class=\"task-link\" href=\"/dialogs/%20T%2F100%3F%26%25%23%20%D0%AE%20\">Открыть</a></p>"
+                + "<a href='/dialogs/A+B'>Плюс</a>"
+                + "<a href=\"/dialogs/T%2F100\">Slash</a>");
+
+        assertThat(body).contains("href=\"/dialogs?ticketId=%20T%2F100%3F%26%25%23%20%D0%AE%20\"")
+                .contains("href='/dialogs?ticketId=A%2BB'")
+                .contains("href=\"/dialogs?ticketId=T%2F100\"");
+    }
+
+    @Test
+    void historicalDialogHrefLeavesOtherAndAmbiguousLinksUntouched() {
+        DialogTaskDisplayService service = new DialogTaskDisplayService(mock(DialogLookupReadService.class));
+        String source = "<a data-href=\"/dialogs/T-1\" href=\"/other/T-1\">Other</a>"
+                + "<a href=\"https://example.org/dialogs/T-1\">External</a>"
+                + "<a href=\"/dialogs?ticketId=T-1\">Current</a>"
+                + "<a href=\"/dialogs/T-1?channelId=7\">Extra query</a>"
+                + "<a href=\"/dialogs/T%ZZ\">Bad encoding</a>"
+                + "<a href=\"/dialogs/%20%20\">Blank ID</a>";
+
+        assertThat(service.normalizeBodyHtml(source)).isEqualTo(source);
     }
 
     @Test
