@@ -73,6 +73,11 @@
     };
   }
 
+  function exactLegacyTicketId(value) {
+    const raw = value == null ? '' : String(value);
+    return raw.trim() ? raw : '';
+  }
+
   function escapeHtml(value) {
     return String(value || '')
       .replace(/&/g, '&amp;')
@@ -296,7 +301,7 @@
     }
     html = items.map((item) => {
       const queryKey = escapeHtml(String(item?.query_key || '').trim());
-      const ticketId = String(item?.last_ticket_id || '').trim();
+      const ticketId = exactLegacyTicketId(item?.last_ticket_id);
       const ticketLabel = ticketId ? `#${escapeHtml(ticketId)}` : '—';
       const current = escapeHtml(String(item?.solution_text || '').trim() || '—');
       const pending = escapeHtml(String(item?.pending_solution_text || '').trim() || '—');
@@ -489,7 +494,7 @@
     } finally {
       if (row && row.isConnected) {
         const openBtn = row.querySelector('[data-ai-review-open]');
-        const ticketId = String(row.getAttribute('data-ai-review-ticket') || '').trim();
+        const ticketId = exactLegacyTicketId(row.getAttribute('data-ai-review-ticket'));
         if (openBtn) openBtn.disabled = !ticketId;
         row.querySelectorAll('[data-ai-review-approve],[data-ai-review-reject]').forEach((button) => {
           button.disabled = false;
@@ -602,7 +607,7 @@
   }
 
   async function runDecisionTestbench() {
-    const ticketId = String(testTicketInput?.value || '').trim();
+    const ticketId = exactLegacyTicketId(testTicketInput?.value);
     const message = String(testMessageInput?.value || '').trim();
     if (!ticketId || !message) {
       setTextIfChanged(testStateEl, 'Ticket ID и сообщение обязательны.');
@@ -888,7 +893,7 @@
       const row = event.target.closest('[data-ai-review-key]');
       if (!row) return;
       const queryKey = String(row.getAttribute('data-ai-review-key') || '').trim();
-      const ticketId = String(row.getAttribute('data-ai-review-ticket') || '').trim();
+      const ticketId = exactLegacyTicketId(row.getAttribute('data-ai-review-ticket'));
       const openBtn = event.target.closest('[data-ai-review-open]');
       if (openBtn && ticketId) {
         window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
