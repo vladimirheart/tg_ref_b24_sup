@@ -3,6 +3,11 @@
     return;
   }
 
+  function buildDialogDetailsApiUrl(ticketId, channelId, withChannelParam) {
+    const url = `/api/dialog-ticket?ticketId=${encodeURIComponent(ticketId)}`;
+    return typeof withChannelParam === 'function' ? withChannelParam(url, channelId) : url;
+  }
+
   function createRuntime(options = {}) {
     const elements = options.elements || {};
 
@@ -356,8 +361,7 @@
       options.showModalSafe?.(elements.detailsModalEl, elements.detailsModal);
       try {
         const activeState = getActiveDialogState();
-        const url = options.withChannelParam?.(`/api/dialogs/${encodeURIComponent(ticketId)}`, activeState.channelId)
-          || `/api/dialogs/${encodeURIComponent(ticketId)}`;
+        const url = buildDialogDetailsApiUrl(ticketId, activeState.channelId, options.withChannelParam);
         options.debugLog?.('openDialogDetails.fetch.start', { url });
         const response = await fetch(url, {
           credentials: 'same-origin',
