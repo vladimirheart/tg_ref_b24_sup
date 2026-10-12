@@ -37,4 +37,34 @@ class ChatAttachmentMetadataServiceTest {
         assertThat(insertArguments[9]).isEqualTo("normalized");
         assertThat(insertArguments[10]).isEqualTo("available");
     }
+    @Test
+    void retainsPaddedTicketIdentityForChannelOwnedAttachmentPath() {
+        assertThat(insertIdentityRow(" T-EXACT ")[1]).isEqualTo(" T-EXACT ");
+        assertThat(insertIdentityRow(" T-EXACT ")[3]).isEqualTo("channel-public-id/2026/10/12/photo.jpg");
+    }
+
+    @Test
+    void retainsLiteralNullIdentityWithoutCollapsingPlainSibling() {
+        assertThat(insertIdentityRow(" null ")[1]).isEqualTo(" null ");
+        assertThat(insertIdentityRow("null")[1]).isEqualTo("null");
+    }
+
+    @Test
+    void nullOrBlankTicketIdentityRemainsUnassigned() {
+        assertThat(insertIdentityRow(null)[1]).isNull();
+        assertThat(insertIdentityRow("   ")[1]).isNull();
+    }
+
+    private Object[] insertIdentityRow(String ticketId) {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        ObjectStorageProperties properties = mock(ObjectStorageProperties.class);
+        when(properties.isS3Mode()).thenReturn(true);
+        ChatAttachmentMetadataService service = new ChatAttachmentMetadataService(jdbc, properties);
+        service.upsertForChatHistory(41L, ticketId, 7L,
+                "channel-public-id/2026/10/12/photo.jpg", "photo.jpg", "photo");
+        ArgumentCaptor<Object[]> arguments = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbc, times(2)).update(anyString(), arguments.capture());
+        return arguments.getAllValues().stream().filter(values -> values.length > 1).findFirst().orElseThrow();
+    }
+
 }

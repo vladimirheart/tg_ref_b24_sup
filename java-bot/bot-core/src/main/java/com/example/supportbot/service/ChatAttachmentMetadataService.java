@@ -68,7 +68,7 @@ public class ChatAttachmentMetadataService {
                 ) VALUES (?, ?, ?, ?, ?, 'dialog_attachment', ?, ?, ?, NULL, ?, ?, ?, ?, ?, NULL, NULL)
                 """,
                 chatHistoryId,
-                trim(ticketId),
+                exactTicketIdOrNull(ticketId),
                 channelId,
                 trim(storageKey),
                 storageProvider,
@@ -224,6 +224,10 @@ public class ChatAttachmentMetadataService {
         return null;
     }
 
+    // Ticket IDs are opaque legacy identities, not free-form text to sanitize.
+    private String exactTicketIdOrNull(String ticketId) {
+        return StringUtils.hasText(ticketId) ? ticketId : null;
+    }
     private String trim(String value) {
         if (!StringUtils.hasText(value)) {
             return null;
