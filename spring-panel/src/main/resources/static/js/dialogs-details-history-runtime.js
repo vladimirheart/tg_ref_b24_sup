@@ -3,6 +3,11 @@
     return;
   }
 
+  function buildDialogHistoryApiUrl(ticketId, channelId, withChannelParam) {
+    const url = `/api/dialog-ticket/history?ticketId=${encodeURIComponent(ticketId)}`;
+    return typeof withChannelParam === 'function' ? withChannelParam(url, channelId) : url;
+  }
+
   function createRuntime(options = {}) {
     const elements = options.elements || {};
     const state = {
@@ -1140,7 +1145,7 @@
       if (!activeDialogState.ticketId || state.historyLoading) return;
       state.historyLoading = true;
       try {
-        const url = withChannelParam(`/api/dialogs/${encodeURIComponent(activeDialogState.ticketId)}/history`, activeDialogState.channelId);
+        const url = buildDialogHistoryApiUrl(activeDialogState.ticketId, activeDialogState.channelId, withChannelParam);
         const resp = await fetch(url, {
           credentials: 'same-origin',
           cache: 'no-store',

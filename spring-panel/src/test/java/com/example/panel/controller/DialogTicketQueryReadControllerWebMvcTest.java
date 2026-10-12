@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.panel.service.DialogReadService;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,5 +65,63 @@ class DialogTicketQueryReadControllerWebMvcTest {
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(dialogReadService);
+    }
+
+    @Test
+    void historyKeepsExactOpaqueTicketIdChannelAndOperator() throws Exception {
+        String ticketId = " T/100?&%# Ю ";
+        doReturn(Map.of("success", true, "messages", List.of(Map.of("text", "hello"))))
+                .when(dialogReadService).loadHistory(ticketId, 81L, "operator");
+
+        mockMvc.perform(get("/api/dialog-ticket/history")
+                        .param("ticketId", ticketId)
+                        .param("channelId", "81")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.messages[0].text").value("hello"));
+
+        verify(dialogReadService).loadHistory(ticketId, 81L, "operator");
+    }
+
+    @Test
+    void historyDoesNotAliasLiteralNullPaddedAndPlainIdentity() throws Exception {
+        doReturn(Map.of("success", true, "messages", List.of()))
+                .when(dialogReadService).loadHistory(" null ", null, "operator");
+        doReturn(Map.of("success", true, "messages", List.of()))
+                .when(dialogReadService).loadHistory("null", null, "operator");
+
+        mockMvc.perform(get("/api/dialog-ticket/history")
+                        .param("ticketId", " null ")
+                        .with(user("operator")))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/dialog-ticket/history")
+                        .param("ticketId", "null")
+                        .with(user("operator")))
+                .andExpect(status().isOk());
+
+        verify(dialogReadService).loadHistory(" null ", null, "operator");
+        verify(dialogReadService).loadHistory("null", null, "operator");
+    }
+
+    @Test
+    void historyRejectsMissingTicketIdWithoutCallingService() throws Exception {
+        mockMvc.perform(get("/api/dialog-ticket/history")
+                        .with(user("operator")))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(dialogReadService);
+    }
+
+    @Test
+    void historyDoesNotInventChannelWhenAbsent() throws Exception {
+        doReturn(Map.of("success", true, "messages", List.of()))
+                .when(dialogReadService).loadHistory(" T-100 ", null, "operator");
+
+        mockMvc.perform(get("/api/dialog-ticket/history")
+                        .param("ticketId", " T-100 ")
+                        .with(user("operator")))
+                .andExpect(status().isOk());
+
+        verify(dialogReadService).loadHistory(" T-100 ", null, "operator");
     }
 }

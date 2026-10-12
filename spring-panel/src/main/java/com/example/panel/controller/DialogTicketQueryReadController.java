@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 public class DialogTicketQueryReadController {
 
@@ -22,5 +24,13 @@ public class DialogTicketQueryReadController {
                                      Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
         return dialogReadService.loadDetails(ticketId, channelId, operator);
+    }
+
+    @GetMapping("/api/dialog-ticket/history")
+    public Map<String, Object> history(@RequestParam("ticketId") String ticketId,
+                                       @RequestParam(value = "channelId", required = false) Long channelId,
+                                       Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        return dialogReadService.loadHistory(ticketId, channelId, operator);
     }
 }
