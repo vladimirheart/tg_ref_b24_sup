@@ -1467,7 +1467,7 @@
           if (replyToTelegramId !== null) {
             formData.append('replyToTelegramId', String(replyToTelegramId));
           }
-          const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/media`, {
+          const resp = await fetch(`/api/dialog-ticket/media?ticketId=${encodeURIComponent(ticketId)}`, {
             method: 'POST',
             body: formData,
           });

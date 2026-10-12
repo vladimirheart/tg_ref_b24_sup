@@ -5,11 +5,27 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RestExceptionHandlerTest {
+
+    @Test
+    void missingMultipartPartReturnsBadRequestEnvelope() {
+        RestExceptionHandler handler = new RestExceptionHandler();
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/dialog-ticket/media");
+
+        var response = handler.handleMissingPart(new MissingServletRequestPartException("file"), request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(400);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isFalse();
+        assertThat(response.getBody().errorCode()).isEqualTo("MISSING_PART");
+        assertThat(response.getBody().error()).isEqualTo("Отсутствует обязательная часть запроса: file");
+        assertThat(response.getBody().path()).isEqualTo("/api/dialog-ticket/media");
+    }
 
     @Test
     void methodSecurityDenialReturnsForbiddenWithoutInternalDetails() {

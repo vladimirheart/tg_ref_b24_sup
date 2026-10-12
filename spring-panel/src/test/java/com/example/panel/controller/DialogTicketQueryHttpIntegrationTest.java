@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -13,10 +14,12 @@ import com.example.panel.service.DialogAiOpsService;
 import com.example.panel.service.DialogAuthorizationService;
 import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.DialogReplyService;
+import com.example.panel.service.IikoDepartmentLocationCatalogService;
 import com.example.panel.service.DialogReadService;
 import com.example.panel.service.DialogWorkspaceService;
 import com.example.panel.service.KnowledgeNoteLocationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -30,6 +33,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
@@ -41,6 +45,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -48,6 +53,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @SpringBootTest(
         classes = DialogTicketQueryHttpIntegrationTest.TestApplication.class,
@@ -60,7 +66,7 @@ class DialogTicketQueryHttpIntegrationTest {
     @EnableMethodSecurity
     @Import({DialogTicketQueryReadController.class, DialogWorkspaceController.class,
             DialogKnowledgeNotesApiController.class, DialogAiOpsController.class,
-            DialogQuickActionsController.class, RestExceptionHandler.class})
+            DialogQuickActionsController.class, DialogLocationBusinessApiController.class, RestExceptionHandler.class})
     static class TestApplication {
         @Bean
         UserDetailsService testUsers() {
@@ -106,6 +112,12 @@ class DialogTicketQueryHttpIntegrationTest {
 
     @MockBean
     private DialogQuickActionService dialogQuickActionService;
+
+    @MockBean
+    private JdbcTemplate jdbcTemplate;
+
+    @MockBean
+    private IikoDepartmentLocationCatalogService locationCatalogService;
 
     @Test
     void encodedOpaqueQueryReachesAllThreeServicesThroughEmbeddedTomcat() throws Exception {
@@ -267,6 +279,86 @@ class DialogTicketQueryHttpIntegrationTest {
                 eq("can_assign"), eq("participants_remove"), eq(ticketId));
         verify(dialogAuthorizationService).logDialogAction("operator", ticketId, "reply", "success", "message_sent");
         verify(dialogAuthorizationService).logDialogAction("operator", ticketId, "participants_remove", "success", "participant_removed");
+    }
+
+    @Test
+    void mediaMultipartAndLocationPatchKeepExactQueryAndCsrfOverHttp() throws Exception {
+        String ticketId = " T/100?&%#+ Ю ";
+        String encodedId = URLEncoder.encode(ticketId, StandardCharsets.UTF_8).replace("+", "%20");
+        String mediaPath = "/api/dialog-ticket/media?ticketId=" + encodedId;
+        String locationPath = "/api/dialog-ticket/location-business?ticketId=" + encodedId;
+        String boundary = "r56-test-boundary";
+        byte[] fileBytes = {0, (byte) 0xff, 13, 10, 42};
+        ByteArrayOutputStream multipart = new ByteArrayOutputStream();
+        multipart.writeBytes(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"sample+.bin\"\r\n"
+                + "Content-Type: application/octet-stream\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+        multipart.writeBytes(fileBytes);
+        multipart.writeBytes(("\r\n--" + boundary + "\r\nContent-Disposition: form-data; name=\"message\"\r\n\r\n caption \r\n"
+                + "--" + boundary + "\r\nContent-Disposition: form-data; name=\"replyToTelegramId\"\r\n\r\n123\r\n"
+                + "--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        String metadata = "{\"business\":\" Business \",\"locationType\":\" Office \",\"city\":\" City \",\"locationName\":\" Location \"}";
+        var receivedFileBytes = new java.util.concurrent.atomic.AtomicReference<byte[]>();
+        when(dialogQuickActionService.sendMediaReply(eq(ticketId), any(), eq(" caption "), eq(123L), eq("operator"), any()))
+                .thenAnswer(call -> {
+                    // Servlet multipart content is only valid during the request, before Tomcat cleanup.
+                    receivedFileBytes.set(call.getArgument(1, MultipartFile.class).getBytes());
+                    return Map.of("success", true, "attachment", "unchanged/key");
+                });
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(ticketId))).thenReturn(1);
+        when(jdbcTemplate.update(anyString(), eq("Business"), eq("Office"), eq("City"), eq("Location"), eq("operator"), eq(ticketId)))
+                .thenReturn(1);
+        HttpClient client = authenticatedSession();
+        for (String method : List.of("POST", "PATCH")) {
+            boolean media = "POST".equals(method);
+            HttpResponse<String> denied = client.send(authenticatedRequest(media ? mediaPath : locationPath)
+                    .header("Content-Type", media ? "multipart/form-data; boundary=" + boundary : "application/json")
+                    .method(method, media ? HttpRequest.BodyPublishers.ofByteArray(multipart.toByteArray())
+                            : HttpRequest.BodyPublishers.ofString(metadata)).build(), HttpResponse.BodyHandlers.ofString());
+            assertThat(denied.statusCode()).isEqualTo(403);
+        }
+        org.mockito.Mockito.verifyNoInteractions(dialogQuickActionService, dialogAuthorizationService, jdbcTemplate, locationCatalogService);
+        HttpResponse<String> tokenResponse = client.send(authenticatedRequest("/test/csrf").GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(tokenResponse.statusCode()).isEqualTo(200);
+        var token = objectMapper.readTree(tokenResponse.body());
+        HttpResponse<String> uploaded = client.send(authenticatedRequest(mediaPath)
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .header(token.get("headerName").asText(), token.get("token").asText())
+                .POST(HttpRequest.BodyPublishers.ofByteArray(multipart.toByteArray())).build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(uploaded.statusCode()).isEqualTo(200);
+        assertThat(objectMapper.readTree(uploaded.body()).get("attachment").asText()).isEqualTo("unchanged/key");
+        HttpResponse<String> updated = client.send(authenticatedRequest(locationPath)
+                .header("Content-Type", "application/json")
+                .header(token.get("headerName").asText(), token.get("token").asText())
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(metadata)).build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(updated.statusCode()).isEqualTo(200);
+        assertThat(objectMapper.readTree(updated.body()).get("locationName").asText()).isEqualTo("Location");
+
+        ArgumentCaptor<MultipartFile> receivedFile = ArgumentCaptor.forClass(MultipartFile.class);
+        verify(dialogQuickActionService).sendMediaReply(eq(ticketId), receivedFile.capture(), eq(" caption "), eq(123L),
+                eq("operator"), argThat(auth -> "operator".equals(auth.getName())));
+        assertThat(receivedFileBytes.get()).containsExactly(fileBytes);
+        assertThat(receivedFile.getValue().getOriginalFilename()).isEqualTo("sample+.bin");
+        assertThat(receivedFile.getValue().getContentType()).isEqualTo("application/octet-stream");
+        verify(jdbcTemplate).update(anyString(), eq("Business"), eq("Office"), eq("City"), eq("Location"), eq("operator"), eq(ticketId));
+        verify(dialogAuthorizationService).logDialogAction("operator", ticketId, "reply_media", "success", "media_sent");
+        verify(dialogAuthorizationService).logDialogAction("operator", ticketId, "location_business", "success", "dialog_metadata_updated");
+    }
+
+    private HttpClient authenticatedSession() throws Exception {
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
+                .cookieHandler(new CookieManager(null, CookiePolicy.ACCEPT_ALL)).build();
+        HttpResponse<String> tokenResponse = client.send(authenticatedRequest("/test/csrf").GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(tokenResponse.statusCode()).isEqualTo(200);
+        var token = objectMapper.readTree(tokenResponse.body());
+        HttpResponse<String> login = client.send(authenticatedRequest("/login")
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header(token.get("headerName").asText(), token.get("token").asText())
+                .POST(HttpRequest.BodyPublishers.ofString("username=operator&password=test-password")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(login.statusCode()).isEqualTo(302);
+        return client;
     }
 
     private HttpResponse<String> get(String path) throws Exception {

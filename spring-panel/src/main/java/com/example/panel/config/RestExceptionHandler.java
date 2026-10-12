@@ -15,6 +15,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
@@ -83,6 +84,13 @@ public class RestExceptionHandler {
                                                                    HttpServletRequest request) {
         String message = "Отсутствует обязательный параметр: " + ex.getParameterName();
         return build(HttpStatus.BAD_REQUEST, message, "MISSING_PARAMETER", request);
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingPart(MissingServletRequestPartException ex,
+                                                              HttpServletRequest request) {
+        String message = "Отсутствует обязательная часть запроса: " + ex.getRequestPartName();
+        return build(HttpStatus.BAD_REQUEST, message, "MISSING_PART", request);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

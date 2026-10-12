@@ -16,11 +16,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/dialogs")
 @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
 public class DialogLocationBusinessApiController {
 
@@ -36,14 +35,14 @@ public class DialogLocationBusinessApiController {
         this.locationCatalogService = locationCatalogService;
     }
 
-    @GetMapping("/location-business/catalog")
+    @GetMapping("/api/dialogs/location-business/catalog")
     public Map<String, Object> catalog() {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("items", flattenLocationCatalog());
         return response;
     }
 
-    @PatchMapping("/{ticketId}/location-business")
+    @PatchMapping("/api/dialogs/{ticketId}/location-business")
     public ResponseEntity<Map<String, Object>> update(@PathVariable String ticketId,
                                                        @RequestBody(required = false) DialogLocationBusinessRequest request,
                                                        Authentication authentication) {
@@ -118,6 +117,13 @@ public class DialogLocationBusinessApiController {
         response.put("city", city);
         response.put("locationName", locationName);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/api/dialog-ticket/location-business")
+    public ResponseEntity<Map<String, Object>> updateQuery(@RequestParam("ticketId") String ticketId,
+                                                           @RequestBody(required = false) DialogLocationBusinessRequest request,
+                                                           Authentication authentication) {
+        return update(ticketId, request, authentication);
     }
 
     private List<LocationOption> flattenLocationCatalog() {

@@ -544,6 +544,15 @@ public class DialogQuickActionsController {
         return reassign(ticketId, request, authentication);
     }
 
+    @PostMapping(value = "/api/dialog-ticket/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> queryReplyWithMedia(@RequestParam("ticketId") String ticketId,
+                                                  @RequestParam("file") MultipartFile file,
+                                                  @RequestParam(value = "message", required = false) String message,
+                                                  @RequestParam(value = "replyToTelegramId", required = false) Long replyToTelegramId,
+                                                  Authentication authentication) {
+        return replyWithMedia(ticketId, file, message, replyToTelegramId, authentication);
+    }
+
     private <T> T withQuickActionTiming(String action, String ticketId, Supplier<T> supplier) {
         long startedAtMs = System.currentTimeMillis();
         try {

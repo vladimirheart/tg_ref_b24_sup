@@ -93,7 +93,7 @@ function evalFn(text,name,ctx={}){
   assert.deepEqual(urls,['/api/dialog-ticket/delete?ticketId=%20T-EXACT%20']);
   const body=source.get('dialogs-details-history-runtime.js');
   assert.match(body,/exactLegacyTicketId\(sendOptions\.ticketId \|\| activeDialogState\.ticketId \|\| activeWorkspaceState\.ticketId\)/);
-  assert.match(body,/fetch\(`\/api\/dialogs\/\$\{encodeURIComponent\(ticketId\)\}\/media`/);
+  assert.match(body,/fetch\(`\/api\/dialog-ticket\/media\?ticketId=\$\{encodeURIComponent\(ticketId\)\}`/);
  });
  await test('participants_resolve_active_id_exact',()=>{
   let current=' T-EXACT ';

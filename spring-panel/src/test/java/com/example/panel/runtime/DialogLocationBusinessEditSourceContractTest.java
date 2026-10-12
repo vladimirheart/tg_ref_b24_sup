@@ -19,8 +19,9 @@ class DialogLocationBusinessEditSourceContractTest {
                 Path.of("src/main/resources/static/js/dialogs-location-business-runtime.js"), UTF_8);
 
         assertThat(controller)
-                .contains("@GetMapping(\"/location-business/catalog\")")
-                .contains("@PatchMapping(\"/{ticketId}/location-business\")")
+                .contains("@GetMapping(\"/api/dialogs/location-business/catalog\")")
+                .contains("@PatchMapping(\"/api/dialogs/{ticketId}/location-business\")")
+                .contains("@PatchMapping(\"/api/dialog-ticket/location-business\")")
                 .contains("\"can_assign\"")
                 .contains("IikoDepartmentLocationCatalogService")
                 .contains("UPDATE messages")
@@ -38,7 +39,7 @@ class DialogLocationBusinessEditSourceContractTest {
                 .contains("id=\"dialogLocationBusinessModal\"")
                 .contains("id=\"dialogLocationBusinessBusiness\"")
                 .contains("id=\"dialogLocationBusinessLocation\"")
-                .contains("dialogs-location-business-runtime.js(v='20261002-01-278-s2-r7')");
+                .contains("dialogs-location-business-runtime.js(v='20261012-01-278-r56')");
 
         assertThat(runtime)
                 .contains("fetch('/api/dialogs/location-business/catalog'")

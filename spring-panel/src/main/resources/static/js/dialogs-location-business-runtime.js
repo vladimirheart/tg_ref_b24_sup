@@ -59,7 +59,8 @@
     const taskLink = document.getElementById('dialogDetailsCreateTask');
     try {
       const url = new URL(taskLink?.href || '', window.location.origin);
-      return clean(url.searchParams.get('ticketId'));
+      const ticketId = url.searchParams.get('ticketId');
+      return ticketId?.trim() ? ticketId : '';
     } catch (_error) {
       return '';
     }
@@ -168,7 +169,7 @@
     if (saveButton) saveButton.disabled = true;
     try {
       const response = await fetch(
-        '/api/dialogs/' + encodeURIComponent(ticketId) + '/location-business',
+        '/api/dialog-ticket/location-business?ticketId=' + encodeURIComponent(ticketId),
         requestOptions('PATCH', {
           business: clean(businessSelect?.value) || null,
           locationType: clean(typeSelect?.value) || null,
