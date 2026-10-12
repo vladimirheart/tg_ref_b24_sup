@@ -38,4 +38,16 @@ class SlaRoutingRuleCandidateContextServiceTest {
         assertEquals("Inc-77", context.requestNumber());
         assertEquals("T-1", context.ticketId());
     }
+
+    @Test
+    void candidateIdentityKeepsPaddingAndDistinguishesMissingFromLiteralNull() {
+        assertEquals("T-1", service.ticketId(Map.of("ticket_id", "T-1")));
+        assertEquals(" T-1 ", service.ticketId(Map.of("ticket_id", " T-1 ")));
+        assertEquals("null", service.ticketId(Map.of("ticket_id", "null")));
+        assertEquals(" null ", service.ticketId(Map.of("ticket_id", " null ")));
+        assertEquals("unknown", service.ticketId(Map.of()));
+        assertEquals("unknown", service.ticketId(Map.of("ticket_id", "   ")));
+        assertEquals("unknown", service.ticketId(null));
+        assertEquals(" T-1 ", service.build(Map.of("ticket_id", " T-1 ")).ticketId());
+    }
 }

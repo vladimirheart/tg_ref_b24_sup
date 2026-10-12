@@ -62,8 +62,9 @@ public class SlaEscalationAutoAssignService {
             if (decisions.size() >= maxPerRun) {
                 break;
             }
-            String ticketId = trimToNull(String.valueOf(candidate.get("ticket_id")));
-            if (ticketId == null || processedTicketIds.contains(ticketId)) {
+            Object rawTicketId = candidate.get("ticket_id");
+            String ticketId = rawTicketId == null ? null : String.valueOf(rawTicketId);
+            if (ticketId == null || ticketId.isBlank() || processedTicketIds.contains(ticketId)) {
                 continue;
             }
             processedTicketIds.add(ticketId);

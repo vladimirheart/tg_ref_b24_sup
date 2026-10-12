@@ -42,8 +42,8 @@ public class SlaRoutingPolicySnapshotRuntimeService {
     public SnapshotRuntimeContext build(DialogListItem dialog, Map<String, Object> settings, Instant evaluatedAt) {
         SlaRoutingPolicySnapshotSettingsService.SnapshotSettingsContext settingsContext = settingsService.build(settings, evaluatedAt);
 
-        String ticketId = dialog == null ? null : trimToNull(dialog.ticketId());
-        if (ticketId == null) {
+        String ticketId = dialog == null ? null : dialog.ticketId();
+        if (ticketId == null || ticketId.isBlank()) {
             return contextService.missingTicketContext(settingsContext);
         }
 
@@ -56,14 +56,6 @@ public class SlaRoutingPolicySnapshotRuntimeService {
                         settingsContext.orchestrationMode()
                 );
         return contextService.buildDialogContext(settingsContext, ticketId, dialogState);
-    }
-
-    private String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
     public record SnapshotRuntimeContext(Map<String, Object> dialogConfig,

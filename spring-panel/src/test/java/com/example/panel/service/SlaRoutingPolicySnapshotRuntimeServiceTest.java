@@ -39,6 +39,19 @@ class SlaRoutingPolicySnapshotRuntimeServiceTest {
         assertFalse(context.critical());
     }
 
+    @Test
+    void snapshotPayloadKeepsExactOpaqueTicketIdentity() {
+        String createdAt = Instant.now().minusSeconds(120).toString();
+        for (String ticketId : new String[] {"T-1", " T-1 ", "null", " null "}) {
+            SlaRoutingPolicySnapshotRuntimeService.SnapshotRuntimeContext context = service.build(
+                    dialog(ticketId, createdAt, "open", null), Map.of(), Instant.now());
+            assertFalse(context.missingTicket());
+            assertEquals(ticketId, context.payload().get("ticket_id"));
+        }
+        assertTrue(service.build(dialog("   ", createdAt, "open", null), Map.of(), Instant.now())
+                .missingTicket());
+    }
+
     private DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new DialogListItem(
                 ticketId, 100L, 1L, "client", "Client", "biz", 10L, "Telegram", "Moscow", "HQ",

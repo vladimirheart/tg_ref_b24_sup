@@ -40,8 +40,9 @@ public class SlaRoutingRuleCandidateContextService {
     }
 
     public String ticketId(Map<String, Object> candidate) {
-        String ticketId = scalarParserService.trimToNull(String.valueOf(candidate == null ? null : candidate.get("ticket_id")));
-        return ticketId != null ? ticketId : "unknown";
+        Object rawTicketId = candidate == null ? null : candidate.get("ticket_id");
+        String ticketId = rawTicketId == null ? null : String.valueOf(rawTicketId);
+        return ticketId == null || ticketId.isBlank() ? "unknown" : ticketId;
     }
 
     public record CandidateContext(String channel,

@@ -94,6 +94,27 @@ class SlaEscalationAutoAssignServiceTest {
         assertEquals("free_operator", decisions.get(0).assignee());
     }
 
+    @Test
+    void autoAssignmentKeepsOpaqueTicketIdsDistinctAndSkipsMissingIdentity() {
+        SlaEscalationAutoAssignService service = new SlaEscalationAutoAssignService(null);
+        List<Map<String, Object>> candidates = List.of(
+                Map.of("ticket_id", "T-1"),
+                Map.of("ticket_id", " T-1 "),
+                Map.of("ticket_id", "null"),
+                Map.of("ticket_id", " null "),
+                Map.of("ticket_id", " T-1 "),
+                Map.of("ticket_id", "   "),
+                Map.of("channel", "telegram")
+        );
+        Map<String, Object> config = Map.of(
+                "sla_critical_auto_assign_enabled", true,
+                "sla_critical_auto_assign_to", "duty_operator"
+        );
+
+        assertEquals(List.of("T-1", " T-1 ", "null", " null "),
+                service.resolveAutoAssignTicketIds(candidates, config));
+    }
+
     private com.example.panel.model.dialog.DialogListItem dialog(String ticketId, String createdAt, String status, String responsible) {
         return new com.example.panel.model.dialog.DialogListItem(
                 ticketId,
