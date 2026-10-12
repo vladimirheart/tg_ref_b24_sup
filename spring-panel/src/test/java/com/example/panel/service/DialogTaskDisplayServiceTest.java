@@ -73,6 +73,24 @@ class DialogTaskDisplayServiceTest {
     }
 
     @Test
+    void historicalBodyUsesExactPaddedTicketIdAndKeepsLinkUntouched() {
+        DialogLookupReadService lookup = mock(DialogLookupReadService.class);
+        when(lookup.resolveRequestNumber(" T-100 ")).thenReturn("20261012-047");
+        when(lookup.resolveRequestNumber("T-100")).thenReturn("20261012-001");
+        DialogTaskDisplayService service = new DialogTaskDisplayService(lookup);
+
+        String body = service.normalizeBodyHtml(
+                "<p>Создано из диалога # T-100 .</p>"
+                + "<p><a href=\"/dialogs/%20T-100%20\">Открыть диалог # T-100 </a></p>");
+
+        assertThat(body).contains("Создано из обращения №20261012-047.")
+                .contains("Открыть обращение №20261012-047</a>")
+                .contains("href=\"/dialogs/%20T-100%20\"")
+                .doesNotContain("20261012-001");
+        verify(lookup, org.mockito.Mockito.never()).resolveRequestNumber("T-100");
+    }
+
+    @Test
     void missingRequestNumberRemovesVisibleTicketId() {
         DialogLookupReadService lookup = mock(DialogLookupReadService.class);
         DialogTaskDisplayService service = new DialogTaskDisplayService(lookup);

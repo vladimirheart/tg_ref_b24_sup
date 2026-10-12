@@ -72,7 +72,7 @@ class AutoCloseFollowUpExactTicketIdTest {
         assertThat(payload.coExecutors()).containsExactly("helper");
         assertThat(payload.assignee()).isEqualTo("owner");
         assertThat(payload.title()).contains(PADDED);
-        assertThat(payload.bodyHtml()).contains("href=\"/dialogs/%20T-EXACT%20\"");
+        assertThat(payload.bodyHtml()).contains("href=\"/dialogs?ticketId=%20T-EXACT%20\"");
         verify(responsible).findById(PADDED);
         verify(responsible, never()).findById(PLAIN);
         verify(messages).findByTicketId(PADDED);
@@ -106,7 +106,7 @@ class AutoCloseFollowUpExactTicketIdTest {
         verify(tasks).createTask(captured.capture());
         assertThat(captured.getValue().ticketIds()).containsExactly(exact);
         assertThat(captured.getValue().bodyHtml())
-                .contains("href=\"/dialogs/%20null%23%25%26%2F%20\"");
+                .contains("href=\"/dialogs?ticketId=%20null%23%25%26%2F%20\"");
         verify(responsible).findById(exact);
         verify(messages).findByTicketId(exact);
         verify(jdbc).query(any(String.class), any(RowMapper.class), eq(exact));

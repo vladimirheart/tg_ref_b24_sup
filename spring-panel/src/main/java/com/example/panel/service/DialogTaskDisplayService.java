@@ -14,6 +14,10 @@ public class DialogTaskDisplayService {
     private static final String DISPLAY_DIALOG_PREFIX = "Обращение №";
     private static final Pattern CREATED_FROM_DIALOG = Pattern.compile("Создано из диалога #([A-Za-z0-9._-]+)");
     private static final Pattern OPEN_DIALOG = Pattern.compile("Открыть диалог #([A-Za-z0-9._-]+)");
+    private static final Pattern PADDED_CREATED_FROM_DIALOG = Pattern.compile(
+            "Создано из диалога #([ \\t]+[A-Za-z0-9._-]+[ \\t]*|[A-Za-z0-9._-]+[ \\t]+)([.,;:!?]?)(?=</p>)");
+    private static final Pattern PADDED_OPEN_DIALOG = Pattern.compile(
+            "Открыть диалог #([ \\t]+[A-Za-z0-9._-]+[ \\t]*|[A-Za-z0-9._-]+[ \\t]+)([.,;:!?]?)(?=</a>)");
     private static final int TITLE_PROBLEM_LIMIT = 72;
 
     private final DialogLookupReadService dialogLookupReadService;
@@ -66,9 +70,21 @@ public class DialogTaskDisplayService {
         }
         String normalized = replaceLegacyBodyReference(
                 bodyHtml,
+                PADDED_CREATED_FROM_DIALOG,
+                "Создано из обращения №",
+                "Создано из обращения"
+        );
+        normalized = replaceLegacyBodyReference(
+                normalized,
                 CREATED_FROM_DIALOG,
                 "Создано из обращения №",
                 "Создано из обращения"
+        );
+        normalized = replaceLegacyBodyReference(
+                normalized,
+                PADDED_OPEN_DIALOG,
+                "Открыть обращение №",
+                "Открыть обращение"
         );
         return replaceLegacyBodyReference(
                 normalized,
@@ -99,8 +115,9 @@ public class DialogTaskDisplayService {
         StringBuffer buffer = new StringBuffer();
         while (matcher.find()) {
             String rawTicketId = matcher.group(1);
-            String ticketId = stripTrailingReferencePunctuation(rawTicketId);
-            String trailingPunctuation = rawTicketId.substring(ticketId.length());
+            boolean paddedReference = matcher.groupCount() == 2;
+            String ticketId = paddedReference ? rawTicketId : stripTrailingReferencePunctuation(rawTicketId);
+            String trailingPunctuation = paddedReference ? matcher.group(2) : rawTicketId.substring(ticketId.length());
             String requestNumber = resolveCanonicalRequestNumber(ticketId);
             String replacement = requestNumber != null ? numberedPrefix + requestNumber : fallback;
             matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement + trailingPunctuation));

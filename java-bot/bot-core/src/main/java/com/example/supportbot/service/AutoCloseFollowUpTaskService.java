@@ -194,7 +194,7 @@ public class AutoCloseFollowUpTaskService implements AutoCloseFollowUpTaskSuppor
             details.forEach(detail -> html.append("<li>").append(detail).append("</li>"));
             html.append("</ul>");
         }
-        html.append("<p><a href=\"/dialogs/")
+        html.append("<p><a href=\"/dialogs?ticketId=")
                 .append(escapeHtml(URLEncoder.encode(ticketId, StandardCharsets.UTF_8).replace("+", "%20")))
                 .append("\">Открыть диалог #")
                 .append(escapeHtml(ticketId))

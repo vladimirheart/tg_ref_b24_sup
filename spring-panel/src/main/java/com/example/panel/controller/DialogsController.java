@@ -14,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -42,8 +43,10 @@ public class DialogsController {
 
     @GetMapping("/dialogs")
     @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
-    public String dialogsList(Authentication authentication, Model model) {
-        return renderDialogsPage(authentication, model, null);
+    public String dialogsList(@RequestParam(name = "ticketId", required = false) String ticketId,
+                              Authentication authentication,
+                              Model model) {
+        return renderDialogsPage(authentication, model, ticketId);
     }
 
     @GetMapping("/dialogs/{ticketId}")

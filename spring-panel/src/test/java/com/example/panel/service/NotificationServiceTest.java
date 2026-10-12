@@ -154,4 +154,25 @@ class NotificationServiceTest {
         assertThat(saved.getValue().getText()).isEqualTo("Новое обращение №20261011-017");
         verify(lookup).resolveRequestNumber(" T-EXACT ");
     }
+
+    @Test
+    void newQueryLinkFormatsHistoricalAutoCloseNotificationUsingExactId() {
+        NotificationRepository repository = mock(NotificationRepository.class);
+        DialogLookupReadService lookup = mock(DialogLookupReadService.class);
+        when(lookup.resolveRequestNumber(" T/100?&%# Ю ")).thenReturn("20261012-047");
+        NotificationService service = new NotificationService(repository, mock(JdbcTemplate.class),
+                mock(JdbcTemplate.class), mock(UiEventStreamService.class),
+                mock(LegacyTicketIdJdbcGuard.class));
+        ReflectionTestUtils.setField(service, "dialogLookupReadService", lookup);
+
+        service.notifyUser("operator",
+                "Диалог автоматически закрыт из-за отсутствия активности",
+                "/dialogs?ticketId=%20T%2F100%3F%26%25%23%20%D0%AE%20");
+
+        ArgumentCaptor<Notification> saved = ArgumentCaptor.forClass(Notification.class);
+        verify(repository).save(saved.capture());
+        assertThat(saved.getValue().getText())
+                .isEqualTo("Обращение №20261012-047 автоматически закрыто из-за отсутствия активности.");
+        verify(lookup).resolveRequestNumber(" T/100?&%# Ю ");
+    }
 }

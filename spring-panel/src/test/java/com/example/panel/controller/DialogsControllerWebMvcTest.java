@@ -77,6 +77,21 @@ class DialogsControllerWebMvcTest {
     }
 
     @Test
+    void dialogsQueryRoutePreservesExactOpaqueTicketId() throws Exception {
+        stubNavigationDefaults();
+        stubDialogsPageData(new DialogSummary(0, 0, 0, Collections.emptyList()),
+                Collections.emptyList(), DialogMyDialogs.empty());
+
+        String ticketId = " T/100?&%# Ю ";
+        mockMvc.perform(get("/dialogs").param("ticketId", ticketId).with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("dialogs/index"))
+                .andExpect(model().attribute("initialDialogTicketId", ticketId))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "data-initial-dialog-ticket-id=\" T/100?&amp;%# Ю \"")));
+    }
+
+    @Test
     void dialogsListRendersOpenActionsAsRealDialogLinks() throws Exception {
         stubNavigationDefaults();
         List<DialogListItem> dialogs = Collections.singletonList(

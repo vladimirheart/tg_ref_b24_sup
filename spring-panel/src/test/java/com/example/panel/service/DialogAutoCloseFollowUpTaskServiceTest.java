@@ -95,7 +95,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         assertThat(payload.ticketIds()).containsExactly("T-100");
         assertThat(payload.coExecutors()).containsExactly("helper", "reviewer");
         assertThat(payload.projectIds()).containsExactly(42L);
-        assertThat(payload.bodyHtml()).contains("/dialogs/T-100");
+        assertThat(payload.bodyHtml()).contains("/dialogs?ticketId=T-100");
         assertThat(payload.bodyHtml()).contains("Открыть обращение №20260928-007");
         assertThat(payload.bodyHtml()).doesNotContain("Открыть диалог #T-100");
         assertThat(payload.bodyHtml()).contains("Иван");
@@ -205,7 +205,7 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         assertThat(payload.ticketIds()).containsExactly(ticketId);
         assertThat(payload.title()).isEqualTo("Проверить автозакрытое обращение №20261012-046");
         assertThat(payload.bodyHtml())
-                .contains("href=\"/dialogs/%20T%2F100%3F%26%25%23%20%D0%AE%20\"")
+                .contains("href=\"/dialogs?ticketId=%20T%2F100%3F%26%25%23%20%D0%AE%20\"")
                 .contains("Открыть обращение №20261012-046")
                 .doesNotContain("href=\"/dialogs/ T/100");
         verify(guard).hasUniqueTicket(ticketId);

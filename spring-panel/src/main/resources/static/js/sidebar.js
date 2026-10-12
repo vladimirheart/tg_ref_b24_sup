@@ -764,10 +764,12 @@
     const trimmed = url.trim();
     if (!trimmed) return;
     try {
-      const legacyMatch = trimmed.match(/(?:^|\/)dialogs\?[^#]*ticketId=([^&#]+)/i);
-      if (legacyMatch?.[1]) {
-        const ticketId = decodeURIComponent(legacyMatch[1]);
-        const dialogsTarget = `/dialogs/${encodeURIComponent(ticketId)}`;
+      const absolute = new URL(trimmed, window.location.origin);
+      const sameOrigin = absolute.origin === window.location.origin;
+      if (sameOrigin && absolute.pathname === '/dialogs' && absolute.searchParams.has('ticketId')) {
+        const ticketId = absolute.searchParams.get('ticketId');
+        if (!ticketId || !ticketId.trim()) return;
+        const dialogsTarget = `/dialogs?ticketId=${encodeURIComponent(ticketId)}`;
         const onDialogsPage = window.location.pathname === '/' || window.location.pathname === '/dialogs' || window.location.pathname.startsWith('/dialogs/');
         if (onDialogsPage && typeof window.openDialogDetailsByTicketId === 'function') {
           if (window.history?.pushState) {
@@ -779,9 +781,7 @@
         window.location.href = dialogsTarget;
         return;
       }
-      const absolute = new URL(trimmed, window.location.origin);
       const hash = absolute.hash || '';
-      const sameOrigin = absolute.origin === window.location.origin;
       if (hash.startsWith('#open=ticket:')) {
         const ticketId = hash.slice('#open=ticket:'.length);
         const dialogsTarget = `/dialogs/${encodeURIComponent(ticketId)}`;

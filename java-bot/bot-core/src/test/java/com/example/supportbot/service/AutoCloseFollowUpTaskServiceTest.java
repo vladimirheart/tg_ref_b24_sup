@@ -74,7 +74,7 @@ class AutoCloseFollowUpTaskServiceTest {
         assertThat(payload.source()).isEqualTo("dialog_auto_close");
         assertThat(payload.ticketIds()).containsExactly("T-100");
         assertThat(payload.coExecutors()).containsExactly("helper", "reviewer");
-        assertThat(payload.bodyHtml()).contains("/dialogs/T-100");
+        assertThat(payload.bodyHtml()).contains("/dialogs?ticketId=T-100");
         assertThat(payload.bodyHtml()).contains("Иван");
         assertThat(payload.title()).contains("T-100");
     }
@@ -94,6 +94,36 @@ class AutoCloseFollowUpTaskServiceTest {
         service.createTaskForAutoClosedDialog("T-101");
 
         verify(taskService, never()).createTask(any());
+    }
+
+    @Test
+    void taskQueryLinkPreservesOpaqueTicketId() {
+        String ticketId = " T/100?&%# Ю ";
+        TaskService taskService = mock(TaskService.class);
+        TicketResponsibleRepository responsibleRepository = mock(TicketResponsibleRepository.class);
+        TicketMessageRepository messageRepository = mock(TicketMessageRepository.class);
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        TicketResponsible responsible = new TicketResponsible();
+        responsible.setTicketId(ticketId);
+        responsible.setResponsible("owner");
+        when(responsibleRepository.findById(ticketId)).thenReturn(Optional.of(responsible));
+        when(messageRepository.findByTicketId(ticketId)).thenReturn(Optional.empty());
+        Task savedTask = new Task();
+        savedTask.setId(47L);
+        when(taskService.createTask(any())).thenReturn(savedTask);
+        AutoCloseFollowUpTaskService service = new AutoCloseFollowUpTaskService(
+                taskService, responsibleRepository, messageRepository, jdbcTemplate, NOOP_NEW_TRANSACTION);
+
+        service.createTaskForAutoClosedDialog(ticketId);
+
+        ArgumentCaptor<TaskService.TaskPayload> payloadCaptor = ArgumentCaptor.forClass(TaskService.TaskPayload.class);
+        verify(taskService).createTask(payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue().ticketIds()).containsExactly(ticketId);
+        assertThat(payloadCaptor.getValue().bodyHtml())
+                .contains("href=\"/dialogs?ticketId=%20T%2F100%3F%26%25%23%20%D0%AE%20\"")
+                .doesNotContain("href=\"/dialogs/%20T");
+        verify(responsibleRepository).findById(ticketId);
+        verify(messageRepository).findByTicketId(ticketId);
     }
 
     @Test
