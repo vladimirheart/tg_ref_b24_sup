@@ -4246,7 +4246,7 @@
       if (Number.isFinite(clientMessageId) && clientMessageId > 0) payloadBody.clientMessageId = clientMessageId;
       if (Number.isFinite(operatorMessageId) && operatorMessageId > 0) payloadBody.operatorMessageId = operatorMessageId;
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-review/approve`, {
+        const resp = await fetch(`/api/dialog-ticket/ai-review/approve?ticketId=${encodeURIComponent(ticketId)}`, {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
@@ -4282,7 +4282,7 @@
         return;
       }
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-learning/mapping`, {
+        const resp = await fetch(`/api/dialog-ticket/ai-learning/mapping?ticketId=${encodeURIComponent(ticketId)}`, {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
@@ -4313,7 +4313,7 @@
       const ticketId = exactLegacyTicketId(activeWorkspaceTicketId || workspaceComposerTicketId);
       if (!ticketId) return;
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-review/reject`, {
+        const resp = await fetch(`/api/dialog-ticket/ai-review/reject?ticketId=${encodeURIComponent(ticketId)}`, {
           method: 'POST',
           credentials: 'same-origin',
         });

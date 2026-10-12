@@ -124,7 +124,7 @@ function rowFor(ticketId, queryKey = ' review-key ') {
 async function checkTestbench(app, ticketId) {
   app.elements.get('aiOpsTestTicket').value = ticketId;
   app.elements.get('aiOpsTestMessage').value = '  message text  ';
-  app.respond(({ url }) => /\/(ai-reclassify|ai-retrieve-debug)$/.test(url)
+  app.respond(({ url }) => /\/(ai-reclassify|ai-retrieve-debug)(?:\?|$)/.test(url)
     ? { success: true, result: {} } : null);
   app.requests.length = 0;
   await app.click('aiOpsTestRun');
@@ -152,8 +152,8 @@ async function checkTestbench(app, ticketId) {
       assert.equal(app.location.href, '/dialogs?ticketId=' + encodeURIComponent(id));
       await checkTestbench(app, id);
       assert.deepEqual(app.requests.map(r => r.url), [
-        '/api/dialogs/' + encodeURIComponent(id) + '/ai-reclassify',
-        '/api/dialogs/' + encodeURIComponent(id) + '/ai-retrieve-debug',
+        '/api/dialog-ticket/ai-reclassify?ticketId=' + encodeURIComponent(id),
+        '/api/dialog-ticket/ai-retrieve-debug?ticketId=' + encodeURIComponent(id),
       ]);
       for (const request of app.requests) {
         assert.equal(request.init.method, 'POST');
@@ -226,11 +226,11 @@ async function checkTestbench(app, ticketId) {
     const app = await boot();
     app.elements.get('aiOpsTestTicket').value = ' T-EXACT ';
     app.elements.get('aiOpsTestMessage').value = ' message ';
-    app.respond(({ url }) => /\/(ai-reclassify|ai-retrieve-debug)$/.test(url)
+    app.respond(({ url }) => /\/(ai-reclassify|ai-retrieve-debug)(?:\?|$)/.test(url)
       ? { success: false, httpStatus: 500, error: 'preview_failed' } : null);
     app.requests.length = 0;
     await app.click('aiOpsTestRun');
-    assert(app.requests.every(r => r.url.includes('/%20T-EXACT%20/')));
+    assert(app.requests.every(r => new URL(r.url, 'https://panel.test').searchParams.get('ticketId') === ' T-EXACT '));
     assert.equal(app.requests.length, 2);
     assert.match(app.elements.get('aiOpsTestState').textContent, /preview_failed/);
     assert.equal(app.elements.get('aiOpsTestRun').disabled, false);

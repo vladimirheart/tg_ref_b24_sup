@@ -619,13 +619,13 @@
     const body = JSON.stringify({ message, message_type: 'text', attachment: '' });
     try {
       const [classificationResp, debugResp] = await Promise.all([
-        fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-reclassify`, {
+        fetch(`/api/dialog-ticket/ai-reclassify?ticketId=${encodeURIComponent(ticketId)}`, {
           method: 'POST',
           credentials: 'same-origin',
           headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
           body,
         }),
-        fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-retrieve-debug`, {
+        fetch(`/api/dialog-ticket/ai-retrieve-debug?ticketId=${encodeURIComponent(ticketId)}`, {
           method: 'POST',
           credentials: 'same-origin',
           headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),

@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/dialogs")
 public class DialogAiOpsController {
 
     private final DialogAiOpsService dialogAiOpsService;
@@ -32,7 +30,7 @@ public class DialogAiOpsController {
         this.dialogAuthorizationService = dialogAuthorizationService;
     }
 
-    @GetMapping("/{ticketId}/ai-suggestions")
+    @GetMapping("/api/dialogs/{ticketId}/ai-suggestions")
     public ResponseEntity<?> aiSuggestions(@PathVariable String ticketId,
                                            @RequestParam(value = "limit", required = false) Integer limit,
                                            Authentication authentication) {
@@ -40,7 +38,7 @@ public class DialogAiOpsController {
         return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadSuggestions(ticketId, limit));
     }
 
-    @PostMapping("/{ticketId}/ai-suggestions/feedback")
+    @PostMapping("/api/dialogs/{ticketId}/ai-suggestions/feedback")
     public ResponseEntity<?> aiSuggestionFeedback(@PathVariable String ticketId,
                                                   @RequestBody(required = false) AiSuggestionFeedbackRequest request,
                                                   Authentication authentication) {
@@ -65,13 +63,13 @@ public class DialogAiOpsController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
-    @GetMapping("/{ticketId}/ai-control")
+    @GetMapping("/api/dialogs/{ticketId}/ai-control")
     public ResponseEntity<?> aiControlState(@PathVariable String ticketId, Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_control_state", ticketId);
         return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadControlState(ticketId));
     }
 
-    @PostMapping("/{ticketId}/ai-control")
+    @PostMapping("/api/dialogs/{ticketId}/ai-control")
     public ResponseEntity<?> aiControlUpdate(@PathVariable String ticketId,
                                              @RequestBody(required = false) AiControlRequest request,
                                              Authentication authentication) {
@@ -92,13 +90,13 @@ public class DialogAiOpsController {
         ));
     }
 
-    @GetMapping("/{ticketId}/ai-review")
+    @GetMapping("/api/dialogs/{ticketId}/ai-review")
     public ResponseEntity<?> aiReview(@PathVariable String ticketId, Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_review", ticketId);
         return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadReview(ticketId));
     }
 
-    @PostMapping("/{ticketId}/ai-review/approve")
+    @PostMapping("/api/dialogs/{ticketId}/ai-review/approve")
     public ResponseEntity<?> approveAiReview(@PathVariable String ticketId,
                                              @RequestBody(required = false) AiReviewApproveRequest request,
                                              Authentication authentication) {
@@ -115,7 +113,7 @@ public class DialogAiOpsController {
         ));
     }
 
-    @PostMapping("/{ticketId}/ai-review/reject")
+    @PostMapping("/api/dialogs/{ticketId}/ai-review/reject")
     public ResponseEntity<?> rejectAiReview(@PathVariable String ticketId, Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_review_reject", ticketId);
         if (denied != null) {
@@ -125,7 +123,7 @@ public class DialogAiOpsController {
         return ResponseEntity.ok(dialogAiOpsService.rejectReview(ticketId, operator));
     }
 
-    @PostMapping("/{ticketId}/ai-learning/mapping")
+    @PostMapping("/api/dialogs/{ticketId}/ai-learning/mapping")
     public ResponseEntity<?> submitAiLearningMapping(@PathVariable String ticketId,
                                                      @RequestBody(required = false) AiLearningMappingRequest request,
                                                      Authentication authentication) {
@@ -148,7 +146,7 @@ public class DialogAiOpsController {
         ));
     }
 
-    @GetMapping("/{ticketId}/ai-decision-trace")
+    @GetMapping("/api/dialogs/{ticketId}/ai-decision-trace")
     public ResponseEntity<?> aiDecisionTrace(@PathVariable String ticketId,
                                              @RequestParam(value = "limit", required = false) Integer limit,
                                              Authentication authentication) {
@@ -156,7 +154,7 @@ public class DialogAiOpsController {
         return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadDecisionTrace(ticketId, limit));
     }
 
-    @PostMapping("/{ticketId}/ai-reclassify")
+    @PostMapping("/api/dialogs/{ticketId}/ai-reclassify")
     public ResponseEntity<?> aiReclassify(@PathVariable String ticketId,
                                           @RequestBody(required = false) AiDebugMessageRequest request,
                                           Authentication authentication) {
@@ -172,7 +170,7 @@ public class DialogAiOpsController {
         ));
     }
 
-    @PostMapping("/{ticketId}/ai-retrieve-debug")
+    @PostMapping("/api/dialogs/{ticketId}/ai-retrieve-debug")
     public ResponseEntity<?> aiRetrieveDebug(@PathVariable String ticketId,
                                              @RequestBody(required = false) AiRetrieveDebugRequest request,
                                              Authentication authentication) {
@@ -189,14 +187,88 @@ public class DialogAiOpsController {
         ));
     }
 
-    @GetMapping("/ai-reviews")
+    @GetMapping("/api/dialog-ticket/ai-suggestions")
+    public ResponseEntity<?> queryAiSuggestions(@RequestParam("ticketId") String ticketId,
+                                                @RequestParam(value = "limit", required = false) Integer limit,
+                                                Authentication authentication) {
+        return aiSuggestions(ticketId, limit, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/ai-suggestions/feedback")
+    public ResponseEntity<?> queryAiSuggestionFeedback(@RequestParam("ticketId") String ticketId,
+                                                       @RequestBody(required = false) AiSuggestionFeedbackRequest request,
+                                                       Authentication authentication) {
+        return aiSuggestionFeedback(ticketId, request, authentication);
+    }
+
+    @GetMapping("/api/dialog-ticket/ai-control")
+    public ResponseEntity<?> queryAiControlState(@RequestParam("ticketId") String ticketId,
+                                                 Authentication authentication) {
+        return aiControlState(ticketId, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/ai-control")
+    public ResponseEntity<?> queryAiControlUpdate(@RequestParam("ticketId") String ticketId,
+                                                  @RequestBody(required = false) AiControlRequest request,
+                                                  Authentication authentication) {
+        return aiControlUpdate(ticketId, request, authentication);
+    }
+
+    @GetMapping("/api/dialog-ticket/ai-review")
+    public ResponseEntity<?> queryAiReview(@RequestParam("ticketId") String ticketId,
+                                           Authentication authentication) {
+        return aiReview(ticketId, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/ai-review/approve")
+    public ResponseEntity<?> queryApproveAiReview(@RequestParam("ticketId") String ticketId,
+                                                 @RequestBody(required = false) AiReviewApproveRequest request,
+                                                 Authentication authentication) {
+        return approveAiReview(ticketId, request, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/ai-review/reject")
+    public ResponseEntity<?> queryRejectAiReview(@RequestParam("ticketId") String ticketId,
+                                                Authentication authentication) {
+        return rejectAiReview(ticketId, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/ai-learning/mapping")
+    public ResponseEntity<?> querySubmitAiLearningMapping(@RequestParam("ticketId") String ticketId,
+                                                          @RequestBody(required = false) AiLearningMappingRequest request,
+                                                          Authentication authentication) {
+        return submitAiLearningMapping(ticketId, request, authentication);
+    }
+
+    @GetMapping("/api/dialog-ticket/ai-decision-trace")
+    public ResponseEntity<?> queryAiDecisionTrace(@RequestParam("ticketId") String ticketId,
+                                                 @RequestParam(value = "limit", required = false) Integer limit,
+                                                 Authentication authentication) {
+        return aiDecisionTrace(ticketId, limit, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/ai-reclassify")
+    public ResponseEntity<?> queryAiReclassify(@RequestParam("ticketId") String ticketId,
+                                              @RequestBody(required = false) AiDebugMessageRequest request,
+                                              Authentication authentication) {
+        return aiReclassify(ticketId, request, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/ai-retrieve-debug")
+    public ResponseEntity<?> queryAiRetrieveDebug(@RequestParam("ticketId") String ticketId,
+                                                 @RequestBody(required = false) AiRetrieveDebugRequest request,
+                                                 Authentication authentication) {
+        return aiRetrieveDebug(ticketId, request, authentication);
+    }
+
+    @GetMapping("/api/dialogs/ai-reviews")
     public ResponseEntity<?> aiReviewsQueue(@RequestParam(value = "limit", required = false) Integer limit,
                                             Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_reviews_queue", null);
         return denied != null ? denied : ResponseEntity.ok(Map.of("success", true, "items", dialogAiOpsService.loadPendingReviewsQueue(limit)));
     }
 
-    @PostMapping("/ai-reviews/{queryKey}/approve")
+    @PostMapping("/api/dialogs/ai-reviews/{queryKey}/approve")
     public ResponseEntity<?> approveAiReviewByKey(@PathVariable String queryKey, Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_review_approve_key", null);
         if (denied != null) {
@@ -206,7 +278,7 @@ public class DialogAiOpsController {
         return ResponseEntity.ok(dialogAiOpsService.approveReviewByKey(queryKey, operator));
     }
 
-    @PostMapping("/ai-reviews/{queryKey}/reject")
+    @PostMapping("/api/dialogs/ai-reviews/{queryKey}/reject")
     public ResponseEntity<?> rejectAiReviewByKey(@PathVariable String queryKey, Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_review_reject_key", null);
         if (denied != null) {
@@ -216,7 +288,7 @@ public class DialogAiOpsController {
         return ResponseEntity.ok(dialogAiOpsService.rejectReviewByKey(queryKey, operator));
     }
 
-    @GetMapping("/ai-solution-memory")
+    @GetMapping("/api/dialogs/ai-solution-memory")
     public ResponseEntity<?> aiSolutionMemory(@RequestParam(value = "limit", required = false) Integer limit,
                                               @RequestParam(value = "query", required = false) String query,
                                               Authentication authentication) {
@@ -224,7 +296,7 @@ public class DialogAiOpsController {
         return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadSolutionMemory(limit, query));
     }
 
-    @PostMapping("/ai-solution-memory/{queryKey}")
+    @PostMapping("/api/dialogs/ai-solution-memory/{queryKey}")
     public ResponseEntity<?> updateAiSolutionMemory(@PathVariable String queryKey,
                                                     @RequestBody(required = false) AiSolutionMemoryUpdateRequest request,
                                                     Authentication authentication) {
@@ -246,7 +318,7 @@ public class DialogAiOpsController {
         ));
     }
 
-    @DeleteMapping("/ai-solution-memory/{queryKey}")
+    @DeleteMapping("/api/dialogs/ai-solution-memory/{queryKey}")
     public ResponseEntity<?> deleteAiSolutionMemory(@PathVariable String queryKey,
                                                     Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_solution_memory_delete", null);
@@ -257,7 +329,7 @@ public class DialogAiOpsController {
         return ResponseEntity.ok(dialogAiOpsService.deleteSolutionMemory(queryKey, operator));
     }
 
-    @GetMapping("/ai-solution-memory/{queryKey}/history")
+    @GetMapping("/api/dialogs/ai-solution-memory/{queryKey}/history")
     public ResponseEntity<?> aiSolutionMemoryHistory(@PathVariable String queryKey,
                                                      @RequestParam(value = "limit", required = false) Integer limit,
                                                      Authentication authentication) {
@@ -265,7 +337,7 @@ public class DialogAiOpsController {
         return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadSolutionMemoryHistory(queryKey, limit));
     }
 
-    @PostMapping("/ai-solution-memory/{queryKey}/rollback")
+    @PostMapping("/api/dialogs/ai-solution-memory/{queryKey}/rollback")
     public ResponseEntity<?> rollbackAiSolutionMemory(@PathVariable String queryKey,
                                                       @RequestBody(required = false) AiSolutionMemoryRollbackRequest request,
                                                       Authentication authentication) {
@@ -280,7 +352,7 @@ public class DialogAiOpsController {
         return ResponseEntity.ok(dialogAiOpsService.rollbackSolutionMemory(queryKey, request.historyId(), operator));
     }
 
-    @GetMapping("/ai-intents")
+    @GetMapping("/api/dialogs/ai-intents")
     public ResponseEntity<?> aiIntents(@RequestParam(value = "limit", required = false) Integer limit,
                                        @RequestParam(value = "query", required = false) String query,
                                        @RequestParam(value = "enabled", required = false) Boolean enabled,
@@ -289,7 +361,7 @@ public class DialogAiOpsController {
         return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadIntents(limit, query, enabled));
     }
 
-    @PostMapping("/ai-intents")
+    @PostMapping("/api/dialogs/ai-intents")
     public ResponseEntity<?> upsertAiIntent(@RequestBody(required = false) AiIntentUpsertRequest request,
                                             Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_intents_update", null);
@@ -315,7 +387,7 @@ public class DialogAiOpsController {
         ));
     }
 
-    @GetMapping("/ai-knowledge-units")
+    @GetMapping("/api/dialogs/ai-knowledge-units")
     public ResponseEntity<?> aiKnowledgeUnits(@RequestParam(value = "limit", required = false) Integer limit,
                                               @RequestParam(value = "query", required = false) String query,
                                               @RequestParam(value = "status", required = false) String status,
@@ -324,7 +396,7 @@ public class DialogAiOpsController {
         return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadKnowledgeUnits(limit, query, status));
     }
 
-    @PostMapping("/ai-knowledge-units")
+    @PostMapping("/api/dialogs/ai-knowledge-units")
     public ResponseEntity<?> upsertAiKnowledgeUnit(@RequestBody(required = false) AiKnowledgeUnitUpsertRequest request,
                                                    Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_knowledge_units_update", null);
@@ -348,14 +420,14 @@ public class DialogAiOpsController {
         ));
     }
 
-    @GetMapping("/ai-monitoring/summary")
+    @GetMapping("/api/dialogs/ai-monitoring/summary")
     public ResponseEntity<?> aiMonitoringSummary(@RequestParam(value = "days", required = false) Integer days,
                                                  Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_monitoring_summary", null);
         return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadMonitoringSummary(days));
     }
 
-    @GetMapping("/ai-monitoring/events")
+    @GetMapping("/api/dialogs/ai-monitoring/events")
     public ResponseEntity<?> aiMonitoringEvents(@RequestParam(value = "days", required = false) Integer days,
                                                 @RequestParam(value = "limit", required = false) Integer limit,
                                                 @RequestParam(value = "ticketId", required = false) String ticketId,
@@ -376,13 +448,13 @@ public class DialogAiOpsController {
         return ResponseEntity.ok(Map.of("success", true, "items", items));
     }
 
-    @GetMapping("/ai-monitoring/offline-eval")
+    @GetMapping("/api/dialogs/ai-monitoring/offline-eval")
     public ResponseEntity<?> aiOfflineEval(Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_offline_eval", null);
         return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadOfflineEvalSummary());
     }
 
-    @PostMapping("/ai-monitoring/offline-eval/run")
+    @PostMapping("/api/dialogs/ai-monitoring/offline-eval/run")
     public ResponseEntity<?> runAiOfflineEval(Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_offline_eval_run", null);
         if (denied != null) {

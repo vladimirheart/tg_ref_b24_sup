@@ -9,11 +9,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.config.RestExceptionHandler;
+import com.example.panel.service.DialogAiOpsService;
+import com.example.panel.service.DialogAuthorizationService;
 import com.example.panel.service.DialogReadService;
 import com.example.panel.service.DialogWorkspaceService;
 import com.example.panel.service.KnowledgeNoteLocationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -39,6 +43,9 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootTest(
         classes = DialogTicketQueryHttpIntegrationTest.TestApplication.class,
@@ -50,13 +57,26 @@ class DialogTicketQueryHttpIntegrationTest {
     @EnableAutoConfiguration(exclude = {DataSourceAutoConfiguration.class, FlywayAutoConfiguration.class})
     @EnableMethodSecurity
     @Import({DialogTicketQueryReadController.class, DialogWorkspaceController.class,
-            DialogKnowledgeNotesApiController.class, RestExceptionHandler.class})
+            DialogKnowledgeNotesApiController.class, DialogAiOpsController.class, RestExceptionHandler.class})
     static class TestApplication {
         @Bean
         UserDetailsService testUsers() {
             return new InMemoryUserDetailsManager(User.withUsername("operator")
                     .password("{noop}test-password")
                     .authorities("PAGE_DIALOGS", "PAGE_KNOWLEDGE_BASE").build());
+        }
+
+        @Bean
+        TestCsrfEndpoint testCsrfEndpoint() {
+            return new TestCsrfEndpoint();
+        }
+    }
+
+    @RestController
+    static class TestCsrfEndpoint {
+        @GetMapping("/test/csrf")
+        public Map<String, String> csrf(CsrfToken token) {
+            return Map.of("token", token.getToken(), "headerName", token.getHeaderName());
         }
     }
 
@@ -74,6 +94,12 @@ class DialogTicketQueryHttpIntegrationTest {
 
     @MockBean
     private KnowledgeNoteLocationService knowledgeNoteLocationService;
+
+    @MockBean
+    private DialogAiOpsService dialogAiOpsService;
+
+    @MockBean
+    private DialogAuthorizationService dialogAuthorizationService;
 
     @Test
     void encodedOpaqueQueryReachesAllThreeServicesThroughEmbeddedTomcat() throws Exception {
@@ -106,12 +132,84 @@ class DialogTicketQueryHttpIntegrationTest {
         verify(dialogReadService).loadParticipants(ticketId);
     }
 
+    @Test
+    void aiQueryReadsRoundTripOpaqueIdThroughEmbeddedTomcat() throws Exception {
+        String ticketId = " T/100?&%# Ю ";
+        String encodedId = URLEncoder.encode(ticketId, StandardCharsets.UTF_8).replace("+", "%20");
+        Map<String, Object> payload = Map.of("success", true, "ticket_id", ticketId);
+        when(dialogAiOpsService.loadSuggestions(ticketId, 5)).thenReturn(payload);
+        when(dialogAiOpsService.loadControlState(ticketId)).thenReturn(payload);
+        when(dialogAiOpsService.loadReview(ticketId)).thenReturn(payload);
+        when(dialogAiOpsService.loadDecisionTrace(ticketId, 5)).thenReturn(payload);
+
+        for (String endpoint : List.of("ai-suggestions", "ai-control", "ai-review", "ai-decision-trace")) {
+            HttpResponse<String> response = get("/api/dialog-ticket/" + endpoint + "?ticketId=" + encodedId + "&limit=5");
+            assertThat(response.statusCode()).isEqualTo(200);
+            assertThat(objectMapper.readTree(response.body()).get("ticket_id").asText()).isEqualTo(ticketId);
+        }
+
+        verify(dialogAiOpsService).loadSuggestions(ticketId, 5);
+        verify(dialogAiOpsService).loadControlState(ticketId);
+        verify(dialogAiOpsService).loadReview(ticketId);
+        verify(dialogAiOpsService).loadDecisionTrace(ticketId, 5);
+        for (String action : List.of("ai_suggestions", "ai_control_state", "ai_review", "ai_decision_trace")) {
+            verify(dialogAuthorizationService).requirePermission(any(), eq("can_reply"), eq(action), eq(ticketId));
+        }
+    }
+
+    @Test
+    void aiQueryPostRequiresCsrfAndKeepsExactIdBodyAndOperatorOverHttp() throws Exception {
+        String ticketId = " T/100?&%# Ю ";
+        String encodedId = URLEncoder.encode(ticketId, StandardCharsets.UTF_8).replace("+", "%20");
+        String path = "/api/dialog-ticket/ai-control?ticketId=" + encodedId;
+        String body = "{\"ai_disabled\":true,\"autoReplyBlocked\":false,\"reason\":\" reason \"}";
+        when(dialogAiOpsService.updateControlState(ticketId, true, false, " reason ", "operator"))
+                .thenReturn(Map.of("success", true, "ticket_id", ticketId));
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
+                .cookieHandler(new CookieManager(null, CookiePolicy.ACCEPT_ALL)).build();
+
+        HttpResponse<String> preLoginTokenResponse = client.send(authenticatedRequest("/test/csrf").GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(preLoginTokenResponse.statusCode()).isEqualTo(200);
+        var preLoginToken = objectMapper.readTree(preLoginTokenResponse.body());
+        HttpResponse<String> login = client.send(authenticatedRequest("/login")
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header(preLoginToken.get("headerName").asText(), preLoginToken.get("token").asText())
+                .POST(HttpRequest.BodyPublishers.ofString("username=operator&password=test-password")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(login.statusCode()).isEqualTo(302);
+
+        HttpResponse<String> denied = client.send(authenticatedRequest(path).header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(denied.statusCode()).isEqualTo(403);
+        org.mockito.Mockito.verifyNoInteractions(dialogAiOpsService, dialogAuthorizationService);
+
+        HttpResponse<String> tokenResponse = client.send(authenticatedRequest("/test/csrf").GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(tokenResponse.statusCode()).isEqualTo(200);
+        var token = objectMapper.readTree(tokenResponse.body());
+        HttpResponse<String> accepted = client.send(authenticatedRequest(path)
+                .header("Content-Type", "application/json")
+                .header(token.get("headerName").asText(), token.get("token").asText())
+                .POST(HttpRequest.BodyPublishers.ofString(body)).build(),
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        assertThat(accepted.statusCode()).isEqualTo(200);
+        assertThat(objectMapper.readTree(accepted.body()).get("ticket_id").asText()).isEqualTo(ticketId);
+        verify(dialogAiOpsService).updateControlState(ticketId, true, false, " reason ", "operator");
+        verify(dialogAuthorizationService).requirePermission(
+                argThat(auth -> "operator".equals(auth.getName())), eq("can_reply"), eq("ai_control_update"), eq(ticketId));
+    }
+
     private HttpResponse<String> get(String path) throws Exception {
-        String credentials = Base64.getEncoder().encodeToString(
-                "operator:test-password".getBytes(StandardCharsets.UTF_8));
-        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-                .header("Authorization", "Basic " + credentials).timeout(Duration.ofSeconds(10)).GET().build();
+        HttpRequest request = authenticatedRequest(path).GET().build();
         return HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
                 .send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
+    private HttpRequest.Builder authenticatedRequest(String path) {
+        String credentials = Base64.getEncoder().encodeToString(
+                "operator:test-password".getBytes(StandardCharsets.UTF_8));
+        return HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .header("Authorization", "Basic " + credentials).timeout(Duration.ofSeconds(10));
     }
 }

@@ -70,7 +70,7 @@
       elements.workspaceAiSuggestionsList.classList.add('d-none');
       elements.workspaceAiSuggestionsList.innerHTML = '';
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-suggestions?limit=3`, {
+        const resp = await fetch(`/api/dialog-ticket/ai-suggestions?ticketId=${encodeURIComponent(normalizedTicketId)}&limit=3`, {
           credentials: 'same-origin',
           cache: 'no-store',
         });
@@ -146,7 +146,7 @@
       elements.detailsAiList.classList.add('d-none');
       elements.detailsAiList.innerHTML = '';
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-suggestions?limit=3`, {
+        const resp = await fetch(`/api/dialog-ticket/ai-suggestions?ticketId=${encodeURIComponent(normalizedTicketId)}&limit=3`, {
           credentials: 'same-origin',
           cache: 'no-store',
         });
@@ -192,7 +192,7 @@
       if (!normalizedTicketId) {
         return false;
       }
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-suggestions/feedback`, {
+      const resp = await fetch(`/api/dialog-ticket/ai-suggestions/feedback?ticketId=${encodeURIComponent(normalizedTicketId)}`, {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
@@ -220,7 +220,7 @@
       elements.workspaceAiDisableForDialog.disabled = true;
       elements.workspaceAiHandoffNoAutoReply.disabled = true;
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-control`, {
+        const resp = await fetch(`/api/dialog-ticket/ai-control?ticketId=${encodeURIComponent(normalizedTicketId)}`, {
           credentials: 'same-origin',
           cache: 'no-store',
         });
@@ -259,7 +259,7 @@
       if (!normalizedTicketId) {
         return;
       }
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-control`, {
+      const resp = await fetch(`/api/dialog-ticket/ai-control?ticketId=${encodeURIComponent(normalizedTicketId)}`, {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
@@ -549,7 +549,7 @@
         return;
       }
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-review`, {
+        const resp = await fetch(`/api/dialog-ticket/ai-review?ticketId=${encodeURIComponent(normalizedTicketId)}`, {
           credentials: 'same-origin',
           cache: 'no-store',
         });
