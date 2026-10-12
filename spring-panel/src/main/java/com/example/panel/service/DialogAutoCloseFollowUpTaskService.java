@@ -9,6 +9,8 @@ import com.example.panel.repository.ProjectRepository;
 import com.example.panel.repository.TicketResponsibleRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -240,7 +242,7 @@ public class DialogAutoCloseFollowUpTaskService {
             html.append("</ul>");
         }
         html.append("<p><a href=\"/dialogs/")
-            .append(escapeHtml(ticketId))
+            .append(escapeHtml(URLEncoder.encode(ticketId, StandardCharsets.UTF_8).replace("+", "%20")))
             .append("\">Открыть ")
             .append(escapeHtml(dialogTaskDisplayService.dialogReference(ticketId)))
             .append("</a></p>");

@@ -177,6 +177,42 @@ class DialogAutoCloseFollowUpTaskServiceTest {
         verify(responsibleRepository, never()).findById("T-100");
     }
 
+    @Test
+    void dialogLinkPercentEncodesOpaqueTicketIdWithoutChangingTaskLink() {
+        String ticketId = " T/100?&%# Ю ";
+        PanelTaskService panelTaskService = mock(PanelTaskService.class);
+        TicketResponsibleRepository responsibleRepository = mock(TicketResponsibleRepository.class);
+        MessageRepository messageRepository = mock(MessageRepository.class);
+        TicketResponsible responsible = new TicketResponsible();
+        responsible.setTicketId(ticketId);
+        responsible.setResponsible("owner");
+        when(responsibleRepository.findById(ticketId)).thenReturn(Optional.of(responsible));
+        when(messageRepository.findByTicketId(ticketId)).thenReturn(Optional.empty());
+        DialogLookupReadService lookup = mock(DialogLookupReadService.class);
+        when(lookup.resolveRequestNumber(ticketId)).thenReturn("20261012-046");
+        LegacyTicketIdJdbcGuard guard = uniqueTicketGuard(ticketId);
+        DialogAutoCloseFollowUpTaskService service = new DialogAutoCloseFollowUpTaskService(
+                panelTaskService, responsibleRepository, messageRepository, mock(ProjectRepository.class),
+                new DialogTaskDisplayService(lookup), new ObjectMapper(), mock(JdbcTemplate.class),
+                transactionManager(), guard);
+
+        service.createTaskForAutoClosedDialog(ticketId);
+
+        ArgumentCaptor<PanelTaskService.TaskPayload> payloadCaptor =
+                ArgumentCaptor.forClass(PanelTaskService.TaskPayload.class);
+        verify(panelTaskService).createTask(payloadCaptor.capture(), eq(false));
+        PanelTaskService.TaskPayload payload = payloadCaptor.getValue();
+        assertThat(payload.ticketIds()).containsExactly(ticketId);
+        assertThat(payload.title()).isEqualTo("Проверить автозакрытое обращение №20261012-046");
+        assertThat(payload.bodyHtml())
+                .contains("href=\"/dialogs/%20T%2F100%3F%26%25%23%20%D0%AE%20\"")
+                .contains("Открыть обращение №20261012-046")
+                .doesNotContain("href=\"/dialogs/ T/100");
+        verify(guard).hasUniqueTicket(ticketId);
+        verify(responsibleRepository).findById(ticketId);
+        verify(messageRepository).findByTicketId(ticketId);
+    }
+
     private LegacyTicketIdJdbcGuard uniqueTicketGuard(String ticketId) {
         LegacyTicketIdJdbcGuard guard = mock(LegacyTicketIdJdbcGuard.class);
         when(guard.hasUniqueTicket(ticketId)).thenReturn(true);
