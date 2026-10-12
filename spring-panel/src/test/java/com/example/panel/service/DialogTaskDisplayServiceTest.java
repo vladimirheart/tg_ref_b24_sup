@@ -51,6 +51,28 @@ class DialogTaskDisplayServiceTest {
     }
 
     @Test
+    void historicalTaskTitleAndNotificationUseExactPaddedLegacyTicketId() {
+        DialogLookupReadService lookup = mock(DialogLookupReadService.class);
+        when(lookup.resolveRequestNumber(" T-100 ")).thenReturn("20261012-010");
+        when(lookup.resolveRequestNumber(" null ")).thenReturn("20261012-011");
+        when(lookup.resolveRequestNumber("T-100")).thenReturn("20261012-009");
+        DialogTaskDisplayService service = new DialogTaskDisplayService(lookup);
+
+        assertThat(service.normalizeTitle("Обращение # T-100 : Клиент"))
+                .isEqualTo("Обращение №20261012-010: Клиент");
+        assertThat(service.normalizeTitle("Проверить автозакрытый диалог # null : Ответ"))
+                .isEqualTo("Проверить автозакрытое обращение №20261012-011: Ответ");
+        assertThat(service.normalizeTitle("Обращение # T-100 "))
+                .isEqualTo("Обращение №20261012-010");
+        assertThat(service.normalizeTitle("Проверить автозакрытый диалог # null "))
+                .isEqualTo("Проверить автозакрытое обращение №20261012-011");
+        assertThat(service.normalizeNotificationText("Новая задача «Обращение # T-100 : Клиент»"))
+                .isEqualTo("Новая задача «Обращение №20261012-010: Клиент»");
+        verify(lookup, org.mockito.Mockito.never()).resolveRequestNumber("T-100");
+        verify(lookup, org.mockito.Mockito.never()).resolveRequestNumber("null");
+    }
+
+    @Test
     void missingRequestNumberRemovesVisibleTicketId() {
         DialogLookupReadService lookup = mock(DialogLookupReadService.class);
         DialogTaskDisplayService service = new DialogTaskDisplayService(lookup);

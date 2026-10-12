@@ -46,7 +46,7 @@ public class DialogTaskDisplayService {
     }
 
     public String normalizeTitle(String title) {
-        String current = trimToNull(title);
+        String current = StringUtils.hasText(title) ? title.stripLeading() : null;
         if (current == null) {
             return title;
         }
@@ -84,7 +84,8 @@ public class DialogTaskDisplayService {
                                         String fallback) {
         String remainder = title.substring(legacyPrefix.length());
         int separator = remainder.indexOf(':');
-        String ticketId = trimToNull(separator >= 0 ? remainder.substring(0, separator) : remainder);
+        String rawTicketId = separator >= 0 ? remainder.substring(0, separator) : remainder;
+        String ticketId = StringUtils.hasText(rawTicketId) ? rawTicketId : null;
         String suffix = separator >= 0 ? remainder.substring(separator) : "";
         String requestNumber = resolveCanonicalRequestNumber(ticketId);
         return (requestNumber != null ? numberedPrefix + requestNumber : fallback) + suffix;

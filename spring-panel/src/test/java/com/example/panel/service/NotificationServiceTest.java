@@ -91,6 +91,35 @@ class NotificationServiceTest {
     }
 
     @Test
+    void storedTaskNotificationResolvesPaddedLegacyTicketWithoutPlainSibling() {
+        NotificationRepository repository = mock(NotificationRepository.class);
+        DialogLookupReadService lookup = mock(DialogLookupReadService.class);
+        when(lookup.resolveRequestNumber(" T-101 ")).thenReturn("20261012-010");
+        when(lookup.resolveRequestNumber("T-101")).thenReturn("20261012-009");
+        Notification stored = new Notification();
+        stored.setId(101L);
+        stored.setUserIdentity("operator");
+        stored.setText("Новая задача «Обращение # T-101 : Проверить»");
+        stored.setUrl("/tasks");
+        stored.setIsRead(Boolean.FALSE);
+        stored.setCreatedAt(OffsetDateTime.parse("2026-10-12T12:00:00Z"));
+        when(repository.findByUserIdentityOrderByCreatedAtDesc("operator")).thenReturn(List.of(stored));
+        NotificationService service = new NotificationService(repository, mock(JdbcTemplate.class),
+                mock(JdbcTemplate.class), mock(UiEventStreamService.class),
+                mock(LegacyTicketIdJdbcGuard.class));
+        ReflectionTestUtils.setField(service, "dialogLookupReadService", lookup);
+        ReflectionTestUtils.setField(service, "dialogTaskDisplayService", new DialogTaskDisplayService(lookup));
+
+        var items = service.findForUser("operator");
+
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).text()).isEqualTo("Новая задача «Обращение №20261012-010: Проверить»");
+        assertThat(items.get(0).url()).isEqualTo("/tasks");
+        verify(lookup).resolveRequestNumber(" T-101 ");
+        verify(lookup, org.mockito.Mockito.never()).resolveRequestNumber("T-101");
+    }
+
+    @Test
     void autoCloseFormatterNeverFallsBackToUuid() {
         NotificationRepository repository = mock(NotificationRepository.class);
         NotificationService service = new NotificationService(
