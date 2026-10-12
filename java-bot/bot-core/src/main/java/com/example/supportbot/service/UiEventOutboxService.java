@@ -79,7 +79,7 @@ public class UiEventOutboxService {
                     """,
                     nextEventId(),
                     eventType.trim(),
-                    ticketId.trim(),
+                    ticketId,
                     channelId,
                     StringUtils.hasText(messageText) ? messageText.trim() : null,
                     StringUtils.hasText(messageType) ? messageType.trim() : null,
