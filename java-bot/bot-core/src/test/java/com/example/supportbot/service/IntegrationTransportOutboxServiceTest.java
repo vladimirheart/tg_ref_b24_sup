@@ -201,6 +201,45 @@ class IntegrationTransportOutboxServiceTest {
         )).isEqualTo(1);
     }
 
+    @Test
+    void inboundOutboxMetadataKeepsOpaqueTicketIdsDistinctFromPayload() {
+        for (String ticketId : List.of("T-42", " T-42 ", "null", " null ")) {
+            InboundClientMessageEvent event = new InboundClientMessageEvent(
+                UUID.randomUUID().toString(), "client_message.active_ticket", "telegram", 10L,
+                ticketId, 20L, "u20", "tester", "Test User", "hello", "text",
+                null, null, null, null, null, OffsetDateTime.now()
+            );
+            service.enqueueInboundClientMessage(event, "integration.inbound.telegram", properties);
+            assertThat(ticketIdOf(event.eventId())).isEqualTo(ticketId);
+            assertThat(jdbcTemplate.queryForObject(
+                "SELECT payload_json::jsonb ->> 'ticketId' FROM integration_transport_outbox WHERE event_id = ?",
+                String.class, event.eventId()
+            )).isEqualTo(ticketId);
+        }
+    }
+
+    @Test
+    void ticketCreatedOutboxMetadataKeepsOpaqueTicketIdAndBlankBecomesNull() {
+        for (String ticketId : new String[] {"T-99", " T-99 ", "null", " null ", "   ", null}) {
+            ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(
+                UUID.randomUUID().toString(), "ticket.created.initial_contact", "telegram", 10L,
+                ticketId, 20L, "u20", "tester", "Test User", "business", "type", "city",
+                "location", "problem", OffsetDateTime.now(), List.of(), List.of()
+            );
+            service.enqueueConversationTicketCreated(event, properties);
+            assertThat(ticketIdOf(event.eventId())).isEqualTo(
+                ticketId == null || ticketId.isBlank() ? null : ticketId
+            );
+        }
+    }
+
+    private String ticketIdOf(String eventId) {
+        return jdbcTemplate.queryForObject(
+            "SELECT ticket_id FROM integration_transport_outbox WHERE event_id = ?",
+            String.class, eventId
+        );
+    }
+
     private String statusOf(String eventId) {
         return jdbcTemplate.queryForObject(
             "SELECT status FROM integration_transport_outbox WHERE event_id = ?",

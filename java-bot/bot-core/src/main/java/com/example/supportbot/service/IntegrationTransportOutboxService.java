@@ -154,7 +154,7 @@ public class IntegrationTransportOutboxService {
             toJson(payload, eventId),
             channelId,
             userId,
-            normalize(ticketId),
+            StringUtils.hasText(ticketId) ? ticketId : null,
             requestId,
             "queued",
             0,
