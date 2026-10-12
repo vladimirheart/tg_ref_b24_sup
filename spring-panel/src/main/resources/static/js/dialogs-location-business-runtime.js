@@ -52,6 +52,10 @@
     if (routeMatch) {
       try { return decodeURIComponent(routeMatch[1]); } catch (_error) { return routeMatch[1]; }
     }
+    if (window.location.pathname === '/dialogs') {
+      const queryTicketId = new URLSearchParams(window.location.search || '').get('ticketId');
+      if (queryTicketId?.trim()) return queryTicketId;
+    }
     const taskLink = document.getElementById('dialogDetailsCreateTask');
     try {
       const url = new URL(taskLink?.href || '', window.location.origin);

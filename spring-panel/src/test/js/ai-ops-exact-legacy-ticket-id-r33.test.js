@@ -149,7 +149,7 @@ async function checkTestbench(app, ticketId) {
         'ticket must remain HTML escaped');
       const { buttons } = rowFor(storedId);
       await app.click('aiOpsReviewTableBody', buttons['[data-ai-review-open]']);
-      assert.equal(app.location.href, '/dialogs/' + encodeURIComponent(id));
+      assert.equal(app.location.href, '/dialogs?ticketId=' + encodeURIComponent(id));
       await checkTestbench(app, id);
       assert.deepEqual(app.requests.map(r => r.url), [
         '/api/dialogs/' + encodeURIComponent(id) + '/ai-reclassify',

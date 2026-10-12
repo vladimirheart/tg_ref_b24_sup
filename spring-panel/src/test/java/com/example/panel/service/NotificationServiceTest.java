@@ -20,6 +20,28 @@ import org.springframework.test.util.ReflectionTestUtils;
 class NotificationServiceTest {
 
     @Test
+    void generatedDialogUrlUsesExactQueryIdAndFormatsNotification() {
+        NotificationRepository repository = mock(NotificationRepository.class);
+        DialogLookupReadService lookup = mock(DialogLookupReadService.class);
+        String ticketId = " T/100?&%# Ю ";
+        when(lookup.resolveRequestNumber(ticketId)).thenReturn("20261012-048");
+        NotificationService service = new NotificationService(repository, mock(JdbcTemplate.class),
+                mock(JdbcTemplate.class), mock(UiEventStreamService.class),
+                mock(LegacyTicketIdJdbcGuard.class));
+        ReflectionTestUtils.setField(service, "dialogLookupReadService", lookup);
+
+        String url = service.buildDialogUrl(ticketId);
+        service.notifyUser("operator", "Новое обращение", url);
+
+        assertThat(url).isEqualTo("/dialogs?ticketId=%20T%2F100%3F%26%25%23%20%D0%AE%20");
+        ArgumentCaptor<Notification> saved = ArgumentCaptor.forClass(Notification.class);
+        verify(repository).save(saved.capture());
+        assertThat(saved.getValue().getUrl()).isEqualTo(url);
+        assertThat(saved.getValue().getText()).isEqualTo("Новое обращение №20261012-048");
+        verify(lookup).resolveRequestNumber(ticketId);
+    }
+
+    @Test
     void dialogBellTextUsesCanonicalRequestNumberAndDropsUuidPreview() {
         NotificationRepository repository = mock(NotificationRepository.class);
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);

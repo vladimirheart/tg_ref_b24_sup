@@ -689,7 +689,7 @@
         const meta = document.getElementById('clientHistoryMeta');
         const openDialog = document.getElementById('clientHistoryOpenDialog');
         if (meta) meta.textContent = [requestNumber ? `№ ${requestNumber}` : ticketId, business, location ? `Локация: ${location}` : ''].filter(Boolean).join(' · ');
-        if (openDialog) { const query = channelId ? `?channelId=${encodeURIComponent(channelId)}` : ''; openDialog.href = `/dialogs/${encodeURIComponent(ticketId)}${query}`; }
+        if (openDialog) { const query = channelId ? `&channelId=${encodeURIComponent(channelId)}` : ''; openDialog.href = `/dialogs?ticketId=${encodeURIComponent(ticketId)}${query}`; }
         const container = document.getElementById('clientHistoryMessages');
         if (container) {
             container.innerHTML = '<div class="text-muted">Загрузка истории...</div>';

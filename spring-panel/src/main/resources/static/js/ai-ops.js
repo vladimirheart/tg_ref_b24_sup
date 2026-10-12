@@ -896,7 +896,7 @@
       const ticketId = exactLegacyTicketId(row.getAttribute('data-ai-review-ticket'));
       const openBtn = event.target.closest('[data-ai-review-open]');
       if (openBtn && ticketId) {
-        window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
+        window.location.href = `/dialogs?ticketId=${encodeURIComponent(ticketId)}`;
         return;
       }
       const approveBtn = event.target.closest('[data-ai-review-approve]');

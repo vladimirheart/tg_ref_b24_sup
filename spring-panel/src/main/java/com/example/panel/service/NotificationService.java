@@ -268,6 +268,10 @@ public class NotificationService {
             return null;
         }
         String value = url.trim();
+        String queryTicketId = extractDialogTicketId(value);
+        if (queryTicketId != null) {
+            return queryTicketId;
+        }
         int marker = value.indexOf("/dialogs/");
         if (marker < 0) {
             return null;
@@ -343,7 +347,8 @@ public class NotificationService {
         if (normalizedTicketId == null) {
             return "/dialogs";
         }
-        return "/dialogs/" + URLEncoder.encode(normalizedTicketId, StandardCharsets.UTF_8);
+        return "/dialogs?ticketId="
+                + URLEncoder.encode(normalizedTicketId, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     @Transactional(readOnly = true)

@@ -475,7 +475,7 @@
                         th:data-last-message-timestamp="${dialog.lastMessageTimestamp()}">
                         <td class="dialog-actions" data-column-key="actions">
                             <div class="dialog-actions-inline">
-                                <a th:href="@{/dialogs/{ticketId}(ticketId=${dialog.ticketId},channelId=${dialog.channelId()})}"
+                                <a th:href="@{/dialogs(ticketId=${dialog.ticketId},channelId=${dialog.channelId()})}"
                                    class="dialog-open-btn dialog-open-icon"
                                    th:data-ticket-id="${dialog.ticketId}"
                                    aria-label="Открыть диалог"

@@ -298,7 +298,7 @@
 
     function buildWorkspaceDialogUrl(ticketId, channelId) {
       if (!ticketId) return '/dialogs';
-      const basePath = `/dialogs/${encodeURIComponent(ticketId)}`;
+      const basePath = `/dialogs?ticketId=${encodeURIComponent(ticketId)}`;
       return typeof options.withChannelParam === 'function'
         ? options.withChannelParam(basePath, channelId)
         : basePath;

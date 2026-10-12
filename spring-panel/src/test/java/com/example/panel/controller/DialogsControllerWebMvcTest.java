@@ -96,7 +96,7 @@ class DialogsControllerWebMvcTest {
         stubNavigationDefaults();
         List<DialogListItem> dialogs = Collections.singletonList(
                 new DialogListItem(
-                        "T-555",
+                        " T/555?&%# Ю ",
                         1001L,
                         2002L,
                         "client",
@@ -133,7 +133,9 @@ class DialogsControllerWebMvcTest {
                 .andExpect(model().attributeExists("myUnansweredDialogs"))
                 .andExpect(model().attributeExists("myInWorkDialogs"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"dialogsTable\"")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("T-555")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(" T/555?&amp;%# Ю ")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "href=\"/dialogs?ticketId=%20T/555?%26%25%23%20%D0%AE%20&amp;channelId=7\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("data-page-key=\"ai-ops\"")));
     }
 

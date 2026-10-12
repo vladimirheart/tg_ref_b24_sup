@@ -784,7 +784,7 @@
       const hash = absolute.hash || '';
       if (hash.startsWith('#open=ticket:')) {
         const ticketId = hash.slice('#open=ticket:'.length);
-        const dialogsTarget = `/dialogs/${encodeURIComponent(ticketId)}`;
+        const dialogsTarget = `/dialogs?ticketId=${encodeURIComponent(ticketId)}`;
         const onDialogsPage = window.location.pathname === '/' || window.location.pathname === '/dialogs' || window.location.pathname.startsWith('/dialogs/');
         if (onDialogsPage && typeof window.openDialogDetailsByTicketId === 'function') {
           if (window.history?.pushState) {

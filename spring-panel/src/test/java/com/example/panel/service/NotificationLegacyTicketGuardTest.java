@@ -65,13 +65,13 @@ class NotificationLegacyTicketGuardTest {
         jdbc.update("INSERT INTO ticket_participants VALUES (' T-PLAIN ', 'lead')");
 
         assertThat(service.findDialogRecipients(" T-PLAIN ")).isEqualTo(Set.of("lead", "backup"));
-        assertThat(service.buildDialogUrl(" T-PLAIN ")).isEqualTo("/dialogs/+T-PLAIN+");
+        assertThat(service.buildDialogUrl(" T-PLAIN ")).isEqualTo("/dialogs?ticketId=%20T-PLAIN%20");
         service.notifyDialogParticipants(" T-PLAIN ", "rating 5/5", service.buildDialogUrl(" T-PLAIN "), "Lead");
 
         ArgumentCaptor<Notification> saved = ArgumentCaptor.forClass(Notification.class);
         verify(repository).save(saved.capture());
         assertThat(saved.getValue().getUserIdentity()).isEqualTo("backup");
-        assertThat(saved.getValue().getUrl()).isEqualTo("/dialogs/+T-PLAIN+");
+        assertThat(saved.getValue().getUrl()).isEqualTo("/dialogs?ticketId=%20T-PLAIN%20");
         verify(stream).publishNotificationsChanged("backup", "notification_created");
     }
 

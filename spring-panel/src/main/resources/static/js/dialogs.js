@@ -383,6 +383,16 @@
     return raw.trim() ? raw : '';
   }
 
+  function getRouteTicketId(pathname = window.location.pathname || '', search = window.location.search || '') {
+    const routeMatch = String(pathname || '').match(/^\/dialogs\/([^/]+)\/?$/);
+    if (routeMatch?.[1]) {
+      try { return decodeURIComponent(routeMatch[1]); } catch (_error) { return routeMatch[1]; }
+    }
+    return pathname === '/dialogs'
+      ? exactLegacyTicketId(new URLSearchParams(search).get('ticketId'))
+      : '';
+  }
+
   function resolveTaskRequestNumber(ticketId) {
     const normalizedTicketId = exactLegacyTicketId(ticketId);
     if (!normalizedTicketId) return '';
@@ -642,8 +652,7 @@
     if (fromBody) {
       return fromBody;
     }
-    const routeMatch = (window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/);
-    return routeMatch?.[1] ? decodeURIComponent(routeMatch[1]) : '';
+    return getRouteTicketId();
   })();
   const INITIAL_DIALOG_CHANNEL_ID = (() => {
     const raw = new URLSearchParams(window.location.search || '').get('channelId');
@@ -2276,9 +2285,7 @@
     const ticketId = item?.ticketId || '—';
     const requestNumber = item?.requestNumber;
     const channelId = item?.channelId;
-    const openHref = channelId
-      ? `/dialogs/${encodeURIComponent(ticketId)}?channelId=${encodeURIComponent(channelId)}`
-      : `/dialogs/${encodeURIComponent(ticketId)}`;
+    const openHref = buildWorkspaceDialogUrl(ticketId, channelId);
     const displayNumber = requestNumber || ticketId;
     const clientName = item?.clientName || item?.username || 'Неизвестный клиент';
     const clientStatus = item?.clientStatus || 'статус не указан';
@@ -2825,17 +2832,18 @@
 
   function buildWorkspaceDialogUrl(ticketId, channelId) {
     if (!ticketId) return '/dialogs';
-    const basePath = `/dialogs/${encodeURIComponent(ticketId)}`;
+    const basePath = `/dialogs?ticketId=${encodeURIComponent(ticketId)}`;
     return withChannelParam(basePath, channelId);
   }
 
-  function isWorkspaceDialogPath(pathname) {
-    return /^\/dialogs\/[^/]+/.test(String(pathname || ''));
+  function isWorkspaceDialogPath(pathname, search = window.location.search || '') {
+    return Boolean(getRouteTicketId(pathname, search));
   }
 
   function buildDialogsListUrl() {
     const pathname = String(window.location.pathname || '').trim();
     if (/^\/dialogs\/?$/.test(pathname)) {
+      if (getRouteTicketId(pathname, window.location.search || '')) return '/dialogs';
       return `${pathname || '/dialogs'}${window.location.search || ''}${window.location.hash || ''}`;
     }
     return '/dialogs';
@@ -4529,8 +4537,7 @@
   renderMyDialogsPanel();
   window.openDialogDetailsByTicketId = (ticketId, runtimeOptions = {}) => {
     const normalizedTicketId = exactLegacyTicketId(ticketId);
-    const routeMatch = (window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/);
-    const routeTicketId = routeMatch?.[1] ? decodeURIComponent(routeMatch[1]) : '';
+    const routeTicketId = getRouteTicketId();
     const normalizedChannelId = normalizeChannelId(runtimeOptions?.channelId)
       || (normalizedTicketId === INITIAL_DIALOG_TICKET_ID ? INITIAL_DIALOG_CHANNEL_ID : null)
       || (normalizedTicketId === routeTicketId
@@ -4576,10 +4583,8 @@
 
   if (OPEN_DIALOGS_IN_WORKSPACE && WORKSPACE_EXPERIENCE_ENABLED && WORKSPACE_INLINE_NAVIGATION) {
     window.addEventListener('popstate', () => {
-      const path = window.location.pathname || '';
-      const match = path.match(/^\/dialogs\/([^/]+)$/);
-      if (!match?.[1]) return;
-      const ticketId = decodeURIComponent(match[1]);
+      const ticketId = getRouteTicketId();
+      if (!ticketId) return;
       const channelId = getRouteChannelId();
       if (!confirmWorkspaceTicketSwitch(ticketId)) {
         const rollbackUrl = buildWorkspaceDialogUrl(activeWorkspaceTicketId, activeWorkspaceChannelId);

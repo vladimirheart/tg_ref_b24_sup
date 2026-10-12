@@ -40,7 +40,7 @@
     function buildDialogDetailsUrl(ticketId, channelId) {
       return options.buildDialogDetailsUrl?.(ticketId, channelId)
         || options.buildWorkspaceDialogUrl?.(ticketId, channelId)
-        || `/dialogs/${encodeURIComponent(ticketId)}`;
+        || `/dialogs?ticketId=${encodeURIComponent(ticketId)}`;
     }
 
     function parseDialogRouteTicketId(pathname = window.location.pathname || '') {
@@ -48,7 +48,12 @@
         return '';
       }
       const match = String(pathname || '').match(/^\/dialogs\/([^/]+)\/?$/);
-      return match?.[1] ? decodeURIComponent(match[1]) : '';
+      if (match?.[1]) {
+        try { return decodeURIComponent(match[1]); } catch (_error) { return match[1]; }
+      }
+      return pathname === '/dialogs'
+        ? new URLSearchParams(window.location.search || '').get('ticketId') || ''
+        : '';
     }
 
     function rememberModalReturnUrl(candidateUrl = getCurrentUrl()) {
@@ -97,7 +102,7 @@
           });
           console.error('Failed to open dialog workspace surface', error);
           window.location.href = options.buildWorkspaceDialogUrl?.(ticketId, row?.dataset?.channelId ?? null)
-            || `/dialogs/${encodeURIComponent(ticketId)}`;
+            || `/dialogs?ticketId=${encodeURIComponent(ticketId)}`;
         });
         return;
       }
@@ -116,7 +121,7 @@
       }
       if (!elements.detailsModalEl) {
         options.debugLog?.('openDialogEntry.redirect.noDetailsModal', { ticketId });
-        window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
+        window.location.href = buildDialogDetailsUrl(ticketId, channelId);
         return;
       }
       Promise.resolve(options.openDialogDetails?.(ticketId, row)).catch((error) => {
@@ -125,7 +130,7 @@
           message: error?.message || String(error || ''),
         });
         console.error('Failed to open dialog details modal', error);
-        window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
+        window.location.href = buildDialogDetailsUrl(ticketId, channelId);
       });
     }
 

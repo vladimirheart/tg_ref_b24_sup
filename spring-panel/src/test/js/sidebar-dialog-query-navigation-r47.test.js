@@ -48,4 +48,8 @@ assert.equal(inside.calls[1][1], exactId);
 const unrelated = navigateOn('/tasks', false);
 unrelated.fn('/dialogs?notTicketId=NOT-A-TICKET');
 assert.equal(unrelated.location.href, '/dialogs?notTicketId=NOT-A-TICKET');
-console.log('SIDEBAR_DIALOG_QUERY_NAVIGATION_GREEN=3');
+
+const hash = navigateOn('/tasks', false);
+hash.fn('#open=ticket:T/100');
+assert.equal(hash.location.href, '/dialogs?ticketId=T%2F100');
+console.log('SIDEBAR_DIALOG_QUERY_NAVIGATION_GREEN=4');
