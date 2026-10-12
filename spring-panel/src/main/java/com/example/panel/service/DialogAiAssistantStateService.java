@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +24,7 @@ public class DialogAiAssistantStateService {
     public Map<String, Object> loadDialogControlState(String ticketId) {
         DialogAiControl control = loadDialogControl(ticketId);
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("ticket_id", persistenceService.trim(ticketId));
+        payload.put("ticket_id", exactTicketIdOrNull(ticketId));
         payload.put("ai_disabled", control.aiDisabled());
         payload.put("auto_reply_blocked", control.autoReplyBlocked());
         payload.put("reason", control.reason());
@@ -37,7 +39,7 @@ public class DialogAiAssistantStateService {
                                             String reason,
                                             String actor,
                                             String mode) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null) {
             return false;
         }
@@ -86,7 +88,7 @@ public class DialogAiAssistantStateService {
     }
 
     public boolean isProcessing(String ticketId) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null) {
             return false;
         }
@@ -171,7 +173,7 @@ public class DialogAiAssistantStateService {
     }
 
     public DialogAiControl loadDialogControl(String ticketId) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null) {
             return DialogAiControl.DEFAULT;
         }
@@ -207,7 +209,7 @@ public class DialogAiAssistantStateService {
                              String decisionType,
                              String decisionReason,
                              String sourceHits) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null) {
             return;
         }

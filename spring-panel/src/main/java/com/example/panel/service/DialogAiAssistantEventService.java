@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -128,7 +130,7 @@ public class DialogAiAssistantEventService {
                         policy_stage, policy_outcome, intent_key, sensitive_topic, top_candidate_trust, top_candidate_source_type, created_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     """,
-                    trim(ticketId),
+                    exactTicketIdOrNull(ticketId),
                     cut(type, 80),
                     trim(actor),
                     trim(decisionType),
@@ -155,7 +157,7 @@ public class DialogAiAssistantEventService {
                         ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, created_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     """,
-                    trim(ticketId),
+                    exactTicketIdOrNull(ticketId),
                     cut(type, 80),
                     trim(actor),
                     trim(decisionType),

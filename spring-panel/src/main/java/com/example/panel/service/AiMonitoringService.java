@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.panel.support.PanelTimestampSqlSupport;
@@ -150,7 +152,7 @@ public class AiMonitoringService {
         int safeDays = Math.max(1, Math.min(days != null ? days : 7, 90));
         int safeLimit = Math.max(1, Math.min(limit != null ? limit : 50, 200));
         Duration currentWindow = Duration.ofDays(safeDays);
-        String ticket = trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         String event = trim(eventType);
         String who = trim(actor);
         try {

@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import com.example.panel.support.PanelTimestampSqlSupport;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -85,7 +87,7 @@ public class AiRetrievalService {
     }
 
     private RetrievalContext buildContext(String ticketId, String query) {
-        String normalizedTicketId = trim(ticketId);
+        String normalizedTicketId = exactTicketIdOrNull(ticketId);
         String normalizedQuery = normalize(query);
         Set<String> queryTokens = tokenize(normalizedQuery);
         AiIntentService.IntentMatch intentMatch = aiIntentService.extract(query);
@@ -109,7 +111,7 @@ public class AiRetrievalService {
     }
 
     private TicketScope loadTicketScope(String ticketId) {
-        String normalizedTicketId = trim(ticketId);
+        String normalizedTicketId = exactTicketIdOrNull(ticketId);
         if (normalizedTicketId == null) {
             return TicketScope.empty();
         }

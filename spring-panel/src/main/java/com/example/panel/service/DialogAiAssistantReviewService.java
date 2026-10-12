@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -23,7 +25,7 @@ public class DialogAiAssistantReviewService {
     }
 
     public Map<String, Object> loadPendingReview(String ticketId) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null) {
             return Map.of("pending", false);
         }
@@ -61,7 +63,7 @@ public class DialogAiAssistantReviewService {
     }
 
     public boolean approvePendingReview(String ticketId, String operator, Long clientMessageId, Long operatorMessageId) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null) {
             return false;
         }
@@ -242,7 +244,7 @@ public class DialogAiAssistantReviewService {
     }
 
     public boolean rejectPendingReview(String ticketId, String operator) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null) {
             return false;
         }
@@ -304,7 +306,7 @@ public class DialogAiAssistantReviewService {
         try {
             String ticketId = jdbcTemplate.query(
                     "SELECT last_ticket_id FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
-                    rs -> rs.next() ? persistenceService.trim(rs.getString("last_ticket_id")) : null,
+                    rs -> rs.next() ? exactTicketIdOrNull(rs.getString("last_ticket_id")) : null,
                     key
             );
             int updated = jdbcTemplate.update(
@@ -347,7 +349,7 @@ public class DialogAiAssistantReviewService {
         try {
             String ticketId = jdbcTemplate.query(
                     "SELECT last_ticket_id FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
-                    rs -> rs.next() ? persistenceService.trim(rs.getString("last_ticket_id")) : null,
+                    rs -> rs.next() ? exactTicketIdOrNull(rs.getString("last_ticket_id")) : null,
                     key
             );
             int updated = jdbcTemplate.update(
@@ -383,7 +385,7 @@ public class DialogAiAssistantReviewService {
     }
 
     private Map<String, Object> loadPendingReviewRowByTicket(String ticketId) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null) {
             return null;
         }
@@ -422,7 +424,7 @@ public class DialogAiAssistantReviewService {
     }
 
     private List<Map<String, Object>> loadReviewMessageCandidates(String ticketId, boolean operatorMessages, int limit) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null) {
             return List.of();
         }
@@ -466,7 +468,7 @@ public class DialogAiAssistantReviewService {
     }
 
     private String loadReviewMessageText(String ticketId, Long messageId, boolean operatorMessage) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null || messageId == null || messageId <= 0) {
             return null;
         }

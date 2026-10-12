@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -74,7 +76,7 @@ public class AiLearningService {
                     "UPDATE ai_agent_solution_memory SET query_text=?,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?",
                     cut(question, 600),
                     trim(operator),
-                    trim(ticketId),
+                    exactTicketIdOrNull(ticketId),
                     cut(question, 600),
                     key
             );
@@ -100,7 +102,7 @@ public class AiLearningService {
                     "UPDATE ai_agent_solution_memory SET query_text=?,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?",
                     cut(question, 600),
                     trim(operator),
-                    trim(ticketId),
+                    exactTicketIdOrNull(ticketId),
                     cut(question, 600),
                     key
             );
@@ -125,7 +127,7 @@ public class AiLearningService {
                 cut(question, 600),
                 cut(reply, 2000),
                 trim(operator),
-                trim(ticketId),
+                exactTicketIdOrNull(ticketId),
                 cut(question, 600),
                 key
         );
@@ -167,7 +169,7 @@ public class AiLearningService {
                     "operator",
                     cut(reply, 2000),
                     trim(operator),
-                    trim(ticketId),
+                    exactTicketIdOrNull(ticketId),
                     cut(question, 600),
                     "draft",
                     "low",
@@ -186,7 +188,7 @@ public class AiLearningService {
                 "operator",
                 cut(reply, 2000),
                 trim(operator),
-                trim(ticketId),
+                exactTicketIdOrNull(ticketId),
                 cut(question, 600)
         );
         applyDraftGovernance(key);

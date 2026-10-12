@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -53,7 +55,7 @@ public class DialogAiAssistantMessageFlowService {
     }
 
     public void processIncomingClientMessage(String ticketId, String message, String messageType, String attachment) {
-        String normalizedTicketId = trim(ticketId);
+        String normalizedTicketId = exactTicketIdOrNull(ticketId);
         if (normalizedTicketId == null) {
             return;
         }

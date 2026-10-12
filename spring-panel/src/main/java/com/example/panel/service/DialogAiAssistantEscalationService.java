@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -13,7 +15,7 @@ public class DialogAiAssistantEscalationService {
     }
 
     public void notifyOperatorsEscalation(String ticketId, String message, String reason) {
-        String normalizedTicketId = trim(ticketId);
+        String normalizedTicketId = exactTicketIdOrNull(ticketId);
         if (normalizedTicketId == null) {
             return;
         }

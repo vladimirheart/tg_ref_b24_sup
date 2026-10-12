@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -213,7 +215,7 @@ public class DialogAiAssistantPersistenceService {
     }
 
     public void clearProcessing(String ticketId, String action, String error) {
-        String ticket = trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         if (ticket == null) {
             return;
         }
@@ -267,7 +269,7 @@ public class DialogAiAssistantPersistenceService {
                         policy_stage, policy_outcome, intent_key, sensitive_topic, top_candidate_trust, top_candidate_source_type, created_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     """,
-                    trim(ticketId),
+                    exactTicketIdOrNull(ticketId),
                     cut(type, 80),
                     trim(actor),
                     trim(decisionType),
@@ -294,7 +296,7 @@ public class DialogAiAssistantPersistenceService {
                         ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, created_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     """,
-                    trim(ticketId),
+                    exactTicketIdOrNull(ticketId),
                     cut(type, 80),
                     trim(actor),
                     trim(decisionType),
@@ -337,7 +339,7 @@ public class DialogAiAssistantPersistenceService {
                 INSERT INTO ai_agent_suggestion_feedback(ticket_id, decision, source, title, snippet, suggested_reply, actor, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 """,
-                trim(ticketId),
+                exactTicketIdOrNull(ticketId),
                 cut(decision != null ? decision.toLowerCase(Locale.ROOT) : null, 64),
                 cut(source, 128),
                 cut(title, 255),

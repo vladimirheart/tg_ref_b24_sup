@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.panel.support.PanelTimestampSqlSupport;
@@ -71,7 +73,7 @@ public class AiOpsRuntimeService {
     }
 
     public Map<String, Object> loadDecisionTrace(String ticketId, Integer limit) {
-        String ticket = trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         int safeLimit = Math.max(5, Math.min(limit != null ? limit : 20, 100));
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("ticket_id", ticket);
@@ -87,7 +89,7 @@ public class AiOpsRuntimeService {
                                           String message,
                                           String messageType,
                                           String attachment) {
-        String ticket = trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         AiInputNormalizerService.IncomingPayload payload = resolveIncomingPayload(ticket, message, messageType, attachment);
         String normalizedMessage = payload != null ? payload.message() : trim(message);
         AiIntentService.IntentMatch intentMatch = aiIntentService.extract(normalizedMessage);
@@ -114,7 +116,7 @@ public class AiOpsRuntimeService {
                                              String messageType,
                                              String attachment,
                                              Integer limit) {
-        String ticket = trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         int safeLimit = Math.max(1, Math.min(limit != null ? limit : 5, 20));
         AiInputNormalizerService.IncomingPayload payload = resolveIncomingPayload(ticket, message, messageType, attachment);
         String normalizedMessage = payload != null ? payload.message() : trim(message);

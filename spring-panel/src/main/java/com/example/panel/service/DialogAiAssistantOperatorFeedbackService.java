@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,7 +40,7 @@ public class DialogAiAssistantOperatorFeedbackService {
 
     public void registerOperatorReply(String ticketId, String operatorReply, String operator) {
         try {
-            String ticket = persistenceService.trim(ticketId);
+            String ticket = exactTicketIdOrNull(ticketId);
             String reply = persistenceService.trim(operatorReply);
             if (ticket == null || reply == null) {
                 return;
@@ -106,7 +108,7 @@ public class DialogAiAssistantOperatorFeedbackService {
                                                  String clientProblemMessage,
                                                  String operatorSolutionMessage,
                                                  String operator) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         String client = persistenceService.trim(clientProblemMessage);
         String solution = persistenceService.trim(operatorSolutionMessage);
         if (ticket == null || client == null || solution == null) {
@@ -161,7 +163,7 @@ public class DialogAiAssistantOperatorFeedbackService {
                                          String suggestedReply,
                                          String memoryKey,
                                          String actor) {
-        String ticket = persistenceService.trim(ticketId);
+        String ticket = exactTicketIdOrNull(ticketId);
         String normalizedDecision = persistenceService.trim(decision);
         if (ticket == null || normalizedDecision == null) {
             return;

@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import static com.example.panel.support.LegacyTicketIdSupport.exactTicketIdOrNull;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -81,7 +83,7 @@ public class AiControlledLlmService {
                                         Deterministic intent: %s
                                         Deterministic slots: %s
                                         """.formatted(
-                                        trim(ticketId),
+                                        exactTicketIdOrNull(ticketId),
                                         safe(message),
                                         deterministicMatch != null ? safe(deterministicMatch.intentKey()) : "",
                                         deterministicMatch != null ? safe(deterministicMatch.slotsJson()) : "{}"
