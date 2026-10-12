@@ -5,6 +5,8 @@ import com.example.supportbot.entity.TicketMessage;
 import com.example.supportbot.entity.TicketResponsible;
 import com.example.supportbot.repository.TicketMessageRepository;
 import com.example.supportbot.repository.TicketResponsibleRepository;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -67,7 +69,7 @@ public class AutoCloseFollowUpTaskService implements AutoCloseFollowUpTaskSuppor
 
     @Override
     public void createTaskForAutoClosedDialog(String ticketId) {
-        String normalizedTicketId = trimToNull(ticketId);
+        String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         if (normalizedTicketId == null) {
             return;
         }
@@ -193,7 +195,7 @@ public class AutoCloseFollowUpTaskService implements AutoCloseFollowUpTaskSuppor
             html.append("</ul>");
         }
         html.append("<p><a href=\"/dialogs/")
-                .append(escapeHtml(ticketId))
+                .append(escapeHtml(URLEncoder.encode(ticketId, StandardCharsets.UTF_8).replace("+", "%20")))
                 .append("\">Открыть диалог #")
                 .append(escapeHtml(ticketId))
                 .append("</a></p>");
