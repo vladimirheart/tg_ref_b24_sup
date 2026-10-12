@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,7 +26,6 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 @RestController
-@RequestMapping("/api/dialogs")
 public class DialogQuickActionsController {
 
     private static final Logger log = LoggerFactory.getLogger(DialogQuickActionsController.class);
@@ -42,7 +40,7 @@ public class DialogQuickActionsController {
         this.dialogAuthorizationService = dialogAuthorizationService;
     }
 
-    @PostMapping("/{ticketId}/reply")
+    @PostMapping("/api/dialogs/{ticketId}/reply")
     public ResponseEntity<?> reply(@PathVariable String ticketId,
                                    @RequestBody DialogReplyRequest request,
                                    Authentication authentication) {
@@ -73,7 +71,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping("/{ticketId}/edit")
+    @PostMapping("/api/dialogs/{ticketId}/edit")
     public ResponseEntity<?> editMessage(@PathVariable String ticketId,
                                          @RequestBody DialogEditRequest request,
                                          Authentication authentication) {
@@ -99,7 +97,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping("/{ticketId}/delete")
+    @PostMapping("/api/dialogs/{ticketId}/delete")
     public ResponseEntity<?> deleteMessage(@PathVariable String ticketId,
                                            @RequestBody DialogDeleteRequest request,
                                            Authentication authentication) {
@@ -124,7 +122,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping(value = "/{ticketId}/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/api/dialogs/{ticketId}/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> replyWithMedia(@PathVariable String ticketId,
                                             @RequestParam("file") MultipartFile file,
                                             @RequestParam(value = "message", required = false) String message,
@@ -159,7 +157,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping("/{ticketId}/resolve")
+    @PostMapping("/api/dialogs/{ticketId}/resolve")
     public ResponseEntity<?> resolve(@PathVariable String ticketId,
                                      @RequestBody(required = false) DialogResolveRequest request,
                                      Authentication authentication) {
@@ -186,7 +184,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping("/{ticketId}/reopen")
+    @PostMapping("/api/dialogs/{ticketId}/reopen")
     public ResponseEntity<?> reopen(@PathVariable String ticketId,
                                     Authentication authentication) {
         return withQuickActionTiming("reopen", ticketId, () -> {
@@ -211,7 +209,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping("/{ticketId}/spam")
+    @PostMapping("/api/dialogs/{ticketId}/spam")
     public ResponseEntity<?> markSpam(@PathVariable String ticketId,
                                       @RequestBody(required = false) DialogSpamRequest request,
                                       Authentication authentication) {
@@ -249,7 +247,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping("/{ticketId}/categories")
+    @PostMapping("/api/dialogs/{ticketId}/categories")
     public ResponseEntity<?> updateCategories(@PathVariable String ticketId,
                                               @RequestBody(required = false) DialogCategoriesRequest request,
                                               Authentication authentication) {
@@ -278,7 +276,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping("/{ticketId}/take")
+    @PostMapping("/api/dialogs/{ticketId}/take")
     public ResponseEntity<?> take(@PathVariable String ticketId,
                                   Authentication authentication) {
         return withQuickActionTiming("take", ticketId, () -> {
@@ -318,7 +316,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping("/{ticketId}/snooze")
+    @PostMapping("/api/dialogs/{ticketId}/snooze")
     public ResponseEntity<?> snooze(@PathVariable String ticketId,
                                     @RequestBody(required = false) DialogSnoozeRequest request,
                                     Authentication authentication) {
@@ -349,7 +347,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping("/{ticketId}/participants")
+    @PostMapping("/api/dialogs/{ticketId}/participants")
     public ResponseEntity<?> addParticipant(@PathVariable String ticketId,
                                             @RequestBody DialogParticipantRequest request,
                                             Authentication authentication) {
@@ -388,7 +386,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @DeleteMapping("/{ticketId}/participants/{username}")
+    @DeleteMapping("/api/dialogs/{ticketId}/participants/{username}")
     public ResponseEntity<?> removeParticipant(@PathVariable String ticketId,
                                                @PathVariable String username,
                                                Authentication authentication) {
@@ -423,7 +421,7 @@ public class DialogQuickActionsController {
         });
     }
 
-    @PostMapping("/{ticketId}/reassign")
+    @PostMapping("/api/dialogs/{ticketId}/reassign")
     public ResponseEntity<?> reassign(@PathVariable String ticketId,
                                       @RequestBody DialogReassignRequest request,
                                       Authentication authentication) {
@@ -462,6 +460,88 @@ public class DialogQuickActionsController {
             payload.put("participants", result.participants());
             return ResponseEntity.ok(payload);
         });
+    }
+
+    @PostMapping("/api/dialog-ticket/reply")
+    public ResponseEntity<?> queryReply(@RequestParam("ticketId") String ticketId,
+                                      @RequestBody DialogReplyRequest request,
+                                      Authentication authentication) {
+        return reply(ticketId, request, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/edit")
+    public ResponseEntity<?> queryEditMessage(@RequestParam("ticketId") String ticketId,
+                                      @RequestBody DialogEditRequest request,
+                                      Authentication authentication) {
+        return editMessage(ticketId, request, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/delete")
+    public ResponseEntity<?> queryDeleteMessage(@RequestParam("ticketId") String ticketId,
+                                      @RequestBody DialogDeleteRequest request,
+                                      Authentication authentication) {
+        return deleteMessage(ticketId, request, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/resolve")
+    public ResponseEntity<?> queryResolve(@RequestParam("ticketId") String ticketId,
+                                      @RequestBody(required = false) DialogResolveRequest request,
+                                      Authentication authentication) {
+        return resolve(ticketId, request, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/reopen")
+    public ResponseEntity<?> queryReopen(@RequestParam("ticketId") String ticketId,
+                                      Authentication authentication) {
+        return reopen(ticketId, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/spam")
+    public ResponseEntity<?> queryMarkSpam(@RequestParam("ticketId") String ticketId,
+                                      @RequestBody(required = false) DialogSpamRequest request,
+                                      Authentication authentication) {
+        return markSpam(ticketId, request, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/categories")
+    public ResponseEntity<?> queryUpdateCategories(@RequestParam("ticketId") String ticketId,
+                                      @RequestBody(required = false) DialogCategoriesRequest request,
+                                      Authentication authentication) {
+        return updateCategories(ticketId, request, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/take")
+    public ResponseEntity<?> queryTake(@RequestParam("ticketId") String ticketId,
+                                      Authentication authentication) {
+        return take(ticketId, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/snooze")
+    public ResponseEntity<?> querySnooze(@RequestParam("ticketId") String ticketId,
+                                      @RequestBody(required = false) DialogSnoozeRequest request,
+                                      Authentication authentication) {
+        return snooze(ticketId, request, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/participants")
+    public ResponseEntity<?> queryAddParticipant(@RequestParam("ticketId") String ticketId,
+                                      @RequestBody DialogParticipantRequest request,
+                                      Authentication authentication) {
+        return addParticipant(ticketId, request, authentication);
+    }
+
+    @DeleteMapping("/api/dialog-ticket/participants")
+    public ResponseEntity<?> queryRemoveParticipant(@RequestParam("ticketId") String ticketId,
+                                      @RequestParam("username") String username,
+                                      Authentication authentication) {
+        return removeParticipant(ticketId, username, authentication);
+    }
+
+    @PostMapping("/api/dialog-ticket/reassign")
+    public ResponseEntity<?> queryReassign(@RequestParam("ticketId") String ticketId,
+                                      @RequestBody DialogReassignRequest request,
+                                      Authentication authentication) {
+        return reassign(ticketId, request, authentication);
     }
 
     private <T> T withQuickActionTiming(String action, String ticketId, Supplier<T> supplier) {

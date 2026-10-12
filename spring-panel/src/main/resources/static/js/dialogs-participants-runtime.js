@@ -419,7 +419,7 @@
           if (!ticketId || !username) return;
           elements.participantsAddBtn.disabled = true;
           try {
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/participants`, {
+            const response = await fetch(`/api/dialog-ticket/participants?ticketId=${encodeURIComponent(ticketId)}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ username }),
@@ -450,7 +450,7 @@
           if (!username) return;
           removeButton.disabled = true;
           try {
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/participants/${encodeURIComponent(username)}`, {
+            const response = await fetch(`/api/dialog-ticket/participants?ticketId=${encodeURIComponent(ticketId)}&username=${encodeURIComponent(username)}`, {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
             });
@@ -480,7 +480,7 @@
           if (!ticketId || !username) return;
           elements.reassignSubmit.disabled = true;
           try {
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/reassign`, {
+            const response = await fetch(`/api/dialog-ticket/reassign?ticketId=${encodeURIComponent(ticketId)}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ username }),

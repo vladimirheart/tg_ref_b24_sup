@@ -134,7 +134,7 @@
       const ticketId = dialogState.activeDialogTicketId || dialogState.activeWorkspaceTicketId;
       if (!ticketId) return;
       const payload = { categories };
-      const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/categories`, {
+      const response = await fetch(`/api/dialog-ticket/categories?ticketId=${encodeURIComponent(ticketId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

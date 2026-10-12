@@ -220,7 +220,7 @@
       }
       const btn = triggerButton || null;
       if (btn) btn.disabled = true;
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/resolve`, {
+      const resp = await fetch(`/api/dialog-ticket/resolve?ticketId=${encodeURIComponent(ticketId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ categories }),
@@ -252,7 +252,7 @@
       const btn = triggerButton || null;
       if (btn) btn.disabled = true;
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/take`, {
+        const resp = await fetch(`/api/dialog-ticket/take?ticketId=${encodeURIComponent(ticketId)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -281,7 +281,7 @@
       const btn = triggerButton || null;
       if (btn) btn.disabled = true;
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/snooze`, {
+        const resp = await fetch(`/api/dialog-ticket/snooze?ticketId=${encodeURIComponent(ticketId)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ minutes }),
@@ -535,7 +535,7 @@
           const reason = String(reasonInput || '').trim() || defaultReason;
           elements.detailsSpam.disabled = true;
           try {
-            const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/spam`, {
+            const resp = await fetch(`/api/dialog-ticket/spam?ticketId=${encodeURIComponent(ticketId)}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ reason }),
@@ -579,7 +579,7 @@
               options.openCategoryPanel?.();
               throw new Error('Укажите хотя бы одну категорию обращения перед закрытием.');
             }
-            const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/resolve`, {
+            const resp = await fetch(`/api/dialog-ticket/resolve?ticketId=${encodeURIComponent(ticketId)}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ categories }),
@@ -607,7 +607,7 @@
           }
           elements.detailsReopen.disabled = true;
           try {
-            const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/reopen`, {
+            const resp = await fetch(`/api/dialog-ticket/reopen?ticketId=${encodeURIComponent(ticketId)}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
             });
@@ -710,7 +710,7 @@
               options.renderWorkspaceCategories?.();
               throw new Error('Выберите хотя бы одну категорию перед закрытием диалога.');
             }
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(activeWorkspaceState.ticketId)}/resolve`, {
+            const response = await fetch(`/api/dialog-ticket/resolve?ticketId=${encodeURIComponent(activeWorkspaceState.ticketId)}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ categories }),
@@ -736,7 +736,7 @@
           }
           elements.workspaceReopenBtn.disabled = true;
           try {
-            const response = await fetch(`/api/dialogs/${encodeURIComponent(activeWorkspaceState.ticketId)}/reopen`, {
+            const response = await fetch(`/api/dialog-ticket/reopen?ticketId=${encodeURIComponent(activeWorkspaceState.ticketId)}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
             });
@@ -793,7 +793,7 @@
           return;
         }
         try {
-          const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/reply`, {
+          const response = await fetch(`/api/dialog-ticket/reply?ticketId=${encodeURIComponent(ticketId)}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

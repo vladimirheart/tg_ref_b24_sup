@@ -11,6 +11,8 @@ import static org.mockito.Mockito.when;
 import com.example.panel.config.RestExceptionHandler;
 import com.example.panel.service.DialogAiOpsService;
 import com.example.panel.service.DialogAuthorizationService;
+import com.example.panel.service.DialogQuickActionService;
+import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogReadService;
 import com.example.panel.service.DialogWorkspaceService;
 import com.example.panel.service.KnowledgeNoteLocationService;
@@ -57,7 +59,8 @@ class DialogTicketQueryHttpIntegrationTest {
     @EnableAutoConfiguration(exclude = {DataSourceAutoConfiguration.class, FlywayAutoConfiguration.class})
     @EnableMethodSecurity
     @Import({DialogTicketQueryReadController.class, DialogWorkspaceController.class,
-            DialogKnowledgeNotesApiController.class, DialogAiOpsController.class, RestExceptionHandler.class})
+            DialogKnowledgeNotesApiController.class, DialogAiOpsController.class,
+            DialogQuickActionsController.class, RestExceptionHandler.class})
     static class TestApplication {
         @Bean
         UserDetailsService testUsers() {
@@ -100,6 +103,9 @@ class DialogTicketQueryHttpIntegrationTest {
 
     @MockBean
     private DialogAuthorizationService dialogAuthorizationService;
+
+    @MockBean
+    private DialogQuickActionService dialogQuickActionService;
 
     @Test
     void encodedOpaqueQueryReachesAllThreeServicesThroughEmbeddedTomcat() throws Exception {
@@ -198,6 +204,69 @@ class DialogTicketQueryHttpIntegrationTest {
         verify(dialogAiOpsService).updateControlState(ticketId, true, false, " reason ", "operator");
         verify(dialogAuthorizationService).requirePermission(
                 argThat(auth -> "operator".equals(auth.getName())), eq("can_reply"), eq("ai_control_update"), eq(ticketId));
+    }
+
+    @Test
+    void quickActionPostAndParticipantDeleteKeepOpaqueQueryAndCsrfOverHttp() throws Exception {
+        String ticketId = " T/100?&%#+ Ю ";
+        String username = " agent/+? Ю ";
+        String encodedId = URLEncoder.encode(ticketId, StandardCharsets.UTF_8).replace("+", "%20");
+        String encodedUsername = URLEncoder.encode(username, StandardCharsets.UTF_8).replace("+", "%20");
+        String replyPath = "/api/dialog-ticket/reply?ticketId=" + encodedId;
+        String removePath = "/api/dialog-ticket/participants?ticketId=" + encodedId + "&username=" + encodedUsername;
+        String body = "{\"message\":\" message \",\"replyToTelegramId\":123}";
+        when(dialogQuickActionService.sendReply(ticketId, " message ", 123L, "operator"))
+                .thenReturn(new DialogReplyService.DialogReplyResult(true, null, "now", 789L, "operator"));
+        when(dialogQuickActionService.removeParticipant(ticketId, username, "operator"))
+                .thenReturn(new DialogQuickActionService.DialogParticipantMutationResult(true, true, null, List.of()));
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5))
+                .cookieHandler(new CookieManager(null, CookiePolicy.ACCEPT_ALL)).build();
+
+        HttpResponse<String> preLoginResponse = client.send(authenticatedRequest("/test/csrf").GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(preLoginResponse.statusCode()).isEqualTo(200);
+        var preLoginToken = objectMapper.readTree(preLoginResponse.body());
+        HttpResponse<String> login = client.send(authenticatedRequest("/login")
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header(preLoginToken.get("headerName").asText(), preLoginToken.get("token").asText())
+                .POST(HttpRequest.BodyPublishers.ofString("username=operator&password=test-password")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(login.statusCode()).isEqualTo(302);
+
+        for (String method : List.of("POST", "DELETE")) {
+            HttpResponse<String> denied = client.send(authenticatedRequest("POST".equals(method) ? replyPath : removePath)
+                    .header("Content-Type", "application/json")
+                    .method(method, "POST".equals(method) ? HttpRequest.BodyPublishers.ofString(body)
+                            : HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString());
+            assertThat(denied.statusCode()).isEqualTo(403);
+        }
+        org.mockito.Mockito.verifyNoInteractions(dialogQuickActionService, dialogAuthorizationService);
+
+        HttpResponse<String> tokenResponse = client.send(authenticatedRequest("/test/csrf").GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(tokenResponse.statusCode()).isEqualTo(200);
+        var token = objectMapper.readTree(tokenResponse.body());
+        HttpResponse<String> reply = client.send(authenticatedRequest(replyPath)
+                .header("Content-Type", "application/json")
+                .header(token.get("headerName").asText(), token.get("token").asText())
+                .POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(reply.statusCode()).isEqualTo(200);
+        assertThat(objectMapper.readTree(reply.body()).get("telegramMessageId").asLong()).isEqualTo(789L);
+
+        HttpResponse<String> removed = client.send(authenticatedRequest(removePath)
+                .header(token.get("headerName").asText(), token.get("token").asText()).DELETE().build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(removed.statusCode()).isEqualTo(200);
+        assertThat(objectMapper.readTree(removed.body()).get("changed").asBoolean()).isTrue();
+
+        verify(dialogQuickActionService).sendReply(ticketId, " message ", 123L, "operator");
+        verify(dialogQuickActionService).removeParticipant(ticketId, username, "operator");
+        verify(dialogAuthorizationService).requirePermission(argThat(auth -> "operator".equals(auth.getName())),
+                eq("can_reply"), eq("reply"), eq(ticketId));
+        verify(dialogAuthorizationService).requirePermission(argThat(auth -> "operator".equals(auth.getName())),
+                eq("can_assign"), eq("participants_remove"), eq(ticketId));
+        verify(dialogAuthorizationService).logDialogAction("operator", ticketId, "reply", "success", "message_sent");
+        verify(dialogAuthorizationService).logDialogAction("operator", ticketId, "participants_remove", "success", "participant_removed");
     }
 
     private HttpResponse<String> get(String path) throws Exception {

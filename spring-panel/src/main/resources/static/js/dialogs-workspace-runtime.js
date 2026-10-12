@@ -700,7 +700,7 @@
         elements.workspaceComposerSaveDraft.disabled = true;
       }
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeState.composerTicketId)}/reply`, {
+        const resp = await fetch(`/api/dialog-ticket/reply?ticketId=${encodeURIComponent(activeState.composerTicketId)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message, replyToTelegramId }),

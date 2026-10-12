@@ -1848,7 +1848,7 @@
         const current = resolveHistoryMessageNode(messageId)?.querySelector('.chat-message-body')?.textContent || '';
         const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
         if (!nextText || !nextText.trim()) return;
-        const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/edit`, {
+        const response = await fetch(`/api/dialog-ticket/edit?ticketId=${encodeURIComponent(ticketId)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ telegramMessageId: messageId, message: nextText.trim() }),
@@ -1862,7 +1862,7 @@
       }
       if (action === 'delete') {
         if (!window.confirm('Удалить сообщение у клиента?')) return;
-        const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/delete`, {
+        const response = await fetch(`/api/dialog-ticket/delete?ticketId=${encodeURIComponent(ticketId)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ telegramMessageId: messageId }),

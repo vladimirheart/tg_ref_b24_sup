@@ -90,7 +90,7 @@ function evalFn(text,name,ctx={}){
    refreshHistory:async()=>{}};
   const f=evalFn(source.get('dialogs-details-history-runtime.js'),'handleHistoryAction',ctx);
   await f(new Button());
-  assert.deepEqual(urls,['/api/dialogs/%20T-EXACT%20/delete']);
+  assert.deepEqual(urls,['/api/dialog-ticket/delete?ticketId=%20T-EXACT%20']);
   const body=source.get('dialogs-details-history-runtime.js');
   assert.match(body,/exactLegacyTicketId\(sendOptions\.ticketId \|\| activeDialogState\.ticketId \|\| activeWorkspaceState\.ticketId\)/);
   assert.match(body,/fetch\(`\/api\/dialogs\/\$\{encodeURIComponent\(ticketId\)\}\/media`/);

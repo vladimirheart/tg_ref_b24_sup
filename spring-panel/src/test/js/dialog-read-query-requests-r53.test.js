@@ -157,7 +157,8 @@ async function participantsRequests() {
   await participantsRequests();
   const template = fs.readFileSync(path.resolve(__dirname, '../../main/resources/templates/dialogs/index.html'), 'utf8');
   for (const file of ['dialogs-workspace-runtime', 'dialogs-details-runtime', 'dialogs-participants-runtime']) {
-    assert.ok(template.includes(file + ".js(v='20261012-01-278-r53')"), 'missing cache key for ' + file);
+    const version = file === 'dialogs-details-runtime' ? '20261012-01-278-r53' : '20261012-01-278-r55';
+    assert.ok(template.includes(file + ".js(v='" + version + "')"), 'missing cache key for ' + file);
   }
   console.log('DIALOG_READ_QUERY_REQUESTS_R53_RESULT=GREEN');
 })().catch(error => { console.error(error); process.exitCode = 1; });
