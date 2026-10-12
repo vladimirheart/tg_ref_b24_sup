@@ -28,6 +28,11 @@
     };
     const PENDING_MEDIA_CHANGED_EVENT = 'dialogs:pending-media-files-changed';
 
+    function exactLegacyTicketId(value) {
+      const raw = value == null ? '' : String(value);
+      return raw.trim() ? raw : '';
+    }
+
     function getActiveDialogState() {
       const activeState = typeof options.getActiveDialogState === 'function'
         ? options.getActiveDialogState()
@@ -962,7 +967,7 @@
 
     function renderArchivedHistoryBatch(batch) {
       const messages = filterDialogHistoryMessages(batch?.messages || []);
-      const ticketId = String(batch?.ticketId || '—').trim() || '—';
+      const ticketId = exactLegacyTicketId(batch?.ticketId) || '—';
       const createdAt = formatTimestamp(batch?.createdAt || batch?.created_at, { includeTime: true, fallback: '—' });
       const status = String(batch?.status || '—').trim() || '—';
       const problem = String(batch?.problem || 'Без описания').trim() || 'Без описания';
@@ -1431,7 +1436,7 @@
     async function sendMediaFiles(files, sendOptions = {}) {
       const activeDialogState = getActiveDialogState();
       const activeWorkspaceState = getActiveWorkspaceState();
-      const ticketId = String(sendOptions.ticketId || activeDialogState.ticketId || activeWorkspaceState.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(sendOptions.ticketId || activeDialogState.ticketId || activeWorkspaceState.ticketId);
       if (!ticketId || !files || files.length === 0) return;
       const captionSource = typeof sendOptions.caption === 'string' ? sendOptions.caption : elements.detailsReplyText?.value || '';
       const caption = String(captionSource).trim();
@@ -1811,7 +1816,7 @@
     }
 
     async function handleHistoryAction(button) {
-      const ticketId = String(getActiveDialogState().ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(getActiveDialogState().ticketId);
       if (!(button instanceof HTMLElement) || !ticketId) {
         return;
       }

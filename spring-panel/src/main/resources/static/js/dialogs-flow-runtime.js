@@ -14,6 +14,11 @@
       modalReturnUrl: '',
     };
 
+    function exactLegacyTicketId(value) {
+      const raw = value == null ? '' : String(value);
+      return raw.trim() ? raw : '';
+    }
+
     function isTypingTarget(target) {
       if (!target) return false;
       const tagName = String(target.tagName || '').toLowerCase();
@@ -104,7 +109,7 @@
       if (currentUrl !== nextUrl) {
         window.history.pushState({
           surface: 'dialog-modal',
-          ticketId: String(ticketId || '').trim(),
+          ticketId: exactLegacyTicketId(ticketId),
           returnUrl,
         }, '', nextUrl);
         options.debugLog?.('openDialogEntry.pushState', { currentUrl, nextUrl, returnUrl });
@@ -342,8 +347,8 @@
         return;
       }
       const channelId = options.getRouteChannelId?.(window.location.search || '') ?? null;
-      const normalizedTicketId = String(nextTicketId || '').trim();
-      const activeTicketId = String(options.getActiveDialogTicketId?.() || '').trim();
+      const normalizedTicketId = exactLegacyTicketId(nextTicketId);
+      const activeTicketId = exactLegacyTicketId(options.getActiveDialogTicketId?.());
       const activeChannelId = options.getActiveDialogChannelId?.() ?? null;
       if (modalVisible && activeTicketId === normalizedTicketId && String(activeChannelId || '') === String(channelId || '')) {
         return;

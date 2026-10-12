@@ -10,6 +10,11 @@
       participants: [],
     };
 
+    function exactLegacyTicketId(value) {
+      const raw = value == null ? '' : String(value);
+      return raw.trim() ? raw : '';
+    }
+
     function escapeHtml(value) {
       return typeof options.escapeHtml === 'function'
         ? options.escapeHtml(value)
@@ -35,7 +40,7 @@
     }
 
     function getActiveDialogTicketId() {
-      return String(options.getActiveDialogTicketId?.() || '').trim();
+      return exactLegacyTicketId(options.getActiveDialogTicketId?.());
     }
 
     function getActiveDialogResponsibleRaw() {

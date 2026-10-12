@@ -6,6 +6,11 @@
   function createRuntime(options = {}) {
     const elements = options.elements || {};
 
+    function exactLegacyTicketId(value) {
+      const raw = value == null ? '' : String(value);
+      return raw.trim() ? raw : '';
+    }
+
     function getActiveDialogState() {
       const activeState = typeof options.getActiveDialogState === 'function'
         ? options.getActiveDialogState()
@@ -138,7 +143,7 @@
       if (takeBtn) {
         takeBtn.classList.toggle('d-none', !options.canTakeDialogOwnership?.(rawValue || value, options.isResolvedRow?.(row) === true));
       }
-      if (row === activeDialogState.row || String(row.dataset.ticketId || '').trim() === String(activeDialogState.ticketId || '').trim()) {
+      if (row === activeDialogState.row || exactLegacyTicketId(row.dataset.ticketId) === exactLegacyTicketId(activeDialogState.ticketId)) {
         options.updateDetailsResponsible?.(value || '—', { rawResponsible: rawValue || value, avatarUrl });
       }
       options.syncMyDialogsStateFromTable?.();
@@ -236,7 +241,7 @@
       if (!ticketId) return null;
       const activeDialogState = getActiveDialogState();
       const targetRow = row
-        || (String(activeDialogState.ticketId || '').trim() === String(ticketId || '').trim()
+        || (exactLegacyTicketId(activeDialogState.ticketId) === exactLegacyTicketId(ticketId)
           ? activeDialogState.row
           : null);
       if (targetRow && options.isResolvedRow?.(targetRow) === true) {
@@ -256,7 +261,7 @@
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         updateRowResponsible(row || targetRow, data.responsible || '');
-        if (String(activeDialogState.ticketId || '').trim() === String(ticketId || '').trim()
+        if (exactLegacyTicketId(activeDialogState.ticketId) === exactLegacyTicketId(ticketId)
             && typeof options.loadDialogParticipants === 'function') {
           options.loadDialogParticipants().catch(() => {});
         }
@@ -294,7 +299,7 @@
 
     function resolveDetailsTicketId() {
       const activeDialogState = getActiveDialogState();
-      const direct = String(activeDialogState.ticketId || '').trim();
+      const direct = exactLegacyTicketId(activeDialogState.ticketId);
       if (direct) {
         return direct;
       }
@@ -313,7 +318,7 @@
       const currentStatus = String(statusRaw || activeDialogState.row?.dataset?.statusRaw || activeDialogState.row?.dataset?.status || '').trim();
       const currentStatusKey = String(activeDialogState.row?.dataset?.statusKey || '').trim();
       const resolved = options.isResolvedStatus?.(currentStatus, currentStatusKey, '') === true;
-      const ticketId = String(activeDialogState.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(activeDialogState.ticketId);
       const canResolve = options.isWorkspaceActionEnabled?.(
         'resolve',
         options.canRunAction?.('can_close') && !resolved,

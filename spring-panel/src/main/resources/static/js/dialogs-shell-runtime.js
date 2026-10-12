@@ -8,6 +8,11 @@
 
     let fallbackModalBackdrop = null;
 
+    function exactLegacyTicketId(value) {
+      const raw = value == null ? '' : String(value);
+      return raw.trim() ? raw : '';
+    }
+
     function debugLog(eventName, payload) {
       if (typeof options.debugLog === 'function') {
         options.debugLog(eventName, payload);
@@ -970,7 +975,7 @@
     }
 
     function openTaskCreateSurface(ticketId, clientName, requestNumber) {
-      const normalizedTicketId = String(ticketId || '').trim();
+      const normalizedTicketId = exactLegacyTicketId(ticketId);
       if (!normalizedTicketId) return;
       const normalizedClientName = String(clientName || '').trim();
       const normalizedRequestNumber = String(requestNumber || '').trim();
