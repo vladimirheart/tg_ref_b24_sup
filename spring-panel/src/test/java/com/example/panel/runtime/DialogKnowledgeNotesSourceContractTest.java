@@ -40,7 +40,8 @@ class DialogKnowledgeNotesSourceContractTest {
             .doesNotContain("l.city = ?");
 
         assertThat(controller)
-            .contains("@GetMapping(\"/{ticketId}/notes\")")
+            .contains("@GetMapping(\"/api/dialogs/{ticketId}/notes\")")
+            .contains("@GetMapping(\"/api/dialog-ticket/notes\")")
             .contains("hasAuthority('PAGE_DIALOGS') and hasAuthority('PAGE_KNOWLEDGE_BASE')")
             .contains("Authentication authentication")
             .contains("listDialogNotes(ticketId, operator)");
@@ -59,7 +60,7 @@ class DialogKnowledgeNotesSourceContractTest {
         assertThat(dialogTemplate)
             .contains("id=\"dialogDetailsNotesSection\"")
             .contains("id=\"dialogDetailsNotesList\"")
-            .contains("dialogs-details-runtime.js(v='20261003-01-279-notes-r6')");
+            .contains("dialogs-details-runtime.js(v='20261012-01-278-r53')");
 
         assertThat(dialogRuntime)
             .contains("/notes")

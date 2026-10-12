@@ -162,4 +162,25 @@ class DialogTicketQueryReadControllerWebMvcTest {
 
         verifyNoInteractions(dialogReadService);
     }
+
+    @Test
+    void participantsPreservesExactTicketId() throws Exception {
+        String ticketId = " T/100?&%# Ю ";
+        doReturn(Map.of("success", true, "participants", List.of(Map.of("username", "peer"))))
+                .when(dialogReadService).loadParticipants(ticketId);
+
+        mockMvc.perform(get("/api/dialog-ticket/participants")
+                        .param("ticketId", ticketId)
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participants[0].username").value("peer"));
+        verify(dialogReadService).loadParticipants(ticketId);
+    }
+
+    @Test
+    void participantsRequiresTicketId() throws Exception {
+        mockMvc.perform(get("/api/dialog-ticket/participants").with(user("operator")))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(dialogReadService);
+    }
 }

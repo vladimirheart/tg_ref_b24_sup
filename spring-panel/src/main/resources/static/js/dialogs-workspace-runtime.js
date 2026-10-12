@@ -223,9 +223,10 @@
     }
 
     async function preloadWorkspaceContract(ticketId, channelId, requestOptions = {}) {
+      const baseEndpoint = `/api/dialog-ticket/workspace?ticketId=${encodeURIComponent(ticketId)}`;
       let endpoint = typeof options.withChannelParam === 'function'
-        ? options.withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}/workspace`, channelId)
-        : `/api/dialogs/${encodeURIComponent(ticketId)}/workspace`;
+        ? options.withChannelParam(baseEndpoint, channelId)
+        : baseEndpoint;
       const queryParams = new URLSearchParams();
       const include = typeof requestOptions.include === 'string' && requestOptions.include.trim()
         ? requestOptions.include.trim()

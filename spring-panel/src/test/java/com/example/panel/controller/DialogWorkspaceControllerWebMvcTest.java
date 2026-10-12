@@ -1,8 +1,11 @@
 package com.example.panel.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -79,5 +82,49 @@ class DialogWorkspaceControllerWebMvcTest {
             .andExpect(jsonPath("$.ticketId").value("T-301"))
             .andExpect(jsonPath("$.meta.limit").value(50));
 
+    }
+
+    @Test
+    void queryWorkspacePreservesExactTicketAndEnvelope() throws Exception {
+        String ticketId = " T/100?&%# Ю ";
+        doReturn(ResponseEntity.ok(Map.of("ticketId", ticketId, "success", true)))
+                .when(dialogWorkspaceService)
+                .workspace(eq(ticketId), eq(81L), eq("messages,sla"), eq(25), eq("cursor/next &?"), any());
+
+        mockMvc.perform(get("/api/dialog-ticket/workspace")
+                        .param("ticketId", ticketId)
+                        .param("channelId", "81")
+                        .param("include", "messages,sla")
+                        .param("limit", "25")
+                        .param("cursor", "cursor/next &?")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ticketId").value(ticketId));
+
+        verify(dialogWorkspaceService).workspace(eq(ticketId), eq(81L), eq("messages,sla"),
+                eq(25), eq("cursor/next &?"), argThat(auth -> "operator".equals(auth.getName())));
+    }
+
+    @Test
+    void queryWorkspaceDefaultsOptionalParamsAndPropagatesNotFound() throws Exception {
+        doReturn(ResponseEntity.status(404).body(Map.of("success", false)))
+                .when(dialogWorkspaceService)
+                .workspace(eq(" null "), eq(null), eq(null), eq(null), eq(null), any());
+
+        mockMvc.perform(get("/api/dialog-ticket/workspace")
+                        .param("ticketId", " null ")
+                        .with(user("operator")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
+
+        verify(dialogWorkspaceService).workspace(eq(" null "), eq(null), eq(null), eq(null),
+                eq(null), argThat(auth -> "operator".equals(auth.getName())));
+    }
+
+    @Test
+    void queryWorkspaceRequiresTicketId() throws Exception {
+        mockMvc.perform(get("/api/dialog-ticket/workspace").with(user("operator")))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(dialogWorkspaceService);
     }
 }

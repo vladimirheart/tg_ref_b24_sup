@@ -30,5 +30,5 @@ assert.equal(buildUrl(exactId, 81, withChannel), exactUrl + '&channelId=81');
 assert.equal(buildUrl('T-100', null), '/api/dialog-ticket?ticketId=T-100');
 assert.equal(buildUrl(' A+B ', null), '/api/dialog-ticket?ticketId=%20A%2BB%20');
 assert.match(runtime, /const url = buildDialogDetailsApiUrl\(ticketId, activeState\.channelId, options\.withChannelParam\)/);
-assert.match(template, /dialogs-details-runtime\.js\(v='20261012-01-278-r50'\)/);
+assert.match(template, /dialogs-details-runtime\.js\(v='20261012-01-278-r53'\)/);
 console.log('DIALOG_DETAILS_QUERY_API_RESULT=GREEN');

@@ -37,7 +37,7 @@
       if (!section || !state || !list || !ticketId) return;
       const requestSerial = ++notesRequestSerial;
       try {
-        const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/notes`, {
+        const response = await fetch(`/api/dialog-ticket/notes?ticketId=${encodeURIComponent(ticketId)}`, {
           credentials: 'same-origin',
           cache: 'no-store',
         });

@@ -11,6 +11,7 @@ import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 public class KnowledgeNoteLocationService {
@@ -76,7 +77,7 @@ public class KnowledgeNoteLocationService {
 
     @Transactional(readOnly = true)
     public List<DialogNote> listDialogNotes(String ticketId, String operator) {
-        String normalizedTicketId = clean(ticketId);
+        String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         if (normalizedTicketId == null) {
             return List.of();
         }

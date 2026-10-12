@@ -39,4 +39,9 @@ public class DialogTicketQueryReadController {
                                              @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
         return dialogReadService.loadPreviousHistory(ticketId, offset);
     }
+
+    @GetMapping("/api/dialog-ticket/participants")
+    public Map<String, Object> participants(@RequestParam("ticketId") String ticketId) {
+        return dialogReadService.loadParticipants(ticketId);
+    }
 }

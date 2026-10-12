@@ -317,7 +317,7 @@
         return [];
       }
       renderDialogParticipantsLoadingState('Загрузка участников...');
-      const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/participants`, {
+      const response = await fetch(`/api/dialog-ticket/participants?ticketId=${encodeURIComponent(ticketId)}`, {
         credentials: 'same-origin',
         cache: 'no-store',
       });
