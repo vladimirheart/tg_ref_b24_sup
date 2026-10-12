@@ -6,6 +6,11 @@
   function createRuntime(options = {}) {
     const elements = options.elements || {};
 
+    function exactLegacyTicketId(value) {
+      const raw = value == null ? '' : String(value);
+      return raw.trim() ? raw : '';
+    }
+
     function escapeHtml(value) {
       if (typeof options.escapeHtml === 'function') {
         return options.escapeHtml(value);
@@ -51,7 +56,7 @@
     }
 
     async function loadWorkspaceAiSuggestions(ticketId) {
-      const normalizedTicketId = String(ticketId || '').trim();
+      const normalizedTicketId = exactLegacyTicketId(ticketId);
       if (!elements.workspaceAiSuggestionsSection || !elements.workspaceAiSuggestionsState || !elements.workspaceAiSuggestionsList) {
         return;
       }
@@ -130,7 +135,7 @@
       if (!elements.detailsAiState || !elements.detailsAiList) {
         return;
       }
-      const normalizedTicketId = String(ticketId || '').trim();
+      const normalizedTicketId = exactLegacyTicketId(ticketId);
       if (!normalizedTicketId) {
         elements.detailsAiState.textContent = 'Откройте диалог для загрузки подсказок.';
         elements.detailsAiList.classList.add('d-none');
@@ -183,7 +188,7 @@
     }
 
     async function sendAiSuggestionFeedback(ticketId, payload) {
-      const normalizedTicketId = String(ticketId || '').trim();
+      const normalizedTicketId = exactLegacyTicketId(ticketId);
       if (!normalizedTicketId) {
         return false;
       }
@@ -201,7 +206,7 @@
     }
 
     async function loadWorkspaceAiControl(ticketId) {
-      const normalizedTicketId = String(ticketId || '').trim();
+      const normalizedTicketId = exactLegacyTicketId(ticketId);
       if (!elements.workspaceAiControlState || !elements.workspaceAiDisableForDialog || !elements.workspaceAiHandoffNoAutoReply) {
         return;
       }
@@ -250,7 +255,7 @@
     }
 
     async function updateWorkspaceAiControl(ticketId, controlPayload, successMessage) {
-      const normalizedTicketId = String(ticketId || '').trim();
+      const normalizedTicketId = exactLegacyTicketId(ticketId);
       if (!normalizedTicketId) {
         return;
       }
@@ -280,7 +285,7 @@
       }
       elements.aiReviewQueueBody.innerHTML = items.map((item) => {
         const queryKey = String(item?.query_key || '').trim();
-        const ticketId = String(item?.last_ticket_id || '').trim();
+        const ticketId = exactLegacyTicketId(item?.last_ticket_id);
         const question = escapeHtml(String(item?.query_text || '').trim() || '—');
         const current = escapeHtml(String(item?.solution_text || '').trim() || '—');
         const pending = escapeHtml(String(item?.pending_solution_text || '').trim() || '—');
@@ -532,7 +537,7 @@
     }
 
     async function loadWorkspaceAiReview(ticketId) {
-      const normalizedTicketId = String(ticketId || '').trim();
+      const normalizedTicketId = exactLegacyTicketId(ticketId);
       if (!elements.workspaceAiReviewBox) {
         return;
       }

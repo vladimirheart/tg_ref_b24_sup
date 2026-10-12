@@ -378,10 +378,15 @@
   }
 
 
+  function exactLegacyTicketId(value) {
+    const raw = value == null ? '' : String(value);
+    return raw.trim() ? raw : '';
+  }
+
   function resolveTaskRequestNumber(ticketId) {
-    const normalizedTicketId = String(ticketId || '').trim();
+    const normalizedTicketId = exactLegacyTicketId(ticketId);
     if (!normalizedTicketId) return '';
-    const row = rowsList().find((candidate) => String(candidate?.dataset?.ticketId || '').trim() === normalizedTicketId);
+    const row = rowsList().find((candidate) => exactLegacyTicketId(candidate?.dataset?.ticketId) === normalizedTicketId);
     return String(row?.dataset?.requestNumber || '').trim();
   }
 
@@ -633,7 +638,7 @@
     ...CONFIG_OPERATOR_PERMISSIONS,
   });
   const INITIAL_DIALOG_TICKET_ID = (() => {
-    const fromBody = String(document.body?.dataset?.initialDialogTicketId || '').trim();
+    const fromBody = exactLegacyTicketId(document.body?.dataset?.initialDialogTicketId);
     if (fromBody) {
       return fromBody;
     }
@@ -805,8 +810,8 @@
   }
 
   function resolveWorkspaceContractTicketId(ticketId = null) {
-    const requestedTicketId = String(ticketId || activeDialogTicketId || activeWorkspaceTicketId || '').trim();
-    const payloadTicketId = String(activeWorkspacePayload?.conversation?.ticketId || activeWorkspaceTicketId || '').trim();
+    const requestedTicketId = exactLegacyTicketId(ticketId || activeDialogTicketId || activeWorkspaceTicketId);
+    const payloadTicketId = exactLegacyTicketId(activeWorkspacePayload?.conversation?.ticketId || activeWorkspaceTicketId);
     if (!requestedTicketId || !payloadTicketId || requestedTicketId !== payloadTicketId) {
       return null;
     }
@@ -1556,7 +1561,7 @@
     startHistoryPolling,
     hideModalSafe,
     setActiveDialogTicketId: (value) => {
-      activeDialogTicketId = value ? String(value).trim() : null;
+      activeDialogTicketId = exactLegacyTicketId(value) || null;
     },
     initMacroVariableCatalog,
     setActiveDialogChannelId: (value) => {
@@ -1736,13 +1741,13 @@
       selectedCategories = categories instanceof Set ? categories : new Set();
     },
     setWorkspaceComposerTicketId: (ticketId) => {
-      workspaceComposerTicketId = String(ticketId || '').trim();
+      workspaceComposerTicketId = exactLegacyTicketId(ticketId);
     },
     setWorkspaceReadonlyState: (nextState) => {
       workspaceReadonlyMode = nextState === true;
     },
     setActiveWorkspaceTicketId: (ticketId) => {
-      activeWorkspaceTicketId = String(ticketId || '').trim();
+      activeWorkspaceTicketId = exactLegacyTicketId(ticketId);
     },
     setActiveWorkspaceChannelId: (channelId) => {
       activeWorkspaceChannelId = channelId ?? null;
@@ -1862,7 +1867,7 @@
       row: activeDialogRow,
     }),
     setActiveDialogTicketId: (ticketId) => {
-      activeDialogTicketId = String(ticketId || '').trim() || null;
+      activeDialogTicketId = exactLegacyTicketId(ticketId) || null;
     },
     getActiveWorkspaceState: () => ({
       ticketId: activeWorkspaceTicketId,
@@ -3658,7 +3663,7 @@
   }
 
   function findDialogRowByTicketId(ticketId, channelId = null) {
-    const normalizedTicketId = String(ticketId || '').trim();
+    const normalizedTicketId = exactLegacyTicketId(ticketId);
     const normalizedChannelId = normalizeChannelId(channelId);
     if (!normalizedTicketId) return null;
     if (normalizedChannelId) {
@@ -3721,21 +3726,21 @@
   }
 
   function handleDialogsChangedEvent(event) {
-    const ticketId = String(event?.detail?.ticketId || '').trim();
+    const ticketId = exactLegacyTicketId(event?.detail?.ticketId);
     const reason = String(event?.detail?.reason || 'dialogs_changed').trim();
     scheduleDialogsListRefresh(reason);
-    if (ticketId && activeDialogTicketId && ticketId === String(activeDialogTicketId || '').trim()) {
+    if (ticketId && activeDialogTicketId && ticketId === exactLegacyTicketId(activeDialogTicketId)) {
       scheduleHistoryRefresh(reason);
     }
   }
 
   function handleDialogHistoryChangedEvent(event) {
-    const ticketId = String(event?.detail?.ticketId || '').trim();
+    const ticketId = exactLegacyTicketId(event?.detail?.ticketId);
     const reason = String(event?.detail?.reason || 'dialog_history_changed').trim();
     if (!activeDialogTicketId) {
       return;
     }
-    if (!ticketId || ticketId === String(activeDialogTicketId || '').trim()) {
+    if (!ticketId || ticketId === exactLegacyTicketId(activeDialogTicketId)) {
       scheduleHistoryRefresh(reason);
     }
     scheduleDialogsListRefresh(reason);
@@ -3854,7 +3859,7 @@
   if (detailsCreateTask) {
     detailsCreateTask.addEventListener('click', (event) => {
       event.preventDefault();
-      const ticketId = String(activeDialogTicketId || activeWorkspaceTicketId || '').trim();
+      const ticketId = exactLegacyTicketId(activeDialogTicketId || activeWorkspaceTicketId);
       const client = String(detailsClientName?.textContent || '').trim();
       if (!ticketId) return;
       openTaskCreateSurface(ticketId, client);
@@ -3879,7 +3884,7 @@
   if (workspaceCreateTaskBtn) {
     workspaceCreateTaskBtn.addEventListener('click', (event) => {
       event.preventDefault();
-      const ticketId = String(activeWorkspaceTicketId || '').trim();
+      const ticketId = exactLegacyTicketId(activeWorkspaceTicketId);
       const client = String(detailsClientName?.textContent || '').trim();
       if (!ticketId) return;
       openTaskCreateSurface(ticketId, client);
@@ -4171,7 +4176,7 @@
       const row = event.target.closest('tr[data-ai-review-query-key]');
       if (!row) return;
       const queryKey = String(row.dataset.aiReviewQueryKey || '').trim();
-      const ticketId = String(row.dataset.aiReviewTicketId || '').trim();
+      const ticketId = exactLegacyTicketId(row.dataset.aiReviewTicketId);
       if (!queryKey) return;
 
       if (event.target.closest('[data-ai-review-open]')) {
@@ -4225,7 +4230,7 @@
 
   if (workspaceAiReviewApprove) {
     workspaceAiReviewApprove.addEventListener('click', async () => {
-      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      const ticketId = exactLegacyTicketId(activeWorkspaceTicketId || workspaceComposerTicketId);
       if (!ticketId) return;
       const clientMessageId = Number(workspaceAiReviewProblemSelect?.value || '');
       const operatorMessageId = Number(workspaceAiReviewSolutionSelect?.value || '');
@@ -4252,7 +4257,7 @@
 
   if (workspaceAiReviewLearn) {
     workspaceAiReviewLearn.addEventListener('click', async () => {
-      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      const ticketId = exactLegacyTicketId(activeWorkspaceTicketId || workspaceComposerTicketId);
       if (!ticketId) return;
       const clientProblemMessage = resolveAiReviewSelectedMessageText(
         workspaceAiReviewProblemSelect,
@@ -4297,7 +4302,7 @@
 
   if (workspaceAiReviewReject) {
     workspaceAiReviewReject.addEventListener('click', async () => {
-      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      const ticketId = exactLegacyTicketId(activeWorkspaceTicketId || workspaceComposerTicketId);
       if (!ticketId) return;
       try {
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-review/reject`, {
@@ -4321,7 +4326,7 @@
         const reply = String(applyBtn.dataset.aiSuggestionReply || '').trim();
         if (!reply) return;
         appendToWorkspaceComposer(reply);
-        const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+        const ticketId = exactLegacyTicketId(activeWorkspaceTicketId || workspaceComposerTicketId);
         if (ticketId) {
           try {
             await sendAiSuggestionFeedback(ticketId, {
@@ -4354,7 +4359,7 @@
       }
       const rejectBtn = event.target.closest('[data-ai-suggestion-reject]');
       if (!rejectBtn) return;
-      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      const ticketId = exactLegacyTicketId(activeWorkspaceTicketId || workspaceComposerTicketId);
       if (!ticketId) return;
       const source = String(rejectBtn.dataset.aiSuggestionSource || '').trim();
       const title = String(rejectBtn.dataset.aiSuggestionTitle || '').trim();
@@ -4407,7 +4412,7 @@
 
   if (workspaceAiDisableForDialog) {
     workspaceAiDisableForDialog.addEventListener('click', async () => {
-      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      const ticketId = exactLegacyTicketId(activeWorkspaceTicketId || workspaceComposerTicketId);
       if (!ticketId) return;
       const currentlyDisabled =
 			workspaceAiDisableForDialog.dataset.aiDisabled === 'true';
@@ -4428,7 +4433,7 @@
 
   if (workspaceAiHandoffNoAutoReply) {
     workspaceAiHandoffNoAutoReply.addEventListener('click', async () => {
-      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      const ticketId = exactLegacyTicketId(activeWorkspaceTicketId || workspaceComposerTicketId);
       if (!ticketId) return;
       try {
         await takeDialog(ticketId, activeDialogRow, null);
@@ -4523,7 +4528,7 @@
   }
   renderMyDialogsPanel();
   window.openDialogDetailsByTicketId = (ticketId, runtimeOptions = {}) => {
-    const normalizedTicketId = String(ticketId || '').trim();
+    const normalizedTicketId = exactLegacyTicketId(ticketId);
     const routeMatch = (window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/);
     const routeTicketId = routeMatch?.[1] ? decodeURIComponent(routeMatch[1]) : '';
     const normalizedChannelId = normalizeChannelId(runtimeOptions?.channelId)

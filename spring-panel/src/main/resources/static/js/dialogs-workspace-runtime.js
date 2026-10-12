@@ -25,6 +25,11 @@
       contextDisclosureSignatures: new Set(),
     };
 
+    function exactLegacyTicketId(value) {
+      const raw = value == null ? '' : String(value);
+      return raw.trim() ? raw : '';
+    }
+
     function getActiveWorkspaceState() {
       const activeState = typeof options.getActiveWorkspaceState === 'function'
         ? options.getActiveWorkspaceState()
@@ -148,7 +153,7 @@
 
     function emitWorkspaceContextDisclosureTelemetry(eventType, detail) {
       const activeState = getActiveWorkspaceState();
-      const ticketId = String(activeState.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(activeState.ticketId);
       if (!ticketId || !eventType || !detail || detail.open !== true) return;
       const reason = [
         `section:${String(detail.section || 'unknown').trim()}`,
@@ -198,7 +203,7 @@
 
     function isValidWorkspaceContract(payload) {
       const version = String(payload?.contract_version || '').trim();
-      const ticketId = String(payload?.conversation?.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(payload?.conversation?.ticketId);
       const status = String(payload?.conversation?.statusKey || payload?.conversation?.status || '').trim();
       const permissions = payload?.permissions;
       const slaState = String(payload?.sla?.state || '').trim();
@@ -467,7 +472,7 @@
     }
 
     function getWorkspaceDraftStorageKey(ticketId) {
-      return `${options.draftStoragePrefix || 'iguana:dialogs:workspace-draft:'}${String(ticketId || '').trim()}`;
+      return `${options.draftStoragePrefix || 'iguana:dialogs:workspace-draft:'}${exactLegacyTicketId(ticketId)}`;
     }
 
     function getStoredWorkspaceDraft(ticketId) {
@@ -530,7 +535,7 @@
       const activeState = getActiveWorkspaceState();
       if (!elements.workspaceComposerText || !activeState.composerTicketId) return false;
       if (!elements.workspaceComposerText.value.trim()) return false;
-      if (String(nextTicketId || '').trim() === String(activeState.composerTicketId || '').trim()) return false;
+      if (exactLegacyTicketId(nextTicketId) === exactLegacyTicketId(activeState.composerTicketId)) return false;
       const stored = getStoredWorkspaceDraft(activeState.composerTicketId).trim();
       return elements.workspaceComposerText.value.trim() !== stored;
     }
@@ -837,7 +842,7 @@
     function getWorkspaceNavigationTarget(direction, navigation) {
       const key = direction === 'previous' ? 'previous' : 'next';
       const candidate = navigation && typeof navigation === 'object' ? navigation[key] : null;
-      const ticketId = String(candidate?.ticket_id || '').trim();
+      const ticketId = exactLegacyTicketId(candidate?.ticket_id);
       if (!ticketId) {
         return null;
       }
@@ -1231,7 +1236,7 @@
           });
         }
         clearWorkspaceFailureStreak();
-        options.setActiveWorkspaceTicketId?.(String(ticketId || '').trim());
+        options.setActiveWorkspaceTicketId?.(exactLegacyTicketId(ticketId));
         options.setActiveWorkspaceChannelId?.(channelId);
         options.setActiveWorkspacePayload?.(workspacePayload);
         const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
@@ -1242,7 +1247,7 @@
         if (shouldRenderInline) {
           renderWorkspaceShell(workspacePayload);
           if (source !== 'initial_route' && currentUrl !== nextUrl) {
-            window.history.pushState({ ticketId: String(ticketId || '').trim() }, '', nextUrl);
+            window.history.pushState({ ticketId: exactLegacyTicketId(ticketId) }, '', nextUrl);
           }
         } else {
           window.location.assign(nextUrl);
@@ -1380,7 +1385,7 @@
         ? profileHealth.active_segments.filter(Boolean).map((item) => String(item).trim())
         : [];
       const activeState = getActiveWorkspaceState();
-      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(conversation?.ticketId || activeState.ticketId);
       const signature = `${ticketId}:${activeSegments.join('|')}:${missingFields.join(',')}`;
       if (!ticketId || state.lastProfileGapSignature === signature) {
         return;
@@ -1414,7 +1419,7 @@
         return;
       }
       const activeState = getActiveWorkspaceState();
-      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(conversation?.ticketId || activeState.ticketId);
       const signature = `${ticketId}:${blockingSources.join(',')}`;
       if (!ticketId || state.lastContextSourceGapSignature === signature) {
         return;
@@ -1445,7 +1450,7 @@
         return;
       }
       const activeState = getActiveWorkspaceState();
-      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(conversation?.ticketId || activeState.ticketId);
       const signature = `${ticketId}:${blockingPolicies.join(',')}`;
       if (!ticketId || state.lastAttributePolicyGapSignature === signature) {
         return;
@@ -1473,7 +1478,7 @@
         return;
       }
       const activeState = getActiveWorkspaceState();
-      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(conversation?.ticketId || activeState.ticketId);
       const signature = `${ticketId}:${missingBlocks.join(',')}`;
       if (!ticketId || state.lastContextBlockGapSignature === signature) {
         return;
@@ -1497,7 +1502,7 @@
         ? contract.violations.filter(Boolean).map((item) => String(item).trim()).filter(Boolean)
         : [];
       const activeState = getActiveWorkspaceState();
-      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(conversation?.ticketId || activeState.ticketId);
       if (!ticketId) {
         return;
       }
@@ -1525,7 +1530,7 @@
         return;
       }
       const activeState = getActiveWorkspaceState();
-      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(conversation?.ticketId || activeState.ticketId);
       const reason = issues.join(',') || status || 'sla_policy_gap';
       const signature = `${ticketId}:${reason}`;
       if (!ticketId || state.lastSlaPolicyGapSignature === signature) {
@@ -1547,7 +1552,7 @@
         return;
       }
       const activeState = getActiveWorkspaceState();
-      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(conversation?.ticketId || activeState.ticketId);
       const missingCapabilities = Array.isArray(safeParity?.missing_capabilities)
         ? safeParity.missing_capabilities.filter(Boolean).map((item) => String(item).trim())
         : [];
@@ -2306,9 +2311,9 @@
         conversation.categoriesSafe || conversation.categories || activeState.row?.dataset?.categories || ''
       ) || []));
       resetWorkspaceReplyTarget({ emitTelemetry: false });
-      options.setWorkspaceComposerTicketId?.(String(conversation.ticketId || '').trim());
-      const nextComposerTicketId = String(conversation.ticketId || '').trim();
-      if (elements.workspaceComposerMedia && String(activeState.composerTicketId || '').trim() !== nextComposerTicketId) {
+      options.setWorkspaceComposerTicketId?.(exactLegacyTicketId(conversation.ticketId));
+      const nextComposerTicketId = exactLegacyTicketId(conversation.ticketId);
+      if (elements.workspaceComposerMedia && exactLegacyTicketId(activeState.composerTicketId) !== nextComposerTicketId) {
         options.clearPendingMediaFiles?.(elements.workspaceComposerMedia);
       }
       restoreWorkspaceDraft(nextComposerTicketId);

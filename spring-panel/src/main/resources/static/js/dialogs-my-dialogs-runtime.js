@@ -27,6 +27,11 @@
     const pinnedStorageKey =
         `iguana:dialogs:my-dialog-pins:${operatorIdentity}`;
 
+    function exactLegacyTicketId(value) {
+      const raw = value == null ? '' : String(value);
+      return raw.trim() ? raw : '';
+    }
+
     function getPinnedDialogIds() {
         try {
             const parsed =
@@ -45,9 +50,7 @@
                     parsed
                         .map(
                             (value) =>
-                                String(
-                                    value || ''
-                                ).trim()
+                                exactLegacyTicketId(value)
                         )
                         .filter(Boolean)
                 )
@@ -69,9 +72,7 @@
                         )
                             .map(
                                 (value) =>
-                                    String(
-                                        value || ''
-                                    ).trim()
+                                    exactLegacyTicketId(value)
                             )
                             .filter(Boolean)
                     )
@@ -94,9 +95,7 @@
         ticketId
     ) {
         const normalizedTicketId =
-            String(
-                ticketId || ''
-            ).trim();
+            exactLegacyTicketId(ticketId);
 
         if (!normalizedTicketId) {
             return;
@@ -164,7 +163,7 @@
       ).trim();
       return {
         ...source,
-        ticketId: String(source.ticketId || source.ticket_id || '').trim(),
+        ticketId: exactLegacyTicketId(source.ticketId || source.ticket_id),
         requestNumber: String(source.requestNumber || source.request_number || source.displayTicketNumber || '').trim(),
         clientName: String(source.clientName || source.client_name || source.displayClientName || source.username || '').trim(),
         location,
@@ -226,7 +225,7 @@
         return null;
       }
       return {
-        ticketId: String(row.dataset.ticketId || '').trim(),
+        ticketId: exactLegacyTicketId(row.dataset.ticketId),
         requestNumber: String(row.dataset.requestNumber || '').trim(),
         clientName: String(row.dataset.client || '').trim(),
         location: String(row.dataset.location || '').trim(),
@@ -271,7 +270,7 @@
           return;
         }
         nextState.new.push({
-          ticketId: String(row.dataset.ticketId || '').trim(),
+          ticketId: exactLegacyTicketId(row.dataset.ticketId),
           requestNumber: String(row.dataset.requestNumber || '').trim(),
           clientName: String(row.dataset.client || '').trim(),
           location: String(row.dataset.location || '').trim(),
@@ -355,11 +354,7 @@
 			) || 0;
 
 		const isActive =
-			String(
-				options
-					.getActiveDialogTicketId
-					?.() || ''
-			).trim() === ticketId;
+			exactLegacyTicketId(options.getActiveDialogTicketId?.()) === ticketId;
 
 		const lastActivity =
 			formatMyDialogLastActivity(

@@ -17,6 +17,11 @@
       macroEventsBound: false,
     };
 
+    function exactLegacyTicketId(value) {
+      const raw = value == null ? '' : String(value);
+      return raw.trim() ? raw : '';
+    }
+
     function getActiveDialogState() {
       const activeState = typeof options.getActiveDialogState === 'function'
         ? options.getActiveDialogState()
@@ -184,7 +189,7 @@
     }
 
     async function initMacroVariableCatalog(ticketId, forceReload = false) {
-      const normalizedTicketId = ticketId ? String(ticketId).trim() : '';
+      const normalizedTicketId = exactLegacyTicketId(ticketId);
       if (!forceReload && state.macroVariableCatalogInitialized && state.macroVariableCatalogTicketId === normalizedTicketId) {
         return;
       }
@@ -387,7 +392,7 @@
     }
 
     async function executeMacroWorkflow(template, applyOptions = {}) {
-      const ticketId = String(applyOptions.ticketId || '').trim();
+      const ticketId = exactLegacyTicketId(applyOptions.ticketId);
       const row = applyOptions.row || null;
       if (!ticketId) return [];
       const workflow = resolveMacroWorkflow(template);
