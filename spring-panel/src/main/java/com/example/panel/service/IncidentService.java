@@ -777,7 +777,7 @@ public class IncidentService {
     private List<Incident> loadFilteredIncidents(String status, String relationType, String relationKey, String signalType) {
         if (StringUtils.hasText(relationType) && StringUtils.hasText(relationKey)) {
             String normalizedType = normalizeRelationType(relationType);
-            String normalizedKey = normalizeNullableText(relationKey);
+            String normalizedKey = normalizeRelationKey(relationKey, normalizedType);
             List<IncidentRelation> relations = incidentRelationRepository.findByRelationTypeAndRelationKeyOrderByCreatedAtDescIdDesc(
                 normalizedType,
                 normalizedKey
@@ -1142,9 +1142,10 @@ public class IncidentService {
                 if (!(item instanceof Map<?, ?> rawMap)) {
                     continue;
                 }
+                String relationType = normalizeRelationType(rawMap.get("relation_type"));
                 relations.add(new RelationDraft(
-                    normalizeRelationType(rawMap.get("relation_type")),
-                    requiredText(rawMap.get("relation_key"), "Укажите ключ связи incident."),
+                    relationType,
+                    requiredRelationKey(rawMap.get("relation_key"), relationType),
                     normalizeNullableText(rawMap.get("relation_label")),
                     parseBoolean(rawMap.get("primary")),
                     normalizeMetadata(rawMap.get("metadata"))
@@ -1171,14 +1172,14 @@ public class IncidentService {
         }
         if (raw instanceof List<?> list) {
             for (Object item : list) {
-                String relationKey = normalizeNullableText(item);
+                String relationKey = normalizeRelationKey(item, relationType);
                 if (StringUtils.hasText(relationKey)) {
                     target.add(new RelationDraft(relationType, relationKey, relationLabel, target.isEmpty(), Map.of()));
                 }
             }
             return;
         }
-        String relationKey = normalizeNullableText(raw);
+        String relationKey = normalizeRelationKey(raw, relationType);
         if (StringUtils.hasText(relationKey)) {
             target.add(new RelationDraft(relationType, relationKey, relationLabel, target.isEmpty(), Map.of()));
         }
@@ -1228,7 +1229,7 @@ public class IncidentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Некорректная связь incident.");
         }
         String relationType = normalizeRelationType(relation.relationType());
-        String relationKey = requiredText(relation.relationKey(), "Укажите ключ связи incident.");
+        String relationKey = requiredRelationKey(relation.relationKey(), relationType);
         switch (relationType) {
             case "ticket" -> {
                 if (ticketRepository.findUniqueByLegacyTicketId(relationKey).isEmpty()) {
@@ -1512,6 +1513,21 @@ public class IncidentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
         }
         return normalized;
+    }
+
+    private String requiredRelationKey(Object raw, String relationType) {
+        String key = normalizeRelationKey(raw, relationType);
+        if (!StringUtils.hasText(key)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Укажите ключ связи incident.");
+        }
+        return key;
+    }
+
+    private String normalizeRelationKey(Object raw, String relationType) {
+        if ("ticket".equals(relationType)) {
+            return raw == null ? null : LegacyTicketIdSupport.exactTicketIdOrNull(String.valueOf(raw));
+        }
+        return normalizeNullableText(raw);
     }
 
     private String normalizeNullableText(Object raw) {

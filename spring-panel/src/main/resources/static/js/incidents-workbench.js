@@ -1745,7 +1745,10 @@ function restoreIncidentDetailFocus(
 
   async function createIncident() {
     const title = createNodes.title?.value.trim();
-    const relationKey = createNodes.relationKey?.value.trim();
+    const relationType = createNodes.relationType?.value || 'ticket';
+    const relationKey = relationType === 'ticket'
+      ? exactLegacyTicketId(createNodes.relationKey?.value)
+      : createNodes.relationKey?.value.trim();
     if (!title || !relationKey) {
       throw new Error('Для создания incident заполните title и relation key.');
     }
@@ -1757,7 +1760,7 @@ function restoreIncidentDetailFocus(
       owner: createNodes.owner?.value.trim() || '',
       source: createNodes.source?.value.trim() || '',
       relations: [{
-        relation_type: createNodes.relationType?.value || 'ticket',
+        relation_type: relationType,
         relation_key: relationKey,
         primary: true
       }],

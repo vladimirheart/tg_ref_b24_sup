@@ -127,6 +127,9 @@ class IncidentServiceTest {
         ticketId.setUserId(1001L);
         ticket.setId(ticketId);
         when(ticketRepository.findUniqueByLegacyTicketId("T-INC-1")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findUniqueByLegacyTicketId(" T-INC-1 ")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findUniqueByLegacyTicketId(" null ")).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findUniqueByLegacyTicketId(" T-STRUCT ")).thenReturn(Optional.of(ticket));
 
         Task task = new Task();
         task.setId(15L);
@@ -148,6 +151,8 @@ class IncidentServiceTest {
                 "summary", "Checkout is degraded",
                 "severity", "critical",
                 "ticket_id", "T-INC-1",
+                "ticket_ids", List.of(" T-INC-1 ", " null "),
+                "relations", List.of(Map.of("relation_type", " ticket ", "relation_key", " T-STRUCT ", "primary", true)),
                 "task_id", 15,
                 "object_passport_id", 4,
                 "watchers", List.of("OpsLead", "FinanceLead")
@@ -160,7 +165,12 @@ class IncidentServiceTest {
         assertThat(incident).containsEntry("incident_key", "INC-77");
         assertThat(incident).containsEntry("status", "open");
         assertThat(incident).containsEntry("severity", "critical");
-        assertThat((List<?>) incident.get("relations")).hasSize(3);
+        assertThat((List<?>) incident.get("relations")).hasSize(6);
+        assertThat(savedRelations).extracting(IncidentRelation::getRelationKey)
+            .containsExactly(" T-STRUCT ", "T-INC-1", " T-INC-1 ", " null ", "15", "4");
+        verify(ticketRepository).findUniqueByLegacyTicketId(" T-STRUCT ");
+        verify(ticketRepository).findUniqueByLegacyTicketId(" T-INC-1 ");
+        verify(ticketRepository).findUniqueByLegacyTicketId(" null ");
         assertThat((List<?>) incident.get("watchers")).hasSize(2);
         assertThat((List<?>) incident.get("events")).hasSize(1);
         verify(notificationRoutingService).notify(eq("incidents"), eq("incident_created"), any(), any(), any(), eq("Commander"));
@@ -292,5 +302,14 @@ class IncidentServiceTest {
         verify(incidentRelationRepository)
             .findByRelationTypeAndRelationKeyOrderByCreatedAtDescIdDesc("ticket", "T-EXACT");
         assertThat(service.listIncidentSummariesForTicket(" \t ")).isEmpty();
+        org.mockito.Mockito.clearInvocations(incidentRelationRepository);
+        assertThat(service.listIncidents(null, null, " ticket ", " T-EXACT ", null, null, 20))
+            .containsEntry("total", 0);
+        verify(incidentRelationRepository)
+            .findByRelationTypeAndRelationKeyOrderByCreatedAtDescIdDesc("ticket", " T-EXACT ");
+        assertThat(service.listIncidents(null, null, "task", " 15 ", null, null, 20))
+            .containsEntry("total", 0);
+        verify(incidentRelationRepository)
+            .findByRelationTypeAndRelationKeyOrderByCreatedAtDescIdDesc("task", "15");
     }
 }
