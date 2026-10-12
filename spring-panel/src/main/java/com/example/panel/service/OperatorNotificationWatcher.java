@@ -143,7 +143,7 @@ public class OperatorNotificationWatcher {
                         if (id > maxSeen) {
                             maxSeen = id;
                         }
-                        String ticketId = trimToNull(rs.getString("ticket_id"));
+                        String ticketId = exactTicketIdOrNull(rs.getString("ticket_id"));
                         String sender = normalizeSender(rs.getString("sender"));
                         String messageType = normalizeSender(rs.getString("message_type"));
                         String message = trimToNull(rs.getString("message"));
@@ -237,7 +237,7 @@ public class OperatorNotificationWatcher {
                 """,
                 (org.springframework.jdbc.core.ResultSetExtractor<Void>) rs -> {
                     while (rs.next()) {
-                        String ticketId = trimToNull(rs.getString("ticket_id"));
+                        String ticketId = exactTicketIdOrNull(rs.getString("ticket_id"));
                         Long channelId = rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null;
                         String firstClientAtRaw = trimToNull(rs.getString("first_client_at"));
                         if (!StringUtils.hasText(ticketId)
@@ -446,6 +446,10 @@ public class OperatorNotificationWatcher {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String exactTicketIdOrNull(String ticketId) {
+        return StringUtils.hasText(ticketId) ? ticketId : null;
     }
 
     private String truncate(String value, int limit) {

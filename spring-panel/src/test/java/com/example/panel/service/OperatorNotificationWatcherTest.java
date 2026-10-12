@@ -7,6 +7,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
@@ -41,7 +43,8 @@ class OperatorNotificationWatcherTest {
         createSchema();
 
         notificationService = mock(NotificationService.class);
-        when(notificationService.buildDialogUrl(anyString())).thenAnswer(invocation -> "/dialogs/" + invocation.getArgument(0, String.class).trim());
+        when(notificationService.buildDialogUrl(anyString())).thenAnswer(invocation ->
+                "/dialogs/" + URLEncoder.encode(invocation.getArgument(0, String.class), StandardCharsets.UTF_8));
         dialogAiAssistantService = mock(DialogAiAssistantService.class);
         alertQueueService = mock(AlertQueueService.class);
         channelRepository = mock(ChannelRepository.class);
@@ -192,6 +195,61 @@ class OperatorNotificationWatcherTest {
                 channelRepository,
                 dialogAuditService
         );
+    }
+
+    @Test
+    void incomingMessageKeepsPaddedTicketIdentityInsteadOfPlainSibling() {
+        String padded = " T-EXACT ";
+        Channel channel = channel(17L, "Exact Queue");
+        when(channelRepository.findById(17L)).thenReturn(Optional.of(channel));
+        insertTicket("T-EXACT", 301L, 17L);
+        insertTicket(padded, 302L, 17L);
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                1L, padded, "user", "padded message", "text", null, 17L,
+                OffsetDateTime.now(ZoneOffset.UTC).toString());
+
+        watcher.watch();
+
+        verify(dialogAiAssistantService).processIncomingClientMessage(padded, "padded message", "text", null);
+        verify(dialogAiAssistantService, never()).processIncomingClientMessage(
+                "T-EXACT", "padded message", "text", null);
+    }
+
+    @Test
+    void firstResponseOverdueKeepsPaddedTicketIdentityThroughQueueAuditAndUrl() {
+        String padded = " null ";
+        Channel channel = channel(18L, "Exact Queue");
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+                "dialog_config", Map.of("sla_target_minutes", 1)));
+        when(channelRepository.findById(18L)).thenReturn(Optional.of(channel));
+        when(notificationService.findAllOperatorRecipients()).thenReturn(Set.of("alice"));
+        insertTicket("null", 401L, 18L);
+        insertTicket(padded, 402L, 18L);
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(id, ticket_id, sender, message, message_type, channel_id, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                1L, padded, "user", "waiting", "text", 18L,
+                OffsetDateTime.now(ZoneOffset.UTC).minusHours(2).toString());
+
+        watcher.watch();
+
+        verify(alertQueueService).notifyFirstResponseOverdue(
+                eq(channel), eq(padded), org.mockito.ArgumentMatchers.anyLong());
+        verify(alertQueueService, never()).notifyFirstResponseOverdue(
+                eq(channel), eq("null"), org.mockito.ArgumentMatchers.anyLong());
+        verify(notificationService).buildDialogUrl(padded);
+        verify(notificationService).notifyUsers(
+                eq(Set.of("alice")),
+                org.mockito.ArgumentMatchers.contains("в обращении  null ."),
+                eq("/dialogs/+null+")
+        );
+        verify(dialogAuditService).logDialogActionAudit(
+                eq(padded), eq("notification_watcher"),
+                eq("first_response_overdue_notification"), eq("success"), anyString());
     }
 
     private void insertTicket(String ticketId, long userId, long channelId) {
