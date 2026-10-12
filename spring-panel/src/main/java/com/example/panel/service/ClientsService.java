@@ -436,7 +436,7 @@ public class ClientsService {
             if (createdAt == null) {
                 continue;
             }
-            String ticketId = ticket.ticketId().trim();
+            String ticketId = ticket.ticketId();
             TrendAccumulator accumulator = byTicket.computeIfAbsent(ticketId, key -> new TrendAccumulator());
             if (accumulator.createdAt == null || createdAt.isBefore(accumulator.createdAt)) {
                 accumulator.createdAt = createdAt;

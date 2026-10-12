@@ -168,6 +168,26 @@ class ClientsServiceTest {
         assertThat(yoy.previousCount()).isEqualTo(1);
     }
 
+    @Test
+    void periodComparisonsKeepDistinctOpaqueTicketIdsWhileDeduplicatingExactRows() {
+        var now = java.time.ZonedDateTime.of(2026, 9, 22, 12, 0, 0, 0, java.time.ZoneId.of("UTC"));
+        var comparisons = service.buildPeriodComparisons(List.of(
+            trendTicket("T-EXACT", "2026-09-21T09:00:00Z", "Оплата"),
+            trendTicket(" T-EXACT ", "2026-09-21T10:00:00Z", "Доставка"),
+            trendTicket(" T-EXACT ", "2026-09-21T11:00:00Z", "Доставка"),
+            trendTicket("null", "2026-09-22T08:00:00Z", "Оплата"),
+            trendTicket(" null ", "2026-09-22T09:00:00Z", "Возврат"),
+            trendTicket(" \t ", "2026-09-22T10:00:00Z", "Игнорировать"),
+            trendTicket("T-PREV", "2026-09-15T09:00:00Z", "Оплата")
+        ), now);
+
+        assertThat(comparisons.get(0).key()).isEqualTo("wow");
+        assertThat(comparisons.get(0).currentCount()).isEqualTo(4);
+        assertThat(comparisons.get(0).previousCount()).isEqualTo(1);
+        assertThat(comparisons.get(1).currentCount()).isEqualTo(5);
+        assertThat(comparisons.get(2).currentCount()).isEqualTo(5);
+    }
+
     private com.example.panel.model.clients.ClientProfileTicket trendTicket(String ticketId, String createdAt, String category) {
         return new com.example.panel.model.clients.ClientProfileTicket(
             ticketId, ticketId, null, null, null, null, null, createdAt, null, null, category, null, null, null
