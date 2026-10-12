@@ -264,7 +264,7 @@ public class DialogAiAssistantService {
                                                           String ticketId,
                                                           String eventType,
                                                           String actor) {
-        String normalizedTicketId = trim(ticketId);
+        String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         if (normalizedTicketId != null && !legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)) {
             return List.of();
         }
@@ -280,7 +280,7 @@ public class DialogAiAssistantService {
     }
 
     private String uniqueTicketId(String ticketId) {
-        String normalizedTicketId = trim(ticketId);
+        String normalizedTicketId = StringUtils.hasText(ticketId) ? ticketId : null;
         return normalizedTicketId != null && legacyTicketIdJdbcGuard.hasUniqueTicket(normalizedTicketId)
                 ? normalizedTicketId
                 : null;
