@@ -1,8 +1,10 @@
 package com.example.panel.service.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.example.panel.service.IncidentService;
@@ -22,6 +24,7 @@ class IntegrationTransportOpsServiceTest {
     private Object inboundIngestionService;
     private Object ticketCreationIngestionService;
     private Object outboxService;
+    private IncidentService incidentService;
     private IntegrationTransportOpsService service;
 
     @BeforeEach
@@ -124,6 +127,7 @@ class IntegrationTransportOpsServiceTest {
         this.outboxService = outboxService;
         doNothing().when(outboxService).dispatchBatch();
         IncidentService incidentService = mock(IncidentService.class);
+        this.incidentService = incidentService;
         RuntimeWorkerCheckpointService runtimeWorkerCheckpointService = mock(RuntimeWorkerCheckpointService.class);
         doNothing().when(incidentService).appendSignalEvent(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
             org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
@@ -238,6 +242,104 @@ class IntegrationTransportOpsServiceTest {
         assertThat((List<?>) payload.get("inbound_events")).hasSize(1);
         assertThat((List<?>) payload.get("outbound_events")).hasSize(1);
         assertThat((List<?>) payload.get("recent_operations")).hasSize(1);
+    }
+
+    @Test
+    void ticketDebugKeepsExactPaddedIdAcrossRowsAndIncidentLookup() {
+        for (String ticketId : List.of(" T-EXACT ", "T-EXACT")) {
+            String suffix = ticketId.startsWith(" ") ? "padded" : "plain";
+            jdbcTemplate.update("""
+                    INSERT INTO integration_inbound_event_inbox(event_id, event_kind, ticket_id, status, updated_at)
+                    VALUES (?, 'client_message.active_ticket', ?, 'failed', CURRENT_TIMESTAMP)
+                    """, "in-" + suffix, ticketId);
+            jdbcTemplate.update("""
+                    INSERT INTO integration_transport_outbox(event_id, event_kind, ticket_id, status, updated_at)
+                    VALUES (?, 'feedback.prompt.dispatch', ?, 'failed', CURRENT_TIMESTAMP)
+                    """, "out-" + suffix, ticketId);
+            jdbcTemplate.update("""
+                    INSERT INTO integration_transport_operation_log(action_type, summary_text, target_type, target_id,
+                        ticket_id, result_status, created_at)
+                    VALUES ('manual_requeue_outbound_ticket', 'requeued', 'ticket', ?, ?, 'success', CURRENT_TIMESTAMP)
+                    """, ticketId, ticketId);
+        }
+
+        Map<String, Object> padded = service.loadTicketTransportDebug(" T-EXACT ");
+        assertThat(padded.get("ticket_id")).isEqualTo(" T-EXACT ");
+        assertThat((List<?>) padded.get("inbound_events")).hasSize(1);
+        assertThat(((Map<?, ?>) ((List<?>) padded.get("inbound_events")).get(0)).get("event_id"))
+            .isEqualTo("in-padded");
+        assertThat((List<?>) padded.get("outbound_events")).hasSize(1);
+        assertThat(((Map<?, ?>) ((List<?>) padded.get("outbound_events")).get(0)).get("event_id"))
+            .isEqualTo("out-padded");
+        assertThat((List<?>) padded.get("recent_operations")).hasSize(1);
+        assertThat(((Map<?, ?>) ((List<?>) padded.get("recent_operations")).get(0)).get("target_id"))
+            .isEqualTo(" T-EXACT ");
+        assertThat(((Map<?, ?>) ((List<?>) padded.get("recent_operations")).get(0)).get("ticket_id"))
+            .isEqualTo(" T-EXACT ");
+        verify(incidentService).listIncidentSummariesForTicket(" T-EXACT ");
+        assertThat(((Map<?, ?>) ((List<?>) service.loadTicketTransportDebug("T-EXACT")
+            .get("inbound_events")).get(0)).get("event_id")).isEqualTo("in-plain");
+    }
+
+    @Test
+    void targetedOutboundRequeueOnlyChangesPaddedTicketAndKeepsAuditId() {
+        jdbcTemplate.update("""
+                INSERT INTO integration_transport_outbox(event_id, event_kind, ticket_id, status, updated_at)
+                VALUES ('out-padded', 'feedback.prompt.dispatch', ' T-EXACT ', 'failed', CURRENT_TIMESTAMP),
+                       ('out-plain', 'feedback.prompt.dispatch', 'T-EXACT', 'failed', CURRENT_TIMESTAMP)
+                """);
+
+        Map<String, Object> result = service.requeueFailedOutboundEventsForTicket(" T-EXACT ", 25, "operator");
+        assertThat(result).containsEntry("ticket_id", " T-EXACT ").containsEntry("requeued", 1);
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT status FROM integration_transport_outbox WHERE event_id='out-padded'", String.class))
+            .isEqualTo("queued");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT status FROM integration_transport_outbox WHERE event_id='out-plain'", String.class))
+            .isEqualTo("failed");
+        assertThat(jdbcTemplate.queryForMap(
+            "SELECT target_id, ticket_id FROM integration_transport_operation_log WHERE action_type='manual_requeue_outbound_ticket'"))
+            .containsEntry("target_id", " T-EXACT ").containsEntry("ticket_id", " T-EXACT ");
+        verify((OutboundFeedbackPromptPublishOutboxService) outboxService).dispatchBatch();
+    }
+
+    @Test
+    void targetedInboundReplayOnlyDelegatesPaddedTicketAndKeepsAuditId() throws Exception {
+        for (String ticketId : List.of(" T-EXACT ", "T-EXACT")) {
+            String suffix = ticketId.startsWith(" ") ? "padded" : "plain";
+            InboundClientMessageEvent event = new InboundClientMessageEvent(
+                "in-" + suffix, "client_message.active_ticket", "telegram", 10L,
+                ticketId, 20L, "u20", "tester", "Test User", "hello", "text",
+                null, null, null, null, null, OffsetDateTime.now());
+            jdbcTemplate.update("""
+                    INSERT INTO integration_inbound_event_inbox(event_id, event_kind, ticket_id, routing_key,
+                        payload_json, status, updated_at)
+                    VALUES (?, 'client_message.active_ticket', ?, 'integration.inbound.telegram',
+                        ?, 'failed', CURRENT_TIMESTAMP)
+                    """, event.eventId(), ticketId,
+                new ObjectMapper().findAndRegisterModules().writeValueAsString(event));
+        }
+
+        Map<String, Object> result = service.replayFailedInboundEventsForTicket(" T-EXACT ", 25, "operator");
+        assertThat(result).containsEntry("ticket_id", " T-EXACT ").containsEntry("replayed", 1);
+        verify((InboundClientMessageIngestionService) inboundIngestionService, times(1)).ingest(
+            org.mockito.ArgumentMatchers.argThat(event -> "in-padded".equals(event.eventId())),
+            org.mockito.ArgumentMatchers.eq("integration.inbound.telegram"));
+        assertThat(jdbcTemplate.queryForMap(
+            "SELECT target_id, ticket_id FROM integration_transport_operation_log WHERE action_type='manual_replay_inbound_ticket'"))
+            .containsEntry("target_id", " T-EXACT ").containsEntry("ticket_id", " T-EXACT ");
+    }
+
+    @Test
+    void blankTicketRequestsAreRejectedBeforeTransportActions() {
+        assertThatThrownBy(() -> service.loadTicketTransportDebug(" \t "))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.replayFailedInboundEventsForTicket(" \t ", 25, "operator"))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.requeueFailedOutboundEventsForTicket(" \t ", 25, "operator"))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM integration_transport_operation_log", Long.class)).isZero();
     }
 
     @Test

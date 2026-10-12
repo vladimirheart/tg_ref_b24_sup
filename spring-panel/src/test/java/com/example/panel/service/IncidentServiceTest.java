@@ -267,4 +267,30 @@ class IncidentServiceTest {
             .contains("\"signal_family\":\"credential_rotation\"")
             .contains("\"incident_reason\":\"Источник найден, но секрет пустой.\"");
     }
+
+    @Test
+    void ticketIncidentLookupKeepsPaddedAndPlainRelationKeysDistinct() {
+        IncidentRepository incidentRepository = mock(IncidentRepository.class);
+        IncidentRelationRepository incidentRelationRepository = mock(IncidentRelationRepository.class);
+        IncidentService service = new IncidentService(
+            incidentRepository,
+            mock(IncidentEventRepository.class),
+            incidentRelationRepository,
+            mock(IncidentWatcherRepository.class),
+            mock(IncidentRouteRepository.class),
+            mock(TicketRepository.class),
+            mock(TaskRepository.class),
+            mock(JdbcTemplate.class),
+            new ObjectMapper(),
+            mock(NotificationRoutingService.class),
+            mock(IncidentRouteDeliveryOutboxService.class));
+
+        assertThat(service.listIncidentSummariesForTicket(" T-EXACT ")).isEmpty();
+        verify(incidentRelationRepository)
+            .findByRelationTypeAndRelationKeyOrderByCreatedAtDescIdDesc("ticket", " T-EXACT ");
+        assertThat(service.listIncidentSummariesForTicket("T-EXACT")).isEmpty();
+        verify(incidentRelationRepository)
+            .findByRelationTypeAndRelationKeyOrderByCreatedAtDescIdDesc("ticket", "T-EXACT");
+        assertThat(service.listIncidentSummariesForTicket(" \t ")).isEmpty();
+    }
 }

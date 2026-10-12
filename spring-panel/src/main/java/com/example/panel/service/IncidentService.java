@@ -13,6 +13,7 @@ import com.example.panel.repository.IncidentRouteRepository;
 import com.example.panel.repository.IncidentWatcherRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.repository.TicketRepository;
+import com.example.panel.support.LegacyTicketIdSupport;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
@@ -744,7 +745,9 @@ public class IncidentService {
     }
 
     private List<Map<String, Object>> listIncidentSummariesForRelation(String relationType, String relationKey) {
-        String normalizedKey = normalizeNullableText(relationKey);
+        String normalizedKey = "ticket".equals(relationType)
+            ? LegacyTicketIdSupport.exactTicketIdOrNull(relationKey)
+            : normalizeNullableText(relationKey);
         if (!StringUtils.hasText(normalizedKey)) {
             return List.of();
         }

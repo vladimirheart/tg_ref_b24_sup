@@ -3,6 +3,7 @@ package com.example.panel.service.integration;
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import com.example.panel.service.IncidentService;
 import com.example.panel.service.RuntimeWorkerCheckpointService;
+import com.example.panel.support.LegacyTicketIdSupport;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -130,7 +131,7 @@ public class IntegrationTransportOpsService {
     }
 
     public Map<String, Object> loadTicketTransportDebug(String ticketId) {
-        String normalizedTicketId = normalize(ticketId);
+        String normalizedTicketId = LegacyTicketIdSupport.exactTicketIdOrNull(ticketId);
         if (!StringUtils.hasText(normalizedTicketId)) {
             throw new IllegalArgumentException("Ticket id is required for transport debug.");
         }
@@ -382,7 +383,7 @@ public class IntegrationTransportOpsService {
 
     @Transactional
     public Map<String, Object> replayFailedInboundEventsForTicket(String ticketId, int limit, String actor) {
-        String normalizedTicketId = normalize(ticketId);
+        String normalizedTicketId = LegacyTicketIdSupport.exactTicketIdOrNull(ticketId);
         if (!StringUtils.hasText(normalizedTicketId)) {
             throw new IllegalArgumentException("Transport inbox replay requires ticket id.");
         }
@@ -506,7 +507,7 @@ public class IntegrationTransportOpsService {
 
     @Transactional
     public Map<String, Object> requeueFailedOutboundEventsForTicket(String ticketId, int limit, String actor) {
-        String normalizedTicketId = normalize(ticketId);
+        String normalizedTicketId = LegacyTicketIdSupport.exactTicketIdOrNull(ticketId);
         if (!StringUtils.hasText(normalizedTicketId)) {
             throw new IllegalArgumentException("Transport outbox requeue requires ticket id.");
         }
@@ -1229,8 +1230,10 @@ public class IntegrationTransportOpsService {
         row.put("action_type", normalize(rs.getString("action_type")));
         row.put("summary_text", normalize(rs.getString("summary_text")));
         row.put("target_type", normalize(rs.getString("target_type")));
-        row.put("target_id", normalize(rs.getString("target_id")));
-        row.put("ticket_id", normalize(rs.getString("ticket_id")));
+        row.put("target_id", "ticket".equals(rs.getString("target_type"))
+            ? LegacyTicketIdSupport.exactTicketIdOrNull(rs.getString("target_id"))
+            : normalize(rs.getString("target_id")));
+        row.put("ticket_id", LegacyTicketIdSupport.exactTicketIdOrNull(rs.getString("ticket_id")));
         row.put("worker_key", normalize(rs.getString("worker_key")));
         row.put("result_status", normalize(rs.getString("result_status")));
         row.put("actor", normalize(rs.getString("actor")));
@@ -1367,8 +1370,8 @@ public class IntegrationTransportOpsService {
             normalize(actionType),
             requiredSummary(summaryText),
             normalize(targetType),
-            normalize(targetId),
-            normalize(ticketId),
+            "ticket".equals(targetType) ? LegacyTicketIdSupport.exactTicketIdOrNull(targetId) : normalize(targetId),
+            LegacyTicketIdSupport.exactTicketIdOrNull(ticketId),
             normalize(workerKey),
             normalize(resultStatus) == null ? "success" : normalize(resultStatus),
             normalize(actor),

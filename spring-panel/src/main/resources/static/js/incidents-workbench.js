@@ -626,6 +626,11 @@
     errorNode?.classList.add('d-none');
   }
 
+  function exactLegacyTicketId(value) {
+    const raw = value == null ? '' : String(value);
+    return raw.trim() ? raw : '';
+  }
+
   function escapeHtml(value) {
     return String(value ?? '')
       .replace(/&/g, '&amp;')
@@ -2250,7 +2255,7 @@ function restoreIncidentDetailFocus(
         ++state.ticketDebugRequestSerial;
 
     const ticketId =
-        transportNodes.ticketId?.value?.trim();
+        exactLegacyTicketId(transportNodes.ticketId?.value);
 
     if (!ticketId) {
         transportNodes.ticketDebug?.setAttribute(
@@ -2706,8 +2711,8 @@ detailNode.addEventListener(
 				);
 			}
 		);
-  document.getElementById('transportWorkbenchReplayTicket')?.addEventListener('click', () => {
-    const ticketId = transportNodes.ticketId?.value?.trim();
+  document.getElementById('transportWorkbenchReplayTicket')?.addEventListener('click', (event) => {
+    const ticketId = exactLegacyTicketId(transportNodes.ticketId?.value);
     if (!ticketId) {
       showError('Укажите ticket id для targeted inbound replay.');
       return;
@@ -2724,8 +2729,8 @@ detailNode.addEventListener(
 			showError(error.message)
 	);
   });
-  document.getElementById('transportWorkbenchRequeueTicket')?.addEventListener('click', () => {
-    const ticketId = transportNodes.ticketId?.value?.trim();
+  document.getElementById('transportWorkbenchRequeueTicket')?.addEventListener('click', (event) => {
+    const ticketId = exactLegacyTicketId(transportNodes.ticketId?.value);
     if (!ticketId) {
       showError('Укажите ticket id для targeted outbound requeue.');
       return;
