@@ -124,4 +124,42 @@ class DialogTicketQueryReadControllerWebMvcTest {
 
         verify(dialogReadService).loadHistory(" T-100 ", null, "operator");
     }
+
+    @Test
+    void previousHistoryKeepsExactTicketIdAndOffset() throws Exception {
+        String ticketId = " T/100?&%# Ю ";
+        doReturn(ResponseEntity.ok(Map.of("success", true, "has_more", false, "next_offset", 20)))
+                .when(dialogReadService).loadPreviousHistory(ticketId, 20);
+
+        mockMvc.perform(get("/api/dialog-ticket/history/previous")
+                        .param("ticketId", ticketId)
+                        .param("offset", "20")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.next_offset").value(20));
+
+        verify(dialogReadService).loadPreviousHistory(ticketId, 20);
+    }
+
+    @Test
+    void previousHistoryDefaultsOffsetToZeroWithoutTrimmingTicketId() throws Exception {
+        doReturn(ResponseEntity.ok(Map.of("success", true, "next_offset", 0)))
+                .when(dialogReadService).loadPreviousHistory(" null ", 0);
+
+        mockMvc.perform(get("/api/dialog-ticket/history/previous")
+                        .param("ticketId", " null ")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.next_offset").value(0));
+
+        verify(dialogReadService).loadPreviousHistory(" null ", 0);
+    }
+
+    @Test
+    void previousHistoryRejectsMissingTicketIdWithoutCallingService() throws Exception {
+        mockMvc.perform(get("/api/dialog-ticket/history/previous").with(user("operator")))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(dialogReadService);
+    }
 }

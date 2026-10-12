@@ -33,4 +33,10 @@ public class DialogTicketQueryReadController {
         String operator = authentication != null ? authentication.getName() : null;
         return dialogReadService.loadHistory(ticketId, channelId, operator);
     }
+
+    @GetMapping("/api/dialog-ticket/history/previous")
+    public ResponseEntity<?> previousHistory(@RequestParam("ticketId") String ticketId,
+                                             @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+        return dialogReadService.loadPreviousHistory(ticketId, offset);
+    }
 }

@@ -8,6 +8,10 @@
     return typeof withChannelParam === 'function' ? withChannelParam(url, channelId) : url;
   }
 
+  function buildPreviousDialogHistoryApiUrl(ticketId, offset) {
+    return `/api/dialog-ticket/history/previous?ticketId=${encodeURIComponent(ticketId)}&offset=${encodeURIComponent(offset)}`;
+  }
+
   function createRuntime(options = {}) {
     const elements = options.elements || {};
     const state = {
@@ -1106,7 +1110,7 @@
       try {
         const previousHeight = elements.detailsHistory ? elements.detailsHistory.scrollHeight : 0;
         const previousScrollTop = elements.detailsHistory ? elements.detailsHistory.scrollTop : 0;
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogState.ticketId)}/history/previous?offset=${encodeURIComponent(state.previousNextOffset)}`, {
+        const resp = await fetch(buildPreviousDialogHistoryApiUrl(activeDialogState.ticketId, state.previousNextOffset), {
           credentials: 'same-origin',
           cache: 'no-store',
         });

@@ -58,7 +58,7 @@ public class DialogReadService {
         int resolvedOffset = offset != null ? Math.max(0, offset) : 0;
         Optional<DialogPreviousHistoryPage> page = dialogConversationReadService.loadPreviousDialogHistory(ticketId, resolvedOffset);
         if (page.isEmpty()) {
-            return ResponseEntity.ok(Map.of(
+            return ResponseEntity.ok(mapWithNullableValues(
                     "success", true,
                     "batch", null,
                     "has_more", false,
