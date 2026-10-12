@@ -203,7 +203,9 @@ public class TaskService {
     }
 
     private void linkTickets(Long taskId, List<String> ticketIds) {
-        Set<String> sanitized = sanitizePeople(ticketIds);
+        Set<String> sanitized = ticketIds == null ? Set.of() : ticketIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
         if (sanitized.isEmpty()) {
             return;
         }
