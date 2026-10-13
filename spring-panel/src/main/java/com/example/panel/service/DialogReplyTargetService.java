@@ -55,7 +55,14 @@ public class DialogReplyTargetService {
             return false;
         }
         Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM web_form_sessions WHERE ticket_id = ?",
+                """
+                SELECT COUNT(*) FROM web_form_sessions
+                 WHERE ticket_id = ?
+                   AND 1 = (
+                       SELECT COUNT(*) FROM tickets unique_ticket
+                        WHERE unique_ticket.ticket_id = web_form_sessions.ticket_id
+                   )
+                """,
                 Integer.class,
                 ticketId
         );
@@ -113,6 +120,10 @@ public class DialogReplyTargetService {
                 SELECT COALESCE(MAX(tg_message_id), 0)
                   FROM chat_history
                  WHERE ticket_id = ?
+                   AND 1 = (
+                       SELECT COUNT(*) FROM tickets unique_ticket
+                        WHERE unique_ticket.ticket_id = chat_history.ticket_id
+                   )
                 """, Long.class, ticketId);
         return (max != null ? max : 0L) + 1L;
     }
@@ -209,6 +220,16 @@ public class DialogReplyTargetService {
                     SELECT COUNT(*) FROM chat_history
                      WHERE ticket_id = ? AND user_id = ? AND channel_id = ?
                        AND tg_message_id = ? AND sender = 'operator'
+                       AND EXISTS (
+                           SELECT 1 FROM tickets t
+                            WHERE t.ticket_id = chat_history.ticket_id
+                              AND t.user_id = chat_history.user_id
+                              AND t.channel_id = chat_history.channel_id
+                       )
+                       AND 1 = (
+                           SELECT COUNT(*) FROM tickets unique_ticket
+                            WHERE unique_ticket.ticket_id = chat_history.ticket_id
+                       )
                     """, Integer.class, ticketId, target.userId(), target.channelId(), telegramMessageId);
             return count != null && count == 1;
         } catch (DataAccessException ex) {
@@ -239,6 +260,10 @@ public class DialogReplyTargetService {
                                ELSE user_identity
                            END
                      WHERE ticket_id = ?
+                       AND 1 = (
+                           SELECT COUNT(*) FROM tickets unique_ticket
+                            WHERE unique_ticket.ticket_id = ticket_active.ticket_id
+                       )
                     """,
                     timestamp,
                     identity,
@@ -249,6 +274,10 @@ public class DialogReplyTargetService {
                     UPDATE ticket_active
                        SET last_seen = ?
                      WHERE ticket_id = ?
+                       AND 1 = (
+                           SELECT COUNT(*) FROM tickets unique_ticket
+                            WHERE unique_ticket.ticket_id = ticket_active.ticket_id
+                       )
                     """,
                     timestamp,
                     ticketId
@@ -257,7 +286,13 @@ public class DialogReplyTargetService {
         if (updated == 0) {
             jdbcTemplate.update("""
                     INSERT INTO ticket_active(ticket_id, user_identity, last_seen)
-                    VALUES (?, ?, ?)
+                    SELECT activity.*
+                      FROM (VALUES (?::text, ?::text, ?::timestamptz))
+                        AS activity(ticket_id, user_identity, last_seen)
+                     WHERE 1 = (
+                         SELECT COUNT(*) FROM tickets unique_ticket
+                          WHERE unique_ticket.ticket_id = activity.ticket_id
+                     )
                     """,
                     ticketId,
                     identity,
