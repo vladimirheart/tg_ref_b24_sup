@@ -188,6 +188,10 @@ public class DialogReplyTargetService {
             Integer count = jdbcTemplate.queryForObject("""
                     SELECT COUNT(*) FROM tickets
                      WHERE ticket_id = ? AND user_id = ? AND channel_id = ?
+                       AND 1 = (
+                           SELECT COUNT(*) FROM tickets unique_ticket
+                            WHERE unique_ticket.ticket_id = tickets.ticket_id
+                       )
                     """, Integer.class, ticketId, target.userId(), target.channelId());
             return count != null && count == 1;
         } catch (DataAccessException ex) {
