@@ -38,6 +38,10 @@ public class DialogReplyTargetService {
                                         AND t.user_id = m.user_id
                                         AND t.channel_id = m.channel_id
                          WHERE m.ticket_id = ?
+                           AND 1 = (
+                               SELECT COUNT(*) FROM tickets unique_ticket
+                                WHERE unique_ticket.ticket_id = m.ticket_id
+                           )
                          ORDER BY m.created_at DESC
                          LIMIT 1
                         """,
