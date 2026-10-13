@@ -33,7 +33,13 @@ public class DialogAuditService {
             }
             jdbcTemplate.update("""
                     INSERT INTO dialog_action_audit (ticket_id, actor, action, result, detail, created_at)
-                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    SELECT audit_row.ticket_id, audit_row.actor, audit_row.action, audit_row.result,
+                           audit_row.detail, CURRENT_TIMESTAMP
+                      FROM (VALUES (?::text, ?::text, ?::text, ?::text, ?::text))
+                           AS audit_row(ticket_id, actor, action, result, detail)
+                     WHERE 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = audit_row.ticket_id)
                     """,
                     ticketId,
                     StringUtils.hasText(actor) ? actor.trim() : "anonymous",
@@ -59,6 +65,9 @@ public class DialogAuditService {
                      WHERE ticket_id = ?
                        AND action = ?
                        AND result = 'success'
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = dialog_action_audit.ticket_id)
                     """,
                     Long.class,
                     ticketId,
@@ -97,8 +106,21 @@ public class DialogAuditService {
                         actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
                         duration_ms, experiment_name, experiment_cohort, operator_segment,
                         primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    """,
+                    )
+                    SELECT telemetry.actor, telemetry.event_type, telemetry.event_group, telemetry.ticket_id,
+                           telemetry.reason, telemetry.error_code, telemetry.contract_version, telemetry.duration_ms,
+                           telemetry.experiment_name, telemetry.experiment_cohort, telemetry.operator_segment,
+                           telemetry.primary_kpis, telemetry.secondary_kpis, telemetry.template_id,
+                           telemetry.template_name, CURRENT_TIMESTAMP
+                      FROM (VALUES (?::text, ?::text, ?::text, ?::text, ?::text, ?::text, ?::text,
+                                    ?::bigint, ?::text, ?::text, ?::text, ?::text, ?::text, ?::text, ?::text))
+                           AS telemetry(actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                                        duration_ms, experiment_name, experiment_cohort, operator_segment,
+                                        primary_kpis, secondary_kpis, template_id, template_name)
+                    %s
+                    """.formatted(StringUtils.hasText(ticketId)
+                            ? "WHERE 1 = (SELECT COUNT(*) FROM tickets unique_ticket WHERE unique_ticket.ticket_id = telemetry.ticket_id)"
+                            : ""),
                     trimOrNull(actor),
                     trimOrNull(eventType),
                     trimOrNull(eventGroup),
