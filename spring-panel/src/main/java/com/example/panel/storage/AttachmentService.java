@@ -247,6 +247,10 @@ public class AttachmentService {
         }
     }
 
+    public boolean hasTicketAttachmentOwnerByStorageKey(String ticketId, String storageKey) {
+        return StringUtils.hasText(ticketId) && ticketId.equals(attachmentOwnerGuard.resolveUniqueOwner(storageKey));
+    }
+
     public boolean hasTicketAttachmentByStorageKey(String storageKey) {
         try {
             if (!hasUniqueTicketForStorageKey(storageKey)) {

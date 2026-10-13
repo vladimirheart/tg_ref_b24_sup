@@ -85,13 +85,14 @@ public class DialogConversationReadService {
                     String key = previewKey(parseLong(row.get("channel_id")), replyTo);
                     replyPreview = previewByMessage.get(key);
                 }
-                String rawAttachment = value(row.get("attachment"));
-                String storageKey = value(row.get("attachment_storage_key"));
-                String attachmentProvider = value(row.get("attachment_storage_provider"));
-                String attachmentStatus = value(row.get("attachment_availability_status"));
-                String legacyAttachmentRef = value(row.get("attachment_legacy_ref"));
+                boolean readableAttachment = isReadableAttachmentMetadata(ticketId, row);
+                String rawAttachment = readableAttachment ? value(row.get("attachment")) : null;
+                String storageKey = readableAttachment ? value(row.get("attachment_storage_key")) : null;
+                String attachmentProvider = readableAttachment ? value(row.get("attachment_storage_provider")) : null;
+                String attachmentStatus = readableAttachment ? value(row.get("attachment_availability_status")) : null;
+                String legacyAttachmentRef = readableAttachment ? value(row.get("attachment_legacy_ref")) : null;
                 String attachment = toAttachmentUrl(ticketId, rawAttachment, storageKey, attachmentProvider, attachmentStatus, legacyAttachmentRef);
-                AttachmentMeta attachmentMeta = resolveAttachmentMeta(
+                AttachmentMeta attachmentMeta = readableAttachment ? resolveAttachmentMeta(
                         ticketId,
                         rawAttachment,
                         storageKey,
@@ -100,7 +101,7 @@ public class DialogConversationReadService {
                         attachment,
                         value(row.get("attachment_original_name")),
                         parseLong(row.get("attachment_size"))
-                );
+                ) : new AttachmentMeta(null, null);
                 String message = value(row.get("message"));
                 String originalMessage = value(row.get("original_message"));
                 String deletedAt = value(row.get("deleted_at"));
@@ -111,7 +112,7 @@ public class DialogConversationReadService {
                         value(row.get("timestamp")),
                         value(row.get("message_type")),
                         attachment,
-                        firstNonBlank(value(row.get("file_name")), attachmentMeta.name()),
+                        readableAttachment ? firstNonBlank(value(row.get("file_name")), attachmentMeta.name()) : null,
                         attachmentMeta.size(),
                         attachmentStatus,
                         attachmentProvider,
@@ -129,6 +130,25 @@ public class DialogConversationReadService {
             log.warn("Unable to load chat history for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
+    }
+
+    private boolean isReadableAttachmentMetadata(String ticketId, Map<String, Object> row) {
+        if (row.get("attachment_metadata_history_id") == null) {
+            return true;
+        }
+        // Для identity нельзя использовать value(): он trim-ит текст.
+        if (!StringUtils.hasText(ticketId) || !ticketId.equals(row.get("attachment_metadata_ticket_id"))
+                || !"dialog_attachment".equals(row.get("attachment_storage_class"))
+                || row.get("attachment_metadata_deleted_at") != null) {
+            return false;
+        }
+        Object provider = row.get("attachment_storage_provider");
+        if (!"local_fs".equals(provider) && !"s3".equals(provider) && !"external_url".equals(provider)) {
+            return false;
+        }
+        Object key = row.get("attachment_storage_key");
+        return key == null || (key instanceof String storageKey && StringUtils.hasText(storageKey)
+                && attachmentService.hasTicketAttachmentOwnerByStorageKey(ticketId, storageKey));
     }
 
     private List<Map<String, Object>> queryHistoryRows(String ticketId,
@@ -448,7 +468,11 @@ public class DialogConversationReadService {
                 : "NULL AS file_name";
         String metadataSelect = attachmentMetadataAvailable
                 ? """
-                        , cam.storage_key AS attachment_storage_key,
+                        , cam.chat_history_id AS attachment_metadata_history_id,
+                          cam.ticket_id AS attachment_metadata_ticket_id,
+                          cam.storage_class AS attachment_storage_class,
+                          cam.deleted_at AS attachment_metadata_deleted_at,
+                          cam.storage_key AS attachment_storage_key,
                           cam.storage_provider AS attachment_storage_provider,
                           cam.original_name AS attachment_original_name,
                           cam.size AS attachment_size,
@@ -456,7 +480,11 @@ public class DialogConversationReadService {
                           cam.legacy_attachment_ref AS attachment_legacy_ref
                         """
                 : """
-                        , NULL AS attachment_storage_key,
+                        , NULL AS attachment_metadata_history_id,
+                          NULL AS attachment_metadata_ticket_id,
+                          NULL AS attachment_storage_class,
+                          NULL AS attachment_metadata_deleted_at,
+                          NULL AS attachment_storage_key,
                           NULL AS attachment_storage_provider,
                           NULL AS attachment_original_name,
                           NULL AS attachment_size,

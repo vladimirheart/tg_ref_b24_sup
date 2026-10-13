@@ -261,7 +261,13 @@ class AttachmentDescriptorOwnershipPostgresqlTest {
         var messages = reader.loadHistory(owner, 2L);
         assertThat(messages).hasSize(1);
         assertThat(messages.get(0).attachmentSize()).isNull();
-        assertThat(messages.get(0).attachmentName()).isEqualTo("report.pdf");
+        if ("key".equals(kind)) {
+            assertThat(messages.get(0).attachment()).isNull();
+            assertThat(messages.get(0).attachmentName()).isNull();
+            assertThat(messages.get(0).attachmentProvider()).isNull();
+        } else {
+            assertThat(messages.get(0).attachmentName()).isEqualTo("report.pdf");
+        }
         verifyNoInteractions(fixture.storage());
     }
 }
