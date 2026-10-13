@@ -4,6 +4,7 @@ import com.example.panel.storage.AttachmentService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/attachments")
@@ -32,6 +34,19 @@ public class AttachmentController {
                                             @PathVariable String ticketId,
                                             @PathVariable String filename,
                                             @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) throws IOException {
+        return attachmentService.downloadTicketAttachment(authentication, ticketId, filename, rangeHeader);
+    }
+
+    @GetMapping("/tickets/by-ticket")
+    public ResponseEntity<?> downloadTicketByQuery(Authentication authentication,
+                                                   @RequestParam("ticketId") String ticketId,
+                                                   @RequestParam("filename") String filename,
+                                                   @RequestParam MultiValueMap<String, String> parameters,
+                                                   @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) throws IOException {
+        if (!parameters.keySet().equals(Set.of("ticketId", "filename"))
+                || parameters.get("ticketId").size() != 1 || parameters.get("filename").size() != 1) {
+            return ResponseEntity.badRequest().build();
+        }
         return attachmentService.downloadTicketAttachment(authentication, ticketId, filename, rangeHeader);
     }
 

@@ -57,6 +57,41 @@ class AttachmentLegacyDialogReferenceResolverTest {
     }
 
     @Test
+    void ticketQueryAcceptsParameterOrderAndServletPlusDecoding() {
+        var reference = AttachmentStorageKeyResolver.parseLegacyDialogReference(
+                "api/attachments/tickets/by-ticket?filename=photo%2B%252F+name.pdf&ticketId=+T%2FX%2B+");
+
+        assertThat(reference.ticketId()).isEqualTo(" T/X+ ");
+        assertThat(reference.reference()).isEqualTo("photo+%2F name.pdf");
+        assertThat(reference.kind()).isEqualTo(AttachmentStorageKeyResolver.LegacyDialogReferenceKind.FILENAME);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"T", " T ", " T/100?&%#+ Ю ", "T%2F+", " null "})
+    void ticketQueryKeepsOpaqueIdentityAndNestedFilename(String owner) {
+        String filename = "folder/photo+%2F Ю.bin";
+        var reference = AttachmentStorageKeyResolver.parseLegacyDialogReference(
+                "/api/attachments/tickets/by-ticket?ticketId=" + UriUtils.encode(owner, StandardCharsets.UTF_8)
+                        + "&filename=" + UriUtils.encode(filename, StandardCharsets.UTF_8));
+
+        assertThat(reference.ticketId()).isEqualTo(owner);
+        assertThat(reference.reference()).isEqualTo(filename);
+        assertThat(reference.kind()).isEqualTo(AttachmentStorageKeyResolver.LegacyDialogReferenceKind.FILENAME);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "?ticketId=T", "?filename=file.pdf", "?ticketId=&filename=file.pdf",
+            "?ticketId=%20&filename=file.pdf", "?ticketId=T&filename=",
+            "?ticketId=T&filename=file.pdf&filename=other.pdf", "?ticketId=T&ticketId=U",
+            "?ticketId=T&filename=file.pdf&unexpected=1", "?ticketId=T&other=file.pdf",
+            "?ticketId=T&filename=%ZZ", "?ticketId=%ZZ&filename=file.pdf",
+            "?filename=file.pdf&filename=other.pdf", "?ticketId=T&filename=file.pdf#fragment"})
+    void invalidTicketQueryDoesNotBecomeALocalFilename(String suffix) {
+        assertThat(AttachmentStorageKeyResolver.parseLegacyDialogReference(
+                "/api/attachments/tickets/by-ticket" + suffix)).isNull();
+    }
+
+    @Test
     void relativeApiReferenceUsesTheSameClassifier() {
         var reference = AttachmentStorageKeyResolver.parseLegacyDialogReference(
                 "api/attachments/tickets/by-storage-key?key=T%2Fphoto.pdf");

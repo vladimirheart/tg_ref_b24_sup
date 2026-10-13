@@ -352,8 +352,43 @@ class DialogConversationReadServiceTest {
         List<ChatMessageDto> history = guardedService(attachments).loadHistory(" T-MEDIA ", null);
 
         assertThat(history).singleElement().extracting(ChatMessageDto::attachment)
-            .isEqualTo("/api/attachments/tickets/%20T-MEDIA%20/photo.png");
+            .isEqualTo("/api/attachments/tickets/by-ticket?ticketId=%20T-MEDIA%20&filename=photo.png");
         verify(attachments).describeTicketAttachmentByLegacyReference(" T-MEDIA ", "photo.png");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {" T/100?&%#+ Ю ", "T%2F+", " null "})
+    void historyUsesQueryDownloadWithoutNormalizingOpaqueTicketId(String ticketId) throws java.io.IOException {
+        when(attachments.hasTicketAttachmentOwnerByLegacyReference(ticketId, "photo.png")).thenReturn(true);
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(ticket_id,sender,message,timestamp,message_type,attachment)
+                VALUES (?,'operator','','2026-04-30T10:00:00Z','image','photo.png')
+                """, ticketId);
+
+        List<ChatMessageDto> history = service.loadHistory(ticketId, null);
+
+        assertThat(history).hasSize(1);
+        String expected = "/api/attachments/tickets/by-ticket?ticketId="
+                + org.springframework.web.util.UriUtils.encodeQueryParam(ticketId, java.nio.charset.StandardCharsets.UTF_8)
+                        .replace("+", "%2B") + "&filename=photo.png";
+        assertThat(history.get(0).attachment()).isEqualTo(expected);
+        var reference = com.example.panel.storage.AttachmentStorageKeyResolver.parseLegacyDialogReference(expected);
+        assertThat(reference.ticketId()).isEqualTo(ticketId);
+        assertThat(reference.reference()).isEqualTo("photo.png");
+        verify(attachments).describeTicketAttachmentByLegacyReference(ticketId, "photo.png");
+    }
+
+    @Test
+    void historyDirectApiReferenceWithNestedFilenameUsesQueryInsteadOfEncodedSlashPath() {
+        String reference = "/api/attachments/tickets/T/folder%2Fphoto.png";
+        when(attachments.hasTicketAttachmentOwnerByLegacyReference("T", reference)).thenReturn(true);
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(ticket_id,sender,message,timestamp,message_type,attachment)
+                VALUES ('T','operator','','2026-04-30T10:00:00Z','image',?)
+                """, reference);
+
+        assertThat(service.loadHistory("T", null)).singleElement().extracting(ChatMessageDto::attachment)
+                .isEqualTo("/api/attachments/tickets/by-ticket?ticketId=T&filename=folder/photo.png");
     }
 
     private DialogConversationReadService guardedService(AttachmentService attachments) {

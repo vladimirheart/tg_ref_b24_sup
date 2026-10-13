@@ -54,6 +54,9 @@ public final class AttachmentStorageKeyResolver {
                 return null;
             }
             String suffix = path.substring(prefix.length());
+            if ("by-ticket".equals(suffix)) {
+                return parseLegacyDialogTicketQuery(uri.getRawQuery());
+            }
             if ("by-storage-key".equals(suffix) || "by-path".equals(suffix)) {
                 String parameter = "by-storage-key".equals(suffix) ? "key=" : "path=";
                 String query = uri.getRawQuery();
@@ -81,6 +84,29 @@ public final class AttachmentStorageKeyResolver {
         } catch (IllegalArgumentException ex) {
             return null;
         }
+    }
+
+    private static LegacyDialogReference parseLegacyDialogTicketQuery(String query) {
+        if (query == null) {
+            return null;
+        }
+        String[] parameters = query.split("&", -1);
+        if (parameters.length != 2) {
+            return null;
+        }
+        String ticketId = null;
+        String filename = null;
+        for (String parameter : parameters) {
+            if (parameter.startsWith("ticketId=") && ticketId == null) {
+                ticketId = URLDecoder.decode(parameter.substring("ticketId=".length()), StandardCharsets.UTF_8);
+            } else if (parameter.startsWith("filename=") && filename == null) {
+                filename = URLDecoder.decode(parameter.substring("filename=".length()), StandardCharsets.UTF_8);
+            } else {
+                return null;
+            }
+        }
+        return StringUtils.hasText(ticketId) && StringUtils.hasText(filename)
+                ? new LegacyDialogReference(LegacyDialogReferenceKind.FILENAME, filename, ticketId) : null;
     }
 
     public static String normalizeStorageKey(String ticketId, String rawAttachment) {
