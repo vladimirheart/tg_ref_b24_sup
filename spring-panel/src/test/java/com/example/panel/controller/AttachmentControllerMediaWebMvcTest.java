@@ -2,8 +2,10 @@ package com.example.panel.controller;
 
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.LegacyTicketIdJdbcGuard;
+import com.example.panel.support.PostgresqlJdbcTestSupport;
 import com.example.panel.storage.AttachmentObjectStorageService;
 import com.example.panel.storage.AttachmentService;
+import com.example.panel.storage.TicketAttachmentOwnerJdbcGuard;
 import com.example.panel.storage.ObjectStorageProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -11,6 +13,7 @@ import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
@@ -23,6 +26,9 @@ import java.nio.file.Path;
 import java.util.Arrays;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -53,14 +59,20 @@ class AttachmentControllerMediaWebMvcTest {
 
         PermissionService permissionService = mock(PermissionService.class);
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        TicketAttachmentOwnerJdbcGuard ownerGuard = mock(TicketAttachmentOwnerJdbcGuard.class);
         Authentication authentication = mock(Authentication.class);
         when(permissionService.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
         when(legacyTicketIdJdbcGuard.hasUniqueTicket("3d543ab982d2f414aa9dc8b135805291")).thenReturn(true);
+        for (String filename : new String[] {"photo.jpg", "voice.ogg", "video-note.mp4"}) {
+            when(ownerGuard.resolveUniqueOwner("3d543ab982d2f414aa9dc8b135805291/2026/08/24/" + filename))
+                    .thenReturn("3d543ab982d2f414aa9dc8b135805291");
+        }
 
         AttachmentService attachmentService = new AttachmentService(
                 permissionService,
                 objectStorage,
                 legacyTicketIdJdbcGuard,
+                ownerGuard,
                 attachmentsRoot.toString(),
                 knowledgeRoot.toString()
         );
@@ -108,6 +120,60 @@ class AttachmentControllerMediaWebMvcTest {
                 .andExpect(header().longValue(HttpHeaders.CONTENT_LENGTH, 100))
                 .andExpect(content().contentType(MediaType.parseMediaType("video/mp4")))
                 .andExpect(content().bytes(Arrays.copyOfRange(videoPayload, 0, 100)));
+    }
+
+    @Test
+    void metadataOwnerServesRealRangeAndConflictingHistoryStopsStorageRead() throws Exception {
+        String ticketId = " T/100?&%#+ Ю ";
+        String key = "channel/attachments/video-note.mp4";
+        Path attachmentsRoot = tempDir.resolve("owned-attachments");
+        Path knowledgeRoot = tempDir.resolve("owned-knowledge");
+        ObjectStorageProperties properties = new ObjectStorageProperties();
+        properties.setMode("local_fs");
+        AttachmentObjectStorageService storage = spy(new AttachmentObjectStorageService(properties,
+                attachmentsRoot.toString(), knowledgeRoot.toString(),
+                tempDir.resolve("owned-passport").toString(), tempDir.resolve("owned-avatars").toString()));
+        JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplate("attachment_owner_mvc");
+        jdbc.execute("CREATE TABLE tickets(user_id BIGINT, ticket_id TEXT, PRIMARY KEY(user_id,ticket_id))");
+        jdbc.execute("CREATE TABLE chat_history(id BIGINT PRIMARY KEY, ticket_id TEXT)");
+        jdbc.execute("""
+                CREATE TABLE chat_attachment_metadata(
+                    chat_history_id BIGINT UNIQUE REFERENCES chat_history(id), ticket_id TEXT, storage_key TEXT,
+                    storage_provider TEXT DEFAULT 'local_fs', storage_class TEXT DEFAULT 'dialog_attachment',
+                    normalization_status TEXT DEFAULT 'normalized', deleted_at TIMESTAMPTZ)
+                """);
+        jdbc.update("INSERT INTO tickets VALUES (1,?), (2,?), (3,'channel')", ticketId, ticketId.trim());
+        jdbc.update("INSERT INTO chat_history VALUES (11,?)", ticketId);
+        jdbc.update("INSERT INTO chat_attachment_metadata(chat_history_id,ticket_id,storage_key) VALUES (11,?,?)", ticketId, key);
+        LegacyTicketIdJdbcGuard tickets = new LegacyTicketIdJdbcGuard(jdbc);
+        TicketAttachmentOwnerJdbcGuard owner = new TicketAttachmentOwnerJdbcGuard(jdbc, tickets);
+        PermissionService permissions = mock(PermissionService.class);
+        Authentication authentication = mock(Authentication.class);
+        when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
+        AttachmentService service = new AttachmentService(permissions, storage, tickets, owner,
+                attachmentsRoot.toString(), knowledgeRoot.toString());
+        MockMvc mvc = createMockMvc(new AttachmentController(service), authentication);
+        byte[] bytes = {0, 1, 2, 3, 4, 5};
+        writeAttachment(attachmentsRoot, key, bytes);
+
+        mvc.perform(get("/api/attachments/tickets/by-storage-key").principal(authentication)
+                        .queryParam("key", key).header(HttpHeaders.RANGE, "bytes=1-3"))
+                .andExpect(status().isPartialContent())
+                .andExpect(header().string(HttpHeaders.CONTENT_RANGE, "bytes 1-3/6"))
+                .andExpect(content().contentType(MediaType.parseMediaType("video/mp4")))
+                .andExpect(content().bytes(new byte[] {1, 2, 3}));
+        mvc.perform(get("/api/attachments/tickets/by-path").principal(authentication)
+                        .queryParam("path", "C:\\legacy\\attachments\\" + key.replace('/', '\\')))
+                .andExpect(status().isOk()).andExpect(content().bytes(bytes));
+
+        jdbc.update("UPDATE chat_attachment_metadata SET ticket_id=?", ticketId.trim());
+        clearInvocations(storage);
+        mvc.perform(get("/api/attachments/tickets/by-storage-key").principal(authentication).queryParam("key", key))
+                .andExpect(status().isNotFound()).andExpect(content().string(""));
+        mvc.perform(get("/api/attachments/tickets/by-path").principal(authentication)
+                        .queryParam("path", "C:\\legacy\\attachments\\" + key.replace('/', '\\')))
+                .andExpect(status().isNotFound()).andExpect(content().string(""));
+        verifyNoInteractions(storage);
     }
 
     private static MockMvc createMockMvc(AttachmentController controller, Authentication authentication) {

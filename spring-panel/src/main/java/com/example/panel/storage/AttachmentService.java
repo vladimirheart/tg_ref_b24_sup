@@ -34,16 +34,19 @@ public class AttachmentService {
     private final PermissionService permissionService;
     private final AttachmentObjectStorageService objectStorageService;
     private final LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard;
+    private final TicketAttachmentOwnerJdbcGuard attachmentOwnerGuard;
     private final Path attachmentsRoot;
     private final Path knowledgeBaseRoot;
     public AttachmentService(PermissionService permissionService,
                               AttachmentObjectStorageService objectStorageService,
                               LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard,
+                              TicketAttachmentOwnerJdbcGuard attachmentOwnerGuard,
                               @Value("${app.storage.attachments:attachments}") String attachmentsDir,
                               @Value("${app.storage.knowledge-base:attachments/knowledge_base}") String knowledgeBaseDir) throws IOException {
         this.permissionService = permissionService;
         this.objectStorageService = objectStorageService;
         this.legacyTicketIdJdbcGuard = legacyTicketIdJdbcGuard;
+        this.attachmentOwnerGuard = attachmentOwnerGuard;
         this.attachmentsRoot = ensureDirectory(attachmentsDir);
         this.knowledgeBaseRoot = ensureDirectory(knowledgeBaseDir);
     }
@@ -57,7 +60,7 @@ public class AttachmentService {
                                                              String filename,
                                                              String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId) || !attachmentOwnerGuard.hasDirectOwner(ticketId, filename)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, filename);
@@ -72,7 +75,8 @@ public class AttachmentService {
                                                                    String path,
                                                                    String rangeHeader) throws IOException {
         requireAuthority(authentication, "PAGE_DIALOGS");
-        if (!hasUniqueTicketForStorageKey(path)) {
+        String storageKey = AttachmentStorageKeyResolver.extractAttachmentsSuffix(path);
+        if (!hasUniqueTicketForStorageKey(StringUtils.hasText(storageKey) ? storageKey : path)) {
             return ResponseEntity.notFound().build();
         }
         AttachmentObjectStorageService.StoredBinary binary = openByStoredPath(path);
@@ -468,8 +472,7 @@ public class AttachmentService {
     }
 
     private boolean hasUniqueTicketForStorageKey(String rawStorageKey) {
-        String ticketId = AttachmentStorageKeyResolver.extractDialogTicketId(rawStorageKey);
-        return legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId);
+        return attachmentOwnerGuard.resolveUniqueOwner(rawStorageKey) != null;
     }
 
     private void requireUniqueTicket(String ticketId) {

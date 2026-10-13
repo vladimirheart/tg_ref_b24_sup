@@ -28,9 +28,11 @@ class AttachmentServiceMediaResponseTest {
         PermissionService permissions = mock(PermissionService.class);
         AttachmentObjectStorageService storage = mock(AttachmentObjectStorageService.class);
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        TicketAttachmentOwnerJdbcGuard ownerGuard = mock(TicketAttachmentOwnerJdbcGuard.class);
         Authentication authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
         when(legacyTicketIdJdbcGuard.hasUniqueTicket("ticket")).thenReturn(true);
+        when(ownerGuard.resolveUniqueOwner("ticket/media.mp4")).thenReturn("ticket");
         byte[] payload = new byte[] {0, 1, 2, 3, 4, 5};
         when(storage.openDialogAttachmentByStorageKey("ticket/media.mp4"))
                 .thenReturn(new AttachmentObjectStorageService.StoredBinary(
@@ -44,6 +46,7 @@ class AttachmentServiceMediaResponseTest {
                 permissions,
                 storage,
                 legacyTicketIdJdbcGuard,
+                ownerGuard,
                 tempDir.resolve("attachments").toString(),
                 tempDir.resolve("knowledge").toString()
         );
@@ -68,9 +71,11 @@ class AttachmentServiceMediaResponseTest {
         PermissionService permissions = mock(PermissionService.class);
         AttachmentObjectStorageService storage = mock(AttachmentObjectStorageService.class);
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        TicketAttachmentOwnerJdbcGuard ownerGuard = mock(TicketAttachmentOwnerJdbcGuard.class);
         Authentication authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
         when(legacyTicketIdJdbcGuard.hasUniqueTicket("ticket")).thenReturn(true);
+        when(ownerGuard.resolveUniqueOwner("ticket/voice.ogg")).thenReturn("ticket");
         when(storage.openDialogAttachmentByStorageKey("ticket/voice.ogg"))
                 .thenReturn(new AttachmentObjectStorageService.StoredBinary(
                         "ticket/voice.ogg",
@@ -83,6 +88,7 @@ class AttachmentServiceMediaResponseTest {
                 permissions,
                 storage,
                 legacyTicketIdJdbcGuard,
+                ownerGuard,
                 tempDir.resolve("attachments-2").toString(),
                 tempDir.resolve("knowledge-2").toString()
         );
@@ -103,9 +109,11 @@ class AttachmentServiceMediaResponseTest {
         PermissionService permissions = mock(PermissionService.class);
         AttachmentObjectStorageService storage = mock(AttachmentObjectStorageService.class);
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        TicketAttachmentOwnerJdbcGuard ownerGuard = mock(TicketAttachmentOwnerJdbcGuard.class);
         Authentication authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
         when(legacyTicketIdJdbcGuard.hasUniqueTicket("ticket-77")).thenReturn(true);
+        when(ownerGuard.resolveUniqueOwner("ticket-77/photo.jpg")).thenReturn("ticket-77");
         when(storage.openDialogAttachmentByStorageKey("ticket-77/photo.jpg"))
                 .thenReturn(new AttachmentObjectStorageService.StoredBinary(
                         "ticket-77/photo.jpg",
@@ -118,6 +126,7 @@ class AttachmentServiceMediaResponseTest {
                 permissions,
                 storage,
                 legacyTicketIdJdbcGuard,
+                ownerGuard,
                 tempDir.resolve("attachments-3").toString(),
                 tempDir.resolve("knowledge-3").toString()
         );
@@ -138,6 +147,7 @@ class AttachmentServiceMediaResponseTest {
         PermissionService permissions = mock(PermissionService.class);
         AttachmentObjectStorageService storage = mock(AttachmentObjectStorageService.class);
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = mock(LegacyTicketIdJdbcGuard.class);
+        TicketAttachmentOwnerJdbcGuard ownerGuard = mock(TicketAttachmentOwnerJdbcGuard.class);
         Authentication authentication = mock(Authentication.class);
         when(permissions.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(true);
 
@@ -145,6 +155,7 @@ class AttachmentServiceMediaResponseTest {
                 permissions,
                 storage,
                 legacyTicketIdJdbcGuard,
+                ownerGuard,
                 tempDir.resolve("attachments-4").toString(),
                 tempDir.resolve("knowledge-4").toString()
         );
