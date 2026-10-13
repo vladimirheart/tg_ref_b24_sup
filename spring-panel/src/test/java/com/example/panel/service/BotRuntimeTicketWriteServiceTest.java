@@ -663,6 +663,41 @@ class BotRuntimeTicketWriteServiceTest {
         assertNoRuntimeSideEffects();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"user", "channel", "both", "padded-user", "padded-channel", "padded-both"})
+    void runtimeOperatorEditKeepsOriginalTicketSnapshotAcrossCanonicalTransfer(String variant) {
+        String owner = variant.startsWith("padded-") ? " T-TRANSFER " : "T-TRANSFER";
+        String change = variant.replace("padded-", "");
+        Long newUser = "channel".equals(change) ? 88L : 99L;
+        Long newChannel = "user".equals(change) ? 18L : 19L;
+        seedTicket(owner, 88L, 18L);
+        seedMessage(owner, 88L, 18L, 1L);
+        seedHistory(owner, 88L, 18L, 8100L, "operator");
+        seedHistory(owner, newUser, newChannel, 8100L, "operator");
+        stubChannel(18L, "telegram", "token18");
+        var beforeUpdate = new java.util.concurrent.atomic.AtomicReference<List<java.util.Map<String, Object>>>();
+        var guard = new LegacyTicketIdJdbcGuard(jdbcTemplate);
+        var targets = new DialogReplyTargetService(jdbcTemplate, mock(ChatAttachmentMetadataService.class), guard) {
+            @Override
+            public Optional<DialogReplyTarget> loadReplyTarget(String ticketId) {
+                Optional<DialogReplyTarget> original = super.loadReplyTarget(ticketId);
+                jdbcTemplate.update("UPDATE tickets SET user_id=?,channel_id=? WHERE ticket_id=?", newUser, newChannel, owner);
+                beforeUpdate.set(jdbcTemplate.queryForList("SELECT * FROM chat_history ORDER BY id"));
+                return original;
+            }
+        };
+        var runtime = new BotRuntimeTicketWriteService(jdbcTemplate, targets, dialogResponsibilityService,
+                dialogParticipantService, new UiEventOutboxAppendService(jdbcTemplate, guard),
+                providerDeliveryLedgerService, pendingRepository, feedbackRepository, guard);
+
+        var result = runtime.markOperatorMessageEdited(owner, 8100L, "after", "operator");
+
+        assertThat(result).isEqualTo(new BotRuntimeTicketWriteService.MutationResult(false, true));
+        assertThat(beforeUpdate.get()).isNotNull();
+        assertThat(jdbcTemplate.queryForList("SELECT * FROM chat_history ORDER BY id")).isEqualTo(beforeUpdate.get());
+        assertNoRuntimeSideEffects();
+    }
+
     private void seedTicket(String ticketId, Long userId, Long channelId) {
         jdbcTemplate.update("""
             INSERT INTO tickets(ticket_id, status, user_id, channel_id, reopen_count)

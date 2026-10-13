@@ -226,10 +226,21 @@ public class DialogReplyTargetService {
     }
 
     public int markOperatorMessageEdited(String ticketId, Long telegramMessageId, String message) {
+        return markOperatorMessageEditedForTarget(ticketId, telegramMessageId, message, null);
+    }
+
+    public int markOperatorMessageEdited(String ticketId, Long telegramMessageId, String message, DialogReplyTarget expectedTarget) {
+        if (expectedTarget == null || expectedTarget.userId() == null || expectedTarget.channelId() == null) {
+            return 0;
+        }
+        return markOperatorMessageEditedForTarget(ticketId, telegramMessageId, message, expectedTarget);
+    }
+
+    private int markOperatorMessageEditedForTarget(String ticketId, Long telegramMessageId, String message, DialogReplyTarget expectedTarget) {
         if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return 0;
         }
-        return jdbcTemplate.update("""
+        String sql = """
                 UPDATE chat_history
                    SET original_message = COALESCE(original_message, message),
                        message = ?,
@@ -255,14 +266,30 @@ public class DialogReplyTargetService {
                           AND owned.tg_message_id = chat_history.tg_message_id
                           AND owned.sender = 'operator'
                    )
-                """, message, ticketId, telegramMessageId);
+                """;
+        if (expectedTarget != null) {
+            return jdbcTemplate.update(sql + " AND user_id = ? AND channel_id = ?",
+                    message, ticketId, telegramMessageId, expectedTarget.userId(), expectedTarget.channelId());
+        }
+        return jdbcTemplate.update(sql, message, ticketId, telegramMessageId);
     }
 
     public int markOperatorMessageDeleted(String ticketId, Long telegramMessageId) {
+        return markOperatorMessageDeletedForTarget(ticketId, telegramMessageId, null);
+    }
+
+    public int markOperatorMessageDeleted(String ticketId, Long telegramMessageId, DialogReplyTarget expectedTarget) {
+        if (expectedTarget == null || expectedTarget.userId() == null || expectedTarget.channelId() == null) {
+            return 0;
+        }
+        return markOperatorMessageDeletedForTarget(ticketId, telegramMessageId, expectedTarget);
+    }
+
+    private int markOperatorMessageDeletedForTarget(String ticketId, Long telegramMessageId, DialogReplyTarget expectedTarget) {
         if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
             return 0;
         }
-        return jdbcTemplate.update("""
+        String sql = """
                 UPDATE chat_history
                    SET deleted_at = CURRENT_TIMESTAMP
                  WHERE ticket_id = ?
@@ -286,7 +313,12 @@ public class DialogReplyTargetService {
                           AND owned.tg_message_id = chat_history.tg_message_id
                           AND owned.sender = 'operator'
                    )
-                """, ticketId, telegramMessageId);
+                """;
+        if (expectedTarget != null) {
+            return jdbcTemplate.update(sql + " AND user_id = ? AND channel_id = ?",
+                    ticketId, telegramMessageId, expectedTarget.userId(), expectedTarget.channelId());
+        }
+        return jdbcTemplate.update(sql, ticketId, telegramMessageId);
     }
 
     String normalizeSender(String sender) {

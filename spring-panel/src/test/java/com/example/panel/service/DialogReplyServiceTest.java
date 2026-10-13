@@ -174,7 +174,7 @@ class DialogReplyServiceTest {
         when(targetService.hasOperatorMessageOwner("T-903", new DialogReplyTarget(322L, 21L), 9902L)).thenReturn(true);
         when(transportService.loadChannel(21L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-903")).thenReturn(true);
-        when(targetService.markOperatorMessageEdited("T-903", 9902L, "Обновлённый текст")).thenReturn(1);
+        when(targetService.markOperatorMessageEdited("T-903", 9902L, "Обновлённый текст", new DialogReplyTarget(322L, 21L))).thenReturn(1);
         when(responsibilityService.assignResponsibleIfMissing("T-903", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result =
@@ -206,7 +206,7 @@ class DialogReplyServiceTest {
         when(targetService.hasOperatorMessageOwner("T-904", new DialogReplyTarget(323L, 22L), 9903L)).thenReturn(true);
         when(transportService.loadChannel(22L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-904")).thenReturn(true);
-        when(targetService.markOperatorMessageDeleted("T-904", 9903L)).thenReturn(1);
+        when(targetService.markOperatorMessageDeleted("T-904", 9903L, new DialogReplyTarget(323L, 22L))).thenReturn(1);
         when(responsibilityService.assignResponsibleIfMissing("T-904", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result =
@@ -242,7 +242,7 @@ class DialogReplyServiceTest {
         when(targetService.hasWebFormSession("T-905")).thenReturn(false);
         when(transportService.editTelegramMessage(channel, 500L, 8805L, "Обновили"))
             .thenReturn(DialogReplyTransportService.DialogReplyTransportResult.success(8805L, 33L));
-        when(targetService.markOperatorMessageEdited("T-905", 8805L, "Обновили")).thenReturn(1);
+        when(targetService.markOperatorMessageEdited("T-905", 8805L, "Обновили", new DialogReplyTarget(500L, 23L))).thenReturn(1);
         when(responsibilityService.assignResponsibleIfMissing("T-905", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result =
@@ -283,7 +283,7 @@ class DialogReplyServiceTest {
         when(targetService.hasWebFormSession("T-906")).thenReturn(false);
         when(transportService.deleteTelegramMessage(channel, 501L, 8806L))
             .thenReturn(DialogReplyTransportService.DialogReplyTransportResult.success(8806L, 22L));
-        when(targetService.markOperatorMessageDeleted("T-906", 8806L)).thenReturn(1);
+        when(targetService.markOperatorMessageDeleted("T-906", 8806L, new DialogReplyTarget(501L, 24L))).thenReturn(1);
         when(responsibilityService.assignResponsibleIfMissing("T-906", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result =

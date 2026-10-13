@@ -134,7 +134,7 @@ public class DialogReplyService {
             return DialogReplyResult.error("Канал Telegram не найден.");
         }
         if (dialogReplyTargetService.hasWebFormSession(ticketId)) {
-            int updated = dialogReplyTargetService.markOperatorMessageEdited(ticketId, telegramMessageId, message);
+            int updated = dialogReplyTargetService.markOperatorMessageEdited(ticketId, telegramMessageId, message, target);
             if (updated == 0) {
                 return DialogReplyResult.error("Сообщение оператора не найдено.");
             }
@@ -177,7 +177,7 @@ public class DialogReplyService {
         if (transportResult.error() != null) {
             return DialogReplyResult.error(transportResult.error());
         }
-        int updated = dialogReplyTargetService.markOperatorMessageEdited(ticketId, telegramMessageId, message);
+        int updated = dialogReplyTargetService.markOperatorMessageEdited(ticketId, telegramMessageId, message, target);
         if (updated == 0) {
             return DialogReplyResult.error("Сообщение оператора не найдено.");
         }
@@ -202,7 +202,7 @@ public class DialogReplyService {
             return DialogReplyResult.error("Канал Telegram не найден.");
         }
         if (dialogReplyTargetService.hasWebFormSession(ticketId)) {
-            int updated = dialogReplyTargetService.markOperatorMessageDeleted(ticketId, telegramMessageId);
+            int updated = dialogReplyTargetService.markOperatorMessageDeleted(ticketId, telegramMessageId, target);
             if (updated == 0) {
                 return DialogReplyResult.error("Сообщение оператора не найдено.");
             }
@@ -245,7 +245,7 @@ public class DialogReplyService {
         if (transportResult.error() != null) {
             return DialogReplyResult.error(transportResult.error());
         }
-        int updated = dialogReplyTargetService.markOperatorMessageDeleted(ticketId, telegramMessageId);
+        int updated = dialogReplyTargetService.markOperatorMessageDeleted(ticketId, telegramMessageId, target);
         if (updated == 0) {
             return DialogReplyResult.error("Сообщение оператора не найдено.");
         }

@@ -206,7 +206,8 @@ public class BotRuntimeTicketWriteService {
         int updated = dialogReplyTargetService.markOperatorMessageEdited(
             normalizedTicketId,
             telegramMessageId,
-            message.trim()
+            message.trim(),
+            new DialogReplyTarget(ticket.userId(), ticket.channelId())
         );
         if (updated > 0) {
             assignResponsibleIfPresent(normalizedTicketId, operatorIdentity);

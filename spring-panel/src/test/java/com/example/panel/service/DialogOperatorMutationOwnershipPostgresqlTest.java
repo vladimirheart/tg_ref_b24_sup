@@ -128,6 +128,8 @@ class DialogOperatorMutationOwnershipPostgresqlTest {
         verifyNoInteractions(transport, ledger, responsibility, fixture.metadata());
         verify(fixture.targets(), never()).markOperatorMessageEdited(anyString(), any(), anyString());
         verify(fixture.targets(), never()).markOperatorMessageDeleted(anyString(), any());
+        verify(fixture.targets(), never()).markOperatorMessageEdited(anyString(), any(), anyString(), any());
+        verify(fixture.targets(), never()).markOperatorMessageDeleted(anyString(), any(), any());
         assertThat(jdbc.queryForList("SELECT * FROM " + historyTable + " ORDER BY id")).isEqualTo(before);
     }
 
