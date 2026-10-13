@@ -18,6 +18,24 @@ public final class AttachmentStorageKeyResolver {
 
     public record LegacyDialogReference(LegacyDialogReferenceKind kind, String reference, String ticketId) { }
 
+    /** Builds a locator only; download still requires the existing ticket/owner/permission guards. */
+    public static String buildTicketAttachmentDownloadUrl(String ticketId, String filename) {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(filename)) {
+            return null;
+        }
+        if (!ticketId.matches("[A-Za-z0-9._-]+") || filename.contains("/") || filename.contains("\\")
+                || filename.contains("%")) {
+            return "/api/attachments/tickets/by-ticket?ticketId=" + encodeDownloadQueryValue(ticketId)
+                    + "&filename=" + encodeDownloadQueryValue(filename);
+        }
+        return "/api/attachments/tickets/" + UriUtils.encodePathSegment(ticketId, StandardCharsets.UTF_8)
+                + "/" + UriUtils.encodePathSegment(filename, StandardCharsets.UTF_8);
+    }
+
+    private static String encodeDownloadQueryValue(String value) {
+        return UriUtils.encodeQueryParam(value, StandardCharsets.UTF_8).replace("+", "%2B");
+    }
+
     /**
      * Classifies a local legacy locator, not its owner. API envelopes are decoded once
      * using servlet query/path semantics; literal storage references are never decoded.

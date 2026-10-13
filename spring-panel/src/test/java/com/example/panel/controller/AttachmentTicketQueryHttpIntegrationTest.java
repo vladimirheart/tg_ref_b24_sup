@@ -14,6 +14,17 @@ import static org.mockito.Mockito.when;
 
 import com.example.panel.config.RestExceptionHandler;
 import com.example.panel.service.DialogConversationReadService;
+import com.example.panel.service.ClientBlacklistService;
+import com.example.panel.service.DialogAiAssistantService;
+import com.example.panel.service.DialogLookupReadService;
+import com.example.panel.service.DialogNotificationService;
+import com.example.panel.service.DialogParticipantService;
+import com.example.panel.service.DialogQuickActionService;
+import com.example.panel.service.DialogReplyService;
+import com.example.panel.service.DialogResponsibilityService;
+import com.example.panel.service.DialogTicketLifecycleService;
+import com.example.panel.service.NotificationService;
+import com.example.panel.service.UiEventStreamService;
 import com.example.panel.service.LegacyTicketIdJdbcGuard;
 import com.example.panel.service.PermissionService;
 import com.example.panel.storage.AttachmentObjectStorageService;
@@ -51,10 +62,14 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.web.util.UriUtils;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 @SpringBootTest(classes = AttachmentTicketQueryHttpIntegrationTest.TestApplication.class,
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -132,6 +147,69 @@ class AttachmentTicketQueryHttpIntegrationTest {
         when(attachments.downloadTicketAttachment(any(Authentication.class), anyString(), anyString(), nullable(String.class)))
                 .thenAnswer(call -> realService.downloadTicketAttachment(
                         call.getArgument(0), call.getArgument(1), call.getArgument(2), call.getArgument(3)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"T-PLAIN", OWNER})
+    void immediateQuickMediaUrlDownloadsRetainedUploadAndRejectsLaterForeignClaim(String owner) throws Exception {
+        if ("T-PLAIN".equals(owner)) jdbc.update("INSERT INTO tickets VALUES (3,?)", owner);
+        byte[] payload = {7, 6, 5, 4};
+        var reply = mock(DialogReplyService.class);
+        var ai = mock(DialogAiAssistantService.class);
+        var notifications = mock(NotificationService.class);
+        var quick = new DialogQuickActionService(mock(DialogTicketLifecycleService.class),
+                mock(DialogLookupReadService.class), mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class), reply, mock(DialogNotificationService.class), ai,
+                notifications, mock(UiEventStreamService.class), realService, mock(ClientBlacklistService.class));
+        var storedName = new java.util.concurrent.atomic.AtomicReference<String>();
+        when(reply.sendMediaReply(eq(owner), any(MultipartFile.class), eq("caption"), eq(null), eq("operator"),
+                anyString(), eq("fresh+%2F Ю.png"), eq("image/png"), eq(4L))).thenAnswer(call -> {
+            String filename = call.getArgument(5);
+            storedName.set(filename);
+            assertThat(call.getArgument(1, MultipartFile.class).getBytes()).containsExactly(payload);
+            // Controlled transport substitute persists the same owner/metadata claim as a successful send.
+            jdbc.update("INSERT INTO chat_history(id,ticket_id,attachment,channel_id) VALUES (21,?,?,2)", owner, filename);
+            jdbc.update("""
+                    INSERT INTO chat_attachment_metadata(chat_history_id,ticket_id,storage_key,original_name,size)
+                    VALUES (21,?,?,?,4)
+                    """, owner, owner.trim() + "/" + filename, "fresh+%2F Ю.png");
+            return new DialogReplyService.DialogMediaReplyResult(true, null, "2026-10-13T13:00:01Z",
+                    202L, filename, "image", "caption", "operator");
+        });
+        var authentication = UsernamePasswordAuthenticationToken.authenticated("operator", "test-password",
+                AuthorityUtils.createAuthorityList("PAGE_DIALOGS"));
+
+        var response = quick.sendMediaReply(owner,
+                new MockMultipartFile("file", "fresh+%2F Ю.png", "image/png", payload),
+                "caption", null, "operator", authentication);
+
+        assertThat(response.get("success")).isEqualTo(true);
+        String url = (String) response.get("attachment");
+        assertThat(url).startsWith(ROUTE + "?ticketId=");
+        var locator = com.example.panel.storage.AttachmentStorageKeyResolver.parseLegacyDialogReference(url);
+        assertThat(locator.ticketId()).isEqualTo(owner);
+        assertThat(locator.reference()).isEqualTo(storedName.get());
+        Path uploaded = tempDir.resolve("attachments").resolve(owner.trim() + "/" + storedName.get());
+        assertThat(Files.readAllBytes(uploaded)).containsExactly(payload);
+        clearInvocations(storage);
+
+        var whole = get(url, "operator", null);
+        assertThat(whole.statusCode()).isEqualTo(200);
+        assertThat(whole.body()).containsExactly(payload);
+        var range = get(url, "operator", "bytes=1-2");
+        assertThat(range.statusCode()).isEqualTo(206);
+        assertThat(range.body()).containsExactly(6, 5);
+        assertThat(range.headers().firstValue(HttpHeaders.CONTENT_RANGE)).contains("bytes 1-2/4");
+        verify(storage, org.mockito.Mockito.times(2)).openDialogAttachment(owner, storedName.get());
+        verify(ai).registerOperatorReply(owner, "caption", "operator");
+
+        if (OWNER.equals(owner)) {
+            jdbc.update("UPDATE chat_attachment_metadata SET ticket_id=? WHERE chat_history_id=21", owner.trim());
+            clearInvocations(storage);
+            assertThat(get(url, "operator", null).statusCode()).isEqualTo(404);
+            verifyNoInteractions(storage);
+            assertThat(Files.readAllBytes(uploaded)).containsExactly(payload);
+        }
     }
 
     @ParameterizedTest
@@ -234,6 +312,20 @@ class AttachmentTicketQueryHttpIntegrationTest {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).containsExactly(nestedBytes);
         verify(storage).openDialogAttachment(OWNER, filename);
+    }
+
+    @Test
+    void defaultFirewallRejectsEncodedPercentInPathNotInQuery() {
+        var firewall = new org.springframework.security.web.firewall.StrictHttpFirewall();
+        var pathRequest = new org.springframework.mock.web.MockHttpServletRequest("GET", "/api/attachments/tickets/T/photo%252F.png");
+        pathRequest.setServletPath("/api/attachments/tickets/T/photo%2F.png");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> firewall.getFirewalledRequest(pathRequest))
+                .isInstanceOf(org.springframework.security.web.firewall.RequestRejectedException.class)
+                .hasMessageContaining("%25");
+        var queryRequest = new org.springframework.mock.web.MockHttpServletRequest("GET", ROUTE);
+        queryRequest.setServletPath(ROUTE);
+        queryRequest.setQueryString("ticketId=T&filename=photo%252F.png");
+        org.assertj.core.api.Assertions.assertThatCode(() -> firewall.getFirewalledRequest(queryRequest)).doesNotThrowAnyException();
     }
 
     @Test

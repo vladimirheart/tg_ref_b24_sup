@@ -342,15 +342,7 @@ public class DialogConversationReadService {
         if (!StringUtils.hasText(ticketId)) {
             return trimmed;
         }
-        if (!ticketId.matches("[A-Za-z0-9._-]+") || reference.reference().contains("/")
-                || reference.reference().contains("\\")) {
-            return "/api/attachments/tickets/by-ticket?ticketId=" + encodeAttachmentQueryValue(ticketId)
-                    + "&filename=" + encodeAttachmentQueryValue(reference.reference());
-        }
-        return "/api/attachments/tickets/"
-                + UriUtils.encodePathSegment(ticketId, StandardCharsets.UTF_8)
-                + "/"
-                + UriUtils.encodePathSegment(reference.reference(), StandardCharsets.UTF_8);
+        return AttachmentStorageKeyResolver.buildTicketAttachmentDownloadUrl(ticketId, reference.reference());
     }
 
     private static String encodeAttachmentQueryValue(String value) {

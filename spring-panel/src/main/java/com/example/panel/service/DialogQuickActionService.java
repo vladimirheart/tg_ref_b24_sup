@@ -4,6 +4,7 @@ import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogOperatorOption;
 import com.example.panel.model.dialog.DialogParticipantDto;
 import com.example.panel.storage.AttachmentService;
+import com.example.panel.storage.AttachmentStorageKeyResolver;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import org.slf4j.Logger;
@@ -235,7 +236,7 @@ public class DialogQuickActionService {
         }
         upload.retain();
         dialogAiAssistantService.registerOperatorReply(ticketId, message, operator);
-        String attachmentUrl = "/api/attachments/tickets/" + ticketId + "/" + result.storedName();
+        String attachmentUrl = AttachmentStorageKeyResolver.buildTicketAttachmentDownloadUrl(ticketId, result.storedName());
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("success", true);
         response.put("timestamp", result.timestamp());

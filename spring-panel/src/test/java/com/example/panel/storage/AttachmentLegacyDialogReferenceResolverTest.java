@@ -57,6 +57,43 @@ class AttachmentLegacyDialogReferenceResolverTest {
     }
 
     @Test
+    void downloadBuilderKeepsConventionalPathAndEncodesFilenameExactlyOnce() {
+        String url = AttachmentStorageKeyResolver.buildTicketAttachmentDownloadUrl("T-PLAIN", "photo+ Ю?#.png");
+        assertThat(url).isEqualTo("/api/attachments/tickets/T-PLAIN/photo+%20%D0%AE%3F%23.png");
+        var reference = AttachmentStorageKeyResolver.parseLegacyDialogReference(url);
+        assertThat(reference.ticketId()).isEqualTo("T-PLAIN");
+        assertThat(reference.reference()).isEqualTo("photo+ Ю?#.png");
+    }
+
+    @Test
+    void conventionalIdWithPercentLookingFilenameUsesQueryWithoutDoubleDecoding() {
+        String url = AttachmentStorageKeyResolver.buildTicketAttachmentDownloadUrl("T-PLAIN", "photo+%2F Ю.png");
+        assertThat(url).startsWith("/api/attachments/tickets/by-ticket?ticketId=T-PLAIN&filename=");
+        var reference = AttachmentStorageKeyResolver.parseLegacyDialogReference(url);
+        assertThat(reference.ticketId()).isEqualTo("T-PLAIN");
+        assertThat(reference.reference()).isEqualTo("photo+%2F Ю.png");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {" T ", "T/100", " T/100?&%#+ Ю ", "T%2F+", " null ", "T\\opaque"})
+    void downloadBuilderDoesNotNormalizeOpaqueIdentity(String owner) {
+        String filename = "folder/photo+%2F Ю.png";
+        String url = AttachmentStorageKeyResolver.buildTicketAttachmentDownloadUrl(owner, filename);
+        assertThat(url).startsWith("/api/attachments/tickets/by-ticket?ticketId=");
+        var reference = AttachmentStorageKeyResolver.parseLegacyDialogReference(url);
+        assertThat(reference.ticketId()).isEqualTo(owner);
+        assertThat(reference.reference()).isEqualTo(filename);
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"", " ", "\t"})
+    void downloadBuilderDoesNotCreateLocatorForMissingContext(String missing) {
+        assertThat(AttachmentStorageKeyResolver.buildTicketAttachmentDownloadUrl(missing, "file.pdf")).isNull();
+        assertThat(AttachmentStorageKeyResolver.buildTicketAttachmentDownloadUrl("T", missing)).isNull();
+    }
+
+    @Test
     void ticketQueryAcceptsParameterOrderAndServletPlusDecoding() {
         var reference = AttachmentStorageKeyResolver.parseLegacyDialogReference(
                 "api/attachments/tickets/by-ticket?filename=photo%2B%252F+name.pdf&ticketId=+T%2FX%2B+");
