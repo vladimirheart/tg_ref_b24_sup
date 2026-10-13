@@ -647,6 +647,22 @@ class BotRuntimeTicketWriteServiceTest {
         assertNoRuntimeSideEffects();
     }
 
+    @Test
+    void duplicateOperatorHistoryDoesNotProduceRuntimeMutationOrSideEffects() {
+        seedTicket("T-DUP-HISTORY", 88L, 18L);
+        seedMessage("T-DUP-HISTORY", 88L, 18L, 1L);
+        seedHistory("T-DUP-HISTORY", 88L, 18L, 8100L, "operator");
+        seedHistory("T-DUP-HISTORY", 88L, 18L, 8100L, "operator");
+        stubChannel(18L, "telegram", "token18");
+        var before = jdbcTemplate.queryForList("SELECT * FROM chat_history ORDER BY id");
+
+        var result = service.markOperatorMessageEdited("T-DUP-HISTORY", 8100L, "after", "operator");
+
+        assertThat(result).isEqualTo(new BotRuntimeTicketWriteService.MutationResult(false, true));
+        assertThat(jdbcTemplate.queryForList("SELECT * FROM chat_history ORDER BY id")).isEqualTo(before);
+        assertNoRuntimeSideEffects();
+    }
+
     private void seedTicket(String ticketId, Long userId, Long channelId) {
         jdbcTemplate.update("""
             INSERT INTO tickets(ticket_id, status, user_id, channel_id, reopen_count)

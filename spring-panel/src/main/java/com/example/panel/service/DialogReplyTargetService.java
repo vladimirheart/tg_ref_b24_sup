@@ -243,6 +243,18 @@ public class DialogReplyTargetService {
                           AND t.user_id = chat_history.user_id
                           AND t.channel_id = chat_history.channel_id
                    )
+                   AND 1 = (
+                       SELECT COUNT(*) FROM tickets unique_ticket
+                        WHERE unique_ticket.ticket_id = chat_history.ticket_id
+                   )
+                   AND 1 = (
+                       SELECT COUNT(*) FROM chat_history owned
+                        WHERE owned.ticket_id = chat_history.ticket_id
+                          AND owned.user_id = chat_history.user_id
+                          AND owned.channel_id = chat_history.channel_id
+                          AND owned.tg_message_id = chat_history.tg_message_id
+                          AND owned.sender = 'operator'
+                   )
                 """, message, ticketId, telegramMessageId);
     }
 
@@ -261,6 +273,18 @@ public class DialogReplyTargetService {
                         WHERE t.ticket_id = chat_history.ticket_id
                           AND t.user_id = chat_history.user_id
                           AND t.channel_id = chat_history.channel_id
+                   )
+                   AND 1 = (
+                       SELECT COUNT(*) FROM tickets unique_ticket
+                        WHERE unique_ticket.ticket_id = chat_history.ticket_id
+                   )
+                   AND 1 = (
+                       SELECT COUNT(*) FROM chat_history owned
+                        WHERE owned.ticket_id = chat_history.ticket_id
+                          AND owned.user_id = chat_history.user_id
+                          AND owned.channel_id = chat_history.channel_id
+                          AND owned.tg_message_id = chat_history.tg_message_id
+                          AND owned.sender = 'operator'
                    )
                 """, ticketId, telegramMessageId);
     }
