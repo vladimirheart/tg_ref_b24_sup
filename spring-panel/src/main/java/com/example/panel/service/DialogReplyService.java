@@ -126,6 +126,9 @@ public class DialogReplyService {
             return DialogReplyResult.error("Не удалось определить получателя сообщения.");
         }
         DialogReplyTarget target = targetOpt.get();
+        if (!dialogReplyTargetService.hasOperatorMessageOwner(ticketId, target, telegramMessageId)) {
+            return DialogReplyResult.error("Сообщение оператора не найдено.");
+        }
         Channel channel = dialogReplyTransportService.loadChannel(target.channelId()).orElse(null);
         if (channel == null) {
             return DialogReplyResult.error("Канал Telegram не найден.");
@@ -191,6 +194,9 @@ public class DialogReplyService {
             return DialogReplyResult.error("Не удалось определить получателя сообщения.");
         }
         DialogReplyTarget target = targetOpt.get();
+        if (!dialogReplyTargetService.hasOperatorMessageOwner(ticketId, target, telegramMessageId)) {
+            return DialogReplyResult.error("Сообщение оператора не найдено.");
+        }
         Channel channel = dialogReplyTransportService.loadChannel(target.channelId()).orElse(null);
         if (channel == null) {
             return DialogReplyResult.error("Канал Telegram не найден.");

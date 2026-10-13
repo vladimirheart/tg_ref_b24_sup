@@ -171,6 +171,7 @@ class DialogReplyServiceTest {
         channel.setId(21L);
 
         when(targetService.loadReplyTarget("T-903")).thenReturn(Optional.of(new DialogReplyTarget(322L, 21L)));
+        when(targetService.hasOperatorMessageOwner("T-903", new DialogReplyTarget(322L, 21L), 9902L)).thenReturn(true);
         when(transportService.loadChannel(21L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-903")).thenReturn(true);
         when(targetService.markOperatorMessageEdited("T-903", 9902L, "Обновлённый текст")).thenReturn(1);
@@ -202,6 +203,7 @@ class DialogReplyServiceTest {
         channel.setId(22L);
 
         when(targetService.loadReplyTarget("T-904")).thenReturn(Optional.of(new DialogReplyTarget(323L, 22L)));
+        when(targetService.hasOperatorMessageOwner("T-904", new DialogReplyTarget(323L, 22L), 9903L)).thenReturn(true);
         when(transportService.loadChannel(22L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-904")).thenReturn(true);
         when(targetService.markOperatorMessageDeleted("T-904", 9903L)).thenReturn(1);
@@ -235,6 +237,7 @@ class DialogReplyServiceTest {
         channel.setToken("token");
 
         when(targetService.loadReplyTarget("T-905")).thenReturn(Optional.of(new DialogReplyTarget(500L, 23L)));
+        when(targetService.hasOperatorMessageOwner("T-905", new DialogReplyTarget(500L, 23L), 8805L)).thenReturn(true);
         when(transportService.loadChannel(23L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-905")).thenReturn(false);
         when(transportService.editTelegramMessage(channel, 500L, 8805L, "Обновили"))
@@ -275,6 +278,7 @@ class DialogReplyServiceTest {
         channel.setToken("token");
 
         when(targetService.loadReplyTarget("T-906")).thenReturn(Optional.of(new DialogReplyTarget(501L, 24L)));
+        when(targetService.hasOperatorMessageOwner("T-906", new DialogReplyTarget(501L, 24L), 8806L)).thenReturn(true);
         when(transportService.loadChannel(24L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-906")).thenReturn(false);
         when(transportService.deleteTelegramMessage(channel, 501L, 8806L))

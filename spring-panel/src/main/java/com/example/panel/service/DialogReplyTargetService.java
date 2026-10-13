@@ -159,6 +159,23 @@ public class DialogReplyTargetService {
         }
     }
 
+    public boolean hasOperatorMessageOwner(String ticketId, DialogReplyTarget target, Long telegramMessageId) {
+        if (telegramMessageId == null || !hasReplyTargetOwner(ticketId, target)) {
+            return false;
+        }
+        try {
+            Integer count = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*) FROM chat_history
+                     WHERE ticket_id = ? AND user_id = ? AND channel_id = ?
+                       AND tg_message_id = ? AND sender = 'operator'
+                    """, Integer.class, ticketId, target.userId(), target.channelId(), telegramMessageId);
+            return count != null && count == 1;
+        } catch (DataAccessException ex) {
+            // An unverified history row cannot authorize a provider edit/delete.
+            return false;
+        }
+    }
+
     private void requireUniqueTicket(String ticketId, DialogReplyTarget target) {
         if (!hasReplyTargetOwner(ticketId, target)) {
             throw new IllegalArgumentException("Outgoing message requires a unique legacy ticket id.");
