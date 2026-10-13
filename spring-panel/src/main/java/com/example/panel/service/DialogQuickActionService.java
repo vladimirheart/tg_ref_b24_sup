@@ -207,7 +207,8 @@ public class DialogQuickActionService {
                                               Authentication authentication) throws IOException {
         dialogAiAssistantService.clearProcessing(ticketId, "operator_reply_media", null);
         CachedMultipartFile cachedFile = CachedMultipartFile.from(file);
-        var metadata = attachmentService.storeTicketAttachment(authentication, ticketId, cachedFile);
+        var upload = attachmentService.prepareTicketAttachment(authentication, ticketId, cachedFile);
+        var metadata = upload.metadata();
         DialogReplyService.DialogMediaReplyResult result;
         try {
             result = dialogReplyService.sendMediaReply(
@@ -222,16 +223,17 @@ public class DialogQuickActionService {
                     metadata.size()
             );
         } catch (RuntimeException ex) {
-            cleanupStoredTicketAttachment(ticketId, metadata.storedName());
+            cleanupStoredTicketAttachment(ticketId, upload);
             throw ex;
         }
         if (!result.success()) {
-            cleanupStoredTicketAttachment(ticketId, metadata.storedName());
+            cleanupStoredTicketAttachment(ticketId, upload);
             return Map.of(
                     "success", false,
                     "error", result.error()
             );
         }
+        upload.retain();
         dialogAiAssistantService.registerOperatorReply(ticketId, message, operator);
         String attachmentUrl = "/api/attachments/tickets/" + ticketId + "/" + result.storedName();
         Map<String, Object> response = new LinkedHashMap<>();
@@ -252,11 +254,12 @@ public class DialogQuickActionService {
         return response;
     }
 
-    private void cleanupStoredTicketAttachment(String ticketId, String storedName) {
+    private void cleanupStoredTicketAttachment(String ticketId, AttachmentService.TicketAttachmentUpload upload) {
         try {
-            attachmentService.deleteTicketAttachment(ticketId, storedName);
-        } catch (IOException ex) {
-            log.warn("Unable to delete failed media attachment for ticket {} and storedName {}: {}", ticketId, storedName, ex.getMessage());
+            upload.rollback();
+        } catch (IOException | RuntimeException ex) {
+            log.warn("Unable to delete failed media attachment for ticket {} and storedName {}: {}",
+                    ticketId, upload.metadata().storedName(), ex.getMessage());
         }
     }
 

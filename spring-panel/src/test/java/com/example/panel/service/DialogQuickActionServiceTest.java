@@ -453,8 +453,10 @@ class DialogQuickActionServiceTest {
                 java.time.OffsetDateTime.parse("2026-05-21T12:10:00Z")
         );
 
-        when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-707"), any(MultipartFile.class)))
-                .thenReturn(metadata);
+        AttachmentService.TicketAttachmentUpload upload = mock(AttachmentService.TicketAttachmentUpload.class);
+        when(upload.metadata()).thenReturn(metadata);
+        when(attachmentService.prepareTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-707"), any(MultipartFile.class)))
+                .thenReturn(upload);
         when(dialogReplyService.sendMediaReply(
                 eq("T-707"),
                 any(MultipartFile.class),
@@ -496,6 +498,8 @@ class DialogQuickActionServiceTest {
                 .containsEntry("messageType", "image")
                 .containsEntry("message", "caption");
         verify(dialogAiAssistantService).clearProcessing("T-707", "operator_reply_media", null);
+        verify(upload).retain();
+        verify(upload, never()).rollback();
         verify(dialogAiAssistantService).registerOperatorReply("T-707", "caption", "operator");
         verify(notificationService).notifyDialogParticipants(
                 "T-707",
@@ -533,8 +537,10 @@ class DialogQuickActionServiceTest {
                 java.time.OffsetDateTime.parse("2026-05-21T12:10:00Z")
         );
 
-        when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-708"), any(MultipartFile.class)))
-                .thenReturn(metadata);
+        AttachmentService.TicketAttachmentUpload upload = mock(AttachmentService.TicketAttachmentUpload.class);
+        when(upload.metadata()).thenReturn(metadata);
+        when(attachmentService.prepareTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-708"), any(MultipartFile.class)))
+                .thenReturn(upload);
         when(dialogReplyService.sendMediaReply(
                 eq("T-708"),
                 any(MultipartFile.class),
@@ -570,7 +576,8 @@ class DialogQuickActionServiceTest {
                 .containsEntry("success", false)
                 .containsEntry("error", "transport_error");
         verify(dialogAiAssistantService).clearProcessing("T-708", "operator_reply_media", null);
-        verify(attachmentService).deleteTicketAttachment("T-708", "stored-screen.png");
+        verify(upload).rollback();
+        verify(upload, never()).retain();
         verify(dialogAiAssistantService, never()).registerOperatorReply("T-708", "caption", "operator");
         verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
@@ -603,8 +610,10 @@ class DialogQuickActionServiceTest {
                 java.time.OffsetDateTime.parse("2026-05-21T12:10:00Z")
         );
 
-        when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-709"), any(MultipartFile.class)))
-                .thenReturn(metadata);
+        AttachmentService.TicketAttachmentUpload upload = mock(AttachmentService.TicketAttachmentUpload.class);
+        when(upload.metadata()).thenReturn(metadata);
+        when(attachmentService.prepareTicketAttachment(org.mockito.ArgumentMatchers.any(Authentication.class), eq("T-709"), any(MultipartFile.class)))
+                .thenReturn(upload);
         when(dialogReplyService.sendMediaReply(
                 eq("T-709"),
                 any(MultipartFile.class),
@@ -640,7 +649,8 @@ class DialogQuickActionServiceTest {
         assertThat(response)
                 .containsEntry("success", true)
                 .containsEntry("attachment", "/api/attachments/tickets/T-709/stored-proof.png");
-        verify(attachmentService, never()).deleteTicketAttachment("T-709", "stored-proof.png");
+        verify(upload, never()).rollback();
+        verify(upload).retain();
     }
 
     private static final class OneShotMultipartFile implements MultipartFile {

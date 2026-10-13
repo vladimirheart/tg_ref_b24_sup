@@ -144,6 +144,9 @@ public class AttachmentService {
         requireUniqueTicket(ticketId);
         String safeName = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "file.bin");
         String storedName = UUID.randomUUID() + "_" + safeName;
+        if (!attachmentOwnerGuard.hasSafeDirectReference(ticketId, storedName)) {
+            throw new IllegalArgumentException("Invalid dialog attachment key");
+        }
         try (InputStream in = file.getInputStream()) {
             AttachmentObjectStorageService.StoredBinary binary = objectStorageService.storeDialogAttachment(
                     ticketId,
@@ -161,11 +164,22 @@ public class AttachmentService {
         }
     }
 
+    public TicketAttachmentUpload prepareTicketAttachment(Authentication authentication, String ticketId,
+                                                         MultipartFile file) throws IOException {
+        AttachmentUploadMetadata metadata = storeTicketAttachment(authentication, ticketId, file);
+        return new PendingTicketAttachmentUpload(metadata, () -> {
+            if (attachmentOwnerGuard.canRollbackUnclaimedUpload(ticketId, metadata.storedName())) {
+                objectStorageService.deleteDialogAttachment(ticketId, metadata.storedName());
+            }
+        });
+    }
+
     public void deleteTicketAttachment(String ticketId, String storedName) throws IOException {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(storedName)) {
             return;
         }
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)
+                || !attachmentOwnerGuard.hasDirectOwner(ticketId, storedName)) {
             return;
         }
         objectStorageService.deleteDialogAttachment(ticketId, storedName);
@@ -643,6 +657,45 @@ public class AttachmentService {
         public void close() throws IOException {
             delegate.close();
         }
+    }
+
+    public interface TicketAttachmentUpload {
+        AttachmentUploadMetadata metadata();
+        void retain();
+        void rollback() throws IOException;
+    }
+
+    private static final class PendingTicketAttachmentUpload implements TicketAttachmentUpload {
+        private final AttachmentUploadMetadata metadata;
+        private final UploadCleanup cleanup;
+        private boolean settled;
+
+        private PendingTicketAttachmentUpload(AttachmentUploadMetadata metadata, UploadCleanup cleanup) {
+            this.metadata = metadata;
+            this.cleanup = cleanup;
+        }
+
+        @Override
+        public AttachmentUploadMetadata metadata() {
+            return metadata;
+        }
+
+        @Override
+        public synchronized void retain() {
+            settled = true;
+        }
+
+        @Override
+        public synchronized void rollback() throws IOException {
+            if (settled) return;
+            settled = true;
+            cleanup.run();
+        }
+    }
+
+    @FunctionalInterface
+    private interface UploadCleanup {
+        void run() throws IOException;
     }
 
     public record AttachmentUploadMetadata(String originalName,

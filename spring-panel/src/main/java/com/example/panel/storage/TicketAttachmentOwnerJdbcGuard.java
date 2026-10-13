@@ -75,10 +75,36 @@ public class TicketAttachmentOwnerJdbcGuard {
     }
 
     public boolean hasDirectOwner(String ticketId, String filename) {
+        String key = directStorageKey(ticketId, filename);
+        return key != null && ticketId.equals(resolveUniqueOwner(key));
+    }
+
+    public boolean hasSafeDirectReference(String ticketId, String filename) {
+        return directStorageKey(ticketId, filename) != null;
+    }
+
+    /** Only for a service-created upload receipt, never string-based delete authorization. */
+    public boolean canRollbackUnclaimedUpload(String ticketId, String filename) {
+        String key = directStorageKey(ticketId, filename);
+        if (key == null || !ticketGuard.hasUniqueTicket(ticketId)) return false;
+        try {
+            return Boolean.TRUE.equals(jdbcTemplate.queryForObject("""
+                    SELECT NOT EXISTS (
+                        SELECT 1 FROM chat_attachment_metadata WHERE storage_key = ?
+                    ) AND NOT EXISTS (
+                        SELECT 1 FROM chat_history WHERE attachment IN (?, ?, ?, ?)
+                    )
+                    """, Boolean.class, key, filename, normalizeStorageKey(filename), key, "attachments/" + key));
+        } catch (DataAccessException ex) {
+            return false;
+        }
+    }
+
+    private String directStorageKey(String ticketId, String filename) {
         String directory = normalizeStorageKey(ticketId);
         String storedName = normalizeStorageKey(filename);
-        if (directory == null || storedName == null) return false;
-        return ticketId.equals(resolveUniqueOwner(directory + "/" + storedName));
+        if (directory == null || storedName == null) return null;
+        return normalizeStorageKey(directory + "/" + storedName);
     }
 
     private String normalizeStorageKey(String raw) {
