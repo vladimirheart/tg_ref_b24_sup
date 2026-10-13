@@ -59,6 +59,9 @@ public class DialogParticipantService {
                     SELECT username, added_at, added_by
                       FROM ticket_participants
                      WHERE ticket_id = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = ticket_participants.ticket_id)
                      ORDER BY %s, lower(username) ASC
                     """.formatted(addedAtOrder);
             List<StoredParticipant> storedParticipants = jdbcTemplate.query(
@@ -127,13 +130,17 @@ public class DialogParticipantService {
             return jdbcTemplate.update(
                     """
                     INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
-                    SELECT ?, ?, CURRENT_TIMESTAMP, ?
+                    SELECT participant.ticket_id, participant.username, CURRENT_TIMESTAMP, participant.added_by
+                      FROM (VALUES (?::text, ?::text, ?::text)) AS participant(ticket_id, username, added_by)
                      WHERE NOT EXISTS (
                          SELECT 1
                            FROM ticket_participants
                           WHERE ticket_id = ?
                             AND username = ?
                      )
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = participant.ticket_id)
                     """,
                     normalizedTicketId,
                     normalizedUsername,
@@ -158,7 +165,13 @@ public class DialogParticipantService {
         }
         try {
             return jdbcTemplate.update(
-                    "DELETE FROM ticket_participants WHERE ticket_id = ? AND username = ?",
+                    """
+                    DELETE FROM ticket_participants
+                     WHERE ticket_id = ? AND username = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = ticket_participants.ticket_id)
+                    """,
                     normalizedTicketId,
                     normalizedUsername
             ) > 0;
