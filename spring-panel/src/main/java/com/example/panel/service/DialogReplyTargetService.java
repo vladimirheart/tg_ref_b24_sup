@@ -67,9 +67,23 @@ public class DialogReplyTargetService {
                                      String sender) {
         requireUniqueTicket(ticketId, target);
         OffsetDateTime timestamp = OffsetDateTime.now();
-        jdbcTemplate.update("""
+        int inserted = jdbcTemplate.update("""
                 INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                SELECT outgoing.*
+                  FROM (VALUES (
+                    ?::bigint, ?::text, ?::text, ?::timestamptz, ?::text,
+                    ?::text, ?::bigint, ?::bigint, ?::bigint
+                  )) AS outgoing(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id)
+                 WHERE EXISTS (
+                     SELECT 1 FROM tickets t
+                      WHERE t.ticket_id = outgoing.ticket_id
+                        AND t.user_id = outgoing.user_id
+                        AND t.channel_id = outgoing.channel_id
+                 )
+                   AND 1 = (
+                       SELECT COUNT(*) FROM tickets unique_ticket
+                        WHERE unique_ticket.ticket_id = outgoing.ticket_id
+                   )
                 """,
                 target.userId(),
                 normalizeSender(sender),
@@ -81,6 +95,9 @@ public class DialogReplyTargetService {
                 telegramMessageId,
                 replyToTelegramId
         );
+        if (inserted != 1) {
+            throw new IllegalArgumentException("Outgoing message requires a unique legacy ticket id.");
+        }
         return timestamp.toString();
     }
 
@@ -111,7 +128,21 @@ public class DialogReplyTargetService {
         Long chatHistoryId = jdbcTemplate.execute((Connection connection) -> {
             try (PreparedStatement insert = connection.prepareStatement("""
                     INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    SELECT outgoing.*
+                      FROM (VALUES (
+                        ?::bigint, ?::text, ?::text, ?::timestamptz, ?::text,
+                        ?::text, ?::text, ?::bigint, ?::bigint, ?::bigint
+                      )) AS outgoing(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
+                     WHERE EXISTS (
+                         SELECT 1 FROM tickets t
+                          WHERE t.ticket_id = outgoing.ticket_id
+                            AND t.user_id = outgoing.user_id
+                            AND t.channel_id = outgoing.channel_id
+                     )
+                       AND 1 = (
+                           SELECT COUNT(*) FROM tickets unique_ticket
+                            WHERE unique_ticket.ticket_id = outgoing.ticket_id
+                       )
                     """, Statement.RETURN_GENERATED_KEYS)) {
                 insert.setLong(1, target.userId());
                 insert.setString(2, "operator");
@@ -123,7 +154,9 @@ public class DialogReplyTargetService {
                 insert.setLong(8, target.channelId());
                 insert.setObject(9, telegramMessageId);
                 insert.setObject(10, replyToTelegramId);
-                insert.executeUpdate();
+                if (insert.executeUpdate() != 1) {
+                    throw new IllegalArgumentException("Outgoing message requires a unique legacy ticket id.");
+                }
                 return extractGeneratedKey(insert);
             }
         });
