@@ -35,6 +35,7 @@ class DialogReplyServiceTest {
         channel.setToken("token");
 
         when(targetService.loadReplyTarget("T-900")).thenReturn(Optional.of(new DialogReplyTarget(123L, 10L)));
+        when(targetService.hasReplyTargetOwner("T-900", new DialogReplyTarget(123L, 10L))).thenReturn(true);
         when(transportService.loadChannel(10L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-900")).thenReturn(false);
         when(transportService.sendText(channel, 123L, "Принято", 45L))
@@ -81,6 +82,7 @@ class DialogReplyServiceTest {
         MockMultipartFile file = new MockMultipartFile("file", "image.png", "image/png", "png".getBytes());
 
         when(targetService.loadReplyTarget("T-901")).thenReturn(Optional.of(new DialogReplyTarget(200L, 15L)));
+        when(targetService.hasReplyTargetOwner("T-901", new DialogReplyTarget(200L, 15L))).thenReturn(true);
         when(transportService.loadChannel(15L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-901")).thenReturn(false);
         when(transportService.sendMedia(channel, 200L, file, "caption", "image.png", null))
@@ -136,6 +138,7 @@ class DialogReplyServiceTest {
         channel.setId(20L);
 
         when(targetService.loadReplyTarget("T-902")).thenReturn(Optional.of(new DialogReplyTarget(321L, 20L)));
+        when(targetService.hasReplyTargetOwner("T-902", new DialogReplyTarget(321L, 20L))).thenReturn(true);
         when(transportService.loadChannel(20L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-902")).thenReturn(true);
         when(targetService.nextLocalTelegramMessageId("T-902")).thenReturn(9901L);

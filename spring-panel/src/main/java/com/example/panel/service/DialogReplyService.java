@@ -43,6 +43,9 @@ public class DialogReplyService {
             return DialogReplyResult.error("Не удалось определить получателя сообщения.");
         }
         DialogReplyTarget target = targetOpt.get();
+        if (!dialogReplyTargetService.hasReplyTargetOwner(ticketId, target)) {
+            return DialogReplyResult.error("Не удалось определить получателя сообщения.");
+        }
         Channel channel = dialogReplyTransportService.loadChannel(target.channelId()).orElse(null);
         if (channel == null) {
             return DialogReplyResult.error("Канал для отправки сообщения не найден.");
@@ -261,6 +264,9 @@ public class DialogReplyService {
             return DialogMediaReplyResult.error("Не удалось определить получателя сообщения.");
         }
         DialogReplyTarget target = targetOpt.get();
+        if (!dialogReplyTargetService.hasReplyTargetOwner(ticketId, target)) {
+            return DialogMediaReplyResult.error("Не удалось определить получателя сообщения.");
+        }
         Channel channel = dialogReplyTransportService.loadChannel(target.channelId()).orElse(null);
         if (channel == null) {
             return DialogMediaReplyResult.error("Канал для отправки сообщения не найден.");

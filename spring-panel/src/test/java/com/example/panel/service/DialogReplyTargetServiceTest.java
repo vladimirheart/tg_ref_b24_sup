@@ -118,6 +118,13 @@ class DialogReplyTargetServiceTest {
         private Object[] lastArgs;
 
         @Override
+        public <T> T queryForObject(String sql, Class<T> requiredType, Object... args) {
+            boolean owned = args.length == 3 && ("T-REPLY".equals(args[0]) || " T-EXACT ".equals(args[0]))
+                    && Long.valueOf(42L).equals(args[1]) && Long.valueOf(1L).equals(args[2]);
+            return requiredType.cast(owned ? Integer.valueOf(1) : Integer.valueOf(0));
+        }
+
+        @Override
         public int update(String sql, Object... args) {
             this.lastArgs = args;
             return 1;

@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -64,7 +65,7 @@ public class DialogReplyTargetService {
                                      Long telegramMessageId,
                                      Long replyToTelegramId,
                                      String sender) {
-        requireUniqueTicket(ticketId);
+        requireUniqueTicket(ticketId, target);
         OffsetDateTime timestamp = OffsetDateTime.now();
         jdbcTemplate.update("""
                 INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id)
@@ -105,7 +106,7 @@ public class DialogReplyTargetService {
                                           String messageType,
                                           Long telegramMessageId,
                                           Long replyToTelegramId) {
-        requireUniqueTicket(ticketId);
+        requireUniqueTicket(ticketId, target);
         OffsetDateTime timestamp = OffsetDateTime.now();
         Long chatHistoryId = jdbcTemplate.execute((Connection connection) -> {
             try (PreparedStatement insert = connection.prepareStatement("""
@@ -141,8 +142,25 @@ public class DialogReplyTargetService {
         return timestamp.toString();
     }
 
-    private void requireUniqueTicket(String ticketId) {
-        if (!legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+    public boolean hasReplyTargetOwner(String ticketId, DialogReplyTarget target) {
+        if (target == null || target.userId() == null || target.channelId() == null
+                || !legacyTicketIdJdbcGuard.hasUniqueTicket(ticketId)) {
+            return false;
+        }
+        try {
+            Integer count = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*) FROM tickets
+                     WHERE ticket_id = ? AND user_id = ? AND channel_id = ?
+                    """, Integer.class, ticketId, target.userId(), target.channelId());
+            return count != null && count == 1;
+        } catch (DataAccessException ex) {
+            // A schema/lookup failure cannot authorize an outbound recipient or child write.
+            return false;
+        }
+    }
+
+    private void requireUniqueTicket(String ticketId, DialogReplyTarget target) {
+        if (!hasReplyTargetOwner(ticketId, target)) {
             throw new IllegalArgumentException("Outgoing message requires a unique legacy ticket id.");
         }
     }
