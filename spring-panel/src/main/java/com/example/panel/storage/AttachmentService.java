@@ -251,6 +251,37 @@ public class AttachmentService {
         return StringUtils.hasText(ticketId) && ticketId.equals(attachmentOwnerGuard.resolveUniqueOwner(storageKey));
     }
 
+    public boolean hasTicketAttachmentOwnerByLegacyReference(String ticketId, String rawReference) {
+        var reference = legacyReferenceForTicket(ticketId, rawReference);
+        if (reference == null) {
+            return false;
+        }
+        return switch (reference.kind()) {
+            case FILENAME -> attachmentOwnerGuard.hasDirectOwner(ticketId, reference.reference());
+            case STORAGE_KEY -> hasTicketAttachmentOwnerByStorageKey(ticketId, reference.reference());
+            case STORED_PATH -> hasTicketAttachmentOwnerByStorageKey(ticketId, storageKeyForStoredPath(reference.reference()));
+        };
+    }
+
+    public AttachmentDescriptor describeTicketAttachmentByLegacyReference(String ticketId, String rawReference) throws IOException {
+        var reference = legacyReferenceForTicket(ticketId, rawReference);
+        if (reference == null) {
+            throw new IllegalArgumentException("File not found");
+        }
+        // Dispatch through existing ticket-bound guards before any binary I/O.
+        return switch (reference.kind()) {
+            case FILENAME -> describeTicketAttachment(ticketId, reference.reference());
+            case STORAGE_KEY -> describeTicketAttachmentByStorageKey(ticketId, reference.reference());
+            case STORED_PATH -> describeTicketAttachmentByPath(ticketId, reference.reference());
+        };
+    }
+
+    private AttachmentStorageKeyResolver.LegacyDialogReference legacyReferenceForTicket(String ticketId, String rawReference) {
+        var reference = AttachmentStorageKeyResolver.parseLegacyDialogReference(rawReference);
+        return StringUtils.hasText(ticketId) && reference != null
+                && (reference.ticketId() == null || ticketId.equals(reference.ticketId())) ? reference : null;
+    }
+
     public boolean hasTicketAttachmentByStorageKey(String storageKey) {
         try {
             if (!hasUniqueTicketForStorageKey(storageKey)) {

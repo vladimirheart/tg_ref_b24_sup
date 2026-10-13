@@ -215,6 +215,23 @@ class AttachmentDescriptorOwnershipPostgresqlTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"/api/attachments/tickets/U/report.pdf",
+            "/api/attachments/tickets/by-storage-key?key=U%2Freport.pdf",
+            "/api/attachments/tickets/by-path?path=attachments%2FU%2Freport.pdf",
+            "/api/attachments/knowledge-base/report.pdf",
+            "/api/attachments/tickets/by-storage-key?key=T%2Freport.pdf&key=U%2Freport.pdf"})
+    void legacyReferenceDescriptorAndReadOnlyProbeRejectForeignOrUnsupportedLocator(String reference) throws Exception {
+        Fixture fixture = fixture();
+        ticket(fixture, 1, "T"); ticket(fixture, 2, "U");
+        write(fixture, "T/report.pdf");
+        write(fixture, "U/report.pdf");
+
+        assertThat(fixture.service().hasTicketAttachmentOwnerByLegacyReference("T", reference)).isFalse();
+        denied(() -> fixture.service().describeTicketAttachmentByLegacyReference("T", reference));
+        verifyNoInteractions(fixture.storage());
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"key", "path", "direct"})
     void historyFileProbeCarriesExactTicketAndEnrichesOnlyItsOwnedFile(String kind) throws Exception {
         Fixture fixture = fixture();
@@ -261,13 +278,9 @@ class AttachmentDescriptorOwnershipPostgresqlTest {
         var messages = reader.loadHistory(owner, 2L);
         assertThat(messages).hasSize(1);
         assertThat(messages.get(0).attachmentSize()).isNull();
-        if ("key".equals(kind)) {
-            assertThat(messages.get(0).attachment()).isNull();
-            assertThat(messages.get(0).attachmentName()).isNull();
-            assertThat(messages.get(0).attachmentProvider()).isNull();
-        } else {
-            assertThat(messages.get(0).attachmentName()).isEqualTo("report.pdf");
-        }
+        assertThat(messages.get(0).attachment()).isNull();
+        assertThat(messages.get(0).attachmentName()).isNull();
+        assertThat(messages.get(0).attachmentProvider()).isNull();
         verifyNoInteractions(fixture.storage());
     }
 }

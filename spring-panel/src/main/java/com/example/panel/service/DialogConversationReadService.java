@@ -134,7 +134,10 @@ public class DialogConversationReadService {
 
     private boolean isReadableAttachmentMetadata(String ticketId, Map<String, Object> row) {
         if (row.get("attachment_metadata_history_id") == null) {
-            return true;
+            String reference = value(row.get("attachment"));
+            // No locator and external URLs carry no local-storage grant.
+            return !StringUtils.hasText(reference) || AttachmentStorageKeyResolver.isExternalUrl(reference)
+                    || attachmentService.hasTicketAttachmentOwnerByLegacyReference(ticketId, reference);
         }
         // Для identity нельзя использовать value(): он trim-ит текст.
         if (!StringUtils.hasText(ticketId) || !ticketId.equals(row.get("attachment_metadata_ticket_id"))
@@ -315,26 +318,26 @@ public class DialogConversationReadService {
         }
         if (StringUtils.hasText(storageKey)) {
             return "/api/attachments/tickets/by-storage-key?key="
-                    + UriUtils.encodeQueryParam(storageKey.trim(), StandardCharsets.UTF_8);
+                    + encodeAttachmentQueryValue(storageKey.trim());
         }
         if (!StringUtils.hasText(attachment)) {
             return attachment;
         }
         String trimmed = attachment.trim();
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
+        if (AttachmentStorageKeyResolver.isExternalUrl(trimmed)) {
             return trimmed;
         }
-        if (trimmed.startsWith("api/")) {
-            return "/" + trimmed;
+        var reference = AttachmentStorageKeyResolver.parseLegacyDialogReference(trimmed);
+        if (reference == null || (reference.ticketId() != null && !reference.ticketId().equals(ticketId))) {
+            return null;
         }
-        String normalized = trimmed.replace('\\', '/');
-        if (normalized.startsWith("attachments/") || normalized.contains("/attachments/")) {
+        if (reference.kind() == AttachmentStorageKeyResolver.LegacyDialogReferenceKind.STORED_PATH) {
             return "/api/attachments/tickets/by-path?path="
-                    + UriUtils.encodeQueryParam(trimmed, StandardCharsets.UTF_8);
+                    + encodeAttachmentQueryValue(reference.reference());
         }
-        if (normalized.contains("/")) {
+        if (reference.kind() == AttachmentStorageKeyResolver.LegacyDialogReferenceKind.STORAGE_KEY) {
             return "/api/attachments/tickets/by-storage-key?key="
-                    + UriUtils.encodeQueryParam(normalized, StandardCharsets.UTF_8);
+                    + encodeAttachmentQueryValue(reference.reference());
         }
         if (!StringUtils.hasText(ticketId)) {
             return trimmed;
@@ -342,7 +345,12 @@ public class DialogConversationReadService {
         return "/api/attachments/tickets/"
                 + UriUtils.encodePathSegment(ticketId, StandardCharsets.UTF_8)
                 + "/"
-                + UriUtils.encodePathSegment(trimmed, StandardCharsets.UTF_8);
+                + UriUtils.encodePathSegment(reference.reference(), StandardCharsets.UTF_8);
+    }
+
+    private static String encodeAttachmentQueryValue(String value) {
+        // Servlet query decoding treats a literal '+' as a space.
+        return UriUtils.encodeQueryParam(value, StandardCharsets.UTF_8).replace("+", "%2B");
     }
 
     private AttachmentMeta resolveAttachmentMeta(String ticketId,
@@ -375,14 +383,8 @@ public class DialogConversationReadService {
             if (StringUtils.hasText(storageKey)) {
                 descriptor = attachmentService.describeTicketAttachmentByStorageKey(ticketId, storageKey.trim());
             } else {
-                String normalized = rawAttachment.trim().replace('\\', '/');
-                if (normalized.startsWith("attachments/") || normalized.contains("/attachments/")) {
-                    descriptor = attachmentService.describeTicketAttachmentByPath(ticketId, rawAttachment);
-                } else if (StringUtils.hasText(ticketId)) {
-                    descriptor = attachmentService.describeTicketAttachment(ticketId, rawAttachment.trim());
-                } else {
-                    descriptor = null;
-                }
+                descriptor = AttachmentStorageKeyResolver.isExternalUrl(rawAttachment) ? null
+                        : attachmentService.describeTicketAttachmentByLegacyReference(ticketId, rawAttachment);
             }
             if (descriptor != null) {
                 return new AttachmentMeta(
@@ -418,7 +420,9 @@ public class DialogConversationReadService {
     }
 
     private String resolveAttachmentName(String rawAttachment, String storageKey, String attachmentUrl) {
-        String resolved = AttachmentStorageKeyResolver.resolveOriginalName(null, rawAttachment, storageKey);
+        var reference = AttachmentStorageKeyResolver.parseLegacyDialogReference(rawAttachment);
+        String resolved = AttachmentStorageKeyResolver.resolveOriginalName(null,
+                reference != null ? reference.reference() : rawAttachment, storageKey);
         if (StringUtils.hasText(resolved)) {
             return resolved;
         }

@@ -31,14 +31,16 @@ class DialogConversationReadServiceTest {
 
     private JdbcTemplate jdbcTemplate;
     private DialogConversationReadService service;
+    private AttachmentService attachments;
 
     @BeforeEach
     void setUp() {
         jdbcTemplate = PostgresqlJdbcTestSupport.freshJdbcTemplate("dialog_conversation");
         LegacyTicketIdJdbcGuard legacyTicketIdJdbcGuard = alwaysUniqueTicketGuard();
+        attachments = mock(AttachmentService.class);
         service = new DialogConversationReadService(
                 jdbcTemplate,
-                mock(AttachmentService.class),
+                attachments,
                 new PanelTimestampSqlSupport(),
                 legacyTicketIdJdbcGuard
         );
@@ -64,6 +66,7 @@ class DialogConversationReadServiceTest {
 
     @Test
     void loadHistoryBuildsReplyPreviewAndAttachmentUrl() {
+        when(attachments.hasTicketAttachmentOwnerByLegacyReference("T-10", "photo.png")).thenReturn(true);
         jdbcTemplate.update("""
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type, attachment,
@@ -95,6 +98,7 @@ class DialogConversationReadServiceTest {
 
     @Test
     void loadHistoryBuildsAttachmentUrlForStoredPath() {
+        when(attachments.hasTicketAttachmentOwnerByLegacyReference("T-11", "attachments/T-11/client photo.jpg")).thenReturn(true);
         jdbcTemplate.update("""
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type, attachment,
@@ -115,6 +119,7 @@ class DialogConversationReadServiceTest {
     @Test
     void loadHistoryBuildsStorageKeyUrlForNestedRawAttachmentWithoutMetadata() {
         String storageKey = "3d543ab982d2f414aa9dc8b135805291/2026/08/24/f50aeb246b294a9d00991bd6.jpg";
+        when(attachments.hasTicketAttachmentOwnerByLegacyReference("T-12", storageKey)).thenReturn(true);
         jdbcTemplate.update("""
                 INSERT INTO chat_history(
                     ticket_id, sender, message, timestamp, message_type, attachment,
@@ -204,12 +209,16 @@ class DialogConversationReadServiceTest {
         assertThat(categories).containsExactly("billing", "delivery");
     }
 
-    @Test
-    void loadHistoryFallsBackToLegacyQueryWhenAttachmentMetadataReadFails() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void loadHistoryFallsBackToLegacyQueryWhenAttachmentMetadataReadFails(boolean ownedReference) throws java.io.IOException {
         JdbcTemplate failingJdbcTemplate = mock(JdbcTemplate.class);
+        AttachmentService fallbackAttachments = mock(AttachmentService.class);
+        when(fallbackAttachments.hasTicketAttachmentOwnerByLegacyReference("T-77", "attachments/T-77/image one.png"))
+                .thenReturn(ownedReference);
         DialogConversationReadService fallbackService = new DialogConversationReadService(
                 failingJdbcTemplate,
-                mock(AttachmentService.class),
+                fallbackAttachments,
                 new PanelTimestampSqlSupport(),
                 alwaysUniqueTicketGuard()
         );
@@ -250,8 +259,16 @@ class DialogConversationReadServiceTest {
 
         assertThat(history).hasSize(1);
         assertThat(history.get(0).message()).isEqualTo("Фолбэк без metadata");
-        assertThat(history.get(0).attachment())
-                .isEqualTo("/api/attachments/tickets/by-path?path=attachments/T-77/image%20one.png");
+        if (ownedReference) {
+            assertThat(history.get(0).attachment())
+                    .isEqualTo("/api/attachments/tickets/by-path?path=attachments/T-77/image%20one.png");
+        } else {
+            assertThat(history.get(0).attachment()).isNull();
+            assertThat(history.get(0).attachmentName()).isNull();
+            assertThat(history.get(0).attachmentSize()).isNull();
+            verify(fallbackAttachments, org.mockito.Mockito.never())
+                    .describeTicketAttachmentByLegacyReference(anyString(), anyString());
+        }
     }
 
     @ParameterizedTest
@@ -330,12 +347,13 @@ class DialogConversationReadServiceTest {
                 (' T-MEDIA ', 'operator', '', '2026-04-30T10:00:00Z', 'image', 'photo.png')
             """);
         AttachmentService attachments = mock(AttachmentService.class);
+        when(attachments.hasTicketAttachmentOwnerByLegacyReference(" T-MEDIA ", "photo.png")).thenReturn(true);
 
         List<ChatMessageDto> history = guardedService(attachments).loadHistory(" T-MEDIA ", null);
 
         assertThat(history).singleElement().extracting(ChatMessageDto::attachment)
             .isEqualTo("/api/attachments/tickets/%20T-MEDIA%20/photo.png");
-        verify(attachments).describeTicketAttachment(" T-MEDIA ", "photo.png");
+        verify(attachments).describeTicketAttachmentByLegacyReference(" T-MEDIA ", "photo.png");
     }
 
     private DialogConversationReadService guardedService(AttachmentService attachments) {

@@ -1,7 +1,9 @@
 package com.example.panel.storage;
 
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.UriUtils;
 
+import java.net.URI;
 import java.net.URLConnection;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -10,6 +12,75 @@ import java.util.Locale;
 public final class AttachmentStorageKeyResolver {
 
     private AttachmentStorageKeyResolver() {
+    }
+
+    public enum LegacyDialogReferenceKind { FILENAME, STORAGE_KEY, STORED_PATH }
+
+    public record LegacyDialogReference(LegacyDialogReferenceKind kind, String reference, String ticketId) { }
+
+    /**
+     * Classifies a local legacy locator, not its owner. API envelopes are decoded once
+     * using servlet query/path semantics; literal storage references are never decoded.
+     */
+    public static LegacyDialogReference parseLegacyDialogReference(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        String reference = raw.trim();
+        if (reference.length() > 4096 || reference.chars().anyMatch(c -> c < 32 || c == 127)
+                || isExternalUrl(reference) || reference.startsWith("//") || reference.startsWith("\\\\")) {
+            return null;
+        }
+        if (isApiReference(reference)) {
+            return parseLegacyDialogApiReference(reference);
+        }
+        String normalized = reference.replace('\\', '/');
+        if (StringUtils.hasText(extractAttachmentsSuffix(normalized))) {
+            return new LegacyDialogReference(LegacyDialogReferenceKind.STORED_PATH, reference, null);
+        }
+        return new LegacyDialogReference(normalized.contains("/")
+                ? LegacyDialogReferenceKind.STORAGE_KEY : LegacyDialogReferenceKind.FILENAME, normalized, null);
+    }
+
+    private static LegacyDialogReference parseLegacyDialogApiReference(String reference) {
+        try {
+            URI uri = URI.create(reference.startsWith("api/") ? "/" + reference : reference);
+            if (uri.getScheme() != null || uri.getRawAuthority() != null || uri.getRawFragment() != null) {
+                return null;
+            }
+            String prefix = "/api/attachments/tickets/";
+            String path = uri.getRawPath();
+            if (path == null || !path.startsWith(prefix)) {
+                return null;
+            }
+            String suffix = path.substring(prefix.length());
+            if ("by-storage-key".equals(suffix) || "by-path".equals(suffix)) {
+                String parameter = "by-storage-key".equals(suffix) ? "key=" : "path=";
+                String query = uri.getRawQuery();
+                if (query == null || !query.startsWith(parameter) || query.contains("&")) {
+                    return null;
+                }
+                String decoded = URLDecoder.decode(query.substring(parameter.length()), StandardCharsets.UTF_8);
+                if (!StringUtils.hasText(decoded)) {
+                    return null;
+                }
+                return new LegacyDialogReference("by-storage-key".equals(suffix)
+                        ? LegacyDialogReferenceKind.STORAGE_KEY : LegacyDialogReferenceKind.STORED_PATH, decoded, null);
+            }
+            String[] segments = suffix.split("/", -1);
+            if (uri.getRawQuery() != null || segments.length != 2) {
+                return null;
+            }
+            String ticketId = UriUtils.decode(segments[0], StandardCharsets.UTF_8);
+            String filename = UriUtils.decode(segments[1], StandardCharsets.UTF_8);
+            if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(filename)) {
+                return null;
+            }
+            // Never trim an explicit opaque ticket identity.
+            return new LegacyDialogReference(LegacyDialogReferenceKind.FILENAME, filename, ticketId);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     public static String normalizeStorageKey(String ticketId, String rawAttachment) {
