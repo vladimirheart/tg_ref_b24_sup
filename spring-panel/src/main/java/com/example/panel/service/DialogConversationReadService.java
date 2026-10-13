@@ -353,11 +353,11 @@ public class DialogConversationReadService {
         try {
             AttachmentService.AttachmentDescriptor descriptor;
             if (StringUtils.hasText(storageKey)) {
-                descriptor = attachmentService.describeTicketAttachmentByStorageKey(storageKey.trim());
+                descriptor = attachmentService.describeTicketAttachmentByStorageKey(ticketId, storageKey.trim());
             } else {
                 String normalized = rawAttachment.trim().replace('\\', '/');
                 if (normalized.startsWith("attachments/") || normalized.contains("/attachments/")) {
-                    descriptor = attachmentService.describeTicketAttachmentByPath(rawAttachment);
+                    descriptor = attachmentService.describeTicketAttachmentByPath(ticketId, rawAttachment);
                 } else if (StringUtils.hasText(ticketId)) {
                     descriptor = attachmentService.describeTicketAttachment(ticketId, rawAttachment.trim());
                 } else {

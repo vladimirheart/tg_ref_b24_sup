@@ -181,12 +181,25 @@ public class AttachmentService {
             throw new IllegalArgumentException("File not found");
         }
         requireUniqueTicket(ticketId);
+        if (!attachmentOwnerGuard.hasDirectOwner(ticketId, storedName)) {
+            throw new IllegalArgumentException("File not found");
+        }
         try (AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachment(ticketId, storedName)) {
             return new AttachmentDescriptor(extractOriginalAttachmentName(storedName), binary.size());
         }
     }
 
     public AttachmentDescriptor describeTicketAttachmentByPath(String rawPath) throws IOException {
+        requireAttachmentOwner(storageKeyForStoredPath(rawPath));
+        return describeValidatedTicketAttachmentByPath(rawPath);
+    }
+
+    public AttachmentDescriptor describeTicketAttachmentByPath(String ticketId, String rawPath) throws IOException {
+        requireAttachmentOwner(ticketId, storageKeyForStoredPath(rawPath));
+        return describeValidatedTicketAttachmentByPath(rawPath);
+    }
+
+    private AttachmentDescriptor describeValidatedTicketAttachmentByPath(String rawPath) throws IOException {
         String storageKey = AttachmentStorageKeyResolver.extractAttachmentsSuffix(rawPath);
         if (StringUtils.hasText(storageKey)) {
             try (AttachmentObjectStorageService.StoredBinary binary =
@@ -202,6 +215,16 @@ public class AttachmentService {
     }
 
     public AttachmentDescriptor describeTicketAttachmentByStorageKey(String storageKey) throws IOException {
+        requireAttachmentOwner(storageKey);
+        return describeValidatedTicketAttachmentByStorageKey(storageKey);
+    }
+
+    public AttachmentDescriptor describeTicketAttachmentByStorageKey(String ticketId, String storageKey) throws IOException {
+        requireAttachmentOwner(ticketId, storageKey);
+        return describeValidatedTicketAttachmentByStorageKey(storageKey);
+    }
+
+    private AttachmentDescriptor describeValidatedTicketAttachmentByStorageKey(String storageKey) throws IOException {
         try (AttachmentObjectStorageService.StoredBinary binary = objectStorageService.openDialogAttachmentByStorageKey(storageKey)) {
             return new AttachmentDescriptor(
                     extractOriginalAttachmentName(AttachmentStorageKeyResolver.extractFileName(storageKey)),
@@ -212,6 +235,9 @@ public class AttachmentService {
 
     public boolean hasTicketAttachmentByStorageKey(String storageKey) {
         try {
+            if (!hasUniqueTicketForStorageKey(storageKey)) {
+                return false;
+            }
             return objectStorageService.dialogAttachmentExistsByStorageKey(storageKey);
         } catch (Exception ex) {
             return false;
@@ -473,6 +499,23 @@ public class AttachmentService {
 
     private boolean hasUniqueTicketForStorageKey(String rawStorageKey) {
         return attachmentOwnerGuard.resolveUniqueOwner(rawStorageKey) != null;
+    }
+
+    private String storageKeyForStoredPath(String rawPath) {
+        String storageKey = AttachmentStorageKeyResolver.extractAttachmentsSuffix(rawPath);
+        return StringUtils.hasText(storageKey) ? storageKey : rawPath;
+    }
+
+    private void requireAttachmentOwner(String storageKey) {
+        if (!hasUniqueTicketForStorageKey(storageKey)) {
+            throw new IllegalArgumentException("File not found");
+        }
+    }
+
+    private void requireAttachmentOwner(String ticketId, String storageKey) {
+        if (!StringUtils.hasText(ticketId) || !ticketId.equals(attachmentOwnerGuard.resolveUniqueOwner(storageKey))) {
+            throw new IllegalArgumentException("File not found");
+        }
     }
 
     private void requireUniqueTicket(String ticketId) {

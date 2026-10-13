@@ -75,13 +75,13 @@ public final class AttachmentStorageKeyResolver {
             return null;
         }
         String lowered = normalized.toLowerCase(Locale.ROOT);
+        if (lowered.startsWith("attachments/")) {
+            return normalizeReference(normalized.substring("attachments/".length()));
+        }
         String marker = "/attachments/";
         int markerIndex = lowered.indexOf(marker);
         if (markerIndex >= 0) {
             return normalizeReference(normalized.substring(markerIndex + marker.length()));
-        }
-        if (lowered.startsWith("attachments/")) {
-            return normalizeReference(normalized.substring("attachments/".length()));
         }
         return null;
     }

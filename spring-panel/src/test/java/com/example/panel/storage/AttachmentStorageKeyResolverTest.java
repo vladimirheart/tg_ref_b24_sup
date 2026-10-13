@@ -1,11 +1,27 @@
 package com.example.panel.storage;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class AttachmentStorageKeyResolverTest {
+
+    @ParameterizedTest
+    @ValueSource(strings = {"attachments/channel/attachments/file.pdf",
+            "/attachments/channel/attachments/file.pdf", "Attachments\\channel\\attachments\\file.pdf"})
+    void leadingRootMarkerTakesPrecedenceOverLiteralNestedAttachmentsDirectory(String path) {
+        assertEquals("channel/attachments/file.pdf", AttachmentStorageKeyResolver.extractAttachmentsSuffix(path));
+        assertEquals("channel/attachments/file.pdf", AttachmentStorageKeyResolver.normalizeStorageKey("ignored-owner", path));
+    }
+
+    @Test
+    void extractedStorageReferenceDoesNotDecodePercentLookingSegmentsOrPlus() {
+        assertEquals("channel/T%2F+/file.pdf",
+                AttachmentStorageKeyResolver.extractAttachmentsSuffix("attachments/channel/T%2F+/file.pdf"));
+    }
 
     @Test
     void normalizesLegacyAbsoluteAttachmentPathIntoStorageKey() {
