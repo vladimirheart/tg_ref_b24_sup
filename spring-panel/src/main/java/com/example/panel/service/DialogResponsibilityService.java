@@ -37,9 +37,19 @@ public class DialogResponsibilityService {
         }
         try {
             jdbcTemplate.update(
-                    "INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) "
-                            + "SELECT ?, ?, ? WHERE NOT EXISTS ("
-                            + "SELECT 1 FROM ticket_responsibles WHERE ticket_id = ?)",
+                    """
+                    INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by)
+                    SELECT assignment.*
+                      FROM (VALUES (?::text, ?::text, ?::text))
+                        AS assignment(ticket_id, responsible, assigned_by)
+                     WHERE NOT EXISTS (
+                         SELECT 1 FROM ticket_responsibles WHERE ticket_id = ?
+                     )
+                       AND 1 = (
+                           SELECT COUNT(*) FROM tickets unique_ticket
+                            WHERE unique_ticket.ticket_id = assignment.ticket_id
+                       )
+                    """,
                     ticketId, normalizedUsername, actor != null ? actor : normalizedUsername, ticketId
             );
         } catch (DataAccessException ex) {
@@ -59,7 +69,9 @@ public class DialogResponsibilityService {
                             + "    (SELECT MAX(timestamp) FROM chat_history WHERE ticket_id = ?),"
                             + "    CURRENT_TIMESTAMP"
                             + ") "
-                            + "WHERE ticket_id = ? AND responsible = ?",
+                            + "WHERE ticket_id = ? AND responsible = ? "
+                            + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket "
+                            + "WHERE unique_ticket.ticket_id = ticket_responsibles.ticket_id)",
                     ticketId,
                     ticketId,
                     operator
@@ -76,14 +88,26 @@ public class DialogResponsibilityService {
         String actor = StringUtils.hasText(assignedBy) ? assignedBy : newResponsible;
         try {
             int inserted = jdbcTemplate.update(
-                    "INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) "
-                            + "SELECT ?, ?, ? WHERE NOT EXISTS ("
-                            + "SELECT 1 FROM ticket_responsibles WHERE ticket_id = ?)",
+                    """
+                    INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by)
+                    SELECT assignment.*
+                      FROM (VALUES (?::text, ?::text, ?::text))
+                        AS assignment(ticket_id, responsible, assigned_by)
+                     WHERE NOT EXISTS (
+                         SELECT 1 FROM ticket_responsibles WHERE ticket_id = ?
+                     )
+                       AND 1 = (
+                           SELECT COUNT(*) FROM tickets unique_ticket
+                            WHERE unique_ticket.ticket_id = assignment.ticket_id
+                       )
+                    """,
                     ticketId, newResponsible, actor, ticketId
             );
             if (inserted == 0) {
                 jdbcTemplate.update(
-                        "UPDATE ticket_responsibles SET responsible = ?, assigned_by = ? WHERE ticket_id = ?",
+                        "UPDATE ticket_responsibles SET responsible = ?, assigned_by = ? WHERE ticket_id = ? "
+                                + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket "
+                                + "WHERE unique_ticket.ticket_id = ticket_responsibles.ticket_id)",
                         newResponsible, actor, ticketId
                 );
             }
@@ -98,7 +122,9 @@ public class DialogResponsibilityService {
         }
         try {
             return jdbcTemplate.query(
-                    "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ? LIMIT 1",
+                    "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ? "
+                            + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket "
+                            + "WHERE unique_ticket.ticket_id = ticket_responsibles.ticket_id) LIMIT 1",
                     rs -> rs.next() ? trimToNull(rs.getString("responsible")) : null,
                     ticketId
             );
