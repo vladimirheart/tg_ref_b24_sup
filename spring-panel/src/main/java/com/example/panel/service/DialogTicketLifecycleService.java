@@ -68,7 +68,13 @@ public class DialogTicketLifecycleService {
         try {
             List<String> normalizedCategories = normalizeCategories(categories);
             String currentStatus = jdbcTemplate.query(
-                    "SELECT status FROM tickets WHERE ticket_id = ?",
+                    """
+                    SELECT status FROM tickets
+                     WHERE ticket_id = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = tickets.ticket_id)
+                    """,
                     rs -> rs.next() ? trimToNull(rs.getString("status")) : null,
                     ticketId
             );
@@ -82,7 +88,8 @@ public class DialogTicketLifecycleService {
             int updated = jdbcTemplate.update(
                     "UPDATE tickets SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, "
                             + "resolved_by = ?, closed_count = COALESCE(closed_count, 0) + 1 "
-                            + "WHERE ticket_id = ? AND (status IS NULL OR lower(status) NOT IN ('resolved', 'closed'))",
+                            + "WHERE ticket_id = ? AND (status IS NULL OR lower(status) NOT IN ('resolved', 'closed')) "
+                            + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket WHERE unique_ticket.ticket_id = tickets.ticket_id)",
                     resolvedBy,
                     ticketId
             );
@@ -104,7 +111,13 @@ public class DialogTicketLifecycleService {
         }
         try {
             String currentStatus = jdbcTemplate.query(
-                    "SELECT status FROM tickets WHERE ticket_id = ?",
+                    """
+                    SELECT status FROM tickets
+                     WHERE ticket_id = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = tickets.ticket_id)
+                    """,
                     rs -> rs.next() ? trimToNull(rs.getString("status")) : null,
                     ticketId
             );
@@ -115,7 +128,8 @@ public class DialogTicketLifecycleService {
                     "UPDATE tickets SET status = 'pending', resolved_at = NULL, resolved_by = NULL, "
                             + "reopen_count = COALESCE(reopen_count, 0) + 1, "
                             + "last_reopen_at = CURRENT_TIMESTAMP "
-                            + "WHERE ticket_id = ? AND lower(COALESCE(status, '')) IN ('resolved', 'closed')",
+                            + "WHERE ticket_id = ? AND lower(COALESCE(status, '')) IN ('resolved', 'closed') "
+                            + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket WHERE unique_ticket.ticket_id = tickets.ticket_id)",
                     ticketId
             );
             if (updated > 0) {
