@@ -228,6 +228,8 @@ public class DialogLookupReadService {
                                    )
                                )
                            )
+                     WHERE (SELECT COUNT(*) FROM tickets legacy_ticket
+                            WHERE legacy_ticket.ticket_id = t.ticket_id) = 1
                       ORDER BY %s,
                                t.ticket_id DESC
                     """.formatted(
