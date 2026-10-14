@@ -59,7 +59,10 @@ public class UiEventOutboxAppendService {
         jdbcTemplate.update("""
                 INSERT INTO ui_event_outbox(
                     id, event_type, ticket_id, channel_id, message_text, message_type, attachment, rating, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) SELECT CAST(? AS BIGINT), CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS BIGINT),
+                         CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS INTEGER),
+                         CAST(? AS TIMESTAMP WITH TIME ZONE)
+                  WHERE (SELECT COUNT(*) FROM tickets legacy_ticket WHERE legacy_ticket.ticket_id = ?) = 1
                 """,
                 nextEventId(),
                 eventType.trim(),
@@ -69,7 +72,8 @@ public class UiEventOutboxAppendService {
                 trimToNull(messageType),
                 trimToNull(attachment),
                 rating,
-                OffsetDateTime.now()
+                OffsetDateTime.now(),
+                ticketId
         );
     }
 
