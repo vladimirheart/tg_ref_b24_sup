@@ -167,6 +167,7 @@ class ConversationTicketCreationIngestionServiceTest {
         verify(chatHistoryRepository).save(historyCaptor.capture());
         ChatHistory history = historyCaptor.getValue();
         assertThat(history.getTicketId()).isEqualTo("T-RABBIT-1");
+        assertThat(history.getTicketOwnerUserId()).isEqualTo(901L);
         assertThat(history.getSender()).isEqualTo("client");
         assertThat(history.getMessage()).isEqualTo("Internet down");
         assertThat(history.getMessageType()).isEqualTo("photo");

@@ -3,6 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.service.BusinessScopedTicketReadService;
 import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -67,5 +68,29 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.businessCode").value("sushi"))
                 .andExpect(jsonPath("$.ticketId").value("raw-ticket"));
+    }
+
+    @Test
+    void historyRequiresPageAndReturnsOnlyScopedSnapshot() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/history";
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+        var ticket = new BusinessScopedTicketReadService.TicketRow(
+                8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши");
+        when(service.findHistoryByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+                new BusinessScopedTicketReadService.TicketHistory(ticket, List.of(
+                        new BusinessScopedTicketReadService.HistoryEntry(
+                                3L, "client", "Здравствуйте", null, "text", false)))));
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ticket.businessCode").value("sushi"))
+                .andExpect(jsonPath("$.entries[0].message").value("Здравствуйте"));
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
     }
 }

@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -144,10 +146,88 @@ public class BusinessScopedTicketReadService {
         return rows.stream().findFirst();
     }
 
+    /**
+     * Only history stamped with the exact canonical ticket tuple is readable.
+     * Legacy rows with a bare ticket_id remain unclassified, even if that ID is unique today.
+     */
+    public Optional<TicketHistory> findHistoryByPublicId(Long userId, String publicId) {
+        if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+            return Optional.empty();
+        }
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        if (ids.isEmpty()) {
+            return Optional.empty();
+        }
+        return namedJdbcTemplate.query("""
+                SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id,
+                       business.id AS business_id, business.code AS business_code,
+                       business.display_name AS business_name,
+                       history.id AS history_id, history.sender, history.message,
+                       history.timestamp AS history_timestamp, history.message_type,
+                       history.attachment
+                  FROM tickets ticket
+                  JOIN businesses business ON business.id = ticket.business_id
+                  LEFT JOIN LATERAL (
+                      SELECT h.id, h.sender, h.message, h.timestamp, h.message_type, h.attachment
+                        FROM chat_history h
+                       WHERE h.ticket_owner_user_id = ticket.user_id
+                         AND h.ticket_id = ticket.ticket_id
+                         AND h.deleted_at IS NULL
+                       ORDER BY h.id DESC
+                       LIMIT 100
+                  ) history ON TRUE
+                 WHERE ticket.ticket_public_id = :publicId
+                   AND ticket.business_id IN (:businessIds)
+                   AND business.status = 'active'
+                   AND (EXISTS (
+                       SELECT 1 FROM business_memberships membership
+                        WHERE membership.business_id = business.id
+                          AND membership.user_id = :userId AND membership.is_active = TRUE
+                   ) OR EXISTS (
+                       SELECT 1 FROM business_access_grants access_grant
+                        WHERE access_grant.user_id = :userId
+                          AND access_grant.grant_scope = 'ALL_BUSINESSES'
+                          AND access_grant.is_active = TRUE
+                   ))
+                 ORDER BY history.id ASC NULLS LAST
+                """, new MapSqlParameterSource()
+                        .addValue("publicId", publicId)
+                        .addValue("businessIds", ids)
+                        .addValue("userId", userId),
+                rs -> {
+                    TicketRow ticket = null;
+                    List<HistoryEntry> entries = new ArrayList<>();
+                    while (rs.next()) {
+                        if (ticket == null) {
+                            ticket = new TicketRow(
+                                    rs.getLong("user_id"), rs.getString("ticket_id"),
+                                    rs.getString("ticket_public_id"), rs.getLong("business_id"),
+                                    rs.getString("business_code"), rs.getString("business_name"));
+                        }
+                        if (rs.getObject("history_id") != null) {
+                            entries.add(new HistoryEntry(
+                                    rs.getLong("history_id"), rs.getString("sender"),
+                                    rs.getString("message"),
+                                    rs.getObject("history_timestamp", OffsetDateTime.class),
+                                    rs.getString("message_type"), rs.getString("attachment") != null));
+                        }
+                    }
+                    return ticket == null ? Optional.<TicketHistory>empty()
+                            : Optional.of(new TicketHistory(ticket, entries));
+                });
+    }
+
     public record BusinessOption(long id, String code, String displayName) {
     }
 
     public record TicketRow(long userId, String ticketId, String ticketPublicId,
                             long businessId, String businessCode, String businessName) {
+    }
+
+    public record HistoryEntry(long id, String sender, String message,
+                               OffsetDateTime timestamp, String messageType, boolean hasAttachment) {
+    }
+
+    public record TicketHistory(TicketRow ticket, List<HistoryEntry> entries) {
     }
 }

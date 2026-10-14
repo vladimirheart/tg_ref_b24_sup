@@ -96,6 +96,7 @@ public class InboundClientMessageIngestionService {
         history.setMessage(event.text());
         history.setTimestamp(occurredAt);
         history.setTicketId(event.ticketId());
+        history.setTicketOwnerUserId(ticket.getId().getUserId());
         history.setMessageType(event.messageType());
         history.setAttachment(event.attachmentPath());
         history.setChannel(channel);

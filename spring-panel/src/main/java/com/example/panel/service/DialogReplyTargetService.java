@@ -79,19 +79,16 @@ public class DialogReplyTargetService {
         requireUniqueTicket(ticketId, target);
         OffsetDateTime timestamp = OffsetDateTime.now();
         int inserted = jdbcTemplate.update("""
-                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id)
-                SELECT outgoing.*
+                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id, ticket_owner_user_id)
+                SELECT outgoing.*, t.user_id
                   FROM (VALUES (
                     ?::bigint, ?::text, ?::text, ?::timestamptz, ?::text,
                     ?::text, ?::bigint, ?::bigint, ?::bigint
                   )) AS outgoing(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id)
-                 WHERE EXISTS (
-                     SELECT 1 FROM tickets t
-                      WHERE t.ticket_id = outgoing.ticket_id
-                        AND t.user_id = outgoing.user_id
-                        AND t.channel_id = outgoing.channel_id
-                 )
-                   AND 1 = (
+                  JOIN tickets t ON t.ticket_id = outgoing.ticket_id
+                                AND t.user_id = outgoing.user_id
+                                AND t.channel_id = outgoing.channel_id
+                 WHERE 1 = (
                        SELECT COUNT(*) FROM tickets unique_ticket
                         WHERE unique_ticket.ticket_id = outgoing.ticket_id
                    )
@@ -142,19 +139,16 @@ public class DialogReplyTargetService {
         OffsetDateTime timestamp = OffsetDateTime.now();
         Long chatHistoryId = jdbcTemplate.execute((Connection connection) -> {
             try (PreparedStatement insert = connection.prepareStatement("""
-                    INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
-                    SELECT outgoing.*
+                    INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id, ticket_owner_user_id)
+                    SELECT outgoing.*, t.user_id
                       FROM (VALUES (
                         ?::bigint, ?::text, ?::text, ?::timestamptz, ?::text,
                         ?::text, ?::text, ?::bigint, ?::bigint, ?::bigint
                       )) AS outgoing(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
-                     WHERE EXISTS (
-                         SELECT 1 FROM tickets t
-                          WHERE t.ticket_id = outgoing.ticket_id
-                            AND t.user_id = outgoing.user_id
-                            AND t.channel_id = outgoing.channel_id
-                     )
-                       AND 1 = (
+                      JOIN tickets t ON t.ticket_id = outgoing.ticket_id
+                                    AND t.user_id = outgoing.user_id
+                                    AND t.channel_id = outgoing.channel_id
+                     WHERE 1 = (
                            SELECT COUNT(*) FROM tickets unique_ticket
                             WHERE unique_ticket.ticket_id = outgoing.ticket_id
                        )

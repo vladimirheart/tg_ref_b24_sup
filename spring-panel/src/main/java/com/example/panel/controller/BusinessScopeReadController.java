@@ -58,6 +58,15 @@ public class BusinessScopeReadController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
+    @GetMapping("/tickets/{publicId}/history")
+    public BusinessScopedTicketReadService.TicketHistory history(@PathVariable String publicId,
+                                                                 Authentication authentication) {
+        requireFoundation();
+        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        return readService.findHistoryByPublicId(userId, publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+
     private void requireFoundation() {
         if (!flags.isFoundationEnabled()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);

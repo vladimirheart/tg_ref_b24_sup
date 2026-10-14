@@ -106,6 +106,7 @@ class InboundClientMessageIngestionServiceTest {
         verify(chatHistoryRepository).save(historyCaptor.capture());
         ChatHistory saved = historyCaptor.getValue();
         assertThat(saved.getTicketId()).isEqualTo("T-17");
+        assertThat(saved.getTicketOwnerUserId()).isEqualTo(7001L);
         assertThat(saved.getSender()).isEqualTo("client");
         assertThat(saved.getTgMessageId()).isEqualTo(1234L);
         assertThat(saved.getReplyToTgId()).isEqualTo(1200L);

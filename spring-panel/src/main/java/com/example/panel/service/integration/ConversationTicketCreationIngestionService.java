@@ -245,6 +245,7 @@ public class ConversationTicketCreationIngestionService {
             history.setMessage(entry.text());
             history.setTimestamp(entryTime);
             history.setTicketId(event.ticketId());
+            history.setTicketOwnerUserId(event.userId());
             history.setMessageType(entry.messageType());
             history.setAttachment(entry.attachmentPath());
             history.setFileName(entry.attachmentName());

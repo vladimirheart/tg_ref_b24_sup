@@ -45,10 +45,13 @@
                 <dt class="col-sm-3">ID клиента</dt><dd class="col-sm-9" data-ticket-user></dd>
                 <dt class="col-sm-3">Публичный ID</dt><dd class="col-sm-9" data-ticket-public></dd>
             </dl>
+            <h3 class="h6 mt-3">Последние сообщения</h3>
+            <p class="small text-muted">Показаны до 100 последних сообщений с подтверждённой связью с обращением. Старая история без такой связи не отображается.</p>
+            <ol class="list-group list-group-numbered" data-ticket-history></ol>
         </div>
     </section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-dialogs.js(v='20261014-r86')}"></script>
+<script th:src="@{/js/business-dialogs.js(v='20261014-r87')}"></script>
 </body>
 </html>

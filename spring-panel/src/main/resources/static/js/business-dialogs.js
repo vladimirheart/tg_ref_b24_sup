@@ -14,6 +14,7 @@
   const limit = 50;
   let offset = 0;
   let generation = 0;
+  let cardRequest = 0;
 
   function announce(message, error = false) {
     status.textContent = message;
@@ -37,17 +38,37 @@
   }
 
   async function openCard(ticket, expectedGeneration) {
+    const request = ++cardRequest;
+    card.hidden = true;
     try {
-      const detail = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}`);
-      if (expectedGeneration !== generation) return;
+      const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/history`);
+      if (expectedGeneration !== generation || request !== cardRequest) return;
+      const detail = snapshot.ticket;
       if (select.value !== 'all' && select.value !== String(detail.businessId)) return;
       card.querySelector('[data-ticket-business]').textContent = detail.businessName;
       card.querySelector('[data-ticket-id]').textContent = detail.ticketId;
       card.querySelector('[data-ticket-user]').textContent = String(detail.userId);
       card.querySelector('[data-ticket-public]').textContent = detail.ticketPublicId;
+      const history = card.querySelector('[data-ticket-history]');
+      history.replaceChildren();
+      if (!snapshot.entries.length) {
+        const empty = document.createElement('li');
+        empty.className = 'list-group-item text-muted';
+        empty.textContent = 'Подтверждённых записей истории пока нет.';
+        history.appendChild(empty);
+      }
+      for (const entry of snapshot.entries) {
+        const item = document.createElement('li');
+        item.className = 'list-group-item';
+        const sender = entry.sender || 'Неизвестный отправитель';
+        const time = entry.timestamp ? new Date(entry.timestamp).toLocaleString('ru-RU') : 'Время неизвестно';
+        const body = entry.message || (entry.hasAttachment ? '[Вложение]' : '[Без текста]');
+        item.textContent = `${sender} · ${time}: ${body}`;
+        history.appendChild(item);
+      }
       card.hidden = false;
     } catch (error) {
-      if (expectedGeneration !== generation) return;
+      if (expectedGeneration !== generation || request !== cardRequest) return;
       card.hidden = true;
       announce('Карточка недоступна. Проверьте доступ и обновите список.', true);
     }
@@ -55,6 +76,7 @@
 
   async function loadTickets() {
     const current = ++generation;
+    ++cardRequest;
     const businessId = select.value;
     card.hidden = true;
     rows.replaceChildren();

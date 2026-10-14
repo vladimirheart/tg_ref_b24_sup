@@ -30,6 +30,9 @@ public class ChatHistory {
 
     private String ticketId;
 
+    @Column(name = "ticket_owner_user_id")
+    private Long ticketOwnerUserId;
+
     private String messageType;
 
     private String attachment;
@@ -101,6 +104,14 @@ public class ChatHistory {
 
     public void setTicketId(String ticketId) {
         this.ticketId = ticketId;
+    }
+
+    public Long getTicketOwnerUserId() {
+        return ticketOwnerUserId;
+    }
+
+    public void setTicketOwnerUserId(Long ticketOwnerUserId) {
+        this.ticketOwnerUserId = ticketOwnerUserId;
     }
 
     public String getMessageType() {
