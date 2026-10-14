@@ -44,6 +44,9 @@ public class DialogClientContextReadService {
                       FROM messages m
                       LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
                      WHERE m.user_id = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = m.ticket_id)
                        AND (CAST(? AS TEXT) IS NULL OR m.ticket_id <> ?)
                      ORDER BY %s
                      LIMIT ?
@@ -84,6 +87,9 @@ public class DialogClientContextReadService {
                       FROM messages m
                       LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
                      WHERE m.user_id = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = m.ticket_id)
                     """.formatted(recentResolvedCondition.sql());
 
             // The timestamp predicate is embedded in the SELECT list, so its
