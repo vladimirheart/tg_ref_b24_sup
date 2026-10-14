@@ -230,6 +230,8 @@ public class DialogNotificationService {
                         SELECT user_id, channel_id
                           FROM messages
                          WHERE ticket_id = ?
+                           AND (SELECT COUNT(*) FROM tickets legacy_ticket
+                                WHERE legacy_ticket.ticket_id = messages.ticket_id) = 1
                          ORDER BY created_at DESC
                          LIMIT 1
                         """,
