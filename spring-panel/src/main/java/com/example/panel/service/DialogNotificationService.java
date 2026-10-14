@@ -410,8 +410,12 @@ public class DialogNotificationService {
     private void logSystemMessage(DialogTarget target, String ticketId, String message) {
         OffsetDateTime timestamp = OffsetDateTime.now();
         jdbcTemplate.update("""
-                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, ticket_owner_user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?,
+                    (SELECT owner.user_id FROM tickets owner
+                      WHERE owner.user_id = ? AND owner.ticket_id = ? AND owner.channel_id = ?
+                        AND 1 = (SELECT COUNT(*) FROM tickets candidate
+                                  WHERE candidate.ticket_id = owner.ticket_id)))
                 """,
                 target.userId(),
                 "system",
@@ -419,6 +423,9 @@ public class DialogNotificationService {
                 timestamp,
                 ticketId,
                 "system_notification",
+                target.channelId(),
+                target.userId(),
+                ticketId,
                 target.channelId()
         );
     }

@@ -110,6 +110,9 @@ class BotRuntimeTicketWriteServiceTest {
                 "T-500"
         )).isEqualTo(BotRuntimeTicketWriteService.REOPEN_EVENT_TEXT);
         assertThat(jdbcTemplate.queryForObject(
+                "SELECT ticket_owner_user_id FROM chat_history WHERE ticket_id = ? AND message_type = 'system_event'",
+                Long.class, "T-500")).isEqualTo(55L);
+        assertThat(jdbcTemplate.queryForObject(
                 "SELECT event_type FROM ui_event_outbox WHERE ticket_id = ?",
                 String.class,
                 "T-500"
@@ -179,6 +182,9 @@ class BotRuntimeTicketWriteServiceTest {
                 "T-700",
                 8801L
         )).isEqualTo("Operator reply");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT ticket_owner_user_id FROM chat_history WHERE ticket_id = ? AND tg_message_id = ?",
+                Long.class, "T-700", 8801L)).isEqualTo(77L);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT user_identity FROM ticket_active WHERE ticket_id = ?",
                 String.class,
@@ -798,7 +804,8 @@ class BotRuntimeTicketWriteServiceTest {
                     forwarded_from TEXT,
                     file_name TEXT,
                     edited_at TIMESTAMP WITH TIME ZONE,
-                    deleted_at TIMESTAMP WITH TIME ZONE
+                    deleted_at TIMESTAMP WITH TIME ZONE,
+                    ticket_owner_user_id BIGINT
                 )
                 """);
         jdbcTemplate.execute("""

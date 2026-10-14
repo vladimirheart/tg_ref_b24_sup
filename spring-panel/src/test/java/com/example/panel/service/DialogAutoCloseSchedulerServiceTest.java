@@ -97,7 +97,9 @@ class DialogAutoCloseSchedulerServiceTest {
 
         verify(ticketRepository).save(ticket);
         verify(ticketActiveRepository).deleteById("T-900");
-        verify(chatHistoryRepository).save(any());
+        var historyCaptor = org.mockito.ArgumentCaptor.forClass(com.example.panel.entity.ChatHistory.class);
+        verify(chatHistoryRepository).save(historyCaptor.capture());
+        assertThat(historyCaptor.getValue().getTicketOwnerUserId()).isEqualTo(900L);
         verify(uiEventOutboxAppendService).publishTicketClosed(eq("T-900"), eq(18L), any(), eq(true));
         verify(followUpTaskService).createTaskForAutoClosedDialog(eq("T-900"), eq(channel));
         verify(jdbcTemplate).update(eq("""

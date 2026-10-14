@@ -276,12 +276,19 @@ public class BotRuntimeTicketWriteService {
 
     private void storeSystemEvent(TicketSnapshot ticket, String text) {
         jdbcTemplate.update("""
-                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id)
-                VALUES (?, 'system', ?, ?, ?, 'system_event', ?)
+                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, ticket_owner_user_id)
+                VALUES (?, 'system', ?, ?, ?, 'system_event', ?,
+                    (SELECT owner.user_id FROM tickets owner
+                      WHERE owner.user_id = ? AND owner.ticket_id = ? AND owner.channel_id = ?
+                        AND 1 = (SELECT COUNT(*) FROM tickets candidate
+                                  WHERE candidate.ticket_id = owner.ticket_id)))
                 """,
                 ticket.userId(),
                 text,
                 OffsetDateTime.now(),
+                ticket.ticketId(),
+                ticket.channelId(),
+                ticket.userId(),
                 ticket.ticketId(),
                 ticket.channelId()
         );

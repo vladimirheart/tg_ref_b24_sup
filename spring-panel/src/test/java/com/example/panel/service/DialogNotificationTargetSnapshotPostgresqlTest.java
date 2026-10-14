@@ -321,6 +321,39 @@ class DialogNotificationTargetSnapshotPostgresqlTest {
         f.assertHistory("T-TARGET", action, true, 101L, 99L);
     }
 
+    @ParameterizedTest
+    @MethodSource("actions")
+    void exactRecipientAndUniqueParentStampCanonicalHistoryOwner(String action) {
+        Fixture f = new Fixture();
+        f.parent(101L, "T-OWNER", 99L);
+        f.message(1L, 101L, "T-OWNER", 99L, "2024-01-01T00:00:00Z");
+        f.webSession("T-OWNER");
+
+        f.notify(action, "T-OWNER");
+
+        f.assertHistory("T-OWNER", action, true, 101L, 99L);
+        assertThat(f.jdbc.queryForList(
+                "SELECT ticket_owner_user_id FROM chat_history WHERE ticket_id = 'T-OWNER'",
+                Long.class)).containsOnly(101L);
+    }
+
+    @ParameterizedTest
+    @MethodSource("afterCases")
+    void lateParentChangeLeavesDeliveredNotificationUnlinked(String action, String mutation) {
+        Fixture f = new Fixture();
+        f.parent(101L, "T-LATE-OWNER", 99L);
+        f.message(1L, 101L, "T-LATE-OWNER", 99L, "2024-01-01T00:00:00Z");
+        f.webSession("T-LATE-OWNER");
+        f.afterTarget = () -> f.invalidate("T-LATE-OWNER", mutation);
+
+        f.notify(action, "T-LATE-OWNER");
+
+        f.assertHistory("T-LATE-OWNER", action, true, 101L, 99L);
+        assertThat(f.jdbc.queryForObject(
+                "SELECT COUNT(*) FROM chat_history WHERE ticket_id = 'T-LATE-OWNER'"
+                        + " AND ticket_owner_user_id IS NOT NULL", Integer.class)).isZero();
+    }
+
     private static final class Fixture {
         private final JdbcTemplate jdbc =
             PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType("notification_target");
@@ -362,7 +395,7 @@ class DialogNotificationTargetSnapshotPostgresqlTest {
                 CREATE TABLE chat_history(
                     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, user_id BIGINT, sender TEXT,
                     message TEXT, timestamp TIMESTAMP WITH TIME ZONE, ticket_id TEXT,
-                    message_type TEXT, channel_id BIGINT)
+                    message_type TEXT, channel_id BIGINT, ticket_owner_user_id BIGINT)
                 """);
             jdbc.update("""
                 INSERT INTO chat_history(user_id, sender, message, ticket_id)
@@ -461,6 +494,9 @@ class DialogNotificationTargetSnapshotPostgresqlTest {
                 assertThat(row.get("sender")).isEqualTo("system");
                 assertThat(row.get("message_type")).isEqualTo("system_notification");
                 assertThat(row.get("timestamp")).isInstanceOf(java.sql.Timestamp.class);
+                if (!"T-OWNER".equals(rawId)) {
+                    assertThat(row.get("ticket_owner_user_id")).isNull();
+                }
             }
             assertThat(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM chat_history WHERE ticket_id = 'T-EXISTING' AND message = 'existing'",

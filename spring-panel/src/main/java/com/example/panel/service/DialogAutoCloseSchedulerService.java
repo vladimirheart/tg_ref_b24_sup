@@ -145,6 +145,7 @@ public class DialogAutoCloseSchedulerService {
         event.setMessage(AUTO_CLOSE_TEXT);
         event.setTimestamp(now);
         event.setTicketId(ticket.getTicketId());
+        event.setTicketOwnerUserId(ticket.getUserId());
         event.setMessageType("system_event");
         event.setChannel(ticket.getChannel());
         chatHistoryRepository.save(event);
