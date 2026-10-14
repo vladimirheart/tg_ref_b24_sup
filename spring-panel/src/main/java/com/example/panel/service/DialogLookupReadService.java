@@ -593,6 +593,8 @@ public class DialogLookupReadService {
                 SELECT COUNT(*)
                   FROM tickets t
                  WHERE %2$s = ?
+                   AND (SELECT COUNT(*) FROM tickets legacy_ticket
+                         WHERE legacy_ticket.ticket_id = t.ticket_id) = 1
                    AND (
                         %1$s < ?
                         OR (%1$s = ? AND t.ticket_id <= ?)
