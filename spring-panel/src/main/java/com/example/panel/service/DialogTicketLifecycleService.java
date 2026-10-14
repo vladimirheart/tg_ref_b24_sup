@@ -35,10 +35,23 @@ public class DialogTicketLifecycleService {
         }
         List<String> normalized = normalizeCategories(categories);
         try {
-            jdbcTemplate.update("DELETE FROM ticket_categories WHERE ticket_id = ?", ticketId);
+            jdbcTemplate.update("""
+                    DELETE FROM ticket_categories
+                     WHERE ticket_id = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = ticket_categories.ticket_id)
+                    """, ticketId);
             for (String category : normalized) {
                 jdbcTemplate.update(
-                        "INSERT INTO ticket_categories(ticket_id, category, created_at, updated_at) VALUES(?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                        """
+                        INSERT INTO ticket_categories(ticket_id, category, created_at, updated_at)
+                        SELECT category_row.ticket_id, category_row.category, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                          FROM (VALUES (?::text, ?::text)) AS category_row(ticket_id, category)
+                         WHERE 1 = (SELECT COUNT(*)
+                                      FROM tickets unique_ticket
+                                     WHERE unique_ticket.ticket_id = category_row.ticket_id)
+                        """,
                         ticketId,
                         category
                 );
