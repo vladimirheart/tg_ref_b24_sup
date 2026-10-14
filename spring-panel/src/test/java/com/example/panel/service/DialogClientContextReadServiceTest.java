@@ -128,6 +128,7 @@ class DialogClientContextReadServiceTest {
 
     @Test
     void loadRelatedEventsFormatsAuditRowsAndKeepsNewestFirst() {
+        jdbcTemplate.update("INSERT INTO tickets(ticket_id, status) VALUES (?, ?)", "T-55", "pending");
         jdbcTemplate.update(
                 "INSERT INTO chat_history(id, ticket_id, sender, timestamp, message_type, message) VALUES (?, ?, ?, ?, ?, ?)",
                 1L, "T-55", "operator", "2026-04-21T08:00:00Z", "event", "Ответ отправлен"

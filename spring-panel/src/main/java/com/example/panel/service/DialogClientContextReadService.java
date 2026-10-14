@@ -179,6 +179,9 @@ public class DialogClientContextReadService {
                                    id AS sort_id
                               FROM chat_history
                              WHERE ticket_id = ?
+                               AND 1 = (SELECT COUNT(*)
+                                          FROM tickets unique_ticket
+                                         WHERE unique_ticket.ticket_id = chat_history.ticket_id)
                                AND (lower(COALESCE(sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
                                     OR lower(COALESCE(message_type, '')) IN ('system', 'status', 'event'))
                             UNION ALL
@@ -193,6 +196,9 @@ public class DialogClientContextReadService {
                               JOIN tasks t ON t.id = tl.task_id
                               LEFT JOIN task_history th ON th.task_id = t.id
                              WHERE tl.ticket_id = ?
+                               AND 1 = (SELECT COUNT(*)
+                                          FROM tickets unique_ticket
+                                         WHERE unique_ticket.ticket_id = tl.ticket_id)
                                AND COALESCE(trim(th.text), '') <> ''
                             UNION ALL
                             SELECT COALESCE(actor, 'system') AS actor,
@@ -204,6 +210,9 @@ public class DialogClientContextReadService {
                                    id AS sort_id
                               FROM dialog_action_audit
                              WHERE ticket_id = ?
+                               AND 1 = (SELECT COUNT(*)
+                                          FROM tickets unique_ticket
+                                         WHERE unique_ticket.ticket_id = dialog_action_audit.ticket_id)
                        ) events
                      ORDER BY %s
                      LIMIT ?
@@ -224,6 +233,9 @@ public class DialogClientContextReadService {
                                        id AS sort_id
                                   FROM chat_history
                                  WHERE ticket_id = ?
+                                   AND 1 = (SELECT COUNT(*)
+                                              FROM tickets unique_ticket
+                                             WHERE unique_ticket.ticket_id = chat_history.ticket_id)
                                    AND (lower(COALESCE(sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
                                         OR lower(COALESCE(message_type, '')) IN ('system', 'status', 'event'))
                                 UNION ALL
@@ -238,6 +250,9 @@ public class DialogClientContextReadService {
                                   JOIN tasks t ON t.id = tl.task_id
                                   LEFT JOIN task_history th ON th.task_id = t.id
                                  WHERE tl.ticket_id = ?
+                                   AND 1 = (SELECT COUNT(*)
+                                              FROM tickets unique_ticket
+                                             WHERE unique_ticket.ticket_id = tl.ticket_id)
                                    AND COALESCE(trim(th.text), '') <> ''
                            ) events
                          ORDER BY %s
