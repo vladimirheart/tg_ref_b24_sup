@@ -447,6 +447,8 @@ public class DialogLookupReadService {
                                )
                            )
                      WHERE t.ticket_id = ?
+                       AND (SELECT COUNT(*) FROM tickets legacy_ticket
+                             WHERE legacy_ticket.ticket_id = t.ticket_id) = 1
                     """.formatted(
                     latestMessageOrder,
                     ratingSelect,
