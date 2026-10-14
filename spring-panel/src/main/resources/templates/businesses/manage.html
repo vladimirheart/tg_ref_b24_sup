@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}">
+    <title>Бизнесы и доступы — iguana</title>
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" href="/vendor/bootstrap/5.3.3/bootstrap.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap-icons/1.10.5/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+</head>
+<body class="with-sidebar sidebar-pinned" data-ui-page="settings">
+<div th:replace="~{fragments/navbar :: navbar('settings')}"></div>
+<main class="main-content container-fluid py-4 page-shell" data-business-admin>
+    <div class="page-header-card page-hero mb-4">
+        <span class="page-kicker">Настройки</span>
+        <h1 class="page-title">Бизнесы и доступы</h1>
+        <p class="page-subtitle mb-0">Новый бизнес создаётся независимо от канала и внешних интеграций.</p>
+    </div>
+    <div class="alert alert-info" role="status" aria-live="polite" data-business-status>Загрузка…</div>
+    <div class="row g-4">
+        <section class="col-12 col-xl-6" aria-labelledby="businessCatalogTitle">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5" id="businessCatalogTitle">Каталог бизнесов</h2>
+                <form id="businessCreateForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-sm-4"><label class="form-label" for="businessCode">Код</label>
+                        <input class="form-control" id="businessCode" name="code" pattern="[a-z][a-z0-9-]*" maxlength="100" required autocomplete="off"></div>
+                    <div class="col-sm-5"><label class="form-label" for="businessName">Название</label>
+                        <input class="form-control" id="businessName" name="displayName" maxlength="200" required autocomplete="off"></div>
+                    <div class="col-sm-3"><button class="btn btn-primary w-100" type="submit">Создать</button></div>
+                </form>
+                <div class="table-responsive"><table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">Название</th><th scope="col">Код</th><th scope="col">Статус</th></tr></thead>
+                    <tbody id="businessCatalogRows"></tbody>
+                </table></div>
+            </div></div>
+        </section>
+        <section class="col-12 col-xl-6" aria-labelledby="businessMembershipTitle">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h5" id="businessMembershipTitle">Доступ к выбранному бизнесу</h2>
+                <form id="businessMembershipForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-sm-4"><label class="form-label" for="membershipBusiness">Бизнес</label>
+                        <select class="form-select" id="membershipBusiness" required></select></div>
+                    <div class="col-sm-4"><label class="form-label" for="membershipUser">Сотрудник</label>
+                        <select class="form-select" id="membershipUser" required></select></div>
+                    <div class="col-sm-2"><label class="form-label" for="membershipRole">Роль</label>
+                        <select class="form-select" id="membershipRole">
+                            <option value="VIEWER">Чтение</option><option value="OPERATOR">Оператор</option>
+                            <option value="MANAGER">Менеджер</option><option value="ADMIN">Администратор бизнеса</option>
+                        </select></div>
+                    <div class="col-sm-2"><button class="btn btn-primary w-100" type="submit">Сохранить</button></div>
+                </form>
+                <div class="table-responsive"><table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">Бизнес</th><th scope="col">Сотрудник</th><th scope="col">Роль</th><th scope="col"></th></tr></thead>
+                    <tbody id="businessMembershipRows"></tbody>
+                </table></div>
+            </div></div>
+        </section>
+        <section class="col-12" aria-labelledby="allBusinessGrantTitle">
+            <div class="card"><div class="card-body">
+                <h2 class="h5" id="allBusinessGrantTitle">Доступ ко всем бизнесам</h2>
+                <p class="text-muted small">Охватывает новые бизнесы автоматически. Системные права сотрудника не меняются.</p>
+                <form id="allBusinessGrantForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-sm-5"><label class="form-label" for="allGrantUser">Сотрудник</label>
+                        <select class="form-select" id="allGrantUser" required></select></div>
+                    <div class="col-sm-4"><label class="form-label" for="allGrantRole">Роль в бизнесах</label>
+                        <select class="form-select" id="allGrantRole">
+                            <option value="VIEWER">Чтение</option><option value="OPERATOR">Оператор</option>
+                            <option value="MANAGER">Менеджер</option><option value="ADMIN">Администратор бизнеса</option>
+                        </select></div>
+                    <div class="col-sm-3"><button class="btn btn-primary w-100" type="submit">Сохранить</button></div>
+                </form>
+                <div class="table-responsive"><table class="table table-sm align-middle">
+                    <thead><tr><th scope="col">Сотрудник</th><th scope="col">Роль</th><th scope="col"></th></tr></thead>
+                    <tbody id="allBusinessGrantRows"></tbody>
+                </table></div>
+            </div></div>
+        </section>
+    </div>
+</main>
+<script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/business-administration.js(v='20261014-r86')}"></script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 package com.example.panel.settings;
 
+import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.entity.AppSetting;
 import com.example.panel.entity.SettingsParameter;
 import com.example.panel.repository.AppSettingRepository;
@@ -39,6 +40,7 @@ public class SettingsPageController {
     private final PermissionService permissionService;
     private final AutoCloseConfigNormalizer autoCloseConfigNormalizer;
     private final BotSettingsPayloadNormalizer botSettingsPayloadNormalizer;
+    private final MultibusinessFeatureFlags multibusinessFlags;
 
     public SettingsPageController(NavigationService navigationService,
                                   AppSettingRepository appSettingRepository,
@@ -49,7 +51,8 @@ public class SettingsPageController {
                                   IikoDepartmentLocationCatalogService locationCatalogService,
                                   PermissionService permissionService,
                                   AutoCloseConfigNormalizer autoCloseConfigNormalizer,
-                                  BotSettingsPayloadNormalizer botSettingsPayloadNormalizer) {
+                                  BotSettingsPayloadNormalizer botSettingsPayloadNormalizer,
+                                  MultibusinessFeatureFlags multibusinessFlags) {
         this.navigationService = navigationService;
         this.appSettingRepository = appSettingRepository;
         this.projectRepository = projectRepository;
@@ -60,12 +63,15 @@ public class SettingsPageController {
         this.permissionService = permissionService;
         this.autoCloseConfigNormalizer = autoCloseConfigNormalizer;
         this.botSettingsPayloadNormalizer = botSettingsPayloadNormalizer;
+        this.multibusinessFlags = multibusinessFlags;
     }
 
     @GetMapping("/settings")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public String settings(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
+        model.addAttribute("canManageBusinesses", multibusinessFlags.isFoundationEnabled()
+                && permissionService.hasAuthority(authentication, "ROLE_ADMIN"));
         try {
             List<AppSetting> appSettings = appSettingRepository.findAll();
             List<SettingsParameter> systemParameters = settingsParameterRepository.findAll();

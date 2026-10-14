@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
@@ -61,6 +62,9 @@ class DialogsControllerWebMvcTest {
     @MockBean
     private PanelUserPhotoService panelUserPhotoService;
 
+    @MockBean
+    private MultibusinessFeatureFlags multibusinessFlags;
+
     @Test
     void dialogsTicketRouteProvidesInitialDialogTicketId() throws Exception {
         stubNavigationDefaults();
@@ -74,6 +78,24 @@ class DialogsControllerWebMvcTest {
                 .andExpect(model().attribute("initialDialogTicketId", "T-123"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("data-page-key=\"dialogs\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("sidebar-user-name")));
+    }
+
+    @Test
+    void businessOverviewLinkAppearsOnlyWhenBothFlagsAreEnabled() throws Exception {
+        stubNavigationDefaults();
+        stubDialogsPageData(new DialogSummary(0, 0, 0, Collections.emptyList()),
+                Collections.emptyList(), DialogMyDialogs.empty());
+        when(multibusinessFlags.isFoundationEnabled()).thenReturn(true);
+        when(multibusinessFlags.isUiSelector()).thenReturn(true);
+
+        mockMvc.perform(get("/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/business-dialogs\"")));
+        when(multibusinessFlags.isUiSelector()).thenReturn(false);
+        mockMvc.perform(get("/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("href=\"/business-dialogs\""))));
     }
 
     @Test

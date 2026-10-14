@@ -63,6 +63,7 @@
                 <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogFiltersModal">Фильтры</button>
                 <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogColumnsModal">Колонки</button>
                 <a class="btn btn-ai-soft btn-sm" href="/ai-ops">AI Ops</a>
+                <a class="btn btn-outline-primary btn-sm" th:if="${businessSelectorAvailable}" th:href="@{/business-dialogs}">Обращения по бизнесам</a>
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#dialogToolbarAdvanced" aria-expanded="false" aria-controls="dialogToolbarAdvanced">Ещё параметры</button>
             </div>
             <div class="mt-3 dialog-status-group">

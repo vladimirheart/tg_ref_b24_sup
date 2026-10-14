@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogMyDialogs;
@@ -26,13 +27,16 @@ public class DialogsController {
     private final NavigationService navigationService;
     private final DialogLookupReadService dialogLookupReadService;
     private final SharedConfigService sharedConfigService;
+    private final MultibusinessFeatureFlags multibusinessFlags;
 
     public DialogsController(NavigationService navigationService,
                              DialogLookupReadService dialogLookupReadService,
-                             SharedConfigService sharedConfigService) {
+                             SharedConfigService sharedConfigService,
+                             MultibusinessFeatureFlags multibusinessFlags) {
         this.navigationService = navigationService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.sharedConfigService = sharedConfigService;
+        this.multibusinessFlags = multibusinessFlags;
     }
 
     @GetMapping("/")
@@ -73,6 +77,8 @@ public class DialogsController {
         model.addAttribute("activePage", "dialogs");
         model.addAttribute("initialDialogTicketId", initialDialogTicketId);
         model.addAttribute("operatorIdentity", operatorIdentity);
+        model.addAttribute("businessSelectorAvailable",
+                multibusinessFlags.isFoundationEnabled() && multibusinessFlags.isUiSelector());
         try {
             DialogSummary summary = dialogLookupReadService.loadSummary();
             List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operatorIdentity);

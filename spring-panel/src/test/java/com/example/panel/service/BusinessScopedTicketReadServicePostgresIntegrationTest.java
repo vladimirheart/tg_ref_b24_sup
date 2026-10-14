@@ -47,6 +47,10 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(service.listTickets(1L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0))
                 .extracting(BusinessScopedTicketReadService.TicketRow::ticketPublicId)
                 .containsExactly("0123456789abcdef0123456789abcdef");
+        assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef"))
+                .get().extracting(BusinessScopedTicketReadService.TicketRow::businessId).isEqualTo(sushi);
+        assertThat(service.findByPublicId(1L, "fedcba9876543210fedcba9876543210")).isEmpty();
+        assertThat(service.findByPublicId(1L, "same")).isEmpty();
         assertThatThrownBy(() -> service.listTickets(
                 1L, new BusinessAccessService.OneBusiness(bliny), 50, 0))
                 .isInstanceOf(AccessDeniedException.class);
@@ -64,6 +68,8 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 .isEmpty();
         assertThat(service.listTickets(2L, new BusinessAccessService.OneBusiness(bliny), 50, 0))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(2L);
+        assertThat(service.findByPublicId(2L, "fedcba9876543210fedcba9876543210"))
+                .get().extracting(BusinessScopedTicketReadService.TicketRow::businessId).isEqualTo(bliny);
     }
 
     @Test
@@ -86,6 +92,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 1L, new BusinessAccessService.OneBusiness(sushi), 50, 0))
                 .isInstanceOf(AccessDeniedException.class);
         assertThat(service.availableBusinesses(1L)).isEmpty();
+        assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef")).isEmpty();
 
         BusinessAccessService staleAccess = mock(BusinessAccessService.class);
         when(staleAccess.resolveAccessibleBusinessIds(1L)).thenReturn(Set.of(sushi));

@@ -35,6 +35,20 @@
     </div>
 
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 settings-tiles">
+      <div class="col" th:if="${canManageBusinesses}">
+        <a class="card settings-tile h-100 text-decoration-none" th:href="@{/businesses/manage}">
+          <div class="card-body">
+            <div class="settings-tile__head">
+              <div class="settings-tile__lead">
+                <div class="tile-icon"><i class="bi bi-buildings" aria-hidden="true"></i></div>
+                <h5 class="card-title">Бизнесы и доступы</h5>
+              </div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
+            <p class="card-text text-muted">Создавайте направления и назначайте доступ сотрудникам.</p>
+          </div>
+        </a>
+      </div>
       <div class="col" th:if="${canManageChannels}">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="channelsModal">
           <div class="card-body">

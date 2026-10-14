@@ -9,6 +9,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -46,6 +47,15 @@ public class BusinessScopeReadController {
         }
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
         return readService.listTickets(userId, requestedContext(businessId), limit, offset);
+    }
+
+    @GetMapping("/tickets/{publicId}")
+    public BusinessScopedTicketReadService.TicketRow ticket(@PathVariable String publicId,
+                                                            Authentication authentication) {
+        requireFoundation();
+        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        return readService.findByPublicId(userId, publicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
     private void requireFoundation() {

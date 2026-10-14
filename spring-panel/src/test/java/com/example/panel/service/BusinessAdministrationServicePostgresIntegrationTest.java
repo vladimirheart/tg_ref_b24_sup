@@ -1,0 +1,108 @@
+package com.example.panel.service;
+
+import com.example.panel.support.PostgresqlJdbcTestSupport;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class BusinessAdministrationServicePostgresIntegrationTest {
+
+    private static final Path MIGRATION = Path.of(
+            "src/main/resources/db/migration/postgresql/V51__multibusiness_foundation.sql");
+
+    @Test
+    void createsIndependentBusinessAndManagesDirectAndDynamicAllAccess() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_admin_full_flow");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'one'), (2, 'all-reader'), (3, 'other')");
+        migrate(jdbc);
+        BusinessAdministrationService service = new BusinessAdministrationService(jdbc);
+        BusinessAccessService access = new BusinessAccessService(jdbc);
+        long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
+
+        BusinessAdministrationService.Business created = service.createBusiness("autoservice", "  Автосервис  ");
+        assertThat(created.code()).isEqualTo("autoservice");
+        assertThat(created.displayName()).isEqualTo("Автосервис");
+        assertThat(created.status()).isEqualTo("active");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM business_channel_bindings", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM business_locations", Integer.class)).isZero();
+
+        assertThat(service.grantMembership(created.id(), 1L, "OPERATOR")).isTrue();
+        assertThat(access.resolveAccessibleBusinessIds(1L)).containsExactly(created.id());
+        assertThat(access.hasCapability(1L, created.id(), BusinessAccessService.BusinessCapability.OPERATE)).isTrue();
+        assertThat(access.resolveAccessibleBusinessIds(3L)).isEmpty();
+
+        assertThat(service.grantAllBusinesses(2L, "VIEWER")).isTrue();
+        assertThat(access.resolveAccessibleBusinessIds(2L)).containsExactlyInAnyOrder(sushi, bliny, created.id());
+        assertThat(access.hasCapability(2L, created.id(), BusinessAccessService.BusinessCapability.CONFIGURE)).isFalse();
+        BusinessAdministrationService.Business future = service.createBusiness("flowers", "Цветы");
+        assertThat(access.resolveAccessibleBusinessIds(2L)).contains(future.id());
+        assertThat(access.resolveAccessibleBusinessIds(1L)).doesNotContain(future.id());
+
+        assertThat(service.grantMembership(created.id(), 1L, "MANAGER")).isTrue();
+        assertThat(access.hasCapability(1L, created.id(), BusinessAccessService.BusinessCapability.MANAGE)).isTrue();
+        assertThat(service.overview().memberships()).containsExactly(
+                new BusinessAdministrationService.Membership(1L, created.id(), "MANAGER"));
+        assertThat(service.overview().allGrants()).containsExactly(
+                new BusinessAdministrationService.AllGrant(2L, "VIEWER"));
+
+        service.revokeMembership(created.id(), 1L);
+        assertThat(access.resolveAccessibleBusinessIds(1L)).isEmpty();
+        service.revokeAllBusinesses(2L);
+        assertThat(access.resolveAccessibleBusinessIds(2L)).isEmpty();
+        assertThat(service.overview().memberships()).isEmpty();
+        assertThat(service.overview().allGrants()).isEmpty();
+        assertThat(service.grantMembership(created.id(), 1L, "VIEWER")).isTrue();
+        assertThat(access.hasCapability(1L, created.id(), BusinessAccessService.BusinessCapability.READ)).isTrue();
+    }
+
+    @Test
+    void rejectsInvalidCodesRolesMissingTargetsAndArchivedBusiness() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_admin_fail_closed");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'one')");
+        migrate(jdbc);
+        BusinessAdministrationService service = new BusinessAdministrationService(jdbc);
+        long sushi = businessId(jdbc, "sushi");
+        assertThatThrownBy(() -> service.createBusiness("Sushi", "Duplicate name"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.createBusiness("bad code", "Name"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.createBusiness("valid", " "))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.createBusiness("sushi", "Another"))
+                .isInstanceOf(DuplicateKeyException.class);
+        assertThatThrownBy(() -> service.grantMembership(sushi, 1L, "ROLE_ADMIN"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.grantAllBusinesses(1L, "admin"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(service.grantMembership(sushi, 999L, "VIEWER")).isFalse();
+        assertThat(service.grantAllBusinesses(999L, "VIEWER")).isFalse();
+        jdbc.update("UPDATE businesses SET status = 'archived' WHERE id = ?", sushi);
+        assertThat(service.grantMembership(sushi, 1L, "VIEWER")).isFalse();
+    }
+
+    private JdbcTemplate freshSchema(String prefix) {
+        JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType(prefix);
+        jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");
+        jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY)");
+        jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, PRIMARY KEY (user_id, ticket_id))");
+        return jdbc;
+    }
+
+    private void migrate(JdbcTemplate jdbc) throws Exception {
+        for (String statement : Files.readString(MIGRATION).replace("\r\n", "\n").split(";")) {
+            if (!statement.isBlank()) {
+                jdbc.execute(statement.trim());
+            }
+        }
+    }
+
+    private long businessId(JdbcTemplate jdbc, String code) {
+        return jdbc.queryForObject("SELECT id FROM businesses WHERE code = ?", Long.class, code);
+    }
+}
