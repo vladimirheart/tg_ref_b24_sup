@@ -156,7 +156,9 @@ public class DialogTicketLifecycleService {
             int updated = jdbcTemplate.update(
                     "UPDATE pending_feedback_requests "
                             + "SET expires_at = ?, source = ? "
-                            + "WHERE ticket_id = ?",
+                            + "WHERE ticket_id = ? "
+                            + "AND 1 = (SELECT COUNT(*) FROM tickets unique_ticket "
+                            + "WHERE unique_ticket.ticket_id = pending_feedback_requests.ticket_id)",
                     expiresAt,
                     source,
                     ticketId
@@ -165,7 +167,13 @@ public class DialogTicketLifecycleService {
                 return;
             }
             TicketOwner owner = jdbcTemplate.query(
-                    "SELECT user_id, channel_id FROM tickets WHERE ticket_id = ?",
+                    """
+                    SELECT user_id, channel_id FROM tickets
+                     WHERE ticket_id = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = tickets.ticket_id)
+                    """,
                     rs -> rs.next()
                             ? new TicketOwner(rs.getLong("user_id"), rs.getLong("channel_id"))
                             : null,
@@ -175,9 +183,17 @@ public class DialogTicketLifecycleService {
                 return;
             }
             jdbcTemplate.update(
-                    "INSERT INTO pending_feedback_requests "
-                            + "(user_id, channel_id, ticket_id, source, created_at, expires_at) "
-                            + "VALUES(?, ?, ?, ?, ?, ?)",
+                    """
+                    INSERT INTO pending_feedback_requests
+                        (user_id, channel_id, ticket_id, source, created_at, expires_at)
+                    SELECT feedback_row.user_id, feedback_row.channel_id, feedback_row.ticket_id,
+                           feedback_row.source, feedback_row.created_at, feedback_row.expires_at
+                      FROM (VALUES (?::bigint, ?::bigint, ?::text, ?::text, ?::timestamptz, ?::timestamptz))
+                           AS feedback_row(user_id, channel_id, ticket_id, source, created_at, expires_at)
+                     WHERE 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = feedback_row.ticket_id)
+                    """,
                     owner.userId,
                     owner.channelId,
                     ticketId,
@@ -195,7 +211,13 @@ public class DialogTicketLifecycleService {
             return;
         }
         try {
-            jdbcTemplate.update("DELETE FROM ticket_active WHERE ticket_id = ?", ticketId);
+            jdbcTemplate.update("""
+                    DELETE FROM ticket_active
+                     WHERE ticket_id = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = ticket_active.ticket_id)
+                    """, ticketId);
         } catch (DataAccessException ex) {
             log.warn("Unable to clear ticket_active for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
@@ -207,7 +229,13 @@ public class DialogTicketLifecycleService {
         }
         try {
             String identity = jdbcTemplate.query(
-                    "SELECT user_id FROM tickets WHERE ticket_id = ?",
+                    """
+                    SELECT user_id FROM tickets
+                     WHERE ticket_id = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = tickets.ticket_id)
+                    """,
                     rs -> rs.next() ? trimToNull(rs.getString("user_id")) : null,
                     ticketId
             );
@@ -222,13 +250,23 @@ public class DialogTicketLifecycleService {
                            END,
                            last_seen = CURRENT_TIMESTAMP
                      WHERE ticket_id = ?
+                       AND 1 = (SELECT COUNT(*)
+                                  FROM tickets unique_ticket
+                                 WHERE unique_ticket.ticket_id = ticket_active.ticket_id)
                     """,
                     identity,
                     ticketId
             );
             if (updated == 0) {
                 jdbcTemplate.update(
-                        "INSERT INTO ticket_active(ticket_id, user_identity, last_seen) VALUES(?, ?, CURRENT_TIMESTAMP)",
+                        """
+                        INSERT INTO ticket_active(ticket_id, user_identity, last_seen)
+                        SELECT active_row.ticket_id, active_row.user_identity, CURRENT_TIMESTAMP
+                          FROM (VALUES (?::text, ?::text)) AS active_row(ticket_id, user_identity)
+                         WHERE 1 = (SELECT COUNT(*)
+                                      FROM tickets unique_ticket
+                                     WHERE unique_ticket.ticket_id = active_row.ticket_id)
+                        """,
                         ticketId,
                         identity
                 );
