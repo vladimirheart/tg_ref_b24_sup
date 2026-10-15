@@ -84,7 +84,19 @@
         <section class="col-12" aria-labelledby="businessChannelsTitle">
             <div class="card"><div class="card-body">
                 <h2 class="h5" id="businessChannelsTitle">Каналы и привязки</h2>
-                <p class="text-muted small">Только просмотр. Привязки не назначают бизнес старым обращениям и не включают маршрутизацию новых.</p>
+                <p class="text-muted small">Привязки не назначают бизнес старым обращениям и сами по себе не включают маршрутизацию новых. Для общего канала доступен только режим явного выбора; вопросники и выбор в боте подключаются отдельно.</p>
+                <form id="channelBindingForm" class="row g-2 align-items-end mb-3">
+                    <div class="col-md-4"><label class="form-label" for="channelBindingChannel">Канал</label>
+                        <select class="form-select" id="channelBindingChannel" required></select></div>
+                    <div class="col-md-3"><label class="form-label" for="channelBindingBusiness">Бизнес</label>
+                        <select class="form-select" id="channelBindingBusiness" required></select></div>
+                    <div class="col-md-3"><label class="form-label" for="channelBindingMode">Режим</label>
+                        <select class="form-select" id="channelBindingMode">
+                            <option value="SINGLE_BUSINESS">Один бизнес</option>
+                            <option value="EXPLICIT_SELECTION">Явный выбор</option>
+                        </select></div>
+                    <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Сохранить</button></div>
+                </form>
                 <p class="text-muted small" role="status" aria-live="polite" data-channel-list-status>Загрузка каналов…</p>
                 <div class="table-responsive"><table class="table table-sm align-middle">
                     <thead><tr><th scope="col">Канал</th><th scope="col">Платформа</th><th scope="col">Статус</th><th scope="col"></th></tr></thead>
@@ -94,7 +106,7 @@
                     <h3 class="h6" data-channel-preview-title></h3>
                     <p class="small" role="status" aria-live="polite" data-channel-preview-status></p>
                     <div class="table-responsive"><table class="table table-sm align-middle">
-                        <thead><tr><th scope="col">Бизнес</th><th scope="col">Режим</th><th scope="col">Статус бизнеса</th><th scope="col">Привязка</th></tr></thead>
+                        <thead><tr><th scope="col">Бизнес</th><th scope="col">Режим</th><th scope="col">Статус бизнеса</th><th scope="col">Привязка</th><th scope="col"></th></tr></thead>
                         <tbody id="channelBindingRows"></tbody>
                     </table></div>
                 </div>
@@ -123,6 +135,6 @@
     </div>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-administration.js(v='20261015-r97')}"></script>
+<script th:src="@{/js/business-administration.js(v='20261015-r111')}"></script>
 </body>
 </html>

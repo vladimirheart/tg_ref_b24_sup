@@ -30,17 +30,27 @@ async function main() {
     return elements.get(selector);
   };
   const pending = new Map();
+  const deleted = [];
   const showChannelPreview = vm.runInNewContext(
     `let previewRequestId = 0;\n${source.slice(start, end)}\nshowChannelPreview`, {
       page: { querySelector: element },
       document: { createElement: () => new Element() },
+      window: { confirm: () => true },
+      revokeButton: onClick => {
+        const button = new Element();
+        button.onClick = onClick;
+        return button;
+      },
+      perform: action => action(),
       cell: (row, value) => {
         const item = new Element();
         item.textContent = String(value ?? '');
         row.appendChild(item);
         return item;
       },
-      request: url => new Promise((resolve, reject) => pending.set(url, { resolve, reject }))
+      request: (url, method) => method === 'DELETE'
+        ? (deleted.push(url), Promise.resolve())
+        : new Promise((resolve, reject) => pending.set(url, { resolve, reject }))
     });
 
   const older = showChannelPreview({ id: 1, channelName: 'Старый' });
@@ -58,17 +68,29 @@ async function main() {
   assert.match(status.textContent, /Одна активная привязка/);
   assert.equal(element('#channelBindingPreview').hidden, false);
   assert.equal(rows.children[0].children[0].textContent, 'sushi');
+  assert.equal(typeof rows.children[0].children[4].children[0].onClick, 'function');
+  const previousPreview = pending.get('/channels/2/binding-preview');
+  const deactivate = rows.children[0].children[4].children[0].onClick();
+  for (let attempt = 0; attempt < 10
+      && pending.get('/channels/2/binding-preview') === previousPreview; attempt += 1) {
+    await Promise.resolve();
+  }
+  assert.notEqual(pending.get('/channels/2/binding-preview'), previousPreview);
+  pending.get('/channels/2/binding-preview').resolve({ classification: 'NO_ACTIVE_BINDING', bindings: [] });
+  await deactivate;
+  assert.deepEqual(deleted, ['/channels/2/bindings/7']);
+  assert.equal(rows.children[0].children[0].textContent, 'Привязок нет.');
   pending.get('/channels/1/binding-preview').resolve({ classification: 'NO_ACTIVE_BINDING', bindings: [] });
   await older;
   assert.match(title.textContent, /Новый/);
-  assert.equal(rows.children[0].children[0].textContent, 'sushi');
+  assert.equal(rows.children[0].children[0].textContent, 'Привязок нет.');
 
   const empty = showChannelPreview({ id: 3, channelName: 'Пустой' });
   pending.get('/channels/3/binding-preview').resolve({ classification: 'NO_ACTIVE_BINDING', bindings: [] });
   await empty;
   assert.equal(rows.children.length, 1);
   assert.equal(rows.children[0].children[0].textContent, 'Привязок нет.');
-  assert.equal(rows.children[0].children[0].colSpan, 4);
+  assert.equal(rows.children[0].children[0].colSpan, 5);
 
   const staleFailure = showChannelPreview({ id: 5, channelName: 'Устаревшая ошибка' });
   const current = showChannelPreview({ id: 6, channelName: 'Актуальный' });

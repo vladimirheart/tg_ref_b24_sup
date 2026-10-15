@@ -58,6 +58,43 @@ public class BusinessAdministrationApiController {
         }
     }
 
+    @PutMapping("/channels/{channelId}/bindings/{businessId}")
+    public ResponseEntity<Void> saveChannelBinding(@PathVariable long channelId, @PathVariable long businessId,
+            @RequestBody(required = false) ChannelBindingRequest request, Authentication authentication) {
+        requireFoundation();
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Binding mode is required");
+        }
+        try {
+            if (!service.saveChannelBinding(channelId, businessId, request.resolutionMode())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Channel or active business not found");
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        } catch (IllegalStateException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage(), ex);
+        }
+        log.info("Channel binding saved: actor={}, channelId={}, businessId={}, mode={}",
+                actor(authentication), channelId, businessId, request.resolutionMode());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/channels/{channelId}/bindings/{businessId}")
+    public ResponseEntity<Void> deactivateChannelBinding(@PathVariable long channelId, @PathVariable long businessId,
+            Authentication authentication) {
+        requireFoundation();
+        try {
+            if (!service.deactivateChannelBinding(channelId, businessId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Active binding not found");
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+        log.info("Channel binding deactivated: actor={}, channelId={}, businessId={}",
+                actor(authentication), channelId, businessId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/businesses")
     public ResponseEntity<BusinessAdministrationService.Business> createBusiness(
             @RequestBody(required = false) CreateBusinessRequest request, Authentication authentication) {
@@ -235,6 +272,9 @@ public class BusinessAdministrationApiController {
     }
 
     public record CreateBusinessRequest(String code, String displayName) {
+    }
+
+    public record ChannelBindingRequest(String resolutionMode) {
     }
 
     public record RenameBusinessRequest(String displayName) {

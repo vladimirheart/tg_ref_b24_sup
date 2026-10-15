@@ -7,6 +7,7 @@
   const status = page.querySelector('[data-business-status]');
   const csrf = document.querySelector('meta[name="_csrf"]')?.content || '';
   let snapshot = null;
+  let channelCatalog = [];
   let previewRequestId = 0;
 
   function announce(message, error = false) {
@@ -26,7 +27,9 @@
     });
     if (!response.ok) {
       const message = response.status === 403 ? 'Недостаточно прав для управления бизнесами.'
-        : response.status === 409 ? 'Такая запись уже существует.'
+        : response.status === 409 ? (path.startsWith('/channels/')
+          ? 'Конфликт привязок: отключите несовместимый активный режим.'
+          : 'Такая запись уже существует.')
           : response.status === 404 ? 'Бизнес, канал или сотрудник не найден.'
             : response.status === 400 ? 'Проверьте введённые данные.'
               : 'Не удалось выполнить операцию.';
@@ -71,6 +74,8 @@
     fillSelect('membershipBusiness', data.businesses.filter((business) => business.status === 'active'),
       (business) => business.displayName);
     fillSelect('locationBusiness', data.businesses.filter((business) => business.status === 'active'),
+      (business) => business.displayName);
+    fillSelect('channelBindingBusiness', data.businesses.filter((business) => business.status === 'active'),
       (business) => business.displayName);
     fillSelect('membershipUser', data.users, (user) => user.username);
     fillSelect('allGrantUser', data.users, (user) => user.username);
@@ -182,6 +187,7 @@
     CHANNEL_INACTIVE: 'Канал выключен',
     NO_ACTIVE_BINDING: 'Нет активных привязок',
     SINGLE_BUSINESS: 'Одна активная привязка к бизнесу',
+    EXPLICIT_SELECTION: 'Настроен явный выбор бизнеса',
     NEEDS_EXPLICIT_DECISION: 'Требуется явное решение по маршрутизации'
   };
   const modeLabels = {
@@ -205,11 +211,11 @@
     try {
       const preview = await request(`/channels/${channel.id}/binding-preview`);
       if (requestId !== previewRequestId) return;
-      previewStatus.textContent = `${classificationLabels[preview.classification] || 'Статус не определён'}. Это только просмотр, не назначение бизнеса обращению.`;
+      previewStatus.textContent = `${classificationLabels[preview.classification] || 'Статус не определён'}. Привязки сами по себе не включают маршрутизацию и не назначают бизнес обращению.`;
       if (!preview.bindings.length) {
         const row = document.createElement('tr');
         const empty = cell(row, 'Привязок нет.');
-        empty.colSpan = 4;
+        empty.colSpan = 5;
         details.appendChild(row);
       }
       for (const binding of preview.bindings) {
@@ -218,6 +224,16 @@
         cell(row, modeLabels[binding.resolutionMode] || binding.resolutionMode);
         cell(row, binding.businessStatus === 'active' ? 'Активен' : 'Архив');
         cell(row, binding.active ? 'Активна' : 'Выключена');
+        const action = cell(row, '');
+        if (binding.active) {
+          action.appendChild(revokeButton(async () => {
+            if (!window.confirm('Выключить привязку? Существующие обращения не изменятся.')) return;
+            await perform(async () => {
+              await request(`/channels/${channel.id}/bindings/${binding.businessId}`, 'DELETE');
+              await showChannelPreview(channel);
+            }, 'Привязка выключена.');
+          }));
+        }
         details.appendChild(row);
       }
     } catch (error) {
@@ -231,6 +247,9 @@
     const channelStatus = page.querySelector('[data-channel-list-status]');
     try {
       const channels = await request('/channels');
+      channelCatalog = channels;
+      fillSelect('channelBindingChannel', channels, (channel) =>
+        `${channel.channelName || 'Без названия'} (#${channel.id})`);
       const rows = page.querySelector('#businessChannelRows');
       rows.replaceChildren();
       for (const channel of channels) {
@@ -302,6 +321,22 @@
     perform(async () => {
       await request(`/all-grants/${userId}`, 'PUT', { roleCode });
     }, 'Доступ ко всем бизнесам сохранён.');
+  });
+
+  page.querySelector('#channelBindingForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const channelId = page.querySelector('#channelBindingChannel').value;
+    const businessId = page.querySelector('#channelBindingBusiness').value;
+    const resolutionMode = page.querySelector('#channelBindingMode').value;
+    const channel = channelCatalog.find((item) => String(item.id) === channelId);
+    if (!channel) {
+      announce('Выберите канал.', true);
+      return;
+    }
+    perform(async () => {
+      await request(`/channels/${channelId}/bindings/${businessId}`, 'PUT', { resolutionMode });
+      await showChannelPreview(channel);
+    }, 'Привязка сохранена. Маршрутизация остаётся выключенной до отдельного включения.');
   });
 
   refresh().then(() => announce(snapshot.businesses.length

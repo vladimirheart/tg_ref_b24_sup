@@ -18,6 +18,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -254,5 +255,52 @@ class BusinessAdministrationApiControllerWebMvcTest {
                 .andExpect(jsonPath("$[0].platform").value("telegram"))
                 .andExpect(jsonPath("$[0].active").value(true))
                 .andExpect(jsonPath("$[0].token").doesNotExist());
+    }
+
+    @Test
+    void channelBindingMutationRequiresAdminFoundationAndCsrf() throws Exception {
+        String path = "/api/business-admin/channels/10/bindings/7";
+        mvc.perform(put(path).with(user("viewer").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"resolutionMode\":\"EXPLICIT_SELECTION\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(put(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"resolutionMode\":\"EXPLICIT_SELECTION\"}"))
+                .andExpect(status().isNotFound());
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        mvc.perform(put(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .contentType("application/json")
+                .content("{\"resolutionMode\":\"EXPLICIT_SELECTION\"}"))
+                .andExpect(status().isForbidden());
+        verify(service, never()).saveChannelBinding(10L, 7L, "EXPLICIT_SELECTION");
+
+        when(service.saveChannelBinding(10L, 7L, "EXPLICIT_SELECTION")).thenReturn(true);
+        mvc.perform(put(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"resolutionMode\":\"EXPLICIT_SELECTION\"}"))
+                .andExpect(status().isNoContent());
+        verify(service).saveChannelBinding(10L, 7L, "EXPLICIT_SELECTION");
+
+        when(service.saveChannelBinding(10L, 7L, "SINGLE_BUSINESS"))
+                .thenThrow(new IllegalStateException("Conflicting binding"));
+        mvc.perform(put(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"resolutionMode\":\"SINGLE_BUSINESS\"}"))
+                .andExpect(status().isConflict());
+        when(service.saveChannelBinding(10L, 7L, "VERIFIED_LOCATION_MAPPING"))
+                .thenThrow(new IllegalArgumentException("Unsupported channel binding mode"));
+        mvc.perform(put(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"resolutionMode\":\"VERIFIED_LOCATION_MAPPING\"}"))
+                .andExpect(status().isBadRequest());
+
+        when(service.deactivateChannelBinding(10L, 7L)).thenReturn(true);
+        mvc.perform(delete(path).with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()))
+                .andExpect(status().isNoContent());
+        mvc.perform(delete(path).with(user("viewer").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+                .andExpect(status().isForbidden());
     }
 }

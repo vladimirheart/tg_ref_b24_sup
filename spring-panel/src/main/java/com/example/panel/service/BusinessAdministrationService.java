@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Explicit business catalog and access grants. No integration is required to create a business. */
 @Service
@@ -90,11 +91,53 @@ public class BusinessAdministrationService {
         } else if (active.size() == 1 && "active".equals(active.get(0).businessStatus())
                 && "SINGLE_BUSINESS".equals(active.get(0).resolutionMode())) {
             classification = "SINGLE_BUSINESS";
+        } else if (active.stream().allMatch(binding -> "active".equals(binding.businessStatus())
+                && "EXPLICIT_SELECTION".equals(binding.resolutionMode()))) {
+            classification = "EXPLICIT_SELECTION";
         } else {
             classification = "NEEDS_EXPLICIT_DECISION";
         }
         return Optional.of(new ChannelBindingPreview(channelId, rows.get(0).channelActive(),
                 classification, bindings));
+    }
+
+    /** Configure only modes that have an explicit S4 path; channel lock serializes competing edits. */
+    @Transactional
+    public boolean saveChannelBinding(long channelId, long businessId, String resolutionMode) {
+        requirePositiveIds(channelId, businessId);
+        if (!"SINGLE_BUSINESS".equals(resolutionMode) && !"EXPLICIT_SELECTION".equals(resolutionMode)) {
+            throw new IllegalArgumentException("Unsupported channel binding mode");
+        }
+        if (jdbc.queryForList("SELECT id FROM channels WHERE id = ? FOR UPDATE", Long.class, channelId).isEmpty()
+                || jdbc.queryForList("SELECT id FROM businesses WHERE id = ? AND status = 'active'",
+                        Long.class, businessId).isEmpty()) {
+            return false;
+        }
+        List<String> otherModes = jdbc.queryForList("""
+                SELECT resolution_mode FROM business_channel_bindings
+                 WHERE channel_id = ? AND business_id <> ? AND is_active = TRUE
+                """, String.class, channelId, businessId);
+        if (("SINGLE_BUSINESS".equals(resolutionMode) && !otherModes.isEmpty())
+                || ("EXPLICIT_SELECTION".equals(resolutionMode)
+                    && otherModes.stream().anyMatch(mode -> !"EXPLICIT_SELECTION".equals(mode)))) {
+            throw new IllegalStateException("Channel has incompatible active business bindings");
+        }
+        return jdbc.update("""
+                INSERT INTO business_channel_bindings(channel_id, business_id, resolution_mode, is_active)
+                VALUES (?, ?, ?, TRUE)
+                ON CONFLICT (channel_id, business_id) DO UPDATE
+                    SET resolution_mode = EXCLUDED.resolution_mode,
+                        is_active = TRUE, updated_at = CURRENT_TIMESTAMP
+                """, channelId, businessId, resolutionMode) == 1;
+    }
+
+    /** Disabling a binding preserves its identity and never rewrites existing tickets. */
+    public boolean deactivateChannelBinding(long channelId, long businessId) {
+        requirePositiveIds(channelId, businessId);
+        return jdbc.update("""
+                UPDATE business_channel_bindings SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+                 WHERE channel_id = ? AND business_id = ? AND is_active = TRUE
+                """, channelId, businessId) == 1;
     }
 
     public Business createBusiness(String code, String displayName) {
