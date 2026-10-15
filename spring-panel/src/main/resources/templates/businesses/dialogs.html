@@ -85,6 +85,9 @@
             <h3 class="h6 mt-3">Рабочие данные</h3>
             <p class="small text-muted" aria-live="polite" data-ticket-workspace-status></p>
             <ul class="list-group mb-3" data-ticket-workspace></ul>
+            <h3 class="h6 mt-3">Интервалы работы</h3>
+            <p class="small text-muted" aria-live="polite" data-ticket-spans-status></p>
+            <ul class="list-group mb-3" data-ticket-spans></ul>
             <h3 class="h6 mt-3">История сообщений</h3>
             <p class="small text-muted">История загружается по 50 подтверждённых сообщений. Вложения доступны только при подтверждённой связи с файлом; старая история без связи с обращением не отображается.</p>
             <button class="btn btn-outline-secondary btn-sm mb-3" id="businessHistoryOlder" type="button" hidden>Загрузить более ранние сообщения</button>
@@ -93,6 +96,6 @@
     </section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-dialogs.js(v='20261015-r106')}"></script>
+<script th:src="@{/js/business-dialogs.js(v='20261015-r107')}"></script>
 </body>
 </html>

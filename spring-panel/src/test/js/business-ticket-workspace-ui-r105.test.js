@@ -18,7 +18,7 @@ async function main() {
   const source = fs.readFileSync(path.resolve(__dirname,
     '../../main/resources/static/js/business-dialogs.js'), 'utf8');
   const start = source.indexOf('  async function loadWorkspace(');
-  const end = source.indexOf('  async function openCard(', start);
+  const end = source.indexOf('  async function loadSpans(', start);
   assert.ok(start >= 0 && end > start);
 
   const ticket = { ticketPublicId: '0123456789abcdef0123456789abcdef',

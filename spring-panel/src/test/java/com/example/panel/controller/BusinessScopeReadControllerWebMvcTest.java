@@ -241,6 +241,44 @@ class BusinessScopeReadControllerWebMvcTest {
     }
 
     @Test
+    void spansReturnOnlyVerifiedIntervalsUnderDialogsPermission() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/spans";
+        var ticket = new BusinessScopedTicketReadService.TicketRow(
+                8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+        when(service.findSpansByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+                new BusinessScopedTicketReadService.TicketSpans(ticket, true, List.of(
+                        new BusinessScopedTicketReadService.SpanEntry(1, CREATED_AT,
+                                OffsetDateTime.parse("2026-10-15T10:16:30Z"), 60)))));
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(jsonPath("$.ticket.businessCode").value("sushi"))
+                .andExpect(jsonPath("$.relationVerified").value(true))
+                .andExpect(jsonPath("$.spans[0].spanNo").value(1))
+                .andExpect(jsonPath("$.spans[0].durationSeconds").value(60));
+        when(service.findSpansByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+                new BusinessScopedTicketReadService.TicketSpans(ticket, false, List.of())));
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.relationVerified").value(false))
+                .andExpect(jsonPath("$.spans").isEmpty());
+        when(service.findSpansByPublicId(1L, PUBLIC_ID))
+                .thenThrow(new BusinessScopedTicketReadService.SpanLimitExceededException());
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isPayloadTooLarge());
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void attachmentRequiresCurrentScopeAndReturnsOnlyVerifiedBinary() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
         when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);

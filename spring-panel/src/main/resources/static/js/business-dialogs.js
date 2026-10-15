@@ -18,6 +18,8 @@
   const answersStatus = card.querySelector('[data-ticket-answers-status]');
   const workspace = card.querySelector('[data-ticket-workspace]');
   const workspaceStatus = card.querySelector('[data-ticket-workspace-status]');
+  const spans = card.querySelector('[data-ticket-spans]');
+  const spansStatus = card.querySelector('[data-ticket-spans-status]');
   const older = card.querySelector('#businessHistoryOlder');
   const previous = page.querySelector('#businessTicketsPrevious');
   const next = page.querySelector('#businessTicketsNext');
@@ -42,6 +44,8 @@
     answersStatus.textContent = '';
     workspace.replaceChildren();
     workspaceStatus.textContent = '';
+    spans.replaceChildren();
+    spansStatus.textContent = '';
     for (const field of ['business', 'id', 'user', 'client', 'problem', 'public',
       'status', 'created', 'resolved-at', 'resolved-by']) {
       card.querySelector(`[data-ticket-${field}]`).textContent = '';
@@ -236,6 +240,45 @@
     }
   }
 
+  async function loadSpans(ticket, expectedGeneration, request) {
+    spans.replaceChildren();
+    spansStatus.textContent = 'Загрузка интервалов работы…';
+    try {
+      const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/spans`);
+      if (expectedGeneration !== generation || request !== cardRequest ||
+          currentTicketPublicId !== ticket.ticketPublicId ||
+          (select.value !== 'all' && select.value !== String(ticket.businessId))) return;
+      if (!snapshot.ticket || snapshot.ticket.ticketPublicId !== ticket.ticketPublicId ||
+          snapshot.ticket.businessId !== ticket.businessId ||
+          snapshot.ticket.userId !== ticket.userId ||
+          snapshot.ticket.ticketId !== ticket.ticketId) {
+        spansStatus.textContent = 'Интервалы недоступны: обращение изменилось. Обновите карточку.';
+        return;
+      }
+      if (!snapshot.relationVerified) {
+        spansStatus.textContent = 'Интервалы недоступны: legacy ID обращения не имеет однозначной связи с ними.';
+        return;
+      }
+      spansStatus.textContent = snapshot.spans.length
+        ? 'Подтверждённые интервалы работы обращения.' : 'Интервалов работы пока нет.';
+      for (const entry of snapshot.spans) {
+        const item = document.createElement('li');
+        item.className = 'list-group-item';
+        const duration = Number.isInteger(entry.durationSeconds) && entry.durationSeconds >= 0
+          ? `${entry.durationSeconds} с` : 'не зафиксирована';
+        item.textContent = `Интервал ${entry.spanNo}: ${ticketTime(entry.startedAt)} — ` +
+          `${ticketTime(entry.endedAt)}; длительность ${duration}`;
+        spans.appendChild(item);
+      }
+    } catch (error) {
+      if (expectedGeneration === generation && request === cardRequest &&
+          currentTicketPublicId === ticket.ticketPublicId) {
+        spans.replaceChildren();
+        spansStatus.textContent = 'Интервалы недоступны. Проверьте доступ и обновите карточку.';
+      }
+    }
+  }
+
   async function openCard(ticket, expectedGeneration) {
     const request = ++cardRequest;
     clearCard();
@@ -274,6 +317,7 @@
       card.hidden = false;
       loadAnswers(detail, expectedGeneration, request);
       loadWorkspace(detail, expectedGeneration, request);
+      loadSpans(detail, expectedGeneration, request);
     } catch (error) {
       if (expectedGeneration !== generation || request !== cardRequest) return;
       clearCard();

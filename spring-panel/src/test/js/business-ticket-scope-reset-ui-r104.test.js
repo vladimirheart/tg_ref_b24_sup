@@ -49,12 +49,13 @@ async function main() {
   const history = new Element();
   const answers = new Element();
   const workspace = new Element();
+  const spans = new Element();
   const older = new Element();
   const messages = [];
   const pending = [];
   const context = {
-    card, history, answers, workspace, older, answersStatus: new Element(),
-    workspaceStatus: new Element(),
+    card, history, answers, workspace, spans, older, answersStatus: new Element(),
+    workspaceStatus: new Element(), spansStatus: new Element(),
     currentTicket: ticket, currentTicketPublicId: publicId,
     historyBefore: 9, olderLoading: false, generation: 3, cardRequest: 4,
     select: { value: 'all' }, encodeURIComponent,
@@ -76,6 +77,8 @@ async function main() {
   answers.children.push({ textContent: 'старый ответ' });
   workspace.children.push({ textContent: 'старые рабочие данные' });
   context.workspaceStatus.textContent = 'старый статус';
+  spans.children.push({ textContent: 'старый интервал' });
+  context.spansStatus.textContent = 'старый статус интервала';
   card.querySelector('[data-ticket-client]').textContent = 'старый клиент';
   card.querySelector('[data-ticket-resolved-by]').textContent = 'старый оператор';
   card.querySelector('[data-ticket-resolved-at]').textContent = 'старое время';
@@ -88,6 +91,8 @@ async function main() {
   assert.equal(answers.children.length, 0);
   assert.equal(workspace.children.length, 0);
   assert.equal(context.workspaceStatus.textContent, '');
+  assert.equal(spans.children.length, 0);
+  assert.equal(context.spansStatus.textContent, '');
   assert.equal(fields.get('[data-ticket-client]').textContent, '');
   assert.equal(fields.get('[data-ticket-resolved-by]').textContent, '');
   assert.equal(fields.get('[data-ticket-resolved-at]').textContent, '');

@@ -22,6 +22,7 @@ public class BusinessScopedTicketReadService {
     public static final int MAX_EXPORT_TICKETS = 1000;
     public static final int MAX_TICKET_ANSWERS = 100;
     public static final int MAX_WORKSPACE_ITEMS = 100;
+    public static final int MAX_TICKET_SPANS = 100;
     private static final Pattern PUBLIC_ID = Pattern.compile("[0-9a-f]{32}");
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
@@ -554,6 +555,88 @@ public class BusinessScopedTicketReadService {
                 });
     }
 
+    /** Legacy work intervals use a bare ticket ID and are readable only for its unique owner. */
+    public Optional<TicketSpans> findSpansByPublicId(Long userId, String publicId) {
+        if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+            return Optional.empty();
+        }
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        if (ids.isEmpty()) {
+            return Optional.empty();
+        }
+        return namedJdbcTemplate.query("""
+                WITH authorized_ticket AS (
+                    SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
+                           ticket.created_at, ticket.resolved_at,
+                           left(ticket.resolved_by, 200) AS resolved_by,
+                           business.id AS business_id, business.code AS business_code,
+                           business.display_name AS business_name,
+                           left(root.client_name, 200) AS client_name,
+                           left(root.problem, 500) AS problem_preview,
+                           (SELECT COUNT(*) FROM tickets same_id
+                             WHERE same_id.ticket_id = ticket.ticket_id) = 1 AS relation_verified
+                      FROM tickets ticket
+                      JOIN businesses business ON business.id = ticket.business_id
+                      LEFT JOIN messages root ON root.group_msg_id = ticket.group_msg_id
+                           AND root.user_id = ticket.user_id AND root.ticket_id = ticket.ticket_id
+                     WHERE ticket.ticket_public_id = :publicId
+                       AND ticket.business_id IN (:businessIds)
+                       AND business.status = 'active'
+                       AND (EXISTS (
+                           SELECT 1 FROM business_memberships membership
+                            WHERE membership.business_id = business.id
+                              AND membership.user_id = :userId AND membership.is_active = TRUE
+                       ) OR EXISTS (
+                           SELECT 1 FROM business_access_grants access_grant
+                            WHERE access_grant.user_id = :userId
+                              AND access_grant.grant_scope = 'ALL_BUSINESSES'
+                              AND access_grant.is_active = TRUE
+                       ))
+                )
+                SELECT ticket.*, span.id AS span_id, span.span_no, span.started_at,
+                       span.ended_at, span.duration_seconds
+                  FROM authorized_ticket ticket
+                  LEFT JOIN LATERAL (
+                      SELECT work_span.id, work_span.span_no, work_span.started_at,
+                             work_span.ended_at, work_span.duration_seconds
+                        FROM ticket_spans work_span
+                       WHERE work_span.ticket_id = ticket.ticket_id
+                         AND ticket.relation_verified
+                       ORDER BY work_span.span_no, work_span.id
+                       LIMIT :spanLimit
+                  ) span ON TRUE
+                 ORDER BY span.span_no NULLS LAST, span.id NULLS LAST
+                """, new MapSqlParameterSource()
+                        .addValue("publicId", publicId)
+                        .addValue("businessIds", ids)
+                        .addValue("userId", userId)
+                        .addValue("spanLimit", MAX_TICKET_SPANS + 1),
+                rs -> {
+                    TicketRow ticket = null;
+                    boolean relationVerified = false;
+                    List<SpanEntry> spans = new ArrayList<>();
+                    while (rs.next()) {
+                        if (ticket == null) {
+                            ticket = ticketRow(rs);
+                            relationVerified = rs.getBoolean("relation_verified");
+                        }
+                        if (rs.getObject("span_id") != null) {
+                            spans.add(new SpanEntry(rs.getInt("span_no"),
+                                    rs.getObject("started_at", OffsetDateTime.class),
+                                    rs.getObject("ended_at", OffsetDateTime.class),
+                                    rs.getObject("duration_seconds", Integer.class)));
+                        }
+                    }
+                    if (ticket == null) {
+                        return Optional.<TicketSpans>empty();
+                    }
+                    if (spans.size() > MAX_TICKET_SPANS) {
+                        throw new SpanLimitExceededException();
+                    }
+                    return Optional.of(new TicketSpans(ticket, relationVerified, List.copyOf(spans)));
+                });
+    }
+
     /** A binary locator is issued only for one explicit history owner and unambiguous storage key. */
     public Optional<AttachmentReference> findAttachmentByPublicId(Long userId, String publicId, long historyId) {
         if (historyId < 1 || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
@@ -709,6 +792,12 @@ public class BusinessScopedTicketReadService {
         }
     }
 
+    public static class SpanLimitExceededException extends RuntimeException {
+        public SpanLimitExceededException() {
+            super("Ticket work intervals exceed " + MAX_TICKET_SPANS + " rows");
+        }
+    }
+
     public record AnswerEntry(String questionId, String questionText, String inputType,
                               String valueLabel, String valueText) {
     }
@@ -718,6 +807,13 @@ public class BusinessScopedTicketReadService {
 
     public record TicketWorkspace(TicketRow ticket, boolean relationVerified,
                                   String responsible, List<String> categories, List<String> participants) {
+    }
+
+    public record SpanEntry(int spanNo, OffsetDateTime startedAt, OffsetDateTime endedAt,
+                            Integer durationSeconds) {
+    }
+
+    public record TicketSpans(TicketRow ticket, boolean relationVerified, List<SpanEntry> spans) {
     }
 
     public record HistoryEntry(long id, String sender, String message,

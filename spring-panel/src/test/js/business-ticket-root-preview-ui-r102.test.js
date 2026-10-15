@@ -77,6 +77,7 @@ async function main() {
   let snapshot = { ticket, entries: [], hasMore: false, nextBeforeId: null };
   let answersLoaded = 0;
   let workspaceLoaded = 0;
+  let spansLoaded = 0;
   const cardMessages = [];
   const cardContext = {
     generation: 4, cardRequest: 0, card, older: new Element(), history: new Element(),
@@ -84,6 +85,7 @@ async function main() {
     currentTicket: null, clearCard() { card.hidden = true; },
     getJson: async () => snapshot, loadAnswers: () => { answersLoaded++; },
     loadWorkspace: () => { workspaceLoaded++; },
+    loadSpans: () => { spansLoaded++; },
     statusLabel: value => value, ticketTime, announce: message => cardMessages.push(message),
     document: { createElement: () => new Element() }, encodeURIComponent
   };
@@ -98,12 +100,14 @@ async function main() {
   assert.equal(fields.get('[data-ticket-resolved-by]').textContent, '<script>Оператор</script>');
   assert.equal(answersLoaded, 1);
   assert.equal(workspaceLoaded, 1);
+  assert.equal(spansLoaded, 1);
 
   snapshot = { ...snapshot, ticket: { ...ticket, userId: 99 } };
   await openCard(ticket, 4);
   assert.equal(card.hidden, true);
   assert.equal(answersLoaded, 1);
   assert.equal(workspaceLoaded, 1);
+  assert.equal(spansLoaded, 1);
   assert.match(cardMessages.at(-1), /Карточка недоступна/);
   console.log('BUSINESS_TICKET_ROOT_PREVIEW_UI_TEST_RESULT=GREEN');
 }

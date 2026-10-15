@@ -375,6 +375,72 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
     }
 
     @Test
+    void spansRequireUniqueRawOwnerAndCurrentBusinessGrant() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_scoped_ticket_spans");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'direct'), (2, 'all-reader')");
+        migrate(jdbc);
+        jdbc.execute("""
+                CREATE TABLE ticket_spans (
+                    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    ticket_id VARCHAR(255) NOT NULL, span_no INTEGER NOT NULL,
+                    started_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                    ended_at TIMESTAMP WITH TIME ZONE, duration_seconds INTEGER,
+                    UNIQUE(ticket_id, span_no)
+                )
+                """);
+        long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
+        jdbc.update("INSERT INTO business_memberships(user_id, business_id, role_code) "
+                + "VALUES (1, ?, 'VIEWER')", sushi);
+        jdbc.update("INSERT INTO business_access_grants(user_id, grant_scope, role_code) "
+                + "VALUES (2, 'ALL_BUSINESSES', 'VIEWER')");
+        String publicId = "0123456789abcdef0123456789abcdef";
+        String otherPublicId = "fedcba9876543210fedcba9876543210";
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) "
+                + "VALUES (11, 'sushi-raw', ?, ?), (22, 'bliny-raw', ?, ?)",
+                sushi, publicId, bliny, otherPublicId);
+        jdbc.update("INSERT INTO ticket_spans(ticket_id, span_no, started_at, ended_at, duration_seconds) "
+                + "VALUES ('sushi-raw', 2, '2026-10-15T11:00:00Z', NULL, NULL), "
+                + "('sushi-raw', 1, '2026-10-15T10:00:00Z', '2026-10-15T10:01:00Z', 60), "
+                + "('bliny-raw', 1, '2026-10-15T09:00:00Z', NULL, NULL)");
+        BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
+                jdbc, new BusinessAccessService(jdbc));
+
+        var snapshot = service.findSpansByPublicId(1L, publicId).orElseThrow();
+        assertThat(snapshot.relationVerified()).isTrue();
+        assertThat(snapshot.spans()).extracting(BusinessScopedTicketReadService.SpanEntry::spanNo)
+                .containsExactly(1, 2);
+        assertThat(snapshot.spans().get(0).durationSeconds()).isEqualTo(60);
+        assertThat(snapshot.spans().get(0).startedAt())
+                .isEqualTo(OffsetDateTime.parse("2026-10-15T10:00:00Z"));
+        assertThat(snapshot.spans().get(1).endedAt()).isNull();
+        assertThat(service.findSpansByPublicId(1L, otherPublicId)).isEmpty();
+        assertThat(service.findSpansByPublicId(2L, otherPublicId).orElseThrow().spans())
+                .hasSize(1);
+        assertThat(service.findSpansByPublicId(1L, "bad")).isEmpty();
+
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) "
+                + "VALUES (33, 'sushi-raw', ?)", bliny);
+        var ambiguous = service.findSpansByPublicId(1L, publicId).orElseThrow();
+        assertThat(ambiguous.relationVerified()).isFalse();
+        assertThat(ambiguous.spans()).isEmpty();
+        jdbc.update("DELETE FROM tickets WHERE user_id = 33 AND ticket_id = 'sushi-raw'");
+
+        jdbc.update("INSERT INTO ticket_spans(ticket_id, span_no, started_at) "
+                + "SELECT 'sushi-raw', n, '2026-10-15T12:00:00Z' "
+                + "FROM generate_series(3, 101) n");
+        assertThatThrownBy(() -> service.findSpansByPublicId(1L, publicId))
+                .isInstanceOf(BusinessScopedTicketReadService.SpanLimitExceededException.class);
+
+        BusinessAccessService staleAccess = mock(BusinessAccessService.class);
+        when(staleAccess.resolveAccessibleBusinessIds(1L)).thenReturn(Set.of(sushi));
+        BusinessScopedTicketReadService staleService = new BusinessScopedTicketReadService(jdbc, staleAccess);
+        jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
+        assertThat(service.findSpansByPublicId(1L, publicId)).isEmpty();
+        assertThat(staleService.findSpansByPublicId(1L, publicId)).isEmpty();
+    }
+
+    @Test
     void listsOnlyCanonicalOwnersWithinDirectOrAllGrantedScope() throws Exception {
         JdbcTemplate jdbc = freshSchema("business_scoped_ticket_read");
         jdbc.update("INSERT INTO users(id, username) VALUES (1, 'sushi-reader'), (2, 'all-reader'), (3, 'no-grant')");

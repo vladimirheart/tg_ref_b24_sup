@@ -223,6 +223,20 @@ public class BusinessScopeReadController {
         }
     }
 
+    @GetMapping("/tickets/{publicId}/spans")
+    public ResponseEntity<BusinessScopedTicketReadService.TicketSpans> spans(
+            @PathVariable String publicId, Authentication authentication) {
+        requireFoundation();
+        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        try {
+            var snapshot = readService.findSpansByPublicId(userId, publicId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+            return privateRead(snapshot);
+        } catch (BusinessScopedTicketReadService.SpanLimitExceededException ex) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), ex);
+        }
+    }
+
     @GetMapping("/tickets/{publicId}/history/{historyId}/attachment")
     public ResponseEntity<Resource> attachment(@PathVariable String publicId,
                                                @PathVariable String historyId,
