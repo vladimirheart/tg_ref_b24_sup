@@ -146,14 +146,17 @@
     historyBefore = null;
     olderLoading = false;
     older.disabled = false;
+    previous.disabled = true;
+    next.disabled = true;
     rows.replaceChildren();
     announce('Загрузка обращений…');
     try {
       const params = new URLSearchParams({ business_id: businessId, limit: String(limit), offset: String(offset) });
       if (statusFilter.value) params.set('status', statusFilter.value);
       if (ticketFilter.value) params.set('ticket', ticketFilter.value);
-      const tickets = await getJson(`/api/business-scope/tickets?${params}`);
+      const snapshot = await getJson(`/api/business-scope/tickets/page?${params}`);
       if (current !== generation) return;
+      const tickets = snapshot.tickets;
       for (const ticket of tickets) {
         const row = document.createElement('tr');
         cell(row, ticket.businessName);
@@ -174,10 +177,11 @@
         rows.appendChild(row);
       }
       previous.disabled = offset === 0;
-      next.disabled = tickets.length < limit;
+      next.disabled = !snapshot.hasMore;
       pageNumber.textContent = `Страница ${Math.floor(offset / limit) + 1}`;
       announce(tickets.length ? `Показано обращений: ${tickets.length}.`
-        : 'В выбранном бизнесе пока нет обращений.');
+        : offset ? 'На этой странице обращений больше нет. Вернитесь назад.'
+          : 'В выбранном бизнесе пока нет обращений.');
     } catch (error) {
       if (current !== generation) return;
       previous.disabled = true;

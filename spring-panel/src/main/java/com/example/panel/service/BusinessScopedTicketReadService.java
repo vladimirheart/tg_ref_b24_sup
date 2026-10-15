@@ -77,6 +77,22 @@ public class BusinessScopedTicketReadService {
     public List<TicketRow> listTickets(Long userId,
                                        BusinessAccessService.RequestedBusinessContext context,
                                        int limit, int offset, String status, String ticketId) {
+        validateTicketPage(limit, offset, status, ticketId);
+        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
+        return queryTickets(userId, ids, limit, offset, status, ticketId);
+    }
+
+    public TicketPage pageTickets(Long userId,
+                                  BusinessAccessService.RequestedBusinessContext context,
+                                  int limit, int offset, String status, String ticketId) {
+        validateTicketPage(limit, offset, status, ticketId);
+        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
+        List<TicketRow> rows = queryTickets(userId, ids, limit + 1, offset, status, ticketId);
+        boolean hasMore = rows.size() > limit;
+        return new TicketPage(hasMore ? List.copyOf(rows.subList(0, limit)) : rows, hasMore);
+    }
+
+    private void validateTicketPage(int limit, int offset, String status, String ticketId) {
         if (limit < 1 || limit > 100 || offset < 0) {
             throw new IllegalArgumentException("Invalid page bounds");
         }
@@ -87,7 +103,10 @@ public class BusinessScopedTicketReadService {
                 || ticketId.chars().anyMatch(Character::isISOControl))) {
             throw new IllegalArgumentException("Invalid ticket ID");
         }
-        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
+    }
+
+    private List<TicketRow> queryTickets(Long userId, Set<Long> ids,
+                                         int limit, int offset, String status, String ticketId) {
         if (ids.isEmpty()) {
             return List.of();
         }
@@ -344,6 +363,9 @@ public class BusinessScopedTicketReadService {
     public record TicketRow(long userId, String ticketId, String ticketPublicId,
                             long businessId, String businessCode, String businessName,
                             String status) {
+    }
+
+    public record TicketPage(List<TicketRow> tickets, boolean hasMore) {
     }
 
     public record HistoryEntry(long id, String sender, String message,

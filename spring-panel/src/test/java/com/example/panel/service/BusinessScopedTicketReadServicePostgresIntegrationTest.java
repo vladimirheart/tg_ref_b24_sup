@@ -231,6 +231,23 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 .containsExactly("same", "same", "new-direction");
         assertThat(all).extracting(BusinessScopedTicketReadService.TicketRow::status)
                 .containsExactly("open", "resolved", "closed");
+        var firstPage = service.pageTickets(2L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 2, 0, null, null);
+        assertThat(firstPage.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::businessId)
+                .containsExactly(sushi, bliny);
+        assertThat(firstPage.hasMore()).isTrue();
+        var lastPage = service.pageTickets(2L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 2, 2, null, null);
+        assertThat(lastPage.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::businessId)
+                .containsExactly(autoservice);
+        assertThat(lastPage.hasMore()).isFalse();
+        assertThat(service.pageTickets(2L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 3, 0, null, null).hasMore()).isFalse();
+        assertThat(service.pageTickets(2L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 1, 0, "open", null).hasMore()).isFalse();
+        assertThat(service.pageTickets(1L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 1, 0, null,
+                "fedcba9876543210fedcba9876543210").tickets()).isEmpty();
         assertThat(service.listTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
                 50, 0, "open", null)).extracting(BusinessScopedTicketReadService.TicketRow::businessId)
                 .containsExactly(sushi);
@@ -257,6 +274,16 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(2L);
         assertThat(service.findByPublicId(2L, "fedcba9876543210fedcba9876543210"))
                 .get().extracting(BusinessScopedTicketReadService.TicketRow::businessId).isEqualTo(bliny);
+        for (int i = 0; i < 98; i++) {
+            jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (2, ?, ?)",
+                    "bulk-" + i, sushi);
+        }
+        assertThat(service.pageTickets(2L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 100, 0, null, null).hasMore()).isTrue();
+        var maxLastPage = service.pageTickets(2L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 100, 100, null, null);
+        assertThat(maxLastPage.tickets()).hasSize(1);
+        assertThat(maxLastPage.hasMore()).isFalse();
     }
 
     @Test
@@ -278,6 +305,9 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThatThrownBy(() -> service.listTickets(
                 1L, new BusinessAccessService.OneBusiness(sushi), 50, 0))
                 .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.pageTickets(
+                1L, new BusinessAccessService.OneBusiness(sushi), 50, 0, null, null))
+                .isInstanceOf(AccessDeniedException.class);
         assertThat(service.availableBusinesses(1L)).isEmpty();
         assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef")).isEmpty();
 
@@ -291,6 +321,9 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 1L, new BusinessAccessService.OneBusiness(sushi), 50, 0)).isEmpty();
         assertThat(staleService.listTickets(
                 1L, new BusinessAccessService.OneBusiness(sushi), 50, 0, "pending", "ticket")).isEmpty();
+        assertThat(staleService.pageTickets(
+                1L, new BusinessAccessService.OneBusiness(sushi), 50, 0, null, null))
+                .isEqualTo(new BusinessScopedTicketReadService.TicketPage(List.of(), false));
     }
 
     private JdbcTemplate freshSchema(String prefix) {

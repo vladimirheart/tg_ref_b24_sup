@@ -182,5 +182,28 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get(path).param("business_id", "2").param("offset", "-1")
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isBadRequest());
+
+        String pagePath = path + "/page";
+        when(service.pageTickets(1L, new BusinessAccessService.OneBusiness(2L),
+                50, 0, "open", PUBLIC_ID)).thenReturn(
+                new BusinessScopedTicketReadService.TicketPage(List.of(ticket), false));
+        mvc.perform(get(pagePath).param("business_id", "2").param("status", "open")
+                .param("ticket", PUBLIC_ID).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tickets[0].ticketId").value("raw-ticket"))
+                .andExpect(jsonPath("$.hasMore").value(false));
+        mvc.perform(get(pagePath).param("business_id", "2").param("limit", "101")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(pagePath).param("business_id", "2").param("status", "invalid")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(pagePath).param("business_id", "2")
+                .with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(pagePath).param("business_id", "2")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
     }
 }
