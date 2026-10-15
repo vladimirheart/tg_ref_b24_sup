@@ -203,6 +203,9 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (2, 'same', ?, 'fedcba9876543210fedcba9876543210')", bliny);
         jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (3, 'new-direction', ?)", autoservice);
         jdbc.update("INSERT INTO tickets(user_id, ticket_id) VALUES (3, 'unresolved')");
+        jdbc.update("UPDATE tickets SET status = 'open' WHERE user_id = 1");
+        jdbc.update("UPDATE tickets SET status = 'resolved' WHERE user_id = 2");
+        jdbc.update("UPDATE tickets SET status = 'closed' WHERE user_id = 3 AND ticket_id = 'new-direction'");
 
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
@@ -226,6 +229,25 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 .containsExactly(sushi, bliny, autoservice);
         assertThat(all).extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
                 .containsExactly("same", "same", "new-direction");
+        assertThat(all).extracting(BusinessScopedTicketReadService.TicketRow::status)
+                .containsExactly("open", "resolved", "closed");
+        assertThat(service.listTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
+                50, 0, "open", null)).extracting(BusinessScopedTicketReadService.TicketRow::businessId)
+                .containsExactly(sushi);
+        assertThat(service.listTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
+                50, 0, null, "same")).extracting(BusinessScopedTicketReadService.TicketRow::businessId)
+                .containsExactly(sushi, bliny);
+        assertThat(service.listTickets(2L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
+                50, 0, null, "fedcba9876543210fedcba9876543210"))
+                .extracting(BusinessScopedTicketReadService.TicketRow::businessId).containsExactly(bliny);
+        assertThat(service.listTickets(1L, BusinessAccessService.AllAccessibleBusinesses.INSTANCE,
+                50, 0, null, "fedcba9876543210fedcba9876543210")).isEmpty();
+        assertThatThrownBy(() -> service.listTickets(2L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0, "invalid", null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.listTickets(2L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0, null, "same\n"))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThat(service.availableBusinesses(2L)).extracting(
                 BusinessScopedTicketReadService.BusinessOption::code)
                 .containsExactly("sushi", "bliny", "autoservice");
@@ -267,13 +289,15 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         assertThat(staleService.availableBusinesses(1L)).isEmpty();
         assertThat(staleService.listTickets(
                 1L, new BusinessAccessService.OneBusiness(sushi), 50, 0)).isEmpty();
+        assertThat(staleService.listTickets(
+                1L, new BusinessAccessService.OneBusiness(sushi), 50, 0, "pending", "ticket")).isEmpty();
     }
 
     private JdbcTemplate freshSchema(String prefix) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType(prefix);
         jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");
         jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY)");
-        jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, PRIMARY KEY (user_id, ticket_id))");
+        jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, status TEXT DEFAULT 'pending', PRIMARY KEY (user_id, ticket_id))");
         return jdbc;
     }
 

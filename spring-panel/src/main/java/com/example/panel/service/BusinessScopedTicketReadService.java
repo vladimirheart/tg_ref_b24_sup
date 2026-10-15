@@ -71,15 +71,28 @@ public class BusinessScopedTicketReadService {
                                        BusinessAccessService.RequestedBusinessContext context,
                                        int limit,
                                        int offset) {
+        return listTickets(userId, context, limit, offset, null, null);
+    }
+
+    public List<TicketRow> listTickets(Long userId,
+                                       BusinessAccessService.RequestedBusinessContext context,
+                                       int limit, int offset, String status, String ticketId) {
         if (limit < 1 || limit > 100 || offset < 0) {
             throw new IllegalArgumentException("Invalid page bounds");
+        }
+        if (status != null && !Set.of("pending", "open", "resolved", "closed").contains(status)) {
+            throw new IllegalArgumentException("Invalid ticket status");
+        }
+        if (ticketId != null && (ticketId.isBlank() || ticketId.length() > 255
+                || ticketId.chars().anyMatch(Character::isISOControl))) {
+            throw new IllegalArgumentException("Invalid ticket ID");
         }
         Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
         if (ids.isEmpty()) {
             return List.of();
         }
-        return namedJdbcTemplate.query("""
-                SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id,
+        String sql = """
+                SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                        business.id AS business_id, business.code AS business_code,
                        business.display_name AS business_name
                   FROM tickets ticket
@@ -96,17 +109,25 @@ public class BusinessScopedTicketReadService {
                           AND access_grant.grant_scope = 'ALL_BUSINESSES'
                           AND access_grant.is_active = TRUE
                    ))
+                """
+                + (status == null ? "" : " AND ticket.status = :status\n")
+                + (ticketId == null ? "" : " AND (ticket.ticket_id = :ticketId OR ticket.ticket_public_id = :ticketId)\n")
+                + """
                  ORDER BY ticket.business_id, ticket.user_id, ticket.ticket_id
                  LIMIT :limit OFFSET :offset
-                """, new MapSqlParameterSource()
+                """;
+        return namedJdbcTemplate.query(sql, new MapSqlParameterSource()
                         .addValue("businessIds", ids)
                         .addValue("userId", userId)
+                        .addValue("status", status)
+                        .addValue("ticketId", ticketId)
                         .addValue("limit", limit)
                         .addValue("offset", offset),
                 (rs, rowNum) -> new TicketRow(
                         rs.getLong("user_id"), rs.getString("ticket_id"),
                         rs.getString("ticket_public_id"), rs.getLong("business_id"),
-                        rs.getString("business_code"), rs.getString("business_name")));
+                        rs.getString("business_code"), rs.getString("business_name"),
+                        rs.getString("status")));
     }
 
     public Optional<TicketRow> findByPublicId(Long userId, String publicId) {
@@ -118,7 +139,7 @@ public class BusinessScopedTicketReadService {
             return Optional.empty();
         }
         List<TicketRow> rows = namedJdbcTemplate.query("""
-                SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id,
+                SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                        business.id AS business_id, business.code AS business_code,
                        business.display_name AS business_name
                   FROM tickets ticket
@@ -143,7 +164,8 @@ public class BusinessScopedTicketReadService {
                 (rs, rowNum) -> new TicketRow(
                         rs.getLong("user_id"), rs.getString("ticket_id"),
                         rs.getString("ticket_public_id"), rs.getLong("business_id"),
-                        rs.getString("business_code"), rs.getString("business_name")));
+                        rs.getString("business_code"), rs.getString("business_name"),
+                        rs.getString("status")));
         return rows.stream().findFirst();
     }
 
@@ -164,7 +186,7 @@ public class BusinessScopedTicketReadService {
             return Optional.empty();
         }
         return namedJdbcTemplate.query("""
-                SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id,
+                SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
                        business.id AS business_id, business.code AS business_code,
                        business.display_name AS business_name,
                        history.id AS history_id, history.sender, history.message,
@@ -210,7 +232,8 @@ public class BusinessScopedTicketReadService {
                             ticket = new TicketRow(
                                     rs.getLong("user_id"), rs.getString("ticket_id"),
                                     rs.getString("ticket_public_id"), rs.getLong("business_id"),
-                                    rs.getString("business_code"), rs.getString("business_name"));
+                                    rs.getString("business_code"), rs.getString("business_name"),
+                                    rs.getString("status"));
                         }
                         if (rs.getObject("history_id") != null) {
                             entries.add(new HistoryEntry(
@@ -319,7 +342,8 @@ public class BusinessScopedTicketReadService {
     }
 
     public record TicketRow(long userId, String ticketId, String ticketPublicId,
-                            long businessId, String businessCode, String businessName) {
+                            long businessId, String businessCode, String businessName,
+                            String status) {
     }
 
     public record HistoryEntry(long id, String sender, String message,

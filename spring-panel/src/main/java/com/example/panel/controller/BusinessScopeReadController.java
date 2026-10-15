@@ -7,6 +7,7 @@ import com.example.panel.storage.AttachmentObjectStorageService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
@@ -52,14 +53,37 @@ public class BusinessScopeReadController {
     public List<BusinessScopedTicketReadService.TicketRow> tickets(
             Authentication authentication,
             @RequestParam("business_id") String businessId,
-            @RequestParam(defaultValue = "50") int limit,
-            @RequestParam(defaultValue = "0") int offset) {
+            @RequestParam(defaultValue = "50") String limit,
+            @RequestParam(defaultValue = "0") String offset,
+            @RequestParam(required = false) String status,
+            @RequestParam(name = "ticket", required = false) String ticketId) {
         requireFoundation();
-        if (limit < 1 || limit > 100 || offset < 0) {
+        if (!limit.matches("[1-9][0-9]*") || !offset.matches("0|[1-9][0-9]*")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid page bounds");
         }
+        int pageLimit;
+        int pageOffset;
+        try {
+            pageLimit = Integer.parseInt(limit);
+            pageOffset = Integer.parseInt(offset);
+        } catch (NumberFormatException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid page bounds", ex);
+        }
+        if (pageLimit > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid page bounds");
+        }
+        if ((status != null && !Set.of("pending", "open", "resolved", "closed").contains(status))
+                || (ticketId != null && (ticketId.isBlank() || ticketId.length() > 255
+                || ticketId.chars().anyMatch(Character::isISOControl)))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket filter");
+        }
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
-        return readService.listTickets(userId, requestedContext(businessId), limit, offset);
+        try {
+            return readService.listTickets(userId, requestedContext(businessId),
+                    pageLimit, pageOffset, status, ticketId);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
     }
 
     @GetMapping("/tickets/{publicId}")

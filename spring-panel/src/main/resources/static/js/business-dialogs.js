@@ -5,6 +5,8 @@
   if (!page) return;
 
   const select = page.querySelector('#businessScopeSelect');
+  const statusFilter = page.querySelector('#businessTicketStatusFilter');
+  const ticketFilter = page.querySelector('#businessTicketIdFilter');
   const status = page.querySelector('[data-business-dialogs-status]');
   const rows = page.querySelector('#businessTicketRows');
   const card = page.querySelector('#businessTicketCard');
@@ -42,6 +44,11 @@
     return item;
   }
 
+  function statusLabel(value) {
+    return ({ pending: 'Ожидает', open: 'Открыто', resolved: 'Решено', closed: 'Закрыто' })[value]
+      || value || 'Не задан';
+  }
+
   async function openCard(ticket, expectedGeneration) {
     const request = ++cardRequest;
     card.hidden = true;
@@ -60,6 +67,7 @@
       card.querySelector('[data-ticket-id]').textContent = detail.ticketId;
       card.querySelector('[data-ticket-user]').textContent = String(detail.userId);
       card.querySelector('[data-ticket-public]').textContent = detail.ticketPublicId;
+      card.querySelector('[data-ticket-status]').textContent = statusLabel(detail.status);
       history.replaceChildren();
       if (!snapshot.entries.length) {
         const empty = document.createElement('li');
@@ -141,13 +149,17 @@
     rows.replaceChildren();
     announce('Загрузка обращений…');
     try {
-      const tickets = await getJson(`/api/business-scope/tickets?business_id=${encodeURIComponent(businessId)}&limit=${limit}&offset=${offset}`);
+      const params = new URLSearchParams({ business_id: businessId, limit: String(limit), offset: String(offset) });
+      if (statusFilter.value) params.set('status', statusFilter.value);
+      if (ticketFilter.value) params.set('ticket', ticketFilter.value);
+      const tickets = await getJson(`/api/business-scope/tickets?${params}`);
       if (current !== generation) return;
       for (const ticket of tickets) {
         const row = document.createElement('tr');
         cell(row, ticket.businessName);
         cell(row, ticket.ticketId);
         cell(row, ticket.userId);
+        cell(row, statusLabel(ticket.status));
         const action = cell(row, '');
         if (ticket.ticketPublicId) {
           const button = document.createElement('button');
@@ -175,6 +187,11 @@
   }
 
   select.addEventListener('change', () => {
+    offset = 0;
+    loadTickets();
+  });
+  page.querySelector('#businessTicketFilterForm').addEventListener('submit', (event) => {
+    event.preventDefault();
     offset = 0;
     loadTickets();
   });

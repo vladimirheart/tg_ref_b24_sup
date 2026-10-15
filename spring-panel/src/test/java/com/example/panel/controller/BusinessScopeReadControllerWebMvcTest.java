@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.config.MultibusinessFeatureFlags;
+import com.example.panel.service.BusinessAccessService;
 import com.example.panel.service.BusinessScopedTicketReadService;
 import com.example.panel.storage.AttachmentObjectStorageService;
 import java.io.ByteArrayInputStream;
@@ -70,7 +71,7 @@ class BusinessScopeReadControllerWebMvcTest {
 
         when(service.findByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketRow(
-                        8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши")));
+                        8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open")));
         mvc.perform(get("/api/business-scope/tickets/" + PUBLIC_ID)
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
@@ -88,7 +89,7 @@ class BusinessScopeReadControllerWebMvcTest {
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isNotFound());
         var ticket = new BusinessScopedTicketReadService.TicketRow(
-                8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши");
+                8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
         when(service.findHistoryByPublicId(1L, PUBLIC_ID, null, 50)).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketHistory(ticket, List.of(
                         new BusinessScopedTicketReadService.HistoryEntry(
@@ -153,5 +154,33 @@ class BusinessScopeReadControllerWebMvcTest {
         when(flags.isFoundationEnabled()).thenReturn(false);
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void listFiltersAreValidatedAndReturnedWithinSelectedBusiness() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        var ticket = new BusinessScopedTicketReadService.TicketRow(
+                8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
+        when(service.listTickets(1L, new BusinessAccessService.OneBusiness(2L),
+                50, 0, "open", PUBLIC_ID)).thenReturn(List.of(ticket));
+        String path = "/api/business-scope/tickets";
+        mvc.perform(get(path).param("business_id", "2").param("status", "open")
+                .param("ticket", PUBLIC_ID).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].ticketId").value("raw-ticket"))
+                .andExpect(jsonPath("$[0].status").value("open"));
+        mvc.perform(get(path).param("business_id", "2").param("status", "invalid")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(path).param("business_id", "2").param("ticket", "bad\n")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(path).param("business_id", "2").param("limit", "abc")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(path).param("business_id", "2").param("offset", "-1")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
     }
 }
