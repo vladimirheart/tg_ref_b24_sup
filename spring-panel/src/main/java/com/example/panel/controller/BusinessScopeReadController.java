@@ -191,6 +191,23 @@ public class BusinessScopeReadController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
+    @GetMapping("/tickets/{publicId}/answers")
+    public ResponseEntity<BusinessScopedTicketReadService.TicketAnswers> answers(
+            @PathVariable String publicId, Authentication authentication) {
+        requireFoundation();
+        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        try {
+            var snapshot = readService.findAnswersByPublicId(userId, publicId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                    .header("X-Content-Type-Options", "nosniff")
+                    .body(snapshot);
+        } catch (BusinessScopedTicketReadService.AnswerLimitExceededException ex) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), ex);
+        }
+    }
+
     @GetMapping("/tickets/{publicId}/history/{historyId}/attachment")
     public ResponseEntity<Resource> attachment(@PathVariable String publicId,
                                                @PathVariable String historyId,

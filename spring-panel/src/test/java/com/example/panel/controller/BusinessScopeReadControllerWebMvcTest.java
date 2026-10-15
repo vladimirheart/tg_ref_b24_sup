@@ -125,6 +125,44 @@ class BusinessScopeReadControllerWebMvcTest {
     }
 
     @Test
+    void answersReturnOnlyVerifiedRelationWithinCurrentPageAndFoundation() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        String path = "/api/business-scope/tickets/" + PUBLIC_ID + "/answers";
+        var ticket = new BusinessScopedTicketReadService.TicketRow(
+                8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
+        when(service.findAnswersByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.empty());
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+        when(service.findAnswersByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+                new BusinessScopedTicketReadService.TicketAnswers(ticket, true, List.of(
+                        new BusinessScopedTicketReadService.AnswerEntry(
+                                "q1", "Причина", "text", null, "<script>безопасный текст</script>")))));
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(jsonPath("$.ticket.businessCode").value("sushi"))
+                .andExpect(jsonPath("$.relationVerified").value(true))
+                .andExpect(jsonPath("$.answers[0].valueText").value("<script>безопасный текст</script>"));
+        when(service.findAnswersByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+                new BusinessScopedTicketReadService.TicketAnswers(ticket, false, List.of())));
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.relationVerified").value(false))
+                .andExpect(jsonPath("$.answers").isEmpty());
+        when(service.findAnswersByPublicId(1L, PUBLIC_ID))
+                .thenThrow(new BusinessScopedTicketReadService.AnswerLimitExceededException());
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isPayloadTooLarge());
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void attachmentRequiresCurrentScopeAndReturnsOnlyVerifiedBinary() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
         when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);

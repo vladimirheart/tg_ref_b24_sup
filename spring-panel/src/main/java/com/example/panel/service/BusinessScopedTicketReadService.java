@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 public class BusinessScopedTicketReadService {
 
     public static final int MAX_EXPORT_TICKETS = 1000;
+    public static final int MAX_TICKET_ANSWERS = 100;
     private static final Pattern PUBLIC_ID = Pattern.compile("[0-9a-f]{32}");
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
@@ -372,6 +373,85 @@ public class BusinessScopedTicketReadService {
                 });
     }
 
+    /** Legacy attributes have only a raw ticket ID; expose them only when that ID has one owner. */
+    public Optional<TicketAnswers> findAnswersByPublicId(Long userId, String publicId) {
+        if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
+            return Optional.empty();
+        }
+        Set<Long> ids = accessService.resolveAccessibleBusinessIds(userId);
+        if (ids.isEmpty()) {
+            return Optional.empty();
+        }
+        return namedJdbcTemplate.query("""
+                WITH authorized_ticket AS (
+                    SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
+                           business.id AS business_id, business.code AS business_code,
+                           business.display_name AS business_name,
+                           (SELECT COUNT(*) FROM tickets same_id
+                             WHERE same_id.ticket_id = ticket.ticket_id) = 1 AS relation_verified
+                      FROM tickets ticket
+                      JOIN businesses business ON business.id = ticket.business_id
+                     WHERE ticket.ticket_public_id = :publicId
+                       AND ticket.business_id IN (:businessIds)
+                       AND business.status = 'active'
+                       AND (EXISTS (
+                           SELECT 1 FROM business_memberships membership
+                            WHERE membership.business_id = business.id
+                              AND membership.user_id = :userId AND membership.is_active = TRUE
+                       ) OR EXISTS (
+                           SELECT 1 FROM business_access_grants access_grant
+                            WHERE access_grant.user_id = :userId
+                              AND access_grant.grant_scope = 'ALL_BUSINESSES'
+                              AND access_grant.is_active = TRUE
+                       ))
+                )
+                SELECT ticket.*, answer.question_id AS answer_question_id,
+                       answer.question_text, answer.input_type,
+                       answer.value_label, answer.value_text
+                  FROM authorized_ticket ticket
+                  LEFT JOIN LATERAL (
+                      SELECT attribute.question_id, attribute.question_text,
+                             attribute.input_type, attribute.value_label, attribute.value_text
+                        FROM ticket_attributes attribute
+                       WHERE attribute.ticket_id = ticket.ticket_id
+                         AND ticket.relation_verified
+                       ORDER BY attribute.question_id
+                       LIMIT :answerLimit
+                  ) answer ON TRUE
+                 ORDER BY answer.question_id NULLS LAST
+                """, new MapSqlParameterSource()
+                        .addValue("publicId", publicId)
+                        .addValue("businessIds", ids)
+                        .addValue("userId", userId)
+                        .addValue("answerLimit", MAX_TICKET_ANSWERS + 1),
+                rs -> {
+                    TicketRow ticket = null;
+                    boolean relationVerified = false;
+                    List<AnswerEntry> answers = new ArrayList<>();
+                    while (rs.next()) {
+                        if (ticket == null) {
+                            ticket = new TicketRow(rs.getLong("user_id"), rs.getString("ticket_id"),
+                                    rs.getString("ticket_public_id"), rs.getLong("business_id"),
+                                    rs.getString("business_code"), rs.getString("business_name"),
+                                    rs.getString("status"));
+                            relationVerified = rs.getBoolean("relation_verified");
+                        }
+                        if (rs.getString("answer_question_id") != null) {
+                            answers.add(new AnswerEntry(rs.getString("answer_question_id"),
+                                    rs.getString("question_text"), rs.getString("input_type"),
+                                    rs.getString("value_label"), rs.getString("value_text")));
+                        }
+                    }
+                    if (ticket == null) {
+                        return Optional.<TicketAnswers>empty();
+                    }
+                    if (answers.size() > MAX_TICKET_ANSWERS) {
+                        throw new AnswerLimitExceededException();
+                    }
+                    return Optional.of(new TicketAnswers(ticket, relationVerified, List.copyOf(answers)));
+                });
+    }
+
     /** A binary locator is issued only for one explicit history owner and unambiguous storage key. */
     public Optional<AttachmentReference> findAttachmentByPublicId(Long userId, String publicId, long historyId) {
         if (historyId < 1 || publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
@@ -479,6 +559,19 @@ public class BusinessScopedTicketReadService {
         public ExportTooLargeException() {
             super("Ticket export exceeds " + MAX_EXPORT_TICKETS + " rows; narrow the filters");
         }
+    }
+
+    public static class AnswerLimitExceededException extends RuntimeException {
+        public AnswerLimitExceededException() {
+            super("Ticket answers exceed " + MAX_TICKET_ANSWERS + " rows");
+        }
+    }
+
+    public record AnswerEntry(String questionId, String questionText, String inputType,
+                              String valueLabel, String valueText) {
+    }
+
+    public record TicketAnswers(TicketRow ticket, boolean relationVerified, List<AnswerEntry> answers) {
     }
 
     public record HistoryEntry(long id, String sender, String message,

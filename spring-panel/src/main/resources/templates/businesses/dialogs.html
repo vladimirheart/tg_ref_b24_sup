@@ -74,6 +74,9 @@
                 <dt class="col-sm-3">Публичный ID</dt><dd class="col-sm-9" data-ticket-public></dd>
                 <dt class="col-sm-3">Статус</dt><dd class="col-sm-9" data-ticket-status></dd>
             </dl>
+            <h3 class="h6 mt-3">Ответы на вопросы</h3>
+            <p class="small text-muted" aria-live="polite" data-ticket-answers-status></p>
+            <ol class="list-group list-group-numbered mb-3" data-ticket-answers></ol>
             <h3 class="h6 mt-3">История сообщений</h3>
             <p class="small text-muted">История загружается по 50 подтверждённых сообщений. Вложения доступны только при подтверждённой связи с файлом; старая история без связи с обращением не отображается.</p>
             <button class="btn btn-outline-secondary btn-sm mb-3" id="businessHistoryOlder" type="button" hidden>Загрузить более ранние сообщения</button>
@@ -82,6 +85,6 @@
     </section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-dialogs.js(v='20261015-r100')}"></script>
+<script th:src="@{/js/business-dialogs.js(v='20261015-r101')}"></script>
 </body>
 </html>

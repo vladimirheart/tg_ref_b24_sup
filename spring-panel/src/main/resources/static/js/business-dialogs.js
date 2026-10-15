@@ -14,6 +14,8 @@
   const rows = page.querySelector('#businessTicketRows');
   const card = page.querySelector('#businessTicketCard');
   const history = card.querySelector('[data-ticket-history]');
+  const answers = card.querySelector('[data-ticket-answers]');
+  const answersStatus = card.querySelector('[data-ticket-answers-status]');
   const older = card.querySelector('#businessHistoryOlder');
   const previous = page.querySelector('#businessTicketsPrevious');
   const next = page.querySelector('#businessTicketsNext');
@@ -124,6 +126,44 @@
     }
   }
 
+  async function loadAnswers(ticket, expectedGeneration, request) {
+    answers.replaceChildren();
+    answersStatus.textContent = 'Загрузка ответов…';
+    try {
+      const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/answers`);
+      if (expectedGeneration !== generation || request !== cardRequest ||
+          currentTicketPublicId !== ticket.ticketPublicId ||
+          (select.value !== 'all' && select.value !== String(ticket.businessId))) return;
+      if (snapshot.ticket.ticketPublicId !== ticket.ticketPublicId ||
+          snapshot.ticket.businessId !== ticket.businessId) return;
+      if (!snapshot.relationVerified) {
+        answersStatus.textContent = 'Ответы недоступны: legacy ID обращения не имеет однозначной связи с ними.';
+        return;
+      }
+      if (!snapshot.answers.length) {
+        answersStatus.textContent = 'Сохранённых ответов нет.';
+        return;
+      }
+      answersStatus.textContent = `Сохранено ответов: ${snapshot.answers.length}.`;
+      for (const entry of snapshot.answers) {
+        const item = document.createElement('li');
+        item.className = 'list-group-item';
+        const question = document.createElement('strong');
+        question.textContent = entry.questionText || entry.questionId;
+        const value = document.createElement('span');
+        value.textContent = `: ${[entry.valueLabel, entry.valueText].filter(Boolean).join(' · ') || 'Ответ не указан'}`;
+        item.append(question, value);
+        answers.appendChild(item);
+      }
+    } catch (error) {
+      if (expectedGeneration === generation && request === cardRequest &&
+          currentTicketPublicId === ticket.ticketPublicId) {
+        answers.replaceChildren();
+        answersStatus.textContent = 'Ответы недоступны. Проверьте доступ и обновите карточку.';
+      }
+    }
+  }
+
   async function openCard(ticket, expectedGeneration) {
     const request = ++cardRequest;
     card.hidden = true;
@@ -132,6 +172,8 @@
     historyBefore = null;
     currentTicketPublicId = null;
     olderLoading = false;
+    answers.replaceChildren();
+    answersStatus.textContent = '';
     try {
       const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/history?limit=50`);
       if (expectedGeneration !== generation || request !== cardRequest) return;
@@ -155,6 +197,7 @@
       historyBefore = snapshot.nextBeforeId;
       older.hidden = !snapshot.hasMore;
       card.hidden = false;
+      loadAnswers(detail, expectedGeneration, request);
     } catch (error) {
       if (expectedGeneration !== generation || request !== cardRequest) return;
       card.hidden = true;

@@ -189,6 +189,68 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
     }
 
     @Test
+    void answersRequireCanonicalScopeAndUnambiguousLegacyTicketId() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_scoped_ticket_answers");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'direct'), (2, 'all-reader')");
+        migrate(jdbc);
+        jdbc.execute("""
+                CREATE TABLE ticket_attributes (
+                    ticket_id TEXT NOT NULL, question_id TEXT NOT NULL,
+                    question_text TEXT, input_type TEXT NOT NULL,
+                    value_label TEXT, value_text TEXT,
+                    PRIMARY KEY (ticket_id, question_id)
+                )
+                """);
+        long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
+        String publicId = "0123456789abcdef0123456789abcdef";
+        String manyId = "fedcba9876543210fedcba9876543210";
+        String blinyId = "11111111111111111111111111111111";
+        jdbc.update("INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (1, ?, 'VIEWER')", sushi);
+        jdbc.update("INSERT INTO business_access_grants(user_id, grant_scope, role_code) VALUES (2, 'ALL_BUSINESSES', 'VIEWER')");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (11, 'same', ?, ?)", sushi, publicId);
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (22, 'other', ?, ?)", bliny, blinyId);
+        jdbc.update("INSERT INTO ticket_attributes(ticket_id, question_id, question_text, input_type, value_label, value_text) "
+                + "VALUES ('same', 'q2', 'Адрес', 'text', NULL, '<script>адрес</script>'), "
+                + "('same', 'q1', 'Причина', 'select', 'Доставка', NULL)");
+        BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
+                jdbc, new BusinessAccessService(jdbc));
+
+        var readable = service.findAnswersByPublicId(1L, publicId).orElseThrow();
+        assertThat(readable.relationVerified()).isTrue();
+        assertThat(readable.answers()).extracting(BusinessScopedTicketReadService.AnswerEntry::questionId)
+                .containsExactly("q1", "q2");
+        assertThat(readable.answers().get(1).valueText()).isEqualTo("<script>адрес</script>");
+        assertThat(service.findAnswersByPublicId(1L, manyId)).isEmpty();
+        assertThat(service.findAnswersByPublicId(1L, blinyId)).isEmpty();
+        assertThat(service.findAnswersByPublicId(2L, blinyId).orElseThrow().relationVerified()).isTrue();
+        assertThat(service.findAnswersByPublicId(1L, "bad-id")).isEmpty();
+
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (22, 'same', ?)", bliny);
+        var ambiguous = service.findAnswersByPublicId(1L, publicId).orElseThrow();
+        assertThat(ambiguous.relationVerified()).isFalse();
+        assertThat(ambiguous.answers()).isEmpty();
+        assertThat(service.findAnswersByPublicId(2L, publicId).orElseThrow().answers()).isEmpty();
+
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (33, 'many', ?, ?)", sushi, manyId);
+        jdbc.update("INSERT INTO ticket_attributes(ticket_id, question_id, input_type) "
+                + "SELECT 'many', 'q-' || n, 'text' FROM generate_series(1, 101) n");
+        assertThatThrownBy(() -> service.findAnswersByPublicId(1L, manyId))
+                .isInstanceOf(BusinessScopedTicketReadService.AnswerLimitExceededException.class);
+        jdbc.update("DELETE FROM ticket_attributes WHERE ticket_id = 'many' AND question_id = 'q-101'");
+        assertThat(service.findAnswersByPublicId(1L, manyId).orElseThrow().answers()).hasSize(100);
+
+        jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
+        assertThat(service.findAnswersByPublicId(1L, publicId)).isEmpty();
+        BusinessAccessService staleAccess = mock(BusinessAccessService.class);
+        when(staleAccess.resolveAccessibleBusinessIds(1L)).thenReturn(Set.of(sushi));
+        assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess)
+                .findAnswersByPublicId(1L, publicId)).isEmpty();
+        jdbc.update("UPDATE businesses SET status = 'archived' WHERE id = ?", sushi);
+        assertThat(service.findAnswersByPublicId(2L, publicId)).isEmpty();
+    }
+
+    @Test
     void listsOnlyCanonicalOwnersWithinDirectOrAllGrantedScope() throws Exception {
         JdbcTemplate jdbc = freshSchema("business_scoped_ticket_read");
         jdbc.update("INSERT INTO users(id, username) VALUES (1, 'sushi-reader'), (2, 'all-reader'), (3, 'no-grant')");
