@@ -42,6 +42,9 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 + "(4, 'tie-b', ?, '2026-10-15T10:00:00Z')", sushi, sushi, bliny, sushi);
         String publicId = "0123456789abcdef0123456789abcdef";
         jdbc.update("UPDATE tickets SET ticket_public_id = ? WHERE ticket_id = 'new'", publicId);
+        jdbc.update("UPDATE tickets SET status = 'resolved', resolved_at = ?, resolved_by = ? "
+                        + "WHERE ticket_id = 'new'",
+                OffsetDateTime.parse("2026-10-15T12:00:00Z"), "Оператор <script>" + "x".repeat(200));
 
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
@@ -62,6 +65,17 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 .containsExactly("new", "tie-a", "tie-b", "old");
         assertThat(service.findByPublicId(1L, publicId).orElseThrow().createdAt())
                 .isEqualTo(OffsetDateTime.parse("2026-10-15T11:00:00Z"));
+        var resolved = service.findByPublicId(1L, publicId).orElseThrow();
+        assertThat(resolved.resolvedAt()).isEqualTo(OffsetDateTime.parse("2026-10-15T12:00:00Z"));
+        assertThat(resolved.resolvedBy()).hasSize(200).startsWith("Оператор <script>");
+        assertThat(service.listTickets(1L, all, 50, 0).get(0).resolvedAt())
+                .isEqualTo(resolved.resolvedAt());
+        assertThat(service.exportTickets(1L, all, null, null, null).get(0).resolvedBy())
+                .isEqualTo(resolved.resolvedBy());
+        jdbc.update("UPDATE tickets SET status = 'open' WHERE ticket_id = 'new'");
+        var reopened = service.findByPublicId(1L, publicId).orElseThrow();
+        assertThat(reopened.resolvedAt()).isNull();
+        assertThat(reopened.resolvedBy()).isNull();
     }
 
     @Test
@@ -701,6 +715,7 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY)");
         jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, "
                 + "group_msg_id BIGINT, status TEXT DEFAULT 'pending', "
+                + "resolved_at TIMESTAMP WITH TIME ZONE, resolved_by TEXT, "
                 + "created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT '2026-01-01T00:00:00Z', "
                 + "PRIMARY KEY (user_id, ticket_id))");
         jdbc.execute("CREATE TABLE messages (group_msg_id BIGINT PRIMARY KEY, user_id BIGINT, "

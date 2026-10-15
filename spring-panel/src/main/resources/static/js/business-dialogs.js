@@ -42,7 +42,8 @@
     answersStatus.textContent = '';
     workspace.replaceChildren();
     workspaceStatus.textContent = '';
-    for (const field of ['business', 'id', 'user', 'client', 'problem', 'public', 'status', 'created']) {
+    for (const field of ['business', 'id', 'user', 'client', 'problem', 'public',
+      'status', 'created', 'resolved-at', 'resolved-by']) {
       card.querySelector(`[data-ticket-${field}]`).textContent = '';
     }
     historyBefore = null;
@@ -256,6 +257,8 @@
       card.querySelector('[data-ticket-public]').textContent = detail.ticketPublicId;
       card.querySelector('[data-ticket-status]').textContent = statusLabel(detail.status);
       card.querySelector('[data-ticket-created]').textContent = ticketTime(detail.createdAt);
+      card.querySelector('[data-ticket-resolved-at]').textContent = ticketTime(detail.resolvedAt);
+      card.querySelector('[data-ticket-resolved-by]').textContent = detail.resolvedBy || '—';
       history.replaceChildren();
       if (!snapshot.entries.length) {
         const empty = document.createElement('li');

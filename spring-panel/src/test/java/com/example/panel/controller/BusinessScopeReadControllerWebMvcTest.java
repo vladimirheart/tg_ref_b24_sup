@@ -92,8 +92,9 @@ class BusinessScopeReadControllerWebMvcTest {
 
         when(service.findByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketRow(
-                        8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open",
-                        CREATED_AT, "Иван", "Нет света")));
+                        8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "resolved",
+                        CREATED_AT, OffsetDateTime.parse("2026-10-15T12:00:00Z"),
+                        "Оператор", "Иван", "Нет света")));
         mvc.perform(get("/api/business-scope/tickets/" + PUBLIC_ID)
                 .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
@@ -103,6 +104,8 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(jsonPath("$.ticketId").value("raw-ticket"))
                 .andExpect(jsonPath("$.clientName").value("Иван"))
                 .andExpect(jsonPath("$.createdAt").value("2026-10-15T10:15:30Z"))
+                .andExpect(jsonPath("$.resolvedAt").value("2026-10-15T12:00:00Z"))
+                .andExpect(jsonPath("$.resolvedBy").value("Оператор"))
                 .andExpect(jsonPath("$.problemPreview").value("Нет света"));
     }
 

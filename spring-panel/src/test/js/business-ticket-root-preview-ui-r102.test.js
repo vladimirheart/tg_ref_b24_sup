@@ -43,7 +43,8 @@ async function main() {
   const publicId = '0123456789abcdef0123456789abcdef';
   const ticket = { userId: 11, ticketId: 'raw', ticketPublicId: publicId, businessId: 2,
     businessName: 'Суши', clientName: '<script>Иван</script>',
-    problemPreview: 'П'.repeat(121), status: 'open', createdAt: '2026-10-15T10:15:30Z' };
+    problemPreview: 'П'.repeat(121), status: 'resolved', createdAt: '2026-10-15T10:15:30Z',
+    resolvedAt: '2026-10-15T12:00:00Z', resolvedBy: '<script>Оператор</script>' };
   const expectedTime = new Date(ticket.createdAt).toLocaleString('ru-RU');
   const rows = new Element();
   const listContext = {
@@ -92,6 +93,9 @@ async function main() {
   assert.equal(fields.get('[data-ticket-client]').textContent, '<script>Иван</script>');
   assert.equal(fields.get('[data-ticket-problem]').textContent, 'П'.repeat(121));
   assert.equal(fields.get('[data-ticket-created]').textContent, expectedTime);
+  assert.equal(fields.get('[data-ticket-resolved-at]').textContent,
+    new Date(ticket.resolvedAt).toLocaleString('ru-RU'));
+  assert.equal(fields.get('[data-ticket-resolved-by]').textContent, '<script>Оператор</script>');
   assert.equal(answersLoaded, 1);
   assert.equal(workspaceLoaded, 1);
 

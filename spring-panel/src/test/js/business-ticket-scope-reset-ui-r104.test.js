@@ -77,6 +77,8 @@ async function main() {
   workspace.children.push({ textContent: 'старые рабочие данные' });
   context.workspaceStatus.textContent = 'старый статус';
   card.querySelector('[data-ticket-client]').textContent = 'старый клиент';
+  card.querySelector('[data-ticket-resolved-by]').textContent = 'старый оператор';
+  card.querySelector('[data-ticket-resolved-at]').textContent = 'старое время';
   const mismatch = loadOlderHistory();
   pending.shift()({ ticket: { ...ticket, userId: 22 }, entries: [{ id: 4 }],
     nextBeforeId: 4, hasMore: false });
@@ -87,6 +89,8 @@ async function main() {
   assert.equal(workspace.children.length, 0);
   assert.equal(context.workspaceStatus.textContent, '');
   assert.equal(fields.get('[data-ticket-client]').textContent, '');
+  assert.equal(fields.get('[data-ticket-resolved-by]').textContent, '');
+  assert.equal(fields.get('[data-ticket-resolved-at]').textContent, '');
   assert.equal(context.currentTicket, null);
   assert.equal(context.currentTicketPublicId, null);
   assert.match(messages.at(-1), /История недоступна/);
