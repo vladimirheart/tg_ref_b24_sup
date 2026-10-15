@@ -97,6 +97,33 @@ public class BusinessScopeReadController {
         }
     }
 
+    @GetMapping(value = "/tickets/export", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<BusinessScopedTicketReadService.TicketRow>> exportTickets(
+            Authentication authentication,
+            @RequestParam("business_id") String businessId,
+            @RequestParam(required = false) String status,
+            @RequestParam(name = "ticket", required = false) String ticketId,
+            @RequestParam(name = "q", required = false) String queryText) {
+        requireFoundation();
+        validateTicketFilters(status, ticketId, queryText);
+        Long userId = readService.requireAuthenticatedUserId(username(authentication));
+        try {
+            List<BusinessScopedTicketReadService.TicketRow> rows = readService.exportTickets(
+                    userId, requestedContext(businessId), status, ticketId, queryText);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            ContentDisposition.attachment().filename("business-tickets.json").build().toString())
+                    .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                    .header("X-Content-Type-Options", "nosniff")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(rows);
+        } catch (BusinessScopedTicketReadService.ExportTooLargeException ex) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), ex);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
     private TicketQuery ticketQuery(String limit, String offset, String status, String ticketId, String queryText) {
         if (!limit.matches("[1-9][0-9]*") || !offset.matches("0|[1-9][0-9]*")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid page bounds");
@@ -112,6 +139,11 @@ public class BusinessScopeReadController {
         if (pageLimit > 100) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid page bounds");
         }
+        validateTicketFilters(status, ticketId, queryText);
+        return new TicketQuery(pageLimit, pageOffset, status, ticketId, queryText);
+    }
+
+    private void validateTicketFilters(String status, String ticketId, String queryText) {
         if ((status != null && !Set.of("pending", "open", "resolved", "closed").contains(status))
                 || (ticketId != null && (ticketId.isBlank() || ticketId.length() > 255
                 || ticketId.chars().anyMatch(Character::isISOControl)))
@@ -119,7 +151,6 @@ public class BusinessScopeReadController {
                 || queryText.chars().anyMatch(Character::isISOControl)))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ticket filter");
         }
-        return new TicketQuery(pageLimit, pageOffset, status, ticketId, queryText);
     }
 
     private record TicketQuery(int limit, int offset, String status, String ticketId, String queryText) {

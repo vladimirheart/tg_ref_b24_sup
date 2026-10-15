@@ -338,6 +338,11 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
         assertThat(service.listTickets(1L, all, 50, 0, null, null, "интернета")).isEmpty();
         assertThat(service.listTickets(2L, all, 50, 0, null, null, "секрет")).isEmpty();
+        assertThat(service.exportTickets(1L, all, "open", null, " иВан "))
+                .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
+        assertThat(service.exportTickets(2L, all, "open", "same", "Иван"))
+                .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L, 22L);
+        assertThat(service.exportTickets(2L, all, null, null, "секрет")).isEmpty();
         assertThat(service.listTickets(2L, all, 50, 0, null, null, "%_"))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(33L);
         var first = service.pageTickets(2L, all, 1, 0, "open", null, "Иван");
@@ -363,9 +368,55 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 .thenReturn(new BusinessAccessService.SelectedBusinessScope(Set.of(sushi), sushi));
         assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess)
                 .listTickets(1L, all, 50, 0, null, null, "Иван")).isEmpty();
+        assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess)
+                .exportTickets(1L, all, null, null, "Иван")).isEmpty();
         jdbc.update("UPDATE businesses SET status = 'archived' WHERE id = ?", bliny);
         assertThat(service.listTickets(2L, all, 50, 0, null, null, "Иван"))
                 .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
+        assertThat(service.exportTickets(2L, all, null, null, "Иван"))
+                .extracting(BusinessScopedTicketReadService.TicketRow::userId).containsExactly(11L);
+    }
+
+    @Test
+    void exportRejectsOversizedSnapshotWithoutTruncationAndRechecksScope() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_scoped_ticket_export");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'direct'), (2, 'all-reader')");
+        migrate(jdbc);
+        long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
+        jdbc.update("INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (1, ?, 'VIEWER')", sushi);
+        jdbc.update("INSERT INTO business_access_grants(user_id, grant_scope, role_code) VALUES (2, 'ALL_BUSINESSES', 'VIEWER')");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) "
+                + "SELECT 11, 'ticket-' || n, ? FROM generate_series(1, 1000) n", sushi);
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (22, 'other', ?)", bliny);
+        BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
+                jdbc, new BusinessAccessService(jdbc));
+        var all = BusinessAccessService.AllAccessibleBusinesses.INSTANCE;
+
+        assertThat(service.exportTickets(1L, all, null, null, null)).hasSize(1000);
+        assertThat(service.exportTickets(1L, new BusinessAccessService.OneBusiness(sushi),
+                "pending", "ticket-1", null)).hasSize(1);
+        assertThatThrownBy(() -> service.exportTickets(1L,
+                new BusinessAccessService.OneBusiness(bliny), null, null, null))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.exportTickets(2L, all, null, null, null))
+                .isInstanceOf(BusinessScopedTicketReadService.ExportTooLargeException.class);
+        assertThat(service.exportTickets(2L, new BusinessAccessService.OneBusiness(bliny),
+                null, null, null)).extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
+                .containsExactly("other");
+        assertThatThrownBy(() -> service.exportTickets(1L, all, "invalid", null, null))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
+        assertThat(service.exportTickets(1L, all, null, null, null)).isEmpty();
+        assertThatThrownBy(() -> service.exportTickets(1L,
+                new BusinessAccessService.OneBusiness(sushi), null, null, null))
+                .isInstanceOf(AccessDeniedException.class);
+        BusinessAccessService staleAccess = mock(BusinessAccessService.class);
+        when(staleAccess.requireSelectedBusiness(eq(1L), any()))
+                .thenReturn(new BusinessAccessService.SelectedBusinessScope(Set.of(sushi), sushi));
+        assertThat(new BusinessScopedTicketReadService(jdbc, staleAccess)
+                .exportTickets(1L, all, null, null, null)).isEmpty();
     }
 
     @Test

@@ -18,6 +18,7 @@
   const previous = page.querySelector('#businessTicketsPrevious');
   const next = page.querySelector('#businessTicketsNext');
   const pageNumber = page.querySelector('#businessTicketsPage');
+  const exportButton = page.querySelector('#businessTicketsExport');
   const limit = 50;
   let offset = 0;
   let generation = 0;
@@ -25,6 +26,7 @@
   let historyBefore = null;
   let currentTicketPublicId = null;
   let olderLoading = false;
+  let exporting = false;
 
   function announce(message, error = false) {
     status.textContent = message;
@@ -50,6 +52,56 @@
   function statusLabel(value) {
     return ({ pending: 'Ожидает', open: 'Открыто', resolved: 'Решено', closed: 'Закрыто' })[value]
       || value || 'Не задан';
+  }
+
+  function ticketParams(businessId) {
+    const params = new URLSearchParams({ business_id: businessId });
+    if (statusFilter.value) params.set('status', statusFilter.value);
+    if (ticketFilter.value) params.set('ticket', ticketFilter.value);
+    if (textFilter.value.trim()) params.set('q', textFilter.value.trim());
+    return params;
+  }
+
+  async function exportTickets() {
+    if (exporting || !select.value) return;
+    const current = generation;
+    const businessId = select.value;
+    const params = ticketParams(businessId);
+    exporting = true;
+    exportButton.disabled = true;
+    announce('Подготовка JSON-выгрузки…');
+    try {
+      const response = await fetch(`/api/business-scope/tickets/export?${params}`, {
+        credentials: 'same-origin', headers: { Accept: 'application/json' }
+      });
+      if (!response.ok) {
+        throw new Error(response.status === 413
+          ? 'Найдено больше 1000 обращений. Уточните фильтры для выгрузки.'
+          : response.status === 403 ? 'Нет доступа к выбранному бизнесу.'
+            : 'Не удалось выгрузить обращения.');
+      }
+      const blob = await response.blob();
+      if (current !== generation || businessId !== select.value) return;
+      const url = URL.createObjectURL(blob);
+      try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'business-tickets.json';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } finally {
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      announce('JSON-выгрузка готова.');
+    } catch (error) {
+      if (current === generation && businessId === select.value) {
+        announce(error.message || 'Не удалось выгрузить обращения.', true);
+      }
+    } finally {
+      exporting = false;
+      exportButton.disabled = false;
+    }
   }
 
   function renderSummary(snapshot) {
@@ -182,10 +234,9 @@
         if (current === generation) summaryStatus.textContent = 'Сводка недоступна.';
       });
     try {
-      const params = new URLSearchParams({ business_id: businessId, limit: String(limit), offset: String(offset) });
-      if (statusFilter.value) params.set('status', statusFilter.value);
-      if (ticketFilter.value) params.set('ticket', ticketFilter.value);
-      if (textFilter.value.trim()) params.set('q', textFilter.value.trim());
+      const params = ticketParams(businessId);
+      params.set('limit', String(limit));
+      params.set('offset', String(offset));
       const snapshot = await getJson(`/api/business-scope/tickets/page?${params}`);
       if (current !== generation) return;
       const tickets = snapshot.tickets;
@@ -241,6 +292,7 @@
     loadTickets();
   });
   older.addEventListener('click', loadOlderHistory);
+  exportButton.addEventListener('click', exportTickets);
 
   getJson('/api/business-scope/businesses').then((businesses) => {
     select.replaceChildren();

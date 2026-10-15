@@ -224,6 +224,48 @@ class BusinessScopeReadControllerWebMvcTest {
     }
 
     @Test
+    void exportDownloadsCompleteFilteredJsonAndRejectsOversizedOrUnauthorizedRequests() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);
+        String path = "/api/business-scope/tickets/export";
+        var context = new BusinessAccessService.OneBusiness(2L);
+        var ticket = new BusinessScopedTicketReadService.TicketRow(
+                8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши", "open");
+        when(service.exportTickets(1L, context, "open", null, "Иван"))
+                .thenReturn(List.of(ticket));
+        mvc.perform(get(path).param("business_id", "2").param("status", "open")
+                .param("q", "Иван").with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"business-tickets.json\""))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(jsonPath("$[0].ticketId").value("raw-ticket"))
+                .andExpect(jsonPath("$[0].businessCode").value("sushi"));
+        mvc.perform(get(path).param("business_id", "2").param("q", "  ")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(path).param("business_id", "2").param("status", "bad")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        when(service.exportTickets(1L, context, null, null, null))
+                .thenThrow(new BusinessScopedTicketReadService.ExportTooLargeException());
+        mvc.perform(get(path).param("business_id", "2")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isPayloadTooLarge());
+        mvc.perform(get(path).param("business_id", "bad")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get(path).param("business_id", "2")
+                .with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+                .andExpect(status().isForbidden());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(get(path).param("business_id", "2")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void summaryRequiresCurrentBusinessScopeAndFoundation() throws Exception {
         when(flags.isFoundationEnabled()).thenReturn(true);
         when(service.requireAuthenticatedUserId("operator")).thenReturn(1L);

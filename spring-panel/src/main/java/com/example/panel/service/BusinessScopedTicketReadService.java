@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class BusinessScopedTicketReadService {
 
+    public static final int MAX_EXPORT_TICKETS = 1000;
     private static final Pattern PUBLIC_ID = Pattern.compile("[0-9a-f]{32}");
     private final JdbcTemplate jdbcTemplate;
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
@@ -156,10 +157,28 @@ public class BusinessScopedTicketReadService {
         return new TicketPage(hasMore ? List.copyOf(rows.subList(0, limit)) : rows, hasMore);
     }
 
+    /** Exports a complete filtered snapshot or refuses it; never returns a silently truncated file. */
+    public List<TicketRow> exportTickets(Long userId,
+                                         BusinessAccessService.RequestedBusinessContext context,
+                                         String status, String ticketId, String query) {
+        validateTicketFilters(status, ticketId, query);
+        Set<Long> ids = accessService.requireSelectedBusiness(userId, context).businessIds();
+        List<TicketRow> rows = queryTickets(userId, ids, MAX_EXPORT_TICKETS + 1, 0,
+                status, ticketId, query);
+        if (rows.size() > MAX_EXPORT_TICKETS) {
+            throw new ExportTooLargeException();
+        }
+        return rows;
+    }
+
     private void validateTicketPage(int limit, int offset, String status, String ticketId, String query) {
         if (limit < 1 || limit > 100 || offset < 0) {
             throw new IllegalArgumentException("Invalid page bounds");
         }
+        validateTicketFilters(status, ticketId, query);
+    }
+
+    private void validateTicketFilters(String status, String ticketId, String query) {
         if (status != null && !Set.of("pending", "open", "resolved", "closed").contains(status)) {
             throw new IllegalArgumentException("Invalid ticket status");
         }
@@ -454,6 +473,12 @@ public class BusinessScopedTicketReadService {
     }
 
     public record TicketPage(List<TicketRow> tickets, boolean hasMore) {
+    }
+
+    public static class ExportTooLargeException extends RuntimeException {
+        public ExportTooLargeException() {
+            super("Ticket export exceeds " + MAX_EXPORT_TICKETS + " rows; narrow the filters");
+        }
     }
 
     public record HistoryEntry(long id, String sender, String message,

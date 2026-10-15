@@ -49,6 +49,8 @@
             <input class="form-control" id="businessTicketTextFilter" maxlength="100" autocomplete="off"
                    placeholder="По корневому сообщению"></div>
         <button class="btn btn-outline-primary" type="submit">Найти</button>
+        <button class="btn btn-outline-secondary" id="businessTicketsExport" type="button">Скачать JSON (до 1000)</button>
+        <span class="small text-muted">Выгрузка применяет текущие фильтры ко всем страницам. Если найдено больше 1000 обращений, уточните фильтр.</span>
     </div></form>
     <div class="alert alert-info" role="status" aria-live="polite" data-business-dialogs-status>Загрузка…</div>
     <div class="card mb-4"><div class="card-body">
@@ -80,6 +82,6 @@
     </section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-dialogs.js(v='20261015-r99')}"></script>
+<script th:src="@{/js/business-dialogs.js(v='20261015-r100')}"></script>
 </body>
 </html>
