@@ -114,6 +114,54 @@ class BusinessAdministrationServicePostgresIntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void renameAndArchivePreserveBusinessIdentityLocationsAndGrants() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_admin_lifecycle");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'member'), (2, 'all-reader')");
+        migrate(jdbc);
+        BusinessAdministrationService service = new BusinessAdministrationService(jdbc);
+        BusinessAccessService access = new BusinessAccessService(jdbc);
+        var business = service.createBusiness("autoservice", "Автосервис");
+        long id = business.id();
+        assertThat(service.grantMembership(id, 1L, "VIEWER")).isTrue();
+        assertThat(service.grantAllBusinesses(2L, "VIEWER")).isTrue();
+        var location = service.createLocation(id, "Центр", "", "").orElseThrow();
+
+        var renamed = service.renameBusiness(id, "  Автосервис 24  ").orElseThrow();
+        assertThat(renamed).isEqualTo(new BusinessAdministrationService.Business(
+                id, "autoservice", "Автосервис 24", "active"));
+        assertThat(service.renameBusiness(999L, "Нет")).isEmpty();
+        assertThatThrownBy(() -> service.renameBusiness(id, "  "))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.renameBusiness(id, "bad\nname"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.createBusiness("bad-name", "bad\nname"))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(service.setBusinessStatus(id, "archived")).isTrue();
+        assertThat(access.resolveAccessibleBusinessIds(1L)).doesNotContain(id);
+        assertThat(access.resolveAccessibleBusinessIds(2L)).doesNotContain(id);
+        assertThat(service.grantMembership(id, 1L, "OPERATOR")).isFalse();
+        assertThat(service.createLocation(id, "Другая", "", "")).isEmpty();
+        assertThat(service.overview().locations()).contains(location);
+        assertThat(service.overview().memberships()).contains(
+                new BusinessAdministrationService.Membership(1L, id, "VIEWER"));
+        assertThat(service.renameBusiness(id, "Архивное название").orElseThrow().code())
+                .isEqualTo("autoservice");
+
+        assertThat(service.setBusinessStatus(id, "active")).isTrue();
+        assertThat(access.resolveAccessibleBusinessIds(1L)).contains(id);
+        assertThat(access.resolveAccessibleBusinessIds(2L)).contains(id);
+        assertThat(service.overview().locations()).contains(location);
+        assertThat(service.overview().businesses()).contains(
+                new BusinessAdministrationService.Business(id, "autoservice", "Архивное название", "active"));
+        assertThat(service.setBusinessStatus(999L, "archived")).isFalse();
+        assertThatThrownBy(() -> service.setBusinessStatus(id, "deleted"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.setBusinessStatus(0L, "archived"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private JdbcTemplate freshSchema(String prefix) {
         JdbcTemplate jdbc = PostgresqlJdbcTestSupport.freshJdbcTemplateDefaultStringType(prefix);
         jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");

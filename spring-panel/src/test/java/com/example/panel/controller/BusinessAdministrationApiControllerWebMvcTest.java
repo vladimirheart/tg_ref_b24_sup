@@ -124,4 +124,79 @@ class BusinessAdministrationApiControllerWebMvcTest {
                 .content("{\"status\":\"deleted\"}"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void businessLifecycleRequiresGlobalAdminAndEnabledFoundation() throws Exception {
+        String renamePath = "/api/business-admin/businesses/3";
+        String statusPath = renamePath + "/status";
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        mvc.perform(put(renamePath)
+                .with(user("viewer").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"displayName\":\"Новое\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(put(statusPath)
+                .with(user("business-admin").authorities(() -> "PAGE_SETTINGS", () -> "BUSINESS_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"status\":\"archived\"}"))
+                .andExpect(status().isForbidden());
+        when(flags.isFoundationEnabled()).thenReturn(false);
+        mvc.perform(put(renamePath)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"displayName\":\"Новое\"}"))
+                .andExpect(status().isNotFound());
+        mvc.perform(put(statusPath)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"status\":\"archived\"}"))
+                .andExpect(status().isNotFound());
+        verify(service, never()).renameBusiness(3L, "Новое");
+        verify(service, never()).setBusinessStatus(3L, "archived");
+    }
+
+    @Test
+    void adminCanRenameArchiveAndRestoreBusinessWithoutChangingCode() throws Exception {
+        when(flags.isFoundationEnabled()).thenReturn(true);
+        String renamePath = "/api/business-admin/businesses/3";
+        String statusPath = renamePath + "/status";
+        when(service.renameBusiness(3L, "Новое")).thenReturn(Optional.of(
+                new BusinessAdministrationService.Business(3L, "autoservice", "Новое", "active")));
+        mvc.perform(put(renamePath)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"displayName\":\"Новое\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("autoservice"))
+                .andExpect(jsonPath("$.displayName").value("Новое"));
+        when(service.setBusinessStatus(3L, "archived")).thenReturn(true);
+        when(service.setBusinessStatus(3L, "active")).thenReturn(true);
+        for (String state : List.of("archived", "active")) {
+            mvc.perform(put(statusPath)
+                    .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                    .with(csrf()).contentType("application/json")
+                    .content("{\"status\":\"" + state + "\"}"))
+                    .andExpect(status().isNoContent());
+        }
+        when(service.renameBusiness(3L, "")).thenThrow(
+                new IllegalArgumentException("Invalid business name"));
+        mvc.perform(put(renamePath)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"displayName\":\"\"}"))
+                .andExpect(status().isBadRequest());
+        when(service.setBusinessStatus(3L, "deleted")).thenThrow(
+                new IllegalArgumentException("Invalid business status"));
+        mvc.perform(put(statusPath)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"status\":\"deleted\"}"))
+                .andExpect(status().isBadRequest());
+        when(service.renameBusiness(999L, "Новое")).thenReturn(Optional.empty());
+        mvc.perform(put("/api/business-admin/businesses/999")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS", () -> "ROLE_ADMIN"))
+                .with(csrf()).contentType("application/json")
+                .content("{\"displayName\":\"Новое\"}"))
+                .andExpect(status().isNotFound());
+    }
 }

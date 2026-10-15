@@ -59,6 +59,45 @@ public class BusinessAdministrationApiController {
         }
     }
 
+    @PutMapping("/businesses/{businessId}")
+    public BusinessAdministrationService.Business renameBusiness(
+            @PathVariable long businessId, @RequestBody(required = false) RenameBusinessRequest request,
+            Authentication authentication) {
+        requireFoundation();
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Business name is required");
+        }
+        try {
+            BusinessAdministrationService.Business updated = service.renameBusiness(
+                    businessId, request.displayName())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found"));
+            log.info("Business renamed: actor={}, businessId={}", actor(authentication), businessId);
+            return updated;
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
+    @PutMapping("/businesses/{businessId}/status")
+    public ResponseEntity<Void> setBusinessStatus(
+            @PathVariable long businessId, @RequestBody(required = false) BusinessStatusRequest request,
+            Authentication authentication) {
+        requireFoundation();
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Business status is required");
+        }
+        try {
+            if (!service.setBusinessStatus(businessId, request.status())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Business not found");
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+        log.info("Business status updated: actor={}, businessId={}, status={}",
+                actor(authentication), businessId, request.status());
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/businesses/{businessId}/memberships/{userId}")
     public ResponseEntity<Void> grantMembership(@PathVariable long businessId, @PathVariable long userId,
                                                 @RequestBody(required = false) RoleRequest request,
@@ -178,6 +217,12 @@ public class BusinessAdministrationApiController {
     }
 
     public record CreateBusinessRequest(String code, String displayName) {
+    }
+
+    public record RenameBusinessRequest(String displayName) {
+    }
+
+    public record BusinessStatusRequest(String status) {
     }
 
     public record RoleRequest(String roleCode) {

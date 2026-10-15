@@ -81,6 +81,34 @@
       cell(row, business.displayName);
       cell(row, business.code);
       cell(row, business.status === 'active' ? 'Активен' : 'Архив');
+      const actions = cell(row, '');
+      const rename = document.createElement('button');
+      rename.type = 'button';
+      rename.className = 'btn btn-sm btn-outline-primary me-2';
+      rename.textContent = 'Переименовать';
+      rename.setAttribute('aria-label', `Переименовать бизнес ${business.displayName}`);
+      rename.addEventListener('click', async () => {
+        const name = window.prompt('Новое название бизнеса:', business.displayName);
+        if (name === null || name.trim() === business.displayName) return;
+        await perform(async () => {
+          await request(`/businesses/${business.id}`, 'PUT', { displayName: name });
+        }, 'Название бизнеса обновлено. Код и связи сохранены.');
+      });
+      actions.appendChild(rename);
+      const active = business.status === 'active';
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = `btn btn-sm ${active ? 'btn-outline-danger' : 'btn-outline-primary'}`;
+      toggle.textContent = active ? 'Архивировать' : 'Восстановить';
+      toggle.setAttribute('aria-label', `${toggle.textContent} бизнес ${business.displayName}`);
+      toggle.addEventListener('click', async () => {
+        if (active && !window.confirm(`Архивировать бизнес «${business.displayName}»? Данные и права сохранятся, но бизнес исчезнет из доступных списков до восстановления.`)) return;
+        await perform(async () => {
+          await request(`/businesses/${business.id}/status`, 'PUT',
+            { status: active ? 'archived' : 'active' });
+        }, active ? 'Бизнес архивирован. Данные и права сохранены.' : 'Бизнес восстановлен.');
+      });
+      actions.appendChild(toggle);
       catalog.appendChild(row);
     }
 

@@ -284,6 +284,21 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
                 BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 100, 100, null, null);
         assertThat(maxLastPage.tickets()).hasSize(1);
         assertThat(maxLastPage.hasMore()).isFalse();
+
+        BusinessAdministrationService admin = new BusinessAdministrationService(jdbc);
+        assertThat(admin.setBusinessStatus(sushi, "archived")).isTrue();
+        assertThat(service.availableBusinesses(1L)).isEmpty();
+        assertThat(service.listTickets(1L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0)).isEmpty();
+        assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef")).isEmpty();
+        assertThat(service.pageTickets(2L,
+                BusinessAccessService.AllAccessibleBusinesses.INSTANCE, 50, 0, null, null).tickets())
+                .extracting(BusinessScopedTicketReadService.TicketRow::businessId)
+                .containsExactly(bliny, autoservice);
+        assertThat(admin.setBusinessStatus(sushi, "active")).isTrue();
+        assertThat(service.availableBusinesses(1L)).extracting(
+                BusinessScopedTicketReadService.BusinessOption::code).containsExactly("sushi");
+        assertThat(service.findByPublicId(1L, "0123456789abcdef0123456789abcdef")).isPresent();
     }
 
     @Test

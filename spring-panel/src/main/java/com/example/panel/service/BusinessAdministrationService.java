@@ -49,15 +49,36 @@ public class BusinessAdministrationService {
         if (code == null || code.length() > 100 || !CODE.matcher(code).matches()) {
             throw new IllegalArgumentException("Invalid business code");
         }
-        String name = displayName == null ? "" : displayName.strip();
-        if (name.isEmpty() || name.length() > 200) {
-            throw new IllegalArgumentException("Invalid business name");
-        }
+        String name = requiredText(displayName, 200, "Invalid business name");
         return jdbc.queryForObject("""
                 INSERT INTO businesses(code, display_name) VALUES (?, ?)
                 RETURNING id, code, display_name, status
                 """, (rs, row) -> new Business(rs.getLong("id"), rs.getString("code"),
                 rs.getString("display_name"), rs.getString("status")), code, name);
+    }
+
+    /** Business code and existing links are preserved when its display name changes. */
+    public Optional<Business> renameBusiness(long businessId, String displayName) {
+        requirePositiveIds(businessId);
+        String name = requiredText(displayName, 200, "Invalid business name");
+        return jdbc.query("""
+                UPDATE businesses SET display_name = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ?
+                RETURNING id, code, display_name, status
+                """, (rs, row) -> new Business(rs.getLong("id"), rs.getString("code"),
+                rs.getString("display_name"), rs.getString("status")), name, businessId)
+                .stream().findFirst();
+    }
+
+    /** Archiving hides the business from scoped reads; restoring reuses the same identity and grants. */
+    public boolean setBusinessStatus(long businessId, String status) {
+        requirePositiveIds(businessId);
+        if (!"active".equals(status) && !"archived".equals(status)) {
+            throw new IllegalArgumentException("Invalid business status");
+        }
+        return jdbc.update("""
+                UPDATE businesses SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+                """, status, businessId) == 1;
     }
 
     public boolean grantMembership(long businessId, long userId, String roleCode) {
