@@ -60,10 +60,27 @@ public class BusinessScopeReadController {
 
     @GetMapping("/tickets/{publicId}/history")
     public BusinessScopedTicketReadService.TicketHistory history(@PathVariable String publicId,
-                                                                 Authentication authentication) {
+                                                                 Authentication authentication,
+                                                                 @RequestParam(required = false) String before,
+                                                                 @RequestParam(defaultValue = "50") String limit) {
         requireFoundation();
+        if (!limit.matches("[1-9][0-9]*") ||
+                (before != null && !before.matches("[1-9][0-9]*"))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid history page bounds");
+        }
+        int pageLimit;
+        Long beforeId;
+        try {
+            pageLimit = Integer.parseInt(limit);
+            beforeId = before == null ? null : Long.parseLong(before);
+        } catch (NumberFormatException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid history page bounds", ex);
+        }
+        if (pageLimit > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid history page bounds");
+        }
         Long userId = readService.requireAuthenticatedUserId(username(authentication));
-        return readService.findHistoryByPublicId(userId, publicId)
+        return readService.findHistoryByPublicId(userId, publicId, beforeId, pageLimit)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 

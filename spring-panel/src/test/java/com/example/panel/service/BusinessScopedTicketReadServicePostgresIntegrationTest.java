@@ -56,14 +56,63 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
 
         BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
                 jdbc, new BusinessAccessService(jdbc));
-        assertThat(service.findHistoryByPublicId(1L, sushiId)).get()
+        assertThat(service.findHistoryByPublicId(1L, sushiId, null, 50)).get()
                 .extracting(snapshot -> snapshot.entries().get(0).message()).isEqualTo("sushi");
-        assertThat(service.findHistoryByPublicId(1L, blinyId)).isEmpty();
-        assertThat(service.findHistoryByPublicId(2L, blinyId)).get()
+        assertThat(service.findHistoryByPublicId(1L, blinyId, null, 50)).isEmpty();
+        assertThat(service.findHistoryByPublicId(2L, blinyId, null, 50)).get()
                 .extracting(snapshot -> snapshot.entries().get(0).message()).isEqualTo("bliny");
-        assertThat(service.findHistoryByPublicId(1L, "same")).isEmpty();
+        assertThat(service.findHistoryByPublicId(1L, "same", null, 50)).isEmpty();
         jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
-        assertThat(service.findHistoryByPublicId(1L, sushiId)).isEmpty();
+        assertThat(service.findHistoryByPublicId(1L, sushiId, null, 50)).isEmpty();
+    }
+
+    @Test
+    void historyPagesRemainOrderedAndRecheckGrantAfterRevocation() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_scoped_history_pages");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'reader')");
+        migrate(jdbc);
+        jdbc.execute("""
+                CREATE TABLE chat_history (
+                    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    user_id BIGINT, ticket_id TEXT, sender TEXT, message TEXT,
+                    timestamp TIMESTAMP WITH TIME ZONE, message_type TEXT,
+                    attachment TEXT, deleted_at TIMESTAMP WITH TIME ZONE
+                )
+                """);
+        jdbc.execute(Files.readString(HISTORY_OWNER));
+        long business = businessId(jdbc, "sushi");
+        String publicId = "0123456789abcdef0123456789abcdef";
+        jdbc.update("INSERT INTO business_memberships(user_id, business_id, role_code) VALUES (1, ?, 'VIEWER')", business);
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, ticket_public_id) VALUES (11, 'same', ?, ?)", business, publicId);
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id) VALUES (22, 'same', ?)", business);
+        for (String message : List.of("a", "b", "c", "d", "e")) {
+            jdbc.update("INSERT INTO chat_history(ticket_id, ticket_owner_user_id, message) VALUES ('same', 11, ?)", message);
+        }
+        jdbc.update("INSERT INTO chat_history(ticket_id, ticket_owner_user_id, message, deleted_at) VALUES ('same', 11, 'deleted', CURRENT_TIMESTAMP)");
+        jdbc.update("INSERT INTO chat_history(ticket_id, message) VALUES ('same', 'unlinked')");
+        jdbc.update("INSERT INTO chat_history(ticket_id, ticket_owner_user_id, message) VALUES ('same', 22, 'other-owner')");
+
+        BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
+                jdbc, new BusinessAccessService(jdbc));
+        var first = service.findHistoryByPublicId(1L, publicId, null, 2).orElseThrow();
+        assertThat(first.entries()).extracting(BusinessScopedTicketReadService.HistoryEntry::message)
+                .containsExactly("d", "e");
+        assertThat(first.hasMore()).isTrue();
+        assertThat(first.nextBeforeId()).isEqualTo(first.entries().get(0).id());
+        jdbc.update("INSERT INTO chat_history(ticket_id, ticket_owner_user_id, message) VALUES ('same', 11, 'late')");
+        var second = service.findHistoryByPublicId(1L, publicId, first.nextBeforeId(), 2).orElseThrow();
+        assertThat(second.entries()).extracting(BusinessScopedTicketReadService.HistoryEntry::message)
+                .containsExactly("b", "c");
+        assertThat(second.hasMore()).isTrue();
+        var third = service.findHistoryByPublicId(1L, publicId, second.nextBeforeId(), 2).orElseThrow();
+        assertThat(third.entries()).extracting(BusinessScopedTicketReadService.HistoryEntry::message)
+                .containsExactly("a");
+        assertThat(third.hasMore()).isFalse();
+        assertThat(third.nextBeforeId()).isNull();
+        assertThat(service.findHistoryByPublicId(1L, publicId, third.entries().get(0).id(), 2)
+                .orElseThrow().entries()).isEmpty();
+        jdbc.update("UPDATE business_memberships SET is_active = FALSE WHERE user_id = 1");
+        assertThat(service.findHistoryByPublicId(1L, publicId, first.nextBeforeId(), 2)).isEmpty();
     }
 
     @Test

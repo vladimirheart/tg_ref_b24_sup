@@ -8,6 +8,8 @@
   const status = page.querySelector('[data-business-dialogs-status]');
   const rows = page.querySelector('#businessTicketRows');
   const card = page.querySelector('#businessTicketCard');
+  const history = card.querySelector('[data-ticket-history]');
+  const older = card.querySelector('#businessHistoryOlder');
   const previous = page.querySelector('#businessTicketsPrevious');
   const next = page.querySelector('#businessTicketsNext');
   const pageNumber = page.querySelector('#businessTicketsPage');
@@ -15,6 +17,9 @@
   let offset = 0;
   let generation = 0;
   let cardRequest = 0;
+  let historyBefore = null;
+  let currentTicketPublicId = null;
+  let olderLoading = false;
 
   function announce(message, error = false) {
     status.textContent = message;
@@ -40,16 +45,21 @@
   async function openCard(ticket, expectedGeneration) {
     const request = ++cardRequest;
     card.hidden = true;
+    older.hidden = true;
+    older.disabled = false;
+    historyBefore = null;
+    currentTicketPublicId = null;
+    olderLoading = false;
     try {
-      const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/history`);
+      const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(ticket.ticketPublicId)}/history?limit=50`);
       if (expectedGeneration !== generation || request !== cardRequest) return;
       const detail = snapshot.ticket;
+      if (detail.ticketPublicId !== ticket.ticketPublicId) return;
       if (select.value !== 'all' && select.value !== String(detail.businessId)) return;
       card.querySelector('[data-ticket-business]').textContent = detail.businessName;
       card.querySelector('[data-ticket-id]').textContent = detail.ticketId;
       card.querySelector('[data-ticket-user]').textContent = String(detail.userId);
       card.querySelector('[data-ticket-public]').textContent = detail.ticketPublicId;
-      const history = card.querySelector('[data-ticket-history]');
       history.replaceChildren();
       if (!snapshot.entries.length) {
         const empty = document.createElement('li');
@@ -57,15 +67,10 @@
         empty.textContent = 'Подтверждённых записей истории пока нет.';
         history.appendChild(empty);
       }
-      for (const entry of snapshot.entries) {
-        const item = document.createElement('li');
-        item.className = 'list-group-item';
-        const sender = entry.sender || 'Неизвестный отправитель';
-        const time = entry.timestamp ? new Date(entry.timestamp).toLocaleString('ru-RU') : 'Время неизвестно';
-        const body = entry.message || (entry.hasAttachment ? '[Вложение]' : '[Без текста]');
-        item.textContent = `${sender} · ${time}: ${body}`;
-        history.appendChild(item);
-      }
+      history.append(...snapshot.entries.map(historyItem));
+      currentTicketPublicId = detail.ticketPublicId;
+      historyBefore = snapshot.nextBeforeId;
+      older.hidden = !snapshot.hasMore;
       card.hidden = false;
     } catch (error) {
       if (expectedGeneration !== generation || request !== cardRequest) return;
@@ -74,11 +79,58 @@
     }
   }
 
+  function historyItem(entry) {
+    const item = document.createElement('li');
+    item.className = 'list-group-item';
+    const sender = entry.sender || 'Неизвестный отправитель';
+    const time = entry.timestamp ? new Date(entry.timestamp).toLocaleString('ru-RU') : 'Время неизвестно';
+    const body = entry.message || (entry.hasAttachment ? '[Вложение]' : '[Без текста]');
+    item.textContent = `${sender} · ${time}: ${body}`;
+    return item;
+  }
+
+  async function loadOlderHistory() {
+    if (olderLoading || !currentTicketPublicId || historyBefore === null) return;
+    const expectedGeneration = generation;
+    const request = cardRequest;
+    const publicId = currentTicketPublicId;
+    const before = historyBefore;
+    olderLoading = true;
+    older.disabled = true;
+    try {
+      const snapshot = await getJson(`/api/business-scope/tickets/${encodeURIComponent(publicId)}/history?limit=50&before=${before}`);
+      if (expectedGeneration !== generation || request !== cardRequest || publicId !== currentTicketPublicId) return;
+      if (snapshot.ticket.ticketPublicId !== publicId ||
+          (select.value !== 'all' && select.value !== String(snapshot.ticket.businessId))) return;
+      history.prepend(...snapshot.entries.map(historyItem));
+      historyBefore = snapshot.nextBeforeId;
+      older.hidden = !snapshot.hasMore;
+    } catch (error) {
+      if (expectedGeneration !== generation || request !== cardRequest) return;
+      card.hidden = true;
+      history.replaceChildren();
+      currentTicketPublicId = null;
+      historyBefore = null;
+      older.hidden = true;
+      announce('История недоступна. Проверьте доступ и откройте карточку заново.', true);
+    } finally {
+      if (request === cardRequest) {
+        olderLoading = false;
+        older.disabled = false;
+      }
+    }
+  }
+
   async function loadTickets() {
     const current = ++generation;
     ++cardRequest;
     const businessId = select.value;
     card.hidden = true;
+    older.hidden = true;
+    currentTicketPublicId = null;
+    historyBefore = null;
+    olderLoading = false;
+    older.disabled = false;
     rows.replaceChildren();
     announce('Загрузка обращений…');
     try {
@@ -128,6 +180,7 @@
     offset += limit;
     loadTickets();
   });
+  older.addEventListener('click', loadOlderHistory);
 
   getJson('/api/business-scope/businesses').then((businesses) => {
     select.replaceChildren();

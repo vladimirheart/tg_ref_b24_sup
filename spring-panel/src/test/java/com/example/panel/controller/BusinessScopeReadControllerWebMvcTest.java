@@ -81,14 +81,35 @@ class BusinessScopeReadControllerWebMvcTest {
                 .andExpect(status().isNotFound());
         var ticket = new BusinessScopedTicketReadService.TicketRow(
                 8L, "raw-ticket", PUBLIC_ID, 2L, "sushi", "Суши");
-        when(service.findHistoryByPublicId(1L, PUBLIC_ID)).thenReturn(Optional.of(
+        when(service.findHistoryByPublicId(1L, PUBLIC_ID, null, 50)).thenReturn(Optional.of(
                 new BusinessScopedTicketReadService.TicketHistory(ticket, List.of(
                         new BusinessScopedTicketReadService.HistoryEntry(
-                                3L, "client", "Здравствуйте", null, "text", false)))));
+                                3L, "client", "Здравствуйте", null, "text", false)), true, 3L)));
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ticket.businessCode").value("sushi"))
-                .andExpect(jsonPath("$.entries[0].message").value("Здравствуйте"));
+                .andExpect(jsonPath("$.entries[0].message").value("Здравствуйте"))
+                .andExpect(jsonPath("$.hasMore").value(true))
+                .andExpect(jsonPath("$.nextBeforeId").value(3));
+        when(service.findHistoryByPublicId(1L, PUBLIC_ID, 3L, 2)).thenReturn(Optional.of(
+                new BusinessScopedTicketReadService.TicketHistory(ticket, List.of(), false, null)));
+        mvc.perform(get(path).param("before", "3").param("limit", "2")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries").isEmpty())
+                .andExpect(jsonPath("$.hasMore").value(false));
+        mvc.perform(get(path).param("limit", "0")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(path).param("before", "-1")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(path).param("limit", "101")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get(path).param("before", "abc")
+                .with(user("operator").authorities(() -> "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest());
         when(flags.isFoundationEnabled()).thenReturn(false);
         mvc.perform(get(path).with(user("operator").authorities(() -> "PAGE_DIALOGS")))
                 .andExpect(status().isNotFound());

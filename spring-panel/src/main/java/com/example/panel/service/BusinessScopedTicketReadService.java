@@ -150,7 +150,11 @@ public class BusinessScopedTicketReadService {
      * Only history stamped with the exact canonical ticket tuple is readable.
      * Legacy rows with a bare ticket_id remain unclassified, even if that ID is unique today.
      */
-    public Optional<TicketHistory> findHistoryByPublicId(Long userId, String publicId) {
+    public Optional<TicketHistory> findHistoryByPublicId(Long userId, String publicId,
+                                                          Long beforeId, int limit) {
+        if (limit < 1 || limit > 100 || (beforeId != null && beforeId < 1)) {
+            throw new IllegalArgumentException("Invalid history page bounds");
+        }
         if (publicId == null || !PUBLIC_ID.matcher(publicId).matches()) {
             return Optional.empty();
         }
@@ -173,8 +177,9 @@ public class BusinessScopedTicketReadService {
                        WHERE h.ticket_owner_user_id = ticket.user_id
                          AND h.ticket_id = ticket.ticket_id
                          AND h.deleted_at IS NULL
+                         AND h.id < :beforeId
                        ORDER BY h.id DESC
-                       LIMIT 100
+                       LIMIT :pageSize
                   ) history ON TRUE
                  WHERE ticket.ticket_public_id = :publicId
                    AND ticket.business_id IN (:businessIds)
@@ -193,7 +198,9 @@ public class BusinessScopedTicketReadService {
                 """, new MapSqlParameterSource()
                         .addValue("publicId", publicId)
                         .addValue("businessIds", ids)
-                        .addValue("userId", userId),
+                        .addValue("userId", userId)
+                        .addValue("beforeId", beforeId == null ? Long.MAX_VALUE : beforeId)
+                        .addValue("pageSize", limit + 1),
                 rs -> {
                     TicketRow ticket = null;
                     List<HistoryEntry> entries = new ArrayList<>();
@@ -212,8 +219,15 @@ public class BusinessScopedTicketReadService {
                                     rs.getString("message_type"), rs.getString("attachment") != null));
                         }
                     }
-                    return ticket == null ? Optional.<TicketHistory>empty()
-                            : Optional.of(new TicketHistory(ticket, entries));
+                    if (ticket == null) {
+                        return Optional.<TicketHistory>empty();
+                    }
+                    boolean hasMore = entries.size() > limit;
+                    if (hasMore) {
+                        entries.remove(0);
+                    }
+                    Long nextBeforeId = hasMore ? entries.get(0).id() : null;
+                    return Optional.of(new TicketHistory(ticket, entries, hasMore, nextBeforeId));
                 });
     }
 
@@ -228,6 +242,7 @@ public class BusinessScopedTicketReadService {
                                OffsetDateTime timestamp, String messageType, boolean hasAttachment) {
     }
 
-    public record TicketHistory(TicketRow ticket, List<HistoryEntry> entries) {
+    public record TicketHistory(TicketRow ticket, List<HistoryEntry> entries,
+                                boolean hasMore, Long nextBeforeId) {
     }
 }
