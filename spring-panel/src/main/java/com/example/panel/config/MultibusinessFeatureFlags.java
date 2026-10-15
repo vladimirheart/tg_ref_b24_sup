@@ -5,8 +5,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Rollout switches for task 01-278. They are intentionally disabled by
- * default and are not read by existing runtime paths until their individual
- * acceptance gates are complete.
+ * default. The ticket-write switch is fail-closed for explicitly owned,
+ * single-business channel events and is not a rollout approval by itself.
  */
 @Component
 @ConfigurationProperties(prefix = "multibusiness")

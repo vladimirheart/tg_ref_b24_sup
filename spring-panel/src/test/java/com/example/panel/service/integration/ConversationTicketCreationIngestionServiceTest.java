@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.panel.entity.Channel;
+import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.entity.ChatHistory;
 import com.example.panel.entity.Message;
 import com.example.panel.entity.Ticket;
@@ -24,6 +25,8 @@ import com.example.panel.repository.TicketActiveRepository;
 import com.example.panel.repository.TicketRepository;
 import com.example.panel.repository.TicketSpanRepository;
 import com.example.panel.service.ChatAttachmentMetadataService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -56,7 +59,9 @@ class ConversationTicketCreationIngestionServiceTest {
             ticketActiveRepository,
             chatHistoryRepository,
             attachmentMetadataService,
-            jdbcTemplate
+            jdbcTemplate,
+            disabledFlags(),
+            mock(BusinessTicketWriteScopeResolver.class)
         );
 
         OffsetDateTime occurredAt = OffsetDateTime.parse("2026-08-14T11:00:00Z");
@@ -94,7 +99,8 @@ class ConversationTicketCreationIngestionServiceTest {
                 "photo.jpg",
                 "9001",
                 occurredAt
-            ))
+            )),
+            51L
         );
 
         Channel channel = new Channel();
@@ -150,6 +156,7 @@ class ConversationTicketCreationIngestionServiceTest {
         assertThat(ticket.getStatus()).isEqualTo("open");
         assertThat(ticket.getChannel()).isSameAs(channel);
         assertThat(ticket.getGroupMessageId()).isEqualTo(message.getId());
+        assertThat(ticket.getBusinessId()).isNull();
 
         ArgumentCaptor<TicketSpan> spanCaptor = ArgumentCaptor.forClass(TicketSpan.class);
         verify(ticketSpanRepository).save(spanCaptor.capture());
@@ -201,7 +208,7 @@ class ConversationTicketCreationIngestionServiceTest {
             inboxService, mock(LegacyTicketIdConcurrencyGuard.class), channelRepository, messageRepository, ticketRepository,
             mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
-            mock(JdbcTemplate.class)
+            mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class)
         );
         ConversationTicketCreatedEvent event = minimalEvent("evt-same-owner", 901L, "T-RABBIT-SAME");
         Channel channel = new Channel();
@@ -236,7 +243,7 @@ class ConversationTicketCreationIngestionServiceTest {
             inboxService, mock(LegacyTicketIdConcurrencyGuard.class), channelRepository, messageRepository, ticketRepository,
             mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
-            mock(JdbcTemplate.class)
+            mock(JdbcTemplate.class), disabledFlags(), mock(BusinessTicketWriteScopeResolver.class)
         );
         ConversationTicketCreatedEvent event = minimalEvent("evt-other-owner", 902L, "T-RABBIT-COLLISION");
         Channel channel = new Channel();
@@ -277,7 +284,9 @@ class ConversationTicketCreationIngestionServiceTest {
             mock(TicketActiveRepository.class),
             mock(ChatHistoryRepository.class),
             mock(ChatAttachmentMetadataService.class),
-            mock(JdbcTemplate.class)
+            mock(JdbcTemplate.class),
+            disabledFlags(),
+            mock(BusinessTicketWriteScopeResolver.class)
         );
         ConversationTicketCreatedEvent event = new ConversationTicketCreatedEvent(
             "evt-ticket-dup",
@@ -316,6 +325,128 @@ class ConversationTicketCreationIngestionServiceTest {
         verify(inboxService, never()).markFailed(any(), any());
     }
 
+    @Test
+    void strictWritePersistsVerifiedExplicitOwner() {
+        IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        MessageRepository messages = mock(MessageRepository.class);
+        TicketRepository tickets = mock(TicketRepository.class);
+        BusinessTicketWriteScopeResolver resolver = mock(BusinessTicketWriteScopeResolver.class);
+        MultibusinessFeatureFlags flags = strictFlags();
+        ConversationTicketCreatedEvent event = eventWithBusinessId(51L);
+        ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets, flags, resolver);
+        Channel channel = new Channel();
+        channel.setId(25L);
+        when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt()))).thenReturn(true);
+        when(channels.findById(25L)).thenReturn(Optional.of(channel));
+        when(resolver.requireSingleBusinessBinding(25L, 51L)).thenReturn(51L);
+
+        service.ingest(event, "integration.ticket.telegram");
+
+        verify(resolver).requireSingleBusinessBinding(25L, 51L);
+        ArgumentCaptor<Ticket> ticketCaptor = ArgumentCaptor.forClass(Ticket.class);
+        verify(tickets).save(ticketCaptor.capture());
+        assertThat(ticketCaptor.getValue().getBusinessId()).isEqualTo(51L);
+        verify(messages).save(any(Message.class));
+        verify(inbox).markProcessed(event.eventId());
+    }
+
+    @Test
+    void strictWriteRejectsMissingOwnerBeforeRootWrite() {
+        IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        MessageRepository messages = mock(MessageRepository.class);
+        TicketRepository tickets = mock(TicketRepository.class);
+        BusinessTicketWriteScopeResolver resolver = mock(BusinessTicketWriteScopeResolver.class);
+        ConversationTicketCreatedEvent event = minimalEvent("evt-no-business", 901L, "T-NO-BUSINESS");
+        ConversationTicketCreationIngestionService service = service(
+            inbox, channels, messages, tickets, strictFlags(), resolver);
+        Channel channel = new Channel();
+        channel.setId(25L);
+        when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt()))).thenReturn(true);
+        when(channels.findById(25L)).thenReturn(Optional.of(channel));
+        when(resolver.requireSingleBusinessBinding(25L, null))
+            .thenThrow(new IllegalStateException("Ticket creation requires an explicit business ID and channel"));
+
+        assertThatThrownBy(() -> service.ingest(event, "integration.ticket.telegram"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("explicit business ID");
+        verify(messages, never()).save(any());
+        verify(tickets, never()).save(any());
+        verify(inbox).markFailed(eq(event.eventId()), any(Exception.class));
+    }
+
+    @Test
+    void strictWriteCannotRunWithoutFoundation() {
+        IntegrationInboundEventInboxService inbox = mock(IntegrationInboundEventInboxService.class);
+        ChannelRepository channels = mock(ChannelRepository.class);
+        MessageRepository messages = mock(MessageRepository.class);
+        TicketRepository tickets = mock(TicketRepository.class);
+        BusinessTicketWriteScopeResolver resolver = mock(BusinessTicketWriteScopeResolver.class);
+        MultibusinessFeatureFlags flags = disabledFlags();
+        flags.setTicketWriteRequiresBusiness(true);
+        ConversationTicketCreatedEvent event = eventWithBusinessId(51L);
+        ConversationTicketCreationIngestionService service = service(inbox, channels, messages, tickets, flags, resolver);
+        Channel channel = new Channel();
+        channel.setId(25L);
+        when(inbox.beginProcessing(eq(event.eventId()), eq(event.eventKind()), eq(event.platform()),
+            eq(event.channelId()), eq(event.ticketId()), eq("integration.ticket.telegram"),
+            eq(event), eq(event.occurredAt()))).thenReturn(true);
+        when(channels.findById(25L)).thenReturn(Optional.of(channel));
+
+        assertThatThrownBy(() -> service.ingest(event, "integration.ticket.telegram"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("multibusiness foundation");
+        verify(resolver, never()).requireSingleBusinessBinding(any(), any());
+        verify(messages, never()).save(any());
+        verify(tickets, never()).save(any());
+    }
+
+    @Test
+    void legacyEventJsonWithoutCanonicalOwnerStillDeserializes() throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        ObjectNode oldPayload = (ObjectNode) mapper.valueToTree(minimalEvent("evt-old", 901L, "T-OLD"));
+        oldPayload.remove("businessId");
+
+        ConversationTicketCreatedEvent restored = mapper.treeToValue(oldPayload, ConversationTicketCreatedEvent.class);
+
+        assertThat(restored.businessId()).isNull();
+        assertThat(restored.ticketId()).isEqualTo("T-OLD");
+        assertThat(mapper.treeToValue(mapper.valueToTree(eventWithBusinessId(51L)),
+            ConversationTicketCreatedEvent.class).businessId()).isEqualTo(51L);
+    }
+
+    private ConversationTicketCreationIngestionService service(IntegrationInboundEventInboxService inbox,
+                                                               ChannelRepository channels,
+                                                               MessageRepository messages,
+                                                               TicketRepository tickets,
+                                                               MultibusinessFeatureFlags flags,
+                                                               BusinessTicketWriteScopeResolver resolver) {
+        return new ConversationTicketCreationIngestionService(inbox, mock(LegacyTicketIdConcurrencyGuard.class),
+            channels, messages, tickets, mock(TicketSpanRepository.class), mock(TicketActiveRepository.class),
+            mock(ChatHistoryRepository.class), mock(ChatAttachmentMetadataService.class),
+            mock(JdbcTemplate.class), flags, resolver);
+    }
+
+    private ConversationTicketCreatedEvent eventWithBusinessId(Long businessId) {
+        ConversationTicketCreatedEvent event = minimalEvent("evt-business", 901L, "T-BUSINESS");
+        return new ConversationTicketCreatedEvent(event.eventId(), event.eventKind(), event.platform(),
+            event.channelId(), event.ticketId(), event.userId(), event.userIdentity(), event.username(),
+            event.clientName(), event.business(), event.locationType(), event.city(), event.locationName(),
+            event.problem(), event.occurredAt(), event.attributes(), event.historyEntries(), businessId);
+    }
+
+    private MultibusinessFeatureFlags strictFlags() {
+        MultibusinessFeatureFlags flags = disabledFlags();
+        flags.getFoundation().setEnabled(true);
+        flags.setTicketWriteRequiresBusiness(true);
+        return flags;
+    }
+
     private ConversationTicketCreatedEvent minimalEvent(String eventId, long userId, String ticketId) {
         return new ConversationTicketCreatedEvent(
             eventId, "ticket.created.initial_contact", "telegram", 25L,
@@ -323,5 +454,9 @@ class ConversationTicketCreationIngestionServiceTest {
             "Retail", "store", "Moscow", "Tverskaya", "Need help",
             OffsetDateTime.parse("2026-08-14T11:00:00Z"), List.of(), List.of()
         );
+    }
+
+    private MultibusinessFeatureFlags disabledFlags() {
+        return new MultibusinessFeatureFlags();
     }
 }

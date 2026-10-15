@@ -1,5 +1,6 @@
 package com.example.panel.service.integration;
 
+import com.example.panel.config.MultibusinessFeatureFlags;
 import com.example.panel.entity.Channel;
 import com.example.panel.entity.ChatHistory;
 import com.example.panel.entity.Message;
@@ -40,6 +41,8 @@ public class ConversationTicketCreationIngestionService {
     private final ChatHistoryRepository chatHistoryRepository;
     private final ChatAttachmentMetadataService chatAttachmentMetadataService;
     private final JdbcTemplate jdbcTemplate;
+    private final MultibusinessFeatureFlags multibusinessFeatureFlags;
+    private final BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver;
 
     public ConversationTicketCreationIngestionService(IntegrationInboundEventInboxService inboxService,
                                                       LegacyTicketIdConcurrencyGuard legacyTicketIdConcurrencyGuard,
@@ -50,7 +53,9 @@ public class ConversationTicketCreationIngestionService {
                                                       TicketActiveRepository ticketActiveRepository,
                                                       ChatHistoryRepository chatHistoryRepository,
                                                       ChatAttachmentMetadataService chatAttachmentMetadataService,
-                                                      JdbcTemplate jdbcTemplate) {
+                                                      JdbcTemplate jdbcTemplate,
+                                                      MultibusinessFeatureFlags multibusinessFeatureFlags,
+                                                      BusinessTicketWriteScopeResolver businessTicketWriteScopeResolver) {
         this.inboxService = inboxService;
         this.legacyTicketIdConcurrencyGuard = legacyTicketIdConcurrencyGuard;
         this.channelRepository = channelRepository;
@@ -61,6 +66,8 @@ public class ConversationTicketCreationIngestionService {
         this.chatHistoryRepository = chatHistoryRepository;
         this.chatAttachmentMetadataService = chatAttachmentMetadataService;
         this.jdbcTemplate = jdbcTemplate;
+        this.multibusinessFeatureFlags = multibusinessFeatureFlags;
+        this.businessTicketWriteScopeResolver = businessTicketWriteScopeResolver;
     }
 
     @Transactional
@@ -106,13 +113,22 @@ public class ConversationTicketCreationIngestionService {
             throw new IllegalStateException("Legacy ticket ID collision across users");
         }
 
+        Long businessId = null;
+        if (multibusinessFeatureFlags.isTicketWriteRequiresBusiness()) {
+            if (!multibusinessFeatureFlags.isFoundationEnabled()) {
+                throw new IllegalStateException("Business ticket writes require the multibusiness foundation");
+            }
+            businessId = businessTicketWriteScopeResolver.requireSingleBusinessBinding(
+                event.channelId(), event.businessId());
+        }
+
         OffsetDateTime occurredAt = event.occurredAt() != null ? event.occurredAt() : OffsetDateTime.now();
         long groupMessageId = nextGroupMessageId();
 
         Message message = buildRootMessage(event, channel, occurredAt, groupMessageId);
         messageRepository.save(message);
 
-        Ticket ticket = buildTicket(event, channel, groupMessageId, occurredAt);
+        Ticket ticket = buildTicket(event, channel, groupMessageId, occurredAt, businessId);
         ticketRepository.save(ticket);
 
         TicketSpan span = new TicketSpan();
@@ -156,7 +172,8 @@ public class ConversationTicketCreationIngestionService {
     private Ticket buildTicket(ConversationTicketCreatedEvent event,
                                Channel channel,
                                long groupMessageId,
-                               OffsetDateTime occurredAt) {
+                               OffsetDateTime occurredAt,
+                               Long businessId) {
         Ticket ticket = new Ticket();
         TicketId id = new TicketId();
         id.setUserId(event.userId());
@@ -165,6 +182,7 @@ public class ConversationTicketCreationIngestionService {
         ticket.setGroupMessageId(groupMessageId);
         ticket.setStatus("open");
         ticket.setChannel(channel);
+        ticket.setBusinessId(businessId);
         ticket.setReopenCount(0);
         ticket.setClosedCount(0);
         ticket.setWorkTimeTotalSec(0L);
