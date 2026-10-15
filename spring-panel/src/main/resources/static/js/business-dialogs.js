@@ -56,6 +56,12 @@
       || value || 'Не задан';
   }
 
+  function ticketTime(value) {
+    if (!value) return '—';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString('ru-RU');
+  }
+
   function ticketParams(businessId) {
     const params = new URLSearchParams({ business_id: businessId });
     if (statusFilter.value) params.set('status', statusFilter.value);
@@ -191,6 +197,7 @@
       card.querySelector('[data-ticket-problem]').textContent = detail.problemPreview || 'Не указана';
       card.querySelector('[data-ticket-public]').textContent = detail.ticketPublicId;
       card.querySelector('[data-ticket-status]').textContent = statusLabel(detail.status);
+      card.querySelector('[data-ticket-created]').textContent = ticketTime(detail.createdAt);
       history.replaceChildren();
       if (!snapshot.entries.length) {
         const empty = document.createElement('li');
@@ -297,6 +304,7 @@
         const problem = cell(row, ticket.problemPreview
           ? `${ticket.problemPreview.slice(0, 120)}${ticket.problemPreview.length > 120 ? '…' : ''}` : '—');
         problem.className = 'small text-break';
+        cell(row, ticketTime(ticket.createdAt));
         cell(row, statusLabel(ticket.status));
         const action = cell(row, '');
         if (ticket.ticketPublicId) {

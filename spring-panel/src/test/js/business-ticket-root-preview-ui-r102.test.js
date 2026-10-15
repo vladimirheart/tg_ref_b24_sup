@@ -30,14 +30,21 @@ async function main() {
     '../../main/resources/static/js/business-dialogs.js'), 'utf8');
   const listStart = source.indexOf('  async function loadTickets() {');
   const listEnd = source.indexOf("  select.addEventListener('change'", listStart);
+  const timeStart = source.indexOf('  function ticketTime(');
+  const timeEnd = source.indexOf('  function ticketParams(', timeStart);
   const cardStart = source.indexOf('  async function openCard(');
   const cardEnd = source.indexOf('  function historyItem(', cardStart);
-  assert.ok(listStart >= 0 && listEnd > listStart && cardStart >= 0 && cardEnd > cardStart);
+  assert.ok(listStart >= 0 && listEnd > listStart && timeStart >= 0 && timeEnd > timeStart
+    && cardStart >= 0 && cardEnd > cardStart);
+
+  const ticketTime = vm.runInNewContext(`${source.slice(timeStart, timeEnd)}\nticketTime`);
+  assert.equal(ticketTime('invalid'), '—');
 
   const publicId = '0123456789abcdef0123456789abcdef';
   const ticket = { userId: 11, ticketId: 'raw', ticketPublicId: publicId, businessId: 2,
     businessName: 'Суши', clientName: '<script>Иван</script>',
-    problemPreview: 'П'.repeat(121), status: 'open' };
+    problemPreview: 'П'.repeat(121), status: 'open', createdAt: '2026-10-15T10:15:30Z' };
+  const expectedTime = new Date(ticket.createdAt).toLocaleString('ru-RU');
   const rows = new Element();
   const listContext = {
     generation: 0, cardRequest: 0, offset: 0, limit: 50, select: { value: 'all' },
@@ -48,13 +55,14 @@ async function main() {
       : { tickets: [ticket, { ...ticket, ticketId: 'empty', ticketPublicId: null,
         clientName: null, problemPreview: null }], hasMore: false },
     renderSummary() {}, announce() {}, statusLabel: value => value,
-    document: { createElement: () => new Element() }, cell, openCard() {}
+    document: { createElement: () => new Element() }, cell, ticketTime, openCard() {}
   };
   const loadTickets = vm.runInNewContext(`${source.slice(listStart, listEnd)}\nloadTickets`, listContext);
   await loadTickets();
   assert.equal(rows.children.length, 2);
   assert.equal(rows.children[0].children[2].textContent, '<script>Иван</script>');
   assert.equal(rows.children[0].children[3].textContent, `${'П'.repeat(120)}…`);
+  assert.equal(rows.children[0].children[4].textContent, expectedTime);
   assert.equal(rows.children[1].children[2].textContent, 'ID 11');
   assert.equal(rows.children[1].children[3].textContent, '—');
 
@@ -70,7 +78,7 @@ async function main() {
     generation: 4, cardRequest: 0, card, older: new Element(), history: new Element(),
     answers: new Element(), answersStatus: new Element(), select: { value: '2' },
     getJson: async () => snapshot, loadAnswers: () => { answersLoaded++; },
-    statusLabel: value => value, announce() {},
+    statusLabel: value => value, ticketTime, announce() {},
     document: { createElement: () => new Element() }, encodeURIComponent
   };
   const openCard = vm.runInNewContext(`${source.slice(cardStart, cardEnd)}\nopenCard`, cardContext);
@@ -78,6 +86,7 @@ async function main() {
   assert.equal(card.hidden, false);
   assert.equal(fields.get('[data-ticket-client]').textContent, '<script>Иван</script>');
   assert.equal(fields.get('[data-ticket-problem]').textContent, 'П'.repeat(121));
+  assert.equal(fields.get('[data-ticket-created]').textContent, expectedTime);
   assert.equal(answersLoaded, 1);
 
   snapshot = { ...snapshot, ticket: { ...ticket, userId: 99 } };

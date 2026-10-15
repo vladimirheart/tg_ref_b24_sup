@@ -55,7 +55,7 @@
     <div class="alert alert-info" role="status" aria-live="polite" data-business-dialogs-status>Загрузка…</div>
     <div class="card mb-4"><div class="card-body">
         <div class="table-responsive"><table class="table table-sm align-middle">
-            <thead><tr><th scope="col">Бизнес</th><th scope="col">Обращение</th><th scope="col">Клиент</th><th scope="col">Проблема</th><th scope="col">Статус</th><th scope="col"></th></tr></thead>
+            <thead><tr><th scope="col">Бизнес</th><th scope="col">Обращение</th><th scope="col">Клиент</th><th scope="col">Проблема</th><th scope="col">Создано</th><th scope="col">Статус</th><th scope="col"></th></tr></thead>
             <tbody id="businessTicketRows"></tbody>
         </table></div>
         <div class="d-flex gap-2 align-items-center">
@@ -75,6 +75,7 @@
                 <dt class="col-sm-3">Проблема (начало)</dt><dd class="col-sm-9 text-break" data-ticket-problem></dd>
                 <dt class="col-sm-3">Публичный ID</dt><dd class="col-sm-9" data-ticket-public></dd>
                 <dt class="col-sm-3">Статус</dt><dd class="col-sm-9" data-ticket-status></dd>
+                <dt class="col-sm-3">Создано</dt><dd class="col-sm-9" data-ticket-created></dd>
             </dl>
             <h3 class="h6 mt-3">Ответы на вопросы</h3>
             <p class="small text-muted" aria-live="polite" data-ticket-answers-status></p>
@@ -87,6 +88,6 @@
     </section>
 </main>
 <script src="/vendor/bootstrap/5.3.3/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/business-dialogs.js(v='20261015-r102')}"></script>
+<script th:src="@{/js/business-dialogs.js(v='20261015-r103')}"></script>
 </body>
 </html>

@@ -202,6 +202,7 @@ public class BusinessScopedTicketReadService {
         }
         String sql = """
                 SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
+                       ticket.created_at,
                        business.id AS business_id, business.code AS business_code,
                        business.display_name AS business_name,
                        left(root.client_name, 200) AS client_name,
@@ -230,7 +231,7 @@ public class BusinessScopedTicketReadService {
                         OR strpos(lower(coalesce(root.problem, '')), lower(:query)) > 0)
                    """)
                 + """
-                 ORDER BY ticket.business_id, ticket.user_id, ticket.ticket_id
+                 ORDER BY ticket.created_at DESC, ticket.business_id, ticket.user_id, ticket.ticket_id
                  LIMIT :limit OFFSET :offset
                 """;
         return namedJdbcTemplate.query(sql, new MapSqlParameterSource()
@@ -254,6 +255,7 @@ public class BusinessScopedTicketReadService {
         }
         List<TicketRow> rows = namedJdbcTemplate.query("""
                 SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
+                       ticket.created_at,
                        business.id AS business_id, business.code AS business_code,
                        business.display_name AS business_name,
                        left(root.client_name, 200) AS client_name,
@@ -301,6 +303,7 @@ public class BusinessScopedTicketReadService {
         }
         return namedJdbcTemplate.query("""
                 SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
+                       ticket.created_at,
                        business.id AS business_id, business.code AS business_code,
                        business.display_name AS business_name,
                        left(root.client_name, 200) AS client_name,
@@ -381,6 +384,7 @@ public class BusinessScopedTicketReadService {
         return namedJdbcTemplate.query("""
                 WITH authorized_ticket AS (
                     SELECT ticket.user_id, ticket.ticket_id, ticket.ticket_public_id, ticket.status,
+                           ticket.created_at,
                            business.id AS business_id, business.code AS business_code,
                            business.display_name AS business_name,
                            left(root.client_name, 200) AS client_name,
@@ -536,7 +540,8 @@ public class BusinessScopedTicketReadService {
         return new TicketRow(rs.getLong("user_id"), rs.getString("ticket_id"),
                 rs.getString("ticket_public_id"), rs.getLong("business_id"),
                 rs.getString("business_code"), rs.getString("business_name"),
-                rs.getString("status"), rs.getString("client_name"), rs.getString("problem_preview"));
+                rs.getString("status"), rs.getObject("created_at", OffsetDateTime.class),
+                rs.getString("client_name"), rs.getString("problem_preview"));
     }
 
     public record BusinessOption(long id, String code, String displayName) {
@@ -553,11 +558,19 @@ public class BusinessScopedTicketReadService {
 
     public record TicketRow(long userId, String ticketId, String ticketPublicId,
                             long businessId, String businessCode, String businessName,
-                            String status, String clientName, String problemPreview) {
+                            String status, OffsetDateTime createdAt,
+                            String clientName, String problemPreview) {
+        public TicketRow(long userId, String ticketId, String ticketPublicId,
+                         long businessId, String businessCode, String businessName,
+                         String status, String clientName, String problemPreview) {
+            this(userId, ticketId, ticketPublicId, businessId, businessCode, businessName,
+                    status, null, clientName, problemPreview);
+        }
+
         public TicketRow(long userId, String ticketId, String ticketPublicId,
                          long businessId, String businessCode, String businessName, String status) {
             this(userId, ticketId, ticketPublicId, businessId, businessCode, businessName,
-                    status, null, null);
+                    status, null, null, null);
         }
     }
 

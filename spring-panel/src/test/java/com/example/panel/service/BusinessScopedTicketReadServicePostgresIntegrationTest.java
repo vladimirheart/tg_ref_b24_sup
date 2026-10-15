@@ -3,6 +3,7 @@ package com.example.panel.service;
 import com.example.panel.support.PostgresqlJdbcTestSupport;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,44 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
             "src/main/resources/db/migration/postgresql/V52__ticket_public_locator.sql");
     private static final Path HISTORY_OWNER = Path.of(
             "src/main/resources/db/migration/postgresql/V53__chat_history_ticket_owner.sql");
+
+    @Test
+    void newestTicketsComeFirstAcrossBusinessesWithStablePageTies() throws Exception {
+        JdbcTemplate jdbc = freshSchema("business_scoped_ticket_chronology");
+        jdbc.update("INSERT INTO users(id, username) VALUES (1, 'all-reader')");
+        migrate(jdbc);
+        long sushi = businessId(jdbc, "sushi");
+        long bliny = businessId(jdbc, "bliny");
+        jdbc.update("INSERT INTO business_access_grants(user_id, grant_scope, role_code) "
+                + "VALUES (1, 'ALL_BUSINESSES', 'VIEWER')");
+        jdbc.update("INSERT INTO tickets(user_id, ticket_id, business_id, created_at) VALUES "
+                + "(1, 'old', ?, '2026-10-15T09:00:00Z'), "
+                + "(2, 'tie-a', ?, '2026-10-15T10:00:00Z'), "
+                + "(3, 'new', ?, '2026-10-15T11:00:00Z'), "
+                + "(4, 'tie-b', ?, '2026-10-15T10:00:00Z')", sushi, sushi, bliny, sushi);
+        String publicId = "0123456789abcdef0123456789abcdef";
+        jdbc.update("UPDATE tickets SET ticket_public_id = ? WHERE ticket_id = 'new'", publicId);
+
+        BusinessScopedTicketReadService service = new BusinessScopedTicketReadService(
+                jdbc, new BusinessAccessService(jdbc));
+        var all = BusinessAccessService.AllAccessibleBusinesses.INSTANCE;
+        assertThat(service.listTickets(1L, all, 50, 0))
+                .extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
+                .containsExactly("new", "tie-a", "tie-b", "old");
+        var first = service.pageTickets(1L, all, 2, 0, null, null);
+        assertThat(first.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
+                .containsExactly("new", "tie-a");
+        assertThat(first.hasMore()).isTrue();
+        var last = service.pageTickets(1L, all, 2, 2, null, null);
+        assertThat(last.tickets()).extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
+                .containsExactly("tie-b", "old");
+        assertThat(last.hasMore()).isFalse();
+        assertThat(service.exportTickets(1L, all, null, null, null))
+                .extracting(BusinessScopedTicketReadService.TicketRow::ticketId)
+                .containsExactly("new", "tie-a", "tie-b", "old");
+        assertThat(service.findByPublicId(1L, publicId).orElseThrow().createdAt())
+                .isEqualTo(OffsetDateTime.parse("2026-10-15T11:00:00Z"));
+    }
 
     @Test
     void historyUsesOnlyExplicitCompositeOwnerEvenWhenRawTicketIdCollides() throws Exception {
@@ -600,7 +639,9 @@ class BusinessScopedTicketReadServicePostgresIntegrationTest {
         jdbc.execute("CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL UNIQUE)");
         jdbc.execute("CREATE TABLE channels (id BIGINT PRIMARY KEY)");
         jdbc.execute("CREATE TABLE tickets (user_id BIGINT NOT NULL, ticket_id TEXT NOT NULL, "
-                + "group_msg_id BIGINT, status TEXT DEFAULT 'pending', PRIMARY KEY (user_id, ticket_id))");
+                + "group_msg_id BIGINT, status TEXT DEFAULT 'pending', "
+                + "created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT '2026-01-01T00:00:00Z', "
+                + "PRIMARY KEY (user_id, ticket_id))");
         jdbc.execute("CREATE TABLE messages (group_msg_id BIGINT PRIMARY KEY, user_id BIGINT, "
                 + "ticket_id TEXT, client_name TEXT, problem TEXT)");
         return jdbc;
